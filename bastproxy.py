@@ -86,18 +86,19 @@ import socket
 import time
 from libs.api import API as BASEAPI
 import libs.argp as argp
-
-# import io so we can add the "send" functions to the api
+# import libs.timing so that the timing functions are added to the api
+import libs.timing      # pylint: disable=unused-import
+# import io so the "send" functions are added to the api
 from libs import io      # pylint: disable=unused-import
 
 sys.stderr = sys.stdout
 
 API = BASEAPI()
 BASEAPI.starttime = time.localtime()
-BASEAPI.loading = True
+BASEAPI.startup = True
 
 
-def setuppaths():
+def setup_paths():
   """
   setup paths
   """
@@ -126,8 +127,9 @@ class Listener(asyncore.dispatcher):
     """
     init the class
 
-    required:
-      listen_port - the port to listen on
+    arguments:
+      required:
+        listen_port - the port to listen on
     """
     asyncore.dispatcher.__init__(self)
     self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -158,9 +160,9 @@ class Listener(asyncore.dispatcher):
     client_connection, source_addr = self.accept()
 
     try:
-      ipaddress = source_addr[0]
-      if API('clients.checkbanned')(ipaddress):
-        API('send.msg')("HOST: %s is banned" % ipaddress, 'net')
+      ip_address = source_addr[0]
+      if API('clients.checkbanned')(ip_address):
+        API('send.msg')("HOST: %s is banned" % ip_address, 'net')
         client_connection.close()
       elif API('clients.numconnected') == 5:
         API('send.msg')(
@@ -179,12 +181,15 @@ class Listener(asyncore.dispatcher):
     except Exception:   # pylint: disable=broad-except
       API('send.traceback')('Error handling client')
 
-
 def start(listen_port):
   """
   start the proxy
 
-  we do a single asyncore.loop then we check timers
+  we do a single asyncore.loop of .25 seconds, then we check timers
+
+  arguments:
+    required:
+      listen_port - the port to listen on
   """
   API('managers.add')('listener', Listener(listen_port))
 
@@ -209,7 +214,7 @@ def main():
   """
   the main function that runs everything
   """
-  setuppaths()
+  setup_paths()
 
   parser = argp.ArgumentParser(description='A python mud proxy')
   parser.add_argument('-p', "--port",
@@ -224,8 +229,8 @@ def main():
 
   API('send.msg')('Plugin Manager - loading', 'startup')
   from plugins import PluginMgr
-  pluginmgr = PluginMgr()
-  pluginmgr.load()
+  plugin_manager = PluginMgr()
+  plugin_manager.initialize()
   API('send.msg')('Plugin Manager - loaded', 'startup')
 
   API('log.adddtype')('net')
@@ -233,14 +238,14 @@ def main():
   API('log.adddtype')('inputparse')
   API('log.adddtype')('ansi')
 
-  proxyp = API('plugins.getp')('proxy')
+  proxy_plugin = API('plugins.getp')('proxy')
 
   if targs['port'] != 9999:
-    proxyp.api('setting.change')('listenport', targs['port'])
+    proxy_plugin.api('setting.change')('listenport', targs['port'])
 
-  listen_port = proxyp.api('setting.gets')('listenport')
+  listen_port = proxy_plugin.api('setting.gets')('listenport')
 
-  BASEAPI.loading = False
+  BASEAPI.startup = False
   if not daemon:
     try:
       start(listen_port)
