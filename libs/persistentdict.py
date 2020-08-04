@@ -24,7 +24,7 @@ def convert(tinput):
 
   return tinput
 
-def convertkeystoint(tdict):
+def convert_keys_to_int(tdict):
   """
   convert all keys in int if they are numbers
   """
@@ -37,7 +37,7 @@ def convertkeystoint(tdict):
       pass
     ndata = tdict[i]
     if isinstance(tdict[i], dict):
-      ndata = convertkeystoint(tdict[i])
+      ndata = convert_keys_to_int(tdict[i])
     new[nkey] = ndata
   return new
 
@@ -54,7 +54,7 @@ class PersistentDict(dict):
   All three serialization formats are backed by fast C implementations.
 
   '''
-  def __init__(self, filename, flag='c', mode=None,
+  def __init__(self, file_name, flag='c', mode=None,
                tformat='json', *args, **kwds):
     """
     initialize the instance
@@ -70,7 +70,7 @@ class PersistentDict(dict):
 
     # 'csv', 'json', or 'pickle'
     self.format = tformat
-    self.filename = filename
+    self.file_name = file_name
     self.pload()
     dict.__init__(self, *args, **kwds)
 
@@ -80,19 +80,19 @@ class PersistentDict(dict):
     """
     if self.flag == 'r':
       return
-    filename = self.filename
-    tempname = filename + '.tmp'
-    fileobj = open(tempname, 'wb' if self.format == 'pickle' else 'w')
+    file_name = self.file_name
+    temp_name = file_name + '.tmp'
+    file_object = open(temp_name, 'wb' if self.format == 'pickle' else 'w')
     try:
-      self.dump(fileobj)
+      self.dump(file_object)
     except Exception:
-      os.remove(tempname)
+      os.remove(temp_name)
       raise
     finally:
-      fileobj.close()
-    shutil.move(tempname, self.filename)    # atomic commit
+      file_object.close()
+    shutil.move(temp_name, self.file_name)    # atomic commit
     if self.mode is not None:
-      os.chmod(self.filename, self.mode)
+      os.chmod(self.file_name, self.mode)
 
   def close(self):
     """
@@ -112,19 +112,19 @@ class PersistentDict(dict):
     """
     self.close()
 
-  def dump(self, fileobj):
+  def dump(self, file_object):
     """
     dump the file
     """
     if self.format == 'csv':
-      csv.writer(fileobj).writerows(self.items())
+      csv.writer(file_object).writerows(self.items())
     elif self.format == 'json':
       try:
-        json.dump(self, fileobj, separators=(',', ':'), skipkeys=True)
+        json.dump(self, file_object, separators=(',', ':'), skipkeys=True)
       except TypeError:
         self.api('send.traceback')('Could not save object')
     elif self.format == 'pickle':
-      pickle.dump(dict(self), fileobj, 2)
+      pickle.dump(dict(self), file_object, 2)
     else:
       raise NotImplementedError('Unknown format: ' + repr(self.format))
 
@@ -133,8 +133,8 @@ class PersistentDict(dict):
     load from file
     """
     # try formats from most restrictive to least restrictive
-    if os.path.exists(self.filename):
-      if self.flag != 'n' and os.access(self.filename, os.R_OK):
+    if os.path.exists(self.file_name):
+      if self.flag != 'n' and os.access(self.file_name, os.R_OK):
         self.load()
 
   def load(self):
@@ -142,23 +142,23 @@ class PersistentDict(dict):
     load the dictionary
     """
     tstuff = {}
-    if not os.path.exists(self.filename):
+    if not os.path.exists(self.file_name):
       return
     try:
       if self.format == 'pickle':
-        with open(self.filename, 'rb') as tfile:
+        with open(self.file_name, 'rb') as tfile:
           tstuff = pickle.load(tfile)
       elif self.format == 'json':
-        with open(self.filename, 'r') as tfile:
+        with open(self.file_name, 'r') as tfile:
           tstuff = json.load(tfile, object_hook=convert)
 
-      nstuff = convertkeystoint(tstuff)
+      nstuff = convert_keys_to_int(tstuff)
       return self.update(nstuff)
 
     except Exception:  # pylint: disable=broad-except
-      #if 'log' not in self.filename:
+      #if 'log' not in self.file_name:
       self.api('send.traceback')("Error when loading %s from %s" % \
-                                    (self.format, self.filename))
+                                    (self.format, self.file_name))
       #else:
       #  pass
 
@@ -189,12 +189,12 @@ class PersistentDictEvent(PersistentDict):
   """
   a class to send events when a dictionary object is set
   """
-  def __init__(self, plugin, filename, *args, **kwds):
+  def __init__(self, plugin, file_name, *args, **kwds):
     """
     init the class
     """
     self.plugin = plugin
-    PersistentDict.__init__(self, filename, *args, **kwds)
+    PersistentDict.__init__(self, file_name, *args, **kwds)
 
   def __setitem__(self, key, val):
     """
@@ -202,28 +202,27 @@ class PersistentDictEvent(PersistentDict):
     """
     key = convert(key)
     val = convert(val)
+    old_value = None
     if key in self:
-      oldvalue = self.plugin.api('setting.gets')(key)
-    else:
-      oldvalue = None
-    if oldvalue != val:
+      old_value = self.plugin.api('setting.gets')(key)
+    if old_value != val:
       dict.__setitem__(self, key, val)
 
-      eventname = 'var_%s_%s' % (self.plugin.short_name, key)
+      event_name = 'var_%s_%s' % (self.plugin.short_name, key)
       if not self.plugin.reset_f and key != '_version':
-        self.plugin.api('events.eraise')(eventname,
+        self.plugin.api('events.eraise')(event_name,
                                          {'var':key,
                                           'newvalue':self.plugin.api('setting.gets')(key),
-                                          'oldvalue':oldvalue})
+                                          'oldvalue':old_value})
 
   def raiseall(self):
     """
     go through and raise a var_<plugin>_<variable> for each variable
     """
     for i in self:
-      eventname = 'var_%s_%s' % (self.plugin.short_name, i)
+      event_name = 'var_%s_%s' % (self.plugin.short_name, i)
       if not self.plugin.reset_f and i != '_version':
-        self.plugin.api('events.eraise')(eventname,
+        self.plugin.api('events.eraise')(event_name,
                                          {'var':i,
                                           'newvalue':self.plugin.api('setting.gets')(i),
                                           'oldvalue':'__init__'})
