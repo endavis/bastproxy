@@ -13,7 +13,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 35
 
-AUTOLOAD = True
+REQUIRED = True
 
 MCCP2 = chr(86)  # Mud Compression Protocol, v2
 
@@ -30,13 +30,15 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.api('dependency.add')('net.options')
 
-  def load(self):
-    BasePlugin.load(self)
+    self.can_reload_f = False
 
-    self.api('options.addserveroption')(self.sname, SERVER)
-    self.api('options.addclientoption')(self.sname, CLIENT)
+  def initialize(self):
+    BasePlugin.initialize(self)
+
+    self.api('options.addserveroption')(self.short_name, SERVER)
+    self.api('options.addclientoption')(self.short_name, CLIENT)
 
 class SERVER(BaseTelnetOption):
   """

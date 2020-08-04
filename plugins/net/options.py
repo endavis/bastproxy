@@ -12,7 +12,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 7
 
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -24,7 +24,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.options = {}
     self.optionsmod = {}
@@ -37,6 +37,8 @@ class Plugin(BasePlugin):
     self.api('api.add')('prepareclient', self.api_prepareclient)
     self.api('api.add')('prepareserver', self.api_prepareserver)
     self.api('api.add')('resetoptions', self.api_resetoptions)
+
+    self.dependencies = ['core.events', 'core.log', 'core.errors']
 
   # add a telnet option to the server
   def api_addserveroption(self, optionname, serveroption):
@@ -64,12 +66,12 @@ class Plugin(BasePlugin):
       return True
     return False
 
-  def load(self):
+  def initialize(self):
     """
-    load the module
+    initialize the plugin
     """
-    BasePlugin.load(self)
-    self.api('log.console')(self.sname)
+    BasePlugin.initialize(self)
+    self.api('log.console')(self.short_name)
 
   def plugin_loaded(self, args):
     """

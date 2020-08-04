@@ -4,6 +4,7 @@ This plugin will show information about connections to the proxy
 import time
 import os
 import sys
+import platform
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required
@@ -15,7 +16,7 @@ VERSION = 1
 PRIORITY = 35
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 
 class Plugin(BasePlugin):
@@ -28,7 +29,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('ssc')
+    self.api('dependency.add')('core.ssc')
 
     self.proxypw = None
     self.proxyvpw = None
@@ -37,11 +38,11 @@ class Plugin(BasePlugin):
     self.api('api.add')('restart', self.api_restart)
     self.api('api.add')('shutdown', self.api_shutdown)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('mudhost', '', str,
                             'the hostname/ip of the mud')
@@ -77,7 +78,7 @@ class Plugin(BasePlugin):
 
     self.api('events.register')('client_connected', self.client_connected)
     self.api('events.register')('mudconnect', self.sendusernameandpw)
-    self.api('events.register')('var_%s_listenport' % self.sname, self.listenportchange)
+    self.api('events.register')('var_%s_listenport' % self.short_name, self.listenportchange)
 
     ssc = self.api('ssc.baseclass')()
     self.proxypw = ssc('proxypw', self, desc='Proxy Password',
@@ -94,7 +95,7 @@ class Plugin(BasePlugin):
     """
     if self.api('setting.gets')('username') != '':
       self.api('send.mud')(self.api('setting.gets')('username'))
-      pasw = self.api('%s.mudpw' % self.sname)()
+      pasw = self.api('%s.mudpw' % self.short_name)()
       if pasw != '':
         self.api('send.mud')(pasw)
       self.api('send.mud')('\n')
@@ -115,6 +116,7 @@ class Plugin(BasePlugin):
     tmsg.append('@B-------------------  Proxy ------------------@w')
     tmsg.append(template % ('Started', started))
     tmsg.append(template % ('Uptime', uptime))
+    tmsg.append(template % ('Python Version', platform.python_version()))
     tmsg.append('')
     tmsg.append('@B-------------------   Mud  ------------------@w')
     if mud:
@@ -153,9 +155,12 @@ class Plugin(BasePlugin):
     disconnect from the mud
     """
     mud = self.api('managers.getm')('mud')
-    mud.handle_close()
+    if mud.connected:
+      mud.handle_close()
 
-    return True, ['Attempted to close the connection to the mud']
+      return True, ['Attempted to close the connection to the mud']
+    else:
+      return True, ['The proxy is not connected to the mud']
 
   def cmd_connect(self, args=None): # pylint: disable=unused-argument
     """
@@ -212,16 +217,16 @@ class Plugin(BasePlugin):
     else:
       tmsg.append(divider)
       tmsg.append('@R#BP@W: @GThe proxy is already connected to the mud@w')
-    if self.api('%s.proxypw' % self.sname)() == 'defaultpass':
+    if self.api('%s.proxypw' % self.short_name)() == 'defaultpass':
       tmsg.append(divider)
       tmsg.append('The proxy password is still the default password.')
       tmsg.append('Please set the proxy password!')
-      tmsg.append('#bp.%s.proxypw "This is a password"' % self.sname)
-    if self.api('%s.proxypwview' % self.sname)() == 'defaultviewpass':
+      tmsg.append('#bp.%s.proxypw "This is a password"' % self.short_name)
+    if self.api('%s.proxypwview' % self.short_name)() == 'defaultviewpass':
       tmsg.append(divider)
       tmsg.append('The proxy view password is still the default password.')
       tmsg.append('Please set the proxy view password!')
-      tmsg.append('#bp.%s.proxypwview "This is a view password"' % self.sname)
+      tmsg.append('#bp.%s.proxypwview "This is a view password"' % self.short_name)
     if tmsg[-1] != divider:
       tmsg.append(divider)
     if tmsg[0] != divider:
@@ -267,5 +272,5 @@ class Plugin(BasePlugin):
     """
     restart when the listen port changes
     """
-    if not self.api.loading:
+    if not self.api.startup:
       self.api('proxy.restart')()

@@ -18,7 +18,7 @@ VERSION = 1
 PRIORITY = 35
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 GMCP = chr(201)
 
@@ -42,7 +42,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.gmcpcache = {}
     self.modstates = {}
@@ -51,24 +51,26 @@ class Plugin(BasePlugin):
 
     self.reconnecting = False
 
+    self.api('dependency.add')('net.options')
+
     self.api('api.add')('sendmud', self.api_sendmud)
     self.api('api.add')('sendmodule', self.api_sendmodule)
     self.api('api.add')('togglemodule', self.api_togglemodule)
     self.api('api.add')('getv', self.api_getv)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('events.register')('GMCP_raw', self.gmcpfromserver)
     self.api('events.register')('GMCP_from_client', self.gmcpfromclient)
     self.api('events.register')('GMCP:server-enabled', self.gmcprequest)
     self.api('events.register')('muddisconnect', self.gmcpdisconnect)
 
-    self.api('options.addserveroption')(self.sname, SERVER)
-    self.api('options.addclientoption')(self.sname, CLIENT)
+    self.api('options.addserveroption')(self.short_name, SERVER)
+    self.api('options.addclientoption')(self.short_name, CLIENT)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='send something through GMCP')

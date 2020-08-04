@@ -13,7 +13,7 @@ VERSION = 1
 PRIORITY = 35
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -25,7 +25,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.clients = []
     self.vclients = []
@@ -36,11 +36,11 @@ class Plugin(BasePlugin):
     self.api('api.add')('checkbanned', self.api_checkbanned)
     self.api('api.add')('numconnected', self.api_numconnected)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('commands.add')('show',
                              self.cmd_show,

@@ -12,7 +12,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 35
 
-AUTOLOAD = True
+REQUIRED = True
 
 TTYPE = chr(24)  # Terminal Type
 
@@ -23,20 +23,22 @@ class Plugin(BasePlugin):
   """
   the plugin to handle the Terminal Type telnet option
   """
-  def __init__(self, tname, tsname, filename, directory, importloc):
+  def __init__(self, *args, **kwargs):
     # pylint: disable=too-many-arguments
     """
     Iniitilaize the class
     """
-    BasePlugin.__init__(self, tname, tsname, filename, directory, importloc)
+    BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.api('dependency.add')('net.options')
 
-  def load(self):
-    BasePlugin.load(self)
+    self.can_reload_f = False
 
-    self.api('options.addserveroption')(self.sname, SERVER)
-    self.api('options.addclientoption')(self.sname, CLIENT)
+  def initialize(self):
+    BasePlugin.initialize(self)
+
+    self.api('options.addserveroption')(self.short_name, SERVER)
+    self.api('options.addclientoption')(self.short_name, CLIENT)
 
 class SERVER(BaseTelnetOption):
   """
