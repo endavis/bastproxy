@@ -18,7 +18,7 @@ VERSION = 1
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 
 class Plugin(BasePlugin):
@@ -33,17 +33,17 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.variablefile = os.path.join(self.savedir, 'variables.txt')
+    self.variablefile = os.path.join(self.save_directory, 'variables.txt')
     self._variables = PersistentDict(self.variablefile, 'c')
     self.api('api.add')('getv', self.api_getv)
     self.api('api.add')('setv', self.api_setv)
     self.api('api.add')('replace', self.api_replace)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='add a variable')
@@ -87,7 +87,7 @@ class Plugin(BasePlugin):
     self.api('events.register')('io_execute_event',
                                 self.checkline,
                                 prio=1)
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   # get a variable
   def api_getv(self, varname):
@@ -138,7 +138,7 @@ class Plugin(BasePlugin):
       if 'trace' in args:
         args['trace']['changes'].append({'flag':'Modify',
                                          'data':'changed "%s" to "%s"' % (data, datan),
-                                         'plugin':self.sname})
+                                         'plugin':self.short_name})
 
       self.api('send.msg')('replacing "%s" with "%s"' % (data.strip(),
                                                          datan.strip()))

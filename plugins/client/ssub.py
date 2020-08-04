@@ -16,7 +16,7 @@ VERSION = 1
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 
 class Plugin(BasePlugin):
@@ -28,14 +28,14 @@ class Plugin(BasePlugin):
     initialize the instance
     """
     BasePlugin.__init__(self, *args, **kwargs)
-    self.savesubfile = os.path.join(self.savedir, 'subs.txt')
+    self.savesubfile = os.path.join(self.save_directory, 'subs.txt')
     self._substitutes = PersistentDict(self.savesubfile, 'c')
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='add a simple substitute')
@@ -80,7 +80,7 @@ class Plugin(BasePlugin):
     self.api('commands.default')('list')
     self.api('events.register')('from_mud_event', self.findsub)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def findsub(self, args):
     """
@@ -98,7 +98,7 @@ class Plugin(BasePlugin):
             args['trace']['changes'].append({'flag':'Modify',
                                              'data':'changed "%s" to "%s"' % \
                                                  (data, ndata),
-                                             'plugin':self.sname,
+                                             'plugin':self.short_name,
                                              'eventname':args['eventname']})
             data = ndata
       args['original'] = data

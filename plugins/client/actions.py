@@ -22,7 +22,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -34,21 +34,23 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = True
+    self.can_reload_f = True
 
     self.regexlookup = {}
     self.actiongroups = {}
     self.compiledregex = {}
     self.sessionhits = {}
 
-    self.saveactionsfile = os.path.join(self.savedir, 'actions.txt')
+    self.saveactionsfile = os.path.join(self.save_directory, 'actions.txt')
     self.actions = PersistentDict(self.saveactionsfile, 'c')
 
-  def load(self):
+    self.api('dependency.add')('core.triggers')
+
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('nextnum', 0, int,
                             'the number of the next action added',
@@ -163,7 +165,7 @@ class Plugin(BasePlugin):
     for action in self.actions.values():
       self.register_action(action)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def register_action(self, action):
     """
@@ -372,6 +374,7 @@ class Plugin(BasePlugin):
                                     self.sessionhits[action['regex']]))
         tmsg.append('%-12s : %s' % ('Regex', action['regex']))
         tmsg.append('%-12s : %s' % ('Action', action['action']))
+        tmsg.append('%-12s : %s' % ('Send To', action['send']))
         tmsg.append('%-12s : %s' % ('Group', action['group']))
         tmsg.append('%-12s : %s' % ('Match Color',
                                     action['matchcolor']))

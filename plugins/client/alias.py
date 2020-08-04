@@ -26,7 +26,7 @@ VERSION = 2
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 
 class Plugin(BasePlugin):
@@ -39,16 +39,16 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.aliasfile = os.path.join(self.savedir, 'aliases.txt')
+    self.aliasfile = os.path.join(self.save_directory, 'aliases.txt')
     self._aliases = PersistentDict(self.aliasfile, 'c')
 
     self.sessionhits = {}
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('nextnum', 0, int,
                             'the number of the next alias added',
@@ -136,7 +136,7 @@ class Plugin(BasePlugin):
     self.api('commands.default')('list')
     self.api('events.register')('io_execute_event', self.checkalias,
                                 prio=2)
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def checkalias(self, args): # pylint: disable=too-many-branches
     """
@@ -169,7 +169,7 @@ class Plugin(BasePlugin):
             args['trace']['changes'].append({'flag':'Modify',
                                              'data':'changed "%s" to "%s"' % \
                                                 (data, datan),
-                                             'plugin':self.sname})
+                                             'plugin':self.short_name})
           if not 'hits' in self._aliases[mem]:
             self._aliases[mem]['hits'] = 0
           if not mem in self.sessionhits:
