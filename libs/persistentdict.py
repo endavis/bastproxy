@@ -133,30 +133,35 @@ class PersistentDict(dict):
     load from file
     """
     # try formats from most restrictive to least restrictive
-    if self.flag != 'n' and os.access(self.filename, os.R_OK):
-      fileobj = open(self.filename, 'rb' if self.format == 'pickle' else 'r')
-      with fileobj:
-        self.load(fileobj)
+    if os.path.exists(self.filename):
+      if self.flag != 'n' and os.access(self.filename, os.R_OK):
+        self.load()
 
-  def load(self, fileobj):
+  def load(self):
     """
     load the dictionary
     """
-    for loader in (pickle.load, json.load, csv.reader):
-      fileobj.seek(0)
-      try:
-        if loader == json.load:
-          tstuff = loader(fileobj, object_hook=convert)
-          nstuff = convertkeystoint(tstuff)
-          return self.update(nstuff)
+    tstuff = {}
+    if not os.path.exists(self.filename):
+      return
+    try:
+      if self.format == 'pickle':
+        with open(self.filename, 'rb') as tfile:
+          tstuff = pickle.load(tfile)
+      elif self.format == 'json':
+        with open(self.filename, 'r') as tfile:
+          tstuff = json.load(tfile, object_hook=convert)
 
-        return self.update(loader(fileobj))
-      except Exception:  # pylint: disable=broad-except
-        #if not ('log' in self.filename):
-        #  api('send.traceback')("Error when loading %s" % loader)
-        #else:
-        #  pass
-        pass
+      nstuff = convertkeystoint(tstuff)
+      return self.update(nstuff)
+
+    except Exception:  # pylint: disable=broad-except
+      #if 'log' not in self.filename:
+      self.api('send.traceback')("Error when loading %s from %s" % \
+                                    (self.format, self.filename))
+      #else:
+      #  pass
+
     raise ValueError('File not in a supported format')
 
   def __setitem__(self, key, val):
@@ -204,8 +209,8 @@ class PersistentDictEvent(PersistentDict):
     if oldvalue != val:
       dict.__setitem__(self, key, val)
 
-      eventname = 'var_%s_%s' % (self.plugin.sname, key)
-      if not self.plugin.resetflag and key != '_version':
+      eventname = 'var_%s_%s' % (self.plugin.short_name, key)
+      if not self.plugin.reset_f and key != '_version':
         self.plugin.api('events.eraise')(eventname,
                                          {'var':key,
                                           'newvalue':self.plugin.api('setting.gets')(key),
@@ -216,8 +221,8 @@ class PersistentDictEvent(PersistentDict):
     go through and raise a var_<plugin>_<variable> for each variable
     """
     for i in self:
-      eventname = 'var_%s_%s' % (self.plugin.sname, i)
-      if not self.plugin.resetflag and i != '_version':
+      eventname = 'var_%s_%s' % (self.plugin.short_name, i)
+      if not self.plugin.reset_f and i != '_version':
         self.plugin.api('events.eraise')(eventname,
                                          {'var':i,
                                           'newvalue':self.plugin.api('setting.gets')(i),

@@ -2,30 +2,31 @@
 holds functions to import plugins and files
 """
 import os
-import fnmatch
 import sys
+import pkgutil
+from importlib import import_module
+from pathlib import Path
 
-def find_files(directory, filematch):
+def find_modules(directory, prefix):
   """
-  find files in a directory that match a filter
+  find all modules recursively in a directory
   """
   matches = []
-  if os.sep in filematch:
-    tstuff = filematch.split(os.sep)
-    directory = os.path.join(directory, tstuff[0])
-    filematch = tstuff[-1]
-  for root, _, filenames in os.walk(directory, followlinks=True):
-    for filename in fnmatch.filter(filenames, filematch):
-      matches.append(os.path.join(root, filename))
+  for (loader, module_name, ispkg) in \
+          pkgutil.walk_packages([Path(directory).as_posix()], prefix):
+
+    if not ispkg:
+      tmod = loader.find_module(module_name)
+      matches.append({'plugin_id':tmod.fullname.replace('plugins.', ''), 'fullpath':tmod.filename})
 
   return matches
 
-def get_module_name(modpath):
+def get_module_name(modulepath):
   """
   get a module name
   """
-  filename = os.path.basename(modpath)
-  dirname = os.path.dirname(modpath)
+  filename = os.path.basename(modulepath)
+  dirname = os.path.dirname(modulepath)
   base = dirname.replace(os.path.sep, '.')
   if base[0] == '.':
     base = base[1:]
@@ -39,72 +40,60 @@ def get_module_name(modpath):
 
   return value1, value2
 
-def findmodule(basepath, name):
-  """
-  find a module file
-  """
-  if '.' in name:
-    tlist = name.split('.')
-    name = tlist[-1]
-    del tlist[-1]
-    npath = os.sep.join(tlist)
-
-  _module_list = find_files(basepath, name + ".py")
-
-  if len(_module_list) == 1:
-    return _module_list[0], basepath
-  else:
-    for i in _module_list:
-      if npath in i:
-        return i, basepath
-
-  return '', ''
-
 # import a module
-def importmodule(modpath, basepath, plugin, impbase, silent=False):
+def importmodule(modulepath, basepath, plugin, impbase, silent=False):
   """
   import a single module
   """
   _module = None
-  if basepath in modpath:
-    modpath = modpath.replace(basepath, '')
+  if basepath in modulepath:
+    modulepath = modulepath.replace(basepath, '')
 
-  imploc, modname = get_module_name(modpath)
-  fullimploc = impbase + '.' + imploc
+  imploc, modname = get_module_name(modulepath)
+  full_import_location = impbase + '.' + imploc
 
   if modname.startswith("_"):
     if not silent:
       plugin.api('send.msg')('did not import %s because it is in development' % \
-                               fullimploc)
-    return False, 'dev', _module, fullimploc
+                               full_import_location, primary=plugin.short_name)
+    return False, 'dev module', _module, full_import_location
 
   try:
-    if fullimploc in sys.modules:
+    if full_import_location in sys.modules:
       return (True, 'already',
-              sys.modules[fullimploc], fullimploc)
+              sys.modules[full_import_location], full_import_location)
 
     if not silent:
-      plugin.api('send.msg')('importing %s' % fullimploc, primary='plugins')
-    _module = __import__(fullimploc)
-    _module = sys.modules[fullimploc]
+      plugin.api('send.msg')('%-30s : attempting import' % \
+                              full_import_location.replace('plugins.', ''), primary=plugin.short_name)
+    _module = import_module(full_import_location)
+
     if not silent:
-      plugin.api('send.msg')('imported %s' % fullimploc, primary='plugins')
-    return True, 'import', _module, fullimploc
+      plugin.api('send.msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
+                                primary=plugin.short_name)
+    return True, 'import', _module, full_import_location
 
   except Exception: # pylint: disable=broad-except
-    if fullimploc in sys.modules:
-      del sys.modules[fullimploc]
+    if full_import_location in sys.modules:
+      del sys.modules[full_import_location]
 
     plugin.api('send.traceback')(
-        "Module '%s' refuses to import/load." % fullimploc)
-    return False, 'error', _module, fullimploc
+        "Module '%s' refuses to import/load." % full_import_location)
+    return False, 'error', _module, full_import_location
 
-def deletemodule(fullimploc):
+def deletemodule(full_import_location, modulestokeep=None):
   """
   delete a module
   """
-  if fullimploc in sys.modules:
-    del sys.modules[fullimploc]
+  nmodulestokeep = ['baseplugin', 'baseconfig']
+  if modulestokeep:
+    nmodulestokeep.extend(modulestokeep)
+  keep = [True for item in modulestokeep if item in full_import_location]
+  if keep:
+    return False
+
+  if full_import_location in sys.modules:
+    del sys.modules[full_import_location]
     return True
 
   return False

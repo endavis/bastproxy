@@ -46,8 +46,8 @@ class API(object):
   # bastproxy.py
   BASEPATH = ''
 
-  # a flag to show that bastproxy is loading
-  loading = False
+  # a flag to show that bastproxy is starting up
+  startup = False
 
   # a flag to show that bastproxy is shutting down
   shutdown = False
@@ -56,6 +56,9 @@ class API(object):
   MANAGERS = {}
 
   starttime = ''
+
+  # this will hold event descriptions and usage
+  eventdesc = {}
 
   def __init__(self):
     """
@@ -96,7 +99,42 @@ class API(object):
       self('api.add')('api', 'pluginstack', self.api_pluginstack)
     if not self('api.has')('api.callstack'):
       self('api.add')('api', 'callstack', self.api_callstack)
+    if not self('api.has')('api.simplecallstack'):
+      self('api.add')('api', 'simplecallstack', self.api_simple_callstack)
+    if not self('api.has')('api.addeventdesc'):
+      self('api.add')('api', 'addeventdesc', self._api_addeventdesc)
 
+  def _api_addeventdesc(self, raisedevent):
+    """
+    add an event description
+    """
+    self.eventdesc[raisedevent.name] = raisedevent
+
+  @staticmethod
+  def api_simple_callstack():
+    """
+    build a simple callstack of level, module, funcion name
+
+    Example:
+    6 :          libs.io           : _api_execute
+    5 :    plugins.core.events     : api_eraise
+    4 :    plugins.core.events     : eraise
+    3 :    plugins.core.events     : execute
+    2 :       libs.net.proxy       : addtooutbuffer
+    """
+    stack = inspect.stack()
+
+    modules = [(index, inspect.getmodule(stack[index][0]))
+               for index in reversed(range(1, len(stack)))]
+
+    callers = []
+    for index, module in modules:
+      callers.append({'index':index,
+                      'module':module.__name__,
+                      'file':module.__file__,
+                      'name':stack[index][3]})
+
+    return callers
 
   def api_callstack(self, ignores=None):
     # pylint: disable=line-too-long
@@ -154,13 +192,13 @@ class API(object):
         # TODO: there seems to be no way to detect static method call - it will
         #      be just a function call
         tcs = parentframe.f_locals['self']
-        if tcs != self and isinstance(tcs, BasePlugin) and tcs.sname not in skipplugin:
-          if tcs.sname not in plugins:
-            plugins.append(tcs.sname)
+        if tcs != self and isinstance(tcs, BasePlugin) and tcs.short_name not in skipplugin:
+          if tcs.short_name not in plugins:
+            plugins.append(tcs.short_name)
         if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                and tcs.plugin.sname not in skipplugin:
-          if tcs.plugin.sname not in plugins:
-            plugins.append(tcs.plugin.sname)
+                and tcs.plugin.short_name not in skipplugin:
+          if tcs.plugin.short_name not in plugins:
+            plugins.append(tcs.plugin.short_name)
 
     del stack
 
@@ -197,11 +235,11 @@ class API(object):
         # TODO: there seems to be no way to detect static method call - it will
         #      be just a function call
         tcs = parentframe.f_locals['self']
-        if tcs != self and isinstance(tcs, BasePlugin) and tcs.sname not in skipplugin:
-          return tcs.sname
+        if tcs != self and isinstance(tcs, BasePlugin) and tcs.short_name not in skipplugin:
+          return tcs.short_name
         if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                and tcs.plugin.sname not in skipplugin:
-          return tcs.plugin.sname
+                and tcs.plugin.short_name not in skipplugin:
+          return tcs.plugin.short_name
 
     del stack
     return None
