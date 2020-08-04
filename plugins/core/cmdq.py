@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
     """
     beforef = None
     afterf = None
-    plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
+    plugin = self.api('api.callerplugin')(ignore_plugin_list=[self.short_name])
     if 'beforef' in kwargs:
       beforef = kwargs['beforef']
     if 'afterf' in kwargs:
@@ -161,7 +161,7 @@ class Plugin(BasePlugin):
     """
     add a command to the queue
     """
-    plugin = self.api('api.callerplugin')(skipplugin=['cmdq'])
+    plugin = self.api('api.callerplugin')(ignore_plugin_list=['cmdq'])
     cmd = self.cmds[cmdtype]['cmd']
     if arguments:
       cmd = cmd + ' ' + str(arguments)

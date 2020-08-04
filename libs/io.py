@@ -78,7 +78,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     try:
       self.api('log.msg')(tmsg, tags=tags)
     except (AttributeError, RuntimeError): #%s - %-10s :
-      print('%s - %-10s : %s' % (time.strftime(self.api.timestring,
+      print('%s - %-10s : %s' % (time.strftime(self.api.time_format,
                                                time.localtime()),
                                  primary or plugin, tmsg))
 
@@ -119,7 +119,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     self.api('send.msg')(tmsg, primary='error', secondary=secondary)
 
     try:
-      self.api('errors.add')(time.strftime(self.api.timestring,
+      self.api('errors.add')(time.strftime(self.api.time_format,
                                            time.localtime()),
                              tmsg)
     except (AttributeError, TypeError):
@@ -222,7 +222,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           tcommand = tcommand.strip()
 
         if tcommand:
-          datalist = re.split(self.api.splitre, tcommand)
+          datalist = re.split(self.api.split_regex, tcommand)
           if len(datalist) > 1:
             self.api('send.msg')('broke %s into %s' % (tcommand, datalist),
                                  primary='inputparse')

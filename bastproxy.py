@@ -94,7 +94,7 @@ from libs import io      # pylint: disable=unused-import
 sys.stderr = sys.stdout
 
 API = BASEAPI()
-BASEAPI.starttime = time.localtime()
+BASEAPI.proxy_start_time = time.localtime()
 BASEAPI.startup = True
 
 

@@ -108,9 +108,9 @@ class Plugin(BasePlugin):
     template = "%-15s : %s"
     mud = self.api('managers.getm')('mud')
     tmsg = ['']
-    started = time.strftime(self.api.timestring, self.api.starttime)
+    started = time.strftime(self.api.time_format, self.api.proxy_start_time)
     uptime = self.api('utils.timedeltatostring')(
-        self.api.starttime,
+        self.api.proxy_start_time,
         time.localtime())
 
     tmsg.append('@B-------------------  Proxy ------------------@w')
@@ -122,7 +122,7 @@ class Plugin(BasePlugin):
     if mud:
       if mud.connectedtime:
         tmsg.append(template % ('Connected',
-                                time.strftime(self.api.timestring,
+                                time.strftime(self.api.time_format,
                                               mud.connectedtime)))
         tmsg.append(template % ('Uptime', self.api('utils.timedeltatostring')(
             mud.connectedtime,

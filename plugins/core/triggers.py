@@ -200,7 +200,7 @@ class Plugin(BasePlugin):
 
     this function returns no values"""
     if not plugin:
-      plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
+      plugin = self.api('api.callerplugin')(ignore_plugin_list=[self.short_name])
 
     if not plugin:
       print('could not add a trigger for triggername', triggername)
@@ -307,7 +307,7 @@ class Plugin(BasePlugin):
       return True
     else:
       if not plugin:
-        plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
+        plugin = self.api('api.callerplugin')(ignore_plugin_list=[self.short_name])
       self.api('send.msg')('deletetrigger: trigger %s does not exist' % \
                         triggername, secondary=plugin)
       return False

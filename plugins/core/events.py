@@ -325,7 +325,7 @@ class Plugin(BasePlugin):
     try:
       funcplugin = func.im_self.short_name
     except AttributeError:
-      funcplugin = self.api('api.callerplugin')(skipplugin=['events'])
+      funcplugin = self.api('api.callerplugin')(ignore_plugin_list=['events'])
     if not funcplugin and 'plugin' in kwargs:
       funcplugin = kwargs['plugin']
 
@@ -372,7 +372,7 @@ class Plugin(BasePlugin):
       args = {}
 
     if not calledfrom:
-      calledfrom = self.api('api.callerplugin')(skipplugin=['events'])
+      calledfrom = self.api('api.callerplugin')(ignore_plugin_list=['events'])
 
     if not calledfrom:
       print('event %s raised with unknown caller' % eventname)

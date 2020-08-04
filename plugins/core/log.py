@@ -35,7 +35,7 @@ class Plugin(BasePlugin):
     #print('log api.api', self.api.api)
     #print('log basepath', self.api.BASEPATH)
     self.save_directory = os.path.join(self.api.BASEPATH, 'data',
-                                'plugins', self.short_name)
+                                       'plugins', self.short_name)
     self.logdir = os.path.join(self.api.BASEPATH, 'data', 'logs')
     #print('logdir', self.logdir)
     try:
@@ -97,8 +97,8 @@ class Plugin(BasePlugin):
       data = self.api('colors.stripansi')(data)
 
     tfile = os.path.join(self.logdir, dtype,
-                          time.strftime(self.sendtofile[dtype]['file'],
-                                        time.localtime()))
+                         time.strftime(self.sendtofile[dtype]['file'],
+                                       time.localtime()))
     if not os.path.exists(os.path.join(self.logdir, dtype)):
       os.makedirs(os.path.join(self.logdir, dtype, 'archive'))
     if (dtype not in self.currentlogs) or \
@@ -116,7 +116,7 @@ class Plugin(BasePlugin):
 
     if self.sendtofile[dtype]['timestamp']:
       tstring = '%s : ' % \
-            (time.strftime(self.api.timestring, time.localtime()))
+            (time.strftime(self.api.time_format, time.localtime()))
       data = tstring + data
 
     if self.api('api.has')('colors.stripansi'):
@@ -148,7 +148,7 @@ class Plugin(BasePlugin):
     senttoconsole = False
     senttoclient = False
 
-    ttime = time.strftime(self.api.timestring, time.localtime())
+    ttime = time.strftime(self.api.time_format, time.localtime())
 
     self.logtofile(msg, 'default')
 
