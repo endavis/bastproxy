@@ -19,7 +19,7 @@ PURPOSE = 'examples for using the a102 plugin'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(BasePlugin):
   """
@@ -31,11 +31,13 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-  def load(self):
+    self.api('dependency.add')('aardwolf.A102')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('events.register')('A102', self.test)
     self.api('events.register')('A102:101', self.test101)

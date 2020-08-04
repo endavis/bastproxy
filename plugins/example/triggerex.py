@@ -15,7 +15,7 @@ PURPOSE = 'examples for using triggers'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(BasePlugin):
   """
@@ -27,11 +27,13 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-  def load(self):
+    self.api('dependency.add')('core.triggers')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('triggers.add')(
         'example_trigger',
