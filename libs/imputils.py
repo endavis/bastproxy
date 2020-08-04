@@ -21,16 +21,16 @@ def find_modules(directory, prefix):
 
   return matches
 
-def get_module_name(modulepath):
+def get_module_name(module_path):
   """
   get a module name
   """
-  filename = os.path.basename(modulepath)
-  dirname = os.path.dirname(modulepath)
-  base = dirname.replace(os.path.sep, '.')
+  file_name = os.path.basename(module_path)
+  directory_name = os.path.dirname(module_path)
+  base = directory_name.replace(os.path.sep, '.')
   if base[0] == '.':
     base = base[1:]
-  mod = os.path.splitext(filename)[0]
+  mod = os.path.splitext(file_name)[0]
   if not base:
     value1 = '.'.join([mod])
     value2 = mod
@@ -41,18 +41,18 @@ def get_module_name(modulepath):
   return value1, value2
 
 # import a module
-def importmodule(modulepath, basepath, plugin, impbase, silent=False):
+def importmodule(module_path, base_path, plugin, import_base, silent=False):
   """
   import a single module
   """
   _module = None
-  if basepath in modulepath:
-    modulepath = modulepath.replace(basepath, '')
+  if base_path in module_path:
+    module_path = module_path.replace(base_path, '')
 
-  imploc, modname = get_module_name(modulepath)
-  full_import_location = impbase + '.' + imploc
+  imploc, module_name = get_module_name(module_path)
+  full_import_location = import_base + '.' + imploc
 
-  if modname.startswith("_"):
+  if module_name.startswith("_"):
     if not silent:
       plugin.api('send.msg')('did not import %s because it is in development' % \
                                full_import_location, primary=plugin.short_name)
@@ -81,14 +81,14 @@ def importmodule(modulepath, basepath, plugin, impbase, silent=False):
         "Module '%s' refuses to import/load." % full_import_location)
     return False, 'error', _module, full_import_location
 
-def deletemodule(full_import_location, modulestokeep=None):
+def deletemodule(full_import_location, modules_to_keep=None):
   """
   delete a module
   """
-  nmodulestokeep = ['baseplugin', 'baseconfig']
-  if modulestokeep:
-    nmodulestokeep.extend(modulestokeep)
-  keep = [True for item in modulestokeep if item in full_import_location]
+  all_modules_to_keep = ['baseplugin', 'baseconfig']
+  if modules_to_keep:
+    all_modules_to_keep.extend(modules_to_keep)
+  keep = [True for item in modules_to_keep if item in full_import_location]
   if keep:
     return False
 
