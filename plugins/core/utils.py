@@ -15,7 +15,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 12
 
-AUTOLOAD = True
+REQUIRED = True
 
 TIMELENGTH_REGEXP = re.compile(r"^(?P<days>((\d*\.\d+)|\d+)+d)?" \
                                r":?(?P<hours>((\d*\.\d+)|\d+)+h)?" \
@@ -43,11 +43,13 @@ class Plugin(BasePlugin):
     self.api('api.add')('verify', self.api_verify)
     self.api('api.add')('listtocolumns', self.listtocolumns)
 
-  def load(self):
+    self.dependencies = ['core.colors']
+
+  def initialize(self):
     """
-    load the plugins
+    load the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
   @staticmethod
   def listtocolumns(obj, cols=4, columnwise=True, gap=4):

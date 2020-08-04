@@ -4,13 +4,13 @@ This plugin handles events.
 
 ## Using
 ### Registering an event from a plugin
- * ```self.api('events.register')(eventname, function)```
+ * ```self.api('events.register')(eventname, function, prio=50)```
 
 ### Unregistering an event
  * ```self.api('events.unregister')(eventname, function)```
 
 ### Raising an event
- * ```self.api('events.eraise')(eventname, argdictionary)```
+ * ```self.api('events.eraise')(eventname, eventdictionary)```
 """
 from __future__ import print_function
 import libs.argp as argp
@@ -23,7 +23,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 3
 
-AUTOLOAD = True
+REQUIRED = True
 
 class EFunc(object): # pylint: disable=too-few-public-methods
   """
@@ -195,7 +195,11 @@ class EventContainer(object):
         for eventfunc in self.priod[prio][:]:
           try:
             tnargs = eventfunc.execute(nargs)
-            if tnargs:
+            if tnargs and not isinstance(tnargs, dict):
+              self.api('send.msg')(
+                  "Event: %s with function %s returned a nondict object" % \
+                    (self.name, eventfunc.name))
+            if tnargs and isinstance(tnargs, dict):
               nargs = tnargs
           except Exception:  # pylint: disable=broad-except
             self.api('send.traceback')(
@@ -212,7 +216,7 @@ class Plugin(BasePlugin):
 
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.numglobalraised = 0
     self.eventstats = {}
@@ -228,13 +232,15 @@ class Plugin(BasePlugin):
     self.api('api.add')('gete', self.api_getevent)
     self.api('api.add')('detail', self.api_detail)
 
-  def load(self):
+    self.dependencies = ['core.errors']
+
+  def initialize(self):
     """
-    load the module
+    initialize the plugin
     """
-    BasePlugin.load(self)
-    self.api('events.register')('log_plugin_loaded', self.logloaded)
-    self.api('events.eraise')('event_plugin_loaded', {})
+    BasePlugin.initialize(self)
+    self.api('events.register')('plugin_log_loaded', self.logloaded)
+    #self.api('events.eraise')('event_plugin_loaded', {})
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get details of an event')
@@ -275,7 +281,7 @@ class Plugin(BasePlugin):
     """
     self.api('send.msg')('removing events for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
   # return the event, will have registered functions
   def api_getevent(self, eventname):
@@ -317,7 +323,7 @@ class Plugin(BasePlugin):
     else:
       prio = kwargs['prio']
     try:
-      funcplugin = func.im_self.sname
+      funcplugin = func.im_self.short_name
     except AttributeError:
       funcplugin = self.api('api.callerplugin')(skipplugin=['events'])
     if not funcplugin and 'plugin' in kwargs:
@@ -403,9 +409,9 @@ class Plugin(BasePlugin):
         @Yeventname@w  = the eventname to raise
     """
     tmsg = []
-    event = self.api('%s.gete' % self.sname)(args['event'])
+    event = self.api('%s.gete' % self.short_name)(args['event'])
     if event:
-      self.api('%s.eraise' % self.sname)(args['event'])
+      self.api('%s.eraise' % self.short_name)(args['event'])
       tmsg.append('raised event: %s' % args['event'])
     else:
       tmsg.append('event does not exist: %s' % args['event'])
@@ -449,22 +455,22 @@ class Plugin(BasePlugin):
     """
     initialize the event log types
     """
-    self.api('log.adddtype')(self.sname)
-    #self.api('log.console')(self.sname)
+    self.api('log.adddtype')(self.short_name)
+    #self.api('log.console')(self.short_name)
 
   def summarystats(self, args=None):
     # pylint: disable=unused-argument
     """
     return a one line stats summary
     """
-    return self.summarytemplate % ("Events", "Total: %d   Raised: %d" % \
+    return self.summary_template % ("Events", "Total: %d   Raised: %d" % \
                                     (len(self.events), self.numglobalraised))
 
-  def getstats(self):
+  def get_stats(self):
     """
     return stats for events
     """
-    stats = BasePlugin.getstats(self)
+    stats = BasePlugin.get_stats(self)
     stats['Events'] = {}
     stats['Events']['showorder'] = ['Total', 'Raised']
     stats['Events']['Total'] = len(self.events)

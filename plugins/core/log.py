@@ -18,7 +18,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 5
 
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -30,27 +30,27 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     #print('log api.api', self.api.api)
     #print('log basepath', self.api.BASEPATH)
-    self.savedir = os.path.join(self.api.BASEPATH, 'data',
-                                'plugins', self.sname)
+    self.save_directory = os.path.join(self.api.BASEPATH, 'data',
+                                'plugins', self.short_name)
     self.logdir = os.path.join(self.api.BASEPATH, 'data', 'logs')
     #print('logdir', self.logdir)
     try:
-      os.makedirs(self.savedir)
+      os.makedirs(self.save_directory)
     except OSError:
       pass
     self.dtypes = {}
     self.sendtoclient = PersistentDict(
-        os.path.join(self.savedir, 'sendtoclient.txt'),
+        os.path.join(self.save_directory, 'sendtoclient.txt'),
         'c')
     self.sendtoconsole = PersistentDict(
-        os.path.join(self.savedir, 'sendtoconsole.txt'),
+        os.path.join(self.save_directory, 'sendtoconsole.txt'),
         'c')
     self.sendtofile = PersistentDict(
-        os.path.join(self.savedir, 'sendtofile.txt'),
+        os.path.join(self.save_directory, 'sendtofile.txt'),
         'c')
     self.currentlogs = {}
     self.colors = {}
@@ -84,12 +84,14 @@ class Plugin(BasePlugin):
     self.api('log.console')('startup')
     self.api('log.console')('shutdown')
 
+    self.dependencies = ['core.events']
+
   def api_writefile(self, dtype, data, stripcolor=False):
     """
     write directly to a file
     """
     if dtype not in self.sendtofile:
-      self.api('%s.file' % self.sname)(dtype)
+      self.api('%s.file' % self.short_name)(dtype)
 
     if stripcolor and self.api('api.has')('colors.stripansi'):
       data = self.api('colors.stripansi')(data)
@@ -197,7 +199,7 @@ class Plugin(BasePlugin):
     """
     #print('logging', dtype)
     if dtype in self.sendtofile and self.sendtofile[dtype]['file']:
-      return self.api('%s.writefile'% self.sname)(dtype, msg, stripcolor)
+      return self.api('%s.writefile'% self.short_name)(dtype, msg, stripcolor)
 
     return False
 
@@ -253,7 +255,7 @@ class Plugin(BasePlugin):
       self.sendtoconsole[datatype] = flag
 
     self.api('send.msg')('setting %s to log to console' % \
-                      datatype, self.sname)
+                      datatype, self.short_name)
 
     self.sendtoconsole.sync()
 
@@ -300,7 +302,7 @@ class Plugin(BasePlugin):
                                    'timestamp':timestamp}
       self.api('send.msg')('setting %s to log to %s' % \
                       (datatype, self.sendtofile[datatype]['file']),
-                           self.sname)
+                           self.short_name)
     self.sendtofile.sync()
 
   # toggle a datatype to log to a file
@@ -381,18 +383,18 @@ class Plugin(BasePlugin):
       self.logtofile(data, 'frommud', stripcolor=False)
     return args
 
-  def load(self):
+  def initialize(self):
     """
-    load external stuff
+    initialize external stuff
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     #print('log api before adding', self.api.api)
 
     #print('log api after adding', self.api.api)
     self.api('events.register')('from_mud_event', self.logmud)
     self.api('events.register')('to_mud_event', self.logmud)
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description="""\

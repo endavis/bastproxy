@@ -14,7 +14,7 @@ VERSION = 1
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -26,7 +26,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.regexlookup = {}
     self.watchcmds = {}
@@ -35,11 +35,11 @@ class Plugin(BasePlugin):
     self.api('api.add')('remove', self.api_removewatch)
     self.api('api.add')('removeplugin', self.api_removeplugin)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     #self.api('commands.add')('detail', self.cmd_detail,
                                  #shelp='details of an event')
@@ -74,7 +74,7 @@ class Plugin(BasePlugin):
     """
     self.api('send.msg')('removing watches for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
   def cmd_list(self, args):
     """
@@ -216,7 +216,7 @@ class Plugin(BasePlugin):
             data['trace']['changes'].append({'cmd':tdat,
                                              'flag':'modify',
                                              'newcmd':tdata['changed'],
-                                             'plugin':self.sname})
+                                             'plugin':self.short_name})
           data['nfromdata'] = tdata['changed']
 
     if 'nfromdata' in data:

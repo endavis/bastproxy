@@ -21,7 +21,7 @@ VERSION = 1
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -33,7 +33,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.triggers = {}
     self.regexlookup = {}
@@ -53,15 +53,15 @@ class Plugin(BasePlugin):
     self.api('api.add')('removeplugin', self.api_removeplugin)
     self.api('api.add')('update', self.api_update)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('enabled', 'True', bool,
                             'enable triggers')
-    self.api('events.register')('var_%s_echo' % self.sname, self.enablechange)
+    self.api('events.register')('var_%s_echo' % self.short_name, self.enablechange)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get details of a trigger')
@@ -104,7 +104,7 @@ class Plugin(BasePlugin):
     """
     a plugin was unloaded
     """
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
   def rebuildregexes(self):
     """
@@ -128,7 +128,9 @@ class Plugin(BasePlugin):
       self.api('send.traceback')('Could not compile color regex')
 
     try:
+      # print("|".join(noncolorres))
       self.regex['noncolor'] = re.compile("|".join(noncolorres))
+      # print(self.regex['noncolor'])
     except re.error:
       self.api('send.traceback')('Could not compile regex')
 
@@ -198,7 +200,7 @@ class Plugin(BasePlugin):
 
     this function returns no values"""
     if not plugin:
-      plugin = self.api('api.callerplugin')(skipplugin=[self.sname])
+      plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
 
     if not plugin:
       print('could not add a trigger for triggername', triggername)
@@ -305,7 +307,7 @@ class Plugin(BasePlugin):
       return True
     else:
       if not plugin:
-        plugin = self.api('api.callerplugin')(skipplugin=[self.sname])
+        plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
       self.api('send.msg')('deletetrigger: trigger %s does not exist' % \
                         triggername, secondary=plugin)
       return False
@@ -397,43 +399,58 @@ class Plugin(BasePlugin):
         noncolormatch = self.regex['noncolor'].match(data)
       else:
         noncolormatch = None
-      if colormatch or noncolormatch:
-        matches = []
-        triggers = sorted(self.uniquelookup,
-                          key=lambda item: self.uniquelookup[item]['priority'])
-        enabledt = [trig for trig in triggers if self.uniquelookup[trig]['enabled']]
-        for trig in enabledt:
-          if trig in self.uniquelookup:
-            match = None
-            if colormatch:
-              groups = colormatch.groupdict()
-              if trig in groups and groups[trig]:
-                self.api('send.msg')('color matched line %s to trigger %s' % (colordata,
-                                                                              trig))
-                match = self.uniquelookup[trig]['compiled'].match(colordata)
-            elif noncolormatch:
-              groups = noncolormatch.groupdict()
-              if trig in groups and groups[trig]:
-                self.api('send.msg')('matched line %s to trigger %s' % (data, trig))
-                match = self.uniquelookup[trig]['compiled'].match(data)
-            if match:
-              targs = match.groupdict()
-              matches.append(trig)
-              if 'argtypes' in self.uniquelookup[trig]:
-                for arg in self.uniquelookup[trig]['argtypes']:
-                  if arg in targs:
-                    targs[arg] = self.uniquelookup[trig]['argtypes'][arg](targs[arg])
-              targs['line'] = data
-              targs['colorline'] = colordata
-              targs['triggername'] = self.uniquelookup[trig]['name']
-              self.uniquelookup[trig]['hits'] = self.uniquelookup[trig]['hits'] + 1
-              args = self.raisetrigger(targs['triggername'], targs, args)
-              if trig in self.uniquelookup:
-                if self.uniquelookup[trig]['stopevaluating']:
-                  break
+      if colormatch:
+        colormatchg = {k: v for k, v in colormatch.groupdict().items() if v is not None}
+      else:
+        colormatchg = {}
+      if noncolormatch:
+        noncolormatchg = {k: v for k, v in noncolormatch.groupdict().items() \
+                                  if v is not None}
+      else:
+        noncolormatchg = {}
 
-        if len(matches) > 1:
-          self.api('send.error')('line %s matched multiple triggers %s' % (data, matches))
+      # build a set of match trigger names
+      trigsmatch = set(colormatchg.keys()) | set(noncolormatchg.keys())
+
+      if trigsmatch:
+        self.api('send.msg')('line %s matched the following triggers %s' % \
+                              (data, trigsmatch))
+        for trig in trigsmatch:
+          match = None
+          if trig not in self.uniquelookup or \
+              not self.uniquelookup[trig]['enabled']:
+            continue
+          if trig in colormatchg:
+            self.api('send.msg')('color matched line %s to trigger %s' % (colordata,
+                                                                          trig))
+            match = self.uniquelookup[trig]['compiled'].match(colordata)
+          elif trig in noncolormatchg:
+            self.api('send.msg')('noncolor matched line %s to trigger %s' % (data,
+                                                                            trig))
+            match = self.uniquelookup[trig]['compiled'].match(data)
+          if match:
+            targs = match.groupdict()
+            if 'argtypes' in self.uniquelookup[trig]:
+              for arg in self.uniquelookup[trig]['argtypes']:
+                if arg in targs:
+                  targs[arg] = self.uniquelookup[trig]['argtypes'][arg](targs[arg])
+            targs['line'] = data
+            targs['colorline'] = colordata
+            targs['triggername'] = self.uniquelookup[trig]['name']
+            self.uniquelookup[trig]['hits'] = self.uniquelookup[trig]['hits'] + 1
+            args = self.raisetrigger(targs['triggername'], targs, args)
+            if trig in self.uniquelookup:
+              if self.uniquelookup[trig]['stopevaluating']:
+                break
+
+          if len(trigsmatch) > 1:
+            self.api('send.error')('line %s matched multiple triggers %s' % \
+                                      (data, trigsmatch))
+
+      else:
+        self.api('send.msg')('no triggers matched for %s' % \
+                              (data))
+
 
     self.raisetrigger('all', {'line':data, 'triggername':'all'}, args)
     return args
@@ -457,19 +474,19 @@ class Plugin(BasePlugin):
       origargs['trace']['changes'].append({'flag':'Modify',
                                            'data':'trigger "%s" changed "%s" to "%s"' % \
                                               (triggername, origargs['original'], ndata),
-                                           'plugin':self.sname})
+                                           'plugin':self.short_name})
       origargs['original'] = ndata
 
     if (tdat and 'omit' in tdat and tdat['omit']) or \
        (triggername in self.triggers and self.triggers[triggername]['omit']):
-      plugin = self.sname
+      plugin = self.short_name
       if triggername in self.triggers:
         plugin = self.triggers[triggername]['plugin']
       origargs['trace']['changes'].append(
           {'flag':'Omit',
            'data':'by trigger "%s" added by plugin "%s"' % \
               (triggername, plugin),
-           'plugin':self.sname,})
+           'plugin':self.short_name,})
       origargs['original'] = ""
       origargs['omit'] = True
 
@@ -497,11 +514,11 @@ class Plugin(BasePlugin):
 
     return True, tmsg
 
-  def getstats(self):
+  def get_stats(self):
     """
     return stats for this plugin
     """
-    stats = BasePlugin.getstats(self)
+    stats = BasePlugin.get_stats(self)
 
     totalhits = 0
     totalenabled = 0

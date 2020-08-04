@@ -53,7 +53,7 @@ PURPOSE = 'Hold the SQL DB baseclass'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = True
+REQUIRED = True
 
 def dict_factory(cursor, row):
   """
@@ -76,7 +76,7 @@ class Sqldb(object):
     """
     self.dbconn = None
     self.plugin = plugin
-    self.sname = plugin.sname
+    self.short_name = plugin.short_name
     self.name = plugin.name
     self.api = plugin.api
     if 'dbname' in kwargs:
@@ -98,7 +98,7 @@ class Sqldb(object):
     self.turnonpragmas()
     self.conns = 0
     self.version = 1
-    self.versionfuncs = {}
+    self.version_functions = {}
     self.tables = {}
 
     self.api('api.add')('select', self.api_select)
@@ -266,7 +266,7 @@ class Sqldb(object):
     if args:
       sqlstmt = args['stmt']
       if sqlstmt:
-        results = self.api('%s.select' % self.plugin.sname)(sqlstmt)
+        results = self.api('%s.select' % self.plugin.short_name)(sqlstmt)
         for i in results:
           msg.append('%s' % i)
       else:
@@ -281,7 +281,7 @@ class Sqldb(object):
     if args:
       sqlstmt = args['stmt']
       if sqlstmt:
-        self.api('%s.modify' % self.plugin.sname)(sqlstmt)
+        self.api('%s.modify' % self.plugin.short_name)(sqlstmt)
       else:
         msg.append('Please enter an update statement')
     return True, msg
@@ -394,7 +394,7 @@ class Sqldb(object):
     if table in self.tables:
       keyfield = self.tables[table]['keyfield']
       sql = "DELETE FROM %s where %s=%s;" % (table, keyfield, rownumber)
-      self.api('%s.modify' % self.plugin.sname)(sql)
+      self.api('%s.modify' % self.plugin.short_name)(sql)
       return True, '%s was removed from table %s' % (rownumber, table)
 
     return False, '%s is not a table' % table
@@ -556,12 +556,12 @@ class Sqldb(object):
     self.backupdb(oldversion)
     for i in range(oldversion + 1, newversion + 1):
       try:
-        self.versionfuncs[i]()
+        self.version_functions[i]()
         self.api('send.msg')('updated to version %s' % i)
       except Exception: # pylint: disable=broad-except
         self.api('send.traceback')(
             'could not upgrade db: %s in plugin: %s' % (self.dbname,
-                                                        self.plugin.sname))
+                                                        self.plugin.short_name))
         return
     self.setversion(newversion)
     self.api('send.msg')('Done upgrading!')
@@ -669,7 +669,7 @@ class Sqldb(object):
       tstring = "SELECT * FROM %s ORDER by %s desc limit %d" % \
                         (ttable, colid, num)
 
-    results = self.api('%s.select' % self.plugin.sname)(tstring)
+    results = self.api('%s.select' % self.plugin.short_name)(tstring)
 
     return results
 
@@ -685,7 +685,7 @@ class Sqldb(object):
 
     tstring = "SELECT * FROM %s WHERE %s = %s" % (ttable, colid, rowid)
 
-    results = self.api('%s.select' % self.plugin.sname)(tstring)
+    results = self.api('%s.select' % self.plugin.short_name)(tstring)
 
     return results
 
@@ -695,7 +695,7 @@ class Sqldb(object):
     """
     last = -1
     colid = self.tables[ttable]['keyfield']
-    rows = self.api('%s.select' % self.plugin.sname)(
+    rows = self.api('%s.select' % self.plugin.short_name)(
         "SELECT MAX(%s) AS MAX FROM %s" % (colid, ttable))
     if rows:
       last = rows[0]['MAX']
@@ -756,15 +756,15 @@ class Plugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.reloaddependents = True
+    self.reload_dependents_f = True
 
     self.api('api.add')('baseclass', self.api_baseclass)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
   # return the sql baseclass
   def api_baseclass(self):

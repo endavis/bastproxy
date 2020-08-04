@@ -13,7 +13,7 @@ PURPOSE = 'Queue commands to the mud'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -26,7 +26,7 @@ class Plugin(BasePlugin):
     self.cmds = {}
     self.currentcmd = {}
 
-    self.reloaddependents = True
+    self.reload_dependents_f = True
 
     # self.api('api.add')('baseclass', self.api_baseclass)
     self.api('api.add')('addtoqueue', self._api_addtoqueue)
@@ -36,11 +36,11 @@ class Plugin(BasePlugin):
     self.api('api.add')('rmvcmdtype', self._api_rmvcmdtype)
     self.api('api.add')('removeplugin', self.api_removeplugin)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='drop the last command')
@@ -53,7 +53,7 @@ class Plugin(BasePlugin):
     """
     a plugin was unloaded
     """
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
   # remove all triggers related to a plugin
   def api_removeplugin(self, plugin):
@@ -66,7 +66,7 @@ class Plugin(BasePlugin):
     tkeys = self.cmds.keys()
     for i in tkeys: # iterate keys since we are deleting things
       if self.cmds[i]['plugin'] == plugin:
-        self.api('%s.rmvcmdtype' % self.sname)(i)
+        self.api('%s.rmvcmdtype' % self.short_name)(i)
 
   def _api_rmvcmdtype(self, cmdtype):
     """
@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
     """
     beforef = None
     afterf = None
-    plugin = self.api('api.callerplugin')(skipplugin=[self.sname])
+    plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
     if 'beforef' in kwargs:
       beforef = kwargs['beforef']
     if 'afterf' in kwargs:

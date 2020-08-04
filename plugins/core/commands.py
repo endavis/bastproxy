@@ -19,7 +19,7 @@ VERSION = 1
 PRIORITY = 10
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class CustomFormatter(argp.HelpFormatter):
   """
@@ -60,12 +60,12 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.cmds = {}
     self.nomultiplecmds = {}
 
-    self.savehistfile = os.path.join(self.savedir, 'history.txt')
+    self.savehistfile = os.path.join(self.save_directory, 'history.txt')
     self.cmdhistorydict = PersistentDict(self.savehistfile, 'c')
     if 'history' not in self.cmdhistorydict:
       self.cmdhistorydict['history'] = []
@@ -80,13 +80,15 @@ class Plugin(BasePlugin):
     self.api('api.add')('run', self.api_run)
     self.api('api.add')('cmdhelp', self.api_cmdhelp)
 
-  def load(self):
+    self.dependencies = ['core.events', 'core.log', 'core.errors']
+
+  def initialize(self):
     """
     load external stuff
     """
-    BasePlugin.load(self)
-    self.api('log.adddtype')(self.sname)
-    #self.api('log.console')(self.sname)
+    BasePlugin.initialize(self)
+    self.api('log.adddtype')(self.short_name)
+    #self.api('log.console')(self.short_name)
 
     self.api('setting.add')('cmdprefix', '#bp', str,
                             'the command preamble for the proxy')
@@ -151,7 +153,7 @@ class Plugin(BasePlugin):
     self.api('events.register')('plugin_unloaded', self.pluginunloaded)
     self.api('events.eraise')('plugin_cmdman_loaded', {})
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def pluginunloaded(self, args):
     """
@@ -159,9 +161,9 @@ class Plugin(BasePlugin):
     """
     self.api('send.msg')('removing commands for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
-  def formatretmsg(self, msg, sname, cmd):
+  def formatretmsg(self, msg, short_name, cmd):
     """
     format a return message
     """
@@ -169,7 +171,7 @@ class Plugin(BasePlugin):
     linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
 
     msg.insert(0, '')
-    msg.insert(1, '%s.%s.%s' % (self.api('setting.gets')('cmdprefix'), sname, cmd))
+    msg.insert(1, '%s.%s.%s' % (self.api('setting.gets')('cmdprefix'), short_name, cmd))
     msg.insert(2, '@G' + '-' * linelen + '@w')
     msg.append('@G' + '-' * linelen + '@w')
     msg.append('')
@@ -242,12 +244,12 @@ class Plugin(BasePlugin):
     """
     retval = False
     commandran = '%s.%s.%s %s' % (self.api('setting.gets')('cmdprefix'),
-                                  cmd['sname'], cmd['commandname'], fullargs)
+                                  cmd['short_name'], cmd['commandname'], fullargs)
 
     if 'trace' in data:
       data['trace']['changes'].append({'flag':'Start',
                                        'data':"'%s'" % commandran,
-                                       'plugin':self.sname})
+                                       'plugin':self.short_name})
 
     try:
       args, dummy = cmd['parser'].parse_known_args(targs)
@@ -257,13 +259,13 @@ class Plugin(BasePlugin):
       tmsg.extend(cmd['parser'].format_help().split('\n'))
       self.api('send.client')('\n'.join(
           self.formatretmsg(tmsg,
-                            cmd['sname'],
+                            cmd['short_name'],
                             cmd['commandname'])))
       if 'trace' in data:
         data['trace']['changes'].append(
             {'flag': 'Error',
              'data':'%s - error parsing args: %s' % (commandran, exc.errormsg), # pylint: disable=no-member
-             'plugin':self.sname})
+             'plugin':self.short_name})
       return retval
 
     args = vars(args)
@@ -272,7 +274,7 @@ class Plugin(BasePlugin):
       msg = cmd['parser'].format_help().split('\n')
       self.api('send.client')('\n'.join(
           self.formatretmsg(msg,
-                            cmd['sname'],
+                            cmd['short_name'],
                             cmd['commandname'])))
 
     else:
@@ -290,7 +292,7 @@ class Plugin(BasePlugin):
         msg.extend(cmd['parser'].format_help().split('\n'))
         self.api('send.client')('\n'.join(
             self.formatretmsg(msg,
-                              cmd['sname'],
+                              cmd['short_name'],
                               cmd['commandname'])))
       else:
         self.addtohistory(data, cmd)
@@ -299,14 +301,14 @@ class Plugin(BasePlugin):
         elif msg:
           self.api('send.client')('\n'.join(
               self.formatretmsg(msg,
-                                cmd['sname'],
+                                cmd['short_name'],
                                 cmd['commandname'])),
                                   preamble=cmd['preamble'])
 
     if 'trace' in data:
       data['trace']['changes'].append({'flag':'Finish',
                                        'data':"'%s'" % commandran,
-                                       'plugin':self.sname})
+                                       'plugin':self.short_name})
 
     return retval
 
@@ -348,7 +350,13 @@ class Plugin(BasePlugin):
       return None
 
     if commanddata['orig'][0:3].lower() == self.api('setting.gets')('cmdprefix'):
-      targs = shlex.split(commanddata['orig'].strip())
+      self.api('send.msg')('got command: %s' % commanddata['orig'])
+      try:
+        targs = shlex.split(commanddata['orig'].strip())
+      except ValueError:
+        self.api('send.traceback')('could not parse command')
+        data['fromdata'] = ''
+        return data
       try:
         tmpind = commanddata['orig'].index(' ')
         fullargs = commanddata['orig'][tmpind+1:]
@@ -356,15 +364,15 @@ class Plugin(BasePlugin):
         fullargs = ''
       cmd = targs.pop(0)
       cmdsplit = cmd.split('.')
-      sname = ''
+      short_name = ''
       if len(cmdsplit) >= 2:
-        sname = cmdsplit[1].strip()
+        short_name = cmdsplit[1].strip()
 
       scmd = ''
       if len(cmdsplit) >= 3:
         scmd = cmdsplit[2].strip()
 
-      commanddata['sname'] = sname
+      commanddata['short_name'] = short_name
       commanddata['scmd'] = scmd
 
       if 'help' in targs: # saw a help in targs
@@ -372,70 +380,70 @@ class Plugin(BasePlugin):
           del targs[targs.index('help')]
         except ValueError:
           pass
-        commanddata['cmd'] = self.cmds[self.sname]['list']
+        commanddata['cmd'] = self.cmds[self.short_name]['list']
         commanddata['flag'] = 'Help'
         commanddata['commandran'] = '%s.%s.%s %s %s' % \
                 (self.api('setting.gets')('cmdprefix'),
-                 self.sname, 'list', sname, scmd)
-        commanddata['targs'] = [sname, scmd]
+                 self.short_name, 'list', short_name, scmd)
+        commanddata['targs'] = [short_name, scmd]
         commanddata['fullargs'] = fullargs
 
-      elif sname: # got at least "#bp.<command>"
-        if sname not in self.cmds: # no command toplevel with <command>
+      elif short_name: # got at least "#bp.<command>"
+        if short_name not in self.cmds: # no command toplevel with <command>
           commanddata['flag'] = 'Bad Command'
-          commanddata['cmddata'] = 'not a valid toplevel %s' % sname
+          commanddata['cmddata'] = 'not a valid toplevel %s' % short_name
         else: # got a command in the toplevel
           if scmd: # got "#bp.<command>.<subcommand>""
             cmd = None
-            if scmd in self.cmds[sname]: # <subcommand> was found
-              cmd = self.cmds[sname][scmd]
+            if scmd in self.cmds[short_name]: # <subcommand> was found
+              cmd = self.cmds[short_name][scmd]
             if cmd:
               commanddata['cmd'] = cmd
               commanddata['commandran'] = '%s.%s.%s %s' % \
-                    (self.api('setting.gets')('cmdprefix'), sname,
+                    (self.api('setting.gets')('cmdprefix'), short_name,
                      cmd['commandname'], ' '.join(targs))
               commanddata['flag'] = 'Run'
               commanddata['targs'] = targs
               commanddata['fullargs'] = fullargs
             else:
               commanddata['flag'] = 'Bad Command'
-              commanddata['cmddata'] = 'not a valid command for %s' % sname
+              commanddata['cmddata'] = 'not a valid command for %s' % short_name
           else: # got just "#bp.<command>"
-            if 'default' in self.cmds[sname]: # check to see if there is a default
-              commanddata['cmd'] = self.cmds[sname]['default']
+            if 'default' in self.cmds[short_name]: # check to see if there is a default
+              commanddata['cmd'] = self.cmds[short_name]['default']
               commanddata['commandran'] = '%s.%s.%s %s' % \
-                    (self.api('setting.gets')('cmdprefix'), sname,
-                     self.cmds[sname]['default']['commandname'], ' '.join(targs))
+                    (self.api('setting.gets')('cmdprefix'), short_name,
+                     self.cmds[short_name]['default']['commandname'], ' '.join(targs))
               commanddata['flag'] = 'Default'
               commanddata['targs'] = targs
               commanddata['fullargs'] = fullargs
-            else: # no default, so do "#bp.commands.list sname scmd"
-              commanddata['cmd'] = self.cmds[self.sname]['list']
+            else: # no default, so do "#bp.commands.list short_name scmd"
+              commanddata['cmd'] = self.cmds[self.short_name]['list']
               commanddata['commandran'] = '%s.%s.%s %s %s' % \
                     (self.api('setting.gets')('cmdprefix'),
-                     self.sname,
-                     'list', sname, scmd)
+                     self.short_name,
+                     'list', short_name, scmd)
               commanddata['flag'] = 'List'
-              commanddata['targs'] = [sname, scmd]
+              commanddata['targs'] = [short_name, scmd]
               commanddata['fullargs'] = ''
       else: # this only happens with "#bp" and "#bp."
         try:
           del targs[targs.index('help')]
         except ValueError:
           pass
-        commanddata['cmd'] = self.cmds[self.sname]['list']
+        commanddata['cmd'] = self.cmds[self.short_name]['list']
         commanddata['commandran'] = '%s.%s.%s %s %s' % \
               (self.api('setting.gets')('cmdprefix'),
-               self.sname,
-               'list', sname, scmd)
+               self.short_name,
+               'list', short_name, scmd)
         commanddata['flag'] = 'List2'
-        commanddata['targs'] = [sname, scmd]
+        commanddata['targs'] = [short_name, scmd]
         commanddata['fullargs'] = ''
 
       # run the command here
       if commanddata['flag'] == 'Bad Command':
         self.api('send.client')("@R%s.%s@W is not a command" % \
-              (commanddata['sname'], commanddata['scmd']))
+              (commanddata['short_name'], commanddata['scmd']))
       else:
         try:
           commanddata['success'] = self.runcmd(commanddata['cmd'],
@@ -445,7 +453,7 @@ class Plugin(BasePlugin):
         except Exception:  # pylint: disable=broad-except
           commanddata['success'] = 'Error'
           self.api('send.traceback')(
-              'Error when calling command %s.%s' % (commanddata['sname'],
+              'Error when calling command %s.%s' % (commanddata['short_name'],
                                                     commanddata['scmd']))
         commanddata['cmddata'] = "'%s' - %s" % (commanddata['commandran'],
                                                 'Outcome: %s' % commanddata['success'])
@@ -453,7 +461,7 @@ class Plugin(BasePlugin):
       if 'trace' in data:
         data['trace']['changes'].append({'flag': commanddata['flag'],
                                          'data':commanddata['cmddata'],
-                                         'plugin':self.sname})
+                                         'plugin':self.short_name})
       return {'fromdata':''}
     else: # no command, so add it to history and check antispam
       addedtohistory = self.addtohistory(data)
@@ -471,7 +479,7 @@ class Plugin(BasePlugin):
                  'data':'cmd was sent %s times, sending %s for antispam' % \
                      (self.api('setting.gets')('spamcount'),
                       self.api('setting.gets')('antispamcommand')),
-                 'plugin':self.sname})
+                 'plugin':self.short_name})
           self.api('send.msg')('adding look for 20 commands')
           self.api('setting.change')('cmdcount', 0)
           return data
@@ -481,7 +489,7 @@ class Plugin(BasePlugin):
                 {'flag':'Nomultiple',
                  'data':'This command has been flagged" \
                    " not to be sent multiple times in a row',
-                 'plugin':self.sname})
+                 'plugin':self.short_name})
 
           data['fromdata'] = ''
           return data
@@ -495,7 +503,7 @@ class Plugin(BasePlugin):
           data['trace']['changes'].append(
               {'flag':'Unknown',
                'data':"'%s' - Don't know why we got here" % data['fromdata'],
-               'plugin':self.sname})
+               'plugin':self.short_name})
 
       return data
 
@@ -513,9 +521,9 @@ class Plugin(BasePlugin):
       @Yformat@w   = format this command (default: True)
       @Ygroup@w    = the group this command is in
 
-    The command will be added as sname.cmdname
+    The command will be added as short_name.cmdname
 
-    sname is gotten from the class the function belongs to or the sname key
+    short_name is gotten from the class the function belongs to or the short_name key
       in args
 
     this function returns no values"""
@@ -531,10 +539,10 @@ class Plugin(BasePlugin):
                 (cmdname, calledfrom), secondary=calledfrom)
       return
     try:
-      sname = func.im_self.sname
+      short_name = func.im_self.short_name
     except AttributeError:
-      if 'sname' in args:
-        sname = args['sname']
+      if 'short_name' in args:
+        short_name = args['short_name']
       else:
         callstack = self.api('api.callstack')()
         self.api('send.error')(
@@ -549,7 +557,7 @@ class Plugin(BasePlugin):
 
     else:
       self.api('send.msg')('adding default parser to command %s.%s' % \
-                                      (sname, cmdname))
+                                      (short_name, cmdname))
       if 'shelp' not in args:
         args['shelp'] = 'there is no help for this command'
       tparser = argp.ArgumentParser(add_help=False,
@@ -560,10 +568,10 @@ class Plugin(BasePlugin):
                          action="store_true")
 
     tparser.prog = '@B%s.%s.%s@w' % (self.api('setting.gets')('cmdprefix'),
-                                     sname, cmdname)
+                                     short_name, cmdname)
 
     if 'group' not in args:
-      args['group'] = sname
+      args['group'] = short_name
 
 
     try:
@@ -574,18 +582,18 @@ class Plugin(BasePlugin):
 
     if 'lname' not in args:
       self.api('send.msg')('cmd %s.%s has no long name, not adding' % \
-                                            (sname, cmdname),
-                           secondary=sname)
+                                            (short_name, cmdname),
+                           secondary=short_name)
       return
 
     self.api('send.msg')('added cmd %s.%s' % \
-                                            (sname, cmdname),
-                         secondary=sname)
+                                            (short_name, cmdname),
+                         secondary=short_name)
 
-    if sname not in self.cmds:
-      self.cmds[sname] = {}
+    if short_name not in self.cmds:
+      self.cmds[short_name] = {}
     args['func'] = func
-    args['sname'] = sname
+    args['short_name'] = short_name
     args['lname'] = lname
     args['commandname'] = cmdname
     if 'preamble' not in args:
@@ -594,12 +602,12 @@ class Plugin(BasePlugin):
       args['format'] = True
     if 'showinhistory' not in args:
       args['showinhistory'] = True
-    self.cmds[sname][cmdname] = args
+    self.cmds[short_name][cmdname] = args
 
   # remove a command
   def api_removecmd(self, plugin, cmdname):
     """  remove a command
-    @Ysname@w    = the top level of the command
+    @Yshort_name@w    = the top level of the command
     @Ycmdname@w  = the name of the command
 
     this function returns no values"""
@@ -617,13 +625,13 @@ class Plugin(BasePlugin):
   # set the default command for a plugin
   def api_setdefault(self, cmd, plugin=None):
     """  set the default command for a plugin
-    @Ysname@w    = the plugin of the command
+    @Yshort_name@w    = the plugin of the command
     @Ycmdname@w  = the name of the command
 
     this function returns True if the command exists, False if it doesn't"""
 
     if not plugin:
-      plugin = self.api('api.callerplugin')(skipplugin=[self.sname])
+      plugin = self.api('api.callerplugin')(skipplugin=[self.short_name])
 
     if not plugin:
       self.api('send.error')('could not add a default cmd: %s' % cmd)
@@ -642,7 +650,7 @@ class Plugin(BasePlugin):
   # remove all commands for a plugin
   def api_removeplugin(self, plugin):
     """  remove all commands for a plugin
-    @Ysname@w    = the plugin to remove commands for
+    @Yshort_name@w    = the plugin to remove commands for
 
     this function returns no values"""
     if plugin in self.cmds:

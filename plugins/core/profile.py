@@ -12,7 +12,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 25
 
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -27,11 +27,11 @@ class Plugin(BasePlugin):
     self.commandtraces = None
     self.changedmuddata = None
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('commands', False, bool,
                             'flag to echo commands')
@@ -82,7 +82,7 @@ class Plugin(BasePlugin):
 
     self.api('events.register')('io_execute_trace_finished', self.savecommand, prio=99)
     self.api('events.register')('from_mud_event', self.savechangedmuddata, prio=99)
-    self.api('events.register')('var_%s_functions' % self.sname, self.onfunctionschange)
+    self.api('events.register')('var_%s_functions' % self.short_name, self.onfunctionschange)
 
   def onfunctionschange(self, _=None):
     """

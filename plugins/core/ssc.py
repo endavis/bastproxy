@@ -24,19 +24,19 @@ PURPOSE = 'Class to save settings that should not stay in memory'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = True
+REQUIRED = True
 
 class SSC(object):
   """
   a class to manage settings
   """
-  def __init__(self, ssname, plugin, **kwargs):
+  def __init__(self, sshort_name, plugin, **kwargs):
     """
     initialize the class
     """
-    self.ssname = ssname
+    self.sshort_name = sshort_name
     self.plugin = plugin
-    self.sname = plugin.sname
+    self.short_name = plugin.short_name
     self.name = plugin.name
     self.api = plugin.api
 
@@ -50,7 +50,7 @@ class SSC(object):
     else:
       self.desc = 'setting'
 
-    self.api('api.add')(self.ssname, self.getss)
+    self.api('api.add')(self.sshort_name, self.getss)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='set the %s' % self.desc)
@@ -58,7 +58,7 @@ class SSC(object):
                         help=self.desc,
                         default='',
                         nargs='?')
-    self.api('commands.add')(self.ssname,
+    self.api('commands.add')(self.sshort_name,
                              self.cmd_setssc,
                              showinhistory=False,
                              parser=parser)
@@ -70,7 +70,7 @@ class SSC(object):
     read the secret from a file
     """
     first_line = ''
-    filen = os.path.join(self.plugin.savedir, self.ssname)
+    filen = os.path.join(self.plugin.save_directory, self.sshort_name)
     try:
       with open(filen, 'r') as fileo:
         first_line = fileo.readline()
@@ -78,8 +78,8 @@ class SSC(object):
       return first_line.strip()
     except IOError:
       self.api('send.error')('Please set the %s with #bp.%s.%s' % (self.desc,
-                                                                   self.sname,
-                                                                   self.ssname))
+                                                                   self.short_name,
+                                                                   self.sshort_name))
 
     return self.default
 
@@ -88,7 +88,7 @@ class SSC(object):
     set the secret
     """
     if args['value']:
-      filen = os.path.join(self.plugin.savedir, self.ssname)
+      filen = os.path.join(self.plugin.save_directory, self.sshort_name)
       sscfile = open(filen, 'w')
       sscfile.write(args['value'])
       os.chmod(filen, stat.S_IRUSR | stat.S_IWUSR)
@@ -103,15 +103,15 @@ class Plugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.reloaddependents = True
+    self.reload_dependents_f = True
 
     self.api('api.add')('baseclass', self.api_baseclass)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
   # return the secret setting baseclass
   def api_baseclass(self):

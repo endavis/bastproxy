@@ -17,7 +17,7 @@ VERSION = 1
 PRIORITY = 25
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 class TimerEvent(Event):
   """
@@ -97,7 +97,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.timerevents = {}
     self.timerlookup = {}
@@ -109,11 +109,11 @@ class Plugin(BasePlugin):
     self.api('api.add')('toggle', self.api_toggle)
     self.api('api.add')('removeplugin', self.api_removeplugin)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('events.register')('global_timer', self.checktimerevents,
                                 prio=1)
@@ -157,7 +157,7 @@ class Plugin(BasePlugin):
     """
     self.api('send.msg')('removing timers for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s.removeplugin' % self.sname)(args['name'])
+    self.api('%s.removeplugin' % self.short_name)(args['name'])
 
   def cmd_log(self, args=None):
     """
@@ -175,11 +175,11 @@ class Plugin(BasePlugin):
 
     return True, msg
 
-  def getstats(self):
+  def get_stats(self):
     """
     return stats for this plugin
     """
-    stats = BasePlugin.getstats(self)
+    stats = BasePlugin.get_stats(self)
 
     disabled = 0
     enabled = 0
@@ -219,7 +219,7 @@ class Plugin(BasePlugin):
       if not match or match in i:
         timerc = self.timerlookup[i]
         tmsg.append('%-20s : %-13s %-9s %-8s %s' % (
-            timerc.name, timerc.plugin.sname,
+            timerc.name, timerc.plugin.short_name,
             timerc.enabled, timerc.timesfired,
             time.strftime('%a %b %d %Y %H:%M:%S',
                           time.localtime(timerc.nextcall))))
@@ -239,7 +239,7 @@ class Plugin(BasePlugin):
           timerc = self.timerlookup[timer]
           tmsg.append('%-13s : %s' % ('Name', timer))
           tmsg.append('%-13s : %s' % ('Enabled', timerc.enabled))
-          tmsg.append('%-13s : %s' % ('Plugin', timerc.plugin.sname))
+          tmsg.append('%-13s : %s' % ('Plugin', timerc.plugin.short_name))
           tmsg.append('%-13s : %s' % ('Onetime', timerc.onetime))
           tmsg.append('%-13s : %s' % ('Time', timerc.time))
           tmsg.append('%-13s : %s' % ('Seconds', timerc.seconds))
@@ -262,7 +262,7 @@ class Plugin(BasePlugin):
     @Yfunc@w  = the function to call when firing the timer
     @Yseconds@w   = the interval (in seconds) to fire the timer
     @Yargs@w arguments:
-      @Ynodupe@w    = True if no duplicates of this timer are allowed,
+      @Yunique@w    = True if no duplicates of this timer are allowed,
                                     False otherwise
       @Yonetime@w   = True for a onetime timer, False otherwise
       @Yenabled@w   = True if enabled, False otherwise
@@ -290,7 +290,7 @@ class Plugin(BasePlugin):
                            secondary=plugin)
       return
 
-    if 'nodupe' in kwargs and kwargs['nodupe']:
+    if 'unique' in kwargs and kwargs['unique']:
       if name in self.timerlookup:
         self.api('send.msg')('trying to add duplicate timer: %s' % name,
                              secondary=plugin)
@@ -298,7 +298,7 @@ class Plugin(BasePlugin):
 
     tevent = TimerEvent(name, func, seconds, plugin, **kwargs)
     self.api('send.msg')('adding %s from plugin %s' % (tevent, plugin),
-                         secondary=plugin.sname)  # pylint: disable=no-member
+                         secondary=plugin.short_name)  # pylint: disable=no-member
     self._addtimer(tevent)
     return tevent
 
@@ -377,7 +377,7 @@ class Plugin(BasePlugin):
               self.overallfire = self.overallfire + 1
               if timer.log:
                 self.api('send.msg')('Timer fired: %s' % timer,
-                                     secondary=timer.plugin.sname)
+                                     secondary=timer.plugin.short_name)
             except Exception:  # pylint: disable=broad-except
               self.api('send.traceback')('A timer had an error')
           try:
@@ -391,7 +391,7 @@ class Plugin(BasePlugin):
                                     (timer.name,
                                      time.strftime('%a %b %d %Y %H:%M:%S',
                                                    time.localtime(timer.nextcall))),
-                                   secondary=timer.plugin.sname)
+                                   secondary=timer.plugin.short_name)
             self._addtimer(timer)
           else:
             self.api('timers.remove')(timer.name)

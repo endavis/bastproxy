@@ -11,7 +11,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 2
 
-AUTOLOAD = True
+REQUIRED = True
 
 class Plugin(BasePlugin):
   """
@@ -29,11 +29,13 @@ class Plugin(BasePlugin):
     self.api('api.add')('gete', self.api_geterrors)
     self.api('api.add')('clear', self.api_clearerrors)
 
-  def load(self):
+    self.dependencies = []
+
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show errors')

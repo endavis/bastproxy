@@ -30,7 +30,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 11
 
-AUTOLOAD = True
+REQUIRED = True
 
 # for finding ANSI color sequences
 XTERM_COLOR_REGEX = re.compile(r'^@[xz](?P<num>[\d]{1,3})$')
@@ -224,11 +224,13 @@ class Plugin(BasePlugin):
     self.api('api.add')('lengthdiff', self.api_getlengthdiff)
     self.api('api.add')('colortohtml', self.api_colorcodestohtml)
 
-  def load(self):
+    self.dependencies = ['core.commands']
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show colors')
