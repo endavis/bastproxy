@@ -22,7 +22,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = False
+
 
 class Plugin(BasePlugin):
   """
@@ -33,18 +33,18 @@ class Plugin(BasePlugin):
     initialize the instance
     """
     BasePlugin.__init__(self, *args, **kwargs)
-    self.api('dependency.add')('ssc')
+    self.api('dependency.add')('core.ssc')
 
     self.apikey = None
 
     self.api('api.add')('note', self.api_note)
     self.api('api.add')('link', self.api_link)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('setting.add')('channel', '', str,
                             'the channel to send to')
@@ -115,7 +115,7 @@ class Plugin(BasePlugin):
     @Ychannel@w   = the pushbullet channel to send to
 
     this function returns True if sent, False otherwise"""
-    apikey = self.api('%s.apikey' % self.sname)()
+    apikey = self.api('%s.apikey' % self.short_name)()
 
     if not apikey:
       self.api('send.error')('pushbullet apikey not set')
@@ -162,7 +162,7 @@ class Plugin(BasePlugin):
     @Ychannel@w   = the pushbullet channel to send to
 
     this function returns True if sent, False otherwise"""
-    apikey = self.api('%s.apikey' % self.sname)()
+    apikey = self.api('%s.apikey' % self.short_name)()
 
     if not apikey:
       self.api('send.error')('pushbullet apikey not set')
@@ -204,7 +204,7 @@ class Plugin(BasePlugin):
     list the channels
     """
     tmsg = []
-    apikey = self.api('%s.apikey' % self.sname)()
+    apikey = self.api('%s.apikey' % self.short_name)()
 
     if not apikey:
       self.api('send.error')('pushbullet apikey not set')

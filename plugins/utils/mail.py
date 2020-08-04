@@ -17,7 +17,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = False
+
 
 
 class Plugin(BasePlugin):
@@ -32,11 +32,11 @@ class Plugin(BasePlugin):
     self.password = ''
     self.api('api.add')('send', self.api_send)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('events.register')('client_connected', self.checkpassword)
 

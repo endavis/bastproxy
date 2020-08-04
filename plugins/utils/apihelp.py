@@ -12,7 +12,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 
 # This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = True
+REQUIRED = True
 
 
 class Plugin(BasePlugin):
@@ -25,11 +25,11 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list functions in the api')
