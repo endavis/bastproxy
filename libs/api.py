@@ -15,6 +15,7 @@ from __future__ import print_function
 import inspect
 import sys
 import traceback
+import pprint
 
 def getargs(api_function):
   """
@@ -75,46 +76,100 @@ class API(object):
     self.split_regex = r'(?<=[^\|])\|(?=[^\|])'
 
     # added functions
-    if not self.api_has('api.has'):
-      self.add('api', 'has', self.api_has)
-    if not self('api.has')('api.add'):
-      self.add('api', 'add', self.add)
-    if not self('api.has')('api.overload'):
-      self('api.add')('api', 'overload', self.overload)
-
+    self.add('api', 'add', self.add, overload=True)
+    self.add('api', 'has', self._api_has, overload=True)
+    # if not self('api.has')('api.overload'):
+    #   self.add('api', 'overload', self._api_overload)
     if not self('api.has')('managers.add'):
-      self('api.add')('managers', 'add', self.add_manager)
+      self.add('managers', 'add', self._api_add_manager, overload=True)
     if not self('api.has')('managers.getm'):
-      self('api.add')('managers', 'getm', self.get_manager)
+      self.add('managers', 'getm', self._api_get_manager, overload=True)
     if not self('api.has')('api.remove'):
-      self('api.add')('api', 'remove', self.remove)
+      self.add('api', 'remove', self._api_remove, overload=True)
     if not self('api.has')('api.getchildren'):
-      self('api.add')('api', 'getchildren', self.api_getchildren)
+      self.add('api', 'getchildren', self._api_get_children, overload=True)
     if not self('api.has')('api.detail'):
-      self('api.add')('api', 'detail', self.api_detail)
+      self.add('api', 'detail', self._api_detail, overload=True)
     if not self('api.has')('api.list'):
-      self('api.add')('api', 'list', self.api_list)
+      self.add('api', 'list', self._api_list, overload=True)
     if not self('api.has')('api.callerplugin'):
-      self('api.add')('api', 'callerplugin', self.api_caller_plugin)
+      self.add('api', 'callerplugin', self._api_caller_plugin, overload=True)
     if not self('api.has')('api.pluginstack'):
-      self('api.add')('api', 'pluginstack', self.api_plugin_stack)
+      self.add('api', 'pluginstack', self._api_plugin_stack, overload=True)
     if not self('api.has')('api.callstack'):
-      self('api.add')('api', 'callstack', self.api_call_stack)
+      self.add('api', 'callstack', self._api_call_stack, overload=True)
     if not self('api.has')('api.simplecallstack'):
-      self('api.add')('api', 'simplecallstack', self.api_simple_call_stack)
+      self.add('api', 'simplecallstack', self._api_simple_call_stack, overload=True)
     if not self('api.has')('api.addeventdesc'):
-      self('api.add')('api', 'addeventdesc', self._api_add_event_description)
+      self.add('api', 'addeventdesc', self._api_add_event_description, overload=True)
 
+  # add a function to the api
+  def add(self, top_level_api, name, tfunction, overload=False, force=False):
+    """  add a function to the api
+    @Ytop_level_api@w  = the toplevel that the api should be under
+    @Yname@w  = the name of the api
+    @Yfunction@w  = the function
+    @Yoverload@w  = bool, True to add to instance api, false to add to class api
+
+    the function is added as toplevel.name into the api
+
+    if the api already exists, it is added to the overloaded
+
+    this function returns no values"""
+    full_api_name = top_level_api + '.' + name
+    ## do some magic to get plugin this was added from
+
+    if not overload:
+      if full_api_name in self.__class__.api and not force:
+        try:
+          self.get('send.error')('api.add - %s already exists' % full_api_name)
+        except AttributeError:
+          print('api.add - %s already exists' % full_api_name)
+      else:
+        self.__class__.api[full_api_name] = tfunction
+
+    else:
+      self._api_overload(top_level_api, name, tfunction, force)
+
+  # overload a function in the api
+  def _api_overload(self, top_level_api, name, tfunction, force=False):
+    """  overload a function in the api
+    @Ytop_level_api@w  = the toplevel that the api should be under
+    @Yname@w  = the name of the api
+    @Ytfunction@w  = the function
+
+    the function is added as toplevel.name into the overloaded api
+
+    this function returns True if added, False otherwise"""
+    full_api_name = top_level_api + '.' + name
+    try:
+      ofunc = self.get(full_api_name)
+      tfunction.__doc__ = ofunc.__doc__
+    except AttributeError:
+      pass
+
+    if not force and full_api_name in self.overloaded_api:
+      try:
+        self.get('send.error')('api.overload - %s already exists' % full_api_name)
+      except AttributeError:
+        print('api.overload - %s already exists' % full_api_name)
+
+      return False
+
+    self.overloaded_api[full_api_name] = tfunction
+    return True
+
+  # add an event description
   def _api_add_event_description(self, raisedevent):
-    """
-    add an event description
+    """  add an event description
+    @Yraisedevent@w - RaisesEvent from libs/event.py = the event description
     """
     self.event_descriptions[raisedevent.name] = raisedevent
 
+  # return a simple call stack
   @staticmethod
-  def api_simple_call_stack():
-    """
-    build a simple callstack of level, module, funcion name
+  def _api_simple_call_stack():
+    """  build a simple callstack of level, module, funcion name
 
     Example:
     6 :          libs.io           : _api_execute
@@ -122,6 +177,9 @@ class API(object):
     4 :    plugins.core.events     : eraise
     3 :    plugins.core.events     : execute
     2 :       libs.net.proxy       : addtooutbuffer
+
+    returns a list of callers
+      the caller is a dict with keys index, module, file, name
     """
     stack = inspect.stack()
 
@@ -137,10 +195,11 @@ class API(object):
 
     return callers
 
-  def api_call_stack(self, ignores=None):
-    # pylint: disable=line-too-long
-    """
-    return a list of function calls that form the stack
+  # return the call stack
+  def _api_call_stack(self, ignores=None):
+    """  return a list of function calls that form the stack
+    @Yignores@w - list = ignore the line in the stack that contains a string in this list
+
     Example:
     ['  File "bastproxy.py", line 280, in <module>',
      '    main()',
@@ -149,9 +208,10 @@ class API(object):
      '  File "/home/endavis/src/games/bastproxy/bp/libs/event.py", line 60, in new_func',
      '    return func(*args, **kwargs)',
      '  File "/home/endavis/src/games/bastproxy/bp/libs/net/proxy.py", line 63, in handle_read',
-     "    'convertansi':tconvertansi})", '
+     "    'convertansi':tconvertansi})"]
+
+    returns a string of the stack
     """
-    # pylint: enable=line-too-long
     if ignores is None:
       ignores = []
     call_stack = []
@@ -169,10 +229,12 @@ class API(object):
 
     return call_stack
 
-  def api_plugin_stack(self, ignore_plugin_list=None):
-    """
-    return a list of all plugins in the call stack
-    """
+  # return a list of the plugins in the call stack
+  def _api_plugin_stack(self, ignore_plugin_list=None):
+    """  return a list of all plugins in the call stack
+    @Yignore_plugin_list@w  = ignore the plugins in this list if they are on the stack
+
+    this function returns a list of plugins on the stack, each element will be the plugin short name"""
     from plugins._baseplugin import BasePlugin
 
     if not ignore_plugin_list:
@@ -208,16 +270,20 @@ class API(object):
 
     return plugins
 
-  def api_caller_plugin(self, ignore_plugin_list=None):
-    """
-    check to see if the caller is a plugin, if so return the plugin object
+  # find the caller of this api
+  def _api_caller_plugin(self, ignore_plugin_list=None):
+    """  get the plugin on the top of the stack
+    @Yignore_plugin_list@w  = ignore the plugins in this list if they are on the stack
+
+    check to see if the caller is a plugin, if so return the plugin short name
 
     this is so plugins can figure out who gave them data and keep up with it.
 
     it will return the first plugin found when going through the stack
        it checks for a BasePlugin instance of self
        if it doesn't find that, it checks for an attribute of plugin
-    """
+
+    returns the short name of the plugin on the stack"""
     from plugins._baseplugin import BasePlugin
 
     if not ignore_plugin_list:
@@ -245,48 +311,8 @@ class API(object):
     del stack
     return None
 
-  # add a function to the api
-  def add(self, top_level_api, name, tfunction):
-    """  add a function to the api
-    @Yptoplevel@w  = the toplevel that the api should be under
-    @Yname@w  = the name of the api
-    @Yfunction@w  = the function
-
-    the function is added as toplevel.name into the api
-
-    this function returns no values"""
-
-    ## do some magic to get plugin this was added from
-    full_api_name = top_level_api + '.' + name
-    if full_api_name in self.__class__.api:
-      self.get('send.error')('api.add - %s already exists' % full_api_name)
-
-    self.__class__.api[full_api_name] = tfunction
-
-  # overload a function in the api
-  def overload(self, top_level_api, name, tfunction):
-    """  overload a function in the api
-    @Ytop_level_api@w  = the toplevel that the api should be under
-    @Yname@w  = the name of the api
-    @Yfunction@w  = the function
-
-    the function is added as toplevel.name into the overloaded api
-
-    this function returns no values"""
-    full_api_name = top_level_api + '.' + name
-    try:
-      ofunc = self.get(full_api_name)
-      tfunction.__doc__ = ofunc.__doc__
-    except AttributeError:
-      pass
-
-    if full_api_name in self.overloaded_api:
-      self.get('send.error')('api.overload - %s already exists' % full_api_name)
-
-    self.overloaded_api[full_api_name] = tfunction
-
   # get a manager
-  def get_manager(self, name):
+  def _api_get_manager(self, name):
     """  get a manager
     @Yname@w  = the name of the manager to get
 
@@ -297,7 +323,7 @@ class API(object):
     return None
 
   # add a manager
-  def add_manager(self, name, manager):
+  def _api_add_manager(self, name, manager):
     """  add a manager
     @Yname@w  = the name of the manager
     @Ymanager@w  = the manager instance
@@ -306,7 +332,7 @@ class API(object):
     self.MANAGERS[name] = manager
 
   # remove a toplevel api
-  def remove(self, top_level_api):
+  def _api_remove(self, top_level_api):
     """  remove a toplevel api
     @Ytop_level_api@w  = the toplevel of the api to remove
 
@@ -343,7 +369,7 @@ class API(object):
   __call__ = get
 
   # return a list of api functions in a toplevel api
-  def api_getchildren(self, top_level_api):
+  def _api_get_children(self, top_level_api):
     """
     return a list of apis in a toplevel api
     """
@@ -363,7 +389,7 @@ class API(object):
     return list(set(api_list))
 
   # check to see if something exists in the api
-  def api_has(self, api_location):
+  def _api_has(self, api_location):
     """
     see if something exists in the api
     """
@@ -374,10 +400,9 @@ class API(object):
       return False
 
   # get the details for an api function
-  def api_detail(self, api_location):
+  def _api_detail(self, api_location):     # pylint: disable=too-many-locals,too-many-branches
     # parsing a function declaration and figuring out where the function
     # resides is intensive, so disabling pylint warning
-    # pylint: disable=too-many-locals,too-many-branches
     """
     return the detail of an api function
     """
@@ -386,59 +411,57 @@ class API(object):
     api_overloaded = None
     api_original_path = None
     api_overloaded_path = None
+
+    if '.' not in api_location:
+      tmsg.append('%s is not a . api format' % api_location)
+      return tmsg
+
     if api_location:
       name, command_name = api_location.split('.')
       tdict = {'name':name, 'cmdname':command_name, 'api_location':api_location}
       try:
         api_original = self.get(api_location, do_not_overload=True)
       except AttributeError:
-        pass
+        print('%s not in original api' % api_location)
 
       try:
         api_overloaded = self.get(api_location)
       except AttributeError:
-        pass
+        print('%s not in any api' % api_location)
 
       if not api_original and not api_overloaded:
         tmsg.append('%s is not in the api' % api_location)
         return tmsg
 
-      else:
-        if api_original and not api_overloaded:
-          api_function = api_original
-          api_original_path = inspect.getsourcefile(api_original)
-          api_original_path = api_original_path.replace(self.BASEPATH, '')
+      if api_original == api_overloaded:
+        print('api_original == api_overloaded')
+        api_overloaded = None
 
-        elif api_overloaded and not api_original:
+      if api_original:
+        api_function = api_original
+        api_original_path = inspect.getsourcefile(api_original).replace(self.BASEPATH, '')
+
+      if api_overloaded:
+        if not api_original:
           api_function = api_overloaded
-          api_overloaded_path = inspect.getsourcefile(api_overloaded)
-          api_overloaded_path = api_overloaded_path.replace(self.BASEPATH, '')
+        api_overloaded_path = inspect.getsourcefile(api_overloaded).replace(self.BASEPATH, '')
 
-        elif not (api_overloaded == api_original) and api_original and api_overloaded:
-          api_function = api_original
-          api_original_path = inspect.getsourcefile(api_original)
-          api_overloaded_path = inspect.getsourcefile(api_overloaded)
-          api_original_path = api_original_path.replace(self.BASEPATH, '')
-          api_overloaded_path = api_overloaded_path.replace(self.BASEPATH, '')
+      args = getargs(api_function)
 
-        else:
-          api_function = api_original
-          api_original_path = inspect.getsourcefile(api_original)
-          api_original_path = api_original_path.replace(self.BASEPATH, '')
+      tmsg.append('@G%s@w(%s)' % (api_location, args))
+      if api_function.__doc__:
+        tmsg.append(api_function.__doc__ % tdict)
 
-        args = getargs(api_function)
+      tmsg.append('')
+      if api_original_path:
+        tmsg.append('original defined in %s' % api_original_path)
+      if api_overloaded_path and api_original_path:
+        tmsg.append('overloaded in %s' % api_overloaded_path)
+      elif api_overloaded_path:
+        tmsg.append('original defined in %s' % api_overloaded_path)
 
-        tmsg.append('@G%s@w(%s)' % (api_location, args))
-        if api_function.__doc__:
-          tmsg.append(api_function.__doc__ % tdict)
-
-        tmsg.append('')
-        if api_original_path:
-          tmsg.append('original defined in %s' % api_original_path)
-        if api_overloaded_path and api_original_path:
-          tmsg.append('overloaded in %s' % api_overloaded_path)
-        elif api_overloaded_path:
-          tmsg.append('original defined in %s' % api_overloaded_path)
+    else:
+      tmsg.append('%s is not in the api' % api_location)
 
     return tmsg
 
@@ -474,7 +497,7 @@ class API(object):
     return api_list
 
   # return a formatted list of functions in a toplevel api
-  def api_list(self, top_level_api=None):
+  def _api_list(self, top_level_api=None):
     """
     return a formatted list of functions in an api
     """
@@ -510,56 +533,85 @@ def test():
     """
     a test api
     """
-    return msg
+    return msg + ' (orig)'
 
+  def overloadtestapi(msg):
+    """
+    a overload test api
+    """
+    return msg + ' (overload)'
+
+  def overloadtestapi2(msg):
+    """
+    a overload test api
+    """
+    return msg + ' (overload2)'
+
+
+  print('-' * 80)
   api = API()
-  api.add('test', 'api', testapi)
-  api.add('test', 'over', testapi)
-  api.add('test', 'some.api', testapi)
-  print('test.api', api('test.api')('called test.api'))
-  print('test.over', api('test.over')('called test.over'))
-  print('test.some.api', api('test.some.api')('called test.some.api'))
-  print('dict api.api', api.api)
-  api.overload('over', 'api', testapi)
-  print('dict api.overloaded_api', api.overloaded_api)
-  print('over.api', api('over.api')('called over.api'))
-  api.overload('test', 'over', testapi)
-  print('test.over', api('test.over')('called test.over'))
-  print('test.api', api('test.api')('called test.api'))
+  print('adding test.api')
+  api('api.add')('test', 'api', testapi)
+  print('adding test.over')
+  api('api.add')('test', 'over', testapi)
+  print('adding test.some.api')
+  api('api.add')('test', 'some.api', testapi)
+  print('called api test.api', api('test.api')('success'))
+  print('called api test.over', api('test.over')('success'))
+  print('called api test.some.api', api('test.some.api')('success'))
+  print('dict api.api:\n', pprint.pformat(api.api))
+  print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
+  print('overloading over.api')
+  api('api.add')('over', 'api', overloadtestapi, overload=True)
+  print('overloading test.over')
+  api('api.add')('test', 'over', overloadtestapi, overload=True)
+  print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
+  print('called api over.api', api('over.api')('success'))
+  print('called api test.over', api('test.over')('success'))
+  print('called api test.api', api('test.api')('success'))
   print('api.has test.over', api('api.has')('test.over'))
   print('api.has test.over2', api('api.has')('test.over2'))
+  print('api.has over.api', api('api.has')('over.api'))
   print('api.has test.some.api', api('api.has')('test.some.api'))
-  print('dict api.api', api.api)
-  print('dict api.overloadapi', api.overloaded_api)
-  print('dict api.api', api.api)
-  print('dict api.overloadapi', api.overloaded_api)
-
-  print('\n'.join(api.api_list(top_level_api="test")))
+  print('dict api.api:\n', pprint.pformat(api.api))
+  print('dict api.overloadapi:\n', pprint.pformat(api.overloaded_api))
+  print('\n'.join(api('api.list')(top_level_api="test")))
   print('--------------------')
-  print('\n'.join(api.api_list()))
+  print('\n'.join(api('api.list')()))
   print('--------------------')
-  print('\n'.join(api.api_detail('api.add')))
+  print('\n'.join(api('api.detail')('test.over')))
   print('--------------------')
 
+
+  print('-' * 80)
   api2 = API()
-  print('api2 test.api', api2('test.api')('called test.api'))
-  print('api2 test.over', api2('test.over')('called test.api'))
-  print('api2 dict api.api', api2.api)
-  api2.overload('over', 'api', testapi)
-  print('api2 dict api.overloaded_api', api2.overloaded_api)
-  print('api2 over.api', api2('over.api')('called over.api'))
-  api2.overload('test', 'over', testapi)
-  print('api2 dict api.api', api2.api)
-  print('api2 dict api.overloadapi', api2.overloaded_api)
-  print('api2 test.over', api2('test.over')('called test.over'))
-  print('api2 test.api', api2('test.api')('called est.api'))
-  print('api2 api_has test.three', api2.api_has('test.three'))
+  print('api: ', api)
+  print('api2: ', api2)
+  print('dict api.api:\n', pprint.pformat(api.api))
+  print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
+  print('api2 dict api2.api:\n', pprint.pformat(api2.api))
+  print('api2 dict api2.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
+  print('api2 api_has over.api', api2('api.has')('over.api'))
+  print('api2 api_has over.api', api2('api.has')('test.over'))
+  print('api2 called test.api', api2('test.api')('success'))
+  print('api2 called test.over', api2('test.over')('success'))
+  print('api2 overloading over.api')
+  api2('api.add')('over', 'api', overloadtestapi2, overload=True)
+  print('api2 dict api.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
+  print('api2 called over.api', api2('over.api')('success'))
+  print('api2 overloading test.over')
+  api2('api.add')('test', 'over', overloadtestapi2, overload=True)
+  print('api2 dict api2.api:\n', pprint.pformat(api2.api))
+  print('api2 dict api2.overloadapi:\n', pprint.pformat(api2.overloaded_api))
+  print('api2 called test.over', api2('test.over')('success'))
+  print('api2 called test.api', api2('test.api')('success'))
+  print('api2 api_has test.three', api2('api.has')('test.three'))
   try:
-    print('test.three', api2('test.three')('called test.three'))
+    print('api2 called test.three', api2('test.three')('success'))
   except AttributeError:
     print('test.three was not in the api')
   try:
-    print("doesn't exist", api2('test.four')('called test.four'))
+    print("doesn't exist", api2('test.four')('success'))
   except AttributeError:
     print('test.four was not in the api')
 

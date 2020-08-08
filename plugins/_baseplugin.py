@@ -82,21 +82,20 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     self._dump_shallow_attrs = ['api']
 
-    self.api.overload('dependency', 'add', self._api_dependency_add)
-    self.api.overload('setting', 'add', self._api_setting_add)
-    self.api.overload('setting', 'gets', self._api_setting_gets)
-    self.api.overload('setting', 'change', self._api_setting_change)
-    self.api.overload('api', 'add', self._api_add)
+    self.api('api.add')('dependency', 'add', self._api_dependency_add, overload=True)
+    self.api('api.add')('setting', 'add', self._api_setting_add, overload=True)
+    self.api('api.add')('setting', 'gets', self._api_setting_gets, overload=True)
+    self.api('api.add')('setting', 'change', self._api_setting_change, overload=True)
+    self.api('api.add')('api', 'add', self._api_add, overload=True, force=True)
 
   # add a function to the api
-  def _api_add(self, name, func):
-    """
-    add a command to the api
+  def _api_add(self, name, func, overload=False, force=False):
+    """  add a command to the api
     @Yname@w = the name of the api
     @Yfunc@w = the function tied to the api
     """
     # we call the non overloaded versions
-    self.api.add(self.short_name, name, func)
+    self.api.add(self.short_name, name, func, overload, force)
 
   # get the vaule of a setting
   def _api_setting_gets(self, setting):
