@@ -18,7 +18,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 10
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 class CustomFormatter(argp.HelpFormatter):
@@ -84,7 +83,7 @@ class Plugin(BasePlugin):
 
   def initialize(self):
     """
-    load external stuff
+    initialize the plugin
     """
     BasePlugin.initialize(self)
     self.api('log.adddtype')(self.short_name)
@@ -150,14 +149,14 @@ class Plugin(BasePlugin):
                              showinhistory=False)
 
     self.api('events.register')('io_execute_event', self.chkcmd, prio=5)
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
     self.api('events.eraise')('plugin_cmdman_loaded', {})
 
     self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('send.msg')('removing commands for plugin %s' % args['name'],
                          secondary=args['name'])

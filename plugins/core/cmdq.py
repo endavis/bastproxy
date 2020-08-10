@@ -47,11 +47,11 @@ class Plugin(BasePlugin):
     self.api('commands.add')('fixqueue', self.cmd_fixqueue,
                              parser=parser)
 
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('%s.removeplugin' % self.short_name)(args['name'])
 

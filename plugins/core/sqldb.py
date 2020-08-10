@@ -30,7 +30,7 @@ for an example of using sqldb
       return mydb(plugin, **kwargs)
 ```
 
-### call the function in load
+### call the function in initialize
 
 ```python
     mydb = dbcreate(self.api('sqldb.baseclass')(), self,

@@ -16,7 +16,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 25
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 class TimerEvent(Event):
@@ -149,11 +148,11 @@ class Plugin(BasePlugin):
                              self.cmd_detail,
                              parser=parser)
 
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('send.msg')('removing timers for plugin %s' % args['name'],
                          secondary=args['name'])
@@ -304,7 +303,7 @@ class Plugin(BasePlugin):
 
   # remove all the timers associated with a plugin
   def api_removeplugin(self, name):
-    """  remove a timer
+    """  remove all timers associated with a plugin
     @Yname@w   = the name of the plugin
 
     this function returns no values"""

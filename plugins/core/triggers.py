@@ -20,7 +20,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 25
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 class Plugin(BasePlugin):
@@ -83,7 +82,7 @@ class Plugin(BasePlugin):
                              self.cmd_list,
                              parser=parser)
 
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
 
     self.api('events.register')('from_mud_event',
                                 self.checktrigger, prio=1)
@@ -100,9 +99,9 @@ class Plugin(BasePlugin):
       self.api('events.unregister')('from_mud_event',
                                     self.checktrigger)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('%s.removeplugin' % self.short_name)(args['name'])
 

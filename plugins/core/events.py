@@ -273,11 +273,11 @@ class Plugin(BasePlugin):
                              self.cmd_raise,
                              parser=parser)
 
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded, prio=10)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized, prio=10)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('send.msg')('removing events for plugin %s' % args['name'],
                          secondary=args['name'])

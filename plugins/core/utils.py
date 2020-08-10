@@ -47,7 +47,7 @@ class Plugin(BasePlugin):
 
   def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
     BasePlugin.initialize(self)
 

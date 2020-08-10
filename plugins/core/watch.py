@@ -13,7 +13,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 25
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 class Plugin(BasePlugin):
@@ -66,11 +65,11 @@ class Plugin(BasePlugin):
                              self.cmd_detail,
                              parser=parser)
 
-    self.api('events.register')('plugin_unloaded', self.pluginunloaded)
+    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
 
-  def pluginunloaded(self, args):
+  def pluginuninitialized(self, args):
     """
-    a plugin was unloaded
+    a plugin was uninitialized
     """
     self.api('send.msg')('removing watches for plugin %s' % args['name'],
                          secondary=args['name'])
