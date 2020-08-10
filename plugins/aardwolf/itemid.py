@@ -11,7 +11,7 @@ PURPOSE = 'Parse invdetails and id'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class InvdetailsCmd(object):
   """
@@ -359,17 +359,17 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     self.currentitem = {}
 
     self.api('dependency.add')('aardwolf.itemu')
-    self.api('dependency.add')('cmdq')
+    self.api('dependency.add')('core.cmdq')
 
     self.api('api.add')('identify', self.api_identify)
     self.api('api.add')('format', self.api_formatitem)
     self.api('api.add')('show', self.api_showitem)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.invdetailscmd = InvdetailsCmd(self)
     self.identifycmd = IdentifyCmd(self)
@@ -415,7 +415,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     it registers with itemid_<serial>
     """
     self.api('events.unregister')(args['eventname'], self.event_showitem)
-    self.api('%s.show' % self.sname)(args['item'].serial)
+    self.api('%s.show' % self.short_name)(args['item'].serial)
 
   def cmd_id(self, args):
     """
@@ -431,15 +431,15 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
       else:
         if titem.hasbeenided and not args['force'] and not args['database']:
           self.api('send.msg')('cmd_id item.hasbeenided')
-          self.api('%s.show' % self.sname)(serial)
+          self.api('%s.show' % self.short_name)(serial)
         elif args['database']:
           self.api('send.msg')('getting %s from the database' % serial)
-          self.api('%s.show' % self.sname)(serial, database=True)
+          self.api('%s.show' % self.short_name)(serial, database=True)
         elif not titem.hasbeenided or args['force']:
           self.api('send.msg')('identifying %s' % serial)
           self.api('events.register')('itemid_%s' % serial,
                                       self.event_showitem)
-          self.api('%s.identify' % self.sname)(serial, force=args['force'])
+          self.api('%s.identify' % self.short_name)(serial, force=args['force'])
       #except ValueError:
         #msg.append('%s is not a serial number' % args['serial'])
     else:
@@ -464,7 +464,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     if item:
       if item.hasbeenided:
         self.api('send.msg')('api_showitem item.hasbeenided')
-        tstuff = self.api('%s.format' % self.sname)(item)
+        tstuff = self.api('%s.format' % self.short_name)(item)
         self.api('send.client')('\n'.join(tstuff))
       else:
         self.api('send.execute')('#bp.itemid.id %s' % serial)

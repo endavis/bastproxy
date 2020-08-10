@@ -9,7 +9,7 @@ PURPOSE = 'anti idle'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -21,11 +21,11 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('triggers.add')('glaze',
                              "^Your eyes glaze over.$")

@@ -11,7 +11,7 @@ PURPOSE = 'Send event when daily blessing is available'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -26,11 +26,11 @@ class Plugin(AardwolfBasePlugin):
     self.seconds = -1
     self.nextdaily = -1
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('triggers.add')(
         'daily1',
@@ -129,11 +129,11 @@ class Plugin(AardwolfBasePlugin):
     self.api('timers.remove')('dailyblessing')
     self.api('events.eraise')('aard_daily_available')
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
 
     self.checkdaily()
 

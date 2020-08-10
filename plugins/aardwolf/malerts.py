@@ -17,7 +17,7 @@ PURPOSE = 'Email Alerts for Aardwolf Events'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -32,11 +32,11 @@ class Plugin(AardwolfBasePlugin):
     self.api('dependency.add')('aardwolf.quest')
     self.api('dependency.add')('aardwolf.iceage')
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('email', '', str,
                             'the email to send the alerts', nocolor=True)

@@ -15,7 +15,7 @@ PURPOSE = 'Events for Aardwolf CPs'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -26,21 +26,23 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.savecpfile = os.path.join(self.savedir, 'cp.txt')
+    self.savecpfile = os.path.join(self.save_directory, 'cp.txt')
     self.cpinfo = PersistentDict(self.savecpfile, 'c')
     self.mobsleft = []
     self.cpinfotimer = {}
     self.nextdeath = False
 
-    self.api('dependency.add')('cmdq')
+    self.api('dependency.add')('core.cmdq')
+    self.api('dependency.add')('aardwolf.aconf')
+
     self.api('api.add')('oncp', self.api_oncp)
     self.api('api.add')('mobsleft', self.api_cpmobsleft)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('cmdq.addcmdtype')('cpcheck', 'campaign check', "^campaign check$",
                                 beforef=self.cpcheckbefore, afterf=self.cpcheckafter)
@@ -126,7 +128,10 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('trigger_cpreward', self._cpreward)
     self.api('events.register')('trigger_cpcompdone', self._cpcompdone)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+#    self.api('events.register')('GMCP:config', self.ongmcpconfig)
+#    self.api('events.register')('GMCP:char.status', self.ongmcpcharstatus)
+
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def api_oncp(self):
     """
@@ -188,11 +193,11 @@ class Plugin(AardwolfBasePlugin):
     self.api('triggers.togglegroup')("cpin", True)
     self.api('triggers.togglegroup')('cpcheck', False)
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
     self.api('cmdq.addtoqueue')('cpcheck', '')
 
   def _cpreset(self):

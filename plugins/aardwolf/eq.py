@@ -12,7 +12,7 @@ PURPOSE = 'Eq Manipulation'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 OPTIONALLOCS = [8, 9, 10, 11, 25, 28, 29, 30, 31, 32]
 
@@ -196,7 +196,7 @@ class EqContainer(object):
                              enabled=True, group='dataline', omit=True)
 
     self.api('events.register')('trigger_dataline', self.dataline,
-                                plugin=self.plugin.sname)
+                                plugin=self.plugin.short_name)
 
   def datastart(self, args):
     """
@@ -789,7 +789,7 @@ class Plugin(AardwolfBasePlugin): #pylint: disable=too-many-public-methods
     self._dump_shallow_attrs.append('itemcache')
 
     self.api('dependency.add')('aardwolf.itemu')
-    self.api('dependency.add')('cmdq')
+    self.api('dependency.add')('core.cmdq')
 
     self.api('api.add')('getitem', self.api_getitem)
     self.api('api.add')('getcontainer', self.api_getcontainer)
@@ -803,11 +803,11 @@ class Plugin(AardwolfBasePlugin): #pylint: disable=too-many-public-methods
     self.api('api.add')('addidentify', self.api_addidentify)
 
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show equipment worn')
@@ -1111,11 +1111,11 @@ class Plugin(AardwolfBasePlugin): #pylint: disable=too-many-public-methods
     """
     self.containers['Worn'].get(serial)
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
     for container in self.containers:
       self.containers[container].refresh()
 

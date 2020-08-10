@@ -13,7 +13,7 @@ PURPOSE = 'keep up with affect flags'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class AFlags(object):
   """
@@ -197,21 +197,21 @@ class Plugin(AardwolfBasePlugin):
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
     self.api('dependency.add')('aardwolf.skills')
-    self.api('dependency.add')('cmdq')
+    self.api('dependency.add')('core.cmdq')
 
     self.api('api.add')('check', self.api_checkflag)
 
-    self.firstactiveprio = 1
+    self.first_active_priority = 1
     self.cmdaflags = None
     self.aflags = None
     self.currentflag = None
     self.flagstable = {}
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.cmdaflags = AFlagsCmd(self)
     self.aflags = AFlags(self)
@@ -248,11 +248,11 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('affect_diff',
                                 self.flagsdiff)
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
     self.refreshflags()
 
   # check if affected by a flag

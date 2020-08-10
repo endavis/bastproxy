@@ -4,7 +4,7 @@ This plugin does spellups for Aardwolf
 import os
 from plugins.aardwolf._aardwolfbaseplugin import AardwolfBasePlugin
 import libs.argp as argp
-from libs.timing import timeit
+from libs.timing import duration
 from libs.persistentdict import PersistentDict
 
 NAME = 'Spellup'
@@ -13,7 +13,7 @@ PURPOSE = 'spellup plugin'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -24,7 +24,7 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.spellupfile = os.path.join(self.savedir, 'spellups.txt')
+    self.spellupfile = os.path.join(self.save_directory, 'spellups.txt')
     self.spellups = PersistentDict(self.spellupfile, 'c')
 
     self.api('dependency.add')('aardwolf.skills')
@@ -35,11 +35,11 @@ class Plugin(AardwolfBasePlugin):
     self.lastmana = -1
     self.lastmoves = -1
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('enabled', True, bool,
                             'auto spellup is enabled')
@@ -126,7 +126,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('aard_skill_gain', self.skillgain)
     self.api('events.register')('var_su_enabled', self.enabledchange)
     self.api('events.register')('skills_affected_update', self.nextspell)
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
     self.api('events.register')('skills_uptodate', self.nextspell)
 
   def skillgain(self, args=None):
@@ -278,7 +278,7 @@ class Plugin(AardwolfBasePlugin):
     if status == 3 and self.api('skills.isuptodate')():
       self.nextspell()
 
-  @timeit
+  @duration
   def check(self, _=None):
     """
     check to cast the next spell
@@ -305,7 +305,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('send.msg')('checked returned True')
     return True
 
-  @timeit
+  @duration
   def nextspell(self, _=None):
     """
     try to cast the next spell

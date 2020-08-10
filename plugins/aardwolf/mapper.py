@@ -12,7 +12,7 @@ PURPOSE = 'a mapper for aardwolf'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 def dbcreate(sqldb, plugin, **kwargs):
   """
@@ -279,7 +279,7 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('sqldb')
+    self.api('dependency.add')('core.sqldb')
 
     self.mapperdb = None
     self.current_room = None
@@ -295,20 +295,20 @@ class Plugin(AardwolfBasePlugin):
     self.bounce_portal = None
     self.bounce_recall = None
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('maxdepth', 300, int,
                             'max depth to search')
 
-    self.api('log.console')(self.sname)
-    self.api('log.client')(self.sname)
+    self.api('log.console')(self.short_name)
+    self.api('log.client')(self.short_name)
 
     self.mapperdb = dbcreate(self.api('sqldb.baseclass')(), self,
-                             dbname='mapper', dbdir=self.savedir)
+                             dbname='mapper', dbdir=self.save_directory)
 
     self.api('send.msg')('mapperdb: %s' % self.mapperdb)
 
@@ -445,11 +445,11 @@ class Plugin(AardwolfBasePlugin):
     if self.mapperdb:
       self.mapperdb.backupdb(tstr)
 
-  def unload(self, _=None):
+  def uninitialize(self, _=None):
     """
-    handle unloading
+    handle uninitializing
     """
-    AardwolfBasePlugin.unload(self)
+    AardwolfBasePlugin.uninitialize(self)
     self.mapperdb.close()
 
   def noportal(self, _=None):

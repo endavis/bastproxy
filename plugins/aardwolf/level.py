@@ -14,7 +14,7 @@ PURPOSE = 'Events for Aardwolf Level'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -25,14 +25,14 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.savelevelfile = os.path.join(self.savedir, 'level.txt')
+    self.savelevelfile = os.path.join(self.save_directory, 'level.txt')
     self.levelinfo = PersistentDict(self.savelevelfile, 'c')
 
-  def load(self): # pylint: disable=too-many-statements
+  def initialize(self): # pylint: disable=too-many-statements
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('preremort', False, bool,
                             'flag for pre remort')
@@ -158,7 +158,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('trigger_lvlremortcomp', self._remortcomp)
     self.api('events.register')('trigger_lvltier', self._tier)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def _gmcpstatus(self, _=None):
     """

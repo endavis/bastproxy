@@ -26,7 +26,7 @@ PURPOSE = 'Show combat stats'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -42,11 +42,11 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('dependency.add')('aardwolf.mobk')
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('statcolor', '@W', 'color', 'the stat color')
     self.api('setting.add')('infocolor', '@x33', 'color', 'the info color')

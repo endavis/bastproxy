@@ -21,7 +21,7 @@ PURPOSE = 'Add events to the stat database'
 AUTHOR = 'Bast'
 VERSION = 2
 
-AUTOLOAD = False
+
 
 def format_float(item, addto=""):
   """
@@ -66,11 +66,11 @@ def dbcreate(sqldb, plugin, **kwargs):
 
       self.version = 17
 
-      self.versionfuncs[13] = self.addrarexp_v13
-      self.versionfuncs[14] = self.addnoexp_v14
-      self.versionfuncs[15] = self.addextendedgq_v15
-      self.versionfuncs[16] = self.addhardcoreopk_v16
-      self.versionfuncs[17] = self.addlevelbattlelearntrains_v17
+      self.version_functions[13] = self.addrarexp_v13
+      self.version_functions[14] = self.addnoexp_v14
+      self.version_functions[15] = self.addextendedgq_v15
+      self.version_functions[16] = self.addhardcoreopk_v16
+      self.version_functions[17] = self.addlevelbattlelearntrains_v17
 
       self.addtable('stats', """CREATE TABLE stats(
             stat_id INTEGER NOT NULL PRIMARY KEY autoincrement,
@@ -251,7 +251,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       questinfo = self.checkdictforcolumns('quests', questinfo)
 
       stmt = self.converttoinsert('quests', keynull=True)
-      rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt, questinfo)
+      rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt, questinfo)
       self.api('send.msg')('added quest: %s' % rowid)
       return rowid
 
@@ -264,11 +264,11 @@ def dbcreate(sqldb, plugin, **kwargs):
       if retval:
         if table == 'campaigns':
           stmt = "DELETE FROM cpmobs where cp_id=%s;" % (rownumber)
-          self.api('%s.modify' % self.plugin.sname)(stmt)
+          self.api('%s.modify' % self.plugin.short_name)(stmt)
 
         elif table == 'gquests':
           stmt = "DELETE FROM gqmobs where gq_id=%s;" % (rownumber)
-          self.api('%s.modify' % self.plugin.sname)(stmt)
+          self.api('%s.modify' % self.plugin.short_name)(stmt)
 
       return retval, msg
 
@@ -278,7 +278,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       stmt = 'update stats set %s=%s where milestone = "current"' % (
           stat, value)
-      self.api('%s.modify' % self.plugin.sname)(stmt)
+      self.api('%s.modify' % self.plugin.short_name)(stmt)
       self.api('send.msg')('set %s to %s' % (stat, value))
 
     def getstat(self, stat):
@@ -286,7 +286,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       get a stat from the stats table
       """
       tstat = None
-      rows = self.api('%s.select' % self.plugin.sname)(
+      rows = self.api('%s.select' % self.plugin.short_name)(
           'SELECT * FROM stats WHERE milestone = "current"')
       if len(rows) > 0 and stat in rows[0]: # pylint: disable=len-as-condition
         tstat = rows[0][stat]
@@ -302,7 +302,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       if self.checkcolumnexists('stats', stat):
         stmt = "UPDATE stats SET %s = %s + %s WHERE milestone = 'current'" \
             % (stat, stat, add)
-        self.api('%s.modify' % self.plugin.sname)(stmt)
+        self.api('%s.modify' % self.plugin.short_name)(stmt)
         return True
 
       return False
@@ -318,15 +318,15 @@ def dbcreate(sqldb, plugin, **kwargs):
         whoisinfo['milestone'] = 'current'
         whoisinfo['time'] = 0
         stmt = self.converttoupdate('stats', 'milestone', nokey)
-        self.api('%s.modify' % self.plugin.sname)(stmt,
-                                                  whoisinfo)
+        self.api('%s.modify' % self.plugin.short_name)(stmt,
+                                                       whoisinfo)
       else:
         whoisinfo['milestone'] = 'current'
         whoisinfo['totaltrivia'] = 0
         whoisinfo['time'] = 0
         stmt = self.converttoinsert('stats', True)
-        self.api('%s.modify' % self.plugin.sname)(stmt,
-                                                  whoisinfo)
+        self.api('%s.modify' % self.plugin.short_name)(stmt,
+                                                       whoisinfo)
         #add a milestone here
         self.addmilestone('start')
 
@@ -341,7 +341,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       if not milestone:
         return -1
 
-      trows = self.api('%s.select' % self.plugin.sname)(
+      trows = self.api('%s.select' % self.plugin.short_name)(
           'SELECT * FROM stats WHERE milestone = "%s"' \
                                                             % milestone)
       if len(trows) > 0: # pylint: disable=len-as-condition
@@ -349,7 +349,7 @@ def dbcreate(sqldb, plugin, **kwargs):
                                                 milestone)
         return -1
 
-      stats = self.api('%s.select' % self.plugin.sname)(
+      stats = self.api('%s.select' % self.plugin.short_name)(
           'SELECT * FROM stats WHERE milestone = "current"')
       tstats = stats[0]
 
@@ -357,7 +357,7 @@ def dbcreate(sqldb, plugin, **kwargs):
         tstats['milestone'] = milestone
         tstats['time'] = time.time()
         stmt = self.converttoinsert('stats', True)
-        rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt, tstats)
+        rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt, tstats)
 
         self.api('send.msg')('inserted milestone %s with rowid: %s' % (
             milestone, rowid))
@@ -369,7 +369,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       get a milestone
       """
-      trows = self.api('%s.select' % self.plugin.sname)(
+      trows = self.api('%s.select' % self.plugin.short_name)(
           'SELECT * FROM stats WHERE milestone = "%s"' % milestone)
 
       if len(trows) == 0: # pylint: disable=len-as-condition
@@ -382,15 +382,15 @@ def dbcreate(sqldb, plugin, **kwargs):
       add classes from whois
       """
       stmt = 'UPDATE CLASSES SET REMORT = :remort WHERE class = :class'
-      self.api('%s.modifymany' % self.plugin.sname)(stmt,
-                                                    classes)
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt,
+                                                         classes)
 
     def getclasses(self):
       """
       get all classes
       """
       classes = []
-      tclasses = self.api('%s.select' % self.plugin.sname)(
+      tclasses = self.api('%s.select' % self.plugin.short_name)(
           'SELECT * FROM classes ORDER by remort ASC')
       for i in tclasses:
         if i['remort'] != -1:
@@ -407,8 +407,8 @@ def dbcreate(sqldb, plugin, **kwargs):
       for i in classabb:
         classes.append({'class':i})
       stmt = "INSERT INTO classes VALUES (:class, -1)"
-      self.api('%s.modifymany' % self.plugin.sname)(stmt,
-                                                    classes)
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt,
+                                                         classes)
 
     def resetclasses(self):
       """
@@ -420,8 +420,8 @@ def dbcreate(sqldb, plugin, **kwargs):
         classes.append({'class':i})
       stmt = """UPDATE classes SET remort = -1
                       WHERE class = :class"""
-      self.api('%s.modifymany' % self.plugin.sname)(stmt,
-                                                    classes)
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt,
+                                                         classes)
 
     def savecp(self, cpinfo):
       """
@@ -439,14 +439,14 @@ def dbcreate(sqldb, plugin, **kwargs):
       cpinfo = self.checkdictforcolumns('campaigns', cpinfo)
 
       stmt = self.converttoinsert('campaigns', keynull=True)
-      rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt, cpinfo)
+      rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt, cpinfo)
       self.api('send.msg')('added cp: %s' % rowid)
 
       for i in cpinfo['mobs']:
         i['cp_id'] = rowid
       stmt2 = self.converttoinsert('cpmobs', keynull=True)
-      self.api('%s.modifymany' % self.plugin.sname)(stmt2,
-                                                    cpinfo['mobs'])
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt2,
+                                                         cpinfo['mobs'])
 
     def savegq(self, gqinfo):
       """
@@ -462,14 +462,14 @@ def dbcreate(sqldb, plugin, **kwargs):
       gqinfo = self.checkdictforcolumns('gquests', gqinfo)
 
       stmt = self.converttoinsert('gquests', keynull=True)
-      rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt, gqinfo)
+      rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt, gqinfo)
       self.api('send.msg')('added gq: %s' % rowid)
 
       for i in gqinfo['mobs']:
         i['gq_id'] = rowid
       stmt2 = self.converttoinsert('gqmobs', keynull=True)
-      self.api('%s.modifymany' % self.plugin.sname)(stmt2,
-                                                    gqinfo['mobs'])
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt2,
+                                                         gqinfo['mobs'])
 
     def savelevel(self, levelinfo, first=False):
       """
@@ -496,13 +496,13 @@ def dbcreate(sqldb, plugin, **kwargs):
       levelinfo = self.checkdictforcolumns('levels', levelinfo)
 
       stmt = self.converttoinsert('levels', keynull=True)
-      rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt,
-                                                           levelinfo)
+      rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt,
+                                                                levelinfo)
       self.api('send.msg')('inserted level %s' % rowid)
       if rowid > 1:
         stmt2 = "UPDATE levels SET finishtime = %s WHERE level_id = %d" % (
             levelinfo['starttime'], int(rowid) - 1)
-        self.api('%s.modify' % self.plugin.sname)(stmt2)
+        self.api('%s.modify' % self.plugin.short_name)(stmt2)
 
       if levelinfo['type'] == 'level':
         self.addmilestone(str(levelinfo['totallevels']))
@@ -519,7 +519,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       killinfo = self.checkdictforcolumns('mobkills', killinfo)
 
       stmt = self.converttoinsert('mobkills', keynull=True)
-      rowid, _ = self.api('%s.modify' % self.plugin.sname)(stmt, killinfo)
+      rowid, _ = self.api('%s.modify' % self.plugin.short_name)(stmt, killinfo)
       self.api('send.msg')('inserted mobkill: %s' % rowid)
 
     def addrarexp_v13(self):
@@ -789,7 +789,8 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('sqldb')
+    self.api('dependency.add')('core.sqldb')
+    self.api('dependency.add')('core.timers')
     self.api('dependency.add')('aardwolf.whois')
     self.api('dependency.add')('aardwolf.level')
     self.api('dependency.add')('aardwolf.mobk')
@@ -799,16 +800,16 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     self.statdb = None
 
-    self.versionfuncs[2] = self.movestatdb_version2
+    self.version_functions[2] = self.movestatdb_version2
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.statdb = dbcreate(self.api('sqldb.baseclass')(), self,
-                           dbname='stats', dbdir=self.savedir)
+                           dbname='stats', dbdir=self.save_directory)
 
     self.api('setting.add')('backupstart', '0000', 'miltime',
                             'the time for a db backup, ex. 1200 or 2000')
@@ -911,7 +912,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     oldpath = os.path.join(self.api.BASEPATH, 'data', 'db')
     oldpatharchive = os.path.join(oldpath, 'archive')
-    newpath = self.savedir
+    newpath = self.save_directory
     newpatharchive = os.path.join(newpath, 'archive')
     if not os.path.exists(newpatharchive):
       os.makedirs(newpatharchive)
@@ -1100,7 +1101,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     tid = args['number']
 
-    questinfo = self.api('%s.getrow' % self.sname)(tid, 'quests')
+    questinfo = self.api('%s.getrow' % self.short_name)(tid, 'quests')
 
     if questinfo:
       questinfo = questinfo[0]
@@ -1289,7 +1290,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     tid = args['number']
 
-    levelinfo = self.api('%s.getrow' % self.sname)(tid, 'levels')
+    levelinfo = self.api('%s.getrow' % self.short_name)(tid, 'levels')
 
     linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
@@ -1547,7 +1548,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     tid = args['number']
 
-    cpinfo = self.api('%s.getrow' % self.sname)(tid, 'campaigns')
+    cpinfo = self.api('%s.getrow' % self.short_name)(tid, 'campaigns')
 
     linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
@@ -1555,7 +1556,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     if cpinfo:
       cpinfo = cpinfo[0]
 
-    mobs = self.api('%s.select' % self.sname)(
+    mobs = self.api('%s.select' % self.short_name)(
         "SELECT * FROM cpmobs WHERE cp_id = %s" % tid)
 
     msg.append("@G%-6s %-12s %-2s %-2s %-2s %-2s %-2s %6s %-4s  %s" % \
@@ -1735,7 +1736,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     tid = args['number']
 
-    gqinfo = self.api('%s.getrow' % self.sname)(tid, 'gquests')
+    gqinfo = self.api('%s.getrow' % self.short_name)(tid, 'gquests')
 
     linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
@@ -2139,11 +2140,11 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     self.statdb.savemobkill(args)
 
-  def unload(self, _=None):
+  def uninitialize(self, _=None):
     """
-    handle unloading
+    handle uninitializing
     """
-    AardwolfBasePlugin.unload(self)
+    AardwolfBasePlugin.uninitialize(self)
     self.statdb.close()
 
   def heroevent(self, args):

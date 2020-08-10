@@ -5,13 +5,13 @@ from timeit import default_timer
 from libs.api import API as BASEAPI
 API = BASEAPI()
 
-def timeit(func):
+def duration(func):
   """
-  a decorator to time a function
+  a decorator to find the duration of a function
   """
   def wrapper(*arg):
     """
-    the wrapper to time a function
+    the wrapper to find the duration of a function
     """
     tname = '%s' % (func.func_name)
     TIMING.starttimer(tname, arg)

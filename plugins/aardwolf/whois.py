@@ -12,7 +12,7 @@ PURPOSE = 'Gather whois data'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -23,14 +23,16 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.savewhoisfile = os.path.join(self.savedir, 'whois.txt')
+    self.savewhoisfile = os.path.join(self.save_directory, 'whois.txt')
     self.whois = PersistentDict(self.savewhoisfile, 'c')
 
-  def load(self):
+    self.api('dependency.add')('core.triggers')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('watch.add')('whois', '^(whoi|whois)$')
 
@@ -79,7 +81,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('trigger_whois3', self._whoisstats)
     self.api('events.register')('trigger_whoispowerup', self._whoisstats)
     self.api('events.register')('trigger_whoisend', self._whoisend)
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def _whois(self, args=None):
     """

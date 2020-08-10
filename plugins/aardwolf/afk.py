@@ -14,9 +14,6 @@ PURPOSE = 'do actions when no clients are connected'
 AUTHOR = 'Bast'
 VERSION = 1
 
-# This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = False
-
 TITLEMATCH = r'^Your title is: (?P<title>.*)\.$'
 TITLERE = re.compile(TITLEMATCH)
 
@@ -35,11 +32,13 @@ class Plugin(AardwolfBasePlugin):
 
     self.temptitle = ''
 
-  def load(self):
+    self.api('dependency.add')('aardwolf.connect')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('afktitle', 'is AFK.', str,
                             'the title when afk mode is enabled')
@@ -73,7 +72,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('events.register')('watch_titleset', self._titlesetevent)
 
     self.api('setting.change')('isafk', False)
-    self.api('events.register')('var_%s_isafk' % self.sname, self._isafk_changeevent)
+    self.api('events.register')('var_%s_isafk' % self.short_name, self._isafk_changeevent)
 
   def _isafk_changeevent(self, args=None): # pylint: disable=unused-argument
     """
@@ -85,11 +84,11 @@ class Plugin(AardwolfBasePlugin):
     else:
       self.disableafk()
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     set the title when we first connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
     if self.api('setting.gets')('lasttitle'):
       title = self.api('setting.gets')('lasttitle')
       self.api('send.execute')('title %s' % title)

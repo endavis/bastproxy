@@ -10,7 +10,7 @@ PURPOSE = 'movement plugin'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -24,11 +24,11 @@ class Plugin(AardwolfBasePlugin):
 
     self.lastroom = {}
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('events.register')('GMCP:room.info', self._roominfo)
 
@@ -52,11 +52,11 @@ class Plugin(AardwolfBasePlugin):
         self.api('events.eraise')('moved_room', newdict)
         self.lastroom = copy.deepcopy(dict(room))
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
 
     self.api('send.msg')('requesting room')
     self.api('GMCP.sendmud')('request room')

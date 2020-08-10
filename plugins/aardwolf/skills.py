@@ -12,7 +12,7 @@ PURPOSE = 'keep up with skills using slist'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 FAILREASON = {}
 FAILREASON[1] = 'lostconc' # Regular fail, lost concentration.
@@ -437,7 +437,7 @@ class Plugin(AardwolfBasePlugin):
     self.skills = None
     self.slistcmd = None
 
-    self.api('dependency.add')('cmdq')
+    self.api('dependency.add')('aardwolf.A102')
 
     self.api('api.add')('gets', self._api_getskill)
     self.api('api.add')('getr', self._api_getrecovery)
@@ -452,11 +452,11 @@ class Plugin(AardwolfBasePlugin):
     self.api('api.add')('isuptodate', self._api_isuptodate)
     self.api('api.add')('isbad', self._api_isbad)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.skills = Skills(self)
     self.slistcmd = SListCmd(self)
@@ -516,11 +516,11 @@ class Plugin(AardwolfBasePlugin):
     """
     self.skills.reset()
 
-  def afterfirstactive(self, _=None):
+  def after_first_active(self, _=None):
     """
     do something on connect
     """
-    AardwolfBasePlugin.afterfirstactive(self)
+    AardwolfBasePlugin.after_first_active(self)
     self.checkskills()
 
   # check if the spells/skills list is up to date

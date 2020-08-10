@@ -24,7 +24,7 @@ PURPOSE = 'Monitor for Aardwolf Events'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -37,11 +37,13 @@ class Plugin(AardwolfBasePlugin):
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
     self.msgs = []
 
-  def load(self):
+    self.api('dependency.add')('core.timers')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('events.register')('aard_quest_comp', self.compquest)
     self.api('events.register')('aard_cp_comp', self.compcp)

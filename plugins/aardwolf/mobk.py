@@ -11,7 +11,7 @@ PURPOSE = 'Events for Aardwolf Mobkills'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 def damagedefault():
   """
@@ -57,11 +57,11 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     self.reset_kill()
     self.mobdamcache = {}
 
-  def load(self): # pylint: disable=too-many-statements
+  def initialize(self): # pylint: disable=too-many-statements
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('instatext', '@x0', 'color',
                             'the text color for an instakill')

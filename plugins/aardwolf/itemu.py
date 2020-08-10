@@ -17,7 +17,7 @@ PURPOSE = 'Aard item and inventory functions'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 OBJECTTYPES = [
     'none',
@@ -149,11 +149,11 @@ class Plugin(AardwolfBasePlugin):
     self.invlayout['tempmod'] = ['sn', 'u1', 'u2', 'statmod', 'duration']
     self.invlayout['enchant'] = ['spell', 'etype', 'stat', 'mod', 'char', 'removable']
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
   @staticmethod
   # get the flags name table

@@ -13,7 +13,7 @@ PURPOSE = 'Events for Aardwolf Quests'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -24,18 +24,18 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.savequestfile = os.path.join(self.savedir, 'quest.txt')
+    self.savequestfile = os.path.join(self.save_directory, 'quest.txt')
     self.queststuff = PersistentDict(self.savequestfile, 'c')
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('events.register')('GMCP:comm.quest', self.quest)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
 
   def resetquest(self):

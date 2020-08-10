@@ -18,7 +18,7 @@ PURPOSE = 'Pushbullet Alert for Aardwolf Events'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -52,11 +52,11 @@ class Plugin(AardwolfBasePlugin):
                            'help':'flag for sending alerts for daily blessing'}
 
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     for tevent in self.evmap:
       self.api('setting.add')(tevent, True, bool,

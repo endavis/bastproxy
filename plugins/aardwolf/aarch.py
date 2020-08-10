@@ -13,7 +13,7 @@ PURPOSE = 'see what aarch items are needed'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 AARCHITEMS = {
     1: "Johnny's Appleseed",
@@ -81,11 +81,11 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('dependency.add')('aardwolf.eq')
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugin
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show needed aarch items')

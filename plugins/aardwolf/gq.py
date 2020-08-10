@@ -13,7 +13,7 @@ PURPOSE = 'Events for Aardwolf GQuests'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -24,7 +24,7 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.savegqfile = os.path.join(self.savedir, 'gq.txt')
+    self.savegqfile = os.path.join(self.save_directory, 'gq.txt')
     self.gqinfo = PersistentDict(self.savegqfile, 'c')
     self._gqsdeclared = {}
     self._gqsstarted = {}
@@ -33,11 +33,11 @@ class Plugin(AardwolfBasePlugin):
     self.mobsleft = []
     self.linecount = 0
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
     self.api('watch.add')('gq_check',
                           r'^(gq|gqu|gque|gques|gquest) (c|ch|che|chec|check)$')
 
@@ -159,7 +159,7 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('events.register')('watch_gq_check', self._gqcheckcmd)
 
-    self.api('events.register')('plugin_%s_savestate' % self.sname, self._savestate)
+    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
   def _gqnew(self):
     """

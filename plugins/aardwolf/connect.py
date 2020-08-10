@@ -12,7 +12,6 @@ PURPOSE = 'setup aardwolf when first connecting'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
 
 class Plugin(BasePlugin):
   """
@@ -31,11 +30,13 @@ class Plugin(BasePlugin):
     # the firstactive flag
     self.api('api.add')('firstactive', self.api_firstactive)
 
-  def load(self):
+    self.api('dependency.add')('net.GMCP')
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('triggers.add')('connect_return',
                              r"\[ Press Return to continue \]")

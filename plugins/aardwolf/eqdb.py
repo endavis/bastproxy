@@ -11,7 +11,7 @@ PURPOSE = 'Keep track of eq in a database'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 def dbcreate(sqldb, plugin, **kwargs):
   """
@@ -321,7 +321,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       self.api('send.msg')('geting %s for item %s' % (tdet, serial))
       stmt = "SELECT * FROM %s WHERE serial = %s;" % (tdet, serial)
-      results = self.api('%s.select' % self.plugin.sname)(stmt)
+      results = self.api('%s.select' % self.plugin.short_name)(stmt)
 
       return results
 
@@ -385,7 +385,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       self.api('send.msg')('adding %s for item %s' % (tdet, serial))
       self.api('send.msg')('detail: %s' % detail)
-      self.api('%s.modify' % self.plugin.sname)('DELETE from %s where serial = %s' % \
+      self.api('%s.modify' % self.plugin.short_name)('DELETE from %s where serial = %s' % \
                                                   (tdet, serial))
       newdata = []
       for i in detail:
@@ -394,7 +394,7 @@ def dbcreate(sqldb, plugin, **kwargs):
 
       stmt2 = self.converttoinsert(tdet, keynull=True)
       self.api('send.msg')('sqmt: %s' % stmt2)
-      self.api('%s.modifymany' % self.plugin.sname)(stmt2,
+      self.api('%s.modifymany' % self.plugin.short_name)(stmt2,
                                                     newdata)
 
     def saveonedetail(self, tdet, serial, detail):
@@ -403,12 +403,12 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       self.api('send.msg')('adding %s for item %s' % (tdet, serial))
       self.api('send.msg')('detail: %s' % detail)
-      self.api('%s.modify' % self.plugin.sname)('DELETE from %s where serial = %s' % \
+      self.api('%s.modify' % self.plugin.short_name)('DELETE from %s where serial = %s' % \
                                                   (tdet, serial))
       newitem = self.checkdictforcolumns(tdet, detail)
       newitem['serial'] = serial
       stmt = self.converttoinsert(tdet)
-      self.api('%s.modify' % self.plugin.sname)(stmt, newitem)
+      self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
 
     def saveitemdetails(self, item): # pylint: disable=too-many-branches
       """
@@ -458,14 +458,14 @@ def dbcreate(sqldb, plugin, **kwargs):
         newitem['keywords'] = ",".join(newitem['keywords'])
         newitem['flags'] = ",".join(newitem['flags'])
         stmt = self.converttoinsert('items')
-        self.api('%s.modify' % self.plugin.sname)(stmt, newitem)
+        self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
       else:
         self.api('send.msg')('updating item: %s' % item.serial)
         newitem = self.checkdictforcolumns('items', vars(item))
         newitem['keywords'] = ",".join(newitem['keywords'])
         newitem['flags'] = ",".join(newitem['flags'])
         stmt = self.converttoupdate('items', 'serial')
-        self.api('%s.modify' % self.plugin.sname)(stmt, newitem)
+        self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
 
       self.saveitemdetails(item)
 
@@ -483,18 +483,18 @@ class Plugin(AardwolfBasePlugin):
 
     self.eqdb = None
 
-    self.api('dependency.add')('sqldb')
+    self.api('dependency.add')('core.sqldb')
     self.api('api.add')('getitem', self.api_loaditem)
     self.api('api.add')('saveitem', self.api_saveitem)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.eqdb = dbcreate(self.api('sqldb.baseclass')(), self,
-                         dbname='eqdb', dbdir=self.savedir)
+                         dbname='eqdb', dbdir=self.save_directory)
 
     self.api('setting.add')('backupstart', '0000', 'miltime',
                             'the time for a db backup, like 1200 or 2000')
@@ -622,9 +622,9 @@ class Plugin(AardwolfBasePlugin):
 
     return True, tmsg
 
-  def unload(self, _=None):
+  def uninitialize(self, _=None):
     """
-    handle unloading
+    handle uninitializing
     """
-    AardwolfBasePlugin.unload(self)
+    AardwolfBasePlugin.uninitialize(self)
     self.eqdb.close()

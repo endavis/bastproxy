@@ -14,7 +14,7 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 35
 
-AUTOLOAD = True
+
 
 AOPTIONS = {}
 AOPTIONS['STATMON'] = 1
@@ -71,29 +71,31 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.canreload = False
+    self.can_reload_f = False
 
     self.optionstates = {}
     self.a102optionqueue = []
 
     self.reconnecting = False
 
+    self.api('dependency.add')('net.options')
+
     self.api('api.add')('sendmud', self.api_sendmud)
     self.api('api.add')('toggle', self.api_toggle)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     self.api('events.register')('A102_from_server', self.a102fromserver)
     self.api('events.register')('A102_from_client', self.a102fromclient)
     self.api('events.register')('A102:server-enabled', self.a102request)
     self.api('events.register')('muddisconnect', self.a102disconnect)
 
-    self.api('options.addserveroption')(self.sname, SERVER)
-    self.api('options.addclientoption')(self.sname, CLIENT)
+    self.api('options.addserveroption')(self.short_name, SERVER)
+    self.api('options.addclientoption')(self.short_name, CLIENT)
 
   # Send an A102 packet
   def api_sendmud(self, message):

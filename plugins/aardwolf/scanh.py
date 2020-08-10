@@ -9,7 +9,7 @@ PURPOSE = 'highlight cp, gq, quest mobs in scan'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -27,11 +27,11 @@ class Plugin(AardwolfBasePlugin):
 
     self.mobs = {}
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('setting.add')('cpbackcolor', '@z14', 'color',
                             'the background color for cp mobs')

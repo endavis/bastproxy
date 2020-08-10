@@ -19,7 +19,7 @@ PURPOSE = 'Aard related functions to use in the api'
 AUTHOR = 'Bast'
 VERSION = 1
 
-AUTOLOAD = False
+
 
 # a table of class abbreviations
 CLASSABB = {
@@ -125,11 +125,13 @@ class Plugin(AardwolfBasePlugin):
     self.api('api.add')('rewardtable', self.api_rewardtable)
     self.api('api.add')('parsedamageline', self.api_parsedamageline)
 
-  def load(self):
+    self.dependencies = ['aardwolf.connect']
+
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    AardwolfBasePlugin.load(self)
+    AardwolfBasePlugin.initialize(self)
 
     self.api('triggers.add')('dead',
                              r"^You die.$",
