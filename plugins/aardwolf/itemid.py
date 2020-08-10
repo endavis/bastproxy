@@ -467,7 +467,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
         tstuff = self.api('%s.format' % self.short_name)(item)
         self.api('send.client')('\n'.join(tstuff))
       else:
-        self.api('send.execute')('#bp.itemid.id %s' % serial)
+        self.api('send.execute')('%s.%s.id' % (self.api('commands.prefix')(), self.short_name, serial))
 
   def formatsingleline(self, linename, linecolour, data, datacolor=None):
     """

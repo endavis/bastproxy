@@ -87,7 +87,7 @@ class Plugin(AardwolfBasePlugin):
     """
     show the report
     """
-    self.api('send.execute')('#bp.statmn.rep')
+    self.api('send.execute')('%s.%s.rep' % (self.api('commands.prefix')(), self.short_name))
 
   def compquest(self, args):
     """

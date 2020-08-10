@@ -201,18 +201,19 @@ class Plugin(BasePlugin):
     check for mud settings
     """
     mud = self.api('managers.getm')('mud')
+    cmdprefix = self.api('commands.prefix')()
     tmsg = []
     divider = '@R------------------------------------------------@w'
     if not mud.connected:
       if not self.api('setting.gets')('mudhost'):
         tmsg.append(divider)
         tmsg.append('Please set the mudhost through the net plugin.')
-        tmsg.append('#bp.proxy.set mudhost "host"')
+        tmsg.append('%s.%s.set mudhost "host"' % (cmdprefix, self.short_name))
       if self.api('setting.gets')('mudport') == 0:
         tmsg.append(divider)
         tmsg.append('Please set the mudport through the net plugin.')
-        tmsg.append('#bp.proxy.set mudport "port"')
-      tmsg.append('Connect to the mud with "#bp.proxy.connect"')
+        tmsg.append('%s.%s.set mudport "port"' % (cmdprefix, self.short_name))
+      tmsg.append('Connect to the mud with "%s.%s.connect"' % (cmdprefix, self.short_name))
     else:
       tmsg.append(divider)
       tmsg.append('@R#BP@W: @GThe proxy is already connected to the mud@w')
@@ -220,12 +221,12 @@ class Plugin(BasePlugin):
       tmsg.append(divider)
       tmsg.append('The proxy password is still the default password.')
       tmsg.append('Please set the proxy password!')
-      tmsg.append('#bp.%s.proxypw "This is a password"' % self.short_name)
+      tmsg.append('%s.%s.proxypw "This is a password"' % (cmdprefix, self.short_name))
     if self.api('%s.proxypwview' % self.short_name)() == 'defaultviewpass':
       tmsg.append(divider)
       tmsg.append('The proxy view password is still the default password.')
       tmsg.append('Please set the proxy view password!')
-      tmsg.append('#bp.%s.proxypwview "This is a view password"' % self.short_name)
+      tmsg.append('%s.%s.proxypwview "This is a view password"' % (cmdprefix, self.short_name))
     if tmsg[-1] != divider:
       tmsg.append(divider)
     if tmsg[0] != divider:

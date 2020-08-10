@@ -77,9 +77,10 @@ class SSC(object):
 
       return first_line.strip()
     except IOError:
-      self.api('send.error')('Please set the %s with #bp.%s.%s' % (self.desc,
-                                                                   self.short_name,
-                                                                   self.sshort_name))
+      self.api('send.error')('Please set the %s with %s.%s.%s' % (self.desc,
+                                                                  self.api('commands.prefix')(),
+                                                                  self.short_name,
+                                                                  self.sshort_name))
 
     return self.default
 

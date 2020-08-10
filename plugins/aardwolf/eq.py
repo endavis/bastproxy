@@ -757,7 +757,8 @@ class Vault(EqContainer):
       msg.append(self.getitemcountmsg())
     else:
       msg = ['The vault has not been refreshed.',
-             'Please go to a bank and type "#bp.eq.refresh -c Vault"']
+             'Please go to a bank and type "%s.%s.refresh -c Vault"' % \
+                            (self.api('commands.prefix')(), self.short_name)]
 
     return msg
 

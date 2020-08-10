@@ -78,6 +78,7 @@ class Plugin(BasePlugin):
     self.api('api.add')('list', self.api_listcmds)
     self.api('api.add')('run', self.api_run)
     self.api('api.add')('cmdhelp', self.api_cmdhelp)
+    self.api('api.add')('prefix', self._api_get_prefix)
 
     self.dependencies = ['core.events', 'core.log', 'core.errors']
 
@@ -175,6 +176,12 @@ class Plugin(BasePlugin):
     msg.append('@G' + '-' * linelen + '@w')
     msg.append('')
     return msg
+
+  def _api_get_prefix(self):
+    """
+    return the current command prefix
+    """
+    return self.api('setting.gets')('cmdprefix')
 
   # change an attribute for a command
   def api_changecmd(self, plugin, command, flag, value):
