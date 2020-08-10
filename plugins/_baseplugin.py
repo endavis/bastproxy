@@ -332,7 +332,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     @CUsage@w: help
     """
     msg = []
-
+    msg.append('%-25s : %s' % ('Plugin ID', self.plugin_id))
+    msg.append('%-25s : %s' % ('Plugin Command Prefix', self.short_name))
+    msg.append('%-25s : %s' % ('Purpose', self.purpose))
+    msg.append('%-25s : %s' % ('Author', self.author))
+    msg.append('%-25s : %s' % ('Version', self.version))
+    msg.append('%-25s : %s' % ('Plugin Path', self.plugin_path))
+    msg.append('%-25s : %s' % ('Time Loaded', self.loaded_time))
     if '.__init__' in self.full_import_location:
       import_location = self.full_import_location.replace('.__init__', '')
     else:
@@ -353,9 +359,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         msg.extend(self.api('api.list')(self.short_name))
     return True, msg
 
-  def _load_commands(self):
+  def _add_commands(self):
     """
-    load the commands
+    add commands commands
     """
     parser = argp.ArgumentParser(
         add_help=False,
@@ -499,9 +505,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     self.setting_values.sync()
 
-  def __after_load(self, args): # pylint: disable=unused-argument
+  def __after_initialize(self, _=None):
     """
-    do something after the load function is run
+    do something after the initialize function is run
     """
     # go through each variable and raise var_%s_changed
     self.setting_values.raiseall()
@@ -551,9 +557,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     return stats
 
-  def unload(self, _=None):
+  def uninitialize(self, _=None):
     """
-    unload stuff
+    uninitialize stuff
     """
     # remove anything out of the api
     self.api('api.remove')(self.short_name)
@@ -608,10 +614,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     if self.short_name != 'plugins': # don't initialize the plugins plugin
       self.api('log.adddtype')(self.short_name)
 
-      self._load_commands()
+      self._add_commands()
 
-      self.api('events.register')('plugin_%s_loaded' % self.short_name,
-                                  self.__after_load)
+      self.api('events.register')('plugin_%s_initialized' % self.short_name,
+                                  self.__after_initialize)
 
       self.api('events.register')('muddisconnect', self.__disconnect)
       self.api('events.register')('plugin_%s_savestate' % self.short_name,
