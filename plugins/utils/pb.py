@@ -21,9 +21,6 @@ PURPOSE = 'send info through Pushbullet'
 AUTHOR = 'Bast'
 VERSION = 1
 
-# This keeps the plugin from being autoloaded if set to False
-
-
 class Plugin(BasePlugin):
   """
   a plugin to send email
