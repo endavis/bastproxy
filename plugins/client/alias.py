@@ -25,7 +25,6 @@ AUTHOR = 'Bast'
 VERSION = 2
 PRIORITY = 25
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 

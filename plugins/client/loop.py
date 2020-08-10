@@ -17,7 +17,6 @@ PURPOSE = 'loop a command multiple times'
 AUTHOR = 'Bast'
 VERSION = 1
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 
