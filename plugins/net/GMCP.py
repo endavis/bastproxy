@@ -17,7 +17,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 PRIORITY = 35
 
-# This keeps the plugin from being autoloaded if set to False
 REQUIRED = True
 
 GMCP = chr(201)
