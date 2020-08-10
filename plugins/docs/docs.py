@@ -30,9 +30,6 @@ PURPOSE = 'create bastproxy documentation'
 AUTHOR = 'Bast'
 VERSION = 1
 
-# This keeps the plugin from being autoloaded if set to False
-AUTOLOAD = False
-
 class Plugin(BasePlugin):
   """
   a plugin to create documentation
@@ -45,11 +42,11 @@ class Plugin(BasePlugin):
 
     BasePlugin.__init__(self, *args, **kwargs)
 
-  def load(self):
+  def initialize(self):
     """
-    load the plugins
+    initialize the plugin
     """
-    BasePlugin.load(self)
+    BasePlugin.initialize(self)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='create documentation')
@@ -89,7 +86,7 @@ class Plugin(BasePlugin):
     """
     build a list of themes to pick
     """
-    themepath = os.path.join(self.pluginlocation, 'css',
+    themepath = os.path.join(self.plugin_directory, 'css',
                              'themes')
 
     template = '<li><a href="#" class="change-style-menu-item" rel="%(rel)s">' \
@@ -193,13 +190,13 @@ class Plugin(BasePlugin):
 
     ptree = {}
     for i in plugininfo.keys():
-      pmod = self.api('plugins.getp')(plugininfo[i]['modpath'])
+      pmod = self.api('plugins.getp')(plugininfo[i]['plugin_path'])
 
       try:
-        sys.modules[pmod.fullimploc].__doc__
+        sys.modules[pmod.full_import_location].__doc__
       except AttributeError:
         self.api('send.msg')('Plugin %s is not loaded' % \
-                                                plugininfo[i]['modpath'])
+                                                plugininfo[i]['plugin_path'])
         continue
 
       moddir = os.path.basename(os.path.split(i)[0])
@@ -218,8 +215,8 @@ class Plugin(BasePlugin):
       for j in sorted(ptree[i].keys()):
         item = plugininfo[ptree[i][j]['location']]
         pmenu.append('<li><a href="%(link)s">%(name)s</a></li>' % \
-                       {'name':item['sname'],
-                        'link':'/bastproxy/plugins/%s/%s.html' % (i, item['sname'])})
+                       {'name':item['short_name'],
+                        'link':'/bastproxy/plugins/%s/%s.html' % (i, item['short_name'])})
       pmenu.append('</ul>')
       pmenu.append('</li>')
 
@@ -365,7 +362,7 @@ class Plugin(BasePlugin):
     """
     build the cmds part of the page
     """
-    tcmds = self.api('commands.list')(pmod.sname, cformat=False)
+    tcmds = self.api('commands.list')(pmod.short_name, cformat=False)
 
     cmds = []
 
@@ -391,7 +388,7 @@ class Plugin(BasePlugin):
             cmds.append('<h4 id="cmd%(NAME)s" class="bph4">%(NAME)s</h4>' % \
                           {'NAME':i})
             cmds.append('<pre><code>')
-            chelp = self.api('commands.cmdhelp')(pmod.sname, i)
+            chelp = self.api('commands.cmdhelp')(pmod.short_name, i)
             chelp = self.api('colors.colortohtml')(escape(chelp))
             cmds.extend(chelp.split('\n'))
             cmds.append('</code></pre>')
@@ -406,7 +403,7 @@ class Plugin(BasePlugin):
         cmds.append('<h4 id="cmd%(NAME)s" class="bph4">%(NAME)s</h4>' % \
                       {'NAME':i})
         cmds.append('<pre><code>')
-        chelp = self.api('commands.cmdhelp')(pmod.sname, i)
+        chelp = self.api('commands.cmdhelp')(pmod.short_name, i)
         chelp = self.api('colors.colortohtml')(escape(chelp))
         cmds.extend(chelp.split('\n'))
         cmds.append('</code></pre>')
@@ -439,7 +436,7 @@ class Plugin(BasePlugin):
     """
     build the api list for the plugin
     """
-    papis = self.api('api.getchildren')(pmod.sname)
+    papis = self.api('api.getchildren')(pmod.short_name)
 
     apis = []
 
@@ -451,7 +448,7 @@ class Plugin(BasePlugin):
         apis.append('<h3 id="set%(NAME)s" class="bph4">%(NAME)s</h3>' % \
                       {'NAME':i})
         apis.append('<pre><code>')
-        tapi = '\n'.join(self.api('api.detail')('%s.%s' % (pmod.sname, i)))
+        tapi = '\n'.join(self.api('api.detail')('%s.%s' % (pmod.short_name, i)))
         tapi = self.api('colors.colortohtml')(escape(tapi))
         apis.extend(tapi.split('\n'))
         apis.append('</code></pre>')
@@ -464,22 +461,22 @@ class Plugin(BasePlugin):
     """
     build a plugin page
     """
-    pmod = self.api('plugins.getp')(plugin['modpath'])
+    pmod = self.api('plugins.getp')(plugin['plugin_path'])
 
     if pmod and self.checknodocs(pmod):
       self.api('send.msg')(
-          'skipping %s' % plugin['fullimploc'])
+          'skipping %s' % plugin['full_import_location'])
       return
 
-    self.api('send.msg')('building %s' % plugin['fullimploc'])
+    self.api('send.msg')('building %s' % plugin['full_import_location'])
 
     try:
-      testdoc = sys.modules[pmod.fullimploc].__doc__
+      testdoc = sys.modules[pmod.full_import_location].__doc__
     except AttributeError:
-      self.api('send.msg')('Plugin %s is not loaded' % plugin['modpath'])
+      self.api('send.msg')('Plugin %s is not loaded' % plugin['plugin_path'])
       return
 
-    wpluginname = '.'.join(plugin['fullimploc'].split('.')[1:])
+    wpluginname = '.'.join(plugin['full_import_location'].split('.')[1:])
 
     body = '<h2 id="about">About</h2>\n' + self.api('colors.colortohtml')(
         markdown2.markdown(testdoc,
@@ -507,7 +504,7 @@ class Plugin(BasePlugin):
                        'THEMEMENU':self.themelist}
 
     outdir = os.path.join(self.api.BASEPATH, 'docsout', 'plugins',
-                          plugin['fullimploc'].split('.')[1])
+                          plugin['full_import_location'].split('.')[1])
 
     try:
       os.makedirs(outdir)
@@ -515,7 +512,7 @@ class Plugin(BasePlugin):
       pass
 
     tfile = open(os.path.join(self.api.BASEPATH,
-                              outdir, '%s.html'% pmod.sname),
+                              outdir, '%s.html'% pmod.short_name),
                  'w')
 
     tfile.write(html)
@@ -528,7 +525,7 @@ class Plugin(BasePlugin):
     """
     outpath = os.path.join(self.api.BASEPATH, 'docsout')
 
-    csssrc = os.path.join(self.pluginlocation, 'css')
+    csssrc = os.path.join(self.plugin_directory, 'css')
     cssdst = os.path.join(outpath, 'css')
 
     dir_util.copy_tree(csssrc, cssdst)
@@ -539,7 +536,7 @@ class Plugin(BasePlugin):
     """
     outpath = os.path.join(self.api.BASEPATH, 'docsout')
 
-    favsrc = os.path.join(self.pluginlocation, 'favicon')
+    favsrc = os.path.join(self.plugin_directory, 'favicon')
     favdst = os.path.join(outpath, 'favicon')
 
     dir_util.copy_tree(favsrc, favdst)
@@ -564,7 +561,7 @@ class Plugin(BasePlugin):
 
     self.build_themelist()
 
-    temppath = os.path.join(self.pluginlocation, 'templates',
+    temppath = os.path.join(self.plugin_directory, 'templates',
                             'template.html')
     plugininfo = self.api('plugins.allplugininfo')()
 
