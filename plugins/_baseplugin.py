@@ -584,7 +584,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       True if the plugin is changed on disk, False otherwise
     """
     file_modified_time = os.path.getmtime(self.plugin_file)
-    if file_modified_time > self.loaded_time:
+    if int(file_modified_time) > int(self.loaded_time):
       return True
 
     return False

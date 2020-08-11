@@ -301,6 +301,46 @@ class PluginMgr(BasePlugin):
                    tpl.author, tpl.version, tpl.purpose))
     return msg
 
+  # get plugins that are change on disk
+  def _getchangedplugins(self):
+    """
+    create a message of plugins that are changed on disk
+    """
+    msg = []
+
+    plugins = [i['plugininstance'] for i in self.loaded_plugins.values()]
+    packageheader = []
+
+    msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
+                        ('Short Name', 'Name', 'Author', 'Vers', 'Purpose'))
+    msg.append('-' * 75)
+
+    found = False
+    for tpl in plugins:
+      if tpl.is_changed_on_disk():
+        found = True
+      #   if tpl.package not in packageheader:
+      #     if packageheader:
+      #       msg.append('')
+      #     packageheader.append(tpl.package)
+      #     limp = 'plugins.%s' % tpl.package
+      #     mod = __import__(limp)
+      #     try:
+      #       desc = getattr(mod, tpl.package).DESCRIPTION
+      #     except AttributeError:
+      #       desc = ''
+      #     msg.append('@GPackage: %s%s@w' % \
+      #             (tpl.package, ' - ' + desc if desc else ''))
+      #     msg.append('@G' + '-' * 75 + '@w')
+        msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
+                  (tpl.short_name, tpl.name,
+                   tpl.author, tpl.version, tpl.purpose))
+
+    if found:
+      return msg
+
+    return ['No plugins are changed on disk.']
+
   # get all not loaded plugins
   def _getnotloadedplugins(self):
     """
@@ -361,8 +401,8 @@ class PluginMgr(BasePlugin):
 
     if args['notloaded']:
       msg.extend(self._getnotloadedplugins())
-    # elif args['changed']:
-    #   msg.extend(self._getchangedplugins())
+    elif args['changed']:
+      msg.extend(self._getchangedplugins())
     elif args['package']:
       msg.extend(self._get_package_plugins(args['package']))
     else:
