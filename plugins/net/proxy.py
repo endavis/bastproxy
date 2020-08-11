@@ -36,6 +36,9 @@ class Plugin(BasePlugin):
 
     self.api('api.add')('restart', self.api_restart)
     self.api('api.add')('shutdown', self.api_shutdown)
+    self.api('api.add')('preamble', self.api_preamble)
+    self.api('api.add')('preamblecolor', self.api_preamble_color)
+    self.api('api.add')('preambleerrorcolor', self.api_preamble_error_color)
 
   def initialize(self):
     """
@@ -53,6 +56,12 @@ class Plugin(BasePlugin):
                             'username')
     self.api('setting.add')('linelen', 79, int,
                             'the line length for data')
+    self.api('setting.add')('preamble', '#BP:', str,
+                            'the preamble from any proxy output')
+    self.api('setting.add')('preamblecolor', '@C', str,
+                            'the preamble color')
+    self.api('setting.add')('preambleerrorcolor', '@R', str,
+                            'the preamble color for an error line')
 
     self.api('commands.add')('info',
                              self.cmd_info,
@@ -86,6 +95,23 @@ class Plugin(BasePlugin):
                         default='defaultviewpass')
     self.mudpw = ssc('mudpw', self, desc='Mud Password')
 
+  def api_preamble(self):
+    """
+    get the preamble
+    """
+    return self.api('setting.gets')('preamble')
+
+  def api_preamble_color(self):
+    """
+    get the preamble
+    """
+    return self.api('setting.gets')('preamblecolor')
+
+  def api_preamble_error_color(self):
+    """
+    get the preamble
+    """
+    return self.api('setting.gets')('preambleerrorcolor')
 
   def sendusernameandpw(self, args): # pylint: disable=unused-argument
     """
@@ -216,7 +242,8 @@ class Plugin(BasePlugin):
       tmsg.append('Connect to the mud with "%s.%s.connect"' % (cmdprefix, self.short_name))
     else:
       tmsg.append(divider)
-      tmsg.append('@R#BP@W: @GThe proxy is already connected to the mud@w')
+      tmsg.append('%s%s@W: @GThe proxy is already connected to the mud@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                                             self.api('proxy.preamble')()))
     if self.api('%s.proxypw' % self.short_name)() == 'defaultpass':
       tmsg.append(divider)
       tmsg.append('The proxy password is still the default password.')

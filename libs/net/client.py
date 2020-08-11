@@ -37,7 +37,9 @@ class Client(Telnet):
 
     self.state = PASSWORD
     self.addtooutbufferevent({'original':self.api('colors.convertcolors')(
-        '@R#BP@w: @RPlease enter the proxy password:@w'),
+        '%s%s@w: %sPlease enter the proxy password:@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                          self.api('proxy.preamble')(),
+                                                          self.api('proxy.preambleerrorcolor')())),
                               'dtype':'passwd'})
 
   def addtooutbufferevent(self, args):
@@ -83,7 +85,9 @@ class Client(Telnet):
         if self.viewonly:
           self.addtooutbufferevent(
               {'todata':self.api('colors.convertcolors')(
-                  '@R#BP@w: @RYou are in view mode!@w')})
+                  '%s%s@w: %sYou are in view mode!@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                         self.api('proxy.preamble')(),
+                                                         self.api('proxy.preambleerrorcolor')()))})
         else:
           if data:
             self.api('send.execute')(data, fromclient=True)
@@ -109,7 +113,8 @@ class Client(Telnet):
           self.viewonly = True
           self.addtooutbufferevent(
               {'original':self.api('colors.convertcolors')(
-                  '@R#BP@W: @GYou are connected in view mode@w')})
+                  '%s%s@W: @GYou are connected in view mode@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                                  self.api('proxy.preamlbe')()))})
           self.api('events.eraise')('client_connected_view',
                                     {'client':self}, calledfrom="client")
           self.api('send.client')(
@@ -120,7 +125,9 @@ class Client(Telnet):
           if self.pwtries == 5:
             self.addtooutbufferevent(
                 {'original':self.api('colors.convertcolors')(
-                    '@R#BP@w: @RYou have been BANNED for 10 minutes:@w'),
+                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                                          self.api('proxy.preamble')(),
+                                                                          self.api('proxy.preambleerrorcolor')())),
                  'dtype':'passwd'})
             self.api('send.msg')('%s has been banned.' % self.host, 'net')
             self.api('clients.addbanned')(self.host)
@@ -128,7 +135,9 @@ class Client(Telnet):
           else:
             self.addtooutbufferevent(
                 {'original':self.api('colors.convertcolors')(
-                    '@R#BP@w: @RPlease try again! Proxy Password:@w'),
+                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('proxy.preambleerrorcolor')(),
+                                                                       self.api('proxy.preamble')(),
+                                                                       self.api('proxy.preambleerrorcolor')())),
                  'dtype':'passwd'})
 
   def handle_close(self):

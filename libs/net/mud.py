@@ -116,7 +116,8 @@ class Mud(Telnet):
     """
     self.api('send.msg')('Disconnected from mud', 'net')
     self.api('send.client')(self.api('colors.convertcolors')(
-        '@R#BP@w: The mud closed the connection'))
+        '%s%s@w: The mud closed the connection' % (self.api('proxy.preambleerrorcolor')(),
+                                                    self.api('proxy.preamble')())))
     self.api('options.resetoptions')(self, True)
     Telnet.handle_close(self)
     self.connectedtime = None

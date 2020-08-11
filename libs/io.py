@@ -143,7 +143,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       test = []
       for i in text:
         if preamble:
-          i = "".join(['@C#BP@w: ', i])
+          i = "".join(['%s%s@w: ' % (self.api('proxy.preamblecolor')(), self.api('proxy.preamble')()), i])
         if self.api('api.has')('colors.convertcolors'):
           test.append(self.api('colors.convertcolors')(i))
         else:
