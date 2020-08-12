@@ -56,7 +56,7 @@ class Plugin(BasePlugin):
                             'username')
     self.api('setting.add')('linelen', 79, int,
                             'the line length for data')
-    self.api('setting.add')('preamble', '#BP:', str,
+    self.api('setting.add')('preamble', '#BP', str,
                             'the preamble from any proxy output')
     self.api('setting.add')('preamblecolor', '@C', str,
                             'the preamble color')
