@@ -329,7 +329,6 @@ class PluginMgr(BasePlugin):
     msg = []
 
     plugins = [i['plugininstance'] for i in self.loaded_plugins.values()]
-    packageheader = []
 
     msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
                         ('Short Name', 'Name', 'Author', 'Vers', 'Purpose'))
@@ -339,19 +338,6 @@ class PluginMgr(BasePlugin):
     for tpl in plugins:
       if tpl.is_changed_on_disk():
         found = True
-      #   if tpl.package not in packageheader:
-      #     if packageheader:
-      #       msg.append('')
-      #     packageheader.append(tpl.package)
-      #     limp = 'plugins.%s' % tpl.package
-      #     mod = __import__(limp)
-      #     try:
-      #       desc = getattr(mod, tpl.package).DESCRIPTION
-      #     except AttributeError:
-      #       desc = ''
-      #     msg.append('@GPackage: %s%s@w' % \
-      #             (tpl.package, ' - ' + desc if desc else ''))
-      #     msg.append('@G' + '-' * 75 + '@w')
         msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
                   (tpl.short_name, tpl.name,
                    tpl.author, tpl.version, tpl.purpose))
@@ -1054,6 +1040,8 @@ class PluginMgr(BasePlugin):
     BasePlugin.savestate(self)
 
     for i in self.loaded_plugins.values():
+      if i['plugin_id'] == self.plugin_id:
+        continue
       if 'plugininstance' in i and i['plugininstance']:
         i['plugininstance'].savestate()
 
@@ -1236,3 +1224,28 @@ class PluginMgr(BasePlugin):
     self.api('timers.add')('global_save', self.savestate, 60, unique=True, log=False)
 
     self.api('events.register')('proxy_shutdown', self.shutdown)
+
+    # add this plugin to loaded plugins and the lookup dictionaries
+    self.loaded_plugins[self.plugin_id] = {
+        'short_name': self.short_name,
+        'base_plugin_dir': self.base_plugin_dir,
+        'module': None,
+        'purpose': self.purpose,
+        'plugin_path': self.plugin_path,
+        'isimported': True,
+        'name': self.name,
+        'author': self.author,
+        'isrequired': True,
+        'dev': False,
+        'version': self.version,
+        'full_import_location': self.full_import_location,
+        'isinitialized': True,
+        'plugin_id': self.plugin_id,
+        'importedtime': self.loaded_time,
+        'plugininstance': self
+    }
+
+    self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
+    self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
+    self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
+    self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
