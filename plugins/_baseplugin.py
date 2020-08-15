@@ -75,7 +75,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     # print 'plugin_file: %s ' % self.plugin_file
     # print 'plugin_directory: %s ' % self.plugin_directory
 
-    self.package = self.full_import_location.split('.')[1]
+    self.package = self.plugin_id.split('.')[0]
 
     self.settings = {}
     self.setting_values = PersistentDictEvent(self, self.settings_file, 'c')
