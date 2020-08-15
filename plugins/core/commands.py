@@ -3,9 +3,15 @@ This module handles commands and parsing input
 
 All commands are #bp.[plugin].[cmd]
 """
+import sys
 import shlex
 import os
 import textwrap as _textwrap
+try:
+  from fuzzywuzzy import process
+except ImportError:
+  print "Please install the fuzzywuzzy library: pip install fuzzywuzzy python-Levenshtein"
+  sys.exit(1)
 
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
@@ -149,7 +155,7 @@ class Plugin(BasePlugin):
                              format=False,
                              showinhistory=False)
 
-    self.api('events.register')('io_execute_event', self.chkcmd, prio=5)
+    self.api('events.register')('io_execute_event', self.chkcmd_new, prio=5)
     self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
     self.api('events.eraise')('plugin_cmdman_loaded', {})
 
@@ -339,179 +345,298 @@ class Plugin(BasePlugin):
 
     return False
 
-  def chkcmd(self, data):
-    # pylint: disable=too-many-nested-blocks,too-many-return-statements,too-many-branches
-    # pylint: disable=too-many-statements
+  def sort_fuzzy_result(self, result):
+    """
+    sort a result from extract
+    """
+    newdict = {}
+    for i in result:
+      if not i[1] in newdict:
+        newdict[i[1]] = []
+      newdict[i[1]].append(i[0])
+    return newdict
+
+  def get_best_match(self, item_to_match, list_to_match):
+    """
+    get the best match of item in a list
+    """
+    found = None
+    print 'get_best_match: item_to_match: %s' % item_to_match
+    matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
+    if len(matching_startswith) == 1:
+      found = matching_startswith[0]
+      print 'get_best_match (startswith) matched %s to %s' % (item_to_match, found)
+    else:
+      sorted_extract = self.sort_fuzzy_result(process.extract(item_to_match, list_to_match))
+      print 'extract for %s - %s' % (item_to_match, sorted_extract)
+      maxscore = max(sorted_extract.keys())
+      if maxscore > 80 and len(sorted_extract[maxscore]) == 1:
+        found = sorted_extract[maxscore][0]
+        print 'get_best_match (score) matched %s to %s' % (item_to_match, found)
+
+    return found
+
+  def api_get_all_commands_list(self):
+    """
+    return a list of all commands
+    """
+    cmdlist = []
+    for sname in self.cmds:
+      for command in self.cmds[sname]:
+        cmdlist.append('%s.%s' % (sname, command))
+
+    return self.cmds.keys(), cmdlist
+
+  def pass_through_command(self, data, command_data_dict):
+    """
+    pass through data to the proxy if it isn't a #bp command
+    we add it to history and check antispam
+    """
+    # if it isn't a #bp command, we add it to history and do some checks
+    # before sending it to the mud
+    addedtohistory = self.addtohistory(data)
+
+    # if the command is the same as the last command, do antispam checks
+    if command_data_dict['orig'].strip() == self.api('setting.gets')('lastcmd'):
+      self.api('setting.change')('cmdcount',
+                                 self.api('setting.gets')('cmdcount') + 1)
+
+      # if the command has been sent spamcount times, then we send an antispam
+      # command in between
+      if self.api('setting.gets')('cmdcount') == \
+                            self.api('setting.gets')('spamcount'):
+        data['fromdata'] = self.api('setting.gets')('antispamcommand') \
+                                    + '|' + command_data_dict['orig']
+        if 'trace' in data:
+          data['addedtohistory'] = addedtohistory
+          data['trace']['changes'].append(
+              {'flag':'Antispam',
+               'data':'cmd was sent %s times, sending %s for antispam' % \
+                    (self.api('setting.gets')('spamcount'),
+                     self.api('setting.gets')('antispamcommand')),
+               'plugin':self.short_name})
+        self.api('send.msg')('adding look for 20 commands')
+        self.api('setting.change')('cmdcount', 0)
+        return data
+
+      # if the command is seen multiple times in a row and it has been flagged to only be sent once,
+      # swallow it
+      if command_data_dict['orig'] in self.nomultiplecmds:
+        if 'trace' in data:
+          data['trace']['changes'].append(
+              {'flag':'Nomultiple',
+               'data':'This command has been flagged" \
+                  " not to be sent multiple times in a row',
+               'plugin':self.short_name})
+
+        data['fromdata'] = ''
+        return data
+    else:
+      # the command does not match the last command
+      self.api('setting.change')('cmdcount', 0)
+      self.api('send.msg')('resetting command to %s' % command_data_dict['orig'].strip())
+      self.api('setting.change')('lastcmd', command_data_dict['orig'].strip())
+
+    # add a trace if it is unknow how the command was changed
+    if data['fromdata'] != command_data_dict['orig']:
+      if 'trace' in data:
+        data['trace']['changes'].append(
+            {'flag':'Unknown',
+             'data':"'%s' - Don't know why we got here" % data['fromdata'],
+             'plugin':self.short_name})
+
+    return data
+
+  def chkcmd_new(self, data):
     """
     check a line from a client for a command
     """
-    commanddata = {}
-    commanddata['orig'] = data['fromdata']
-    commanddata['commandran'] = data['fromdata']
-    commanddata['flag'] = 'Unknown'
-    commanddata['cmd'] = None
-    commanddata['data'] = data
+    command_data_dict = {}
+    command_data_dict['orig'] = data['fromdata']
+    command_data_dict['commandran'] = data['fromdata']
+    command_data_dict['flag'] = 'Unknown'
+    command_data_dict['cmd'] = None
+    command_data_dict['data'] = data
 
-    if commanddata['orig'] == '':
+    # if no data, skip this
+    if command_data_dict['orig'] == '':
       return None
 
-    if commanddata['orig'][0:3].lower() == self.api('setting.gets')('cmdprefix'):
-      self.api('send.msg')('got command: %s' % commanddata['orig'])
-      try:
-        targs = shlex.split(commanddata['orig'].strip())
-      except ValueError:
-        self.api('send.traceback')('could not parse command')
-        data['fromdata'] = ''
-        return data
-      try:
-        tmpind = commanddata['orig'].index(' ')
-        fullargs = commanddata['orig'][tmpind+1:]
-      except ValueError:
-        fullargs = ''
-      cmd = targs.pop(0)
-      cmdsplit = cmd.split('.')
-      short_name = ''
-      if len(cmdsplit) >= 2:
-        short_name = cmdsplit[1].strip()
+    cmdprefix = self.api('setting.gets')('cmdprefix')
+    # if it isn't a command, pass it through
+    if command_data_dict['orig'][0:len(cmdprefix)].lower() != cmdprefix:
+      return self.pass_through_command(data, command_data_dict)
 
-      scmd = ''
-      if len(cmdsplit) >= 3:
-        scmd = cmdsplit[2].strip()
+    self.api('send.msg')('got command: %s' % command_data_dict['orig'])
 
-      commanddata['short_name'] = short_name
-      commanddata['scmd'] = scmd
+    # split it with shlex
+    try:
+      split_args = shlex.split(command_data_dict['orig'].strip())
+    except ValueError:
+      self.api('send.traceback')('could not parse command')
+      data['fromdata'] = ''
+      return data
 
-      if 'help' in targs: # saw a help in targs
-        try:
-          del targs[targs.index('help')]
-        except ValueError:
-          pass
-        commanddata['cmd'] = self.cmds[self.short_name]['list']
-        commanddata['flag'] = 'Help'
-        commanddata['commandran'] = '%s.%s.%s %s %s' % \
-                (self.api('setting.gets')('cmdprefix'),
-                 self.short_name, 'list', short_name, scmd)
-        commanddata['targs'] = [short_name, scmd]
-        commanddata['fullargs'] = fullargs
+    # split out the full argument string
+    try:
+      first_space = command_data_dict['orig'].index(' ')
+      full_args_string = command_data_dict['orig'][first_space+1:]
+    except ValueError:
+      full_args_string = ''
 
-      elif short_name: # got at least "#bp.<command>"
-        if short_name not in self.cmds: # no command toplevel with <command>
-          commanddata['flag'] = 'Bad Command'
-          commanddata['cmddata'] = 'not a valid toplevel %s' % short_name
-        else: # got a command in the toplevel
-          if scmd: # got "#bp.<command>.<subcommand>""
-            cmd = None
-            if scmd in self.cmds[short_name]: # <subcommand> was found
-              cmd = self.cmds[short_name][scmd]
-            if cmd:
-              commanddata['cmd'] = cmd
-              commanddata['commandran'] = '%s.%s.%s %s' % \
-                    (self.api('setting.gets')('cmdprefix'), short_name,
-                     cmd['commandname'], ' '.join(targs))
-              commanddata['flag'] = 'Run'
-              commanddata['targs'] = targs
-              commanddata['fullargs'] = fullargs
-            else:
-              commanddata['flag'] = 'Bad Command'
-              commanddata['cmddata'] = 'not a valid command for %s' % short_name
-          else: # got just "#bp.<command>"
-            if 'default' in self.cmds[short_name]: # check to see if there is a default
-              commanddata['cmd'] = self.cmds[short_name]['default']
-              commanddata['commandran'] = '%s.%s.%s %s' % \
-                    (self.api('setting.gets')('cmdprefix'), short_name,
-                     self.cmds[short_name]['default']['commandname'], ' '.join(targs))
-              commanddata['flag'] = 'Default'
-              commanddata['targs'] = targs
-              commanddata['fullargs'] = fullargs
-            else: # no default, so do "#bp.commands.list short_name scmd"
-              commanddata['cmd'] = self.cmds[self.short_name]['list']
-              commanddata['commandran'] = '%s.%s.%s %s %s' % \
-                    (self.api('setting.gets')('cmdprefix'),
-                     self.short_name,
-                     'list', short_name, scmd)
-              commanddata['flag'] = 'List'
-              commanddata['targs'] = [short_name, scmd]
-              commanddata['fullargs'] = ''
-      else: # this only happens with "#bp" and "#bp."
-        try:
-          del targs[targs.index('help')]
-        except ValueError:
-          pass
-        commanddata['cmd'] = self.cmds[self.short_name]['list']
-        commanddata['commandran'] = '%s.%s.%s %s %s' % \
+    # find which command we are
+    cmd = split_args.pop(0)
+
+    split_command_list = cmd.split('.')
+
+    if len(split_command_list) > 4:
+      command_data_dict['flag'] = 'Bad Command'
+      command_data_dict['cmddata'] = 'Command name too long: %s' % cmd
+    else:
+      short_names, _ = self.api_get_all_commands_list()
+      loaded_plugin_ids = self.api('plugins.loadedpluginslist')()
+
+      package = None
+      plugin_id = None
+      plugin_cmd = None
+
+      found_plugin = None
+      found_package = None
+      found_command = None
+
+      # parse the command to get what to search for
+      if len(split_command_list) == 1: # this would be cmdprefix by iself, ex. #bp
+        # run #bp.commands.list
+        pass
+      elif len(split_command_list) == 2: # this would be cmdprefix + plugin_id, ex. #bp.ali
+        plugin_id = split_command_list[1]
+      elif len(split_command_list) == 3: # this would be cmdprefix + plugin_id + command, ex. #bp.alias.list
+                                         # also could be cmdprefix + package + plugin_id
+        # first check if the last part is a plugin
+        found_plugin = self.get_best_match(split_command_list[-1], short_names)
+        if found_plugin:
+          plugin_id = split_command_list[-1]
+          found_package = split_command_list[1]
+        # if not, then cmd to
+        else:
+          plugin_id = split_command_list[1]
+          plugin_cmd = split_command_list[-1]
+      else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_id + command, ex. #bp.client.alias.list
+        package = split_command_list[1]
+        plugin_id = split_command_list[2]
+        plugin_cmd = split_command_list[-1]
+
+      print 'fullcommand: %s' % cmd
+      print 'package: %s' % package
+      print 'plugin: %s' % plugin_id
+      print 'cmd: %s' % plugin_cmd
+
+      # find package
+      if package and not found_package:
+        packages = self.api('plugins.packageslist')()
+        found_package = self.get_best_match(package, packages)
+
+      # find plugin
+      if found_package and plugin_id and not found_plugin:
+        plugin_list = [i.split('.')[-1] for i in loaded_plugin_ids if i.startswith('%s.' % found_package)]
+        found_plugin = self.get_best_match(plugin_id, plugin_list)
+        if not found_plugin:
+          new_plugin = self.get_best_match(found_package + '.' + plugin_id, loaded_plugin_ids)
+          if new_plugin:
+            found_plugin = new_plugin.split('.')[-1]
+
+      if not found_plugin and plugin_id:
+        found_plugin = self.get_best_match(plugin_id, short_names)
+
+      # if a plugin was found but we don't have a package, find the package
+      if found_plugin and plugin_id and not found_package:
+        packages = []
+        for plugin_id in loaded_plugin_ids:
+          if found_plugin in plugin_id:
+            packages.append(plugin_id.split('.')[0])
+        if len(packages) == 1:
+          found_package = packages[0]
+
+      # didn't find anything
+      if not found_plugin and not found_package and not found_command:
+        command_data_dict['cmd'] = self.cmds[self.short_name]['list']
+        command_data_dict['commandran'] = '%s.%s.%s' % \
               (self.api('setting.gets')('cmdprefix'),
                self.short_name,
-               'list', short_name, scmd)
-        commanddata['flag'] = 'List2'
-        commanddata['targs'] = [short_name, scmd]
-        commanddata['fullargs'] = ''
+               'list')
+        command_data_dict['flag'] = 'List2'
+        command_data_dict['targs'] = []
+        command_data_dict['fullargs'] = ''
+
+      # couldn't find a plugin
+      elif not found_plugin:
+
+        command_data_dict['flag'] = 'Bad Command'
+        command_data_dict['cmddata'] = 'could not find command %s' % cmd
+
+      # at least have a plugin
+      else:
+        if plugin_cmd:
+          cmds = self.api('commands.list')(found_plugin, cformat=False).keys()
+          found_command = self.get_best_match(plugin_cmd, cmds)
+
+        # have a plugin but no command
+        if found_plugin and not found_command:
+
+          if plugin_cmd:
+            command_data_dict['flag'] = 'Bad Command'
+            command_data_dict['cmddata'] = 'command %s does not exist in plugin %s' % (plugin_cmd, found_plugin)
+          else:
+            command_data_dict['cmd'] = self.cmds[self.short_name]['list']
+            command_data_dict['flag'] = 'Help'
+            command_data_dict['commandran'] = '%s.%s.%s %s' % \
+                    (self.api('setting.gets')('cmdprefix'),
+                     self.short_name, 'list', found_plugin)
+            command_data_dict['targs'] = [found_plugin]
+            command_data_dict['fullargs'] = full_args_string
+
+        # have a plugin and a command
+        else:
+          cmd = self.cmds[found_plugin][found_command]
+          command_data_dict['cmd'] = cmd
+          command_data_dict['commandran'] = '%s.%s.%s %s' % \
+                (self.api('setting.gets')('cmdprefix'), found_plugin,
+                 cmd['commandname'], ' '.join(split_args))
+          command_data_dict['flag'] = 'Run'
+          command_data_dict['targs'] = split_args
+          command_data_dict['fullargs'] = full_args_string
+
+      print 'fullcommand: %s' % cmd
+      print 'found_package: %s' % found_package
+      print 'found_plugin: %s' % found_plugin
+      print 'found_command: %s' % found_command
+
+      command_data_dict['short_name'] = found_plugin
+      command_data_dict['scmd'] = found_command
 
       # run the command here
-      if commanddata['flag'] == 'Bad Command':
+      if command_data_dict['flag'] == 'Bad Command':
         self.api('send.client')("@R%s.%s@W is not a command" % \
-              (commanddata['short_name'], commanddata['scmd']))
+              (command_data_dict['short_name'], command_data_dict['scmd']))
       else:
         try:
-          commanddata['success'] = self.runcmd(commanddata['cmd'],
-                                               commanddata['targs'],
-                                               commanddata['fullargs'],
-                                               commanddata['data'])
+          command_data_dict['success'] = self.runcmd(command_data_dict['cmd'],
+                                                     command_data_dict['targs'],
+                                                     command_data_dict['fullargs'],
+                                                     command_data_dict['data'])
         except Exception:  # pylint: disable=broad-except
-          commanddata['success'] = 'Error'
+          command_data_dict['success'] = 'Error'
           self.api('send.traceback')(
-              'Error when calling command %s.%s' % (commanddata['short_name'],
-                                                    commanddata['scmd']))
-        commanddata['cmddata'] = "'%s' - %s" % (commanddata['commandran'],
-                                                'Outcome: %s' % commanddata['success'])
+              'Error when calling command %s.%s' % (command_data_dict['short_name'],
+                                                    command_data_dict['scmd']))
+        command_data_dict['cmddata'] = "'%s' - %s" % (command_data_dict['commandran'],
+                                                      'Outcome: %s' % command_data_dict['success'])
 
       if 'trace' in data:
-        data['trace']['changes'].append({'flag': commanddata['flag'],
-                                         'data':commanddata['cmddata'],
+        data['trace']['changes'].append({'flag': command_data_dict['flag'],
+                                         'data':command_data_dict['cmddata'],
                                          'plugin':self.short_name})
       return {'fromdata':''}
-    else: # no command, so add it to history and check antispam
-      addedtohistory = self.addtohistory(data)
-      if commanddata['orig'].strip() == self.api('setting.gets')('lastcmd'):
-        self.api('setting.change')('cmdcount',
-                                   self.api('setting.gets')('cmdcount') + 1)
-        if self.api('setting.gets')('cmdcount') == \
-                              self.api('setting.gets')('spamcount'):
-          data['fromdata'] = self.api('setting.gets')('antispamcommand') \
-                                      + '|' + commanddata['orig']
-          if 'trace' in data:
-            data['addedtohistory'] = addedtohistory
-            data['trace']['changes'].append(
-                {'flag':'Antispam',
-                 'data':'cmd was sent %s times, sending %s for antispam' % \
-                     (self.api('setting.gets')('spamcount'),
-                      self.api('setting.gets')('antispamcommand')),
-                 'plugin':self.short_name})
-          self.api('send.msg')('adding look for 20 commands')
-          self.api('setting.change')('cmdcount', 0)
-          return data
-        if commanddata['orig'] in self.nomultiplecmds:
-          if 'trace' in data:
-            data['trace']['changes'].append(
-                {'flag':'Nomultiple',
-                 'data':'This command has been flagged" \
-                   " not to be sent multiple times in a row',
-                 'plugin':self.short_name})
-
-          data['fromdata'] = ''
-          return data
-      else:
-        self.api('setting.change')('cmdcount', 0)
-        self.api('send.msg')('resetting command to %s' % commanddata['orig'].strip())
-        self.api('setting.change')('lastcmd', commanddata['orig'].strip())
-
-      if data['fromdata'] != commanddata['orig']:
-        if 'trace' in data:
-          data['trace']['changes'].append(
-              {'flag':'Unknown',
-               'data':"'%s' - Don't know why we got here" % data['fromdata'],
-               'plugin':self.short_name})
-
-      return data
 
   # add a command
   def api_addcmd(self, cmdname, func, **kwargs):

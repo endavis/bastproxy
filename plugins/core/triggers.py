@@ -425,7 +425,7 @@ class Plugin(BasePlugin):
             match = self.uniquelookup[trig]['compiled'].match(colordata)
           elif trig in noncolormatchg:
             self.api('send.msg')('noncolor matched line %s to trigger %s' % (data,
-                                                                            trig))
+                                                                             trig))
             match = self.uniquelookup[trig]['compiled'].match(data)
           if match:
             targs = match.groupdict()

@@ -178,7 +178,7 @@ class Plugin(BasePlugin):
           self.sessionhits[mem] = self.sessionhits[mem] + 1
           self.api('send.msg')('replacing "%s" with "%s"' % \
                                           (data.strip(), datan.strip()))
-          if datan[0:3].lower() == cmdprefix:
+          if datan[0:len(cmdprefix)].lower() == cmdprefix:
             self.api('send.execute')(datan, showinhistory=False, fromclient=False)
             args['fromdata'] = ''
             args['history'] = False

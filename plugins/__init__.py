@@ -57,7 +57,7 @@ class PluginMgr(BasePlugin):
                         "/__init__.py", #plugin_path
                         "$base_plugin_dir$", # base_plugin_dir
                         "plugins.__init__", # full_import_location
-                        "plugins" # plugin_id
+                        "core.plugins" # plugin_id
                        )
 
     self.can_reload = False
@@ -118,6 +118,26 @@ class PluginMgr(BasePlugin):
     self.api('api.add')('module', self._api_get_module)
     self.api('api.add')('allplugininfo', self._api_get_all_plugin_info)
     self.api('api.add')('savestate', self.savestate)
+    self.api('api.add')('loadedpluginslist', self._api_get_loaded_plugins_list)
+    self.api('api.add')('packageslist', self._api_get_packages_list)
+
+  def _api_get_loaded_plugins_list(self):
+    """
+    get the list of loaded plugins
+    """
+    return self.loaded_plugins.keys()
+
+  def _api_get_packages_list(self):
+    """
+    return the list of packages
+    """
+    packages = []
+    for i in self.loaded_plugins:
+      packages.append(i.split('.')[0])
+
+    packages = list(set(packages))
+
+    return packages
 
   def v1_update_plugins_to_load_location(self):
     """
