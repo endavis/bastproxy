@@ -60,6 +60,8 @@ class PluginMgr(BasePlugin):
                         "core.plugins" # plugin_id
                        )
 
+    self.author = 'Bast'
+    self.purpose = 'Manage plugins'
     self.can_reload = False
     self.version = 1
 
