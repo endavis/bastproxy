@@ -837,6 +837,7 @@ class PluginMgr(BasePlugin):
         found = True
         self.api('send.error')('Plugin %s has not been correctly loaded' % \
                                   plugin['plugin_id'])
+        self.unload_single_plugin(plugin['plugin_id'])
 
     if found:
       sys.exit(1)
