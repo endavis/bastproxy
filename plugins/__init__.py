@@ -810,13 +810,23 @@ class PluginMgr(BasePlugin):
       self.api('send.msg')('conflicts with plugins, see console and correct')
       sys.exit(1)
 
-    plugins_to_load = self.api('setting.gets')('pluginstoload')
+    plugins_to_load_setting = self.api('setting.gets')('pluginstoload')
 
     required_plugins = [plugin['plugin_id'] for plugin in self.all_plugin_info_on_disk.values() \
                            if plugin['isrequired']]
 
     # add all required plugins
-    plugins_to_load = list(set(required_plugins + plugins_to_load))
+    plugins_to_load = list(set(required_plugins + plugins_to_load_setting))
+
+    # check to make sure all plugins exist on disk
+    plugins_not_found = [plugin for plugin in plugins_to_load if plugin not in self.all_plugin_info_on_disk]
+    if plugins_not_found:
+      for plugin in plugins_not_found:
+        self.api('send.error')(
+            'plugin %s was marked to load at startup and no longer exists, removing from startup' % plugin)
+        plugins_to_load_setting.remove(plugin)
+        plugins_to_load.remove(plugin)
+      self.api('setting.change')('pluginstoload', plugins_to_load_setting)
 
     self.load_multiple_plugins(plugins_to_load)
 
