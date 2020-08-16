@@ -3,15 +3,9 @@ This module handles commands and parsing input
 
 All commands are #bp.[plugin].[cmd]
 """
-import sys
 import shlex
 import os
 import textwrap as _textwrap
-try:
-  from fuzzywuzzy import process
-except ImportError:
-  print "Please install the fuzzywuzzy library: pip install fuzzywuzzy python-Levenshtein"
-  sys.exit(1)
 
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
@@ -86,7 +80,7 @@ class Plugin(BasePlugin):
     self.api('api.add')('cmdhelp', self.api_cmdhelp)
     self.api('api.add')('prefix', self._api_get_prefix)
 
-    self.dependencies = ['core.events', 'core.log', 'core.errors']
+    self.dependencies = ['core.events', 'core.log', 'core.errors', 'core.fuzzy']
 
   def initialize(self):
     """
@@ -345,37 +339,6 @@ class Plugin(BasePlugin):
 
     return False
 
-  def sort_fuzzy_result(self, result):
-    """
-    sort a result from extract
-    """
-    newdict = {}
-    for i in result:
-      if not i[1] in newdict:
-        newdict[i[1]] = []
-      newdict[i[1]].append(i[0])
-    return newdict
-
-  def get_best_match(self, item_to_match, list_to_match):
-    """
-    get the best match of item in a list
-    """
-    found = None
-    print 'get_best_match: item_to_match: %s' % item_to_match
-    matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
-    if len(matching_startswith) == 1:
-      found = matching_startswith[0]
-      print 'get_best_match (startswith) matched %s to %s' % (item_to_match, found)
-    else:
-      sorted_extract = self.sort_fuzzy_result(process.extract(item_to_match, list_to_match))
-      print 'extract for %s - %s' % (item_to_match, sorted_extract)
-      maxscore = max(sorted_extract.keys())
-      if maxscore > 80 and len(sorted_extract[maxscore]) == 1:
-        found = sorted_extract[maxscore][0]
-        print 'get_best_match (score) matched %s to %s' % (item_to_match, found)
-
-    return found
-
   def api_get_all_commands_list(self):
     """
     return a list of all commands
@@ -513,7 +476,7 @@ class Plugin(BasePlugin):
       elif len(split_command_list) == 3: # this would be cmdprefix + plugin_id + command, ex. #bp.alias.list
                                          # also could be cmdprefix + package + plugin_id
         # first check if the last part is a plugin
-        found_plugin = self.get_best_match(split_command_list[-1], short_names)
+        found_plugin = self.api('fuzzy.get.best.match')(split_command_list[-1], short_names)
         if found_plugin:
           plugin_id = split_command_list[-1]
           found_package = split_command_list[1]
@@ -534,19 +497,19 @@ class Plugin(BasePlugin):
       # find package
       if package and not found_package:
         packages = self.api('plugins.packageslist')()
-        found_package = self.get_best_match(package, packages)
+        found_package = self.api('fuzzy.get.best.match')(package, packages)
 
       # find plugin
       if found_package and plugin_id and not found_plugin:
         plugin_list = [i.split('.')[-1] for i in loaded_plugin_ids if i.startswith('%s.' % found_package)]
-        found_plugin = self.get_best_match(plugin_id, plugin_list)
+        found_plugin = self.api('fuzzy.get.best.match')(plugin_id, plugin_list)
         if not found_plugin:
-          new_plugin = self.get_best_match(found_package + '.' + plugin_id, loaded_plugin_ids)
+          new_plugin = self.api('fuzzy.get.best.match')(found_package + '.' + plugin_id, loaded_plugin_ids)
           if new_plugin:
             found_plugin = new_plugin.split('.')[-1]
 
       if not found_plugin and plugin_id:
-        found_plugin = self.get_best_match(plugin_id, short_names)
+        found_plugin = self.api('fuzzy.get.best.match')(plugin_id, short_names)
 
       # if a plugin was found but we don't have a package, find the package
       if found_plugin and plugin_id and not found_package:
@@ -578,7 +541,7 @@ class Plugin(BasePlugin):
       else:
         if plugin_cmd:
           cmds = self.api('commands.list')(found_plugin, cformat=False).keys()
-          found_command = self.get_best_match(plugin_cmd, cmds)
+          found_command = self.api('fuzzy.get.best.match')(plugin_cmd, cmds)
 
         # have a plugin but no command
         if found_plugin and not found_command:
