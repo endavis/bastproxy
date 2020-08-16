@@ -1173,6 +1173,32 @@ class PluginMgr(BasePlugin):
 
     BasePlugin.initialize(self)
 
+    # add this plugin to loaded plugins and the lookup dictionaries
+    self.loaded_plugins[self.plugin_id] = {
+        'short_name': self.short_name,
+        'base_plugin_dir': self.base_plugin_dir,
+        'module': None,
+        'purpose': self.purpose,
+        'plugin_path': self.plugin_path,
+        'isimported': True,
+        'name': self.name,
+        'author': self.author,
+        'isrequired': True,
+        'dev': False,
+        'version': self.version,
+        'full_import_location': self.full_import_location,
+        'isinitialized': True,
+        'plugin_id': self.plugin_id,
+        'importedtime': self.loaded_time,
+        'plugininstance': self
+    }
+
+    self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
+    self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
+    self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
+    self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
+
+    self.can_reload_f = False
     self._load_plugins_on_startup()
 
     self.api('log.adddtype')(self.short_name)
@@ -1237,28 +1263,3 @@ class PluginMgr(BasePlugin):
     self.api('timers.add')('global_save', self.savestate, 60, unique=True, log=False)
 
     self.api('events.register')('proxy_shutdown', self.shutdown)
-
-    # add this plugin to loaded plugins and the lookup dictionaries
-    self.loaded_plugins[self.plugin_id] = {
-        'short_name': self.short_name,
-        'base_plugin_dir': self.base_plugin_dir,
-        'module': None,
-        'purpose': self.purpose,
-        'plugin_path': self.plugin_path,
-        'isimported': True,
-        'name': self.name,
-        'author': self.author,
-        'isrequired': True,
-        'dev': False,
-        'version': self.version,
-        'full_import_location': self.full_import_location,
-        'isinitialized': True,
-        'plugin_id': self.plugin_id,
-        'importedtime': self.loaded_time,
-        'plugininstance': self
-    }
-
-    self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
-    self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
-    self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
-    self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
