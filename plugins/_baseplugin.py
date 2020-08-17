@@ -78,6 +78,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.package = self.plugin_id.split('.')[0]
 
     self.settings = {}
+    self.data = {}
     self.setting_values = PersistentDictEvent(self, self.settings_file, 'c')
 
     self._dump_shallow_attrs = ['api']
@@ -87,6 +88,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.api('api.add')('setting', 'gets', self._api_setting_gets, overload=True)
     self.api('api.add')('setting', 'change', self._api_setting_change, overload=True)
     self.api('api.add')('api', 'add', self._api_add, overload=True, force=True)
+    self.api('api.add')('data.get', self._api_get_data, overload=True)
+    self.api('api.add')('data.update', self._api_update_data, overload=True)
 
   # add a function to the api
   def _api_add(self, name, func, overload=False, force=False):
@@ -113,6 +116,21 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     except KeyError:
       return None
+
+  def _api_get_data(self, datatype):
+    """
+    return data of type
+    """
+    if datatype in self.data:
+      return self.data[datatype]
+
+    return None
+
+  def _api_update_data(self, datatype, newdata):
+    """
+    update data of type
+    """
+    self.data[datatype] = newdata
 
   # add a plugin dependency
   def _api_dependency_add(self, dependency):
