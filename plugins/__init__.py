@@ -122,12 +122,22 @@ class PluginMgr(BasePlugin):
     self.api('api.add')('savestate', self.savestate)
     self.api('api.add')('loadedpluginslist', self._api_get_loaded_plugins_list)
     self.api('api.add')('packageslist', self._api_get_packages_list)
+    self.api('api.add')('get.all.short.names', self._api_get_all_short_names)
 
   def _api_get_loaded_plugins_list(self):
     """
     get the list of loaded plugins
     """
     return self.loaded_plugins.keys()
+
+  def _api_get_all_short_names(self):
+    """
+    return a list of all short names
+    """
+    short_name_list = []
+    for loaded_plugin_dict in self.loaded_plugins.values():
+      short_name_list.append(loaded_plugin_dict['short_name'])
+    return short_name_list
 
   def _api_get_packages_list(self):
     """
@@ -259,7 +269,7 @@ class PluginMgr(BasePlugin):
     msg = []
 
     plist = []
-    for plugin in [i['plugin'] for i in self.loaded_plugins.values()]:
+    for plugin in [i['plugininstance'] for i in self.loaded_plugins.values()]:
       if plugin.package == package:
         plist.append(plugin)
 
@@ -911,7 +921,9 @@ class PluginMgr(BasePlugin):
                 (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
       self.api('events.eraise')('plugin_%s_initialized' % plugin['short_name'], {})
-      self.api('events.eraise')('plugin_initialized', {'plugin':plugin['short_name']})
+      self.api('events.eraise')('plugin_initialized', {'plugin':plugin['short_name'],
+                                                       'plugin_id':plugin['plugin_id'],
+                                                       'short_name':plugin['short_name']})
     except Exception: # pylint: disable=broad-except
       self.api('send.traceback')(
           "load: could not run the initialize function for %s." \
@@ -964,7 +976,9 @@ class PluginMgr(BasePlugin):
           if plugin['isinitialized']:
             plugin['plugininstance'].uninitialize()
           self.api('events.eraise')('plugin_%s_uninitialized' % plugin['short_name'], {})
-          self.api('events.eraise')('plugin_uninitialized', {'name':plugin['short_name']})
+          self.api('events.eraise')('plugin_uninitialized', {'name':plugin['short_name'],
+                                                             'plugin_id':plugin['plugin_id'],
+                                                             'short_name':plugin['short_name']})
           self.api('send.msg')('%-30s : successfully unitialized (%s : %s)' % \
                   (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
@@ -992,7 +1006,6 @@ class PluginMgr(BasePlugin):
 
         if plugin['isimported']:
           # delete the module
-          print plugin
           success = imputils.deletemodule(plugin['full_import_location'])
           if success:
             self.api('send.msg')('%-30s : deleting imported module was successful (%s : %s)' % \
