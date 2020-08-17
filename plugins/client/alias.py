@@ -132,7 +132,7 @@ class Plugin(BasePlugin):
                              self.cmd_detail,
                              parser=parser)
 
-    self.api('commands.default')('list')
+    # self.api('commands.default')('list')
     self.api('events.register')('io_execute_event', self.checkalias,
                                 prio=2)
     self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)

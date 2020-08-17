@@ -33,8 +33,6 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.can_reload_f = True
-
     self.regexlookup = {}
     self.actiongroups = {}
     self.compiledregex = {}

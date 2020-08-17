@@ -76,7 +76,7 @@ class Plugin(BasePlugin):
                              self.cmd_clear,
                              parser=parser)
 
-    self.api('commands.default')('list')
+    # self.api('commands.default')('list')
     self.api('events.register')('from_mud_event', self.findsub)
 
     self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)

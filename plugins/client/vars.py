@@ -78,7 +78,7 @@ class Plugin(BasePlugin):
                              self.cmd_list,
                              parser=parser)
 
-    self.api('commands.default')('list')
+    # self.api('commands.default')('list')
 
     self.api('events.register')('io_execute_event',
                                 self.checkline,

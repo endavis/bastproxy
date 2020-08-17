@@ -51,7 +51,7 @@ class Plugin(BasePlugin):
                              self.cmd_loop,
                              parser=parser)
 
-    self.api('commands.default')('cmd')
+    # self.api('commands.default')('cmd')
 
   def cmd_loop(self, args):
     """
