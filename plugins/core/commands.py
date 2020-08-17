@@ -61,7 +61,7 @@ class Plugin(BasePlugin):
 
     self.can_reload_f = False
 
-    self.cmds = {}
+    self.commands_list = []
     self.nomultiplecmds = {}
 
     self.savehistfile = os.path.join(self.save_directory, 'history.txt')
@@ -71,9 +71,8 @@ class Plugin(BasePlugin):
     self.cmdhistory = self.cmdhistorydict['history']
 
     self.api('api.add')('add', self.api_addcmd)
-    self.api('api.add')('remove', self.api_removecmd)
     self.api('api.add')('change', self.api_changecmd)
-    self.api('api.add')('default', self.api_setdefault)
+    #self.api('api.add')('default', self.api_setdefault)
     self.api('api.add')('removeplugin', self.api_removeplugin)
     self.api('api.add')('list', self.api_listcmds)
     self.api('api.add')('run', self.api_run)
@@ -107,13 +106,13 @@ class Plugin(BasePlugin):
                             'the size of the history to keep')
 
     parser = argp.ArgumentParser(add_help=False,
-                                 description='list commands in a category')
-    parser.add_argument('category',
-                        help='the category to see help for',
+                                 description='list commands in a plugin')
+    parser.add_argument('plugin',
+                        help='the plugin to see help for',
                         default='',
                         nargs='?')
     parser.add_argument('cmd',
-                        help='the command in the category (can be left out)',
+                        help='the command in the plugin (can be left out)',
                         default='',
                         nargs='?')
     self.api('commands.add')('list',
@@ -150,24 +149,35 @@ class Plugin(BasePlugin):
                              showinhistory=False)
 
     self.api('events.register')('io_execute_event', self.chkcmd_new, prio=5)
-    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
-    self.api('events.eraise')('plugin_cmdman_loaded', {})
+    self.api('events.register')('plugin_uninitialized', self.plugin_uninitialized)
 
     self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
-  def pluginuninitialized(self, args):
+  def plugin_uninitialized(self, args):
     """
     a plugin was uninitialized
     """
-    self.api('send.msg')('removing commands for plugin %s' % args['name'],
-                         secondary=args['name'])
-    self.api('%s.removeplugin' % self.short_name)(args['name'])
+    self.api('send.msg')('removing commands for plugin %s' % args['plugin_id'],
+                         secondary=args['short_name'])
+    self.api('%s.removeplugin' % self.short_name)(args['short_name'])
+
+  # remove all commands for a plugin
+  def api_removeplugin(self, plugin):
+    """  remove all commands for a plugin
+    @Yshort_name@w    = the plugin to remove commands for
+
+    this function returns no values"""
+    plugin_instance = self.api('plugins.getp')(plugin)
+
+    if plugin_instance:
+      plugin_id = plugin_instance.plugin_id
+      new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
+      self.commands_list = new_commands
 
   def formatretmsg(self, msg, short_name, cmd):
     """
     format a return message
     """
-
     linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
 
     msg.insert(0, '')
@@ -188,28 +198,37 @@ class Plugin(BasePlugin):
     """
     change an attribute for a command
     """
-    if command not in self.cmds[plugin]:
+    command_data = self.get_command(plugin, command)
+
+    if not command_data:
       self.api('send.error')('command %s does not exist in plugin %s' % \
         (command, plugin))
       return False
 
-    if flag not in self.cmds[plugin][command]:
+    if flag not in command_data:
       self.api('send.error')(
           'flag %s does not exist in command %s in plugin %s' % \
             (flag, command, plugin))
       return False
 
-    self.cmds[plugin][command][flag] = value
+    data = plugin.api('%s.data.get' % plugin.short_name)('commands')
+    if not data:
+      data = {}
+    data[command][flag] = value
+
+    plugin.api('%s.data.update' % plugin.short_name)('commands', data)
 
     return True
 
   # return the help for a command
-  def api_cmdhelp(self, plugin, cmd):
+  def api_cmdhelp(self, plugin, command):
     """
     get the help for a command
     """
-    if plugin in self.cmds and cmd in self.cmds[plugin]:
-      return self.cmds[plugin][cmd]['parser'].format_help()
+    command_data = self.get_command(plugin, command)
+
+    if command_data:
+      return command_data['parser'].format_help()
 
     return ''
 
@@ -221,18 +240,24 @@ class Plugin(BasePlugin):
     if cformat:
       return self.listcmds(plugin)
     else:
-      if plugin in self.cmds:
-        return self.cmds[plugin]
+      plugin_instance = self.api('plugins.getp')(plugin)
 
-      return {}
+      data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      return data
+
+    return {}
 
   # run a command and return the output
   def api_run(self, plugin, cmdname, argstring):
     """
     run a command and return the output
     """
-    if plugin in self.cmds and cmdname in self.cmds[plugin]:
-      cmd = self.cmds[plugin][cmdname]
+    plugin_instance = self.api('plugins.getp')(plugin)
+
+    data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+
+    if data and cmdname in data:
+      cmd = data[cmdname]
       args, dummy = cmd['parser'].parse_known_args(argstring)
 
       args = vars(args)
@@ -343,12 +368,47 @@ class Plugin(BasePlugin):
     """
     return a list of all commands
     """
-    cmdlist = []
-    for sname in self.cmds:
-      for command in self.cmds[sname]:
-        cmdlist.append('%s.%s' % (sname, command))
+    return self.commands_list
 
-    return self.cmds.keys(), cmdlist
+  def get_command(self, plugin_id, command):
+    """
+    get the command from the plugin data
+    """
+    plugin_instance = self.api('plugins.getp')(plugin_id)
+
+    data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+    if not data:
+      return None
+
+    if command in data:
+      return data[command]
+
+    return None
+
+  def update_command(self, plugin_id, command, data):
+    """
+    get the command from the plugin data
+    """
+    plugin_instance = self.api('plugins.getp')(plugin_id)
+
+    all_command_data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+    if not all_command_data:
+      self.api('send.error')('commands - update_command: plugin %s does not have data for command' % \
+                             plugin_id,
+                             secondary=plugin_instance.short_name)
+      return None
+
+    if command not in all_command_data:
+      self.api('send.error')('commands - update_command: plugin %s does not have command %s' % \
+                             (plugin_id, command),
+                             secondary=plugin_instance.short_name)
+      return None
+
+    all_command_data[command] = data
+
+    plugin_instance.api('%s.data.update' % plugin_instance.short_name)('commands', data)
+
+    return None
 
   def pass_through_command(self, data, command_data_dict):
     """
@@ -456,7 +516,7 @@ class Plugin(BasePlugin):
       command_data_dict['flag'] = 'Bad Command'
       command_data_dict['cmddata'] = 'Command name too long: %s' % cmd
     else:
-      short_names, _ = self.api_get_all_commands_list()
+      short_names = self.api('plugins.get.all.short.names')()
       loaded_plugin_ids = self.api('plugins.loadedpluginslist')()
 
       package = None
@@ -489,10 +549,10 @@ class Plugin(BasePlugin):
         plugin_id = split_command_list[2]
         plugin_cmd = split_command_list[-1]
 
-      print 'fullcommand: %s' % cmd
-      print 'package: %s' % package
-      print 'plugin: %s' % plugin_id
-      print 'cmd: %s' % plugin_cmd
+      # print 'fullcommand: %s' % cmd
+      # print 'package: %s' % package
+      # print 'plugin: %s' % plugin_id
+      # print 'cmd: %s' % plugin_cmd
 
       # find package
       if package and not found_package:
@@ -522,7 +582,7 @@ class Plugin(BasePlugin):
 
       # didn't find anything
       if not found_plugin and not found_package and not found_command:
-        command_data_dict['cmd'] = self.cmds[self.short_name]['list']
+        command_data_dict['cmd'] = self.get_command(self.short_name, 'list')
         command_data_dict['commandran'] = '%s.%s.%s' % \
               (self.api('setting.gets')('cmdprefix'),
                self.short_name,
@@ -550,7 +610,7 @@ class Plugin(BasePlugin):
             command_data_dict['flag'] = 'Bad Command'
             command_data_dict['cmddata'] = 'command %s does not exist in plugin %s' % (plugin_cmd, found_plugin)
           else:
-            command_data_dict['cmd'] = self.cmds[self.short_name]['list']
+            command_data_dict['cmd'] = self.get_command(self.short_name, 'list')
             command_data_dict['flag'] = 'Help'
             command_data_dict['commandran'] = '%s.%s.%s %s' % \
                     (self.api('setting.gets')('cmdprefix'),
@@ -560,7 +620,7 @@ class Plugin(BasePlugin):
 
         # have a plugin and a command
         else:
-          cmd = self.cmds[found_plugin][found_command]
+          cmd = self.get_command(found_plugin, found_command)
           command_data_dict['cmd'] = cmd
           command_data_dict['commandran'] = '%s.%s.%s %s' % \
                 (self.api('setting.gets')('cmdprefix'), found_plugin,
@@ -569,18 +629,17 @@ class Plugin(BasePlugin):
           command_data_dict['targs'] = split_args
           command_data_dict['fullargs'] = full_args_string
 
-      print 'fullcommand: %s' % cmd
-      print 'found_package: %s' % found_package
-      print 'found_plugin: %s' % found_plugin
-      print 'found_command: %s' % found_command
+      # print 'fullcommand: %s' % cmd
+      # print 'found_package: %s' % found_package
+      # print 'found_plugin: %s' % found_plugin
+      # print 'found_command: %s' % found_command
 
       command_data_dict['short_name'] = found_plugin
       command_data_dict['scmd'] = found_command
 
       # run the command here
       if command_data_dict['flag'] == 'Bad Command':
-        self.api('send.client')("@R%s.%s@W is not a command" % \
-              (command_data_dict['short_name'], command_data_dict['scmd']))
+        self.api('send.client')("@R%s@W is not a command" % (cmd))
       else:
         try:
           command_data_dict['success'] = self.runcmd(command_data_dict['cmd'],
@@ -634,16 +693,22 @@ class Plugin(BasePlugin):
       return
     try:
       short_name = func.im_self.short_name
+      plugin_id = func.im_self.plugin_id
     except AttributeError:
-      if 'short_name' in args:
-        short_name = args['short_name']
-      else:
-        callstack = self.api('api.callstack')()
-        self.api('send.error')(
-            'Function is not part of a plugin class: cmd %s from plugin %s' % \
-                  (cmdname, calledfrom), secondary=calledfrom)
-        self.api('send.error')("\n".join(callstack).strip())
-        return
+      try:
+        plugin = func.im_self.plugin
+        short_name = plugin.short_name
+        plugin_id = plugin.plugin_id
+      except AttributeError:
+        if 'short_name' in args:
+          short_name = args['short_name']
+        else:
+          callstack = self.api('api.callstack')()
+          self.api('send.error')(
+              'Function is not part of a plugin class: cmd %s from plugin %s' % \
+                    (cmdname, calledfrom), secondary=calledfrom)
+          self.api('send.error')("\n".join(callstack).strip())
+          return
 
     if 'parser' in args:
       tparser = args['parser']
@@ -658,15 +723,18 @@ class Plugin(BasePlugin):
                                     description=args['shelp'])
       args['parser'] = tparser
 
-    tparser.add_argument("-h", "--help", help="show help",
-                         action="store_true")
+    try:
+      tparser.add_argument("-h", "--help", help="show help",
+                           action="store_true")
+    except argp.ArgumentError:
+      pass
+
 
     tparser.prog = '@B%s.%s.%s@w' % (self.api('setting.gets')('cmdprefix'),
                                      short_name, cmdname)
 
     if 'group' not in args:
       args['group'] = short_name
-
 
     try:
       lname = func.im_self.name
@@ -684,8 +752,6 @@ class Plugin(BasePlugin):
                                             (short_name, cmdname),
                          secondary=short_name)
 
-    if short_name not in self.cmds:
-      self.cmds[short_name] = {}
     args['func'] = func
     args['short_name'] = short_name
     args['lname'] = lname
@@ -696,7 +762,17 @@ class Plugin(BasePlugin):
       args['format'] = True
     if 'showinhistory' not in args:
       args['showinhistory'] = True
-    self.cmds[short_name][cmdname] = args
+
+    plugin_instance = self.api('plugins.getp')(plugin_id)
+
+    data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+    if not data:
+      data = {}
+    data[cmdname] = args
+
+    plugin_instance.api('%s.data.update' % plugin_instance.short_name)('commands', data)
+
+    self.commands_list.append('%s.%s' % (plugin_instance.plugin_id, cmdname))
 
   # remove a command
   def api_removecmd(self, plugin, cmdname):
@@ -705,98 +781,65 @@ class Plugin(BasePlugin):
     @Ycmdname@w  = the name of the command
 
     this function returns no values"""
-    if plugin in self.cmds and cmdname in self.cmds[plugin]:
-      del self.cmds[plugin][cmdname]
-    else:
+    plugin_instance = self.api('plugins.getp')(plugin)
+    removed = False
+    if plugin_instance:
+      data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      if data and cmdname in data:
+        del data[cmdname]
+        plugin_instance.api('%s.data.update' % plugin_instance.short_name)('commands', data)
+        self.api('send.msg')('removed cmd %s.%s' % \
+                                                (plugin, cmdname),
+                             secondary=plugin)
+        removed = True
+
+    if not removed:
       self.api('send.msg')('remove cmd: cmd %s.%s does not exist' % \
                                                 (plugin, cmdname),
                            secondary=plugin)
 
-    self.api('send.msg')('removed cmd %s.%s' % \
-                                                (plugin, cmdname),
-                         secondary=plugin)
-
-  # set the default command for a plugin
-  def api_setdefault(self, cmd, plugin=None):
-    """  set the default command for a plugin
-    @Yshort_name@w    = the plugin of the command
-    @Ycmdname@w  = the name of the command
-
-    this function returns True if the command exists, False if it doesn't"""
-
-    if not plugin:
-      plugin = self.api('api.callerplugin')(ignore_plugin_list=[self.short_name])
-
-    if not plugin:
-      self.api('send.error')('could not add a default cmd: %s' % cmd)
-      return False
-
-    if plugin in self.cmds and cmd in self.cmds[plugin]:
-      self.api('send.msg')('added default command %s for plugin %s' % (cmd, plugin),
-                           secondary=plugin)
-      self.cmds[plugin]['default'] = self.cmds[plugin][cmd]
-      return True
-
-    self.api('send.error')('could not set default command %s for plugin %s' % \
-                              (cmd, plugin), secondary=plugin)
-    return False
-
-  # remove all commands for a plugin
-  def api_removeplugin(self, plugin):
-    """  remove all commands for a plugin
-    @Yshort_name@w    = the plugin to remove commands for
-
-    this function returns no values"""
-    if plugin in self.cmds:
-      del self.cmds[plugin]
-    else:
-      self.api('send.error')('removeplugin: plugin %s does not exist' % \
-                                                        plugin)
-
-  def format_cmdlist(self, category, cmdlist):
+  def format_cmdlist(self, cmdlist):
     """
-    format a list of commands
+    format a list of commands by a category
     """
     tmsg = []
     for i in cmdlist:
       if i != 'default':
-        tlist = self.cmds[category][i]['parser'].description.split('\n')
+        tlist = i['parser'].description.split('\n')
         if not tlist[0]:
           tlist.pop(0)
-        tmsg.append('  @B%-10s@w : %s' % (i, tlist[0]))
+        tmsg.append('  @B%-10s@w : %s' % (i['commandname'], tlist[0]))
 
     return tmsg
 
-  def listcmds(self, category):
+  def listcmds(self, plugin):
     """
     build a table of commands for a category
     """
+    plugin_instance = self.api('plugins.getp')(plugin)
+
     tmsg = []
-    if category:
-      if category in self.cmds:
-        tmsg.append('Commands in %s:' % category)
-        tmsg.append('@G' + '-' * 60 + '@w')
-        groups = {}
-        for i in sorted(self.cmds[category].keys()):
-          if i != 'default':
-            if self.cmds[category][i]['group'] not in groups:
-              groups[self.cmds[category][i]['group']] = []
+    if plugin_instance:
+      cmds = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      tmsg.append('Commands in %s:' % plugin_instance.plugin_id)
+      tmsg.append('@G' + '-' * 60 + '@w')
+      groups = {}
+      for i in sorted(cmds.keys()):
+        if i != 'default':
+          if cmds[i]['group'] not in groups:
+            groups[cmds[i]['group']] = []
 
-            groups[self.cmds[category][i]['group']].append(i)
+          groups[cmds[i]['group']].append(cmds[i])
 
-        if len(groups) == 1:
-          tmsg.extend(self.format_cmdlist(category,
-                                          self.cmds[category].keys()))
-        else:
-          for group in sorted(groups.keys()):
-            if group != 'Base':
-              tmsg.append('@M' + '-' * 5 + ' ' +  group + ' ' + '-' * 5)
-              tmsg.extend(self.format_cmdlist(category, groups[group]))
-              tmsg.append('')
+      for group in sorted(groups.keys()):
+        if group != 'Base':
+          tmsg.append('@M' + '-' * 5 + ' ' +  group + ' ' + '-' * 5)
+          tmsg.extend(self.format_cmdlist(groups[group]))
+          tmsg.append('')
 
-          tmsg.append('@M' + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5)
-          tmsg.extend(self.format_cmdlist(category, groups['Base']))
-        #tmsg.append('@G' + '-' * 60 + '@w')
+      tmsg.append('@M' + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5)
+      tmsg.extend(self.format_cmdlist(groups['Base']))
+      #tmsg.append('@G' + '-' * 60 + '@w')
     return tmsg
 
   def cmd_list(self, args):
@@ -804,20 +847,21 @@ class Plugin(BasePlugin):
     list commands
     """
     tmsg = []
-    category = args['category']
+    plugin_instance = self.api('plugins.getp')(args['plugin'])
     cmd = args['cmd']
-    if category:
-      if category in self.cmds:
-        if cmd and cmd in self.cmds[category]:
-          msg = self.cmds[category][cmd]['parser'].format_help().split('\n')
+    if plugin_instance:
+      plugin_commands = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      if plugin_commands:
+        if cmd and cmd in plugin_commands:
+          msg = plugin_commands[cmd]['parser'].format_help().split('\n')
           tmsg.extend(msg)
         else:
-          tmsg.extend(self.listcmds(category))
+          tmsg.extend(self.listcmds(plugin_instance.short_name))
       else:
-        tmsg.append('There is no category %s' % category)
+        tmsg.append('There are no commands in plugin %s' % plugin_instance.short_name)
     else:
-      tmsg.append('Categories:')
-      tkeys = self.cmds.keys()
+      tmsg.append('Plugins')
+      tkeys = self.api('plugins.get.all.short.names')()
       tkeys.sort()
       tmsg.append(self.api('utils.listtocolumns')(tkeys, cols=3, columnwise=False, gap=6))
     return True, tmsg
