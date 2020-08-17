@@ -966,8 +966,8 @@ class PluginMgr(BasePlugin):
     plugin = self.loaded_plugins[plugin_id]
 
     if plugin:
-      if plugin['isrequired']:
-        self.api('send.msg')('%-30s : this is a required plugin and cannot be unloaded (%s : %s)' % \
+      if not plugin['plugininstance'].can_reload_f:
+        self.api('send.msg')('%-30s : this plugin cannot be unloaded (%s : %s)' % \
                   (plugin['plugin_id'], plugin['short_name'], plugin['name']))
         return False
       else:
