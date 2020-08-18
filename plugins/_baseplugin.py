@@ -214,6 +214,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         message.append('There is no method named %s' % args['method'])
 
     elif args['object']:
+      found_full_item = True
       object_string = args['object']
       next_item = None
 
@@ -231,6 +232,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           found_list.append(':'.join(['attr', next_item]))
           if items_to_get:
             continue
+          else:
+            break
         except AttributeError:
           # check if obj is a dict and then check both the string next_item and integer next_item
           if isinstance(obj, dict):
@@ -244,17 +247,24 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
               found_list.append(':'.join(['key', next_item]))
               if items_to_get:
                 continue
+              else:
+                break
+        found_full_item = False
         break
 
       if found_list:
-        if args['simple']:
-          tvars = pprint.pformat(obj)
+        if not found_full_item:
+          message.append("There is no item named %s" % object_string)
+          message.append('found up to : %s' % '.'.join(found_list))
         else:
-          tvars = dumper(obj)
-        message.append('found: %s' % '.'.join(found_list))
-        message.append(tvars)
+          if args['simple']:
+            tvars = pprint.pformat(obj)
+          else:
+            tvars = dumper(obj)
+          message.append('found: %s' % '.'.join(found_list))
+          message.append(tvars)
       else:
-        message.append('There is no attribute named %s' % args['object'])
+        message.append('There is no item named %s' % args['object'])
 
     else:
       if args['simple']:
