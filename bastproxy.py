@@ -93,14 +93,17 @@ from libs import io      # pylint: disable=unused-import
 
 sys.stderr = sys.stdout
 
+VERSION = "2.0.0"
+
+# create and API instance and update start time and set the startup flag
 API = BASEAPI()
 BASEAPI.proxy_start_time = time.localtime()
 BASEAPI.startup = True
 
-
 def setup_paths():
   """
-  setup paths
+  find the base path of the bastproxy.py file for later use
+  in importing plugins and create data directories
   """
   npath = os.path.abspath(__file__)
   index = npath.rfind(os.sep)
@@ -113,6 +116,7 @@ def setup_paths():
   API('send.msg')('setting basepath to: %s' % tpath, 'startup')
   BASEAPI.BASEPATH = tpath
 
+  # create the logs directory
   try:
     os.makedirs(os.path.join(API.BASEPATH, 'data', 'logs'))
   except OSError:
@@ -131,15 +135,19 @@ class Listener(asyncore.dispatcher):
       required:
         listen_port - the port to listen on
     """
+    # setup asyncore
     asyncore.dispatcher.__init__(self)
     self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
     self.set_reuse_addr()
     self.bind(("", listen_port))
     self.listen(50)
+
+    # set the mud to None, it is created later
     self.mud = None
+
+    # create a list of clients
     self.clients = []
     API('send.msg')("Listener bound on: %s" % listen_port, 'startup')
-    API('events.eraise')('proxy_ready', calledfrom='listener')
 
   def handle_error(self):
     """
@@ -151,19 +159,24 @@ class Listener(asyncore.dispatcher):
     """
     accept a new client
     """
+
+    # create a connection to the mud if it doesn't exist
     if not self.mud:
       from libs.net.mud import Mud
 
       # do proxy stuff here
       self.mud = Mud()
 
+    # accept the new connection
     client_connection, source_addr = self.accept()
 
     try:
+      # if the client is banned, close the connection
       ip_address = source_addr[0]
       if API('clients.checkbanned')(ip_address):
         API('send.msg')("HOST: %s is banned" % ip_address, 'net')
         client_connection.close()
+      # if there are more than 5 connections, close the current connection
       elif API('clients.numconnected') == 5:
         API('send.msg')(
             "Only 5 clients can be connected at the same time", 'net')
@@ -172,7 +185,7 @@ class Listener(asyncore.dispatcher):
         API('send.msg')("Accepted connection from %s : %s" %
                         (source_addr[0], source_addr[1]), 'net')
 
-        # client keeps up with itself
+        # create a Client instance
         from libs.net.client import Client
         Client(client_connection, source_addr[0], source_addr[1])
 
@@ -204,6 +217,7 @@ def start(listen_port):
       # check our timer event
       API('events.eraise')('global_timer', {}, calledfrom="globaltimer")
 
+  # catch a KeyBoardInterrupt so that bastproxy can be exited
   except KeyboardInterrupt:
     pass
 
@@ -216,10 +230,13 @@ def main():
   """
   setup_paths()
 
+  # create an ArgumentParser to parse the command line
   parser = argp.ArgumentParser(description='A python mud proxy')
+  # create a port option, this sets the variable automatically in the proxy plugin
   parser.add_argument('-p', "--port",
                       help="the port for the proxy to listen on",
                       default=9999)
+  # create a daemon option, which puts the proxy into daemon mode
   parser.add_argument('-d', "--daemon",
                       help="run in daemon mode",
                       action='store_true')
@@ -227,26 +244,39 @@ def main():
 
   daemon = bool(targs['daemon'])
 
+  # initialize all plugins
   API('send.msg')('Plugin Manager - loading', 'startup')
+  # instantiate the plugin manager
   from plugins import PluginMgr
   plugin_manager = PluginMgr()
+
+  # initialize the plugin manager which will load plugins
   plugin_manager.initialize()
   API('send.msg')('Plugin Manager - loaded', 'startup')
 
+  # add some logging of various plugins and functionality
   API('log.adddtype')('net')
   API('log.console')('net')
   API('log.adddtype')('inputparse')
   API('log.adddtype')('ansi')
 
+  # get the proxy plugin
   proxy_plugin = API('plugins.getp')('proxy')
 
+  # update the port setting if different from the default
   if targs['port'] != 9999:
     proxy_plugin.api('setting.change')('listenport', targs['port'])
 
+  # get the listen port setting
   listen_port = proxy_plugin.api('setting.gets')('listenport')
 
+  # the proxy is done starting up and we raise an event
   BASEAPI.startup = False
+  API('events.eraise')('proxy_ready', calledfrom='bastproxy')
+
+  # start the proxy in an infinite loop which can be broken with a Ctrl-C
   if not daemon:
+    # start without daemon mode
     try:
       start(listen_port)
     except KeyboardInterrupt:
@@ -255,6 +285,7 @@ def main():
     API('proxy.shutdown')()
 
   else:
+    # start with daemon mode
     os.close(0)
     os.close(1)
     os.close(2)
@@ -262,6 +293,7 @@ def main():
     os.open("/dev/null", os.O_RDWR)
     os.dup(1)
 
+    # fork the proxy for daemon mode
     if os.fork() == 0:
       # We are the child
       try:
