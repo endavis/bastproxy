@@ -227,18 +227,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         next_item = items_to_get.pop(0)
         # check to see if next_item is an attribute
         try:
-          print 'checking for attr', next_item
-          print 'items to get', items_to_get
           obj = getattr(obj, next_item)
-          print 'found attr', next_item
           found_list.append(':'.join(['attr', next_item]))
           if items_to_get:
             continue
         except AttributeError:
           # check if obj is a dict and then check both the string next_item and integer next_item
           if isinstance(obj, dict):
-            print 'checking for key', next_item
-            print 'items to get', items_to_get
             if next_item not in obj:
               try:
                 next_item = int(next_item)
@@ -246,7 +241,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 pass
             if next_item in obj:
               obj = obj[next_item]
-              print 'found key', next_item
               found_list.append(':'.join(['key', next_item]))
               if items_to_get:
                 continue
