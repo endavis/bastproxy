@@ -197,40 +197,70 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     args dictionary:
       method - inspect specified method
       object - inspect specified object
+                  to get to nested objects or dictionary keys use .
+                  Ex. data.commands.stats.parser.description
 
       simple - only dump topllevel attributes
     """
     from libs.objectdump import dumps as dumper
 
-    tmsg = []
+    message = []
+    found_list = []
     if args['method']:
       try:
-        tmeth = getattr(self, args['method'])
-        tmsg.append(inspect.getsource(tmeth))
+        found_method = getattr(self, args['method'])
+        message.append(inspect.getsource(found_method))
       except AttributeError:
-        tmsg.append('There is no method named %s' % args['method'])
+        message.append('There is no method named %s' % args['method'])
 
     elif args['object']:
-      tobj = args['object']
-      key = None
-      if ':' in tobj:
-        tobj, key = tobj.split(':')
+      object_string = args['object']
+      next_item = None
 
-      obj = getattr(self, tobj)
-      if obj:
-        if key:
-          if key not in obj:
-            try:
-              key = int(key)
-            except ValueError:
-              pass
-          if key in obj:
-            obj = obj[key]
+      if '.' not in object_string:
+        items_to_get = [object_string]
+      else:
+        items_to_get = object_string.split('.')
+
+      obj = self
+      while True:
+        next_item = items_to_get.pop(0)
+        # check to see if next_item is an attribute
+        try:
+          print 'checking for attr', next_item
+          print 'items to get', items_to_get
+          obj = getattr(obj, next_item)
+          print 'found attr', next_item
+          found_list.append(':'.join(['attr', next_item]))
+          if items_to_get:
+            continue
+        except AttributeError:
+          # check if obj is a dict and then check both the string next_item and integer next_item
+          if isinstance(obj, dict):
+            print 'checking for key', next_item
+            print 'items to get', items_to_get
+            if next_item not in obj:
+              try:
+                next_item = int(next_item)
+              except ValueError:
+                pass
+            if next_item in obj:
+              obj = obj[next_item]
+              print 'found key', next_item
+              found_list.append(':'.join(['key', next_item]))
+              if items_to_get:
+                continue
+        break
+
+      if found_list:
         if args['simple']:
           tvars = pprint.pformat(obj)
         else:
           tvars = dumper(obj)
-        tmsg.append(tvars)
+        message.append('found: %s' % '.'.join(found_list))
+        message.append(tvars)
+      else:
+        message.append('There is no attribute named %s' % args['object'])
 
     else:
       if args['simple']:
@@ -238,16 +268,16 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       else:
         tvars = dumper(self)
 
-      tmsg.append('@M' + '-' * 60 + '@x')
-      tmsg.append('Variables')
-      tmsg.append('@M' + '-' * 60 + '@x')
-      tmsg.append(tvars)
-      tmsg.append('@M' + '-' * 60 + '@x')
-      tmsg.append('Methods')
-      tmsg.append('@M' + '-' * 60 + '@x')
-      tmsg.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
+      message.append('@M' + '-' * 60 + '@x')
+      message.append('Variables')
+      message.append('@M' + '-' * 60 + '@x')
+      message.append(tvars)
+      message.append('@M' + '-' * 60 + '@x')
+      message.append('Methods')
+      message.append('@M' + '-' * 60 + '@x')
+      message.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
 
-    return True, tmsg
+    return True, message
 
   def _cmd_stats(self, _=None):
     """
