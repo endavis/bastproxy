@@ -62,6 +62,10 @@ class API(object):
   # this will hold event descriptions and usage
   event_descriptions = {}
 
+  # the regex to use to split commands, the seperator is configured in
+  # the proxy plugin
+  command_split_regex = None
+
   def __init__(self):
     """
     initialize the class
@@ -71,9 +75,6 @@ class API(object):
 
     # the format for the time
     self.time_format = '%a %b %d %Y %H:%M:%S'
-
-    # The command seperator is |
-    self.split_regex = r'(?<=[^\|])\|(?=[^\|])'
 
     # added functions
     self.add('api', 'add', self.add, overload=True)

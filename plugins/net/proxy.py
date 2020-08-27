@@ -62,6 +62,8 @@ class Plugin(BasePlugin):
                             'the preamble color')
     self.api('setting.add')('preambleerrorcolor', '@R', str,
                             'the preamble color for an error line')
+    self.api('setting.add')('cmdseperator', '|', str,
+                            'the seperator for sending multiple commands')
 
     self.api('commands.add')('info',
                              self.cmd_info,
@@ -87,6 +89,7 @@ class Plugin(BasePlugin):
     self.api('events.register')('client_connected', self.client_connected)
     self.api('events.register')('mudconnect', self.sendusernameandpw)
     self.api('events.register')('var_%s_listenport' % self.short_name, self.listenportchange)
+    self.api('events.register')('var_%s_cmdseperator' % self.short_name, self.command_seperator_change)
 
     ssc = self.api('ssc.baseclass')()
     self.proxypw = ssc('proxypw', self, desc='Proxy Password',
@@ -301,3 +304,11 @@ class Plugin(BasePlugin):
     """
     if not self.api.startup:
       self.api('proxy.restart')()
+
+  def command_seperator_change(self, args): # pylint: disable=unused-argument
+    """
+    update the command regex
+    """
+    newsep = args['newvalue']
+
+    self.api.command_split_regex = r'(?<=[^%s])%s(?=[^%s])' % ('\\' + newsep, '\\' + newsep, '\\' + newsep)

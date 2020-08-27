@@ -222,7 +222,12 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           tcommand = tcommand.strip()
 
         if tcommand:
-          datalist = re.split(self.api.split_regex, tcommand)
+          # split the command if it has the command seperator in it
+          # and run each one through execute again
+          if self.api.command_split_regex:
+            datalist = re.split(self.api.command_split_regex, tcommand)
+          else:
+            datalist = []
           if len(datalist) > 1:
             self.api('send.msg')('broke %s into %s' % (tcommand, datalist),
                                  primary='inputparse')
@@ -233,7 +238,11 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                  'plugin':'io'})
             for cmd in datalist:
               self.api('send.execute')(cmd, showinhistory=showinhistory)
+
+          # the command did not have a command seperator
           else:
+            # take out double command seperators and replaces them with a single one before
+            # sending the data to the mud
             tcommand = tcommand.replace('||', '|')
             if tcommand[-1] != '\n':
               tcommand = "".join([tcommand, '\n'])
