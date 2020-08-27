@@ -222,7 +222,7 @@ class Plugin(BasePlugin):
     returns:
       the updated message
     """
-    line_length = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    line_length = self.api('setting.gets')('linelen', 'proxy')
 
     msg.insert(0, '')
     msg.insert(1, '%s.%s.%s' % (self.api('setting.gets')('cmdprefix'), short_name, command))
@@ -271,12 +271,12 @@ class Plugin(BasePlugin):
       return False
 
     # change the flag and update the command data for the plugin
-    data = plugin_instance.api('%s.data.get' % plugin.short_name)('commands')
+    data = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
     if not data:
       data = {}
     data[command][flag] = value
 
-    plugin_instance.api('%s.data.update' % plugin.short_name)('commands', data)
+    self.api('data.update')('commands', data, plugin=plugin_instance.plugin_id)
 
     return True
 
@@ -319,7 +319,7 @@ class Plugin(BasePlugin):
     else:
       plugin_instance = self.api('plugins.getp')(plugin)
 
-      data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      data = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
       return data
 
     return {}
@@ -473,7 +473,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('plugins.getp')(plugin_id)
 
     # retrieve the commands data
-    data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+    data = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
     if not data:
       return None
 
@@ -490,7 +490,7 @@ class Plugin(BasePlugin):
     """
     plugin_instance = self.api('plugins.getp')(plugin)
 
-    all_command_data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+    all_command_data = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
 
     if not all_command_data:
       all_command_data = {}
@@ -503,7 +503,7 @@ class Plugin(BasePlugin):
 
     all_command_data[command_name] = data
 
-    plugin_instance.api('%s.data.update' % plugin_instance.short_name)('commands', all_command_data)
+    self.api('data.update')('commands', all_command_data, plugin=plugin_instance.plugin_id)
 
     return None
 
@@ -885,10 +885,10 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('plugins.getp')(plugin)
     removed = False
     if plugin_instance:
-      data = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      data = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
       if data and command_name in data:
         del data[command_name]
-        plugin_instance.api('%s.data.update' % plugin_instance.short_name)('commands', data)
+        self.api('data.update')('commands', data, plugin=plugin_instance.plugin_id)
         self.api('send.msg')('removed command %s.%s' % \
                                                 (plugin, command_name),
                              secondary=plugin)
@@ -921,7 +921,7 @@ class Plugin(BasePlugin):
 
     tmsg = []
     if plugin_instance:
-      commands = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      commands = self.api('data.get')('commands', plugin=plugin_instance.plugin_id)
       tmsg.append('Commands in %s:' % plugin_instance.plugin_id)
       tmsg.append('@G' + '-' * 60 + '@w')
       groups = {}
@@ -951,7 +951,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('plugins.getp')(args['plugin'])
     command = args['command']
     if plugin_instance:
-      plugin_commands = plugin_instance.api('%s.data.get' % plugin_instance.short_name)('commands')
+      plugin_commands = self.api('data.get')('commands', plugin_instance.plugin_id)
       if plugin_commands:
         if command and command in plugin_commands:
           msg = plugin_commands[command]['parser'].format_help().split('\n')

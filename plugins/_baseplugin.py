@@ -83,13 +83,16 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     self._dump_shallow_attrs = ['api']
 
+    # added as a toplevel API based on first argument and are overloaded since this
+    # is a class that is used as a base
     self.api('api.add')('dependency', 'add', self._api_dependency_add, overload=True)
     self.api('api.add')('setting', 'add', self._api_setting_add, overload=True)
     self.api('api.add')('setting', 'gets', self._api_setting_gets, overload=True)
     self.api('api.add')('setting', 'change', self._api_setting_change, overload=True)
+    self.api('api.add')('data', 'get', self._api_get_data, overload=True)
+    self.api('api.add')('data', 'update', self._api_update_data, overload=True)
     self.api('api.add')('api', 'add', self._api_add, overload=True, force=True)
-    self.api('api.add')('data.get', self._api_get_data, overload=True)
-    self.api('api.add')('data.update', self._api_update_data, overload=True)
+    # anything added after this will have the plugin name as the toplevel api
 
   # add a function to the api
   def _api_add(self, name, func, overload=False, force=False):
@@ -100,37 +103,69 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     # we call the non overloaded versions
     self.api.add(self.short_name, name, func, overload, force)
 
-  # get the vaule of a setting
-  def _api_setting_gets(self, setting):
+  # get the value of a setting
+  def _api_setting_gets(self, setting, plugin=None):
     """  get the value of a setting
     @Ysetting@w = the setting value to get
+    @Yplugin@w = the plugin to get the setting from (optional)
 
     returns:
       the value of the setting, None if not found"""
-    try:
-      if self.api('api.has')('utils.verify'):
-        return self.api('utils.verify')(self.setting_values[setting],
-                                        self.settings[setting]['stype'])
+    if not plugin:
+      try:
+        if self.api('api.has')('utils.verify'):
+          return self.api('utils.verify')(self.setting_values[setting],
+                                          self.settings[setting]['stype'])
 
-      return self.setting_values[setting]
+        return self.setting_values[setting]
 
-    except KeyError:
-      return None
+      except KeyError:
+        pass
 
-  def _api_get_data(self, datatype):
-    """
-    return data of type
-    """
-    if datatype in self.data:
-      return self.data[datatype]
+    else:
+      plugin_instance = self.api('plugins.getp')(plugin)
+      if plugin_instance:
+        return plugin_instance.api('setting.gets')(setting)
 
     return None
 
-  def _api_update_data(self, datatype, newdata):
-    """
-    update data of type
-    """
-    self.data[datatype] = newdata
+  # get the data for a specific datatype
+  def _api_get_data(self, datatype, plugin=None):
+    """  get the data of a specific type from this plugin
+    @Ydatatype@w = the datatype to get
+    @Yplugin@w   = the plugin to get the data from (optional)
+
+    returns:
+      the data for the specified datatype, None if not found"""
+    if not plugin:
+      if datatype in self.data:
+        return self.data[datatype]
+
+    else:
+      plugin_instance = self.api('plugins.getp')(plugin)
+      if plugin_instance:
+        return plugin_instance.api('data.get')(datatype)
+
+    return None
+
+  # update the data for a specific datatype
+  def _api_update_data(self, datatype, newdata, plugin=None):
+    """  get the data of a specific type from this plugin
+    @Ydatatype@w = the datatype to get
+    @Yplugin@w   = the plugin to get the data from (optional)
+
+    returns:
+      the data for the specified datatype, None if not found"""
+    if not plugin:
+      self.data[datatype] = newdata
+      return True
+
+    else:
+      plugin_instance = self.api('plugins.getp')(plugin)
+      if plugin_instance:
+        return plugin_instance.api('data.update')(datatype, newdata)
+
+    return False
 
   # add a plugin dependency
   def _api_dependency_add(self, dependency):
