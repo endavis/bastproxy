@@ -923,13 +923,19 @@ class PluginMgr(BasePlugin):
                 (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
       self.api('events.eraise')('plugin_%s_initialized' % plugin['short_name'], {})
-      self.api('events.eraise')('plugin_initialized', {'plugin':plugin['short_name'],
+      self.api('events.eraise')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
+      self.api('events.eraise')('plugin_initialized', {'plugin':plugin['name'],
                                                        'plugin_id':plugin['plugin_id'],
                                                        'short_name':plugin['short_name']})
+      self.api('events.eraise')('{0.plugin_id}_plugin_initialized'.format(self),
+                                {'plugin':plugin['name'],
+                                 'plugin_id':plugin['plugin_id'],
+                                 'short_name':plugin['short_name']})
+
     except Exception: # pylint: disable=broad-except
       self.api('send.traceback')(
           "load: could not run the initialize function for %s." \
-                                              % plugin['short_name'])
+                                              % plugin['plugin_id'])
       if exit_on_error:
         sys.exit(1)
         self.api('send.msg')('%-30s : DID NOT LOAD' % \
@@ -978,9 +984,14 @@ class PluginMgr(BasePlugin):
           if plugin['isinitialized']:
             plugin['plugininstance'].uninitialize()
           self.api('events.eraise')('plugin_%s_uninitialized' % plugin['short_name'], {})
-          self.api('events.eraise')('plugin_uninitialized', {'name':plugin['short_name'],
+          self.api('events.eraise')('{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
+          self.api('events.eraise')('plugin_uninitialized', {'name':plugin['name'],
                                                              'plugin_id':plugin['plugin_id'],
                                                              'short_name':plugin['short_name']})
+          self.api('events.eraise')('{0.plugin_id}_plugin_uninitialized'.format(self),
+                                    {'plugin':plugin['name'],
+                                     'plugin_id':plugin['plugin_id'],
+                                     'short_name':plugin['short_name']})
           self.api('send.msg')('%-30s : successfully unitialized (%s : %s)' % \
                   (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
@@ -1216,8 +1227,10 @@ class PluginMgr(BasePlugin):
     self.can_reload_f = False
     self._load_plugins_on_startup()
 
-    self.api('log.adddtype')(self.short_name)
-    self.api('log.console')(self.short_name)
+    #self.api('log.adddtype')(self.short_name)
+    self.api('log.adddtype')(self.plugin_id)
+    #self.api('log.console')(self.short_name)
+    self.api('log.console')(self.plugin_id)
     self.api('log.adddtype')('upgrade')
     self.api('log.console')('upgrade')
 
