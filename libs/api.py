@@ -118,23 +118,26 @@ class API(object):
 
     this function returns no values"""
     full_api_name = top_level_api + '.' + name
+    new_full_api_name = top_level_api + ':' + name
     ## do some magic to get plugin this was added from
 
     plugin_id = self._api_caller_plugin()
 
     api_data = {}
     api_data['full_api_name'] = full_api_name
+    api_data['new_full_api_name'] = new_full_api_name
     api_data['plugin'] = plugin_id
     api_data['function'] = tfunction
 
     if not overload:
-      if full_api_name in self.__class__.api and not force:
+      if (full_api_name in self.__class__.api or new_full_api_name in self.__class__.api) and not force:
         try:
-          self.get('send.error')('api.add - %s already exists' % full_api_name)
+          self.get('send.error')('api.add - %s (%s) already exists' % (full_api_name, new_full_api_name))
         except AttributeError:
-          print('api.add - %s already exists' % full_api_name)
+          print('api.add - %s (%s) already exists' % (full_api_name, new_full_api_name))
       else:
         self.__class__.api[full_api_name] = api_data
+        self.__class__.api[new_full_api_name] = api_data
 
     else:
       self._api_overload(api_data, force)
@@ -153,15 +156,19 @@ class API(object):
     except AttributeError:
       pass
 
-    if not force and api_data['full_api_name'] in self.overloaded_api:
+    if not force and \
+          (api_data['full_api_name'] in self.overloaded_api \
+           or api_data['new_full_api_name'] in self.overloaded_api):
       try:
-        self.get('send.error')('api.overload - %s already exists' % api_data['full_api_name'])
+        self.get('send.error')('api.overload - %s (%s) already exists' % \
+                                 (api_data['full_api_name'], api_data['new_full_api_name']))
       except AttributeError:
-        print('api.overload - %s already exists' % api_data['full_api_name'])
+        print('api.overload - %s (%s) already exists' % (api_data['full_api_name'], api_data['new_full_api_name']))
 
       return False
 
     self.overloaded_api[api_data['full_api_name']] = api_data
+    self.overloaded_api[api_data['new_full_api_name']] = api_data
     return True
 
   # add an event description
@@ -520,7 +527,10 @@ class API(object):
     tkeys.sort()
     top_levels = []
     for i in tkeys:
-      toplevel, therest = i.split('.', 1)
+      if ':' in i:
+        toplevel, therest = i.split(':', 1)
+      else:
+        toplevel, therest = i.split('.', 1)
       if toplevel not in top_levels:
         top_levels.append(toplevel)
         tmsg.append('@G%-10s@w' % toplevel)
