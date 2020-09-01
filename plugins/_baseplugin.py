@@ -102,6 +102,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     # we call the non overloaded versions
     self.api.add(self.short_name, name, func, overload, force)
+    self.api.add(self.plugin_id, name, func, overload, force)
 
   # get the value of a setting
   def _api_setting_gets(self, setting, plugin=None):
@@ -650,6 +651,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     # remove anything out of the api
     self.api('api.remove')(self.short_name)
+    self.api('api.remove')(self.plugin_id)
 
     #save the state
     self.savestate()
@@ -662,6 +664,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     attach to the plugin_<pluginshortname>_savestate event
     """
     self.api('events.eraise')('plugin_%s_savestate' % self.short_name)
+    self.api('events.eraise')('{0.plugin_id}_savestate'.format(self))
 
   def is_changed_on_disk(self):
     """
