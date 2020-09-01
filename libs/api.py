@@ -120,6 +120,13 @@ class API(object):
     full_api_name = top_level_api + '.' + name
     ## do some magic to get plugin this was added from
 
+    plugin_id = self._api_caller_plugin()
+
+    api_data = {}
+    api_data['full_api_name'] = full_api_name
+    api_data['plugin'] = plugin_id
+    api_data['function'] = tfunction
+
     if not overload:
       if full_api_name in self.__class__.api and not force:
         try:
@@ -127,37 +134,34 @@ class API(object):
         except AttributeError:
           print('api.add - %s already exists' % full_api_name)
       else:
-        self.__class__.api[full_api_name] = tfunction
+        self.__class__.api[full_api_name] = api_data
 
     else:
-      self._api_overload(top_level_api, name, tfunction, force)
+      self._api_overload(api_data, force)
 
   # overload a function in the api
-  def _api_overload(self, top_level_api, name, tfunction, force=False):
+  def _api_overload(self, api_data, force=False):
     """  overload a function in the api
-    @Ytop_level_api@w  = the toplevel that the api should be under
-    @Yname@w  = the name of the api
-    @Ytfunction@w  = the function
+    @Yapi_data@w  = the api data dictionary
 
-    the function is added as toplevel.name into the overloaded api
+    the function is added as api_data['full_api_name'] into the overloaded api
 
     this function returns True if added, False otherwise"""
-    full_api_name = top_level_api + '.' + name
     try:
-      ofunc = self.get(full_api_name)
-      tfunction.__doc__ = ofunc.__doc__
+      ofunc = self.get(api_data['full_api_name'])
+      api_data['function'].__doc__ = ofunc.__doc__
     except AttributeError:
       pass
 
-    if not force and full_api_name in self.overloaded_api:
+    if not force and api_data['full_api_name'] in self.overloaded_api:
       try:
-        self.get('send.error')('api.overload - %s already exists' % full_api_name)
+        self.get('send.error')('api.overload - %s already exists' % api_data['full_api_name'])
       except AttributeError:
-        print('api.overload - %s already exists' % full_api_name)
+        print('api.overload - %s already exists' % api_data['full_api_name'])
 
       return False
 
-    self.overloaded_api[full_api_name] = tfunction
+    self.overloaded_api[api_data['full_api_name']] = api_data
     return True
 
   # add an event description
@@ -303,11 +307,14 @@ class API(object):
         # TODO: there seems to be no way to detect static method call - it will
         #      be just a function call
         tcs = parent_frame.f_locals['self']
-        if tcs != self and isinstance(tcs, BasePlugin) and tcs.short_name not in ignore_plugin_list:
-          return tcs.short_name
+        if tcs != self and isinstance(tcs, BasePlugin) \
+                       and tcs.short_name not in ignore_plugin_list \
+                       and tcs.plugin_id not in ignore_plugin_list:
+          return tcs.plugin_id
         if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                and tcs.plugin.short_name not in ignore_plugin_list:
-          return tcs.plugin.short_name
+                and tcs.plugin.short_name not in ignore_plugin_list \
+                and tcs.plugin.plugin_id not in ignore_plugin_list:
+          return tcs.plugin.plugin_id
 
     del stack
     return None
@@ -342,12 +349,12 @@ class API(object):
 
     tkeys = sorted(self.__class__.api.keys())
     for i in tkeys:
-      if api_toplevel in i:
+      if i.startswith(api_toplevel):
         del self.__class__.api[i]
 
     tkeys = sorted(self.overloaded_api.keys())
     for i in tkeys:
-      if api_toplevel in i:
+      if i.startswith(api_toplevel):
         del self.overloaded_api[i]
 
   def get(self, api_location, do_not_overload=False):
@@ -356,12 +363,12 @@ class API(object):
     """
     if not do_not_overload:
       try:
-        return self.overloaded_api[api_location]
+        return self.overloaded_api[api_location]['function']
       except KeyError:
         pass
 
     try:
-      return self.api[api_location]
+      return self.api[api_location]['function']
     except KeyError:
       pass
 
@@ -379,12 +386,12 @@ class API(object):
 
     tkeys = sorted(self.__class__.api.keys())
     for full_api_name in tkeys:
-      if api_toplevel in full_api_name:
+      if full_api_name.startswith(api_toplevel):
         api_list.append(".".join(full_api_name.split('.')[1:]))
 
     tkeys = sorted(self.overloaded_api.keys())
     for full_api_name in tkeys:
-      if api_toplevel in full_api_name:
+      if full_api_name.startswith(api_toplevel):
         api_list.append(".".join(full_api_name.split('.')[1:]))
 
     return list(set(api_list))
@@ -473,11 +480,11 @@ class API(object):
     api_list = {}
 
     for i in self.api:
-      if top_level_api in i:
+      if i.startswith(top_level_api):
         api_list[i] = True
 
     for i in self.overloaded_api:
-      if top_level_api in i:
+      if i.startswith(top_level_api):
         api_list[i] = True
 
     return api_list
@@ -521,7 +528,7 @@ class API(object):
       comments = inspect.getcomments(api_function)
       if comments:
         comments = comments.strip()
-      tmsg.append('  @G%-15s@w : %s' % (therest, comments))
+      tmsg.append('  @G%-30s@w\n    %s' % (therest, comments))
 
     return tmsg
 
