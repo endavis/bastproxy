@@ -1106,7 +1106,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     if questinfo:
       questinfo = questinfo[0]
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     msg.append("@G%-6s %-2s %-2s %-2s %-2s %-3s" \
@@ -1166,7 +1166,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     msg = []
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     tqrow = self.statdb.select(
@@ -1292,7 +1292,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     levelinfo = self.api('%s.getrow' % self.short_name)(tid, 'levels')
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     if levelinfo:
@@ -1406,7 +1406,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     pups = {}
     levels = {}
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     lrow = self.statdb.select(
@@ -1550,7 +1550,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     cpinfo = self.api('%s.getrow' % self.short_name)(tid, 'campaigns')
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     if cpinfo:
@@ -1615,7 +1615,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     msg = []
     stats = {}
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     trow = self.statdb.select(
@@ -1738,7 +1738,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     gqinfo = self.api('%s.getrow' % self.short_name)(tid, 'gquests')
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     if gqinfo:
@@ -1802,7 +1802,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     msg = []
     stats = {}
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     wrow = self.statdb.select(
@@ -1943,7 +1943,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     msg = []
     stats = {}
 
-    linelen = self.api('plugins.getp')('proxy').api('setting.gets')('linelen')
+    linelen = self.api('core.plugins:get:plugin:instance')('proxy').api('setting.gets')('linelen')
     div = '@B' + '-' * linelen
 
     trow = self.statdb.select(

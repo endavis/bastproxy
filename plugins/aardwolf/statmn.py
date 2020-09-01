@@ -140,7 +140,7 @@ class Plugin(AardwolfBasePlugin):
                                              colors=infocolor),
          infocolor))
 
-    if self.api('plugins.isloaded')('statdb'):
+    if self.api('core.plugins:is:plugin:loaded')('statdb'):
       stmt = "SELECT COUNT(*) as COUNT, AVG(totqp) as AVEQP " \
               "FROM quests where failed = 0"
       tst = self.api('statdb.select')(stmt)
@@ -287,7 +287,7 @@ class Plugin(AardwolfBasePlugin):
                                                      colorn=statcolor,
                                                      colors=infocolor))
 
-    if self.api('plugins.isloaded')('statdb'):
+    if self.api('core.plugins:is:plugin:loaded')('statdb'):
       stmt = "SELECT count(*) as count, AVG(totalxp) as average FROM " \
             "mobkills where time > %d and time < %d and xp > 0" % \
              (args['starttime'], args['finishtime'])
@@ -335,7 +335,7 @@ class Plugin(AardwolfBasePlugin):
     """
     return a report of stats for a # of minutes
     """
-    if not self.api('plugins.isloaded')('statdb'):
+    if not self.api('core.plugins:is:plugin:loaded')('statdb'):
       return []
 
     infocolor = self.api('setting.gets')('infocolor')

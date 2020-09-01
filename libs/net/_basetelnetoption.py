@@ -15,7 +15,7 @@ class BaseTelnetOption(object):
     self.telnetobj = telnetobj
     self.option = option
     self.telnetobj.option_handlers[ord(self.option)] = self
-    self.plugin = tapi('plugins.getp')(plugin)
+    self.plugin = tapi('core.plugins:get:plugin:instance')(plugin)
     #self.telnetobj.debug_types.append(self.option)
 
   def onconnect(self):

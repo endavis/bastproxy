@@ -78,7 +78,7 @@ class Plugin(BasePlugin):
     check to see if this plugin has SERVER and CLIENT
     """
     plugin = args['plugin']
-    module = self.api('plugins.module')(plugin)
+    module = self.api('core.plugins:get:plugin:module')(plugin)
 
     if hasattr(module, 'SERVER'):
       self.options[plugin] = True

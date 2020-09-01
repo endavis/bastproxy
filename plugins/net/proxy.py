@@ -283,7 +283,7 @@ class Plugin(BasePlugin):
     """
     a function to restart the proxy after a timer
     """
-    self.api('plugins.savestate')()
+    self.api('core.plugins:save:state')()
 
     executable = sys.executable
     args = []

@@ -124,7 +124,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         pass
 
     else:
-      plugin_instance = self.api('plugins.getp')(plugin)
+      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
       if plugin_instance:
         return plugin_instance.api('setting.gets')(setting)
 
@@ -143,7 +143,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         return self.data[datatype]
 
     else:
-      plugin_instance = self.api('plugins.getp')(plugin)
+      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
       if plugin_instance:
         return plugin_instance.api('data.get')(datatype)
 
@@ -156,13 +156,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     @Yplugin@w   = the plugin to get the data from (optional)
 
     returns:
-      the data for the specified datatype, None if not found"""
+      True if updated, False if not"""
     if not plugin:
       self.data[datatype] = newdata
       return True
 
     else:
-      plugin_instance = self.api('plugins.getp')(plugin)
+      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
       if plugin_instance:
         return plugin_instance.api('data.update')(datatype, newdata)
 
@@ -186,7 +186,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     if value == 'default':
       value = self.settings[setting]['default']
     if setting in self.settings:
-      if self.api('plugins.isloaded')('utils'):
+      if self.api('core.plugins:is:plugin:loaded')('utils'):
         value = self.api('utils.verify')(
             value,
             self.settings[setting]['stype'])
@@ -434,9 +434,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     msg.extend(sys.modules[import_location].__doc__.split('\n'))
     if args['commands']:
-      cmd_list = self.api('commands.list')(self.short_name)
+      cmd_list = self.api('commands.get:plugin:command:format')(self.short_name)
       if cmd_list:
-        msg.extend(self.api('commands.list')(self.short_name))
+        msg.extend(self.api('commands.get:plugin:command:format')(self.short_name))
         msg.append('@G' + '-' * 60 + '@w')
         msg.append('')
     if args['api']:

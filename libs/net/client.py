@@ -94,7 +94,7 @@ class Client(Telnet):
 
       elif self.state == PASSWORD:
         data = data.strip()
-        proxyp = self.api('plugins.getp')('proxy')
+        proxyp = self.api('core.plugins:get:plugin:instance')('proxy')
         dpw = proxyp.api('proxy.proxypw')()
         vpw = proxyp.api('proxy.proxypwview')()
 

@@ -190,7 +190,7 @@ class Plugin(BasePlugin):
 
     ptree = {}
     for i in plugininfo.keys():
-      pmod = self.api('plugins.getp')(plugininfo[i]['plugin_path'])
+      pmod = self.api('core.plugins:get:plugin:instance')(plugininfo[i]['plugin_path'])
 
       try:
         sys.modules[pmod.full_import_location].__doc__
@@ -461,7 +461,7 @@ class Plugin(BasePlugin):
     """
     build a plugin page
     """
-    pmod = self.api('plugins.getp')(plugin['plugin_path'])
+    pmod = self.api('core.plugins:get:plugin:instance')(plugin['plugin_path'])
 
     if pmod and self.checknodocs(pmod):
       self.api('send.msg')(

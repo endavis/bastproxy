@@ -47,7 +47,7 @@ class Item(object):
     """
     update from the database
     """
-    if self.api('plugins.isloaded')('eqdb'):
+    if self.api('core.plugins:is:plugin:loaded')('eqdb'):
       self.api('send.msg')('getting %s from db' % self.serial)
       dbdata = self.api('eqdb.getitem')(self.serial)
       if dbdata:
@@ -965,7 +965,7 @@ class Plugin(AardwolfBasePlugin): #pylint: disable=too-many-public-methods
     if serial in self.itemcache:
       self.itemcache[serial].upditem(attributes)
       self.itemcache[serial].hasbeenided = True
-      if self.api('plugins.isloaded')('eqdb'):
+      if self.api('core.plugins:is:plugin:loaded')('eqdb'):
         self.api('eqdb.saveitem')(self.itemcache[serial])
 
 

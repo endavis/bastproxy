@@ -275,7 +275,7 @@ class Plugin(BasePlugin):
       plugin = None
 
     if 'plugin' in kwargs:
-      plugin = self.api('plugins.getp')(kwargs['plugin'])
+      plugin = self.api('core.plugins:get:plugin:instance')(kwargs['plugin'])
 
     if not plugin:
       self.api('send.msg')('timer %s has no plugin, not adding' % name)
@@ -307,7 +307,7 @@ class Plugin(BasePlugin):
     @Yname@w   = the name of the plugin
 
     this function returns no values"""
-    plugin = self.api('plugins.getp')(name)
+    plugin = self.api('core.plugins:get:plugin:instance')(name)
     timerstoremove = []
     self.api('send.msg')('removing timers for %s' % name, secondary=name)
     for i in self.timerlookup:
