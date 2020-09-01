@@ -55,7 +55,7 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
   if module_name.startswith("_"):
     if not silent:
       plugin.api('send.msg')('did not import %s because it is in development' % \
-                               full_import_location, primary=plugin.short_name)
+                               full_import_location, primary=plugin.plugin_id)
     return False, 'dev module', _module, full_import_location
 
   try:
@@ -65,12 +65,12 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
 
     if not silent:
       plugin.api('send.msg')('%-30s : attempting import' % \
-                              full_import_location.replace('plugins.', ''), primary=plugin.short_name)
+                              full_import_location.replace('plugins.', ''), primary=plugin.plugin_id)
     _module = import_module(full_import_location)
 
     if not silent:
       plugin.api('send.msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
-                                primary=plugin.short_name)
+                                primary=plugin.plugin_id)
     return True, 'import', _module, full_import_location
 
   except Exception: # pylint: disable=broad-except
