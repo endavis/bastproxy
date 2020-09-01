@@ -51,11 +51,18 @@ class PluginMgr(BasePlugin):
     """
     initialize the instance
     """
+    base_plugin_dir = None
+    index = __file__.rfind(os.sep)
+    if index == -1:
+      base_plugin_dir = "." + os.sep
+    else:
+      base_plugin_dir = __file__[:index + 1]
+
     BasePlugin.__init__(self,
                         'Plugin Manager', #name,
                         'plugins', #short_name,
-                        "/__init__.py", #plugin_path
-                        "$base_plugin_dir$", # base_plugin_dir
+                        "__init__.py", #plugin_path
+                        base_plugin_dir, # base_plugin_dir
                         "plugins.__init__", # full_import_location
                         "core.plugins" # plugin_id
                        )
@@ -108,12 +115,7 @@ class PluginMgr(BasePlugin):
     self.plugin_lookup_by_plugin_filepath = {}
     self.plugin_lookup_by_id = {}
 
-    # find the base plugin path
-    index = __file__.rfind(os.sep)
-    if index == -1:
-      self.base_plugin_dir = "." + os.sep
-    else:
-      self.base_plugin_dir = __file__[:index + 1]
+    self.plugin_format_string = "%-20s : %-25s %-10s %-5s %s@w"
 
     self.api('api.add')('isloaded', self._api_is_loaded)
     self.api('api.add')('getp', self._api_getp)
@@ -274,7 +276,7 @@ class PluginMgr(BasePlugin):
         plist.append(plugin)
 
     if plist:
-      plugins = sorted(plist, key=operator.attrgetter('short_name'))
+      plugins = sorted(plist, key=operator.attrgetter('plugin_id'))
       limp = 'plugins.%s' % package
       mod = __import__(limp)
       try:
@@ -284,14 +286,14 @@ class PluginMgr(BasePlugin):
       msg.append('@GPackage: %s%s@w' % \
             (package, ' - ' + desc if desc else ''))
       msg.append('@G' + '-' * 75 + '@w')
-      msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                          ('Short Name', 'Name',
+      msg.append(self.plugin_format_string % \
+                          ('Id', 'Name',
                            'Author', 'Vers', 'Purpose'))
       msg.append('-' * 75)
 
       for tpl in plugins:
-        msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                  (tpl.short_name, tpl.name,
+        msg.append(self.plugin_format_string % \
+                  (tpl.plugin_id, tpl.name,
                    tpl.author, tpl.version, tpl.purpose))
     else:
       msg.append('That is not a valid package')
@@ -311,8 +313,8 @@ class PluginMgr(BasePlugin):
     plugins = sorted([i['plugininstance'] for i in self.loaded_plugins.values()],
                      key=operator.attrgetter('package'))
     package_header = []
-    msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                        ('Short Name', 'Name', 'Author', 'Vers', 'Purpose'))
+    msg.append(self.plugin_format_string % \
+                        ('Id', 'Name', 'Author', 'Vers', 'Purpose'))
     msg.append('-' * 75)
     for tpl in plugins:
       if tpl.package not in package_header:
@@ -328,8 +330,8 @@ class PluginMgr(BasePlugin):
         msg.append('@GPackage: %s%s@w' % \
             (tpl.package, ' - ' + desc if desc else ''))
         msg.append('@G' + '-' * 75 + '@w')
-      msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                  (tpl.short_name, tpl.name,
+      msg.append(self.plugin_format_string % \
+                  (tpl.plugin_id, tpl.name,
                    tpl.author, tpl.version, tpl.purpose))
     return msg
 
@@ -342,16 +344,16 @@ class PluginMgr(BasePlugin):
 
     plugins = [i['plugininstance'] for i in self.loaded_plugins.values()]
 
-    msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                        ('Short Name', 'Name', 'Author', 'Vers', 'Purpose'))
+    msg.append(self.plugin_format_string % \
+                        ('Id', 'Name', 'Author', 'Vers', 'Purpose'))
     msg.append('-' * 75)
 
     found = False
     for tpl in plugins:
       if tpl.is_changed_on_disk():
         found = True
-        msg.append("%-10s : %-25s %-10s %-5s %s@w" % \
-                  (tpl.short_name, tpl.name,
+        msg.append(self.plugin_format_string % \
+                  (tpl.plugin_id, tpl.name,
                    tpl.author, tpl.version, tpl.purpose))
 
     if found:
@@ -378,13 +380,13 @@ class PluginMgr(BasePlugin):
 
     if pdiff:
       msg.insert(0, '-' * 75)
-      msg.insert(0, "%-20s : %-25s %-10s %-5s %s@w" % \
+      msg.insert(0, self.plugin_format_string % \
                           ('Location', 'Name', 'Author', 'Vers', 'Purpose'))
       msg.insert(0, 'The following plugins are not loaded')
 
       for plugin_id in sorted(pdiff):
         plugin_info = self.all_plugin_info_on_disk[plugin_id]
-        msg.append("%-20s : %-25s %-10s %-5s %s@w" % \
+        msg.append(self.plugin_format_string % \
                     (plugin_id,
                      plugin_info['name'],
                      plugin_info['author'],
@@ -396,7 +398,7 @@ class PluginMgr(BasePlugin):
       msg.append('The following files are not valid python code')
       for plugin_id in sorted(bad_plugins):
         plugin_info = self.all_plugin_info_on_disk[plugin_id]
-        msg.append("%-20s : %-25s %-10s %-5s %s@w" % \
+        msg.append(self.plugin_format_string % \
                     (plugin_id,
                      plugin_info['name'],
                      plugin_info['author'],
@@ -1008,11 +1010,11 @@ class PluginMgr(BasePlugin):
           # delete the module
           success = imputils.deletemodule(plugin['full_import_location'])
           if success:
-            self.api('send.msg')('%-30s : deleting imported module was successful (%s : %s)' % \
-                                (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+            self.api('send.msg')('%-30s : deleting imported module was successful (%s)' % \
+                                (plugin['plugin_id'], plugin['name']))
           else:
-            self.api('send.error')('%-30s : deleting imported module failed (%s : %s)' % \
-                                (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+            self.api('send.error')('%-30s : deleting imported module failed (%s)' % \
+                                (plugin['plugin_id'], plugin['name']))
 
         # remove from loaded_plugins
         plugin = None
