@@ -52,10 +52,11 @@ class PluginDependencyResolver(object):
                 (plugin['plugin_id'], edge))
           sys.exit(1)
 
-      if eplugin['plugin_id'] not in self.resolved:
-        if eplugin['plugin_id'] in self.unresolved:
-          raise Exception('Circular reference detected: %s -> %s' % \
-                              (plugin['plugin_id'], eplugin['plugin_id']))
-        self.resolve_helper(eplugin)
+      if plugin['plugin_id'] != eplugin['plugin_id']:
+        if eplugin['plugin_id'] not in self.resolved:
+          if eplugin['plugin_id'] in self.unresolved:
+            raise Exception('Circular reference detected: %s -> %s' % \
+                                (plugin['plugin_id'], eplugin['plugin_id']))
+          self.resolve_helper(eplugin)
     self.resolved.append(plugin['plugin_id'])
     self.unresolved.remove(plugin['plugin_id'])
