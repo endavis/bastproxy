@@ -79,30 +79,50 @@ class API(object):
     # added functions
     self.add('api', 'add', self.add, overload=True)
     self.add('api', 'has', self._api_has, overload=True)
-    # if not self('api.has')('api.overload'):
-    #   self.add('api', 'overload', self._api_overload)
     if not self('api.has')('managers.add'):
+      self.add('managers', 'add', self._api_add_manager, overload=True)
+    if not self('api.has')('managers:add'):
       self.add('managers', 'add', self._api_add_manager, overload=True)
     if not self('api.has')('managers.getm'):
       self.add('managers', 'getm', self._api_get_manager, overload=True)
+    if not self('api.has')('managers:get'):
+      self.add('managers', 'getm', self._api_get_manager, overload=True)
     if not self('api.has')('api.remove'):
+      self.add('api', 'remove', self._api_remove, overload=True)
+    if not self('api.has')('api:remove'):
       self.add('api', 'remove', self._api_remove, overload=True)
     if not self('api.has')('api.getchildren'):
       self.add('api', 'getchildren', self._api_get_children, overload=True)
+    if not self('api.has')('api:get:children'):
+      self.add('api', 'get:children', self._api_get_children, overload=True)
     if not self('api.has')('api.detail'):
+      self.add('api', 'detail', self._api_detail, overload=True)
+    if not self('api.has')('api:detail'):
       self.add('api', 'detail', self._api_detail, overload=True)
     if not self('api.has')('api.list'):
       self.add('api', 'list', self._api_list, overload=True)
+    if not self('api.has')('api:list'):
+      self.add('api', 'list', self._api_list, overload=True)
     if not self('api.has')('api.callerplugin'):
       self.add('api', 'callerplugin', self._api_caller_plugin, overload=True)
+    if not self('api.has')('api:get:caller:plugin'):
+      self.add('api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
     if not self('api.has')('api.pluginstack'):
       self.add('api', 'pluginstack', self._api_plugin_stack, overload=True)
+    if not self('api.has')('api:get:plugins:from:stack:list'):
+      self.add('api', 'get:plugins:from:stack:list', self._api_plugin_stack, overload=True)
     if not self('api.has')('api.callstack'):
       self.add('api', 'callstack', self._api_call_stack, overload=True)
+    if not self('api.has')('api:get:call:stack'):
+      self.add('api', 'get:call:stack', self._api_call_stack, overload=True)
     if not self('api.has')('api.simplecallstack'):
       self.add('api', 'simplecallstack', self._api_simple_call_stack, overload=True)
+    if not self('api.has')('api:get:call:stack:simple'):
+      self.add('api', 'get:call:stack:simple', self._api_simple_call_stack, overload=True)
     if not self('api.has')('api.addeventdesc'):
       self.add('api', 'addeventdesc', self._api_add_event_description, overload=True)
+    if not self('api.has')('api:add:event:description'):
+      self.add('api', 'add:event:description', self._api_add_event_description, overload=True)
 
   # add a function to the api
   def add(self, top_level_api, name, tfunction, overload=False, force=False):
