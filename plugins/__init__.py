@@ -117,11 +117,11 @@ class PluginMgr(BasePlugin):
 
     self.plugin_format_string = "%-20s : %-25s %-10s %-5s %s@w"
 
-    self.api('api:add')('is:plugin:loaded', self._api_is_loaded)
-    self.api('api:add')('get:plugin:instance', self._api_getp)
-    self.api('api:add')('get:plugin:module', self._api_get_module)
+    self.api('api:add')('is:plugin:loaded', self._api_is_plugin_loaded)
+    self.api('api:add')('get:plugin:instance', self._api_get_plugin_instance)
+    self.api('api:add')('get:plugin:module', self._api_get_plugin_module)
     self.api('api:add')('get:all:plugin:info', self._api_get_all_plugin_info)
-    self.api('api:add')('save:state', self.savestate)
+    self.api('api:add')('save:state', self.api_save_state)
     self.api('api:add')('get:loaded:plugins:list', self._api_get_loaded_plugins_list)
     self.api('api:add')('get:packages:list', self._api_get_packages_list)
     self.api('api:add')('get:all:short:names', self._api_get_all_short_names)
@@ -140,7 +140,7 @@ class PluginMgr(BasePlugin):
     """
     short_name_list = []
     for loaded_plugin_dict in self.loaded_plugins.values():
-      short_name_list.append(loaded_plugin_dict['short_name'])
+      short_name_list.append(loaded_plugin_dict['plugin_id'].split[1])
     return short_name_list
 
   # get a list of all packages
@@ -206,7 +206,7 @@ class PluginMgr(BasePlugin):
     return self.api('core.plugins:get:plugin:instance')(plugin)
 
   # get a plugin instance
-  def _api_get_module(self, pluginname):
+  def _api_get_plugin_module(self, pluginname):
     """  returns the module of a plugin
     @Ypluginname@w  = the plugin to check for
 
@@ -220,7 +220,7 @@ class PluginMgr(BasePlugin):
     return None
 
   # get a plugin instance
-  def _api_getp(self, plugin_name):
+  def _api_get_plugin_instance(self, plugin_name):
     """  get a loaded plugin instance
     @Ypluginname@w  = the plugin to get
 
@@ -249,7 +249,7 @@ class PluginMgr(BasePlugin):
     return plugin
 
   # check if a plugin is loaded
-  def _api_is_loaded(self, pluginname):
+  def _api_is_plugin_loaded(self, pluginname):
     """  check if a plugin is loaded
     @Ypluginname@w  = the plugin to check for
 
@@ -342,7 +342,7 @@ class PluginMgr(BasePlugin):
     return msg
 
   # get plugins that are change on disk
-  def _getchangedplugins(self):
+  def _get_changed_plugins(self):
     """
     create a message of plugins that are changed on disk
     """
@@ -368,7 +368,7 @@ class PluginMgr(BasePlugin):
     return ['No plugins are changed on disk.']
 
   # get all not loaded plugins
-  def _getnotloadedplugins(self):
+  def _get_not_loaded_plugins(self):
     """
     create a message of all not loaded plugins
     """
@@ -417,7 +417,7 @@ class PluginMgr(BasePlugin):
     return msg
 
   # command to list plugins
-  def _cmd_list(self, args):
+  def _command_list(self, args):
     """
     @G%(name)s@w - @B%(cmdname)s@w
       List plugins
@@ -426,9 +426,9 @@ class PluginMgr(BasePlugin):
     msg = []
 
     if args['notloaded']:
-      msg.extend(self._getnotloadedplugins())
+      msg.extend(self._get_not_loaded_plugins())
     elif args['changed']:
-      msg.extend(self._getchangedplugins())
+      msg.extend(self._get_changed_plugins())
     elif args['package']:
       msg.extend(self._get_package_plugins(args['package']))
     else:
@@ -1075,10 +1075,10 @@ class PluginMgr(BasePlugin):
     """
     do tasks on shutdown
     """
-    self.savestate()
+    self.api_save_state()
 
   # save all plugins
-  def savestate(self, _=None):
+  def api_save_state(self, _=None):
     """
     save all plugins
     """
@@ -1091,7 +1091,7 @@ class PluginMgr(BasePlugin):
         i['plugininstance'].savestate()
 
   # command to load plugins
-  def _cmd_load(self, args):
+  def _command_load(self, args):
     """
     @G%(name)s@w - @B%(cmdname)s@w
       Load a plugin
@@ -1132,7 +1132,7 @@ class PluginMgr(BasePlugin):
 
     return True, tmsg
 
-  def _cmd_unload(self, args):
+  def _command_unload(self, args):
     """
     @G%(name)s@w - @B%(cmdname)s@w
       unload a plugin
@@ -1158,7 +1158,7 @@ class PluginMgr(BasePlugin):
 
     return True, tmsg
 
-  def _cmd_reload(self, args):
+  def _command_reload(self, args):
     """
     @G%(name)s@w - @B%(cmdname)s@w
       reload a plugin
@@ -1257,7 +1257,7 @@ class PluginMgr(BasePlugin):
                         default='',
                         nargs='?')
     self.api('core.commands:add')('list',
-                                  self._cmd_list,
+                                  self._command_list,
                                   lname='Plugin Manager',
                                   parser=parser)
 
@@ -1268,7 +1268,7 @@ class PluginMgr(BasePlugin):
                         default='',
                         nargs='?')
     self.api('core.commands:add')('load',
-                                  self._cmd_load,
+                                  self._command_load,
                                   lname='Plugin Manager',
                                   parser=parser)
 
@@ -1279,7 +1279,7 @@ class PluginMgr(BasePlugin):
                         default='',
                         nargs='?')
     self.api('core.commands:add')('unload',
-                                  self._cmd_unload,
+                                  self._command_unload,
                                   lname='Plugin Manager',
                                   parser=parser)
 
@@ -1290,10 +1290,10 @@ class PluginMgr(BasePlugin):
                         default='',
                         nargs='?')
     self.api('core.commands:add')('reload',
-                                  self._cmd_reload,
+                                  self._command_reload,
                                   lname='Plugin Manager',
                                   parser=parser)
 
-    self.api('core.timers:add')('global_save', self.savestate, 60, unique=True, log=False)
+    self.api('core.timers:add')('global_save', self.api_save_state, 60, unique=True, log=False)
 
     self.api('core.events:register')('proxy_shutdown', self.shutdown)
