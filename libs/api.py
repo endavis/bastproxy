@@ -86,7 +86,7 @@ class API(object):
     if not self('api.has')('managers.getm'):
       self.add('managers', 'getm', self._api_get_manager, overload=True)
     if not self('api.has')('managers:get'):
-      self.add('managers', 'getm', self._api_get_manager, overload=True)
+      self.add('managers', 'get', self._api_get_manager, overload=True)
     if not self('api.has')('api.remove'):
       self.add('api', 'remove', self._api_remove, overload=True)
     if not self('api.has')('api:remove'):
