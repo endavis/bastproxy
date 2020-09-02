@@ -140,7 +140,7 @@ class PluginMgr(BasePlugin):
     """
     short_name_list = []
     for loaded_plugin_dict in self.loaded_plugins.values():
-      short_name_list.append(loaded_plugin_dict['plugin_id'].split[1])
+      short_name_list.append(loaded_plugin_dict['plugin_id'].split('.')[1])
     return short_name_list
 
   # get a list of all packages
