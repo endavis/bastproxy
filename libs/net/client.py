@@ -20,26 +20,25 @@ class Client(Telnet):
     """
     Telnet.__init__(self, host=host, port=port, sock=sock)
 
-    self.ttype = 'Client'
-    self.connectedtime = None
-    self.pwtries = 0
+    self.terminal_type = 'Client'
+    self.bad_password_count = 0
     self.banned = False
-    self.viewonly = False
+    self.view_only = False
+    self.state = PASSWORD
 
     if sock:
       self.connected = True
-      self.connectedtime = time.localtime()
+      self.connected_time = time.localtime()
 
-    self.api('events.register')('to_client_event',
-                                self.addtooutbufferevent, prio=99)
+    self.api('core.events:register:to:event')('to_client_event',
+                                              self.addtooutbufferevent, prio=99)
 
-    self.api('options.prepareclient')(self)
+    self.api('net.options:prepareclient')(self)
 
-    self.state = PASSWORD
-    self.addtooutbufferevent({'original':self.api('colors.convertcolors')(
-        '%s%s@w: %sPlease enter the proxy password:@w' % (self.api('proxy.preambleerrorcolor')(),
-                                                          self.api('proxy.preamble')(),
-                                                          self.api('proxy.preambleerrorcolor')())),
+    self.addtooutbufferevent({'original':self.api('core.colors:convertcolors')(
+        '%s%s@w: %sPlease enter the proxy password:@w' % (self.api('net.proxy:preambleerrorcolor')(),
+                                                          self.api('net.proxy:preamble')(),
+                                                          self.api('net.proxy:preambleerrorcolor')())),
                               'dtype':'passwd'})
 
   def addtooutbufferevent(self, args):
@@ -82,74 +81,74 @@ class Client(Telnet):
 
     if data:
       if self.state == CONNECTED:
-        if self.viewonly:
+        if self.view_only:
           self.addtooutbufferevent(
-              {'todata':self.api('colors.convertcolors')(
-                  '%s%s@w: %sYou are in view mode!@w' % (self.api('proxy.preambleerrorcolor')(),
-                                                         self.api('proxy.preamble')(),
-                                                         self.api('proxy.preambleerrorcolor')()))})
+              {'todata':self.api('core.colors:convertcolors')(
+                  '%s%s@w: %sYou are in view mode!@w' % (self.api('core.proxy:preambleerrorcolor')(),
+                                                         self.api('core.proxy:preamble')(),
+                                                         self.api('core.proxy:preambleerrorcolor')()))})
         else:
           if data:
-            self.api('send.execute')(data, fromclient=True)
+            self.api('send:execute')(data, fromclient=True)
 
       elif self.state == PASSWORD:
         data = data.strip()
         proxyp = self.api('core.plugins:get:plugin:instance')('proxy')
-        dpw = proxyp.api('proxy.proxypw')()
-        vpw = proxyp.api('proxy.proxypwview')()
+        dpw = proxyp.api('net.proxy:proxypw')()
+        vpw = proxyp.api('net.proxy:proxypwview')()
 
         if dpw and  data == dpw:
-          self.api('send.msg')('Successful password from %s : %s' % \
+          self.api('send:msg')('Successful password from %s : %s' % \
                                             (self.host, self.port), 'net')
           self.state = CONNECTED
-          self.api('events.eraise')('client_connected', {'client':self},
-                                    calledfrom="client")
-          self.api('send.client')("%s - %s: Client Connected" % \
+          self.api('core.events:raise:event')('client_connected', {'client':self},
+                                              calledfrom="client")
+          self.api('send:client')("%s - %s: Client Connected" % \
                                       (self.host, self.port))
         elif vpw and data == vpw:
-          self.api('send.msg')('Successful view password from %s : %s' % \
+          self.api('send:msg')('Successful view password from %s : %s' % \
                               (self.host, self.port), 'net')
           self.state = CONNECTED
-          self.viewonly = True
+          self.view_only = True
           self.addtooutbufferevent(
-              {'original':self.api('colors.convertcolors')(
-                  '%s%s@W: @GYou are connected in view mode@w' % (self.api('proxy.preambleerrorcolor')(),
-                                                                  self.api('proxy.preamlbe')()))})
-          self.api('events.eraise')('client_connected_view',
-                                    {'client':self}, calledfrom="client")
-          self.api('send.client')(
+              {'original':self.api('core.colors:convertcolors')(
+                  '%s%s@W: @GYou are connected in view mode@w' % (self.api('net.proxy:preambleerrorcolor')(),
+                                                                  self.api('net.proxy:preamlbe')()))})
+          self.api('core.events:raise:event')('client_connected_view',
+                                              {'client':self}, calledfrom="client")
+          self.api('send:client')(
               "%s - %s: Client Connected (View Mode)" % \
                   (self.host, self.port))
         else:
-          self.pwtries += 1
-          if self.pwtries == 5:
+          self.bad_password_count += 1
+          if self.bad_password_count == 5:
             self.addtooutbufferevent(
-                {'original':self.api('colors.convertcolors')(
-                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('proxy.preambleerrorcolor')(),
-                                                                          self.api('proxy.preamble')(),
-                                                                          self.api('proxy.preambleerrorcolor')())),
+                {'original':self.api('core.colors:convertcolors')(
+                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('net.proxy:preambleerrorcolor')(),
+                                                                          self.api('net.proxy:preamble')(),
+                                                                          self.api('net.proxy:preambleerrorcolor')())),
                  'dtype':'passwd'})
-            self.api('send.msg')('%s has been banned.' % self.host, 'net')
-            self.api('clients.addbanned')(self.host)
+            self.api('send:msg')('%s has been banned.' % self.host, 'net')
+            self.api('net.clients:addbanned')(self.host)
             self.handle_close()
           else:
             self.addtooutbufferevent(
-                {'original':self.api('colors.convertcolors')(
-                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('proxy.preambleerrorcolor')(),
-                                                                       self.api('proxy.preamble')(),
-                                                                       self.api('proxy.preambleerrorcolor')())),
+                {'original':self.api('core.colors:convertcolors')(
+                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('net.proxy:preambleerrorcolor')(),
+                                                                       self.api('net.proxy:preamble')(),
+                                                                       self.api('net.proxy:preambleerrorcolor')())),
                  'dtype':'passwd'})
 
   def handle_close(self):
     """
     handle a close
     """
-    self.api('send.client')("%s - %s: Client Disconnected" % \
+    self.api('send:client')("%s - %s: Client Disconnected" % \
                                 (self.host, self.port))
-    self.api('send.msg')("%s - %s: Client Disconnected" % \
+    self.api('send:msg')("%s - %s: Client Disconnected" % \
                                 (self.host, self.port), primary='net')
-    self.api('events.eraise')('client_disconnected', {'client':self}, calledfrom="client")
-    self.api('events.unregister')('to_client_event', self.addtooutbufferevent)
+    self.api('core.events:raise:event')('client_disconnected', {'client':self}, calledfrom="client")
+    self.api('core.events:unregister:from:event')('to_client_event', self.addtooutbufferevent)
     while self.outbuffer:
       self.handle_write()
     Telnet.handle_close(self)

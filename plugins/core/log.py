@@ -156,7 +156,7 @@ class Plugin(BasePlugin):
       if dtag and dtag != 'None' \
             and dtag != 'default':
 
-        tstring = '%s - %-10s : ' % (ttime, dtag)
+        tstring = '%s - %-15s : ' % (ttime, dtag)
         timestampmsg = tstring + msg
 
         self.logtofile(msg, dtag)
@@ -397,8 +397,7 @@ class Plugin(BasePlugin):
     self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
 
     parser = argp.ArgumentParser(add_help=False,
-                                 description="""\
-      toggle datatypes to clients
+                                 description="""toggle datatypes to clients
 
       if no arguments, data types that are currenty sent to clients will be listed""")
     parser.add_argument('datatype',
@@ -411,8 +410,7 @@ class Plugin(BasePlugin):
                              parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
-                                 description="""\
-      toggle datatype to log to a file
+                                 description="""toggle datatype to log to a file
 
       the file will be located in the data/logs/<dtype> directory
 
@@ -434,8 +432,7 @@ class Plugin(BasePlugin):
                              parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
-                                 description="""\
-      toggle datatypes to the console
+                                 description="""toggle datatypes to the console
 
       if no arguments, data types that are currenty sent to the console will be listed""")
     parser.add_argument('datatype',

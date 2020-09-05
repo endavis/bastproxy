@@ -390,7 +390,7 @@ class Plugin(BasePlugin):
                                     (timer.name,
                                      time.strftime('%a %b %d %Y %H:%M:%S',
                                                    time.localtime(timer.nextcall))),
-                                   secondary=timer.plugin.short_name)
+                                   secondary=timer.plugin.plugin_id)
             self._addtimer(timer)
           else:
             self.api('timers.remove')(timer.name)

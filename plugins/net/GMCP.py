@@ -310,25 +310,25 @@ class SERVER(BaseTelnetOption):
     """
     handle the gmcp option
     """
-    self.telnetobj.msg('CMD: %s - in handleopt' % self.telnetobj.ccode(command),
-                       level=2, mtype='GMCP')
-    self.telnetobj.msg('DATA: "%s"- in handleopt' % (sbdata),
-                       level=2, mtype='GMCP')
+    self.telnet_object.msg('CMD: %s - in handleopt' % self.telnet_object.ccode(command),
+                           level=2, mtype='GMCP')
+    self.telnet_object.msg('DATA: "%s"- in handleopt' % (sbdata),
+                           level=2, mtype='GMCP')
 
     # yes, I support GMCP
     if command == WILL:
-      self.telnetobj.msg('sending IAC DO GMCP', level=2, mtype='GMCP')
-      self.telnetobj.send("".join([IAC, DO, GMCP]))
-      self.telnetobj.options[ord(GMCP)] = True
+      self.telnet_object.msg('sending IAC DO GMCP', level=2, mtype='GMCP')
+      self.telnet_object.send("".join([IAC, DO, GMCP]))
+      self.telnet_object.options[ord(GMCP)] = True
       self.plugin.api('events.eraise')('GMCP:server-enabled', {})
 
     # GMCP data
     elif command in [SE, SB]:
-      if not self.telnetobj.options[ord(GMCP)]:
+      if not self.telnet_object.options[ord(GMCP)]:
         # somehow we missed negotiation, so enable GMCP
-        self.telnetobj.msg('##BUG: Enabling GMCP, missed negotiation',
-                           level=2, mtype='GMCP')
-        self.telnetobj.options[ord(GMCP)] = True
+        self.telnet_object.msg('##BUG: Enabling GMCP, missed negotiation',
+                               level=2, mtype='GMCP')
+        self.telnet_object.options[ord(GMCP)] = True
         self.plugin.api('events.eraise')('GMCP:server-enabled', {})
 
       data = sbdata
@@ -341,13 +341,13 @@ class SERVER(BaseTelnetOption):
       except (UnicodeDecodeError, ValueError):
         newdata = {}
         self.plugin.api('send.traceback')('Could not decode: %s' % data)
-      self.telnetobj.msg("mod: %s, data: '%s'" % (modname, data), level=2, mtype='GMCP')
-      self.telnetobj.msg("modtype: %s, data %s" % (type(newdata), newdata),
-                         level=2, mtype='GMCP')
+      self.telnet_object.msg("mod: %s, data: '%s'" % (modname, data), level=2, mtype='GMCP')
+      self.telnet_object.msg("modtype: %s, data %s" % (type(newdata), newdata),
+                             level=2, mtype='GMCP')
       tdata = {}
       tdata['data'] = newdata
       tdata['module'] = modname
-      tdata['server'] = self.telnetobj
+      tdata['server'] = self.telnet_object
 
       # pass it through to the client
       self.plugin.api('send.client')('%s%s%s%s%s%s' % \
@@ -362,24 +362,24 @@ class CLIENT(BaseTelnetOption):
   """
   a class to handle gmcp data from a client
   """
-  def __init__(self, telnetobj):
+  def __init__(self, telnet_object):
     """
     initalize the instance
     """
-    BaseTelnetOption.__init__(self, telnetobj, GMCP, SNAME)
-    #self.telnetobj.debug_types.append('GMCP')
-    self.telnetobj.msg('sending IAC WILL GMCP', mtype='GMCP')
-    self.telnetobj.addtooutbuffer("".join([IAC, WILL, GMCP]), True)
+    BaseTelnetOption.__init__(self, telnet_object, GMCP, SNAME)
+    #self.telnet_object.debug_types.append('GMCP')
+    self.telnet_object.msg('sending IAC WILL GMCP', mtype='GMCP')
+    self.telnet_object.addtooutbuffer("".join([IAC, WILL, GMCP]), True)
 
   def handleopt(self, command, sbdata):
     """
     handle gmcp data from a client
     """
-    self.telnetobj.msg('%s - in handleopt' % self.telnetobj.ccode(command), mtype='GMCP')
+    self.telnet_object.msg('%s - in handleopt' % self.telnet_object.ccode(command), mtype='GMCP')
     if command == DO:
-      self.telnetobj.msg('setting options["GMCP"] to True',
-                         mtype='GMCP')
-      self.telnetobj.options[ord(GMCP)] = True
+      self.telnet_object.msg('setting options["GMCP"] to True',
+                             mtype='GMCP')
+      self.telnet_object.options[ord(GMCP)] = True
     elif command in [SE, SB]:
       self.plugin.api('events.eraise')('GMCP_from_client',
-                                       {'data': sbdata, 'client':self.telnetobj})
+                                       {'data': sbdata, 'client':self.telnet_object})

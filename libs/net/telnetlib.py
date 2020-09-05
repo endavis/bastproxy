@@ -182,7 +182,8 @@ class Telnet(asyncore.dispatcher):
     self.option_callback = self.handleopt
     self.option_handlers = {}
     self.connected = False
-    self.ttype = 'Unknown'
+    self.connected_time = None
+    self.terminal_type = 'Unknown'
     self.debug_types = []
 
   @staticmethod
@@ -261,7 +262,7 @@ class Telnet(asyncore.dispatcher):
       mtype = kwargs['mtype']
     if kwargs['level'] >= self.debuglevel or mtype in self.debug_types:
       print('Telnet(%-15s - %-5s %-7s %-5s): %s' % \
-                          (self.host, self.port, self.ttype, mtype, msg))
+                          (self.host, self.port, self.terminal_type, mtype, msg))
 
   def set_debuglevel(self, debuglevel):
     """
@@ -331,14 +332,14 @@ class Telnet(asyncore.dispatcher):
     """
     find out if the connection has data to write
     """
-    #self.msg( 'writable', self.ttype, len(self.outbuffer) > 0)
+    #self.msg( 'writable', self.terminal_type, len(self.outbuffer) > 0)
     return len(self.outbuffer) > 0
 
   def handle_error(self):
     """
     handle an error
     """
-    self.api('send.traceback')("Telnet error: %s" % self.ttype)
+    self.api('send.traceback')("Telnet error: %s" % self.terminal_type)
 
   def handle_read(self):
     """

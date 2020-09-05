@@ -122,7 +122,7 @@ class PersistentDict(dict):
       try:
         json.dump(self, file_object, separators=(',', ':'), skipkeys=True)
       except TypeError:
-        self.api('send.traceback')('Could not save object')
+        self.api('send:traceback')('Could not save object')
     elif self.format == 'pickle':
       pickle.dump(dict(self), file_object, 2)
     else:
@@ -157,7 +157,7 @@ class PersistentDict(dict):
 
     except Exception:  # pylint: disable=broad-except
       #if 'log' not in self.file_name:
-      self.api('send.traceback')("Error when loading %s from %s" % \
+      self.api('send:traceback')("Error when loading %s from %s" % \
                                     (self.format, self.file_name))
       #else:
       #  pass
@@ -204,16 +204,16 @@ class PersistentDictEvent(PersistentDict):
     val = convert(val)
     old_value = None
     if key in self:
-      old_value = self.plugin.api('setting.gets')(key)
+      old_value = self.plugin.api('setting:gets')(key)
     if old_value != val:
       dict.__setitem__(self, key, val)
 
       event_name = 'var_%s_%s' % (self.plugin.short_name, key)
       if not self.plugin.reset_f and key != '_version':
-        self.plugin.api('events.eraise')(event_name,
-                                         {'var':key,
-                                          'newvalue':self.plugin.api('setting.gets')(key),
-                                          'oldvalue':old_value})
+        self.plugin.api('core.events:raise:event')(event_name,
+                                                   {'var':key,
+                                                    'newvalue':self.plugin.api('setting:gets')(key),
+                                                    'oldvalue':old_value})
 
   def raiseall(self):
     """
@@ -222,10 +222,10 @@ class PersistentDictEvent(PersistentDict):
     for i in self:
       event_name = 'var_%s_%s' % (self.plugin.short_name, i)
       if not self.plugin.reset_f and i != '_version':
-        self.plugin.api('events.eraise')(event_name,
-                                         {'var':i,
-                                          'newvalue':self.plugin.api('setting.gets')(i),
-                                          'oldvalue':'__init__'})
+        self.plugin.api('core.events:raise:event')(event_name,
+                                                   {'var':i,
+                                                    'newvalue':self.plugin.api('setting:gets')(i),
+                                                    'oldvalue':'__init__'})
 
   def sync(self):
     """

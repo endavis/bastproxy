@@ -12,32 +12,32 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
   """
   class for IO in the proxy
     APIs for this class
-     'send.msg'       : send data through the messaging system for
+     'send:msg'       : send data through the messaging system for
                           logging purposes
-     'send.error'     : send an error
-     'send.traceback' : send a traceback
-     'send.client'    : send data to the clients
-     'send.mud'       : send data to the mud
-     'send.execute'   : send data through the parser
+     'send:error'     : send an error
+     'send:traceback' : send a traceback
+     'send:client'    : send data to the clients
+     'send:mud'       : send data to the mud
+     'send:execute'   : send data through the parser
   """
   def __init__(self):
     """
     initialize the class
     """
-    self.currenttrace = None
+    self.current_trace = None
     self.api = API()
-    self.api('api.add')('send', 'msg', self._api_msg)
-    self.api('api.add')('send', 'error', self._api_error)
-    self.api('api.add')('send', 'traceback', self._api_traceback)
-    self.api('api.add')('send', 'client', self._api_client)
-    self.api('api.add')('send', 'mud', self._api_tomud)
-    self.api('api.add')('send', 'execute', self._api_execute)
-    self.api('managers.add')('io', self)
+    self.api('api:add')('send', 'msg', self._api_msg)
+    self.api('api:add')('send', 'error', self._api_error)
+    self.api('api:add')('send', 'traceback', self._api_traceback)
+    self.api('api:add')('send', 'client', self._api_client)
+    self.api('api:add')('send', 'mud', self._api_tomud)
+    self.api('api:add')('send', 'execute', self._api_execute)
+    self.api('managers:add')('io', self)
 
   # send a message
-  def _api_msg(self, tmsg, primary=None, secondary=None):
+  def _api_msg(self, message, primary=None, secondary=None):
     """  send a message through the log plugin
-      @Ymsg@w        = This message to send
+      @Ymessage@w        = This message to send
       @Yprimary@w    = the primary data tag of the message (default: None)
       @Ysecondary@w  = the secondary data tag of the message
                           (default: None)
@@ -46,9 +46,9 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     this function returns no values"""
     tags = []
-    plugin = self.api('api.callerplugin')()
+    plugin = self.api('api:get:caller:plugin')()
 
-    tags.extend(self.api('api.pluginstack')())
+    tags.extend(self.api('api:get:plugins:from:stack:list')())
 
     if not isinstance(secondary, list):
       tags.append(secondary)
@@ -73,14 +73,14 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           tags.append(plugin)
 
     if not tags:
-      print('Did not get any tags for %s' % tmsg)
+      print('Did not get any tags for %s' % message)
 
     try:
-      self.api('log.msg')(tmsg, tags=tags)
+      self.api('core.log:msg')(message, tags=tags)
     except (AttributeError, RuntimeError): #%s - %-10s :
-      print('%s - %-10s : %s' % (time.strftime(self.api.time_format,
+      print('%s - %-15s : %s' % (time.strftime(self.api.time_format,
                                                time.localtime()),
-                                 primary or plugin, tmsg))
+                                 primary or plugin, message))
 
   # write and format a traceback
   def _api_traceback(self, message=""):
@@ -97,7 +97,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     else:
       message = exc
 
-    self.api('send.error')(message)
+    self.api('send:error')(message)
 
   # write and format an error
   def _api_error(self, text, secondary=None):
@@ -107,21 +107,21 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     this function returns no values"""
     text = str(text)
-    test = []
+    message_list = []
 
     for i in text.split('\n'):
-      if self.api('api.has')('colors.convertcolors'):
-        test.append('@x136%s@w' % i)
+      if self.api('api:has')('colors.convertcolors'):
+        message_list.append('@x136%s@w' % i)
       else:
-        test.append(i)
-    tmsg = '\n'.join(test)
+        message_list.append(i)
+    message = '\n'.join(message_list)
 
-    self.api('send.msg')(tmsg, primary='error', secondary=secondary)
+    self.api('send:msg')(message, primary='error', secondary=secondary)
 
     try:
-      self.api('errors.add')(time.strftime(self.api.time_format,
-                                           time.localtime()),
-                             tmsg)
+      self.api('core.errors:add')(time.strftime(self.api.time_format,
+                                                time.localtime()),
+                                  message)
     except (AttributeError, TypeError):
       pass
 
@@ -143,21 +143,21 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       test = []
       for i in text:
         if preamble:
-          i = "".join(['%s%s@w: ' % (self.api('proxy.preamblecolor')(), self.api('proxy.preamble')()), i])
-        if self.api('api.has')('colors.convertcolors'):
-          test.append(self.api('colors.convertcolors')(i))
+          i = "".join(['%s%s@w: ' % (self.api('net.proxy:preamblecolor')(), self.api('net.proxy:preamble')()), i])
+        if self.api('api:has')('core.colors:convertcolors'):
+          test.append(self.api('core.colors:convertcolors')(i))
         else:
           test.append(i)
       text = test
       text = "\n".join(text)
 
     try:
-      self.api('events.eraise')('to_client_event', {'original':text,
-                                                    'raw':raw, 'dtype':dtype,
-                                                    'client':client},
-                                calledfrom="io")
+      self.api('core.events:raise:event')('to_client_event', {'original':text,
+                                                              'raw':raw, 'dtype':dtype,
+                                                              'client':client},
+                                          calledfrom="io")
     except (NameError, TypeError, AttributeError):
-      self.api('send.traceback')("couldn't send msg to client: %s" % text)
+      self.api('send:traceback')("couldn't send msg to client: %s" % text)
 
   # execute a command through the interpreter, most data goes through this
   def _api_execute(self, command, fromclient=False, showinhistory=True): # pylint: disable=too-many-branches
@@ -167,98 +167,98 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       @Ycommand@w      = the command to send through the interpreter
 
     this function returns no values"""
-    self.api('send.msg')('execute: got command %s' % repr(command),
+    self.api('send:msg')('execute: got command %s' % repr(command),
                          primary='inputparse')
 
-    newtrace = False
-    if not self.currenttrace:
-      newtrace = True
-      self.currenttrace = {}
-      self.currenttrace['fromclient'] = False
-      self.currenttrace['internal'] = True
-      self.currenttrace['changes'] = []
-      self.currenttrace['showinhistory'] = showinhistory
-      self.currenttrace['addedtohistory'] = False
-      self.currenttrace['originalcommand'] = command.strip()
-      self.currenttrace['fromplugin'] = self.api('api.callerplugin')()
+    new_trace = False
+    if not self.current_trace:
+      new_trace = True
+      self.current_trace = {}
+      self.current_trace['fromclient'] = False
+      self.current_trace['internal'] = True
+      self.current_trace['changes'] = []
+      self.current_trace['showinhistory'] = showinhistory
+      self.current_trace['addedtohistory'] = False
+      self.current_trace['originalcommand'] = command.strip()
+      self.current_trace['fromplugin'] = self.api('api.callerplugin')()
 
       if fromclient:
-        self.currenttrace['fromclient'] = True
-        self.currenttrace['internal'] = False
+        self.current_trace['fromclient'] = True
+        self.current_trace['internal'] = False
 
-      self.api('events.eraise')('io_execute_trace_started', self.currenttrace,
-                                calledfrom="io")
+      self.api('core.events:raise:event')('io_execute_trace_started', self.current_trace,
+                                          calledfrom="io")
 
     if command == '\r\n':
-      self.api('send.msg')('sending %s (cr) to the mud' % repr(command),
+      self.api('send:msg')('sending %s (cr) to the mud' % repr(command),
                            primary='inputparse')
-      self.api('events.eraise')('to_mud_event', {'data':command,
-                                                 'dtype':'fromclient',
-                                                 'showinhistory':showinhistory,
-                                                 'trace':self.currenttrace},
-                                calledfrom="io")
+      self.api('core.events:raise:event')('to_mud_event', {'data':command,
+                                                           'dtype':'fromclient',
+                                                           'showinhistory':showinhistory,
+                                                           'trace':self.current_trace},
+                                          calledfrom="io")
     else:
 
       command = command.strip()
 
       commands = command.split('\r\n')
       if len(commands) > 1:
-        self.currenttrace['changes'].append({'flag':'Splitcr',
-                                             'data':'split command: "%s" into: "%s"' % \
-                                              (command, ", ".join(commands)),
-                                             'plugin':'io'})
+        self.current_trace['changes'].append({'flag':'Splitcr',
+                                              'data':'split command: "%s" into: "%s"' % \
+                                                         (command, ", ".join(commands)),
+                                              'plugin':'io'})
 
-      for tcommand in commands:
-        newdata = self.api('events.eraise')('io_execute_event',
-                                            {'fromdata':tcommand,
-                                             'fromclient':fromclient,
-                                             'internal':not fromclient,
-                                             'showinhistory':showinhistory,
-                                             'trace':self.currenttrace},
-                                            calledfrom="io")
+      for current_command in commands:
+        newdata = self.api('core.events:raise:event')('io_execute_event',
+                                                      {'fromdata':current_command,
+                                                       'fromclient':fromclient,
+                                                       'internal':not fromclient,
+                                                       'showinhistory':showinhistory,
+                                                       'trace':self.current_trace},
+                                                      calledfrom="io")
 
         if 'fromdata' in newdata:
-          tcommand = newdata['fromdata']
-          tcommand = tcommand.strip()
+          current_command = newdata['fromdata']
+          current_command = current_command.strip()
 
-        if tcommand:
+        if current_command:
           # split the command if it has the command seperator in it
           # and run each one through execute again
           if self.api.command_split_regex:
-            datalist = re.split(self.api.command_split_regex, tcommand)
+            split_data = re.split(self.api.command_split_regex, current_command)
           else:
-            datalist = []
-          if len(datalist) > 1:
-            self.api('send.msg')('broke %s into %s' % (tcommand, datalist),
+            split_data = []
+          if len(split_data) > 1:
+            self.api('send:msg')('broke %s into %s' % (current_command, split_data),
                                  primary='inputparse')
-            self.currenttrace['changes'].append(
+            self.current_trace['changes'].append(
                 {'flag':'Splitchar',
                  'data':'split command: "%s" into: "%s"' % \
-                   (tcommand, ", ".join(datalist)),
+                   (current_command, ", ".join(split_data)),
                  'plugin':'io'})
-            for cmd in datalist:
-              self.api('send.execute')(cmd, showinhistory=showinhistory)
+            for cmd in split_data:
+              self.api('send:execute')(cmd, showinhistory=showinhistory)
 
           # the command did not have a command seperator
           else:
             # take out double command seperators and replaces them with a single one before
             # sending the data to the mud
-            tcommand = tcommand.replace('||', '|')
-            if tcommand[-1] != '\n':
-              tcommand = "".join([tcommand, '\n'])
-            self.api('send.msg')('sending %s to the mud' % tcommand.strip(),
+            current_command = current_command.replace('||', '|')
+            if current_command[-1] != '\n':
+              current_command = "".join([current_command, '\n'])
+            self.api('send:msg')('sending %s to the mud' % current_command.strip(),
                                  primary='inputparse')
-            self.api('events.eraise')('to_mud_event',
-                                      {'data':tcommand,
-                                       'dtype':'fromclient',
-                                       'showinhistory':showinhistory,
-                                       'trace':self.currenttrace},
-                                      calledfrom="io")
+            self.api('core.events:raise:event')('to_mud_event',
+                                                {'data':current_command,
+                                                 'dtype':'fromclient',
+                                                 'showinhistory':showinhistory,
+                                                 'trace':self.current_trace},
+                                                calledfrom="io")
 
-    if newtrace:
-      self.api('events.eraise')('io_execute_trace_finished', self.currenttrace,
-                                calledfrom="io")
-      self.currenttrace = None
+    if new_trace:
+      self.api('core.events:raise:event')('io_execute_trace_finished', self.current_trace,
+                                          calledfrom="io")
+      self.current_trace = None
 
   # send data directly to the mud
   def _api_tomud(self, data, raw=False, dtype='fromclient'):
@@ -274,10 +274,10 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     if not raw and data and data[-1] != '\n':
       data = "".join([data, '\n'])
-    self.api('events.eraise')('to_mud_event',
-                              {'data':data,
-                               'dtype':dtype,
-                               'raw':raw},
-                              calledfrom="io")
+    self.api('core.events:raise:event')('to_mud_event',
+                                        {'data':data,
+                                         'dtype':dtype,
+                                         'raw':raw},
+                                        calledfrom="io")
 
 IO = ProxyIO()

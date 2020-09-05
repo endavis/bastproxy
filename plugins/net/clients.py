@@ -125,16 +125,16 @@ class Plugin(BasePlugin):
     tmsg.append('@B' + 60 * '-')
     for i in self.clients:
       ttime = self.api('utils.timedeltatostring')(
-          i.connectedtime,
+          i.connected_time,
           time.localtime())
 
       tmsg.append(clientformat % ('Active', i.host[:17], i.port,
-                                  i.ttype[:17], ttime))
+                                  i.terminal_type[:17], ttime))
     for i in self.vclients:
       ttime = self.api('utils.timedeltatostring')(
-          i.connectedtime,
+          i.connected_time,
           time.localtime())
       tmsg.append(clientformat % ('View', i.host[:17], i.port,
-                                  i.ttype[:17], ttime))
+                                  i.terminal_type[:17], ttime))
 
     return True, tmsg

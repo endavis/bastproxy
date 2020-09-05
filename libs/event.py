@@ -12,14 +12,14 @@ class Event(object):
     """
     self.name = name
     self.plugin = plugin
-    self.timesfired = 0
+    self.fired_count = 0
     self.func = func
 
   def execute(self):
     """
     execute the event
     """
-    self.timesfired = self.timesfired + 1
+    self.fired_count = self.fired_count + 1
     self.func()
 
   def __str__(self):

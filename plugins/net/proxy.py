@@ -88,7 +88,7 @@ class Plugin(BasePlugin):
 
     self.api('events.register')('client_connected', self.client_connected)
     self.api('events.register')('mudconnect', self.sendusernameandpw)
-    self.api('events.register')('var_%s_listenport' % self.short_name, self.listenportchange)
+    self.api('events.register')('var_%s_listenport' % self.short_name, self.listen_port_change)
     self.api('events.register')('var_%s_cmdseperator' % self.short_name, self.command_seperator_change)
 
     ssc = self.api('ssc.baseclass')()
@@ -148,12 +148,12 @@ class Plugin(BasePlugin):
     tmsg.append('')
     tmsg.append('@B-------------------   Mud  ------------------@w')
     if mud:
-      if mud.connectedtime:
+      if mud.connected_time:
         tmsg.append(template % ('Connected',
                                 time.strftime(self.api.time_format,
-                                              mud.connectedtime)))
+                                              mud.connected_time)))
         tmsg.append(template % ('Uptime', self.api('utils.timedeltatostring')(
-            mud.connectedtime,
+            mud.connected_time,
             time.localtime())))
         tmsg.append(template % ('Host', mud.host))
         tmsg.append(template % ('Port', mud.port))
@@ -298,7 +298,7 @@ class Plugin(BasePlugin):
 
     os.execv(executable, args)
 
-  def listenportchange(self, args): # pylint: disable=unused-argument
+  def listen_port_change(self, args): # pylint: disable=unused-argument
     """
     restart when the listen port changes
     """

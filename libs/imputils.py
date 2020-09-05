@@ -27,15 +27,15 @@ def get_module_name(module_path):
   """
   file_name = os.path.basename(module_path)
   directory_name = os.path.dirname(module_path)
-  base = directory_name.replace(os.path.sep, '.')
-  if base[0] == '.':
-    base = base[1:]
+  base_path = directory_name.replace(os.path.sep, '.')
+  if base_path[0] == '.':
+    base_path = base_path[1:]
   mod = os.path.splitext(file_name)[0]
-  if not base:
+  if not base_path:
     value1 = '.'.join([mod])
     value2 = mod
   else:
-    value1 = '.'.join([base, mod])
+    value1 = '.'.join([base_path, mod])
     value2 = mod
 
   return value1, value2
@@ -49,12 +49,12 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
   if base_path in module_path:
     module_path = module_path.replace(base_path, '')
 
-  imploc, module_name = get_module_name(module_path)
-  full_import_location = import_base + '.' + imploc
+  import_location, module_name = get_module_name(module_path)
+  full_import_location = import_base + '.' + import_location
 
   if module_name.startswith("_"):
     if not silent:
-      plugin.api('send.msg')('did not import %s because it is in development' % \
+      plugin.api('send:msg')('did not import %s because it is in development' % \
                                full_import_location, primary=plugin.plugin_id)
     return False, 'dev module', _module, full_import_location
 
@@ -64,12 +64,12 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
               sys.modules[full_import_location], full_import_location)
 
     if not silent:
-      plugin.api('send.msg')('%-30s : attempting import' % \
+      plugin.api('send:msg')('%-30s : attempting import' % \
                               full_import_location.replace('plugins.', ''), primary=plugin.plugin_id)
     _module = import_module(full_import_location)
 
     if not silent:
-      plugin.api('send.msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
+      plugin.api('send:msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
                                 primary=plugin.plugin_id)
     return True, 'import', _module, full_import_location
 
@@ -77,7 +77,7 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
     if full_import_location in sys.modules:
       del sys.modules[full_import_location]
 
-    plugin.api('send.traceback')(
+    plugin.api('send:traceback')(
         "Module '%s' refuses to import/load." % full_import_location)
     return False, 'error', _module, full_import_location
 

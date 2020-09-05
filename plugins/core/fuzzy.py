@@ -38,6 +38,7 @@ class Plugin(BasePlugin):
     BasePlugin.__init__(self, *args, **kwargs)
 
     self.api('api.add')('get.best.match', self.get_best_match)
+    self.api('api.add')('get:best:match', self.get_best_match)
 
     self.dependencies = []
 

@@ -35,14 +35,14 @@ class Plugin(BasePlugin):
     parser.add_argument('toplevel',
                         help='the top level api to show (optional)',
                         default='', nargs='?')
-    self.api('commands.add')('list', self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:add')('list', self.cmd_list,
+                                  parser=parser)
     parser = argp.ArgumentParser(add_help=False,
                                  description='detail a function in the api')
     parser.add_argument('api', help='the api to detail (optional)',
                         default='', nargs='?')
-    self.api('commands.add')('detail', self.cmd_detail,
-                             parser=parser)
+    self.api('core.commands:add')('detail', self.cmd_detail,
+                                  parser=parser)
 
 
   def cmd_detail(self, args):
@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
     """
     tmsg = []
     if args['api']:
-      tmsg.extend(self.api('api.detail')(args['api']))
+      tmsg.extend(self.api('api:detail')(args['api']))
 
     else: # args <= 0
       tmsg.append('Please provide an api to detail')
@@ -69,7 +69,7 @@ class Plugin(BasePlugin):
       @Yapiname@w = (optional) the toplevel api to show
     """
     tmsg = []
-    apilist = self.api('api.list')(args['toplevel'])
+    apilist = self.api('api:list')(args['toplevel'])
     if not apilist:
       tmsg.append('%s does not exist in the api' % args['toplevel'])
     else:
