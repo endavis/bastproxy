@@ -48,6 +48,7 @@ class TimerEvent(Event):
     if 'log' in kwargs:
       self.log = kwargs['log']
 
+    self.time_last_fired = None
     self.nextcall = self.getnext() or -1
 
   def getnext(self):
@@ -74,6 +75,13 @@ class TimerEvent(Event):
       nextt = int(time.time()) + self.seconds
 
     return nextt
+
+  def execute(self):
+    """
+    execute the event
+    """
+    self.time_last_fired = time.localtime()
+    Event.execute(self)
 
   def __str__(self):
     """
@@ -219,7 +227,7 @@ class Plugin(BasePlugin):
         timerc = self.timerlookup[i]
         tmsg.append('%-20s : %-13s %-9s %-8s %s' % (
             timerc.name, timerc.plugin.short_name,
-            timerc.enabled, timerc.timesfired,
+            timerc.enabled, timerc.fired_count,
             time.strftime('%a %b %d %Y %H:%M:%S',
                           time.localtime(timerc.nextcall))))
 
@@ -238,12 +246,18 @@ class Plugin(BasePlugin):
           timerc = self.timerlookup[timer]
           tmsg.append('%-13s : %s' % ('Name', timer))
           tmsg.append('%-13s : %s' % ('Enabled', timerc.enabled))
-          tmsg.append('%-13s : %s' % ('Plugin', timerc.plugin.short_name))
+          tmsg.append('%-13s : %s' % ('Plugin', timerc.plugin.plugin_id))
           tmsg.append('%-13s : %s' % ('Onetime', timerc.onetime))
           tmsg.append('%-13s : %s' % ('Time', timerc.time))
           tmsg.append('%-13s : %s' % ('Seconds', timerc.seconds))
-          tmsg.append('%-13s : %s' % ('Times Fired', timerc.timesfired))
+          tmsg.append('%-13s : %s' % ('Times Fired', timerc.fired_count))
           tmsg.append('%-13s : %s' % ('Log', timerc.log))
+          print timerc.time_last_fired
+          last_fire_time = 'None'
+          if timerc.time_last_fired:
+            last_fire_time = time.strftime('%a %b %d %Y %H:%M:%S',
+                                           timerc.time_last_fired)
+          tmsg.append('%-13s : %s' % ('Last Fire', last_fire_time))
           tmsg.append('%-13s : %s' % ('Next Fire',
                                       time.strftime('%a %b %d %Y %H:%M:%S',
                                                     time.localtime(timerc.nextcall))))
@@ -296,8 +310,8 @@ class Plugin(BasePlugin):
         return
 
     tevent = TimerEvent(name, func, seconds, plugin, **kwargs)
-    self.api('send.msg')('adding %s from plugin %s' % (tevent, plugin),
-                         secondary=plugin.short_name)  # pylint: disable=no-member
+    self.api('send.msg')('adding %s from plugin %s' % (tevent, plugin.plugin_id),
+                         secondary=plugin.plugin_id)  # pylint: disable=no-member
     self._addtimer(tevent)
     return tevent
 
@@ -372,7 +386,7 @@ class Plugin(BasePlugin):
           if timer.enabled:
             try:
               timer.execute()
-              timer.timesfired = timer.timesfired + 1
+              timer.fired_count = timer.fired_count + 1
               self.overallfire = self.overallfire + 1
               if timer.log:
                 self.api('send.msg')('Timer fired: %s' % timer,
