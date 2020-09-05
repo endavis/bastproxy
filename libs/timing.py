@@ -33,9 +33,9 @@ class Timing(object):
 
     self.timing = {}
 
-    self.api('api.add')('timep', 'start', self.starttimer)
-    self.api('api.add')('timep', 'finish', self.finishtimer)
-    self.api('api.add')('timep', 'toggle', self.toggletiming)
+    self.api('api:add')('timep', 'start', self.starttimer)
+    self.api('api:add')('timep', 'finish', self.finishtimer)
+    self.api('api:add')('timep', 'toggle', self.toggletiming)
 
   def toggletiming(self, tbool=None):
     """
@@ -51,11 +51,11 @@ class Timing(object):
     start a timer
     """
     if self.enabled:
-      plugin = self.api('api.callerplugin')()
+      plugin = self.api('api:get:caller:plugin')()
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
       self.timing[timername]['plugin'] = plugin
-      self.api('send.msg')('%-20s : started - from plugin %s with args %s' % \
+      self.api('send:msg')('%-20s : started - from plugin %s with args %s' % \
                             (timername, plugin, args),
                            primary=plugin, secondary=['timing'])
 
@@ -66,7 +66,7 @@ class Timing(object):
     if self.enabled:
       timerfinish = default_timer()
       if timername in self.timing:
-        self.api('send.msg')('%-20s : finished in %s ms - with args %s' % \
+        self.api('send:msg')('%-20s : finished in %s ms - with args %s' % \
                              (timername,
                               (timerfinish - self.timing[timername]['start']) * 1000.0,
                               args),
@@ -74,8 +74,8 @@ class Timing(object):
                              secondary=['timing'])
         del self.timing[timername]
       else:
-        plugin = self.api('api.callerplugin')()
-        self.api('send.error')('timername: %s not found, called from %s' % \
+        plugin = self.api('api:get:caller:plugin')()
+        self.api('send:error')('timername: %s not found, called from %s' % \
                               (timername, plugin),
                                secondary=['timing', plugin])
 

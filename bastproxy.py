@@ -265,10 +265,10 @@ def main():
 
   # update the port setting if different from the default
   if targs['port'] != 9999:
-    proxy_plugin.api('setting.change')('listenport', targs['port'])
+    proxy_plugin.api('setting:change')('listenport', targs['port'])
 
   # get the listen port setting
-  listen_port = proxy_plugin.api('setting.gets')('listenport')
+  listen_port = proxy_plugin.api('setting:gets')('listenport')
 
   # the proxy is done starting up and we raise an event
   BASEAPI.startup = False

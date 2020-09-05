@@ -215,14 +215,24 @@ class Plugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('api.add')('iscolor', self.api_iscolor)
-    self.api('api.add')('convertcolors', self.api_convertcolors)
-    self.api('api.add')('convertansi', self.api_convertansi)
-    self.api('api.add')('ansicode', self.api_ansicode)
-    self.api('api.add')('stripansi', self.api_stripansi)
-    self.api('api.add')('stripcolor', self.api_stripcolor)
-    self.api('api.add')('lengthdiff', self.api_getlengthdiff)
-    self.api('api.add')('colortohtml', self.api_colorcodestohtml)
+    self.api('api:add')('iscolor', self._api_is_color)
+    self.api('api:add')('convertcolors', self._api_convert_colors)
+    self.api('api:add')('convertansi', self._api_convert_ansi)
+    self.api('api:add')('ansicode', self._api_ansicode)
+    self.api('api:add')('stripansi', self._api_strip_ansi)
+    self.api('api:add')('stripcolor', self._api_strip_color)
+    self.api('api:add')('lengthdiff', self._api_length_difference)
+    self.api('api:add')('colortohtml', self._api_colorcodes_to_html)
+
+    # convert to easier to read api
+    self.api('api:add')('is:color', self._api_is_color)
+    self.api('api:add')('convert:colors', self._api_convert_colors)
+    self.api('api:add')('convert:ansi', self._api_convert_ansi)
+    self.api('api:add')('get:ansicode', self._api_ansicode)
+    self.api('api:add')('strip:ansi', self._api_strip_ansi)
+    self.api('api:add')('strip:color', self._api_strip_color)
+    self.api('api:add')('length:difference', self._api_length_difference)
+    self.api('api:add')('colorcodes:to:html', self._api_colorcodes_to_html)
 
     self.dependencies = ['core.commands']
 
@@ -234,17 +244,17 @@ class Plugin(BasePlugin):
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show colors')
-    self.api('commands.add')('show',
-                             self.cmd_show,
-                             parser=parser)
+    self.api('core.commands:add')('show',
+                                  self.cmd_show,
+                                  parser=parser)
     parser = argp.ArgumentParser(add_help=False,
                                  description='show color examples')
-    self.api('commands.add')('example',
-                             self.cmd_example,
-                             parser=parser)
+    self.api('core.commands:add')('example',
+                                  self.cmd_example,
+                                  parser=parser)
 
   # convert color codes to html
-  def api_colorcodestohtml(self, sinput):
+  def _api_colorcodes_to_html(self, sinput):
     # pylint: disable=no-self-use,too-many-branches
     """
     convert colorcodes to html
@@ -308,16 +318,16 @@ class Plugin(BasePlugin):
     return '\n'.join(olist) + lastchar
 
   # get the length difference of a colored string and its noncolor equivalent
-  def api_getlengthdiff(self, colorstring):
+  def _api_length_difference(self, colorstring):
     """
     get the length difference of a colored string and its noncolor equivalent
     """
-    lennocolor = len(self.api('colors.stripcolor')(colorstring))
+    lennocolor = len(self.api('core.colors:strip:color')(colorstring))
     lencolor = len(colorstring)
     return lencolor - lennocolor
 
   # check if a string is an @@ color, either xterm or ansi
-  def api_iscolor(self, color):
+  def _api_is_color(self, color):
     # pylint: disable=no-self-use
     """
     check if a string is a @ color, either xterm or ansi
@@ -334,7 +344,7 @@ class Plugin(BasePlugin):
     return False
 
   # convert @@ colors in a string
-  def api_convertcolors(self, tstr):
+  def _api_convert_colors(self, tstr):
     """
     convert @ colors in a string
     """
@@ -354,13 +364,13 @@ class Plugin(BasePlugin):
         if color == 'x':
           tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
           color = '38;5;%s' % tcolor
-          tstr2 = tstr2 + self.api_ansicode(color, newtext)
+          tstr2 = tstr2 + self._api_ansicode(color, newtext)
         elif color == 'z':
           tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
           color = '48;5;%s' % tcolor
-          tstr2 = tstr2 + self.api_ansicode(color, newtext)
+          tstr2 = tstr2 + self._api_ansicode(color, newtext)
         else:
-          tstr2 = tstr2 + self.api_ansicode(CONVERTCOLORS[color], text)
+          tstr2 = tstr2 + self._api_ansicode(CONVERTCOLORS[color], text)
 
       if tstr2:
         tstr = tstr2 + "%c[0m" % chr(27)
@@ -372,7 +382,7 @@ class Plugin(BasePlugin):
     return tstr
 
   # convert ansi color escape sequences to @@ colors
-  def api_convertansi(self, text):
+  def _api_convert_ansi(self, text):
     # pylint: disable=no-self-use
     """
     convert ansi color escape sequences to @@ colors
@@ -398,7 +408,7 @@ class Plugin(BasePlugin):
     return ANSI_COLOR_REGEX.sub(single_sub, text)
 
   # return an ansi coded string
-  def api_ansicode(self, color, data):
+  def _api_ansicode(self, color, data):
     # pylint: disable=no-self-use
     """
     return an ansi coded string
@@ -406,7 +416,7 @@ class Plugin(BasePlugin):
     return "%c[%sm%s" % (chr(27), color, data)
 
   # strip all ansi from a string
-  def api_stripansi(self, text):
+  def _api_strip_ansi(self, text):
     # pylint: disable=no-self-use
     """
     strip all ansi from a string
@@ -414,11 +424,11 @@ class Plugin(BasePlugin):
     return ANSI_COLOR_REGEX.sub('', text)
 
   # strip @@ colors from a string
-  def api_stripcolor(self, text):
+  def _api_strip_color(self, text):
     """
     strip @@ colors
     """
-    return self.api_stripansi(self.api_convertcolors(text))
+    return self._api_strip_ansi(self._api_convert_colors(text))
 
   def cmd_show(self, args):
     # pylint: disable=no-self-use
@@ -428,8 +438,8 @@ class Plugin(BasePlugin):
       @CUsage@w: show @Y"compact"@w
         @Y"compact"@w    = The original string to be replaced
     """
-    msg = ['']
-    lmsg = []
+    message = ['']
+    row_message = []
     compact = False
     joinc = ' '
     if 'compact' in args:
@@ -440,38 +450,38 @@ class Plugin(BasePlugin):
       colors = '@B%-3s : @z%s    @w'
     for i in range(0, 16):
       if i % 8 == 0 and i != 0:
-        msg.append(joinc.join(lmsg))
-        lmsg = []
+        message.append(joinc.join(row_message))
+        row_message = []
 
       if compact:
-        lmsg.append(colors % (i))
+        row_message.append(colors % (i))
       else:
-        lmsg.append(colors % (i, i))
+        row_message.append(colors % (i, i))
 
-    lmsg.append('\n')
-    msg.append(joinc.join(lmsg))
+    row_message.append('\n')
+    message.append(joinc.join(row_message))
 
-    lmsg = []
+    row_message = []
 
     for i in range(16, 256):
       if (i - 16) % 36 == 0 and ((i - 16) != 0 and not i > 233):
-        lmsg.append('\n')
+        row_message.append('\n')
 
       if (i - 16) % 6 == 0 and (i - 16) != 0:
-        msg.append(joinc.join(lmsg))
-        lmsg = []
+        message.append(joinc.join(row_message))
+        row_message = []
 
       if compact:
-        lmsg.append(colors % (i))
+        row_message.append(colors % (i))
       else:
-        lmsg.append(colors % (i, i))
+        row_message.append(colors % (i, i))
 
-    msg.append(joinc.join(lmsg))
-    lmsg = []
+    message.append(joinc.join(row_message))
+    row_message = []
 
-    msg.append('')
+    message.append('')
 
-    return True, msg
+    return True, message
 
 
   def cmd_example(self, _=None):
@@ -481,14 +491,14 @@ class Plugin(BasePlugin):
       Show examples of how to use colors
       @CUsage@w: example
     """
-    msg = ['']
-    msg.append('Examples')
-    msg.append('Raw   : @@z165Regular text with color 165 Background@@w')
-    msg.append('Color : @z165Regular text with color 165 Background@w')
-    msg.append('Raw   : @@x165@zcolor 165 text with regular Background@@w')
-    msg.append('Color : @x165color 165 text with regular Background@w')
-    msg.append('Raw   : @@z255@@x0color 0 text with color 255 Background@@w')
-    msg.append('Color : @z255@x0color 0 text with color 255 Background@w')
-    msg.append('Note: see the show command to show the table of colors')
-    msg.append('')
-    return True, msg
+    message = ['']
+    message.append('Examples')
+    message.append('Raw   : @@z165Regular text with color 165 Background@@w')
+    message.append('Color : @z165Regular text with color 165 Background@w')
+    message.append('Raw   : @@x165@zcolor 165 text with regular Background@@w')
+    message.append('Color : @x165color 165 text with regular Background@w')
+    message.append('Raw   : @@z255@@x0color 0 text with color 255 Background@@w')
+    message.append('Color : @z255@x0color 0 text with color 255 Background@w')
+    message.append('Note: see the show command to show the table of colors')
+    message.append('')
+    return True, message
