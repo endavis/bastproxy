@@ -30,12 +30,12 @@ class Plugin(BasePlugin):
     initialize the instance
     """
     BasePlugin.__init__(self, *args, **kwargs)
-    self.api('dependency.add')('core.ssc')
+    self.api('dependency:add')('core.ssc')
 
     self.apikey = None
 
-    self.api('api.add')('note', self.api_note)
-    self.api('api.add')('link', self.api_link)
+    self.api('api:add')('note', self.api_note)
+    self.api('api:add')('link', self.api_link)
 
   def initialize(self):
     """
@@ -43,7 +43,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('setting.add')('channel', '', str,
+    self.api('setting:add')('channel', '', str,
                             'the channel to send to')
 
     parser = argp.ArgumentParser(add_help=False,
@@ -59,8 +59,8 @@ class Plugin(BasePlugin):
     parser.add_argument('-c', "--channel",
                         help="the pushbullet channel to send to",
                         default='')
-    self.api('commands.add')('note', self.cmd_note,
-                             parser=parser)
+    self.api('core.commands:command:add')('note', self.cmd_note,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='send a link')
@@ -75,15 +75,15 @@ class Plugin(BasePlugin):
     parser.add_argument('-c', "--channel",
                         help="the pushbullet channel to send to",
                         default='')
-    self.api('commands.add')('link', self.cmd_link,
-                             parser=parser)
+    self.api('core.commands:command:add')('link', self.cmd_link,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show channels associated with pb')
-    self.api('commands.add')('channels', self.cmd_channels,
-                             parser=parser)
+    self.api('core.commands:command:add')('channels', self.cmd_channels,
+                                          parser=parser)
 
-    ssc = self.api('ssc.baseclass')()
+    ssc = self.api('core.ssc:baseclass:get')()
     self.apikey = ssc('apikey', self, desc='Pushbullet API key')
 
     self.import_pushbullet()
@@ -97,7 +97,7 @@ class Plugin(BasePlugin):
       try:
         import pushbullet # pylint: disable=redefined-outer-name
       except ImportError:
-        self.api('send.error')(
+        self.api('send:error')(
             'Please install pushbullet.py with "pip(2) install pushbullet.py"')
         return False
 
@@ -112,10 +112,10 @@ class Plugin(BasePlugin):
     @Ychannel@w   = the pushbullet channel to send to
 
     this function returns True if sent, False otherwise"""
-    apikey = self.api('%s.apikey' % self.short_name)()
+    apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send.error')('pushbullet apikey not set')
+      self.api('send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:
@@ -126,7 +126,7 @@ class Plugin(BasePlugin):
 
     rval = {}
     found = False
-    nchannel = channel or self.api('setting.gets')('channel')
+    nchannel = channel or self.api('setting:get')('channel')
     if nchannel:
       for i in pbc.channels:
         if str(i.channel_tag) == nchannel:
@@ -135,7 +135,7 @@ class Plugin(BasePlugin):
           break
 
       if not found:
-        self.api('send.error')('There was no channel %s' % nchannel)
+        self.api('send:error')('There was no channel %s' % nchannel)
         return False
 
     else:
@@ -144,10 +144,10 @@ class Plugin(BasePlugin):
     pbc._session.close() # pylint: disable=protected-access
 
     if 'error' in rval:
-      self.api('send.error')('Pushbullet send failed with %s' % rval)
+      self.api('send:error')('Pushbullet send failed with %s' % rval)
       return False
 
-    self.api('send.msg')('pb returned %s' % rval)
+    self.api('send:msg')('pb returned %s' % rval)
     return True
 
   # send a url through pushbullet
@@ -159,10 +159,10 @@ class Plugin(BasePlugin):
     @Ychannel@w   = the pushbullet channel to send to
 
     this function returns True if sent, False otherwise"""
-    apikey = self.api('%s.apikey' % self.short_name)()
+    apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send.error')('pushbullet apikey not set')
+      self.api('send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:
@@ -172,7 +172,7 @@ class Plugin(BasePlugin):
     pbc = pushbullet.Pushbullet(apikey)
 
     rval = {}
-    nchannel = channel or self.api('setting.gets')('channel')
+    nchannel = channel or self.api('setting:get')('channel')
     if nchannel:
       for i in pbc.channels:
         if str(i.channel_tag) == nchannel:
@@ -181,7 +181,7 @@ class Plugin(BasePlugin):
           break
 
       if not found:
-        self.api('send.error')('There was no channel %s' % nchannel)
+        self.api('send:error')('There was no channel %s' % nchannel)
         return False
 
     else:
@@ -190,10 +190,10 @@ class Plugin(BasePlugin):
     pbc._session.close() # pylint: disable=protected-access
 
     if 'error' in rval:
-      self.api('send.error')('Pushbullet send failed with %s' % rval)
+      self.api('send:error')('Pushbullet send failed with %s' % rval)
       return False
 
-    self.api('send.msg')('pb returned %s' % rval)
+    self.api('send:msg')('pb returned %s' % rval)
     return True
 
   def cmd_channels(self, _):
@@ -201,10 +201,10 @@ class Plugin(BasePlugin):
     list the channels
     """
     tmsg = []
-    apikey = self.api('%s.apikey' % self.short_name)()
+    apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send.error')('pushbullet apikey not set')
+      self.api('send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:

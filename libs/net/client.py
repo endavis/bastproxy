@@ -33,12 +33,12 @@ class Client(Telnet):
     self.api('core.events:register:to:event')('to_client_event',
                                               self.addtooutbufferevent, prio=99)
 
-    self.api('net.options:prepareclient')(self)
+    self.api('net.options:client:prepare')(self)
 
-    self.addtooutbufferevent({'original':self.api('core.colors:convertcolors')(
-        '%s%s@w: %sPlease enter the proxy password:@w' % (self.api('net.proxy:preambleerrorcolor')(),
-                                                          self.api('net.proxy:preamble')(),
-                                                          self.api('net.proxy:preambleerrorcolor')())),
+    self.addtooutbufferevent({'original':self.api('core.colors:colorcode:to:ansicode')(
+        '%s%s@w: %sPlease enter the proxy password:@w' % (self.api('net.proxy:preamble:error:color:get')(),
+                                                          self.api('net.proxy:preamble:get')(),
+                                                          self.api('net.proxy:preamble:error:color:get')())),
                               'dtype':'passwd'})
 
   def addtooutbufferevent(self, args):
@@ -83,10 +83,10 @@ class Client(Telnet):
       if self.state == CONNECTED:
         if self.view_only:
           self.addtooutbufferevent(
-              {'todata':self.api('core.colors:convertcolors')(
-                  '%s%s@w: %sYou are in view mode!@w' % (self.api('core.proxy:preambleerrorcolor')(),
-                                                         self.api('core.proxy:preamble')(),
-                                                         self.api('core.proxy:preambleerrorcolor')()))})
+              {'todata':self.api('core.colors:colorcode:to:ansicode')(
+                  '%s%s@w: %sYou are in view mode!@w' % (self.api('net.proxy:preamble:error:color:get')(),
+                                                         self.api('net.proxy:preamble')(),
+                                                         self.api('net.proxy:preamble:error:color:get')()))})
         else:
           if data:
             self.api('send:execute')(data, fromclient=True)
@@ -94,8 +94,8 @@ class Client(Telnet):
       elif self.state == PASSWORD:
         data = data.strip()
         proxyp = self.api('core.plugins:get:plugin:instance')('proxy')
-        dpw = proxyp.api('net.proxy:proxypw')()
-        vpw = proxyp.api('net.proxy:proxypwview')()
+        dpw = proxyp.api('net.proxy:ssc:proxypw')()
+        vpw = proxyp.api('net.proxy:ssc:proxypwview')()
 
         if dpw and  data == dpw:
           self.api('send:msg')('Successful password from %s : %s' % \
@@ -111,9 +111,9 @@ class Client(Telnet):
           self.state = CONNECTED
           self.view_only = True
           self.addtooutbufferevent(
-              {'original':self.api('core.colors:convertcolors')(
-                  '%s%s@W: @GYou are connected in view mode@w' % (self.api('net.proxy:preambleerrorcolor')(),
-                                                                  self.api('net.proxy:preamlbe')()))})
+              {'original':self.api('core.colors:colorcode:to:ansicode')(
+                  '%s%s@W: @GYou are connected in view mode@w' % (self.api('net.proxy:preamble:error:color:get')(),
+                                                                  self.api('net.proxy:preamble:get')()))})
           self.api('core.events:raise:event')('client_connected_view',
                                               {'client':self}, calledfrom="client")
           self.api('send:client')(
@@ -123,20 +123,20 @@ class Client(Telnet):
           self.bad_password_count += 1
           if self.bad_password_count == 5:
             self.addtooutbufferevent(
-                {'original':self.api('core.colors:convertcolors')(
-                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('net.proxy:preambleerrorcolor')(),
-                                                                          self.api('net.proxy:preamble')(),
-                                                                          self.api('net.proxy:preambleerrorcolor')())),
+                {'original':self.api('core.colors:colorcode:to:ansicode')(
+                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('net.proxy:preamble:error:color:get')(),
+                                                                          self.api('net.proxy:preamble:get')(),
+                                                                          self.api('net.proxy:preamble:error:color:get')())),
                  'dtype':'passwd'})
             self.api('send:msg')('%s has been banned.' % self.host, 'net')
-            self.api('net.clients:addbanned')(self.host)
+            self.api('net.clients:banned:add')(self.host)
             self.handle_close()
           else:
             self.addtooutbufferevent(
-                {'original':self.api('core.colors:convertcolors')(
-                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('net.proxy:preambleerrorcolor')(),
-                                                                       self.api('net.proxy:preamble')(),
-                                                                       self.api('net.proxy:preambleerrorcolor')())),
+                {'original':self.api('core.colors:colorcode:to:ansicode')(
+                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('net.proxy:preamble:error:color:get')(),
+                                                                       self.api('net.proxy:preamble:get')(),
+                                                                       self.api('net.proxy:preamble:error:color:get')())),
                  'dtype':'passwd'})
 
   def handle_close(self):

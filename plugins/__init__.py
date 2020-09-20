@@ -165,7 +165,7 @@ class PluginMgr(BasePlugin):
 
     old_plugins_to_load = PersistentDict(old_loadplugins_file, 'c')
 
-    new_plugins_to_load = self.api('setting:gets')('pluginstoload')
+    new_plugins_to_load = self.api('setting:get')('pluginstoload')
 
     for i in old_plugins_to_load:
       if '/' in i:
@@ -658,7 +658,7 @@ class PluginMgr(BasePlugin):
       return True, self.loaded_plugins[plugin_id]['plugininstance'].dependencies
 
     self.api('send:msg')('%-30s : attempting to load' % \
-			    (plugin_id))
+			    (plugin_id), primary=self.plugin_id)
 
     try:
       plugin_info = self.all_plugin_info_on_disk[plugin_id]
@@ -809,7 +809,7 @@ class PluginMgr(BasePlugin):
     self.plugin_lookup_by_id[plugin_id] = plugin_id
 
     # update plugins to load at startup
-    plugins_to_load = self.api('setting:gets')('pluginstoload')
+    plugins_to_load = self.api('setting:get')('pluginstoload')
     if plugin_id not in plugins_to_load:
       plugins_to_load.append(plugin_id)
       self.api('setting:change')('pluginstoload', plugins_to_load)
@@ -822,13 +822,13 @@ class PluginMgr(BasePlugin):
     start with plugins that have REQUIRED=True, then move
     to plugins that were loaded in the config
     """
-    self.api('send:msg')('Reading all plugin information')
+    self.api('send:msg')('Reading all plugin information', primary=self.plugin_id)
     conflicts = self.read_all_plugin_information()
     if conflicts:
       self.api('send:msg')('conflicts with plugins, see console and correct')
       sys.exit(1)
 
-    plugins_to_load_setting = self.api('setting:gets')('pluginstoload')
+    plugins_to_load_setting = self.api('setting:get')('pluginstoload')
 
     required_plugins = [plugin['plugin_id'] for plugin in self.all_plugin_info_on_disk.values() \
                            if plugin['isrequired']]
@@ -928,15 +928,10 @@ class PluginMgr(BasePlugin):
       self.api('send:msg')('%-30s : successfully initialized (%s : %s)' % \
                 (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
-      self.api('core.events:eraise')('plugin_%s_initialized' % plugin['short_name'], {})
-      self.api('core.events:eraise')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
-      self.api('core.events:eraise')('plugin_initialized', {'plugin':plugin['name'],
-                                                            'plugin_id':plugin['plugin_id'],
-                                                            'short_name':plugin['short_name']})
-      self.api('core.events:eraise')('{0.plugin_id}_plugin_initialized'.format(self),
-                                     {'plugin':plugin['name'],
-                                      'plugin_id':plugin['plugin_id'],
-                                      'short_name':plugin['short_name']})
+      self.api('core.events:raise:event')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
+      self.api('core.events:raise:event')('{0.plugin_id}_plugin_initialized'.format(self),
+                                          {'plugin':plugin['name'],
+                                           'plugin_id':plugin['plugin_id']})
 
     except Exception: # pylint: disable=broad-except
       self.api('send:traceback')(
@@ -952,7 +947,7 @@ class PluginMgr(BasePlugin):
 			    (plugin['plugin_id']))
 
     # update plugins_to_load
-    plugins_to_load = self.api('setting:gets')('pluginstoload')
+    plugins_to_load = self.api('setting:get')('pluginstoload')
     if plugin['plugin_id'] not in plugins_to_load:
       plugins_to_load.append(plugin['plugin_id'])
 
@@ -989,15 +984,10 @@ class PluginMgr(BasePlugin):
           # run the uninitialize function if it exists
           if plugin['isinitialized']:
             plugin['plugininstance'].uninitialize()
-          self.api('core.events:eraise')('plugin_%s_uninitialized' % plugin['short_name'], {})
-          self.api('core.events:eraise')('{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
-          self.api('core.events:eraise')('plugin_uninitialized', {'name':plugin['name'],
-                                                                  'plugin_id':plugin['plugin_id'],
-                                                                  'short_name':plugin['short_name']})
-          self.api('core.events:eraise')('{0.plugin_id}_plugin_uninitialized'.format(self),
-                                         {'plugin':plugin['name'],
-                                          'plugin_id':plugin['plugin_id'],
-                                          'short_name':plugin['short_name']})
+          self.api('core.events:raise:event')('{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
+          self.api('core.events:raise:event')('{0.plugin_id}_plugin_uninitialized'.format(self),
+                                              {'plugin':plugin['name'],
+                                               'plugin_id':plugin['plugin_id']})
           self.api('send:msg')('%-30s : successfully unitialized (%s : %s)' % \
                   (plugin['plugin_id'], plugin['short_name'], plugin['name']))
 
@@ -1008,7 +998,7 @@ class PluginMgr(BasePlugin):
           return False
 
         # remove from pluginstolload so it doesn't load at startup
-        plugins_to_load = self.api('setting:gets')('pluginstoload')
+        plugins_to_load = self.api('setting:get')('pluginstoload')
         if plugin['plugin_id'] in plugins_to_load:
           plugins_to_load.remove(plugin['plugin_id'])
           self.api('setting:change')('pluginstoload', plugins_to_load)
@@ -1233,12 +1223,10 @@ class PluginMgr(BasePlugin):
     self.can_reload_f = False
     self._load_plugins_on_startup()
 
-    #self.api('log:adddtype')(self.short_name)
-    self.api('log:adddtype')(self.plugin_id)
-    #self.api('log:console')(self.short_name)
-    self.api('log:console')(self.plugin_id)
-    self.api('log:adddtype')('upgrade')
-    self.api('log:console')('upgrade')
+    self.api('core.log:add:datatype')(self.plugin_id)
+    self.api('core.log:toggle:to:console')(self.plugin_id)
+    self.api('core.log:add:datatype')('upgrade')
+    self.api('core.log:toggle:to:console')('upgrade')
 
     BasePlugin._add_commands(self)
 
@@ -1256,10 +1244,10 @@ class PluginMgr(BasePlugin):
                         help='the to list',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('list',
-                                  self._command_list,
-                                  lname='Plugin Manager',
-                                  parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self._command_list,
+                                          lname='Plugin Manager',
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description="load a plugin")
@@ -1267,10 +1255,10 @@ class PluginMgr(BasePlugin):
                         help='the plugin to load, don\'t include the .py',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('load',
-                                  self._command_load,
-                                  lname='Plugin Manager',
-                                  parser=parser)
+    self.api('core.commands:command:add')('load',
+                                          self._command_load,
+                                          lname='Plugin Manager',
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description="unload a plugin")
@@ -1278,10 +1266,10 @@ class PluginMgr(BasePlugin):
                         help='the plugin to unload',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('unload',
-                                  self._command_unload,
-                                  lname='Plugin Manager',
-                                  parser=parser)
+    self.api('core.commands:command:add')('unload',
+                                          self._command_unload,
+                                          lname='Plugin Manager',
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description="reload a plugin")
@@ -1289,11 +1277,11 @@ class PluginMgr(BasePlugin):
                         help='the plugin to reload',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('reload',
-                                  self._command_reload,
-                                  lname='Plugin Manager',
-                                  parser=parser)
+    self.api('core.commands:command:add')('reload',
+                                          self._command_reload,
+                                          lname='Plugin Manager',
+                                          parser=parser)
 
-    self.api('core.timers:add')('global_save', self.api_save_state, 60, unique=True, log=False)
+    self.api('core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
 
-    self.api('core.events:register')('proxy_shutdown', self.shutdown)
+    self.api('core.events:register:to:event')('proxy_shutdown', self.shutdown)

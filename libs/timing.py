@@ -33,9 +33,9 @@ class Timing(object):
 
     self.timing = {}
 
-    self.api('api:add')('timep', 'start', self.starttimer)
-    self.api('api:add')('timep', 'finish', self.finishtimer)
-    self.api('api:add')('timep', 'toggle', self.toggletiming)
+    self.api('api:add')('libs.timing', 'timimg:start', self.starttimer)
+    self.api('api:add')('libs.timing', 'timing:finish', self.finishtimer)
+    self.api('api:add')('libs.timing', 'timing:toggle', self.toggletiming)
 
   def toggletiming(self, tbool=None):
     """

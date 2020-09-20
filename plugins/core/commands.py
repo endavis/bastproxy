@@ -3,8 +3,9 @@ This module handles commands and parsing input
 
 All commands are #bp.[package].[plugin].[command] or #bp.[plugin].[command]
 
-Commands are stored in a dictionary, use #bp.commands.inspect -o data:commands to find what's in the dictionary
-$cmd{'#bp.commands.inspect -o data:commands:stats -s'}
+Commands are stored in a dictionary, use #bp.commands.inspect -o data:commands
+    to find what's in the dictionary
+$cmd{'#bp.commands.inspect -o data.commands.stats -s'}
 """
 import shlex
 import os
@@ -108,6 +109,15 @@ class Plugin(BasePlugin):
     self.api('api:add')('get:plugin:command:help', self._api_get_plugin_command_help)
     self.api('api:add')('get:plugin:command:data', self._api_get_plugin_command_data)
 
+    self.api('api:add')('command:add', self._api_add_command)
+    self.api('api:add')('command:change', self._api_change_command)
+    self.api('api:add')('command:run', self._api_run)
+    self.api('api:add')('command:help:format', self._api_get_plugin_command_help)
+    self.api('api:add')('get:command:prefix', self._api_get_prefix)
+    self.api('api:add')('remove:data:for:plugin', self._api_remove_plugin_data)
+    self.api('api:add')('get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
+    self.api('api:add')('get:commands:for:plugin:data', self._api_get_plugin_command_data)
+
     self.dependencies = ['core.events', 'core.log', 'core.errors', 'core.fuzzy']
 
   def initialize(self):
@@ -117,8 +127,8 @@ class Plugin(BasePlugin):
     BasePlugin.initialize(self)
 
     # add a datatype
-    self.api('log:adddtype')(self.plugin_id)
-    #self.api('log.console')(self.plugin_id)
+    self.api('core.log:add:datatype')(self.plugin_id)
+    #self.api('core.log:toggle:to:console')(self.plugin_id)
 
     # initialize settings
     self.api('setting:add')('cmdprefix', '#bp', str,
@@ -148,11 +158,11 @@ class Plugin(BasePlugin):
                         help='the command in the plugin (can be left out)',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('list',
-                                  self.command_list,
-                                  shelp='list commands',
-                                  parser=parser,
-                                  showinhistory=False)
+    self.api('core.commands:command:add')('list',
+                                          self.command_list,
+                                          shelp='list commands',
+                                          parser=parser,
+                                          showinhistory=False)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list the command history')
@@ -160,11 +170,11 @@ class Plugin(BasePlugin):
                         "--clear",
                         help="clear the history",
                         action='store_true')
-    self.api('core.commands:add')('history',
-                                  self.command_history,
-                                  shelp='list or run a command in history',
-                                  parser=parser,
-                                  showinhistory=False)
+    self.api('core.commands:command:add')('history',
+                                          self.command_history,
+                                          shelp='list or run a command in history',
+                                          parser=parser,
+                                          showinhistory=False)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='run a command in history')
@@ -173,18 +183,18 @@ class Plugin(BasePlugin):
                         default=-1,
                         nargs='?',
                         type=int)
-    self.api('core.commands:add')('!',
-                                  self.command_runhistory,
-                                  shelp='run a command in history',
-                                  parser=parser,
-                                  preamble=False,
-                                  format=False,
-                                  showinhistory=False)
+    self.api('core.commands:command:add')('!',
+                                          self.command_runhistory,
+                                          shelp='run a command in history',
+                                          parser=parser,
+                                          preamble=False,
+                                          format=False,
+                                          showinhistory=False)
 
     # register events
-    self.api('events:register')('io_execute_event', self._event_io_execute_check_command, prio=5)
-    self.api('events:register')('core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
-    self.api('events:register')('{0.plugin_id}_savestate'.format(self), self._event_savestate)
+    self.api('core.events:register:to:event')('io_execute_event', self._event_io_execute_check_command, prio=5)
+    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._event_savestate)
 
   def _event_plugin_uninitialized(self, args):
     """
@@ -194,7 +204,7 @@ class Plugin(BasePlugin):
     """
     self.api('send:msg')('removing commands for plugin %s' % args['plugin_id'],
                          secondary=args['plugin_id'])
-    self.api('{0.plugin_id}:remove:plugin:data'.format(self))(args['plugin_id'])
+    self.api('{0.plugin_id}:remove:data:for:plugin'.format(self))(args['plugin_id'])
 
   # remove all commands for a plugin
   def _api_remove_plugin_data(self, plugin):
@@ -223,10 +233,10 @@ class Plugin(BasePlugin):
     returns:
       the updated message
     """
-    line_length = self.api('setting:gets')('linelen', 'proxy')
+    line_length = self.api('setting:get')('linelen', 'proxy')
 
     message.insert(0, '')
-    message.insert(1, '%s.%s.%s' % (self.api('setting:gets')('cmdprefix'), plugin_id, command))
+    message.insert(1, '%s.%s.%s' % (self.api('setting:get')('cmdprefix'), plugin_id, command))
     message.insert(2, '@G' + '-' * line_length + '@w')
     message.append('@G' + '-' * line_length + '@w')
     message.append('')
@@ -237,7 +247,7 @@ class Plugin(BasePlugin):
     """  get the current command prefix
 
     returns the current command prefix as a string"""
-    return self.api('setting:gets')('commandprefix')
+    return self.api('setting:get')('cmdprefix')
 
   # change an attribute for a command
   def _api_change_command(self, plugin, command_name, flag_name, flag_value):
@@ -293,7 +303,7 @@ class Plugin(BasePlugin):
 
   # return a formatted list of commands for a plugin
   def _api_get_plugin_command_format(self, plugin):
-    """  get a list of commands for the plugin
+    """  get a list of commands for the specified plugin
     @Yplugin@w   = the plugin the command is in
 
     returns a list of strings formatted for the commands in the plugin
@@ -307,7 +317,7 @@ class Plugin(BasePlugin):
 
   # return the raw command data for a plugin
   def _api_get_plugin_command_data(self, plugin):
-    """  get a list of commands for the plugin
+    """  get the data for commands for the specified plugin
     @Yplugin@w   = the plugin the command is in
 
     returns a dictionary of commands
@@ -367,7 +377,7 @@ class Plugin(BasePlugin):
       True if succcessful, False if not successful
     """
     retval = False
-    command_ran = '%s.%s.%s %s' % (self.api('setting:gets')('cmdprefix'),
+    command_ran = '%s.%s.%s %s' % (self.api('setting:get')('cmdprefix'),
                                    command['plugin_id'], command['commandname'], full_arguments)
 
     # add a trace if needed
@@ -477,7 +487,7 @@ class Plugin(BasePlugin):
       self.command_history_data.append(tdat)
 
       # if the size is greater than historysize, pop the first item
-      if len(self.command_history_data) >= self.api('setting:gets')('historysize'):
+      if len(self.command_history_data) >= self.api('setting:get')('historysize'):
         self.command_history_data.pop(0)
 
       # sync command history
@@ -570,23 +580,23 @@ class Plugin(BasePlugin):
     addedtohistory = self.add_command_to_history(data)
 
     # if the command is the same as the last command, do antispam checks
-    if command_data_dict['orig'].strip() == self.api('setting:gets')('lastcmd'):
+    if command_data_dict['orig'].strip() == self.api('setting:get')('lastcmd'):
       self.api('setting:change')('cmdcount',
-                                 self.api('setting:gets')('cmdcount') + 1)
+                                 self.api('setting:get')('cmdcount') + 1)
 
       # if the command has been sent spamcount times, then we send an antispam
       # command in between
-      if self.api('setting:gets')('cmdcount') == \
-                            self.api('setting:gets')('spamcount'):
-        data['fromdata'] = self.api('setting:gets')('antispamcommand') \
+      if self.api('setting:get')('cmdcount') == \
+                            self.api('setting:get')('spamcount'):
+        data['fromdata'] = self.api('setting:get')('antispamcommand') \
                                     + '|' + command_data_dict['orig']
         if 'trace' in data:
           data['addedtohistory'] = addedtohistory
           data['trace']['changes'].append(
               {'flag':'Antispam',
                'data':'command was sent %s times, sending %s for antispam' % \
-                    (self.api('setting:gets')('spamcount'),
-                     self.api('setting:gets')('antispamcommand')),
+                    (self.api('setting:get')('spamcount'),
+                     self.api('setting:get')('antispamcommand')),
                'plugin':self.plugin_id})
         self.api('send:msg')('adding look for 20 commands')
         self.api('setting:change')('cmdcount', 0)
@@ -643,7 +653,7 @@ class Plugin(BasePlugin):
     if command_data_dict['orig'] == '':
       return None
 
-    commandprefix = self.api('setting:gets')('cmdprefix')
+    commandprefix = self.api('setting:get')('cmdprefix')
     # if it isn't a command, pass it through
     if command_data_dict['orig'][0:len(commandprefix)].lower() != commandprefix:
       return self.pass_through_command(data, command_data_dict)
@@ -743,7 +753,7 @@ class Plugin(BasePlugin):
       if not found_plugin and not found_package and not found_command:
         command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
         command_data_dict['commandran'] = '%s.%s.%s' % \
-              (self.api('setting:gets')('cmdprefix'),
+              (self.api('setting:get')('cmdprefix'),
                self.plugin_id,
                'list')
         command_data_dict['flag'] = 'List2'
@@ -759,7 +769,7 @@ class Plugin(BasePlugin):
       # at least have a plugin
       else:
         if plugin_command:
-          commands = self.api('core.commands:get:plugin:command:data')(found_plugin).keys()
+          commands = self.api('core.commands:get:commands:for:plugin:data')(found_plugin).keys()
           found_command = self.api('core.fuzzy:get:best:match')(plugin_command, commands)
 
         # have a plugin but no command
@@ -772,7 +782,7 @@ class Plugin(BasePlugin):
             command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
             command_data_dict['flag'] = 'Help'
             command_data_dict['commandran'] = '%s.%s.%s %s' % \
-                    (self.api('setting:gets')('cmdprefix'),
+                    (self.api('setting:get')('cmdprefix'),
                      self.plugin_id, 'list', found_plugin)
             command_data_dict['targs'] = [found_plugin]
             command_data_dict['fullargs'] = full_args_string
@@ -782,7 +792,7 @@ class Plugin(BasePlugin):
           command = self.get_command(found_plugin, found_command)
           command_data_dict['cmd'] = command
           command_data_dict['commandran'] = '%s.%s.%s %s' % \
-                (self.api('setting:gets')('cmdprefix'), found_plugin,
+                (self.api('setting:get')('cmdprefix'), found_plugin,
                  command['commandname'], ' '.join(split_args))
           command_data_dict['flag'] = 'Run'
           command_data_dict['targs'] = split_args
@@ -846,7 +856,7 @@ class Plugin(BasePlugin):
 
     args = kwargs.copy()
 
-    called_from = self.api('api:callerplugin')()
+    called_from = self.api('api:get:caller:plugin')()
 
     long_name = None
 
@@ -865,7 +875,7 @@ class Plugin(BasePlugin):
         plugin = func.im_self.plugin
         plugin_id = plugin.plugin_id
       except AttributeError:
-        call_stack = self.api('api:callstack')()
+        call_stack = self.api('api:get:call:stack')()
         self.api('send:error')(
             'Function is not part of a plugin class: command %s from plugin %s' % \
                   (command_name, called_from), secondary=called_from)
@@ -893,7 +903,7 @@ class Plugin(BasePlugin):
     except argp.ArgumentError:
       pass
 
-    new_parser.prog = '@B%s.%s.%s@w' % (self.api('setting:gets')('cmdprefix'),
+    new_parser.prog = '@B%s.%s.%s@w' % (self.api('setting:get')('cmdprefix'),
                                         plugin_id, command_name)
 
     # if no group, add the group as the plugin_name
@@ -1039,7 +1049,7 @@ class Plugin(BasePlugin):
       message.append('Plugins')
       plugin_id_list = self.api('get:loaded:plugins:list')()
       plugin_id_list.sort()
-      message.append(self.api('core.utils:listtocolumns')(plugin_id_list, cols=3, columnwise=False, gap=6))
+      message.append(self.api('core.utils:format:list:into:columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
     return True, message
 
   def command_runhistory(self, args):
@@ -1053,7 +1063,7 @@ class Plugin(BasePlugin):
     if len(self.command_history_data) < abs(args['number']):
       return True, ['# is outside of history length']
 
-    if len(self.command_history_data) >= self.api('setting:gets')('historysize'):
+    if len(self.command_history_data) >= self.api('setting:get')('historysize'):
       command = self.command_history_data[args['number'] - 1]
     else:
       command = self.command_history_data[args['number']]

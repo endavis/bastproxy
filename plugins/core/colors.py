@@ -215,24 +215,15 @@ class Plugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('api:add')('iscolor', self._api_is_color)
-    self.api('api:add')('convertcolors', self._api_convert_colors)
-    self.api('api:add')('convertansi', self._api_convert_ansi)
-    self.api('api:add')('ansicode', self._api_ansicode)
-    self.api('api:add')('stripansi', self._api_strip_ansi)
-    self.api('api:add')('stripcolor', self._api_strip_color)
-    self.api('api:add')('lengthdiff', self._api_length_difference)
-    self.api('api:add')('colortohtml', self._api_colorcodes_to_html)
-
     # convert to easier to read api
-    self.api('api:add')('is:color', self._api_is_color)
-    self.api('api:add')('convert:colors', self._api_convert_colors)
-    self.api('api:add')('convert:ansi', self._api_convert_ansi)
-    self.api('api:add')('get:ansicode', self._api_ansicode)
-    self.api('api:add')('strip:ansi', self._api_strip_ansi)
-    self.api('api:add')('strip:color', self._api_strip_color)
-    self.api('api:add')('length:difference', self._api_length_difference)
-    self.api('api:add')('colorcodes:to:html', self._api_colorcodes_to_html)
+    self.api('api:add')('colorcode:is:valid', self._api_is_color)
+    self.api('api:add')('colorcode:to:ansicode', self._api_convert_colors)
+    self.api('api:add')('colorcode:to:html', self._api_colorcodes_to_html)
+    self.api('api:add')('colorcode:strip', self._api_strip_color)
+    self.api('api:add')('ansicode:to:colorcode', self._api_convert_ansi)
+    self.api('api:add')('ansicode:to:string', self._api_ansicode)
+    self.api('api:add')('ansicode:strip', self._api_strip_ansi)
+    self.api('api:add')('color:length:difference', self._api_length_difference)
 
     self.dependencies = ['core.commands']
 
@@ -244,14 +235,14 @@ class Plugin(BasePlugin):
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show colors')
-    self.api('core.commands:add')('show',
-                                  self.cmd_show,
-                                  parser=parser)
+    self.api('core.commands:command:add')('show',
+                                          self.cmd_show,
+                                          parser=parser)
     parser = argp.ArgumentParser(add_help=False,
                                  description='show color examples')
-    self.api('core.commands:add')('example',
-                                  self.cmd_example,
-                                  parser=parser)
+    self.api('core.commands:command:add')('example',
+                                          self.cmd_example,
+                                          parser=parser)
 
   # convert color codes to html
   def _api_colorcodes_to_html(self, sinput):
@@ -322,7 +313,7 @@ class Plugin(BasePlugin):
     """
     get the length difference of a colored string and its noncolor equivalent
     """
-    lennocolor = len(self.api('core.colors:strip:color')(colorstring))
+    lennocolor = len(self.api('%s:colorcode:strip' % self.plugin_id)(colorstring))
     lencolor = len(colorstring)
     return lencolor - lennocolor
 

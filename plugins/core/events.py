@@ -158,7 +158,7 @@ class EventContainer(object):
     message = []
     message.append('%-13s : %s' % ('Event', self.name))
     message.append('%-13s : %s' % ('Raised', self.raised_count))
-    message.append('@B' + self.api('core.utils:center')('Registrations', '-', 60))
+    message.append('core.utils:center:colored:string')('Registrations', '-', 60)
     message.append('%-13s : %-15s - %-s' % ('priority',
                                             'plugin',
                                             'function name'))
@@ -225,14 +225,7 @@ class Plugin(BasePlugin):
 
     self.events = {}
 
-    self.api('api:add')('register', self._api_register_to_event)
-    self.api('api:add')('unregister', self._api_unregister_from_event)
-    self.api('api:add')('eraise', self._api_raise_event)
-    self.api('api:add')('isregistered', self._api_is_registered_to_event)
-    self.api('api:add')('removeplugin', self._api_remove_events_from_plugin)
-    self.api('api:add')('gete', self._api_get_event)
-    self.api('api:add')('detail', self._api_get_event_detail)
-
+    # new api that's easier to read
     self.api('api:add')('register:to:event', self._api_register_to_event)
     self.api('api:add')('unregister:from:event', self._api_unregister_from_event)
     self.api('api:add')('raise:event', self._api_raise_event)
@@ -257,9 +250,9 @@ class Plugin(BasePlugin):
                         help='the event name to get details for',
                         default=[],
                         nargs='*')
-    self.api('core.commands:add')('detail',
-                                  self._command_detail,
-                                  parser=parser)
+    self.api('core.commands:command:add')('detail',
+                                          self._command_detail,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list events and the ' \
@@ -268,9 +261,9 @@ class Plugin(BasePlugin):
                         help='list only events that have this argument in their name',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('list',
-                                  self._command_list,
-                                  parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self._command_list,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='raise an event')
@@ -278,11 +271,12 @@ class Plugin(BasePlugin):
                         help='the event to raise',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('raise',
-                                  self._command_raise,
-                                  parser=parser)
+    self.api('core.commands:command:add')('raise',
+                                          self._command_raise,
+                                          parser=parser)
 
-    self.api('core.events:register:to:event')('plugin_uninitialized', self.pluginuninitialized, priority=10)
+    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized',
+                                              self.pluginuninitialized, priority=10)
 
   def pluginuninitialized(self, args):
     """
@@ -290,7 +284,7 @@ class Plugin(BasePlugin):
     """
     self.api('send:msg')('removing events for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s:remove:events:for:plugin' % self.short_name)(args['name'])
+    self.api('%s:remove:events:for:plugin' % self.plugin_id)(args['name'])
 
   # return the event, will have registered functions
   def _api_get_event(self, event_name):
@@ -334,7 +328,7 @@ class Plugin(BasePlugin):
     try:
       func_plugin_id = func.im_self.plugin_id
     except AttributeError:
-      func_plugin_id = self.api('api:get:caller:plugin')(ignore_plugin_list=['events'])
+      func_plugin_id = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     if not func_plugin_id and 'plugin' in kwargs:
       func_plugin_id = kwargs['plugin_id']
 
@@ -381,7 +375,7 @@ class Plugin(BasePlugin):
       args = {}
 
     if not calledfrom:
-      calledfrom = self.api('api:get:caller:plugin')(ignore_plugin_list=['events'])
+      calledfrom = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
 
     if not calledfrom:
       print('event %s raised with unknown caller' % event_name)
@@ -464,8 +458,8 @@ class Plugin(BasePlugin):
     """
     initialize the event log types
     """
-    self.api('log:adddtype')(self.short_name)
-    #self.api('log:console')(self.short_name)
+    self.api('core.log:add:datatype')(self.plugin_id)
+    #self.api('core.log:toggle:to:console')(self.plugin_id)
 
   def summarystats(self, args=None):
     # pylint: disable=unused-argument

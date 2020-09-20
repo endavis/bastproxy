@@ -41,7 +41,7 @@ class Plugin(BasePlugin):
     self.saveactionsfile = os.path.join(self.save_directory, 'actions.txt')
     self.actions = PersistentDict(self.saveactionsfile, 'c')
 
-    self.api('dependency.add')('core.triggers')
+    self.api('dependency:add')('core.triggers')
 
   def initialize(self):
     """
@@ -49,7 +49,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('setting.add')('nextnum', 0, int,
+    self.api('setting:add')('nextnum', 0, int,
                             'the number of the next action added',
                             readonly=True)
 
@@ -67,7 +67,7 @@ class Plugin(BasePlugin):
                         help='where to send the action',
                         default='execute',
                         nargs='?',
-                        choices=self.api('api.getchildren')('send'))
+                        choices=self.api('api:get:children')('send'))
     parser.add_argument('-c',
                         "--color",
                         help="match colors (@@colors)",
@@ -84,9 +84,9 @@ class Plugin(BasePlugin):
                         "--overwrite",
                         help="overwrite an action if it already exists",
                         action="store_true")
-    self.api('commands.add')('add',
-                             self.cmd_add,
-                             parser=parser)
+    self.api('core.commands:command:add')('add',
+                                          self.cmd_add,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list actions')
@@ -94,9 +94,9 @@ class Plugin(BasePlugin):
                         help='list only actions that have this argument in them',
                         default='',
                         nargs='?')
-    self.api('commands.add')('list',
-                             self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self.cmd_list,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='remove an action')
@@ -104,9 +104,9 @@ class Plugin(BasePlugin):
                         help='the action to remove',
                         default='',
                         nargs='?')
-    self.api('commands.add')('remove',
-                             self.cmd_remove,
-                             parser=parser)
+    self.api('core.commands:command:add')('remove',
+                                          self.cmd_remove,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='toggle enabled flag')
@@ -124,9 +124,9 @@ class Plugin(BasePlugin):
     action.add_argument('-e', '--enable', action='store_const',
                         dest='togact', const='enable',
                         help='enable the action')
-    self.api('commands.add')('toggle',
-                             self.cmd_toggle,
-                             parser=parser)
+    self.api('core.commands:command:add')('toggle',
+                                          self.cmd_toggle,
+                                          parser=parser)
 
 
     parser = argp.ArgumentParser(add_help=False,
@@ -135,9 +135,9 @@ class Plugin(BasePlugin):
                         help='the action to get details for',
                         default='',
                         nargs='?')
-    self.api('commands.add')('detail',
-                             self.cmd_detail,
-                             parser=parser)
+    self.api('core.commands:command:add')('detail',
+                                          self.cmd_detail,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='toggle all actions in a group')
@@ -155,14 +155,14 @@ class Plugin(BasePlugin):
     action.add_argument('-e', '--enable', action='store_const',
                         dest='togact', const='enable',
                         help='enable the action')
-    self.api('commands.add')('groupt',
-                             self.cmd_grouptoggle,
-                             parser=parser)
+    self.api('core.commands:command:add')('groupt',
+                                          self.cmd_grouptoggle,
+                                          parser=parser)
 
     for action in self.actions.values():
       self.register_action(action)
 
-    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
+    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def register_action(self, action):
     """
@@ -170,18 +170,18 @@ class Plugin(BasePlugin):
     """
     if 'triggername' not in action:
       action['triggername'] = "action_%s" % action['num']
-    self.api('triggers.add')(action['triggername'],
-                             action['regex'])
-    self.api('events.register')('trigger_%s' % action['triggername'],
-                                self.action_matched)
+    self.api('core.triggers:trigger:add')(action['triggername'],
+                                          action['regex'])
+    self.api('core.events:register:to:event')('trigger_%s' % action['triggername'],
+                                              self.action_matched)
 
   def unregister_action(self, action):
     """
     unregister an action
     """
-    self.api('events.unregister')('trigger_%s' % action['triggername'],
-                                  self.action_matched)
-    self.api('triggers.remove')(action['triggername'])
+    self.api('core.events:unregister:from:event')('trigger_%s' % action['triggername'],
+                                                  self.action_matched)
+    self.api('core.triggers:trigger:remove')(action['triggername'])
 
   def action_matched(self, args):
     """
@@ -195,15 +195,15 @@ class Plugin(BasePlugin):
         self.sessionhits[akey] = 0
       self.sessionhits[akey] = self.sessionhits[akey] + 1
       action['hits'] = action['hits'] + 1
-      self.api('send.msg')('matched line: %s to action %s' % (args['line'],
+      self.api('send:msg')('matched line: %s to action %s' % (args['line'],
                                                               akey))
       templ = Template(action['action'])
       newaction = templ.safe_substitute(args)
-      sendtype = 'send.' + action['send']
-      self.api('send.msg')('sent %s to %s' % (newaction, sendtype))
+      sendtype = 'send:' + action['send']
+      self.api('send:msg')('sent %s to %s' % (newaction, sendtype))
       self.api(sendtype)(newaction)
     else:
-      self.api('send.error')("Bug: could not find action for trigger %s" % \
+      self.api('send:error')("Bug: could not find action for trigger %s" % \
                               args['triggername'])
 
   def lookup_action(self, action):
@@ -242,8 +242,8 @@ class Plugin(BasePlugin):
       if args['regex'] in self.actions:
         num = self.actions[args['regex']]['num']
       else:
-        num = self.api('setting.gets')('nextnum')
-        self.api('setting.change')('nextnum', num + 1)
+        num = self.api('setting:get')('nextnum')
+        self.api('setting:change')('nextnum', num + 1)
 
       self.actions[args['regex']] = {
           'num':num,
@@ -392,10 +392,10 @@ class Plugin(BasePlugin):
     for action in sorted(self.actions.keys()):
       item = self.actions[action]
       if not match or match in item:
-        regex = self.api('colors.stripansi')(item['regex'])
+        regex = self.api('core.colors:ansicode:strip')(item['regex'])
         if len(regex) > 30:
           regex = regex[:27] + '...'
-        action = self.api('colors.stripansi')(item['action'])
+        action = self.api('core.colors:ansicode:strip')(item['action'])
         if len(action) > 30:
           action = action[:27] + '...'
         tmsg.append("%4s %2s  %-10s %-32s : %s@w" % \

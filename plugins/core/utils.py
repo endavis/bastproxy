@@ -33,15 +33,16 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('api.add')('timedeltatostring', self.api_timedeltatostring)
-    self.api('api.add')('readablenumber', self.api_readablenumber)
-    self.api('api.add')('secondstodhms', self.api_secondstodhms)
-    self.api('api.add')('formattime', self.api_formattime)
-    self.api('api.add')('center', self.api_center)
-    self.api('api.add')('checklistformatch', self.api_checklistformatch)
-    self.api('api.add')('timelengthtosecs', self.api_timelengthtosecs)
-    self.api('api.add')('verify', self.api_verify)
-    self.api('api.add')('listtocolumns', self.listtocolumns)
+    # new api format
+    self.api('api:add')('convert:timedelta:to:string', self._api_convert_timedelta_to_string)
+    self.api('api:add')('convert:to:readable:number', self._api_convert_to_readable_number)
+    self.api('api:add')('convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
+    self.api('api:add')('format:time', self._api_format_time)
+    self.api('api:add')('center:colored:string', self._api_center_colored_string)
+    self.api('api:add')('check:list:for:match', self._api_check_list_for_match)
+    self.api('api:add')('convert:timelength:to:secs', self._api_convert_timelength_to_secs)
+    self.api('api:add')('verify:value', self._api_verify_value)
+    self.api('api:add')('format:list:into:columns', self._api_format_list_into_columns)
 
     self.dependencies = ['core.colors']
 
@@ -51,8 +52,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-  @staticmethod
-  def listtocolumns(obj, cols=4, columnwise=True, gap=4):
+  def _api_format_list_into_columns(self, obj, cols=4, columnwise=True, gap=4):
     """
     Print the given list in evenly-spaced columns.
 
@@ -71,176 +71,175 @@ class Plugin(BasePlugin):
         between columns based on the maximum len() of the list items.
     """
 
-    sobj = [str(item) for item in obj]
-    if cols > len(sobj):
-      cols = len(sobj)
-    max_len = max([len(item) for item in sobj])
+    list_of_strings = [str(item) for item in obj]
+    if cols > len(list_of_strings):
+      number_of_columns = len(list_of_strings)
+    else:
+      number_of_columns = cols
+    max_len = max([len(item) for item in list_of_strings])
     if columnwise:
-      cols = int(math.ceil(float(len(sobj)) / float(cols)))
-    plist = [sobj[i: i+cols] for i in range(0, len(sobj), cols)]
+      number_of_columns = int(math.ceil(float(len(list_of_strings)) / float(number_of_columns)))
+    plist = [list_of_strings[i: i+number_of_columns] for i in range(0, len(list_of_strings), number_of_columns)]
     if columnwise:
-      if not len(plist[-1]) == cols:
-        plist[-1].extend(['']*(len(sobj) - len(plist[-1])))
+      if not len(plist[-1]) == number_of_columns:
+        plist[-1].extend(['']*(len(list_of_strings) - len(plist[-1])))
       plist = zip(*plist)
     printer = '\n'.join(
         [''.join([c.ljust(max_len + gap) for c in p]) for p in plist])
     return printer
 
   # return the difference of two times
-  def api_timedeltatostring(self, stime, etime, fmin=False, colorn='',
-                            colors='', nosec=False):
-    # pylint: disable=no-self-use,too-many-arguments
+  def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
+                                       colors='', nosec=False):
     """
     take two times and return a string of the difference
     in the form ##d:##h:##m:##s
     """
-    if isinstance(stime, time.struct_time):
-      stime = time.mktime(stime)
-    if isinstance(etime, time.struct_time):
-      etime = time.mktime(etime)
-    delay = datetime.timedelta(seconds=abs(etime - stime))
-    if delay.days > 0:
-      tstr = str(delay)
-      tstr = tstr.replace(" day, ", ":")
-      out = tstr.replace(" days, ", ":")
+    # convert start_time to seconds
+    if isinstance(start_time, time.struct_time):
+      start_time = time.mktime(start_time)
+    # convert end_time to seconds
+    if isinstance(end_time, time.struct_time):
+      end_time = time.mktime(end_time)
+    delta = datetime.timedelta(seconds=abs(end_time - start_time))
+    if delta.days > 0:
+      temp_string = str(delta)
+      temp_string = temp_string.replace(" day, ", ":")
+      out = temp_string.replace(" days, ", ":")
     else:
-      out = "0:" + str(delay)
+      out = "0:" + str(delta)
     outar = out.split(':')
     outar = [(int(float(x))) for x in outar]
-    tmsg = []
+    message = []
     days, hours = False, False
     if outar[0] != 0:
       days = True
-      tmsg.append('%s%02d%sd' % (colorn, outar[0], colors))
+      message.append('%s%02d%sd' % (colorn, outar[0], colors))
     if outar[1] != 0 or days:
       hours = True
-      tmsg.append('%s%02d%sh' % (colorn, outar[1], colors))
+      message.append('%s%02d%sh' % (colorn, outar[1], colors))
     if outar[2] != 0 or days or hours or fmin:
-      tmsg.append('%s%02d%sm' % (colorn, outar[2], colors))
+      message.append('%s%02d%sm' % (colorn, outar[2], colors))
     if not nosec:
-      tmsg.append('%s%02d%ss' % (colorn, outar[3], colors))
+      message.append('%s%02d%ss' % (colorn, outar[3], colors))
 
-    out = ":".join(tmsg)
+    out = ":".join(message)
     return out
 
   # convert a number to a shorter readable number
-  def api_readablenumber(self, num, places=2):
-    # pylint: disable=no-self-use
+  def _api_convert_to_readable_number(self, num, places=2):
     """
     convert a number to a shorter readable number
     """
-    ret = ''
+    converted_string = ''
     nform = "%%00.0%sf" % places
     if not num:
       return 0
     elif num >= 1000000000000:
-      ret = nform % (num / 1000000000000.0) + " T" # trillion
+      converted_string = nform % (num / 1000000000000.0) + " T" # trillion
     elif num >= 1000000000:
-      ret = nform % (num / 1000000000.0) + " B" # billion
+      converted_string = nform % (num / 1000000000.0) + " B" # billion
     elif num >= 1000000:
-      ret = nform % (num / 1000000.0) + " M" # million
+      converted_string = nform % (num / 1000000.0) + " M" # million
     elif num >= 1000:
-      ret = nform % (num / 1000.0) + " K" # thousand
+      converted_string = nform % (num / 1000.0) + " K" # thousand
     else:
-      ret = num # hundreds
-    return ret
+      converted_string = num # hundreds
+    return converted_string
 
   # convert seconds to years, days, hours, mins, secs
-  def api_secondstodhms(self, sseconds):
-    # pylint: disable=no-self-use
+  def _api_convert_seconds_to_dhms(self, seconds):
     """
     convert seconds to years, days, hours, mins, secs
     """
-    nseconds = int(sseconds)
-    dtime = {
+    seconds = int(seconds)
+    converted_time = {
         'years' : 0,
         'days' : 0,
         'hours' : 0,
         'mins': 0,
         'secs': 0
         }
-    if nseconds == 0:
-      return dtime
+    if seconds == 0:
+      return converted_time
 
-    dtime['years'] = int(math.floor(nseconds/(3600 * 24 * 365)))
-    nseconds = nseconds - (dtime['years'] * 3600 * 24 * 365)
-    dtime['days'] = int(math.floor(nseconds/(3600 * 24)))
-    nseconds = nseconds - (dtime['days'] * 3600 * 24)
-    dtime['hours'] = int(math.floor(nseconds/3600))
-    nseconds = nseconds - (dtime['hours'] * 3600)
-    dtime['mins'] = int(math.floor(nseconds/60))
-    nseconds = nseconds - (dtime['mins'] * 60)
-    dtime['secs'] = int(nseconds % 60)
-    return dtime
+    converted_time['years'] = int(math.floor(seconds/(3600 * 24 * 365)))
+    seconds = seconds - (converted_time['years'] * 3600 * 24 * 365)
+    converted_time['days'] = int(math.floor(seconds/(3600 * 24)))
+    seconds = seconds - (converted_time['days'] * 3600 * 24)
+    converted_time['hours'] = int(math.floor(seconds/3600))
+    seconds = seconds - (converted_time['hours'] * 3600)
+    converted_time['mins'] = int(math.floor(seconds/60))
+    seconds = seconds - (converted_time['mins'] * 60)
+    converted_time['secs'] = int(seconds % 60)
+    return converted_time
 
   # format a length of time into a string
-  def api_formattime(self, length, nosec=False):
+  def _api_format_time(self, length, nosec=False):
     """
     format a length of time into a string
     """
-    msg = []
-    dtime = self.api('utils.secondstodhms')(length)
+    message = []
+    converted_time = self.api('core.utils:convert:seconds:to:dhms')(length)
     years = False
     days = False
     hours = False
     mins = False
-    if dtime['years'] > 0:
+    if converted_time['years'] > 0:
       years = True
-      msg.append('%dy' % (dtime['years'] or 0))
-    if dtime['days'] > 0:
+      message.append('%dy' % (converted_time['years'] or 0))
+    if converted_time['days'] > 0:
       if years:
-        msg.append(':')
+        message.append(':')
       days = True
-      msg.append('%02dd' % (dtime['days'] or 0))
-    if dtime['hours']:
+      message.append('%02dd' % (converted_time['days'] or 0))
+    if converted_time['hours']:
       if years or days:
-        msg.append(':')
+        message.append(':')
       hours = True
-      msg.append('%02dh' % (dtime['hours'] or 0))
-    if dtime['mins'] > 0:
+      message.append('%02dh' % (converted_time['hours'] or 0))
+    if converted_time['mins'] > 0:
       if years or days or hours:
-        msg.append(':')
+        message.append(':')
       mins = True
-      msg.append('%02dm' % (dtime['mins'] or 0))
-    if (dtime['secs'] > 0 or not msg) and not nosec:
+      message.append('%02dm' % (converted_time['mins'] or 0))
+    if (converted_time['secs'] > 0 or not message) and not nosec:
       if years or days or hours or mins:
-        msg.append(':')
-      msg.append('%02ds' % (dtime['secs'] or 0))
+        message.append(':')
+      message.append('%02ds' % (converted_time['secs'] or 0))
 
-    return ''.join(msg)
+    return ''.join(message)
 
   # verify a value to be a boolean
-  def verify_bool(self, val):
-    # pylint: disable=no-self-use
+  def verify_bool(self, value):
     """
     convert a value to a bool, also converts some string and numbers
     """
-    if val == 0 or val == '0':
+    if value == 0 or value == '0':
       return False
-    elif val == 1 or val == '1':
+    elif value == 1 or value == '1':
       return True
-    elif isinstance(val, basestring):
-      val = val.lower()
-      if val == 'false' or val == 'no':
+    elif isinstance(value, basestring):
+      value = value.lower()
+      if value == 'false' or value == 'no':
         return False
-      elif val == 'true' or val == 'yes':
+      elif value == 'true' or value == 'yes':
         return True
 
-    return bool(val)
+    return bool(value)
 
   # verify a value to contain an @ color
-  def verify_color(self, val):
+  def verify_color(self, value):
     """
     verify an @ color
     """
-    if self.api('colors.iscolor')(val):
-      return val
+    if self.api('core.colors:colorcode:is:valid')(value):
+      return value
 
     raise ValueError
 
   # verify a time to be military
   def verify_miltime(self, mtime):
-    # pylint: disable=no-self-use
     """
     verify a time like 0830 or 1850
     """
@@ -261,7 +260,7 @@ class Plugin(BasePlugin):
     try:
       ttime = int(usertime)
     except ValueError:
-      ttime = self.api('utils.timelengthtosecs')(usertime)
+      ttime = self.api('core.utils:convert:timelength:to:secs')(usertime)
 
     if ttime != 0 and not ttime:
       raise ValueError
@@ -269,7 +268,7 @@ class Plugin(BasePlugin):
     return ttime
 
   # verify different types
-  def api_verify(self, val, vtype):
+  def _api_verify_value(self, value, vtype):
     """
     verify values
     """
@@ -280,97 +279,97 @@ class Plugin(BasePlugin):
     vtab['timelength'] = self.verify_timelength
 
     if vtype in vtab:
-      return vtab[vtype](val)
+      return vtab[vtype](value)
 
-    return vtype(val)
+    return vtype(value)
 
   # center a string with color codes
-  def api_center(self, tstr, fillerc, length):
+  def _api_center_colored_string(self, string_to_center, filler_character, length):
     """
     center a string with color codes
     """
-    convertcolors = self.api('colors.convertcolors')(tstr)
-    nocolor = self.api('colors.stripansi')(convertcolors)
+    converted_colors_string = self.api('core.colors:colorcode:to:ansicode')(string_to_center)
+    noncolored_string = self.api('core.colors:ansicode:strip')(converted_colors_string)
 
-    tlen = len(nocolor) + 4
-    tdiff = length - tlen
+    noncolored_string_length = len(noncolored_string) + 4
+    length_difference = length - noncolored_string_length
 
-    thalf = tdiff / 2
-    tstr = "{filler}  {lstring}  {filler}".format(
-        filler=fillerc * thalf,
-        lstring=tstr)
+    half_length = length_difference / 2
+    new_str = "{filler}  {lstring}  {filler}".format(
+        filler=filler_character * half_length,
+        lstring=string_to_center)
 
-    newl = (thalf * 2) + tlen
+    new_length = (half_length * 2) + noncolored_string_length
 
-    if newl < length:
-      tstr = tstr + '-' * (length - newl)
+    if new_length < length:
+      new_str = new_str + '-' * (length - new_length)
 
-    return tstr
+    return new_str
 
   # check a list for a match
-  def api_checklistformatch(self, arg, tlist):
-    # pylint: disable=no-self-use
+  def _api_check_list_for_match(self, arg, tlist):
     """
     check a list for a match of arg
     """
-    sarg = str(arg)
-    tdict = {}
-    match = sarg + '*'
-    tdict['part'] = []
-    tdict['front'] = []
+    string_to_match = str(arg)
+    matches = {}
+    match = string_to_match + '*'
+    matches['partofstring'] = []
+    matches['frontofstring'] = []
 
-    if arg in tlist or sarg in tlist:
+    if arg in tlist or string_to_match in tlist:
       return [arg]
 
     for i in tlist:
       if fnmatch.fnmatch(i, match):
-        tdict['front'].append(i)
-      elif isinstance(i, basestring) and sarg in i:
-        tdict['part'].append(i)
+        matches['frontofstring'].append(i)
+      elif isinstance(i, basestring) and string_to_match in i:
+        matches['partofstring'].append(i)
 
-    if tdict['front']:
-      return tdict['front']
+    if matches['front']:
+      return matches['front']
 
-    return tdict['part']
+    return matches['part']
 
   # convert a time length to seconds
-  def api_timelengthtosecs(self, timel):
-    # pylint: disable=no-self-use
+  def _api_convert_timelength_to_secs(self, timel):
     """
     converts a time length to seconds
 
     Format is 1d:2h:30m:40s, any part can be missing
     """
-    tmatch = TIMELENGTH_REGEXP.match(timel)
+    timelength_match = TIMELENGTH_REGEXP.match(timel)
 
-    if not tmatch:
+    if not timelength_match:
       return None
 
-    timem = tmatch.groupdict()
+    timelength_match_groups = timelength_match.groupdict()
 
-    if not timem["days"] and not timem["hours"] and not timem["minutes"] \
-            and not timem["seconds"]:
+    if not timelength_match_groups["days"] \
+         and not timelength_match_groups["hours"] \
+         and not timelength_match_groups["minutes"] \
+         and not timelength_match_groups["seconds"]:
       return None
 
-    days = timem["days"]
+    days = timelength_match_groups["days"]
     if not days:
       days = 0
     elif days.endswith("d"):
       days = float(days[:-1])
 
-    hours = timem["hours"]
+    hours = timelength_match_groups["hours"]
     if not hours:
       hours = 0
     elif hours.endswith("h"):
       hours = float(hours[:-1])
 
-    minutes = timem["minutes"]
+    minutes = timelength_match_groups["minutes"]
     if not minutes:
       minutes = 0
     elif minutes.endswith("m"):
       minutes = float(minutes[:-1])
 
-    seconds = timem["seconds"]
+    seconds = timelength_match_groups["seconds"]
     if not seconds:
       seconds = 0
     elif seconds.endswith("s"):

@@ -25,9 +25,14 @@ class Plugin(BasePlugin):
 
     self.errors = []
 
-    self.api('api.add')('add', self.api_adderror)
-    self.api('api.add')('gete', self.api_geterrors)
-    self.api('api.add')('clear', self.api_clearerrors)
+    self.api('api:add')('add', self._api_add_error)
+    self.api('api:add')('gete', self._api_get_errors)
+    self.api('api:add')('clear', self._api_clear_all_errors)
+
+    # new api format
+    self.api('api:add')('add:error', self._api_add_error)
+    self.api('api:add')('get:errors', self._api_get_errors)
+    self.api('api:add')('clear:all:errors', self._api_clear_all_errors)
 
     self.dependencies = []
 
@@ -43,24 +48,24 @@ class Plugin(BasePlugin):
                         help='list the last <number> errors',
                         default='-1',
                         nargs='?')
-    self.api('commands.add')('show',
-                             self.cmd_show,
-                             parser=parser)
+    self.api('core.commands:command:add')('show',
+                                          self.cmd_show,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='clear errors')
-    self.api('commands.add')('clear',
-                             self.cmd_clear,
-                             parser=parser)
+    self.api('core.commands:command:add')('clear',
+                                          self.cmd_clear,
+                                          parser=parser)
 
-    self.api('events.register')('proxy_ready', self.proxy_ready)
+    self.api('core.events:register:to:event')('proxy_ready', self.proxy_ready)
 
   # show all errors that happened during startup
   def proxy_ready(self, _=None):
     """
     show all errors that happened during startup
     """
-    errors = self.api('errors.gete')()
+    errors = self.api('core.errors:get:errors')()
 
     msg = ['The following errors happened during startup:']
     if errors:
@@ -69,11 +74,11 @@ class Plugin(BasePlugin):
         msg.append('Time: %s' % i['timestamp'])
         msg.append('Error: %s' % i['msg'])
 
-      self.api('send.error')('\n'.join(msg))
+      self.api('send:error')('\n'.join(msg))
 
 
   # add an error to the list
-  def api_adderror(self, timestamp, error):
+  def _api_add_error(self, timestamp, error):
     """add an error
 
     this function adds an error to the list
@@ -82,7 +87,7 @@ class Plugin(BasePlugin):
                         'msg':error})
 
   # get the errors that have been seen
-  def api_geterrors(self):
+  def _api_get_errors(self):
     """ get errors
 
     this function has no arguments
@@ -92,7 +97,7 @@ class Plugin(BasePlugin):
     return self.errors
 
   # clear errors
-  def api_clearerrors(self):
+  def _api_clear_all_errors(self):
     """ clear errors
 
     this function has no arguments
@@ -114,7 +119,7 @@ class Plugin(BasePlugin):
       msg.append('Please specify a number')
       return False, msg
 
-    errors = self.api('errors.gete')()
+    errors = self.api('core.errors:get:errors')()
 
     if not errors:
       msg.append('There are no errors')

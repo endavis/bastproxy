@@ -22,17 +22,17 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     initialize the instance
     The only things that should be done are:
           initializing class variables and initializing the class
-          only use api.add, api.overload, dependency.add
+          only use api:add, api:overload, dependency:add
           anything that needs to be done so another plugin can interact with this plugin
 
     Arguments and examples:
       name : 'Actions' - from plugin file variable NAME (long name)
-      short_name : 'actions' - from plugin file variable SNAME (short name)
+      short_name : 'actions' - file name without extension - not guaranteed to be unique
       plugin_path : '/client/actions.py' - path relative to the plugins directory
       base_plugin_dir : '/home/src/games/bastproxy/bp/plugins' - the full path to the
                                                                   plugins directory
       full_import_location : 'plugins.client.actions' - import location
-      plugin_id : 'client.actions'
+      plugin_id : 'client.actions' - guaranteed to be unique
     """
     self.author = ''
     self.purpose = ''
@@ -42,6 +42,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.short_name = short_name
     self.plugin_path = plugin_path
     self.base_plugin_dir = base_plugin_dir
+    self.full_plugin_path = os.path.join(base_plugin_dir, plugin_path)
     self.full_import_location = full_import_location
     self.plugin_id = plugin_id
     self.dependencies = ['core.commands', 'core.errors', 'core.log', 'core.utils',
@@ -56,13 +57,19 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.first_active_priority = None
     self.loaded_time = time.time()
     self.save_directory = os.path.join(self.api.BASEPATH, 'data',
-                                       'plugins', self.short_name)
+                                       'plugins', self.plugin_id)
+
+    old_save_directory = os.path.join(self.api.BASEPATH, 'data',
+                                      'plugins', self.short_name or 'dfsdsfd')
+    if os.path.exists(old_save_directory):
+      os.rename(old_save_directory, self.save_directory)
+
     try:
       os.makedirs(self.save_directory)
     except OSError:
       pass
-    self.settings_file = os.path.join(self.api.BASEPATH, 'data',
-                                      'plugins', self.short_name, 'settingvalues.txt')
+
+    self.settings_file = os.path.join(self.save_directory, 'settingvalues.txt')
 
     self.plugin_directory = os.path.normpath(self.base_plugin_dir + \
           os.sep + os.path.dirname(self.plugin_path))
@@ -85,13 +92,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     # added as a toplevel API based on first argument and are overloaded since this
     # is a class that is used as a base
-    self.api('api.add')('dependency', 'add', self._api_dependency_add, overload=True)
-    self.api('api.add')('setting', 'add', self._api_setting_add, overload=True)
-    self.api('api.add')('setting', 'gets', self._api_setting_gets, overload=True)
-    self.api('api.add')('setting', 'change', self._api_setting_change, overload=True)
-    self.api('api.add')('data', 'get', self._api_get_data, overload=True)
-    self.api('api.add')('data', 'update', self._api_update_data, overload=True)
-    self.api('api.add')('api', 'add', self._api_add, overload=True, force=True)
+    self.api('api:add')('dependency', 'add', self._api_dependency_add, overload=True)
+    self.api('api:add')('setting', 'add', self._api_setting_add, overload=True)
+    self.api('api:add')('setting', 'get', self._api_setting_gets, overload=True)
+    self.api('api:add')('setting', 'change', self._api_setting_change, overload=True)
+    self.api('api:add')('data', 'get', self._api_get_data, overload=True)
+    self.api('api:add')('data', 'update', self._api_update_data, overload=True)
+    self.api('api:add')('api', 'add', self._api_add, overload=True, force=True)
     # anything added after this will have the plugin name as the toplevel api
 
   # add a function to the api
@@ -101,7 +108,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     @Yfunc@w = the function tied to the api
     """
     # we call the non overloaded versions
-    self.api.add(self.short_name, name, func, overload, force)
     self.api.add(self.plugin_id, name, func, overload, force)
 
   # get the value of a setting
@@ -114,9 +120,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       the value of the setting, None if not found"""
     if not plugin:
       try:
-        if self.api('api:has')('core.utils:verify'):
-          return self.api('core.utils:verify')(self.setting_values[setting],
-                                               self.settings[setting]['stype'])
+        if self.api('api:has')('core.utils:verify:value'):
+          return self.api('core.utils:verify:value')(self.setting_values[setting],
+                                                     self.settings[setting]['stype'])
 
         return self.setting_values[setting]
 
@@ -126,7 +132,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     else:
       plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
       if plugin_instance:
-        return plugin_instance.api('setting:gets')(setting)
+        return plugin_instance.api('setting:get')(setting)
 
     return None
 
@@ -187,7 +193,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       value = self.settings[setting]['default']
     if setting in self.settings:
       if self.api('core.plugins:is:plugin:loaded')('utils'):
-        value = self.api('core.utils:verify')(
+        value = self.api('core.utils:verify:value')(
             value,
             self.settings[setting]['stype'])
 
@@ -328,7 +334,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     stats = self.get_stats()
     tmsg = []
     for header in stats:
-      tmsg.append(self.api('core.utils:center')(header, '=', 60))
+      tmsg.append(self.api('core.utils:center:colored:string')(header, '=', 60))
       for subtype in stats[header]['showorder']:
         tmsg.append('%-20s : %s' % (subtype, stats[header][subtype]))
 
@@ -340,10 +346,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     tmsg = []
     if args['api']:
-      tmsg.extend(self.api('api:detail')("%s.%s" % (self.short_name,
+      tmsg.extend(self.api('api:detail')("%s.%s" % (self.plugin_id,
                                                     args['api'])))
     else:
-      api_list = self.api('api:list')(self.short_name)
+      api_list = self.api('api:list')(self.plugin_id)
       if not api_list:
         tmsg.append('nothing in the api')
       else:
@@ -373,15 +379,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           return True, ['%s is a readonly setting' % var]
         else:
           try:
-            self.api('setting.change')(var, val)
+            self.api('setting:change')(var, val)
             tvar = self.setting_values[var]
             if self.settings[var]['nocolor']:
               tvar = tvar.replace('@', '@@')
             elif self.settings[var]['stype'] == 'color':
               tvar = '%s%s@w' % (val, val.replace('@', '@@'))
             elif self.settings[var]['stype'] == 'timelength':
-              tvar = self.api('core.utils:formattime')(
-                  self.api('core.utils:verify')(val, 'timelength'))
+              tvar = self.api('core.utils:format:time')(
+                  self.api('core.utils:verify:value')(val, 'timelength'))
             return True, ['%s is now set to %s' % (var, tvar)]
           except ValueError:
             msg = ['Cannot convert %s to %s' % \
@@ -421,7 +427,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     msg = []
     msg.append('%-25s : %s' % ('Plugin ID', self.plugin_id))
-    msg.append('%-25s : %s' % ('Plugin Command Prefix', self.short_name))
+    msg.append('%-25s : %s' % ('Plugin Command Prefix', self.plugin_id))
     msg.append('%-25s : %s' % ('Purpose', self.purpose))
     msg.append('%-25s : %s' % ('Author', self.author))
     msg.append('%-25s : %s' % ('Version', self.version))
@@ -434,17 +440,17 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     msg.extend(sys.modules[import_location].__doc__.split('\n'))
     if args['commands']:
-      cmd_list = self.api('core.commands:get:plugin:command:format')(self.short_name)
+      cmd_list = self.api('core.commands:get:commands:for:plugin:formatted')(self.plugin_id)
       if cmd_list:
-        msg.extend(self.api('core.commands:get:plugin:command:format')(self.short_name))
+        msg.extend(cmd_list)
         msg.append('@G' + '-' * 60 + '@w')
         msg.append('')
     if args['api']:
-      api_list = self.api('api.list')(self.short_name)
+      api_list = self.api('api:list')(self.plugin_id)
       if api_list:
-        msg.append('API functions in %s' % self.short_name)
+        msg.append('API functions in %s' % self.plugin_id)
         msg.append('@G' + '-' * 60 + '@w')
-        msg.extend(self.api('api.list')(self.short_name))
+        msg.extend(self.api('api:list')(self.plugin_id))
     return True, msg
 
   def _add_commands(self):
@@ -467,33 +473,33 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                         help='the new value of the setting',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('set',
-                                  self._cmd_set,
-                                  parser=parser,
-                                  group='Base',
-                                  showinhistory=False)
+    self.api('core.commands:command:add')('set',
+                                          self._cmd_set,
+                                          parser=parser,
+                                          group='Base',
+                                          showinhistory=False)
 
     if self.can_reset_f:
       parser = argp.ArgumentParser(add_help=False,
                                    description='reset the plugin')
-      self.api('core.commands:add')('reset',
-                                    self._cmd_reset,
-                                    parser=parser,
-                                    group='Base')
+      self.api('core.commands:command:add')('reset',
+                                            self._cmd_reset,
+                                            parser=parser,
+                                            group='Base')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='save the plugin state')
-    self.api('core.commands:add')('save',
-                                  self._cmd_save,
-                                  parser=parser,
-                                  group='Base')
+    self.api('core.commands:command:add')('save',
+                                          self._cmd_save,
+                                          parser=parser,
+                                          group='Base')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show plugin stats')
-    self.api('core.commands:add')('stats',
-                                  self._cmd_stats,
-                                  parser=parser,
-                                  group='Base')
+    self.api('core.commands:command:add')('stats',
+                                          self._cmd_stats,
+                                          parser=parser,
+                                          group='Base')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='inspect a plugin')
@@ -509,10 +515,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                         "--simple",
                         help="show a simple output",
                         action="store_true")
-    self.api('core.commands:add')('inspect',
-                                  self._cmd_inspect,
-                                  parser=parser,
-                                  group='Base')
+    self.api('core.commands:command:add')('inspect',
+                                          self._cmd_inspect,
+                                          parser=parser,
+                                          group='Base')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show help info for this plugin')
@@ -524,10 +530,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                         "--commands",
                         help="show commands in this plugin",
                         action="store_true")
-    self.api('core.commands:add')('help',
-                                  self._cmd_help,
-                                  parser=parser,
-                                  group='Base')
+    self.api('core.commands:command:add')('help',
+                                          self._cmd_help,
+                                          parser=parser,
+                                          group='Base')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list functions in the api')
@@ -535,10 +541,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                         help='api to get details of',
                         default='',
                         nargs='?')
-    self.api('core.commands:add')('api',
-                                  self._cmd_api,
-                                  parser=parser,
-                                  group='Base')
+    self.api('core.commands:command:add')('api',
+                                          self._cmd_api,
+                                          parser=parser,
+                                          group='Base')
 
   def _list_vars(self):
     """
@@ -549,7 +555,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     if not self.setting_values:
       tmsg.append('There are no settings defined')
     else:
-      tform = '%-15s : %-15s - %s'
+      tform = '%-20s : %-15s - %s'
       for i in self.settings:
         val = self.setting_values[i]
         if 'nocolor' in self.settings[i] and self.settings[i]['nocolor']:
@@ -557,8 +563,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         elif self.settings[i]['stype'] == 'color':
           val = '%s%s@w' % (val, val.replace('@', '@@'))
         elif self.settings[i]['stype'] == 'timelength':
-          val = self.api('core.utils:formattime')(
-              self.api('core.utils:verify')(val, 'timelength'))
+          val = self.api('core.utils:format:time')(
+              self.api('core.utils:verify:value')(val, 'timelength'))
         tmsg.append(tform % (i, val, self.settings[i]['help']))
     return tmsg
 
@@ -572,15 +578,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         new_plugin_version - the latest version from the module
     """
     if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
-      for i in range(old_plugin_version + 1, new_plugin_version + 1):
+      for version in range(old_plugin_version + 1, new_plugin_version + 1):
         self.api('send:msg')(
-            '%s: upgrading to version %s' % (self.short_name, i),
+            '%s: upgrading to version %s' % (self.plugin_id, version),
             secondary='upgrade')
-        if i in self.version_functions:
-          self.version_functions[i]()
+        if version in self.version_functions:
+          self.version_functions[version]()
         else:
           self.api('send:msg')(
-              '%s: no function to upgrade to version %s' % (self.short_name, i),
+              '%s: no function to upgrade to version %s' % (self.plugin_id, version),
               secondary='upgrade')
 
     self.setting_values['_version'] = self.version
@@ -600,7 +606,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     # go through each variable and raise var_%s_changed
     self.setting_values.raiseall()
 
-    mud = self.api('managers:getm')('mud')
+    mud = self.api('managers:get')('mud')
 
     if mud and mud.connected:
       if self.api('api:has')('connect:firstactive'):
@@ -650,7 +656,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     uninitialize stuff
     """
     # remove anything out of the api
-    self.api('api:remove')(self.short_name)
     self.api('api:remove')(self.plugin_id)
 
     #save the state
@@ -661,9 +666,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     save all settings for the plugin
     do not overload!
 
-    attach to the plugin_<pluginshortname>_savestate event
+    attach to the <plugin_id>_savestate event
     """
-    self.api('core.events:raise:event')('plugin_%s_savestate' % self.short_name)
     self.api('core.events:raise:event')('{0.plugin_id}_savestate'.format(self))
 
   def is_changed_on_disk(self):
@@ -702,14 +706,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       self._update_version(self.setting_values['_version'], self.version)
 
     if self.plugin_id != 'core.plugins': # don't initialize the plugins plugin
-      self.api('log:adddtype')(self.plugin_id)
+      self.api('core.log:add:datatype')(self.plugin_id)
 
       self._add_commands()
 
-      # self.api('core.events:register:to:event')('plugin_%s_initialized' % self.short_name,
-      #                                           self.__after_initialize)
-      # self.api('core.events:register:to:event')('plugin_%s_savestate' % self.short_name,
-      #                                           self.__save_state)
       self.api('core.events:register:to:event')('{0.plugin_id}_initialized'.format(self),
                                                 self.__after_initialize)
       self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self),

@@ -30,10 +30,11 @@ class Plugin(BasePlugin):
     self.vclients = []
     self.banned = {}
 
-    self.api('api.add')('getall', self.api_getall)
-    self.api('api.add')('addbanned', self.api_addbanned)
-    self.api('api.add')('checkbanned', self.api_checkbanned)
-    self.api('api.add')('numconnected', self.api_numconnected)
+    # new api format
+    self.api('api:add')('clients:get:all', self.api_getall)
+    self.api('api:add')('clients:banned:add', self.api_addbanned)
+    self.api('api:add')('clients:banned:check', self.api_checkbanned)
+    self.api('api:add')('clients:count', self.api_numconnected)
 
   def initialize(self):
     """
@@ -41,17 +42,17 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('commands.add')('show',
-                             self.cmd_show,
-                             shelp='list clients that are connected')
+    self.api('core.commands:command:add')('show',
+                                          self.cmd_show,
+                                          shelp='list clients that are connected')
 
-    self.api('events.register')('proxy_shutdown',
-                                self.shutdown)
+    self.api('core.events:register:to:event')('proxy_shutdown',
+                                              self.shutdown)
 
-    self.api('events.register')('client_connected', self.addclient)
-    self.api('events.register')('client_connected_view', self.addviewclient)
+    self.api('core.events:register:to:event')('client_connected', self.addclient)
+    self.api('core.events:register:to:event')('client_connected_view', self.addviewclient)
 
-    self.api('events.register')('client_disconnected', self.removeclient)
+    self.api('core.events:register:to:event')('client_disconnected', self.removeclient)
 
   def api_numconnected(self):
     """
@@ -124,14 +125,14 @@ class Plugin(BasePlugin):
                                 'Client', 'Connected'))
     tmsg.append('@B' + 60 * '-')
     for i in self.clients:
-      ttime = self.api('utils.timedeltatostring')(
+      ttime = self.api('core.utils:convert:timedelta:to:string')(
           i.connected_time,
           time.localtime())
 
       tmsg.append(clientformat % ('Active', i.host[:17], i.port,
                                   i.terminal_type[:17], ttime))
     for i in self.vclients:
-      ttime = self.api('utils.timedeltatostring')(
+      ttime = self.api('core.utils:convert:timedelta:to:string')(
           i.connected_time,
           time.localtime())
       tmsg.append(clientformat % ('View', i.host[:17], i.port,

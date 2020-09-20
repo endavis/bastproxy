@@ -204,29 +204,28 @@ class PersistentDictEvent(PersistentDict):
     val = convert(val)
     old_value = None
     if key in self:
-      old_value = self.plugin.api('setting:gets')(key)
+      old_value = self.plugin.api('setting:get')(key)
     if old_value != val:
       dict.__setitem__(self, key, val)
 
-      event_name = 'var_%s_%s' % (self.plugin.short_name, key)
+      event_name = '%s_var_%s_modified' % (self.plugin.plugin_id, key)
       if not self.plugin.reset_f and key != '_version':
         self.plugin.api('core.events:raise:event')(event_name,
                                                    {'var':key,
-                                                    'newvalue':self.plugin.api('setting:gets')(key),
+                                                    'newvalue':self.plugin.api('setting:get')(key),
                                                     'oldvalue':old_value})
 
   def raiseall(self):
     """
-    go through and raise a var_<plugin>_<variable> for each variable
+    go through and raise a <plugin>_var_<setting>_modified event for each setting
     """
     for i in self:
-      event_name = 'var_%s_%s' % (self.plugin.short_name, i)
+      event_name = '%s_var_%s_modified' % (self.plugin.plugin_id, i)
       if not self.plugin.reset_f and i != '_version':
         self.plugin.api('core.events:raise:event')(event_name,
                                                    {'var':i,
-                                                    'newvalue':self.plugin.api('setting:gets')(i),
+                                                    'newvalue':self.plugin.api('setting:get')(i),
                                                     'oldvalue':'__init__'})
-
   def sync(self):
     """
     always put plugin version in here

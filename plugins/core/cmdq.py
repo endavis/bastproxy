@@ -28,21 +28,13 @@ class Plugin(BasePlugin):
 
     self.reload_dependents_f = True
 
-    # self.api('api.add')('baseclass', self.api_baseclass)
-    self.api('api.add')('addtoqueue', self._api_add_to_queue)
-    self.api('api.add')('cmdstart', self._api_command_start)
-    self.api('api.add')('cmdfinish', self._api_command_finish)
-    self.api('api.add')('addcmdtype', self._api_add_command_type)
-    self.api('api.add')('rmvcmdtype', self._api_remove_command_type)
-    self.api('api.add')('removeplugin', self._api_remove_commands_for_plugin)
-
     # new api methods
     # self.api('api:add')('baseclass', self.api_baseclass)
-    self.api('api:add')('add:to:queue', self._api_add_to_queue)
+    self.api('api:add')('queue:add:command', self._api_queue_add_command)
     self.api('api:add')('command:start', self._api_command_start)
     self.api('api:add')('command:finish', self._api_command_finish)
-    self.api('api:add')('add:command:type', self._api_add_command_type)
-    self.api('api:add')('remove:command:type', self._api_remove_command_type)
+    self.api('api:add')('commandtype:add', self._api_command_type_add)
+    self.api('api:add')('commandtype:remove', self._api_command_type_remove)
     self.api('api:add')('remove:commands:for:plugin', self._api_remove_commands_for_plugin)
 
   def initialize(self):
@@ -53,10 +45,10 @@ class Plugin(BasePlugin):
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='drop the last command')
-    self.api('core.commands:add')('fixqueue', self.cmd_fixqueue,
-                                  parser=parser)
+    self.api('core.commands:command:add')('fixqueue', self.cmd_fixqueue,
+                                          parser=parser)
 
-    self.api('core.events:register:to:event')('plugin_uninitialized', self._event_plugin_uninitialized)
+    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
 
   def _event_plugin_uninitialized(self, args):
     """
@@ -77,7 +69,7 @@ class Plugin(BasePlugin):
       if self.cmds[i]['plugin'] == plugin:
         self.api('%s:remove:command:type' % self.plugin_id)(i)
 
-  def _api_remove_command_type(self, cmdtype):
+  def _api_command_type_remove(self, cmdtype):
     """
     remove a command
     """
@@ -95,15 +87,15 @@ class Plugin(BasePlugin):
       self.api('send:msg')("got command start for %s and it's not the current cmd: %s" \
                                 % (cmdtype, self.current_command['ctype']))
       return
-    self.api('timep:start')('cmd_%s' % cmdtype)
+    self.api('libs.timing:timing:start')('cmd_%s' % cmdtype)
 
-  def _api_add_command_type(self, cmdtype, cmd, regex, **kwargs):
+  def _api_command_type_add(self, cmdtype, cmd, regex, **kwargs):
     """
     add a command type
     """
     beforef = None
     afterf = None
-    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.short_name])
+    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     if 'beforef' in kwargs:
       beforef = kwargs['beforef']
     if 'afterf' in kwargs:
@@ -161,16 +153,16 @@ class Plugin(BasePlugin):
         self.api('send:msg')('running afterf: %s' % cmdtype)
         self.cmds[cmdtype]['afterf']()
 
-      self.api('timep:finish')('cmd_%s' % self.current_command['ctype'])
+      self.api('libs.timing:timing:finish')('cmd_%s' % self.current_command['ctype'])
       self.api('core.events:raise:event')('cmd_%s_finished' % self.current_command['ctype'])
       self.current_command = {}
       self.sendnext()
 
-  def _api_add_to_queue(self, cmdtype, arguments=''):
+  def _api_queue_add_command(self, cmdtype, arguments=''):
     """
     add a command to the queue
     """
-    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=['cmdq'])
+    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     cmd = self.cmds[cmdtype]['cmd']
     if arguments:
       cmd = cmd + ' ' + str(arguments)
@@ -194,7 +186,7 @@ class Plugin(BasePlugin):
     finish the last command
     """
     if self.current_command:
-      self.api('timep:finish')('cmd_%s' % self.current_command['ctype'])
+      self.api('libs.timing:timing:finish')('cmd_%s' % self.current_command['ctype'])
       self.current_command = {}
       self.sendnext()
 

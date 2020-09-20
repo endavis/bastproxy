@@ -26,6 +26,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """
     self.current_trace = None
     self.api = API()
+
     self.api('api:add')('send', 'msg', self._api_msg)
     self.api('api:add')('send', 'error', self._api_error)
     self.api('api:add')('send', 'traceback', self._api_traceback)
@@ -46,9 +47,9 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     this function returns no values"""
     tags = []
-    plugin = self.api('api:get:caller:plugin')()
+    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=['core.plugins'])
 
-    tags.extend(self.api('api:get:plugins:from:stack:list')())
+    tags.extend(self.api('api:get:plugins:from:stack:list')(ignore_plugin_list=['core.plugins']))
 
     if not isinstance(secondary, list):
       tags.append(secondary)
@@ -76,7 +77,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       print('Did not get any tags for %s' % message)
 
     try:
-      self.api('core.log:msg')(message, tags=tags)
+      self.api('core.log:message')(message, tags=tags)
     except (AttributeError, RuntimeError): #%s - %-10s :
       print('%s - %-15s : %s' % (time.strftime(self.api.time_format,
                                                time.localtime()),
@@ -110,7 +111,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     message_list = []
 
     for i in text.split('\n'):
-      if self.api('api:has')('colors.convertcolors'):
+      if self.api('api:has')('core.colors:colorcode:to:ansicode'):
         message_list.append('@x136%s@w' % i)
       else:
         message_list.append(i)
@@ -143,9 +144,10 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       test = []
       for i in text:
         if preamble:
-          i = "".join(['%s%s@w: ' % (self.api('net.proxy:preamblecolor')(), self.api('net.proxy:preamble')()), i])
-        if self.api('api:has')('core.colors:convertcolors'):
-          test.append(self.api('core.colors:convertcolors')(i))
+          i = "".join(['%s%s@w: ' % (self.api('net.proxy:preamble:color:get')(),
+                                     self.api('net.proxy:preamble:get')()), i])
+        if self.api('api:has')('core.colors:colorcode:to:ansicode'):
+          test.append(self.api('core.colors:colorcode:to:ansicode')(i))
         else:
           test.append(i)
       text = test
@@ -180,7 +182,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       self.current_trace['showinhistory'] = showinhistory
       self.current_trace['addedtohistory'] = False
       self.current_trace['originalcommand'] = command.strip()
-      self.current_trace['fromplugin'] = self.api('api.callerplugin')()
+      self.current_trace['fromplugin'] = self.api('api:get:caller:plugin')()
 
       if fromclient:
         self.current_trace['fromclient'] = True

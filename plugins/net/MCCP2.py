@@ -30,15 +30,15 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('net.options')
+    self.api('dependency:add')('net.options')
 
     self.can_reload_f = False
 
   def initialize(self):
     BasePlugin.initialize(self)
 
-    self.api('options.addserveroption')(self.short_name, SERVER)
-    self.api('options.addclientoption')(self.short_name, CLIENT)
+    self.api('net.options:server:option:add')(self.plugin_id, SERVER)
+    self.api('net.options:client:option:add')(self.plugin_id, CLIENT)
 
 class SERVER(BaseTelnetOption):
   """

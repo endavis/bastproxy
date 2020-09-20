@@ -46,9 +46,9 @@ class Plugin(BasePlugin):
                         help='the string to replace it with',
                         default='',
                         nargs='?')
-    self.api('commands.add')('add',
-                             self.cmd_add,
-                             parser=parser)
+    self.api('core.commands:command:add')('add',
+                                          self.cmd_add,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='remove a substitute')
@@ -56,9 +56,9 @@ class Plugin(BasePlugin):
                         help='the substitute to remove',
                         default='',
                         nargs='?')
-    self.api('commands.add')('remove',
-                             self.cmd_remove,
-                             parser=parser)
+    self.api('core.commands:command:add')('remove',
+                                          self.cmd_remove,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list substitutes')
@@ -66,20 +66,20 @@ class Plugin(BasePlugin):
                         help='list only substitutes that have this argument in them',
                         default='',
                         nargs='?')
-    self.api('commands.add')('list',
-                             self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self.cmd_list,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='clear all substitutes')
-    self.api('commands.add')('clear',
-                             self.cmd_clear,
-                             parser=parser)
+    self.api('core.commands:command:add')('clear',
+                                          self.cmd_clear,
+                                          parser=parser)
 
     # self.api('commands.default')('list')
-    self.api('events.register')('from_mud_event', self.findsub)
+    self.api('core.events:register:to:event')('from_mud_event', self.findsub)
 
-    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
+    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def findsub(self, args):
     """
@@ -91,13 +91,13 @@ class Plugin(BasePlugin):
       for mem in self._substitutes.keys():
         if mem in data:
           ndata = data.replace(mem,
-                               self.api('colors.convertcolors')(
+                               self.api('core.colors:colorcode:to:ansicode')(
                                    self._substitutes[mem]['sub']))
           if ndata != data:
             args['trace']['changes'].append({'flag':'Modify',
                                              'data':'changed "%s" to "%s"' % \
                                                  (data, ndata),
-                                             'plugin':self.short_name,
+                                             'plugin':self.plugin_id,
                                              'eventname':args['eventname']})
             data = ndata
       args['original'] = data

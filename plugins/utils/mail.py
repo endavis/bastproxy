@@ -27,7 +27,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
     self.password = ''
-    self.api('api.add')('send', self.api_send)
+    self.api('api:add')('send', self.api_send)
 
   def initialize(self):
     """
@@ -35,15 +35,15 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('events.register')('client_connected', self.checkpassword)
+    self.api('core.events:register:to:event')('client_connected', self.checkpassword)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='set the password for the mail account')
     parser.add_argument('password',
                         help='the top level api to show (optional)',
                         default='', nargs='?')
-    self.api('commands.add')('password', self.cmd_pw,
-                             parser=parser)
+    self.api('core.commands:command:add')('password', self.cmd_pw,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='send a test email')
@@ -53,44 +53,44 @@ class Plugin(BasePlugin):
     parser.add_argument('message',
                         help='the message of the test email (optional)',
                         default='Msg from bastproxy', nargs='?')
-    self.api('commands.add')('test', self.cmd_test,
-                             parser=parser)
+    self.api('core.commands:command:add')('test', self.cmd_test,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(
         add_help=False,
         description='check to make sure all settings are applied')
-    self.api('commands.add')('check', self.cmd_check,
-                             parser=parser)
+    self.api('core.commands:command:add')('check', self.cmd_check,
+                                          parser=parser)
 
-    self.api('setting.add')('server', '', str,
+    self.api('setting:add')('server', '', str,
                             'the smtp server to send mail through')
-    self.api('setting.add')('port', '', int,
+    self.api('setting:add')('port', '', int,
                             'the port to use when sending mail')
-    self.api('setting.add')('username', '', str,
+    self.api('setting:add')('username', '', str,
                             'the username to connect as',
                             nocolor=True)
-    self.api('setting.add')('to', '', str, 'the address to send mail to',
+    self.api('setting:add')('to', '', str, 'the address to send mail to',
                             nocolor=True)
-    self.api('setting.add')('from', '', str,
+    self.api('setting:add')('from', '', str,
                             'the address to send mail from',
                             nocolor=True)
-    self.api('setting.add')('ssl', '', bool,
+    self.api('setting:add')('ssl', '', bool,
                             'set this to True if the connection will use ssl')
 
-    if self.api('setting.gets')('username') != '':
-      self.api('send.client')('Please set the mail password')
+    if self.api('setting:get')('username') != '':
+      self.api('send:client')('Please set the mail password')
 
   def check(self):
     """
     check to make sure all data need to send mail is available
     """
-    self.api('setting.gets')('server')
-    if not self.api('setting.gets')('server') or \
-       not self.api('setting.gets')('port') or \
-       not self.api('setting.gets')('username') or \
+    self.api('setting:get')('server')
+    if not self.api('setting:get')('server') or \
+       not self.api('setting:get')('port') or \
+       not self.api('setting:get')('username') or \
        not self.password or \
-       not self.api('setting.gets')('from') or \
-       not self.api('setting.gets')('to'):
+       not self.api('setting:get')('from') or \
+       not self.api('setting:get')('to'):
       return False
 
     return True
@@ -107,7 +107,7 @@ class Plugin(BasePlugin):
     if self.check():
       senddate = datetime.strftime(datetime.now(), '%Y-%m-%d')
       if not mailto:
-        mailto = self.api('setting.gets')('to')
+        mailto = self.api('setting:get')('to')
       mhead = """Date: %s
 From: %s
 To: %s
@@ -115,7 +115,7 @@ Subject: %s
 X-Mailer: My-Mail
 
 %s""" % (senddate,
-         self.api('setting.gets')('from'), mailto, subject, msg)
+         self.api('setting:get')('from'), mailto, subject, msg)
 
       oldchild = signal.getsignal(signal.SIGCHLD)
 
@@ -124,24 +124,24 @@ X-Mailer: My-Mail
 
         pid = os.fork()
         if pid == 0:
-          server = '%s:%s' % (self.api('setting.gets')('server'),
-                              self.api('setting.gets')('port'))
+          server = '%s:%s' % (self.api('setting:get')('server'),
+                              self.api('setting:get')('port'))
           server = smtplib.SMTP(server)
-          if self.api('setting.gets')('ssl'):
+          if self.api('setting:get')('ssl'):
             server.starttls()
-          server.login(self.api('setting.gets')('username'), self.password)
-          server.sendmail(self.api('setting.gets')('from'), mailto, mhead)
+          server.login(self.api('setting:get')('username'), self.password)
+          server.sendmail(self.api('setting:get')('from'), mailto, mhead)
           server.quit()
           os._exit(os.EX_OK) # pylint: disable=protected-access
 
       except:
-        server = '%s:%s' % (self.api('setting.gets')('server'),
-                            self.api('setting.gets')('port'))
+        server = '%s:%s' % (self.api('setting:get')('server'),
+                            self.api('setting:get')('port'))
         server = smtplib.SMTP(server)
-        if self.api('setting.gets')('ssl'):
+        if self.api('setting:get')('ssl'):
           server.starttls()
-        server.login(self.api('setting.gets')('username'), self.password)
-        server.sendmail(self.api('setting.gets')('from'), mailto, mhead)
+        server.login(self.api('setting:get')('username'), self.password)
+        server.sendmail(self.api('setting:get')('from'), mailto, mhead)
         server.quit()
 
     if signal.getsignal(signal.SIGCHLD) != oldchild:
@@ -151,11 +151,11 @@ X-Mailer: My-Mail
     """
     check the password
     """
-    if self.api('setting.gets')('username'):
+    if self.api('setting:get')('username'):
       if not self.password:
-        self.api('send.client')(
+        self.api('send:client')(
             '@CPlease set the email password for account: @M%s@w' \
-                % self.api('setting.gets')('username').replace('@', '@@'))
+                % self.api('setting:get')('username').replace('@', '@@'))
 
   def cmd_pw(self, args):
     """
@@ -176,17 +176,17 @@ X-Mailer: My-Mail
     """
     msg = []
     items = []
-    if not self.api('setting.gets')('server'):
+    if not self.api('setting:get')('server'):
       items.append('server')
-    if not self.api('setting.gets')('port'):
+    if not self.api('setting:get')('port'):
       items.append('port')
-    if not self.api('setting.gets')('username'):
+    if not self.api('setting:get')('username'):
       items.append('username')
     if not self.password:
       items.append('password')
-    if not self.api('setting.gets')('from'):
+    if not self.api('setting:get')('from'):
       items.append('from')
-    if not self.api('setting.gets')('to'):
+    if not self.api('setting:get')('to'):
       items.append('to')
     if items:
       msg.append('Please set the following:')

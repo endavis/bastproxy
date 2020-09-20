@@ -29,7 +29,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('net.GMCP')
+    self.api('dependency:add')('net.GMCP')
 
   def initialize(self):
     """
@@ -37,9 +37,9 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('events.register')('GMCP', self.test)
-    self.api('events.register')('GMCP:char', self.testchar)
-    self.api('events.register')('GMCP:char.status', self.testcharstatus)
+    self.api('core.events:register:to:event')('GMCP', self.test)
+    self.api('core.events:register:to:event')('GMCP:char', self.testchar)
+    self.api('core.events:register:to:event')('GMCP:char.status', self.testcharstatus)
 
     parser = argp.ArgumentParser(
         add_help=False,
@@ -48,7 +48,7 @@ class Plugin(BasePlugin):
                         help='the module to show',
                         default='',
                         nargs='?')
-    self.api('commands.add')('get',
+    self.api('core.commands:command:add')('get',
                              self.cmd_get,
                              parser=parser)
 
@@ -60,7 +60,7 @@ class Plugin(BasePlugin):
         @Ygmcpmod@w    = The gmcp module to print, such as char.status
     """
     if args['module']:
-      return True, ['%s' % self.api('GMCP.getv')(args['module'])]
+      return True, ['%s' % self.api('net.GMCP:value:get')(args['module'])]
 
     return False
 
@@ -68,7 +68,7 @@ class Plugin(BasePlugin):
     """
     show the gmcp event
     """
-    self.api('send.client')(
+    self.api('send:client')(
         '@x52@z192 Event @w- @GGMCP@w: @B%s@w : %s' % \
                   (args['module'], args['data']))
 
@@ -76,7 +76,7 @@ class Plugin(BasePlugin):
     """
     show the gmcp char event
     """
-    getv = self.api('GMCP.getv')
+    getv = self.api('net.GMCP:value:get')
     msg = []
     msg.append('testchar --------------------------')
     tchar = getv('char')
@@ -97,12 +97,12 @@ class Plugin(BasePlugin):
     msg.append('getting a variable that doesn\'t exist')
     msg.append('%s' % getv('char.status.test'))
 
-    self.api('send.msg')('\n'.join(msg))
-    self.api('send.client')('@CEvent@w - @GGMCP:char@w: %s' % \
+    self.api('send:msg')('\n'.join(msg))
+    self.api('send:client')('@CEvent@w - @GGMCP:char@w: %s' % \
                                   args['module'])
 
   def testcharstatus(self, _=None):
     """
     show the gmcp char.status event
     """
-    self.api('send.client')('@CEvent@w - @GGMCP:char.status@w')
+    self.api('send:client')('@CEvent@w - @GGMCP:char.status@w')

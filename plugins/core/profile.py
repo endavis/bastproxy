@@ -24,8 +24,8 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.commandtraces = None
-    self.changedmuddata = None
+    self.command_traces = None
+    self.changed_mud_data = None
 
   def initialize(self):
     """
@@ -33,13 +33,13 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('setting.add')('commands', False, bool,
+    self.api('setting:add')('commands', False, bool,
                             'flag to echo commands')
-    self.api('setting.add')('functions', False, bool,
+    self.api('setting:add')('functions', False, bool,
                             'flag to profile functions')
-    self.api('setting.add')('stacklen', 20, int,
+    self.api('setting:add')('stacklen', 20, int,
                             '# of traces kept')
-    self.api('setting.add')('cmdfuncstack', False, bool,
+    self.api('setting:add')('cmdfuncstack', False, bool,
                             'print the function stack in an echo')
 
     parser = argp.ArgumentParser(
@@ -54,8 +54,8 @@ class Plugin(BasePlugin):
         help="print callstack if available",
         action="store_true",
         default=False)
-    self.api('commands.add')('commands', self.cmd_commands,
-                             parser=parser)
+    self.api('core.commands:command:add')('commands', self.cmd_commands,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(
         add_help=False,
@@ -69,61 +69,61 @@ class Plugin(BasePlugin):
     #     help="print callstack if available",
     #     action="store_true",
     #     default=False)
-    self.api('commands.add')('muddata', self.cmd_muddata,
-                             parser=parser)
+    self.api('core.commands:command:add')('muddata', self.cmd_muddata,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='reset command stack')
-    self.api('commands.add')('rstack', self.cmd_rstack,
-                             parser=parser)
+    self.api('core.commands:command:add')('rstack', self.cmd_rstack,
+                                          parser=parser)
 
-    self.commandtraces = SimpleQueue(self.api('setting.gets')('stacklen'))
-    self.changedmuddata = SimpleQueue(self.api('setting.gets')('stacklen'))
+    self.command_traces = SimpleQueue(self.api('setting:get')('stacklen'))
+    self.changed_mud_data = SimpleQueue(self.api('setting:get')('stacklen'))
 
-    self.api('events.register')('io_execute_trace_finished', self.savecommand, prio=99)
-    self.api('events.register')('from_mud_event', self.savechangedmuddata, prio=99)
-    self.api('events.register')('var_%s_functions' % self.short_name, self.onfunctionschange)
+    self.api('core.events:register:to:event')('io_execute_trace_finished', self.savecommand, prio=99)
+    self.api('core.events:register:to:event')('from_mud_event', self.savechanged_mud_data, prio=99)
+    self.api('core.events:register:to:event')('%s_var_functions_modified' % self.plugin_id, self.onfunctionschange)
 
   def onfunctionschange(self, _=None):
     """
     toggle the function profiling
     """
-    functions = self.api('setting.gets')('functions')
-    self.api('timep.toggle')(functions)
+    functions = self.api('setting:get')('functions')
+    self.api('libs.timing:timing:toggle')(functions)
 
   def listcommands(self):
     """
     list the command profiles that have been saved
     """
-    tmsg = ['Command Traces:']
-    for i in self.commandtraces.items:
-      tmsg.append('  %s' % i['originalcommand'])
-    return True, tmsg
+    message = ['Command Traces:']
+    for i in self.command_traces.items:
+      message.append('  %s' % i['originalcommand'])
+    return True, message
 
-  def listchangedmuddata(self):
+  def listchanged_mud_data(self):
     """
     list the muddata profiles that have been saved
     """
-    self.changedmuddata.takesnapshot()
-    items = self.changedmuddata.getsnapshot()
-    tmsg = ['Data Traces:']
+    self.changed_mud_data.takesnapshot()
+    items = self.changed_mud_data.getsnapshot()
+    message = ['Data Traces:']
 
     for i in range(0, len(items)):
-      tmsg.append('%-3s : %s' % (i, items[i]['trace']['original']))
-    return True, tmsg
+      message.append('%-3s : %s' % (i, items[i]['trace']['original']))
+    return True, message
 
-  def showchangedmuddata(self, item, callstack=False): # pylint: disable=unused-argument
+  def showchanged_mud_data(self, item, callstack=False): # pylint: disable=unused-argument
     """
     find the changed muddata and print it
     """
-    snapshot = self.changedmuddata.getsnapshot()
+    snapshot = self.changed_mud_data.getsnapshot()
     if not snapshot:
-      self.changedmuddata.takesnapshot()
-      snapshot = self.changedmuddata.getsnapshot()
+      self.changed_mud_data.takesnapshot()
+      snapshot = self.changed_mud_data.getsnapshot()
 
     try:
-      titem = snapshot[item]
-      return True, [self.formatmuddatastack(titem)]
+      temp_item = snapshot[item]
+      return True, [self.formatmuddatastack(temp_item)]
     except IndexError:
       return False, ['Could not find item: %s' % item]
 
@@ -131,7 +131,7 @@ class Plugin(BasePlugin):
     """
     find the command trace and format it
     """
-    for i in self.commandtraces.items:
+    for i in self.command_traces.items:
       if i['originalcommand'].startswith(item):
         return True, [self.formatcommandstack(i, callstack)]
 
@@ -151,97 +151,97 @@ class Plugin(BasePlugin):
     get info for a muddata trace
     """
     if 'item' in args and args['item']:
-      return self.showchangedmuddata(int(args['item']), callstack=False)
+      return self.showchanged_mud_data(int(args['item']), callstack=False)
 
-    return self.listchangedmuddata()
+    return self.listchanged_mud_data()
 
   def cmd_rstack(self, _=None):
     """
     reset the command trace
     """
-    iom = self.api('managers.getm')('io')
+    io_manager = self.api('managers:get')('io')
 
-    msg = []
-    msg.append('The following stack was active')
-    msg.append('%s' % iom.currenttrace)
-    iom.currenttrace = None
-    msg.append('The stack has been reset')
+    message = []
+    message.append('The following stack was active')
+    message.append('%s' % io_manager.currenttrace)
+    io_manager.currenttrace = None
+    message.append('The stack has been reset')
 
-    return True, msg
+    return True, message
 
   def formatmuddatastack(self, stack):
     """
     format the command stack
     """
-    msg = ['------------------- Muddata Trace -------------------']
-    msg.append('%-17s : %s' % ('Original', stack['trace']['original']))
+    message = ['------------------- Muddata Trace -------------------']
+    message.append('%-17s : %s' % ('Original', stack['trace']['original']))
 
-    msg.append('-------------- Internal Stack --------------')
+    message.append('-------------- Internal Stack --------------')
     count = 0
     for i in stack['trace']['changes']:
       count = count + 1
       if 'plugin' in i and i['plugin']:
         apicall = '%s.formatmuddatatraceitem' % i['plugin']
         if self.api('api.has')(apicall):
-          msg.append(self.api(apicall)(i))
+          message.append(self.api(apicall)(i))
           continue
 
-      msg.append("%-2s - %-15s :   %s - %s" % (count, i['plugin'].capitalize(), i['flag'],
-                                               i['data']))
+      message.append("%-2s - %-15s :   %s - %s" % (count, i['plugin'].capitalize(), i['flag'],
+                                                   i['data']))
 
-    return '\n'.join(msg)
+    return '\n'.join(message)
 
   def formatcommandstack(self, stack, callstack=False):
     """
     format the command stack
     """
-    msg = ['------------------- Command Trace -------------------']
-    msg.append('%-17s : %s' % ('Original', stack['originalcommand']))
+    message = ['------------------- Command Trace -------------------']
+    message.append('%-17s : %s' % ('Original', stack['originalcommand']))
     if stack['fromclient']:
-      msg.append('%-17s : from client' % 'Originated')
+      message.append('%-17s : from client' % 'Originated')
     if stack['internal']:
-      msg.append('%-17s : Internal' % 'Originated')
+      message.append('%-17s : Internal' % 'Originated')
     if 'fromplugin' in stack and stack['fromplugin']:
-      msg.append('%-17s : %s' % ('Plugin', stack['fromplugin']))
-    msg.append('%-17s : %s' % ('Show in History', stack['showinhistory']))
-    msg.append('%-17s : %s' % ('Added to History', stack['addedtohistory']))
+      message.append('%-17s : %s' % ('Plugin', stack['fromplugin']))
+    message.append('%-17s : %s' % ('Show in History', stack['showinhistory']))
+    message.append('%-17s : %s' % ('Added to History', stack['addedtohistory']))
 
-    msg.append('-------------- Internal Stack --------------')
+    message.append('-------------- Internal Stack --------------')
     count = 0
     for i in stack['changes']:
       count = count + 1
       if 'plugin' in i and i['plugin']:
         apicall = '%s.formatcmdtraceitem' % i['plugin']
         if self.api('api.has')(apicall):
-          msg.append(self.api(apicall)(i))
+          message.append(self.api(apicall)(i))
           continue
 
-      msg.append("%-2s - %-15s :   %s - %s" % (count, i['plugin'].capitalize(), i['flag'],
-                                               i['data']))
+      message.append("%-2s - %-15s :   %s - %s" % (count, i['plugin'].capitalize(), i['flag'],
+                                                   i['data']))
 
       if callstack and 'callstack' in i:
         for line in i['callstack']:
-          msg.append("%-20s :   %s" % ("", line))
+          message.append("%-20s :   %s" % ("", line))
 
-    msg.append('-----------------------------------------------------')
+    message.append('-----------------------------------------------------')
 
 
-    return '\n'.join(msg)
+    return '\n'.join(message)
 
   def savecommand(self, args):
     """
     echo the command
     """
-    self.commandtraces.enqueue(args)
+    self.command_traces.enqueue(args)
 
-    echocommands = self.api('setting.gets')('commands')
+    echocommands = self.api('setting:get')('commands')
 
     if echocommands:
-      self.api('send.client')(self.formatcommandstack(args))
+      self.api('send:client')(self.formatcommandstack(args))
 
-  def savechangedmuddata(self, args):
+  def savechanged_mud_data(self, args):
     """
     save mud data that was changed
     """
     if args['trace']['changes']:
-      self.changedmuddata.enqueue(args)
+      self.changed_mud_data.enqueue(args)

@@ -3,7 +3,7 @@ This is an example plugin about how to use triggers
 
 ## Using
 ### Add the regex
- * ```self.api('triggers.add')('testtrig', "^some test$")```
+ * ```self.api('core.triggers:trigger:add')('testtrig', "^some test$")```
 ### Register a function to the event
  * ```self.api('events.register('trigger_testtrig', somefunc)
 """
@@ -27,7 +27,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('core.triggers')
+    self.api('dependency:add')('core.triggers')
 
   def initialize(self):
     """
@@ -35,13 +35,13 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'example_trigger',
         r"^(?P<name>.*) flicks a (?P<insect>.*) off his bar\.$")
-    self.api('events.register')('trigger_example_trigger', self.testtrigger)
+    self.api('core.events:register:to:event')('trigger_example_trigger', self.testtrigger)
 
   def testtrigger(self, args):
     """
     show that the trigger fired
     """
-    self.api('send.client')('Trigger fired: args returned %s' % args)
+    self.api('send:client')('Trigger fired: args returned %s' % args)

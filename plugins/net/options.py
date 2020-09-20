@@ -32,11 +32,12 @@ class Plugin(BasePlugin):
     self.clientoptions = {}
     self.serveroptions = {}
 
-    self.api('api.add')('addserveroption', self.api_addserveroption)
-    self.api('api.add')('addclientoption', self.api_addclientoption)
-    self.api('api.add')('prepareclient', self.api_prepareclient)
-    self.api('api.add')('prepareserver', self.api_prepareserver)
-    self.api('api.add')('resetoptions', self.api_resetoptions)
+    # new api format
+    self.api('api:add')('server:option:add', self.api_addserveroption)
+    self.api('api:add')('client:option:add', self.api_addclientoption)
+    self.api('api:add')('client:prepare', self.api_prepareclient)
+    self.api('api:add')('server:prepare', self.api_prepareserver)
+    self.api('api:add')('options:reset', self.api_resetoptions)
 
     self.dependencies = ['core.events', 'core.log', 'core.errors']
 
@@ -47,7 +48,7 @@ class Plugin(BasePlugin):
                                         class BaseTelnetOption
     """
     if issubclass(serveroption, BaseTelnetOption):
-      self.api('send.msg')('adding telnet option %s to server' % \
+      self.api('send:msg')('adding telnet option %s to server' % \
                                                               optionname)
       self.serveroptions[optionname] = serveroption
       return True
@@ -60,7 +61,7 @@ class Plugin(BasePlugin):
                                         class BaseTelnetOption
     """
     if issubclass(clientoption, BaseTelnetOption):
-      self.api('send.msg')('adding telnet option %s to client' % \
+      self.api('send:msg')('adding telnet option %s to client' % \
                                                               optionname)
       self.clientoptions[optionname] = clientoption
       return True
@@ -71,7 +72,7 @@ class Plugin(BasePlugin):
     initialize the plugin
     """
     BasePlugin.initialize(self)
-    self.api('log.console')(self.short_name)
+    self.api('core.log:toggle:to:console')(self.plugin_id)
 
   def plugin_loaded(self, args):
     """
@@ -83,13 +84,13 @@ class Plugin(BasePlugin):
     if hasattr(module, 'SERVER'):
       self.options[plugin] = True
       self.optionsmod[plugin] = module
-      self.api('send.msg')('adding %s as a telnet option' % plugin)
+      self.api('send:msg')('adding %s as a telnet option' % plugin)
 
   def reloadmod(self, mod):
     """
     reload a module
     """
-    self.api('events.eraise')('OPTRELOAD', {'option':mod})
+    self.api('core.events:raise:event')('OPTRELOAD', {'option':mod})
 
   # prepare the client to process telnet options
   def api_prepareclient(self, client):
@@ -100,7 +101,7 @@ class Plugin(BasePlugin):
       try:
         self.clientoptions[i](client)
       except AttributeError:
-        self.api('send.traceback')('Did not add option %s to client' % i)
+        self.api('send:traceback')('Did not add option %s to client' % i)
 
   # prepare the server to process telnet options
   def api_prepareserver(self, server):
@@ -111,7 +112,7 @@ class Plugin(BasePlugin):
       try:
         self.serveroptions[i](server)
       except AttributeError:
-        self.api('send.traceback')('Did not add option %s to server' % i)
+        self.api('send:traceback')('Did not add option %s to server' % i)
 
   # reset options
   def api_resetoptions(self, server, onclose=False):

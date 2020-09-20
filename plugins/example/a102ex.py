@@ -31,7 +31,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('aardwolf.A102')
+    self.api('dependency:add')('aardwolf.A102')
 
   def initialize(self):
     """
@@ -39,17 +39,17 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('events.register')('A102', self.test)
-    self.api('events.register')('A102:101', self.test101)
+    self.api('core.events:register:to:event')('A102', self.test)
+    self.api('core.events:register:to:event')('A102:101', self.test101)
 
   def test(self, args):
     """
     show we got an a102 event
     """
-    self.api('send.client')('@RGot A102: %s' % args)
+    self.api('send:client')('@RGot A102: %s' % args)
 
   def test101(self, args):
     """
     show we got an a102:101 event
     """
-    self.api('send.client')('@RGot A102:101: %s' % args)
+    self.api('send:client')('@RGot A102:101: %s' % args)

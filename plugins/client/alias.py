@@ -49,7 +49,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('setting.add')('nextnum', 0, int,
+    self.api('setting:add')('nextnum', 0, int,
                             'the number of the next alias added',
                             readonly=True)
 
@@ -74,9 +74,9 @@ class Plugin(BasePlugin):
                         "--group",
                         help="the alias group",
                         default="")
-    self.api('commands.add')('add',
-                             self.cmd_add,
-                             parser=parser)
+    self.api('core.commands:command:add')('add',
+                                          self.cmd_add,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='remove an alias')
@@ -84,9 +84,9 @@ class Plugin(BasePlugin):
                         help='the alias to remove',
                         default='',
                         nargs='?')
-    self.api('commands.add')('remove',
-                             self.cmd_remove,
-                             parser=parser)
+    self.api('core.commands:command:add')('remove',
+                                          self.cmd_remove,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list aliases')
@@ -94,9 +94,9 @@ class Plugin(BasePlugin):
                         help='list only aliases that have this argument in them',
                         default='',
                         nargs='?')
-    self.api('commands.add')('list',
-                             self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self.cmd_list,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='toggle enabled flag')
@@ -104,9 +104,9 @@ class Plugin(BasePlugin):
                         help='the alias to toggle',
                         default='',
                         nargs='?')
-    self.api('commands.add')('toggle',
-                             self.cmd_toggle,
-                             parser=parser)
+    self.api('core.commands:command:add')('toggle',
+                                          self.cmd_toggle,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='toggle all aliases in a group')
@@ -118,9 +118,9 @@ class Plugin(BasePlugin):
                         "--disable",
                         help="disable the group",
                         action="store_true")
-    self.api('commands.add')('groupt',
-                             self.cmd_grouptoggle,
-                             parser=parser)
+    self.api('core.commands:command:add')('groupt',
+                                          self.cmd_grouptoggle,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get detail for an alias')
@@ -128,21 +128,21 @@ class Plugin(BasePlugin):
                         help='the alias to get details for',
                         default='',
                         nargs='?')
-    self.api('commands.add')('detail',
-                             self.cmd_detail,
-                             parser=parser)
+    self.api('core.commands:command:add')('detail',
+                                          self.cmd_detail,
+                                          parser=parser)
 
     # self.api('commands.default')('list')
-    self.api('events.register')('io_execute_event', self.checkalias,
-                                prio=2)
-    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
+    self.api('core.events:register:to:event')('io_execute_event', self.checkalias,
+                                              prio=2)
+    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def checkalias(self, args): # pylint: disable=too-many-branches
     """
     this function finds aliases in client input
     """
     data = args['fromdata'].strip()
-    cmdprefix = self.api('commands.prefix')()
+    cmdprefix = self.api('core.commands:get:command:prefix')()
     if not data:
       return args
 
@@ -151,15 +151,15 @@ class Plugin(BasePlugin):
         datan = data
         matchd = re.match(mem, data)
         if matchd:
-          self.api('send.msg')('matched input on %s' % mem)
+          self.api('send:msg')('matched input on %s' % mem)
           tlistn = [data]
           for i in xrange(1, len(matchd.groups()) + 1):
             tlistn.append(matchd.group(i))
-          self.api('send.msg')('args: %s' % tlistn)
+          self.api('send:msg')('args: %s' % tlistn)
           try:
             datan = self._aliases[mem]['alias'].format(*tlistn)
           except Exception: # pylint: disable=broad-except
-            self.api('send.traceback')('alias %s had an issue' % (mem))
+            self.api('send:traceback')('alias %s had an issue' % (mem))
         else:
           cre = re.compile('^%s' % mem)
           datan = cre.sub(self._aliases[mem]['alias'], data)
@@ -168,18 +168,18 @@ class Plugin(BasePlugin):
             args['trace']['changes'].append({'flag':'Modify',
                                              'data':'changed "%s" to "%s"' % \
                                                 (data, datan),
-                                             'plugin':self.short_name})
+                                             'plugin':self.plugin_id})
           if not 'hits' in self._aliases[mem]:
             self._aliases[mem]['hits'] = 0
           if not mem in self.sessionhits:
             self.sessionhits[mem] = 0
-          self.api('send.msg')('incrementing hits for %s' % mem)
+          self.api('send:msg')('incrementing hits for %s' % mem)
           self._aliases[mem]['hits'] = self._aliases[mem]['hits'] + 1
           self.sessionhits[mem] = self.sessionhits[mem] + 1
-          self.api('send.msg')('replacing "%s" with "%s"' % \
+          self.api('send:msg')('replacing "%s" with "%s"' % \
                                           (data.strip(), datan.strip()))
           if datan[0:len(cmdprefix)].lower() == cmdprefix:
-            self.api('send.execute')(datan, showinhistory=False, fromclient=False)
+            self.api('send:execute')(datan, showinhistory=False, fromclient=False)
             args['fromdata'] = ''
             args['history'] = False
           else:
@@ -340,11 +340,11 @@ class Plugin(BasePlugin):
     """
     internally add a alias
     """
-    num = self.api('setting.gets')('nextnum')
+    num = self.api('setting:get')('nextnum')
     self._aliases[item] = {'alias':alias, 'enabled':not disabled,
                            'num':num, 'group':group}
     self._aliases.sync()
-    self.api('setting.change')('nextnum', num + 1)
+    self.api('setting:change')('nextnum', num + 1)
 
   def removealias(self, item):
     """
@@ -376,7 +376,7 @@ class Plugin(BasePlugin):
                         key=lambda (x, y): y['num']):
       item = alias[0]
       if not match or match in item:
-        lalias = self.api('colors.stripansi')(self._aliases[item]['alias'])
+        lalias = self.api('core.colors:ansicode:strip')(self._aliases[item]['alias'])
         if len(lalias) > 30:
           lalias = lalias[:27] + '...'
         tmsg.append("%4s %2s  %-10s %-20s : %s@w" % \

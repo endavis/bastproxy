@@ -34,9 +34,9 @@ class Plugin(BasePlugin):
 
     self.variablefile = os.path.join(self.save_directory, 'variables.txt')
     self._variables = PersistentDict(self.variablefile, 'c')
-    self.api('api.add')('getv', self.api_getv)
-    self.api('api.add')('setv', self.api_setv)
-    self.api('api.add')('replace', self.api_replace)
+    self.api('api:add')('get', self.api_getv)
+    self.api('api:add')('set', self.api_setv)
+    self.api('api:add')('replace', self.api_replace)
 
   def initialize(self):
     """
@@ -54,9 +54,9 @@ class Plugin(BasePlugin):
                         help='the value of the variable',
                         default='',
                         nargs='?')
-    self.api('commands.add')('add',
-                             self.cmd_add,
-                             parser=parser)
+    self.api('core.commands:command:add')('add',
+                                          self.cmd_add,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='remove a variable')
@@ -64,9 +64,9 @@ class Plugin(BasePlugin):
                         help='the variable to remove',
                         default='',
                         nargs='?')
-    self.api('commands.add')('remove',
-                             self.cmd_remove,
-                             parser=parser)
+    self.api('core.commands:command:add')('remove',
+                                          self.cmd_remove,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list variables')
@@ -74,19 +74,19 @@ class Plugin(BasePlugin):
                         help='list only variables that have this argument in their name',
                         default='',
                         nargs='?')
-    self.api('commands.add')('list',
-                             self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self.cmd_list,
+                                          parser=parser)
 
     # self.api('commands.default')('list')
 
-    self.api('events.register')('io_execute_event',
-                                self.checkline,
-                                prio=99)
-    self.api('events.register')('io_execute_event',
-                                self.checkline,
-                                prio=1)
-    self.api('events.register')('plugin_%s_savestate' % self.short_name, self._savestate)
+    self.api('core.events:register:to:event')('io_execute_event',
+                                              self.checkline,
+                                              prio=99)
+    self.api('core.events:register:to:event')('io_execute_event',
+                                              self.checkline,
+                                              prio=1)
+    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
 
   # get a variable
   def api_getv(self, varname):
@@ -131,15 +131,15 @@ class Plugin(BasePlugin):
     """
     data = args['fromdata'].strip()
 
-    datan = self.api('vars.replace')(data)
+    datan = self.api('client.vars:replace')(data)
 
     if datan != data:
       if 'trace' in args:
         args['trace']['changes'].append({'flag':'Modify',
                                          'data':'changed "%s" to "%s"' % (data, datan),
-                                         'plugin':self.short_name})
+                                         'plugin':self.plugin_id})
 
-      self.api('send.msg')('replacing "%s" with "%s"' % (data.strip(),
+      self.api('send:msg')('replacing "%s" with "%s"' % (data.strip(),
                                                          datan.strip()))
       args['fromdata'] = datan
       args['beforevar'] = data

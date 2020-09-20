@@ -37,8 +37,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('api.add')('get.best.match', self.get_best_match)
-    self.api('api.add')('get:best:match', self.get_best_match)
+    self.api('api:add')('get:best:match', self.get_best_match)
 
     self.dependencies = []
 
@@ -51,18 +50,18 @@ class Plugin(BasePlugin):
     this function returns:
         a string of the item that best matched or None"""
     found = None
-    self.api('send.msg')('get_best_match: item_to_match: %s' % item_to_match)
-    self.api('send.msg')('get_best_match: list_to_match: %s' % list_to_match)
+    self.api('send:msg')('get_best_match: item_to_match: %s' % item_to_match)
+    self.api('send:msg')('get_best_match: list_to_match: %s' % list_to_match)
     matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
     if len(matching_startswith) == 1:
       found = matching_startswith[0]
-      self.api('send.msg')('get_best_match (startswith) matched %s to %s' % (item_to_match, found))
+      self.api('send:msg')('get_best_match (startswith) matched %s to %s' % (item_to_match, found))
     else:
       sorted_extract = sort_fuzzy_result(process.extract(item_to_match, list_to_match))
-      self.api('send.msg')('extract for %s - %s' % (item_to_match, sorted_extract))
+      self.api('send:msg')('extract for %s - %s' % (item_to_match, sorted_extract))
       maxscore = max(sorted_extract.keys())
       if maxscore > 80 and len(sorted_extract[maxscore]) == 1:
         found = sorted_extract[maxscore][0]
-        self.api('send.msg')('get_best_match (score) matched %s to %s' % (item_to_match, found))
+        self.api('send:msg')('get_best_match (score) matched %s to %s' % (item_to_match, found))
 
     return found

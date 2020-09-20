@@ -97,8 +97,8 @@ VERSION = "2.0.0"
 
 # create and API instance and update start time and set the startup flag
 API = BASEAPI()
-BASEAPI.proxy_start_time = time.localtime()
-BASEAPI.startup = True
+API.__class__.proxy_start_time = time.localtime()
+API.__class__.startup = True
 
 def setup_paths():
   """
@@ -113,8 +113,8 @@ def setup_paths():
   else:
     tpath = npath[:index]
 
-  API('send.msg')('setting basepath to: %s' % tpath, 'startup')
-  BASEAPI.BASEPATH = tpath
+  API('send:msg')('setting basepath to: %s' % tpath, 'startup')
+  API.__class__.BASEPATH = tpath
 
   # create the logs directory
   try:
@@ -147,13 +147,13 @@ class Listener(asyncore.dispatcher):
 
     # create a list of clients
     self.clients = []
-    API('send.msg')("Listener bound on: %s" % listen_port, 'startup')
+    API('send:msg')("Listener bound on: %s" % listen_port, 'startup')
 
   def handle_error(self):
     """
     show the traceback for an error in the listener
     """
-    API('send.traceback')("Forwarder error:")
+    API('send:traceback')("Forwarder error:")
 
   def handle_accept(self):
     """
@@ -173,16 +173,16 @@ class Listener(asyncore.dispatcher):
     try:
       # if the client is banned, close the connection
       ip_address = source_addr[0]
-      if API('clients.checkbanned')(ip_address):
-        API('send.msg')("HOST: %s is banned" % ip_address, 'net')
+      if API('net.clients:clients:banned:check')(ip_address):
+        API('send:msg')("HOST: %s is banned" % ip_address, 'net')
         client_connection.close()
       # if there are more than 5 connections, close the current connection
-      elif API('clients.numconnected') == 5:
-        API('send.msg')(
+      elif API('net.clients:clients:count') == 5:
+        API('send:msg')(
             "Only 5 clients can be connected at the same time", 'net')
         client_connection.close()
       else:
-        API('send.msg')("Accepted connection from %s : %s" %
+        API('send:msg')("Accepted connection from %s : %s" %
                         (source_addr[0], source_addr[1]), 'net')
 
         # create a Client instance
@@ -192,7 +192,7 @@ class Listener(asyncore.dispatcher):
     # catch everything because we don't want to exit if we can't connect a
     # client
     except Exception:   # pylint: disable=broad-except
-      API('send.traceback')('Error handling client')
+      API('send:traceback')('Error handling client')
 
 def start(listen_port):
   """
@@ -204,7 +204,7 @@ def start(listen_port):
     required:
       listen_port - the port to listen on
   """
-  API('managers.add')('listener', Listener(listen_port))
+  API('managers:add')('listener', Listener(listen_port))
 
   try:
     while True:
@@ -215,13 +215,13 @@ def start(listen_port):
         break
 
       # check our timer event
-      API('events.eraise')('global_timer', {}, calledfrom="globaltimer")
+      API('core.events:raise:event')('global_timer', {}, calledfrom="globaltimer")
 
   # catch a KeyBoardInterrupt so that bastproxy can be exited
   except KeyboardInterrupt:
     pass
 
-  API('send.msg')("asyncore loop broken", primary='net')
+  API('send:msg')("asyncore loop broken", primary='net')
 
 
 def main():
@@ -245,20 +245,20 @@ def main():
   daemon = bool(targs['daemon'])
 
   # initialize all plugins
-  API('send.msg')('Plugin Manager - loading', 'startup')
+  API('send:msg')('Plugin Manager - loading', 'startup')
   # instantiate the plugin manager
   from plugins import PluginMgr
   plugin_manager = PluginMgr()
 
   # initialize the plugin manager which will load plugins
   plugin_manager.initialize()
-  API('send.msg')('Plugin Manager - loaded', 'startup')
+  API('send:msg')('Plugin Manager - loaded', 'startup')
 
   # add some logging of various plugins and functionality
-  API('log.adddtype')('net')
-  API('log.console')('net')
-  API('log.adddtype')('inputparse')
-  API('log.adddtype')('ansi')
+  API('core.log:add:datatype')('net')
+  API('core.log:toggle:to:console')('net')
+  API('core.log:add:datatype')('inputparse')
+  API('core.log:add:datatype')('ansi')
 
   # get the proxy plugin
   proxy_plugin = API('core.plugins:get:plugin:instance')('proxy')
@@ -268,11 +268,11 @@ def main():
     proxy_plugin.api('setting:change')('listenport', targs['port'])
 
   # get the listen port setting
-  listen_port = proxy_plugin.api('setting:gets')('listenport')
+  listen_port = proxy_plugin.api('setting:get')('listenport')
 
   # the proxy is done starting up and we raise an event
-  BASEAPI.startup = False
-  API('events.eraise')('proxy_ready', calledfrom='bastproxy')
+  API.__class__.startup = False
+  API('core.events:raise:event')('proxy_ready', calledfrom='bastproxy')
 
   # start the proxy in an infinite loop which can be broken with a Ctrl-C
   if not daemon:
@@ -282,7 +282,7 @@ def main():
     except KeyboardInterrupt:
       pass
 
-    API('proxy.shutdown')()
+    API('net.proxy:proxy:shutdown')()
 
   else:
     # start with daemon mode
@@ -302,7 +302,7 @@ def main():
         pass
       sys.exit(0)
 
-  API('send.msg')("exiting main function", primary='net')
+  API('send:msg')("exiting main function", primary='net')
 
 if __name__ == "__main__":
   main()

@@ -4,12 +4,12 @@ the setting is saved to a file with read only permissions for the user
 the proxy is running under
 
 ## Using
-See the source for [net.net](/bastproxy/plugins/net/net.html)
+See the source for [net.proxy](/bastproxy/plugins/net/proxy.html)
 for an example of using this plugin
 
 '''python
-    ssc = self.api('ssc.baseclass')()
-    self.apikey = ssc('somepassword', self, desc='Password for something')
+    ssc = self.plugin.api('core.ssc:baseclass:get')()
+    self.plugin.apikey = ssc('somepassword', self, desc='Password for something')
 '''
 """
 import os
@@ -30,15 +30,12 @@ class SSC(object):
   """
   a class to manage settings
   """
-  def __init__(self, sshort_name, plugin, **kwargs):
+  def __init__(self, name, plugin, **kwargs):
     """
     initialize the class
     """
-    self.sshort_name = sshort_name
+    self.name = name
     self.plugin = plugin
-    self.short_name = plugin.short_name
-    self.name = plugin.name
-    self.api = plugin.api
 
     if 'default' in kwargs:
       self.default = kwargs['default']
@@ -50,7 +47,7 @@ class SSC(object):
     else:
       self.desc = 'setting'
 
-    self.api('api.add')(self.sshort_name, self.getss)
+    self.plugin.api('api:add')('ssc:%s' % self.name, self.getss)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='set the %s' % self.desc)
@@ -58,10 +55,10 @@ class SSC(object):
                         help=self.desc,
                         default='',
                         nargs='?')
-    self.api('commands.add')(self.sshort_name,
-                             self.cmd_setssc,
-                             showinhistory=False,
-                             parser=parser)
+    self.plugin.api('core.commands:command:add')(self.name,
+                                                 self.cmd_setssc,
+                                                 showinhistory=False,
+                                                 parser=parser)
 
 
   # read the secret from a file
@@ -70,17 +67,18 @@ class SSC(object):
     read the secret from a file
     """
     first_line = ''
-    filen = os.path.join(self.plugin.save_directory, self.sshort_name)
+    file_name = os.path.join(self.plugin.save_directory, self.name)
     try:
-      with open(filen, 'r') as fileo:
+      with open(file_name, 'r') as fileo:
         first_line = fileo.readline()
 
       return first_line.strip()
     except IOError:
-      self.api('send.error')('Please set the %s with %s.%s.%s' % (self.desc,
-                                                                  self.api('commands.prefix')(),
-                                                                  self.short_name,
-                                                                  self.sshort_name))
+      self.plugin.api('send:error')('Please set the %s with %s.%s.%s' % \
+                             (self.desc,
+                              self.plugin.api('core.commands:get:command:prefix')(),
+                              self.plugin.plugin_id,
+                              self.name))
 
     return self.default
 
@@ -89,10 +87,10 @@ class SSC(object):
     set the secret
     """
     if args['value']:
-      filen = os.path.join(self.plugin.save_directory, self.sshort_name)
-      sscfile = open(filen, 'w')
-      sscfile.write(args['value'])
-      os.chmod(filen, stat.S_IRUSR | stat.S_IWUSR)
+      file_name = os.path.join(self.plugin.save_directory, self.name)
+      data_file = open(file_name, 'w')
+      data_file.write(args['value'])
+      os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
       return True, ['%s saved' % self.desc]
 
     return True, ['Please enter the %s' % self.desc]
@@ -106,7 +104,7 @@ class Plugin(BasePlugin):
 
     self.reload_dependents_f = True
 
-    self.api('api.add')('baseclass', self.api_baseclass)
+    self.api('api:add')('baseclass:get', self.api_baseclass)
 
   def initialize(self):
     """

@@ -27,12 +27,17 @@ class Plugin(BasePlugin):
 
     self.can_reload_f = False
 
-    self.regexlookup = {}
-    self.watchcmds = {}
+    self.regex_lookup = {}
+    self.watch_data = {}
 
-    self.api('api.add')('add', self.api_addwatch)
-    self.api('api.add')('remove', self.api_removewatch)
-    self.api('api.add')('removeplugin', self.api_removeplugin)
+    self.api('api:add')('add', self._api_watch_add)
+    self.api('api:add')('remove', self._api_watch_remove)
+    self.api('api:add')('removeplugin', self._api_remove_all_data_for_plugin)
+
+    # new api format
+    self.api('api:add')('watch:add', self._api_watch_add)
+    self.api('api:add')('watch:remove', self._api_watch_remove)
+    self.api('api:add')('remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
 
   def initialize(self):
     """
@@ -40,10 +45,10 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    #self.api('commands.add')('detail', self.cmd_detail,
+    #self.api('core.commands:command:add')('detail', self.cmd_detail,
                                  #shelp='details of an event')
 
-    self.api('events.register')('io_execute_event', self.checkcmd)
+    self.api('core.events:register:to:event')('io_execute_event', self.checkcmd)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list watches')
@@ -51,9 +56,9 @@ class Plugin(BasePlugin):
                         help='list only watches that have this argument in them',
                         default='',
                         nargs='?')
-    self.api('commands.add')('list',
-                             self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list',
+                                          self.cmd_list,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get details of a watch')
@@ -61,68 +66,68 @@ class Plugin(BasePlugin):
                         help='the trigger to detail',
                         default=[],
                         nargs='*')
-    self.api('commands.add')('detail',
-                             self.cmd_detail,
-                             parser=parser)
+    self.api('core.commands:command:add')('detail',
+                                          self.cmd_detail,
+                                          parser=parser)
 
-    self.api('events.register')('plugin_uninitialized', self.pluginuninitialized)
+    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
 
-  def pluginuninitialized(self, args):
+  def event_plugin_uninitialized(self, args):
     """
     a plugin was uninitialized
     """
-    self.api('send.msg')('removing watches for plugin %s' % args['name'],
+    self.api('send:msg')('removing watches for plugin %s' % args['name'],
                          secondary=args['name'])
-    self.api('%s.removeplugin' % self.short_name)(args['name'])
+    self.api('%s:remove:all:data:for:plugin' % self.plugin_id)(args['name'])
 
   def cmd_list(self, args):
     """
     list watches
     """
-    tmsg = []
-    tkeys = self.watchcmds.keys()
-    tkeys.sort()
+    message = []
+    watches = self.watch_data.keys()
+    watches.sort()
     match = args['match']
 
-    tmsg.append('%-25s : %-13s %s' % ('Name', 'Defined in',
-                                      'Hits'))
-    tmsg.append('@B' + '-' * 60 + '@w')
-    for i in tkeys:
-      watch = self.watchcmds[i]
-      if not match or match in i or watch['plugin'] == match:
-        tmsg.append('%-25s : %-13s %s' % (i, watch['plugin'],
-                                          watch['hits']))
+    message.append('%-25s : %-13s %s' % ('Name', 'Defined in',
+                                         'Hits'))
+    message.append('@B' + '-' * 60 + '@w')
+    for watch_name in watches:
+      watch = self.watch_data[watch_name]
+      if not match or match in watch_name or watch['plugin'] == match:
+        message.append('%-25s : %-13s %s' % (watch_name, watch['plugin'],
+                                             watch['hits']))
 
-    return True, tmsg
+    return True, message
 
   def cmd_detail(self, args):
     """
     list the details of a watch
     """
-    tmsg = []
+    message = []
     if args['watch']:
       for watch in args['watch']:
-        if watch in self.watchcmds:
-          eventname = self.watchcmds[watch]['eventname']
-          eventstuff = self.api('events.detail')(eventname)
-          tmsg.append('%-13s : %s' % ('Name', watch))
-          tmsg.append('%-13s : %s' % ('Defined in',
-                                      self.watchcmds[watch]['plugin']))
-          tmsg.append('%-13s : %s' % ('Regex',
-                                      self.watchcmds[watch]['regex']))
-          tmsg.append('%-13s : %s' % ('Hits', self.watchcmds[watch]['hits']))
-          tmsg.extend(eventstuff)
+        if watch in self.watch_data:
+          event_name = self.watch_data[watch]['event_name']
+          watch_event = self.api('core.events:get:event:detail')(event_name)
+          message.append('%-13s : %s' % ('Name', watch))
+          message.append('%-13s : %s' % ('Defined in',
+                                         self.watch_data[watch]['plugin']))
+          message.append('%-13s : %s' % ('Regex',
+                                         self.watch_data[watch]['regex']))
+          message.append('%-13s : %s' % ('Hits', self.watch_data[watch]['hits']))
+          message.extend(watch_event)
         else:
-          tmsg.append('trigger %s does not exist' % watch)
+          message.append('trigger %s does not exist' % watch)
     else:
-      tmsg.append('Please provide a watch name')
+      message.append('Please provide a watch name')
 
-    return True, tmsg
+    return True, message
 
   # add a command watch
-  def api_addwatch(self, watchname, regex, plugin=None, **kwargs):
+  def _api_watch_add(self, watch_name, regex, plugin=None, **kwargs):
     """  add a command watch
-    @Ywatchname@w   = name
+    @Ywatch_name@w   = name
     @Yregex@w    = the regular expression that matches this command
     @Yplugin@w   = the plugin this comes from
     @Ykeyword args@w arguments:
@@ -130,93 +135,93 @@ class Plugin(BasePlugin):
 
     this function returns no values"""
     if not plugin:
-      plugin = self.api('api.callerplugin')()
+      plugin = self.api('api:get:caller:plugin')()
 
     if not plugin:
-      print 'could not add a watch for watchname', watchname
+      print 'could not add a watch for watchname', watch_name
       return
 
-    if regex in self.regexlookup:
-      self.api('send.msg')(
+    if regex in self.regex_lookup:
+      self.api('send:msg')(
           'watch %s tried to add a regex that already existed for %s' % \
-                      (watchname, self.regexlookup[regex]), secondary=plugin)
+                      (watch_name, self.regex_lookup[regex]), secondary=plugin)
       return
-    args = kwargs.copy()
-    args['regex'] = regex
-    args['plugin'] = plugin
-    args['eventname'] = 'watch_' + watchname
+    watch_args = kwargs.copy()
+    watch_args['regex'] = regex
+    watch_args['plugin'] = plugin
+    watch_args['eventname'] = 'watch_' + watch_name
     try:
-      self.watchcmds[watchname] = args
-      self.watchcmds[watchname]['hits'] = 0
-      self.watchcmds[watchname]['compiled'] = re.compile(args['regex'])
-      self.regexlookup[args['regex']] = watchname
-      self.api('send.msg')(
+      self.watch_data[watch_name] = watch_args
+      self.watch_data[watch_name]['hits'] = 0
+      self.watch_data[watch_name]['compiled'] = re.compile(watch_args['regex'])
+      self.regex_lookup[watch_args['regex']] = watch_name
+      self.api('send:msg')(
           'added watch %s for plugin %s' % \
-                      (watchname, plugin), secondary=plugin)
+                      (watch_name, plugin), secondary=plugin)
     except Exception: # pylint: disable=broad-except
-      self.api('send.traceback')(
+      self.api('send:traceback')(
           'Could not compile regex for cmd watch: %s : %s' % \
-                (watchname, regex))
+                (watch_name, regex))
 
   # remove a command watch
-  def api_removewatch(self, watchname, force=False):
+  def _api_watch_remove(self, watch_name, force=False):
     """  remove a command watch
-    @Ywatchname@w   = The watch name
+    @Ywatch_name@w   = The watch name
     @Yforce@w       = force removal if functions are registered
 
     this function returns no values"""
-    if watchname in self.watchcmds:
-      event = self.api('events.gete')(self.watchcmds[watchname]['eventname'])
-      plugin = self.watchcmds[watchname]['plugin']
+    if watch_name in self.watch_data:
+      event = self.api('core.events:get:event')(self.watch_data[watch_name]['eventname'])
+      plugin = self.watch_data[watch_name]['plugin']
       if event:
         if not event.isempty() and not force:
-          self.api('send.msg')(
+          self.api('send:msg')(
               'removewatch: watch %s for plugin %s has functions registered' % \
-                      (watchname, plugin), secondary=plugin)
+                      (watch_name, plugin), secondary=plugin)
           return False
-      del self.regexlookup[self.watchcmds[watchname]['regex']]
-      del self.watchcmds[watchname]
-      self.api('send.msg')('removed watch %s' % watchname,
+      del self.regex_lookup[self.watch_data[watch_name]['regex']]
+      del self.watch_data[watch_name]
+      self.api('send:msg')('removed watch %s' % watch_name,
                            secondary=plugin)
     else:
-      self.api('send.msg')('removewatch: watch %s does not exist' % \
-                                            watchname)
+      self.api('send:msg')('removewatch: watch %s does not exist' % \
+                                            watch_name)
 
   # remove all watches related to a plugin
-  def api_removeplugin(self, plugin):
+  def _api_remove_all_data_for_plugin(self, plugin):
     """  remove all watches related to a plugin
     @Yplugin@w   = The plugin
 
     this function returns no values"""
-    self.api('send.msg')('removing watches for plugin %s' % plugin,
+    self.api('send:msg')('removing watches for plugin %s' % plugin,
                          secondary=plugin)
-    tkeys = self.watchcmds.keys()
-    for i in tkeys:
-      if self.watchcmds[i]['plugin'] == plugin:
-        self.api('watch.remove')(i)
+    watches = self.watch_data.keys()
+    for i in watches:
+      if self.watch_data[i]['plugin'] == plugin:
+        self.api('%s:watch:remove' % self.plugin_id)(i)
 
   def checkcmd(self, data):
     """
     check input from the client and see if we are watching for it
     """
-    tdat = data['fromdata'].strip()
-    for i in self.watchcmds:
-      cmdre = self.watchcmds[i]['compiled']
-      mat = cmdre.match(tdat)
-      if mat:
-        self.watchcmds[i]['hits'] = self.watchcmds[i]['hits'] + 1
-        targs = mat.groupdict()
-        targs['cmdname'] = 'cmd_' + i
-        targs['data'] = tdat
-        self.api('send.msg')('raising %s' % targs['cmdname'])
-        tdata = self.api('events.eraise')('watch_' + i, targs)
-        if 'changed' in tdata:
+    client_data = data['fromdata'].strip()
+    for watch_name in self.watch_data:
+      cmdre = self.watch_data[watch_name]['compiled']
+      match_data = cmdre.match(client_data)
+      if match_data:
+        self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
+        match_args = match_data.groupdict()
+        match_args['cmdname'] = 'cmd_' + watch_name
+        match_args['data'] = client_data
+        self.api('send:msg')('raising %s' % match_args['cmdname'])
+        event_data = self.api('core.events:raise:event')('watch_' + watch_name, match_args)
+        if 'changed' in event_data:
           if 'trace' in data:
-            data['trace']['changes'].append({'cmd':tdat,
+            data['trace']['changes'].append({'cmd':client_data,
                                              'flag':'modify',
-                                             'newcmd':tdata['changed'],
-                                             'plugin':self.short_name})
-          data['nfromdata'] = tdata['changed']
+                                             'newcmd':event_data['changed'],
+                                             'plugin':self.plugin_id})
+          data['nfromdata'] = event_data['changed']
 
     if 'nfromdata' in data:
       data['fromdata'] = data['nfromdata']

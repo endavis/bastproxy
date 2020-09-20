@@ -10,7 +10,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 
 
-
 class Plugin(BasePlugin):
   """
   a plugin to show how to use timers
@@ -21,7 +20,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('core.timers')
+    self.api('dependency:add')('core.timers')
 
   def initialize(self):
     """
@@ -29,39 +28,39 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('timers.add')('test_timer', self.test,
+    self.api('core.timers:add:timer')('test_timer', self.test,
                            600, onetime=False)
-    self.api('timers.add')('test_touser_timer', self.test_to_user,
+    self.api('core.timers:add:timer')('test_touser_timer', self.test_to_user,
                            10, onetime=True)
-    self.api('timers.add')('test_timewsec', self.test_timewsec,
+    self.api('core.timers:add:timer')('test_timewsec', self.test_timewsec,
                            60, time='2010')
-    self.api('timers.add')('test_time', self.test_time,
+    self.api('core.timers:add:timer')('test_time', self.test_time,
                            60*60*24, time='1200')
 
   def test(self):
     """
     send a message to the mud and client
     """
-    self.api('send.client')(
+    self.api('send:client')(
         '@RHere is the timer that fires every 600 seconds!')
-    self.api('send.execute')('look')
+    self.api('send:execute')('look')
 
   def test_to_user(self):
     """
     test a onetime timer
     """
-    self.api('send.client')('@RA onetime timer just fired.')
+    self.api('send:client')('@RA onetime timer just fired.')
 
   def test_timewsec(self):
     """
     test an time timer with seconds
     """
-    self.api('send.client')(
+    self.api('send:client')(
         'this is the timer that starts at 2010 and goes every 1 minute')
 
   def test_time(self):
     """
     test an time timer
     """
-    self.api('send.client')(
+    self.api('send:client')(
         'this is the timer that fires at noon')
