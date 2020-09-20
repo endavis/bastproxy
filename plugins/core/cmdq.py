@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
     """
     a plugin was uninitialized
     """
-    self.api('%s:remove:commands:for:plugin' % self.plugin_id)(args['name'])
+    self.api('%s:remove:commands:for:plugin' % self.plugin_id)(args['plugin_id'])
 
   # remove all triggers related to a plugin
   def _api_remove_commands_for_plugin(self, plugin):

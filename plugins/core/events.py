@@ -282,9 +282,9 @@ class Plugin(BasePlugin):
     """
     a plugin was uninitialized
     """
-    self.api('send:msg')('removing events for plugin %s' % args['name'],
-                         secondary=args['name'])
-    self.api('%s:remove:events:for:plugin' % self.plugin_id)(args['name'])
+    self.api('send:msg')('removing events for plugin %s' % args['plugin_id'],
+                         secondary=args['plugin_id'])
+    self.api('%s:remove:events:for:plugin' % self.plugin_id)(args['plugin_id'])
 
   # return the event, will have registered functions
   def _api_get_event(self, event_name):

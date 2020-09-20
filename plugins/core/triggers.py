@@ -104,7 +104,7 @@ class Plugin(BasePlugin):
     """
     a plugin was uninitialized
     """
-    self.api('%s:remove:data:for:plugin' % self.plugin_id)(args['name'])
+    self.api('%s:remove:data:for:plugin' % self.plugin_id)(args['plugin_id'])
 
   def rebuild_regexes(self):
     """

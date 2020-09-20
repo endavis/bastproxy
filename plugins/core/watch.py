@@ -76,9 +76,9 @@ class Plugin(BasePlugin):
     """
     a plugin was uninitialized
     """
-    self.api('send:msg')('removing watches for plugin %s' % args['name'],
-                         secondary=args['name'])
-    self.api('%s:remove:all:data:for:plugin' % self.plugin_id)(args['name'])
+    self.api('send:msg')('removing watches for plugin %s' % args['plugin_id'],
+                         secondary=args['plugin_id'])
+    self.api('%s:remove:all:data:for:plugin' % self.plugin_id)(args['plugin_id'])
 
   def cmd_list(self, args):
     """
