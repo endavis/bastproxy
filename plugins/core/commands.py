@@ -207,13 +207,13 @@ class Plugin(BasePlugin):
     self.api('{0.plugin_id}:remove:data:for:plugin'.format(self))(args['plugin_id'])
 
   # remove all commands for a plugin
-  def _api_remove_plugin_data(self, plugin):
+  def _api_remove_plugin_data(self, plugin_id):
     """  remove all command data for a plugin
     @Yplugin@w    = the plugin to remove commands for
 
     this function returns no values"""
     # get the plugin instance
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     if plugin_instance:
       # remove commands from command_list that start with plugin_instance.plugin_id
@@ -233,7 +233,7 @@ class Plugin(BasePlugin):
     returns:
       the updated message
     """
-    line_length = self.api('setting:get')('linelen', 'proxy')
+    line_length = self.api('setting:get')('linelen', 'net.proxy')
 
     message.insert(0, '')
     message.insert(1, '%s.%s.%s' % (self.api('setting:get')('cmdprefix'), plugin_id, command))
@@ -250,7 +250,7 @@ class Plugin(BasePlugin):
     return self.api('setting:get')('cmdprefix')
 
   # change an attribute for a command
-  def _api_change_command(self, plugin, command_name, flag_name, flag_value):
+  def _api_change_command(self, plugin_id, command_name, flag_name, flag_value):
     """  change an attribute for a command
     @Yplugin@w        = the plugin the command is in
     @Ycommand_name@w  = the command name
@@ -259,41 +259,41 @@ class Plugin(BasePlugin):
 
     returns True if successful, False if not"""
     # get the command data for the plugin
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
     command_data = self.get_command(plugin_instance.plugin_id, command_name)
 
     # didn't find the command
     if not command_data:
       self.api('send:error')('command %s does not exist in plugin %s (%s)' % \
-        (command_name, plugin, plugin_instance.plugin_id))
+        (command_name, plugin_id, plugin_instance.plugin_id))
       return False
 
     # flag isn't in the command
     if flag_name not in command_data:
       self.api('send:error')(
           'flag %s does not exist in command %s in plugin %s (%s)' % \
-            (flag_name, command_name, plugin, plugin_instance.plugin_id))
+            (flag_name, command_name, plugin_id, plugin_instance.plugin_id))
       return False
 
     # change the flag and update the command data for the plugin
-    data = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+    data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
     if not data:
       data = {}
     data[command_name][flag_name] = flag_value
 
-    self.api('data:update')('commands', data, plugin=plugin_instance.plugin_id)
+    self.api('data:update')('commands', data, plugin_id=plugin_instance.plugin_id)
 
     return True
 
   # return the help for a command
-  def _api_get_plugin_command_help(self, plugin, command_name):
+  def _api_get_plugin_command_help(self, plugin_id, command_name):
     """  get the help for a command
     @Yplugin@w        = the plugin the command is in
     @Ycommand_name@w  = the command name
 
     returns the help message as a string"""
     # get the command data for the plugin
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
     command_data = self.get_command(plugin_instance.plugin_id, command_name)
 
     if command_data:
@@ -302,13 +302,13 @@ class Plugin(BasePlugin):
     return ''
 
   # return a formatted list of commands for a plugin
-  def _api_get_plugin_command_format(self, plugin):
+  def _api_get_plugin_command_format(self, plugin_id):
     """  get a list of commands for the specified plugin
     @Yplugin@w   = the plugin the command is in
 
     returns a list of strings formatted for the commands in the plugin
     """
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     if plugin_instance:
       return self.list_commands(plugin_instance.plugin_id)
@@ -316,16 +316,16 @@ class Plugin(BasePlugin):
     return None
 
   # return the raw command data for a plugin
-  def _api_get_plugin_command_data(self, plugin):
+  def _api_get_plugin_command_data(self, plugin_id):
     """  get the data for commands for the specified plugin
     @Yplugin@w   = the plugin the command is in
 
     returns a dictionary of commands
     """
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     if plugin_instance:
-      data = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+      data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
       return data
 
     return {}
@@ -522,7 +522,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     # retrieve the commands data
-    data = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+    data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
     if not data:
       return None
 
@@ -533,7 +533,7 @@ class Plugin(BasePlugin):
     return None
 
   # update a command
-  def update_command(self, plugin, command_name, data):
+  def update_command(self, plugin_id, command_name, data):
     """
     update a command
 
@@ -546,9 +546,9 @@ class Plugin(BasePlugin):
     returns:
       True if succcessful, False if not successful
     """
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
-    all_command_data = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+    all_command_data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
 
     if not all_command_data:
       all_command_data = {}
@@ -556,12 +556,12 @@ class Plugin(BasePlugin):
     if command_name not in all_command_data:
       if not self.api.startup:
         self.api('send:msg')('commands - update_command: plugin %s does not have command %s' % \
-                              (plugin, command_name),
+                              (plugin_id, command_name),
                              secondary=plugin_instance.plugin_id)
 
     all_command_data[command_name] = data
 
-    return self.api('data:update')('commands', all_command_data, plugin=plugin_instance.plugin_id)
+    return self.api('data:update')('commands', all_command_data, plugin_id=plugin_instance.plugin_id)
 
   def pass_through_command(self, data, command_data_dict):
     """
@@ -689,38 +689,39 @@ class Plugin(BasePlugin):
       loaded_plugin_ids = self.api('core.plugins:get:loaded:plugins:list')()
 
       plugin_package = None
-      plugin_id = None
+      plugin_name = None
       plugin_command = None
 
-      found_plugin = None
+      found_short_name = None
       found_package = None
       found_command = None
+      found_plugin_id = None
 
       # parse the command to get what to search for
       if len(split_command_list) == 1: # this would be cmdprefix by iself, ex. #bp
         # run #bp.commands.list
         pass
-      elif len(split_command_list) == 2: # this would be cmdprefix + plugin_id, ex. #bp.ali
-        plugin_id = split_command_list[1]
-      elif len(split_command_list) == 3: # this would be cmdprefix + plugin_id + command, ex. #bp.alias.list
-                                         # also could be cmdprefix + package + plugin_id
+      elif len(split_command_list) == 2: # this would be cmdprefix + plugin_name, ex. #bp.ali
+        plugin_name = split_command_list[1]
+      elif len(split_command_list) == 3: # this would be cmdprefix + plugin_name + command, ex. #bp.alias.list
+                                         # also could be cmdprefix + package + plugin_name
         # first check if the last part is a plugin
-        found_plugin = self.api('core.fuzzy:get:best:match')(split_command_list[-1], short_names)
-        if found_plugin:
-          plugin_id = split_command_list[-1]
+        shortname_check = self.api('core.fuzzy:get:best:match')(split_command_list[-1], short_names)
+        if shortname_check:
+          plugin_name = split_command_list[-1]
           plugin_package = split_command_list[1]
-        # if not, then set plugin_id and plugin_command for later lookup
+        # if not, then set plugin_name and plugin_command for later lookup
         else:
-          plugin_id = split_command_list[1]
+          plugin_name = split_command_list[1]
           plugin_command = split_command_list[-1]
-      else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_id + command, ex. #bp.client.alias.list
+      else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_name + command, ex. #bp.client.alias.list
         plugin_package = split_command_list[1]
-        plugin_id = split_command_list[2]
+        plugin_name = split_command_list[2]
         plugin_command = split_command_list[-1]
 
       # print 'fullcommand: %s' % command
       # print 'plugin_package: %s' % plugin_package
-      # print 'plugin: %s' % plugin_id
+      # print 'plugin: %s' % plugin_name
       # print 'command: %s' % plugin_command
 
       # find package
@@ -728,29 +729,31 @@ class Plugin(BasePlugin):
         packages = self.api('core.plugins:get:packages:list')()
         found_package = self.api('core.fuzzy:get:best:match')(plugin_package, packages)
 
-      # find plugin
-      if found_package and plugin_id and not found_plugin:
+      # find plugin_id
+      if found_package and plugin_name and not found_plugin_id:
         plugin_list = [i.split('.')[-1] for i in loaded_plugin_ids if i.startswith('%s.' % found_package)]
-        found_plugin = self.api('core.fuzzy:get:best:match')(plugin_id, plugin_list)
-        if not found_plugin:
-          new_plugin = self.api('core.fuzzy:get:best:match')(found_package + '.' + plugin_id, loaded_plugin_ids)
-          if new_plugin:
-            found_plugin = new_plugin.split('.')[-1]
+        found_short_name = self.api('core.fuzzy:get:best:match')(plugin_name, plugin_list)
+        if not found_short_name:
+          found_plugin_id = self.api('core.fuzzy:get:best:match')(found_package + '.' + plugin_name, loaded_plugin_ids)
+        else:
+          found_plugin_id = found_package + '.' + found_short_name
 
-      if not found_plugin and plugin_id:
-        found_plugin = self.api('core.fuzzy:get:best:match')(plugin_id, short_names)
+      if not found_plugin_id and plugin_name:
+        found_plugin_id = self.api('core.plugins:short:name:convert:plugin:id')(plugin_name)
+        if found_plugin_id:
+          found_package = found_plugin_id.split('.')[0]
 
       # if a plugin was found but we don't have a package, find the package
-      if found_plugin and plugin_id and not found_package:
+      if found_plugin_id and plugin_name and not found_package:
         packages = []
-        for plugin_id in loaded_plugin_ids:
-          if found_plugin in plugin_id:
-            packages.append(plugin_id.split('.')[0])
+        for plugin_name in loaded_plugin_ids:
+          if found_plugin_id in plugin_name:
+            packages.append(plugin_name.split('.')[0])
         if len(packages) == 1:
           found_package = packages[0]
 
       # didn't find anything
-      if not found_plugin and not found_package and not found_command:
+      if not found_plugin_id and not found_package and not found_command:
         command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
         command_data_dict['commandran'] = '%s.%s.%s' % \
               (self.api('setting:get')('cmdprefix'),
@@ -761,38 +764,40 @@ class Plugin(BasePlugin):
         command_data_dict['fullargs'] = ''
 
       # couldn't find a plugin
-      elif not found_plugin:
+      elif not found_plugin_id:
 
         command_data_dict['flag'] = 'Bad Command'
         command_data_dict['cmddata'] = 'could not find command %s' % command
 
       # at least have a plugin
       else:
+        if '.' not in found_plugin_id:
+          print 'found_plugin_id is not a plugin_id'
         if plugin_command:
-          commands = self.api('core.commands:get:commands:for:plugin:data')(found_plugin).keys()
+          commands = self.api('core.commands:get:commands:for:plugin:data')(found_plugin_id).keys()
           found_command = self.api('core.fuzzy:get:best:match')(plugin_command, commands)
 
         # have a plugin but no command
-        if found_plugin and not found_command:
+        if found_plugin_id and not found_command:
 
           if plugin_command:
             command_data_dict['flag'] = 'Bad Command'
-            command_data_dict['cmddata'] = 'command %s does not exist in plugin %s' % (plugin_command, found_plugin)
+            command_data_dict['cmddata'] = 'command %s does not exist in plugin %s' % (plugin_command, found_plugin_id)
           else:
             command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
             command_data_dict['flag'] = 'Help'
             command_data_dict['commandran'] = '%s.%s.%s %s' % \
                     (self.api('setting:get')('cmdprefix'),
-                     self.plugin_id, 'list', found_plugin)
-            command_data_dict['targs'] = [found_plugin]
+                     self.plugin_id, 'list', found_plugin_id)
+            command_data_dict['targs'] = [found_plugin_id]
             command_data_dict['fullargs'] = full_args_string
 
         # have a plugin and a command
         else:
-          command = self.get_command(found_plugin, found_command)
+          command = self.get_command(found_plugin_id, found_command)
           command_data_dict['cmd'] = command
           command_data_dict['commandran'] = '%s.%s.%s %s' % \
-                (self.api('setting:get')('cmdprefix'), found_plugin,
+                (self.api('setting:get')('cmdprefix'), found_plugin_id,
                  command['commandname'], ' '.join(split_args))
           command_data_dict['flag'] = 'Run'
           command_data_dict['targs'] = split_args
@@ -800,10 +805,10 @@ class Plugin(BasePlugin):
 
       # print 'fullcommand: %s' % command
       # print 'found_package: %s' % found_package
-      # print 'found_plugin: %s' % found_plugin
+      # print 'found_plugin_id: %s' % found_plugin_id
       # print 'found_command: %s' % found_command
 
-      command_data_dict['plugin_id'] = found_plugin
+      command_data_dict['plugin_id'] = found_plugin_id
       command_data_dict['scmd'] = found_command
 
       # run the command here
@@ -945,28 +950,28 @@ class Plugin(BasePlugin):
                          secondary=plugin_instance.plugin_id)
 
   # remove a command
-  def _api_remove_command(self, plugin, command_name):
+  def _api_remove_command(self, plugin_id, command_name):
     """  remove a command
     @Yplugin@w        = the top level of the command
     @Ycommand_name@w  = the name of the command
 
     this function returns no values"""
-    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+    plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
     removed = False
     if plugin_instance:
-      data = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+      data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
       if data and command_name in data:
         del data[command_name]
-        self.api('data:update')('commands', data, plugin=plugin_instance.plugin_id)
+        self.api('data:update')('commands', data, plugin_id=plugin_instance.plugin_id)
         self.api('send:msg')('removed command %s.%s' % \
-                                                (plugin, command_name),
-                             secondary=plugin)
+                                                (plugin_id, command_name),
+                             secondary=plugin_id)
         removed = True
 
     if not removed:
       self.api('send:msg')('remove command: command %s.%s does not exist' % \
-                                                (plugin, command_name),
-                           secondary=plugin)
+                                                (plugin_id, command_name),
+                           secondary=plugin_id)
 
   def format_command_list(self, command_list):
     """
@@ -1002,7 +1007,7 @@ class Plugin(BasePlugin):
 
     message = []
     if plugin_instance:
-      commands = self.api('data:get')('commands', plugin=plugin_instance.plugin_id)
+      commands = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
       message.append('Commands in %s:' % plugin_instance.plugin_id)
       message.append('@G' + '-' * 60 + '@w')
       groups = {}
@@ -1036,7 +1041,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(args['plugin'])
     command = args['command']
     if plugin_instance:
-      plugin_commands = self.api('data:get')('commands', plugin_instance.plugin_id)
+      plugin_commands = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
       if plugin_commands:
         if command and command in plugin_commands:
           help_message = plugin_commands[command]['parser'].format_help().split('\n')
@@ -1047,7 +1052,7 @@ class Plugin(BasePlugin):
         message.append('There are no commands in plugin %s' % plugin_instance.plugin_id)
     else:
       message.append('Plugins')
-      plugin_id_list = self.api('get:loaded:plugins:list')()
+      plugin_id_list = self.api('core.plugins:get:loaded:plugins:list')()
       plugin_id_list.sort()
       message.append(self.api('core.utils:format:list:into:columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
     return True, message
