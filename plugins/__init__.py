@@ -36,7 +36,7 @@ import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
-SNAMERE = re.compile(r'^SNAME = \'(?P<value>.*)\'$')
+# SNAMERE = re.compile(r'^SNAME = \'(?P<value>.*)\'$')
 NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')
 AUTHORRE = re.compile(r'^AUTHOR = \'(?P<value>.*)\'$')
 VERSIONRE = re.compile(r'^VERSION = (?P<value>.*)$')
@@ -110,7 +110,7 @@ class PluginMgr(BasePlugin):
     self.all_plugin_info_on_disk = {}
 
     # lookups by different types
-    self.plugin_lookup_by_short_name = {}
+    #self.plugin_lookup_by_short_name = {}
     self.plugin_lookup_by_full_import_location = {}
     self.plugin_lookup_by_plugin_filepath = {}
     self.plugin_lookup_by_id = {}
@@ -125,6 +125,25 @@ class PluginMgr(BasePlugin):
     self.api('api:add')('get:loaded:plugins:list', self._api_get_loaded_plugins_list)
     self.api('api:add')('get:packages:list', self._api_get_packages_list)
     self.api('api:add')('get:all:short:names', self._api_get_all_short_names)
+    self.api('api:add')('short:name:convert:plugin:id', self._api_short_name_convert_plugin_id)
+
+  def _api_short_name_convert_plugin_id(self, short_name):
+    """
+    convert a short_name to a plugin_id
+    Note: short_names are not guaranteed to be unique
+    """
+    short_name_list = []
+    plugin_id_list = []
+    for loaded_plugin_dict in self.loaded_plugins.values():
+      short_name_list.append(loaded_plugin_dict['short_name'])
+      plugin_id_list.append(loaded_plugin_dict['plugin_id'])
+
+    found_short_name = self.api('core.fuzzy:get:best:match')(short_name, short_name_list)
+    if found_short_name:
+      short_name_index = short_name_list.index(found_short_name)
+      return plugin_id_list[short_name_index]
+
+    return None
 
   # get a list of loaded plugins
   def _api_get_loaded_plugins_list(self):
@@ -140,7 +159,7 @@ class PluginMgr(BasePlugin):
     """
     short_name_list = []
     for loaded_plugin_dict in self.loaded_plugins.values():
-      short_name_list.append(loaded_plugin_dict['plugin_id'].split('.')[1])
+      short_name_list.append(loaded_plugin_dict['short_name'])
     return short_name_list
 
   # get a list of all packages
@@ -234,8 +253,8 @@ class PluginMgr(BasePlugin):
         plugin = self.loaded_plugins[plugin_name]['plugininstance']
       if plugin_name in self.plugin_lookup_by_id:
         plugin = self.loaded_plugins[self.plugin_lookup_by_id[plugin_name]]['plugininstance']
-      if plugin_name in self.plugin_lookup_by_short_name:
-        plugin = self.loaded_plugins[self.plugin_lookup_by_short_name[plugin_name]]['plugininstance']
+      # if plugin_name in self.plugin_lookup_by_short_name:
+      #   plugin = self.loaded_plugins[self.plugin_lookup_by_short_name[plugin_name]]['plugininstance']
       if plugin_name in self.plugin_lookup_by_full_import_location:
         plugin = self.loaded_plugins[self.plugin_lookup_by_full_import_location[plugin_name]]['plugininstance']
       if plugin_name in self.plugin_lookup_by_plugin_filepath:
@@ -458,7 +477,7 @@ class PluginMgr(BasePlugin):
     info['isrequired'] = False
     info['isplugin'] = False
     info['name'] = 'not found'
-    info['sname'] = 'not found'
+    # info['sname'] = 'not found'
     info['author'] = 'not found'
     info['purpose'] = 'not found'
     info['version'] = 'not found'
@@ -482,12 +501,12 @@ class PluginMgr(BasePlugin):
           info['name'] = gdict['value']
           continue
 
-      if info['sname'] == 'not found':
-        short_name_match = SNAMERE.match(tline)
-        if short_name_match:
-          gdict = short_name_match.groupdict()
-          info['sname'] = gdict['value']
-          continue
+      # if info['sname'] == 'not found':
+      #   short_name_match = SNAMERE.match(tline)
+      #   if short_name_match:
+      #     gdict = short_name_match.groupdict()
+      #     info['sname'] = gdict['value']
+      #     continue
 
       if info['purpose'] == 'not found':
         purpose_match = PURPOSERE.match(tline)
@@ -522,7 +541,7 @@ class PluginMgr(BasePlugin):
         info['isplugin'] = True
         continue
 
-      if info['isrequired'] and info['isplugin'] and info['sname'] and \
+      if info['isrequired'] and info['isplugin'] and \
          info['name'] and info['author'] and info['purpose'] and info['version']:
         break
 
@@ -542,7 +561,6 @@ class PluginMgr(BasePlugin):
 
     conflicts = False
 
-    snames = []
     # go through the plugins and read information from them
     for module in _module_list:
       full_path = module['fullpath']
@@ -556,11 +574,6 @@ class PluginMgr(BasePlugin):
       if 'isvalidpythoncode' not in info:
         print '%s info does not have isvalidpythoncode key' % full_path
       if info['isplugin']:
-        if info['sname'] not in snames:
-          snames.append(info['sname'])
-        else:
-          self.api('send:error')('at least two plugins have the same short name: %s, please correct' % info['sname'])
-          conflicts = True
         info['plugin_path'] = plugin_path
         info['fullpath'] = full_path
         info['plugin_id'] = plugin_id
@@ -735,7 +748,7 @@ class PluginMgr(BasePlugin):
       plugin['dev'] = True
 
     if module:
-      plugin['short_name'] = module.SNAME
+      plugin['short_name'] = plugin_id.split('.')[-1]
       plugin['name'] = module.NAME
       plugin['purpose'] = module.PURPOSE
       plugin['author'] = module.AUTHOR
@@ -776,7 +789,7 @@ class PluginMgr(BasePlugin):
 
     try:
       plugin_instance = plugin['module'].Plugin(plugin['module'].NAME,
-                                                plugin['module'].SNAME,
+                                                plugin['short_name'],
                                                 plugin['plugin_path'],
                                                 plugin['base_plugin_dir'],
                                                 plugin['full_import_location'],
@@ -797,12 +810,12 @@ class PluginMgr(BasePlugin):
     self.loaded_plugins[plugin_id]['isinitialized'] = False
 
     # add plugin to lookups
-    if plugin_instance.short_name in self.plugin_lookup_by_short_name:
-      self.api('send:error')('plugin %s has a short name conflict with already loaded plugin %s' % \
-                                (plugin_instance.plugin_path,
-                                 self.plugin_lookup_by_short_name[plugin_id].plugin_instance.plugin_path))
-    else:
-      self.plugin_lookup_by_short_name[plugin_instance.short_name] = plugin_id
+    # if plugin_instance.short_name in self.plugin_lookup_by_short_name:
+    #   self.api('send:error')('plugin %s has a short name conflict with already loaded plugin %s' % \
+    #                             (plugin_instance.plugin_path,
+    #                              self.plugin_lookup_by_short_name[plugin_id].plugin_instance.plugin_path))
+    # else:
+    #   self.plugin_lookup_by_short_name[plugin_instance.short_name] = plugin_id
 
     self.plugin_lookup_by_full_import_location[plugin_instance.full_import_location] = plugin_id
     self.plugin_lookup_by_plugin_filepath[plugin_instance.plugin_path] = plugin_id
@@ -918,15 +931,15 @@ class PluginMgr(BasePlugin):
     # don't do anything if the plugin has already been initialized
     if plugin['isinitialized']:
       return True
-    self.api('send:msg')('%-30s : attempting to initialize (%s : %s)' % \
-              (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+    self.api('send:msg')('%-30s : attempting to initialize (%s)' % \
+              (plugin['plugin_id'], plugin['name']))
 
     # run the initialize function
     try:
       plugin['plugininstance'].initialize()
       plugin['isinitialized'] = True
-      self.api('send:msg')('%-30s : successfully initialized (%s : %s)' % \
-                (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+      self.api('send:msg')('%-30s : successfully initialized (%s)' % \
+                (plugin['plugin_id'], plugin['name']))
 
       self.api('core.events:raise:event')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
       self.api('core.events:raise:event')('{0.plugin_id}_plugin_initialized'.format(self),
@@ -976,8 +989,8 @@ class PluginMgr(BasePlugin):
 
     if plugin:
       if not plugin['plugininstance'].can_reload_f:
-        self.api('send:msg')('%-30s : this plugin cannot be unloaded (%s : %s)' % \
-                  (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+        self.api('send:msg')('%-30s : this plugin cannot be unloaded (%s)' % \
+                  (plugin['plugin_id'], plugin['name']))
         return False
       else:
         try:
@@ -988,8 +1001,8 @@ class PluginMgr(BasePlugin):
           self.api('core.events:raise:event')('{0.plugin_id}_plugin_uninitialized'.format(self),
                                               {'plugin':plugin['name'],
                                                'plugin_id':plugin['plugin_id']})
-          self.api('send:msg')('%-30s : successfully unitialized (%s : %s)' % \
-                  (plugin['plugin_id'], plugin['short_name'], plugin['name']))
+          self.api('send:msg')('%-30s : successfully unitialized (%s)' % \
+                  (plugin['plugin_id'], plugin['name']))
 
         except Exception: # pylint: disable=broad-except
           self.api('send:traceback')(
@@ -1004,7 +1017,7 @@ class PluginMgr(BasePlugin):
           self.api('setting:change')('pluginstoload', plugins_to_load)
 
         # clean up lookup dictionaries
-        del self.plugin_lookup_by_short_name[plugin['short_name']]
+        # del self.plugin_lookup_by_short_name[plugin['short_name']]
         del self.plugin_lookup_by_full_import_location[plugin['full_import_location']]
         del self.plugin_lookup_by_plugin_filepath[plugin['plugin_path']]
         del self.plugin_lookup_by_id[plugin_id]
@@ -1099,7 +1112,6 @@ class PluginMgr(BasePlugin):
     plugin = args['plugin']
     plugin_found_f = False
     if plugin:
-      # TODO: also search each for internal short_name
       if plugin in self.all_plugin_info_on_disk.keys():
         plugin_found_f = True
       else:
@@ -1215,7 +1227,7 @@ class PluginMgr(BasePlugin):
         'plugininstance': self
     }
 
-    self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
+    # self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
     self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
     self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
     self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id

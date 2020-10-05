@@ -137,38 +137,38 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     return None
 
   # get the data for a specific datatype
-  def _api_get_data(self, datatype, plugin=None):
+  def _api_get_data(self, datatype, plugin_id=None):
     """  get the data of a specific type from this plugin
     @Ydatatype@w = the datatype to get
     @Yplugin@w   = the plugin to get the data from (optional)
 
     returns:
       the data for the specified datatype, None if not found"""
-    if not plugin:
+    if not plugin_id:
       if datatype in self.data:
         return self.data[datatype]
 
     else:
-      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
       if plugin_instance:
         return plugin_instance.api('data:get')(datatype)
 
     return None
 
   # update the data for a specific datatype
-  def _api_update_data(self, datatype, newdata, plugin=None):
+  def _api_update_data(self, datatype, newdata, plugin_id=None):
     """  get the data of a specific type from this plugin
     @Ydatatype@w = the datatype to get
     @Yplugin@w   = the plugin to get the data from (optional)
 
     returns:
       True if updated, False if not"""
-    if not plugin:
+    if not plugin_id:
       self.data[datatype] = newdata
       return True
 
     else:
-      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin)
+      plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
       if plugin_instance:
         return plugin_instance.api('data:update')(datatype, newdata)
 
