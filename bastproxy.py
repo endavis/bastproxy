@@ -261,7 +261,7 @@ def main():
   API('core.log:add:datatype')('ansi')
 
   # get the proxy plugin
-  proxy_plugin = API('core.plugins:get:plugin:instance')('proxy')
+  proxy_plugin = API('core.plugins:get:plugin:instance')('net.proxy')
 
   # update the port setting if different from the default
   if targs['port'] != 9999:
