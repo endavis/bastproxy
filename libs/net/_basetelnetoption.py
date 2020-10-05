@@ -7,22 +7,26 @@ class BaseTelnetOption(object):
   """
   a base class for a telnet object
   """
-  def __init__(self, telnet_object, option, plugin):
+  # plugin_id, option_name, option_class, option_num
+  def __init__(self, telnet_object, option_name, option_number, plugin_id):
     """
     initalize the instance
     """
     tapi = API()
     self.telnet_object = telnet_object
-    self.option = option
-    self.telnet_object.option_handlers[ord(self.option)] = self
-    self.plugin = tapi('core.plugins:get:plugin:instance')(plugin)
-    #self.telnet_object.debug_types.append(self.option)
+    self.option_name = option_name
+    self.option_number = option_number
+    self.option_string = chr(self.option_number)
+
+    self.telnet_object.option_handlers[self.option_number] = self
+    self.plugin = tapi('core.plugins:get:plugin:instance')(plugin_id)
+    #self.telnet_object.debug_types.append(self.option_number)
 
   def onconnect(self):
     """
     a method for when an option connects
     """
-    self.telnet_object.msg('onconnect for option: %s' % ord(self.option),
+    self.telnet_object.msg('onconnect for option: %s' % self.option_number,
                            mtype='option')
 
   def handleopt(self, command, sbdata):
@@ -30,11 +34,11 @@ class BaseTelnetOption(object):
     handle an option
     """
     self.telnet_object.msg('handleopt for option: %s, command: %s, sbdata: %s' % \
-                        (ord(self.option), command, sbdata), mtype='option')
+                        (self.option_number, command, sbdata), mtype='option')
 
   def reset(self, onclose=False): # pylint: disable=unused-argument
     """
     reset and option
     """
-    self.telnet_object.msg('reset for option: %s' % ord(self.option), mtype='option')
-    self.telnet_object.options[ord(self.option)] = False
+    self.telnet_object.msg('reset for option: %s' % self.option_number, mtype='option')
+    self.telnet_object.options[self.option_number] = False

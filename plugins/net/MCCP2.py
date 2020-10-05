@@ -15,10 +15,6 @@ PRIORITY = 35
 
 REQUIRED = True
 
-MCCP2 = chr(86)  # Mud Compression Protocol, v2
-
-CODES[86] = '<MCCP2>'
-
 # Plugin
 class Plugin(BasePlugin):
   """
@@ -34,22 +30,33 @@ class Plugin(BasePlugin):
 
     self.can_reload_f = False
 
+    self.option_name = 'MCCP'
+    self.option_num = 86
+    self.option_string = chr(self.option_num)
+    self.option_code = '<%s>' % self.option_name
+
+    CODES[self.option_num] = self.option_code
+
   def initialize(self):
+    """
+    initialize the plugin
+    """
     BasePlugin.initialize(self)
 
-    self.api('net.options:server:option:add')(self.plugin_id, SERVER)
-    self.api('net.options:client:option:add')(self.plugin_id, CLIENT)
+    self.api('net.options:server:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
+    self.api('net.options:client:option:add')(self.plugin_id, self.option_name, self.option_num, CLIENT)
 
 class SERVER(BaseTelnetOption):
   """
   the mccp option class to connect to a server
   """
-  def __init__(self, telnet_object):
+  def __init__(self, telnet_object, option_name, option_number, plugin_id):
     """
     initialize the instance
     """
-    BaseTelnetOption.__init__(self, telnet_object, MCCP2, SNAME)
-    #self.telnet_object.debug_types.append('MCCP2')
+    BaseTelnetOption.__init__(self, telnet_object, option_name, option_number, plugin_id)
+    #self.telnet_object.debug_types.append(self.option_name)
+
     self.orig_readdatafromsocket = None
     self.zlib_decomp = None
 
@@ -58,29 +65,29 @@ class SERVER(BaseTelnetOption):
     handle the mccp opt
     """
     self.telnet_object.msg('%s - in handleopt' % (ord(command)),
-                           mtype='MCCP2')
+                           mtype=self.option_name)
     if command == WILL:
-      self.telnet_object.msg('sending IAC DO MCCP2', mtype='MCCP2')
-      self.telnet_object.send("".join([IAC, DO, MCCP2]))
+      self.telnet_object.msg('sending IAC DO MCCP2', mtype=self.option_name)
+      self.telnet_object.send("".join([IAC, DO, self.option_string]))
 
     elif command in [SE, SB]:
       self.telnet_object.msg('got an SE mccp in handleopt',
-                             mtype='MCCP2')
+                             mtype=self.option_name)
       self.telnet_object.msg('starting compression with server',
-                             mtype='MCCP2')
-      self.telnet_object.options[ord(MCCP2)] = True
+                             mtype=self.option_name)
+      self.telnet_object.options[ord(self.option_string)] = True
       self.negotiate()
 
   def negotiate(self):
     """
     negotiate the mccp opt
     """
-    self.telnet_object.msg('negotiating', mtype='MCCP2')
+    self.telnet_object.msg('negotiating', mtype=self.option_name)
     self.zlib_decomp = zlib.decompressobj(15)
     # decompress the raw queue
     if self.telnet_object.rawq:
       self.telnet_object.msg('converting rawq in handleopt',
-                             mtype='MCCP2')
+                             mtype=self.option_name)
       try:
         rawq = self.zlib_decomp.decompress(self.telnet_object.rawq)
         self.telnet_object.rawq = rawq
@@ -98,7 +105,7 @@ class SERVER(BaseTelnetOption):
       # give the original func a chance to munge the data
       data = orig_readdatafromsocket()
 
-      self.telnet_object.msg('decompressing', mtype='MCCP2')
+      self.telnet_object.msg('decompressing', mtype=self.option_name)
 
       # now do our work when returning the data
       return self.zlib_decomp.decompress(data)
@@ -109,8 +116,8 @@ class SERVER(BaseTelnetOption):
     """
     resetting the option
     """
-    self.telnet_object.msg('resetting', mtype='MCCP2')
-    self.telnet_object.addtooutbuffer("".join([IAC, DONT, MCCP2]), True)
+    self.telnet_object.msg('resetting', mtype=self.option_name)
+    self.telnet_object.addtooutbuffer("".join([IAC, DONT, self.option_string]), True)
     self.telnet_object.rawq = self.zlib_decomp.decompress(self.telnet_object.rawq)
     setattr(self.telnet_object, 'readdatafromsocket',
             self.orig_readdatafromsocket)
@@ -120,34 +127,38 @@ class CLIENT(BaseTelnetOption):
   """
   a class to connect to a client to manage mccp
   """
-  def __init__(self, telnet_object):
+  def __init__(self, telnet_object, option_name, option_number, plugin_id):
     """
     initialize the instance
     """
-    BaseTelnetOption.__init__(self, telnet_object, MCCP2, SNAME)
+    BaseTelnetOption.__init__(self, telnet_object, option_name, option_number, plugin_id)
+
+    self.option_num = option_number
+    self.option_string = chr(self.option_num)
+
     self.orig_convert_outdata = None
     self.zlib_comp = None
-    self.telnet_object.msg('sending IAC WILL MCCP2', mtype='MCCP2')
-    self.telnet_object.send("".join([IAC, WILL, MCCP2]))
+    self.telnet_object.msg('sending IAC WILL MCCP2', mtype=self.option_name)
+    self.telnet_object.send("".join([IAC, WILL, self.option_string]))
 
   def handleopt(self, command, sbdata):
     """
     handle the mccp option
     """
     self.telnet_object.msg('%s - in handleopt' % (ord(command)),
-                           mtype='MCCP2')
+                           mtype=self.option_name)
 
     if command == DO:
-      self.telnet_object.options[ord(MCCP2)] = True
+      self.telnet_object.options[ord(self.option_string)] = True
       self.negotiate()
 
   def negotiate(self):
     """
     negotiate the mccp option
     """
-    self.telnet_object.msg("starting mccp", level=2, mtype='MCCP2')
-    self.telnet_object.msg('sending IAC SB MCCP2 IAC SE', mtype='MCCP2')
-    self.telnet_object.send("".join([IAC, SB, MCCP2, IAC, SE]))
+    self.telnet_object.msg("starting mccp", level=2, mtype=self.option_name)
+    self.telnet_object.msg('sending IAC SB MCCP2 IAC SE', mtype=self.option_name)
+    self.telnet_object.send("".join([IAC, SB, self.option_string, IAC, SE]))
 
     self.zlib_comp = zlib.compressobj(9)
     self.telnet_object.outbuffer = \
@@ -161,7 +172,7 @@ class CLIENT(BaseTelnetOption):
       compress outgoing data
       """
       data = orig_convert_outdata(data)
-      self.telnet_object.msg('compressing', mtype='MCCP2')
+      self.telnet_object.msg('compressing', mtype=self.option_name)
       return "".join([self.zlib_comp.compress(data),
                       self.zlib_comp.flush(zlib.Z_SYNC_FLUSH)])
 
@@ -171,9 +182,9 @@ class CLIENT(BaseTelnetOption):
     """
     reset the option
     """
-    self.telnet_object.msg('resetting', mtype='MCCP2')
+    self.telnet_object.msg('resetting', mtype=self.option_name)
     if not onclose:
-      self.telnet_object.addtooutbuffer("".join([IAC, DONT, MCCP2]), True)
+      self.telnet_object.addtooutbuffer("".join([IAC, DONT, self.option_string]), True)
     setattr(self.telnet_object, 'convert_outdata', self.orig_convert_outdata)
     self.telnet_object.outbuffer = \
                         self.zlib_comp.uncompress(self.telnet_object.outbuffer)

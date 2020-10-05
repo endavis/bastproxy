@@ -42,28 +42,38 @@ class Plugin(BasePlugin):
     self.dependencies = ['core.events', 'core.log', 'core.errors']
 
   # add a telnet option to the server
-  def api_addserveroption(self, optionname, serveroption):
+  def api_addserveroption(self, plugin_id, option_name, option_num, option_class):
     """  add a server option
     @Yserveroption@w  = server option to add, must be of
                                         class BaseTelnetOption
     """
-    if issubclass(serveroption, BaseTelnetOption):
+    if issubclass(option_class, BaseTelnetOption):
       self.api('send:msg')('adding telnet option %s to server' % \
-                                                              optionname)
-      self.serveroptions[optionname] = serveroption
+                                                              option_name)
+      option_data = {}
+      option_data['plugin_id'] = plugin_id
+      option_data['optionname'] = option_name
+      option_data['optionclass'] = option_class
+      option_data['optionnum'] = option_num
+      self.serveroptions[option_name] = option_data
       return True
     return False
 
   # add a telnet option to the client
-  def api_addclientoption(self, optionname, clientoption):
+  def api_addclientoption(self, plugin_id, option_name, option_num, option_class):
     """  add a client option
     @Yclientoption@w  = client option to add, must be of
                                         class BaseTelnetOption
     """
-    if issubclass(clientoption, BaseTelnetOption):
+    if issubclass(option_class, BaseTelnetOption):
       self.api('send:msg')('adding telnet option %s to client' % \
-                                                              optionname)
-      self.clientoptions[optionname] = clientoption
+                                                              option_name)
+      option_data = {}
+      option_data['plugin_id'] = plugin_id
+      option_data['optionname'] = option_name
+      option_data['optionclass'] = option_class
+      option_data['optionnum'] = option_num
+      self.clientoptions[option_name] = option_data
       return True
     return False
 
@@ -97,22 +107,25 @@ class Plugin(BasePlugin):
     """
     add an option to a client
     """
-    for i in self.clientoptions:
+    for plugin_id in self.clientoptions:
       try:
-        self.clientoptions[i](client)
+        self.clientoptions[plugin_id]['optionclass'](client, self.clientoptions[plugin_id]['optionname'],
+                                                     self.clientoptions[plugin_id]['optionnum'], plugin_id)
       except AttributeError:
-        self.api('send:traceback')('Did not add option %s to client' % i)
+        self.api('send:traceback')('Did not add option %s to client' % plugin_id)
 
   # prepare the server to process telnet options
   def api_prepareserver(self, server):
     """
     add an option to a server
     """
-    for i in self.serveroptions:
+    for plugin_id in self.serveroptions:
       try:
-        self.serveroptions[i](server)
+        # self, telnet_object, option_name, option_number, plugin_id
+        self.serveroptions[plugin_id]['optionclass'](server, self.serveroptions[plugin_id]['optionname'],
+                                                     self.serveroptions[plugin_id]['optionnum'], plugin_id)
       except AttributeError:
-        self.api('send:traceback')('Did not add option %s to server' % i)
+        self.api('send:traceback')('Did not add option %s to server' % plugin_id)
 
   # reset options
   def api_resetoptions(self, server, onclose=False):
