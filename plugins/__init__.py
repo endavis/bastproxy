@@ -932,14 +932,14 @@ class PluginMgr(BasePlugin):
     if plugin['isinitialized']:
       return True
     self.api('send:msg')('%-30s : attempting to initialize (%s)' % \
-              (plugin['plugin_id'], plugin['name']))
+              (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
     # run the initialize function
     try:
       plugin['plugininstance'].initialize()
       plugin['isinitialized'] = True
       self.api('send:msg')('%-30s : successfully initialized (%s)' % \
-                (plugin['plugin_id'], plugin['name']))
+                (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
       self.api('core.events:raise:event')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
       self.api('core.events:raise:event')('{0.plugin_id}_plugin_initialized'.format(self),
@@ -953,11 +953,11 @@ class PluginMgr(BasePlugin):
       if exit_on_error:
         sys.exit(1)
         self.api('send:msg')('%-30s : DID NOT LOAD' % \
-			                      (plugin['plugin_id']))
+			                      (plugin['plugin_id']), primary=self.plugin_id)
       return False
 
     self.api('send:msg')('%-30s : successfully loaded' % \
-			    (plugin['plugin_id']))
+			    (plugin['plugin_id']), primary=self.plugin_id)
 
     # update plugins_to_load
     plugins_to_load = self.api('setting:get')('pluginstoload')
@@ -990,7 +990,7 @@ class PluginMgr(BasePlugin):
     if plugin:
       if not plugin['plugininstance'].can_reload_f:
         self.api('send:msg')('%-30s : this plugin cannot be unloaded (%s)' % \
-                  (plugin['plugin_id'], plugin['name']))
+                  (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
         return False
       else:
         try:
@@ -1002,7 +1002,7 @@ class PluginMgr(BasePlugin):
                                               {'plugin':plugin['name'],
                                                'plugin_id':plugin['plugin_id']})
           self.api('send:msg')('%-30s : successfully unitialized (%s)' % \
-                  (plugin['plugin_id'], plugin['name']))
+                  (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
         except Exception: # pylint: disable=broad-except
           self.api('send:traceback')(
@@ -1031,7 +1031,7 @@ class PluginMgr(BasePlugin):
           success = imputils.deletemodule(plugin['full_import_location'])
           if success:
             self.api('send:msg')('%-30s : deleting imported module was successful (%s)' % \
-                                (plugin['plugin_id'], plugin['name']))
+                                (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
           else:
             self.api('send:error')('%-30s : deleting imported module failed (%s)' % \
                                 (plugin['plugin_id'], plugin['name']))
