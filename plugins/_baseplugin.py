@@ -34,6 +34,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       full_import_location : 'plugins.client.actions' - import location
       plugin_id : 'client.actions' - guaranteed to be unique
     """
+    self.initializing_f = False
     self.author = ''
     self.purpose = ''
     self.version = 0
@@ -621,6 +622,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     else:
       self.api('core.events:register:to:event')('firstactive', self.after_first_active,
                                                 prio=self.first_active_priority)
+    self.initializing_f = False
 
   def __disconnect(self, _=None):
     """
@@ -702,6 +704,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     initialize the plugin, do most things here
     """
+    self.initializing_f = True
     self.setting_values.pload()
 
     if '_version' in self.setting_values and \
@@ -714,7 +717,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       self._add_commands()
 
       self.api('core.events:register:to:event')('{0.plugin_id}_initialized'.format(self),
-                                                self.__after_initialize)
+                                                self.__after_initialize, prio=1)
       self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self),
                                                 self.__save_state)
 
