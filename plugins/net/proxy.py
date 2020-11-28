@@ -305,7 +305,7 @@ class Plugin(BasePlugin):
     """
     restart when the listen port changes
     """
-    if not self.api.startup:
+    if not self.api.startup and not self.initializing_f:
       self.api('net.proxy:proxy:restart')()
 
   def command_seperator_change(self, args): # pylint: disable=unused-argument
