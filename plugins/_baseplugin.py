@@ -384,10 +384,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             if self.settings[var]['nocolor']:
               tvar = tvar.replace('@', '@@')
             elif self.settings[var]['stype'] == 'color':
-              tvar = '%s%s@w' % (val, val.replace('@', '@@'))
+              tvar = '%s%s@w' % (tvar, tvar.replace('@', '@@'))
             elif self.settings[var]['stype'] == 'timelength':
               tvar = self.api('core.utils:format:time')(
-                  self.api('core.utils:verify:value')(val, 'timelength'))
+                  self.api('core.utils:verify:value')(tvar, 'timelength'))
             return True, ['%s is now set to %s' % (var, tvar)]
           except ValueError:
             msg = ['Cannot convert %s to %s' % \
@@ -555,12 +555,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     if not self.setting_values:
       tmsg.append('There are no settings defined')
     else:
-      tform = '%-20s : %-15s - %s'
       for i in self.settings:
+        tform = '%-20s : %-15s - %s'
         val = self.setting_values[i]
         if 'nocolor' in self.settings[i] and self.settings[i]['nocolor']:
           val = val.replace('@', '@@')
         elif self.settings[i]['stype'] == 'color':
+          tlen = len(val)
+          columnwidth = 18 + tlen
+          tform = '%-20s : %-' + str(columnwidth) +'s - %s'
           val = '%s%s@w' % (val, val.replace('@', '@@'))
         elif self.settings[i]['stype'] == 'timelength':
           val = self.api('core.utils:format:time')(
