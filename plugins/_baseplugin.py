@@ -101,6 +101,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.api('api:add')('data', 'update', self._api_update_data, overload=True)
     self.api('api:add')('api', 'add', self._api_add, overload=True, force=True)
     # anything added after this will have the plugin name as the toplevel api
+    self.api('api:add')('dependency:add', self._api_dependency_add)
+    self.api('api:add')('setting:add', self._api_setting_add)
+    self.api('api:add')('setting:get', self._api_setting_gets)
+    self.api('api:add')('setting:change', self._api_setting_change)
+    self.api('api:add')('data:get', self._api_get_data)
+    self.api('api:add')('data:update', self._api_update_data)
 
   # add a function to the api
   def _api_add(self, name, func, overload=False, force=False):
