@@ -56,7 +56,7 @@ class Plugin(BasePlugin):
     self.api('setting:add')('username', '', str,
                             'username')
     self.api('setting:add')('linelen', 79, int,
-                            'the line length for data')
+                            'the line length for data, does not affect data that comes from the mud or clients')
     self.api('setting:add')('preamble', '#BP', str,
                             'the preamble from any proxy output')
     self.api('setting:add')('preamblecolor', '@C', str,

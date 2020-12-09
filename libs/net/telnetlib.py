@@ -238,7 +238,7 @@ class Telnet(asyncore.dispatcher):
       buf = self.recv(1024)
       self.msg("recv %r" % buf)
       return buf
-    except:  # pylint: disable=broad-except
+    except:  # pylint: disable=bare-except
       return None
 
   def __del__(self):

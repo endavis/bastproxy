@@ -620,7 +620,7 @@ class Plugin(BasePlugin):
       self.api('libs.io:send:msg')('resetting command to %s' % command_data_dict['orig'].strip())
       self.api('setting:change')('lastcmd', command_data_dict['orig'].strip())
 
-    # add a trace if it is unknow how the command was changed
+    # add a trace if it is unknown how the command was changed
     if data['fromdata'] != command_data_dict['orig']:
       if 'trace' in data:
         data['trace']['changes'].append(
@@ -714,7 +714,8 @@ class Plugin(BasePlugin):
         else:
           plugin_name = split_command_list[1]
           plugin_command = split_command_list[-1]
-      else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_name + command, ex. #bp.client.alias.list
+      else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_name + command,
+            # ex. #bp.client.alias.list
         plugin_package = split_command_list[1]
         plugin_name = split_command_list[2]
         plugin_command = split_command_list[-1]

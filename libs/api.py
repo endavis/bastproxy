@@ -289,7 +289,7 @@ class API(object):
 
       if 'self' in parent_frame.f_locals:
         # I don't know any way to detect call from the object method
-        # TODO: there seems to be no way to detect static method call - it will
+        # NOTE: there seems to be no way to detect static method call - it will
         #      be just a function call
         tcs = parent_frame.f_locals['self']
         if tcs != self and isinstance(tcs, BasePlugin) and tcs.plugin_id not in ignore_plugin_list:
@@ -337,7 +337,7 @@ class API(object):
 
       if 'self' in parent_frame.f_locals:
         # I don't know any way to detect call from the object method
-        # TODO: there seems to be no way to detect static method call - it will
+        # NOTE: there seems to be no way to detect static method call - it will
         #      be just a function call
         tcs = parent_frame.f_locals['self']
         if tcs != self and isinstance(tcs, BasePlugin) \
@@ -384,10 +384,12 @@ class API(object):
   def get(self, api_location, do_not_overload=False):
     """
     get an api function
+
+    do_not_overload = get the non overloaded api
     """
     try:
       caller_plugin = self._api_caller_plugin()
-    except:
+    except:   # pylint: disable=bare-except
       caller_plugin = 'Unknown'
 
     api_data = None

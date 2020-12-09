@@ -123,9 +123,10 @@ class Client(Telnet):
           if self.bad_password_count == 5:
             self.addtooutbufferevent(
                 {'original':self.api('core.colors:colorcode:to:ansicode')(
-                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % (self.api('net.proxy:preamble:error:color:get')(),
-                                                                          self.api('net.proxy:preamble:get')(),
-                                                                          self.api('net.proxy:preamble:error:color:get')())),
+                    '%s%s@w: %sYou have been BANNED for 10 minutes:@w' % \
+                      (self.api('net.proxy:preamble:error:color:get')(),
+                       self.api('net.proxy:preamble:get')(),
+                       self.api('net.proxy:preamble:error:color:get')())),
                  'dtype':'passwd'})
             self.api('libs.io:send:msg')('%s has been banned.' % self.host, 'net')
             self.api('net.clients:banned:add')(self.host)
@@ -133,9 +134,10 @@ class Client(Telnet):
           else:
             self.addtooutbufferevent(
                 {'original':self.api('core.colors:colorcode:to:ansicode')(
-                    '%s%s@w: %sPlease try again! Proxy Password:@w' % (self.api('net.proxy:preamble:error:color:get')(),
-                                                                       self.api('net.proxy:preamble:get')(),
-                                                                       self.api('net.proxy:preamble:error:color:get')())),
+                    '%s%s@w: %sPlease try again! Proxy Password:@w' % \
+                      (self.api('net.proxy:preamble:error:color:get')(),
+                       self.api('net.proxy:preamble:get')(),
+                       self.api('net.proxy:preamble:error:color:get')())),
                  'dtype':'passwd'})
 
   def handle_close(self):
