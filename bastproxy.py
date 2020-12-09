@@ -160,7 +160,7 @@ class Listener(asyncore.dispatcher):
     accept a new client
     """
 
-    # create a connection to the mud if it doesn't exist
+    # create the mud instance if it doesn't exist
     if not self.mud:
       from libs.net.mud import Mud
 
