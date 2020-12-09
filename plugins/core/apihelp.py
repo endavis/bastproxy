@@ -59,7 +59,7 @@ class Plugin(BasePlugin):
     """
     tmsg = []
     if args['api']:
-      tmsg.extend(self.api('api:detail')(args['api'], stats_by_plugin=args['stats']))
+      tmsg.extend(self.api('libs.api:detail')(args['api'], stats_by_plugin=args['stats']))
 
     else: # args <= 0
       tmsg.append('Please provide an api to detail')
