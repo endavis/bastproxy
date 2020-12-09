@@ -85,10 +85,6 @@ class API(object):
     # added functions
     self.add('api', 'add', self.add, overload=True)
     self.add('api', 'has', self._api_has, overload=True)
-    if not self('api:has')('managers:add'):
-      self.add('managers', 'add', self._api_add_manager, overload=True)
-    if not self('api:has')('managers:get'):
-      self.add('managers', 'get', self._api_get_manager, overload=True)
     if not self('api:has')('api:remove'):
       self.add('api', 'remove', self._api_remove, overload=True)
     if not self('api:has')('api:get:children'):
@@ -353,26 +349,6 @@ class API(object):
 
     del stack
     return None
-
-  # get a manager
-  def _api_get_manager(self, name):
-    """  get a manager
-    @Yname@w  = the name of the manager to get
-
-    this function returns the manager instance"""
-    if name in self.MANAGERS:
-      return self.MANAGERS[name]
-
-    return None
-
-  # add a manager
-  def _api_add_manager(self, name, manager):
-    """  add a manager
-    @Yname@w  = the name of the manager
-    @Ymanager@w  = the manager instance
-
-    this function returns no values"""
-    self.MANAGERS[name] = manager
 
   # remove a toplevel api
   def _api_remove(self, top_level_api):
