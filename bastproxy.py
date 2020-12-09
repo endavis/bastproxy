@@ -223,6 +223,19 @@ def start(listen_port):
 
   API('send:msg')("asyncore loop broken", primary='net')
 
+def post_plugins_init():
+  """
+  do any actions that are post plugin init here
+  """
+  # add the IO manager
+  from libs.io import IO
+  API('core.managers:add')('libs.io', IO)
+
+  # add some logging of various plugins and functionality
+  API('core.log:add:datatype')('net')
+  API('core.log:toggle:to:console')('net')
+  API('core.log:add:datatype')('inputparse')
+  API('core.log:add:datatype')('ansi')
 
 def main():
   """
@@ -252,16 +265,8 @@ def main():
 
   # initialize the plugin manager which will load plugins
   plugin_manager.initialize()
-  API('send:msg')('Plugin Manager - loaded', 'startup')
-
-  # add some logging of various plugins and functionality
-  API('core.log:add:datatype')('net')
-  API('core.log:toggle:to:console')('net')
-  API('core.log:add:datatype')('inputparse')
-  API('core.log:add:datatype')('ansi')
-
-  # get the proxy plugin
-  proxy_plugin = API('core.plugins:get:plugin:instance')('net.proxy')
+  API('libs.io:send:msg')('Plugin Manager - loaded', 'startup')
+  post_plugins_init()
 
   # update the port setting if different from the default
   if targs['port'] != 9999:
