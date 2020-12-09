@@ -113,7 +113,7 @@ def setup_paths():
   else:
     tpath = npath[:index]
 
-  API('send:msg')('setting basepath to: %s' % tpath, 'startup')
+  API('libs.io:send:msg')('setting basepath to: %s' % tpath, 'startup')
   API.__class__.BASEPATH = tpath
 
   # create the logs directory
@@ -147,13 +147,13 @@ class Listener(asyncore.dispatcher):
 
     # create a list of clients
     self.clients = []
-    API('send:msg')("Listener bound on: %s" % listen_port, 'startup')
+    API('libs.io:send:msg')("Listener bound on: %s" % listen_port, 'startup')
 
   def handle_error(self):
     """
     show the traceback for an error in the listener
     """
-    API('send:traceback')("Forwarder error:")
+    API('libs.io:send:traceback')("Forwarder error:")
 
   def handle_accept(self):
     """
@@ -174,16 +174,17 @@ class Listener(asyncore.dispatcher):
       # if the client is banned, close the connection
       ip_address = source_addr[0]
       if API('net.clients:clients:banned:check')(ip_address):
-        API('send:msg')("HOST: %s is banned" % ip_address, 'net')
+        API('libs.io:send:msg')("HOST: %s is banned" % ip_address, 'net')
         client_connection.close()
       # if there are more than 5 connections, close the current connection
       elif API('net.clients:clients:count') == 5:
-        API('send:msg')(
+        API('libs.io:send:msg')(
             "Only 5 clients can be connected at the same time", 'net')
         client_connection.close()
       else:
-        API('send:msg')("Accepted connection from %s : %s" %
-                        (source_addr[0], source_addr[1]), 'net')
+        API('libs.io:send:msg')("Accepted connection from %s : %s" % \
+                                  (source_addr[0], source_addr[1]),
+                                'net')
 
         # create a Client instance
         from libs.net.client import Client
@@ -192,7 +193,7 @@ class Listener(asyncore.dispatcher):
     # catch everything because we don't want to exit if we can't connect a
     # client
     except Exception:   # pylint: disable=broad-except
-      API('send:traceback')('Error handling client')
+      API('libs.io:send:traceback')('Error handling client')
 
 def start(listen_port):
   """
@@ -221,7 +222,7 @@ def start(listen_port):
   except KeyboardInterrupt:
     pass
 
-  API('send:msg')("asyncore loop broken", primary='net')
+  API('libs.io:send:msg')("asyncore loop broken", primary='net')
 
 def post_plugins_init():
   """
@@ -258,7 +259,7 @@ def main():
   daemon = bool(targs['daemon'])
 
   # initialize all plugins
-  API('send:msg')('Plugin Manager - loading', 'startup')
+  API('libs.io:send:msg')('Plugin Manager - loading', 'startup')
   # instantiate the plugin manager
   from plugins import PluginMgr
   plugin_manager = PluginMgr()
@@ -307,7 +308,7 @@ def main():
         pass
       sys.exit(0)
 
-  API('send:msg')("exiting main function", primary='net')
+  API('libs.io:send:msg')("exiting main function", primary='net')
 
 if __name__ == "__main__":
   main()
