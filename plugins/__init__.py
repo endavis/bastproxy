@@ -1012,7 +1012,7 @@ class PluginMgr(BasePlugin):
                                     % plugin['plugin_id'])
           return False
 
-        # remove from pluginstolload so it doesn't load at startup
+        # remove from pluginstoload so it doesn't load at startup
         plugins_to_load = self.api('setting:get')('pluginstoload')
         if plugin['plugin_id'] in plugins_to_load:
           plugins_to_load.remove(plugin['plugin_id'])
