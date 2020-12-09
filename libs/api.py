@@ -83,28 +83,30 @@ class API(object):
     self.parent_plugin_id = parent_plugin_id
 
     # added functions
-    self.add('api', 'add', self.add, overload=True)
-    self.add('api', 'has', self._api_has, overload=True)
-    if not self('api:has')('api:remove'):
-      self.add('api', 'remove', self._api_remove, overload=True)
-    if not self('api:has')('api:get:children'):
-      self.add('api', 'get:children', self._api_get_children, overload=True)
-    if not self('api:has')('api:detail'):
-      self.add('api', 'detail', self._api_detail, overload=True)
-    if not self('api:has')('api:list'):
-      self.add('api', 'list', self._api_list, overload=True)
-    if not self('api:has')('api:api:data:get'):
-      self.add('api', 'api:api:data:get', self._api_data_get, overload=True)
-    if not self('api:has')('api:get:caller:plugin'):
-      self.add('api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
-    if not self('api:has')('api:get:plugins:from:stack:list'):
-      self.add('api', 'get:plugins:from:stack:list', self._api_plugin_stack, overload=True)
-    if not self('api:has')('api:get:call:stack'):
-      self.add('api', 'get:call:stack', self._api_call_stack, overload=True)
-    if not self('api:has')('api:get:call:stack:simple'):
-      self.add('api', 'get:call:stack:simple', self._api_simple_call_stack, overload=True)
-    if not self('api:has')('api:add:event:description'):
-      self.add('api', 'add:event:description', self._api_add_event_description, overload=True)
+    self.add('libs.api', 'add', self.add, overload=True)
+    self.add('libs.api', 'has', self._api_has, overload=True)
+    if not self('libs.api:has')('libs.api:remove'):
+      self.add('libs.api', 'remove', self._api_remove, overload=True)
+    if not self('libs.api:has')('libs.api:get:children'):
+      self.add('libs.api', 'get:children', self._api_get_children, overload=True)
+    if not self('libs.api:has')('libs.api:run:as:plugin'):
+      self.add('libs.api', 'run:as:plugin', self._api_run_as_plugin, overload=True)
+    if not self('libs.api:has')('libs.api:detail'):
+      self.add('libs.api', 'detail', self._api_detail, overload=True)
+    if not self('libs.api:has')('libs.api:list'):
+      self.add('libs.api', 'list', self._api_list, overload=True)
+    if not self('libs.api:has')('libs.api:data:get'):
+      self.add('libs.api', 'api:data:get', self._api_data_get, overload=True)
+    if not self('libs.api:has')('libs.api:get:caller:plugin'):
+      self.add('libs.api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
+    if not self('libs.api:has')('libs.api:get:plugins:from:stack:list'):
+      self.add('libs.api', 'get:plugins:from:stack:list', self._api_plugin_stack, overload=True)
+    if not self('libs.api:has')('libs.api:get:call:stack'):
+      self.add('libs.api', 'get:call:stack', self._api_call_stack, overload=True)
+    if not self('libs.api:has')('libs.api:get:call:stack:simple'):
+      self.add('libs.api', 'get:call:stack:simple', self._api_simple_call_stack, overload=True)
+    if not self('libs.api:has')('libs.api:add:event:description'):
+      self.add('libs.api', 'add:event:description', self._api_add_event_description, overload=True)
 
   # return the data for an api
   def _api_data_get(self, api_name, base=True):
@@ -606,35 +608,35 @@ def test():
   print('-' * 80)
   api = API()
   print('adding test:api')
-  api('api:add')('test', 'api', testapi)
+  api('libs.api:add')('test', 'api', testapi)
   print('adding test:over')
-  api('api:add')('test', 'over', testapi)
+  api('libs.api:add')('test', 'over', testapi)
   print('adding test:some:api')
-  api('api:add')('test', 'some:api', testapi)
+  api('libs.api:add')('test', 'some:api', testapi)
   print('called api test:api', api('test:api')('success'))
   print('called api test:over', api('test:over')('success'))
   print('called api test:some:api', api('test:some:api')('success'))
   print('dict api.api:\n', pprint.pformat(api.api))
   print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
   print('overloading over.api')
-  api('api:add')('over', 'api', overloadtestapi, overload=True)
+  api('libs.api:add')('over', 'api', overloadtestapi, overload=True)
   print('overloading test.over')
-  api('api:add')('test', 'over', overloadtestapi, overload=True)
+  api('libs.api:add')('test', 'over', overloadtestapi, overload=True)
   print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
   print('called api over:api', api('over:api')('success'))
   print('called api test:over', api('test:over')('success'))
   print('called api test:api', api('test:api')('success'))
-  print('api.has test:over', api('api:has')('test.over'))
-  print('api.has test:over2', api('api:has')('test.over2'))
-  print('api.has over:api', api('api:has')('over.api'))
-  print('api.has test:some:api', api('api:has')('test.some.api'))
+  print('api.has test:over', api('libs.api:has')('test.over'))
+  print('api.has test:over2', api('libs.api:has')('test.over2'))
+  print('api.has over:api', api('libs.api:has')('over.api'))
+  print('api.has test:some:api', api('libs.api:has')('test.some.api'))
   print('dict api.api:\n', pprint.pformat(api.api))
   print('dict api.overloadapi:\n', pprint.pformat(api.overloaded_api))
-  print('\n'.join(api('api:list')(top_level_api="test")))
+  print('\n'.join(api('libs.api:list')(top_level_api="test")))
   print('--------------------')
-  print('\n'.join(api('api:list')()))
+  print('\n'.join(api('libs.api:list')()))
   print('--------------------')
-  print('\n'.join(api('api:detail')('test:over')))
+  print('\n'.join(api('libs.api:detail')('test:over')))
   print('--------------------')
 
 
@@ -646,21 +648,21 @@ def test():
   print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
   print('api2 dict api2.api:\n', pprint.pformat(api2.api))
   print('api2 dict api2.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
-  print('api2 api_has over:api', api2('api:has')('over:api'))
-  print('api2 api_has over:api', api2('api:has')('test:over'))
+  print('api2 api_has over:api', api2('libs.api:has')('over:api'))
+  print('api2 api_has over:api', api2('libs.api:has')('test:over'))
   print('api2 called test:api', api2('test:api')('success'))
   print('api2 called test:over', api2('test:over')('success'))
   print('api2 overloading over.api')
-  api2('api:add')('over', 'api', overloadtestapi2, overload=True)
+  api2('libs.api:add')('over', 'api', overloadtestapi2, overload=True)
   print('api2 dict api.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
   print('api2 called over:api', api2('over:api')('success'))
   print('api2 overloading test.over')
-  api2('api:add')('test', 'over', overloadtestapi2, overload=True)
+  api2('libs.api:add')('test', 'over', overloadtestapi2, overload=True)
   print('api2 dict api2:api:\n', pprint.pformat(api2.api))
   print('api2 dict api2:overloadapi:\n', pprint.pformat(api2.overloaded_api))
   print('api2 called test:over', api2('test:over')('success'))
   print('api2 called test:api', api2('test:api')('success'))
-  print('api2 api_has test:three', api2('api:has')('test.three'))
+  print('api2 api_has test:three', api2('libs.api:has')('test.three'))
   try:
     print('api2 called test:three', api2('test:three')('success'))
   except AttributeError:

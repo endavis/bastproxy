@@ -33,9 +33,9 @@ class Timing(object):
 
     self.timing = {}
 
-    self.api('api:add')('libs.timing', 'timimg:start', self.starttimer)
-    self.api('api:add')('libs.timing', 'timing:finish', self.finishtimer)
-    self.api('api:add')('libs.timing', 'timing:toggle', self.toggletiming)
+    self.api('libs.api:add')('libs.timing', 'start', self.starttimer)
+    self.api('libs.api:add')('libs.timing', 'finish', self.finishtimer)
+    self.api('libs.api:add')('libs.timing', 'toggle', self.toggletiming)
 
   def toggletiming(self, tbool=None):
     """
@@ -51,7 +51,7 @@ class Timing(object):
     start a timer
     """
     if self.enabled:
-      plugin = self.api('api:get:caller:plugin')()
+      plugin = self.api('libs.api:get:caller:plugin')()
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
       self.timing[timername]['plugin'] = plugin
@@ -74,7 +74,7 @@ class Timing(object):
                              secondary=['timing'])
         del self.timing[timername]
       else:
-        plugin = self.api('api:get:caller:plugin')()
+        plugin = self.api('libs.api:get:caller:plugin')()
         self.api('send:error')('timername: %s not found, called from %s' % \
                               (timername, plugin),
                                secondary=['timing', plugin])

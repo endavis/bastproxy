@@ -34,9 +34,9 @@ class Plugin(BasePlugin):
 
     self.variablefile = os.path.join(self.save_directory, 'variables.txt')
     self._variables = PersistentDict(self.variablefile, 'c')
-    self.api('api:add')('get', self.api_getv)
-    self.api('api:add')('set', self.api_setv)
-    self.api('api:add')('replace', self.api_replace)
+    self.api('libs.api:add')('get', self.api_getv)
+    self.api('libs.api:add')('set', self.api_setv)
+    self.api('libs.api:add')('replace', self.api_replace)
 
   def initialize(self):
     """

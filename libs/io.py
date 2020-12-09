@@ -27,13 +27,12 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     self.current_trace = None
     self.api = API()
 
-    self.api('api:add')('send', 'msg', self._api_msg)
-    self.api('api:add')('send', 'error', self._api_error)
-    self.api('api:add')('send', 'traceback', self._api_traceback)
-    self.api('api:add')('send', 'client', self._api_client)
-    self.api('api:add')('send', 'mud', self._api_tomud)
-    self.api('api:add')('send', 'execute', self._api_execute)
-    self.api('managers:add')('io', self)
+    self.api('libs.api:add')('libs.io', 'send:msg', self._api_msg)
+    self.api('libs.api:add')('libs.io', 'send:error', self._api_error)
+    self.api('libs.api:add')('libs.io', 'send:traceback', self._api_traceback)
+    self.api('libs.api:add')('libs.io', 'send:client', self._api_client)
+    self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
+    self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)
 
   # send a message
   def _api_msg(self, message, primary=None, secondary=None):
@@ -47,9 +46,9 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     this function returns no values"""
     tags = []
-    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=['core.plugins'])
+    plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=['core.plugins'])
 
-    tags.extend(self.api('api:get:plugins:from:stack:list')(ignore_plugin_list=['core.plugins']))
+    tags.extend(self.api('libs.api:get:plugins:from:stack:list')(ignore_plugin_list=['core.plugins']))
 
     if not isinstance(secondary, list):
       tags.append(secondary)
@@ -111,7 +110,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     message_list = []
 
     for i in text.split('\n'):
-      if self.api('api:has')('core.colors:colorcode:to:ansicode'):
+      if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
         message_list.append('@x136%s@w' % i)
       else:
         message_list.append(i)
@@ -146,7 +145,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         if preamble:
           i = "".join(['%s%s@w: ' % (self.api('net.proxy:preamble:color:get')(),
                                      self.api('net.proxy:preamble:get')()), i])
-        if self.api('api:has')('core.colors:colorcode:to:ansicode'):
+        if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
           test.append(self.api('core.colors:colorcode:to:ansicode')(i))
         else:
           test.append(i)
@@ -182,7 +181,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       self.current_trace['showinhistory'] = showinhistory
       self.current_trace['addedtohistory'] = False
       self.current_trace['originalcommand'] = command.strip()
-      self.current_trace['fromplugin'] = self.api('api:get:caller:plugin')()
+      self.current_trace['fromplugin'] = self.api('libs.api:get:caller:plugin')()
 
       if fromclient:
         self.current_trace['fromclient'] = True

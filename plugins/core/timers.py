@@ -112,10 +112,10 @@ class Plugin(BasePlugin):
     self.time_last_checked = int(time.time())
 
     # new api format
-    self.api('api:add')('add:timer', self._api_add_timer)
-    self.api('api:add')('remove:timer', self._api_remove_timer)
-    self.api('api:add')('toggle:timer', self._api_toggle_timer)
-    self.api('api:add')('remove:all:timers:for:plugin', self._api_remove_all_timers_for_plugin)
+    self.api('libs.api:add')('add:timer', self._api_add_timer)
+    self.api('libs.api:add')('remove:timer', self._api_remove_timer)
+    self.api('libs.api:add')('toggle:timer', self._api_toggle_timer)
+    self.api('libs.api:add')('remove:all:timers:for:plugin', self._api_remove_all_timers_for_plugin)
 
   def initialize(self):
     """

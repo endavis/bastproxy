@@ -226,13 +226,13 @@ class Plugin(BasePlugin):
     self.events = {}
 
     # new api that's easier to read
-    self.api('api:add')('register:to:event', self._api_register_to_event)
-    self.api('api:add')('unregister:from:event', self._api_unregister_from_event)
-    self.api('api:add')('raise:event', self._api_raise_event)
-    self.api('api:add')('is:registered:to:event', self._api_is_registered_to_event)
-    self.api('api:add')('remove:events:for:plugin', self._api_remove_events_from_plugin)
-    self.api('api:add')('get:event', self._api_get_event)
-    self.api('api:add')('get:event:detail', self._api_get_event_detail)
+    self.api('libs.api:add')('register:to:event', self._api_register_to_event)
+    self.api('libs.api:add')('unregister:from:event', self._api_unregister_from_event)
+    self.api('libs.api:add')('raise:event', self._api_raise_event)
+    self.api('libs.api:add')('is:registered:to:event', self._api_is_registered_to_event)
+    self.api('libs.api:add')('remove:events:for:plugin', self._api_remove_events_from_plugin)
+    self.api('libs.api:add')('get:event', self._api_get_event)
+    self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
 
     self.dependencies = ['core.errors']
 
@@ -328,7 +328,7 @@ class Plugin(BasePlugin):
     try:
       func_plugin_id = func.im_self.plugin_id
     except AttributeError:
-      func_plugin_id = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+      func_plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     if not func_plugin_id and 'plugin' in kwargs:
       func_plugin_id = kwargs['plugin_id']
 
@@ -375,7 +375,7 @@ class Plugin(BasePlugin):
       args = {}
 
     if not calledfrom:
-      calledfrom = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+      calledfrom = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
 
     if not calledfrom:
       print('event %s raised with unknown caller' % event_name)

@@ -30,14 +30,10 @@ class Plugin(BasePlugin):
     self.regex_lookup = {}
     self.watch_data = {}
 
-    self.api('api:add')('add', self._api_watch_add)
-    self.api('api:add')('remove', self._api_watch_remove)
-    self.api('api:add')('removeplugin', self._api_remove_all_data_for_plugin)
-
     # new api format
-    self.api('api:add')('watch:add', self._api_watch_add)
-    self.api('api:add')('watch:remove', self._api_watch_remove)
-    self.api('api:add')('remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
+    self.api('libs.api:add')('watch:add', self._api_watch_add)
+    self.api('libs.api:add')('watch:remove', self._api_watch_remove)
+    self.api('libs.api:add')('remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
 
   def initialize(self):
     """
@@ -135,7 +131,7 @@ class Plugin(BasePlugin):
 
     this function returns no values"""
     if not plugin:
-      plugin = self.api('api:get:caller:plugin')()
+      plugin = self.api('libs.api:get:caller:plugin')()
 
     if not plugin:
       print 'could not add a watch for watchname', watch_name

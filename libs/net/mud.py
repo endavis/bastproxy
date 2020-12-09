@@ -87,11 +87,11 @@ class Mud(Telnet):
 
         if tosend != None:
           #data cannot be transformed here, it goes straight to the client
-          if self.api('api:has')('core.colors:colorcode:strip'):
+          if self.api('libs.api:has')('core.colors:colorcode:strip'):
             tnoansi = self.api('core.colors:colorcode:strip')(tosend)
           else:
             tnoansi = tosend
-          if self.api('api:has')('core.colors:ansicode:to:colorcode'):
+          if self.api('libs.api:has')('core.colors:ansicode:to:colorcode'):
             tconvertansi = self.api('core.colors:ansicode:to:colorcode')(tosend)
           else:
             tconvertansi = tosend
@@ -152,7 +152,7 @@ class Mud(Telnet):
                                  'data':'"%s" to mud with raw: %s and datatype: %s' %
                                         (repr(datastr.strip()), raw, dtype),
                                  'plugin':'proxy',
-                                 'callstack':self.api('api:get:call:stack')()})
+                                 'callstack':self.api('libs.api:get:call:stack')()})
       Telnet.addtooutbuffer(self, datastr, raw)
     elif dtype == 'fromclient':
       if trace:
@@ -160,7 +160,7 @@ class Mud(Telnet):
                                  'data':'"%s" to mud with raw: %s and datatype: %s' %
                                         (datastr.strip(), raw, dtype),
                                  'plugin':'proxy',
-                                 'callstack':self.api('api:get:call:stack')()})
+                                 'callstack':self.api('libs.api:get:call:stack')()})
       Telnet.addtooutbuffer(self, datastr, raw)
 
   def fill_rawq(self):

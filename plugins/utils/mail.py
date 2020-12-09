@@ -27,7 +27,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
     self.password = ''
-    self.api('api:add')('send', self.api_send)
+    self.api('libs.api:add')('send', self.api_send)
 
   def initialize(self):
     """
@@ -206,7 +206,7 @@ X-Mailer: My-Mail
     subject = args['subject']
     msg = args['message']
     if self.check():
-      self.api('mail.send')(subject, msg)
+      self.api('send')(subject, msg)
       return True, ['Attempted to send test message',
                     'Please check your email']
 

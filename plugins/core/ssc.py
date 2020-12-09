@@ -47,7 +47,7 @@ class SSC(object):
     else:
       self.desc = 'setting'
 
-    self.plugin.api('api:add')('ssc:%s' % self.name, self.getss)
+    self.plugin.api('libs.api:add')('ssc:%s' % self.name, self.getss)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='set the %s' % self.desc)
@@ -104,7 +104,7 @@ class Plugin(BasePlugin):
 
     self.reload_dependents_f = True
 
-    self.api('api:add')('baseclass:get', self.api_baseclass)
+    self.api('libs.api:add')('baseclass:get', self.api_baseclass)
 
   def initialize(self):
     """

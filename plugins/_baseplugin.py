@@ -91,22 +91,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     self._dump_shallow_attrs = ['api']
 
-    # added as a toplevel API based on first argument and are overloaded since this
-    # is a class that is used as a base
-    self.api('api:add')('dependency', 'add', self._api_dependency_add, overload=True)
-    self.api('api:add')('setting', 'add', self._api_setting_add, overload=True)
-    self.api('api:add')('setting', 'get', self._api_setting_gets, overload=True)
-    self.api('api:add')('setting', 'change', self._api_setting_change, overload=True)
-    self.api('api:add')('data', 'get', self._api_get_data, overload=True)
-    self.api('api:add')('data', 'update', self._api_update_data, overload=True)
-    self.api('api:add')('api', 'add', self._api_add, overload=True, force=True)
-    # anything added after this will have the plugin name as the toplevel api
-    self.api('api:add')('dependency:add', self._api_dependency_add)
-    self.api('api:add')('setting:add', self._api_setting_add)
-    self.api('api:add')('setting:get', self._api_setting_gets)
-    self.api('api:add')('setting:change', self._api_setting_change)
-    self.api('api:add')('data:get', self._api_get_data)
-    self.api('api:add')('data:update', self._api_update_data)
+    self.api('libs.api:add')('libs.api', 'add', self._api_add, overload=True, force=True)
+    # anything added after this will have the plugin_id as the toplevel api
+    self.api('libs.api:add')('dependency:add', self._api_dependency_add)
+    self.api('libs.api:add')('setting:add', self._api_setting_add)
+    self.api('libs.api:add')('setting:get', self._api_setting_gets)
+    self.api('libs.api:add')('setting:change', self._api_setting_change)
+    self.api('libs.api:add')('data:get', self._api_get_data)
+    self.api('libs.api:add')('data:update', self._api_update_data)
 
   # add a function to the api
   def _api_add(self, name, func, overload=False, force=False):
@@ -127,7 +119,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       the value of the setting, None if not found"""
     if not plugin:
       try:
-        if self.api('api:has')('core.utils:verify:value'):
+        if self.api('libs.api:has')('core.utils:verify:value'):
           return self.api('core.utils:verify:value')(self.setting_values[setting],
                                                      self.settings[setting]['stype'])
 
@@ -353,10 +345,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     tmsg = []
     if args['api']:
-      tmsg.extend(self.api('api:detail')("%s.%s" % (self.plugin_id,
-                                                    args['api'])))
+      tmsg.extend(self.api('libs.api:detail')("%s.%s" % (self.plugin_id,
+                                                         args['api'])))
     else:
-      api_list = self.api('api:list')(self.plugin_id)
+      api_list = self.api('libs.api:list')(self.plugin_id)
       if not api_list:
         tmsg.append('nothing in the api')
       else:
@@ -453,11 +445,11 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         msg.append('@G' + '-' * 60 + '@w')
         msg.append('')
     if args['api']:
-      api_list = self.api('api:list')(self.plugin_id)
+      api_list = self.api('libs.api:list')(self.plugin_id)
       if api_list:
         msg.append('API functions in %s' % self.plugin_id)
         msg.append('@G' + '-' * 60 + '@w')
-        msg.extend(self.api('api:list')(self.plugin_id))
+        msg.extend(self.api('libs.api:list')(self.plugin_id))
     return True, msg
 
   def _add_commands(self):
@@ -619,7 +611,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     mud = self.api('core.managers:get')('mud')
 
     if mud and mud.connected:
-      if self.api('api:has')('connect:firstactive'):
+      if self.api('libs.api:has')('connect:firstactive'):
         if self.api('connect:firstactive')():
           self.after_first_active()
       else:
@@ -667,7 +659,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     uninitialize stuff
     """
     # remove anything out of the api
-    self.api('api:remove')(self.plugin_id)
+    self.api('libs.api:remove')(self.plugin_id)
 
     #save the state
     self.savestate()

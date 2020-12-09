@@ -74,7 +74,7 @@ class Plugin(BasePlugin):
       @Yapiname@w = (optional) the toplevel api to show
     """
     tmsg = []
-    apilist = self.api('api:list')(args['toplevel'])
+    apilist = self.api('libs.api:list')(args['toplevel'])
     if not apilist:
       tmsg.append('%s does not exist in the api' % args['toplevel'])
     else:

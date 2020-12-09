@@ -99,24 +99,24 @@ class Plugin(BasePlugin):
     self.command_history_data = self.command_history_dict['history']
 
     # add apis
-    self.api('api:add')('add', self._api_add_command)
-    self.api('api:add')('change', self._api_change_command)
-    self.api('api:add')('run', self._api_run)
-    self.api('api:add')('prefix', self._api_get_prefix)
-    #self.api('api:add')('default', self.api_setdefault)
-    self.api('api:add')('remove:plugin:data', self._api_remove_plugin_data)
-    self.api('api:add')('get:plugin:command:format', self._api_get_plugin_command_format)
-    self.api('api:add')('get:plugin:command:help', self._api_get_plugin_command_help)
-    self.api('api:add')('get:plugin:command:data', self._api_get_plugin_command_data)
+    self.api('libs.api:add')('add', self._api_add_command)
+    self.api('libs.api:add')('change', self._api_change_command)
+    self.api('libs.api:add')('run', self._api_run)
+    self.api('libs.api:add')('prefix', self._api_get_prefix)
+    #self.api('libs.api:add')('default', self.api_setdefault)
+    self.api('libs.api:add')('remove:plugin:data', self._api_remove_plugin_data)
+    self.api('libs.api:add')('get:plugin:command:format', self._api_get_plugin_command_format)
+    self.api('libs.api:add')('get:plugin:command:help', self._api_get_plugin_command_help)
+    self.api('libs.api:add')('get:plugin:command:data', self._api_get_plugin_command_data)
 
-    self.api('api:add')('command:add', self._api_add_command)
-    self.api('api:add')('command:change', self._api_change_command)
-    self.api('api:add')('command:run', self._api_run)
-    self.api('api:add')('command:help:format', self._api_get_plugin_command_help)
-    self.api('api:add')('get:command:prefix', self._api_get_prefix)
-    self.api('api:add')('remove:data:for:plugin', self._api_remove_plugin_data)
-    self.api('api:add')('get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
-    self.api('api:add')('get:commands:for:plugin:data', self._api_get_plugin_command_data)
+    self.api('libs.api:add')('command:add', self._api_add_command)
+    self.api('libs.api:add')('command:change', self._api_change_command)
+    self.api('libs.api:add')('command:run', self._api_run)
+    self.api('libs.api:add')('command:help:format', self._api_get_plugin_command_help)
+    self.api('libs.api:add')('get:command:prefix', self._api_get_prefix)
+    self.api('libs.api:add')('remove:data:for:plugin', self._api_remove_plugin_data)
+    self.api('libs.api:add')('get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
+    self.api('libs.api:add')('get:commands:for:plugin:data', self._api_get_plugin_command_data)
 
     self.dependencies = ['core.events', 'core.log', 'core.errors', 'core.fuzzy']
 
@@ -276,12 +276,12 @@ class Plugin(BasePlugin):
       return False
 
     # change the flag and update the command data for the plugin
-    data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+    data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
     if not data:
       data = {}
     data[command_name][flag_name] = flag_value
 
-    self.api('data:update')('commands', data, plugin_id=plugin_instance.plugin_id)
+    self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
 
     return True
 
@@ -325,7 +325,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     if plugin_instance:
-      data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+      data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
       return data
 
     return {}
@@ -522,7 +522,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
     # retrieve the commands data
-    data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+    data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
     if not data:
       return None
 
@@ -548,7 +548,7 @@ class Plugin(BasePlugin):
     """
     plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
 
-    all_command_data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+    all_command_data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
 
     if not all_command_data:
       all_command_data = {}
@@ -561,7 +561,7 @@ class Plugin(BasePlugin):
 
     all_command_data[command_name] = data
 
-    return self.api('data:update')('commands', all_command_data, plugin_id=plugin_instance.plugin_id)
+    return self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', all_command_data)
 
   def pass_through_command(self, data, command_data_dict):
     """
@@ -861,7 +861,7 @@ class Plugin(BasePlugin):
 
     args = kwargs.copy()
 
-    called_from = self.api('api:get:caller:plugin')()
+    called_from = self.api('libs.api:get:caller:plugin')()
 
     long_name = None
 
@@ -880,7 +880,7 @@ class Plugin(BasePlugin):
         plugin = func.im_self.plugin
         plugin_id = plugin.plugin_id
       except AttributeError:
-        call_stack = self.api('api:get:call:stack')()
+        call_stack = self.api('libs.api:get:call:stack')()
         self.api('send:error')(
             'Function is not part of a plugin class: command %s from plugin %s' % \
                   (command_name, called_from), secondary=called_from)
@@ -959,10 +959,10 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(plugin_id)
     removed = False
     if plugin_instance:
-      data = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+      data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
       if data and command_name in data:
         del data[command_name]
-        self.api('data:update')('commands', data, plugin_id=plugin_instance.plugin_id)
+        self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
         self.api('send:msg')('removed command %s.%s' % \
                                                 (plugin_id, command_name),
                              secondary=plugin_id)
@@ -1007,7 +1007,7 @@ class Plugin(BasePlugin):
 
     message = []
     if plugin_instance:
-      commands = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+      commands = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
       message.append('Commands in %s:' % plugin_instance.plugin_id)
       message.append('@G' + '-' * 60 + '@w')
       groups = {}
@@ -1041,7 +1041,7 @@ class Plugin(BasePlugin):
     plugin_instance = self.api('core.plugins:get:plugin:instance')(args['plugin'])
     command = args['command']
     if plugin_instance:
-      plugin_commands = self.api('data:get')('commands', plugin_id=plugin_instance.plugin_id)
+      plugin_commands = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
       if plugin_commands:
         if command and command in plugin_commands:
           help_message = plugin_commands[command]['parser'].format_help().split('\n')

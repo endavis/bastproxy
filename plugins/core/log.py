@@ -60,12 +60,12 @@ class Plugin(BasePlugin):
     self.colors['error'] = '@x136'
 
     # new api format
-    self.api('api:add')('message', self.api_msg)
-    self.api('api:add')('add:datatype', self.api_adddtype)
-    self.api('api:add')('toggle:to:console', self.api_toggletoconsole)
-    self.api('api:add')('toggle:to:file', self.api_toggletofile)
-    self.api('api:add')('toggle:to:client', self.api_toggletoclient)
-    self.api('api:add')('write:to:file', self.api_writefile)
+    self.api('libs.api:add')('message', self.api_msg)
+    self.api('libs.api:add')('add:datatype', self.api_adddtype)
+    self.api('libs.api:add')('toggle:to:console', self.api_toggletoconsole)
+    self.api('libs.api:add')('toggle:to:file', self.api_toggletofile)
+    self.api('libs.api:add')('toggle:to:client', self.api_toggletoclient)
+    self.api('libs.api:add')('write:to:file', self.api_writefile)
 
     # add some default datatypes
     self.api('core.log:add:datatype')('default')
@@ -90,7 +90,7 @@ class Plugin(BasePlugin):
     if dtype not in self.datatypes_to_file:
       self.api('%s.file' % self.plugin_id)(dtype)
 
-    if stripcolor and self.api('api:has')('core.colors:ansicode:strip'):
+    if stripcolor and self.api('libs.api:has')('core.colors:ansicode:strip'):
       data = self.api('core.colors:ansicode:strip')(data)
 
     tfile = os.path.join(self.log_directory, dtype,
@@ -116,7 +116,7 @@ class Plugin(BasePlugin):
             (time.strftime(self.api.time_format, time.localtime()))
       data = tstring + data
 
-    if self.api('api:has')('core.colors:ansicode:strip'):
+    if self.api('libs.api:has')('core.colors:ansicode:strip'):
       self.log_file_information[dtype]['fhandle'].write(
           self.api('core.colors:ansicode:strip')(data) + '\n')
     else:
@@ -158,7 +158,7 @@ class Plugin(BasePlugin):
 
         self.logtofile(msg, dtag)
 
-        if self.api('api:has')('core.colors:colorcode:to:ansicode') and \
+        if self.api('libs.api:has')('core.colors:colorcode:to:ansicode') and \
             dtag in self.colors:
           timestampmsg = self.api('core.colors:colorcode:to:ansicode')(
               self.colors[dtag] + timestampmsg)

@@ -34,8 +34,8 @@ class Plugin(BasePlugin):
 
     self.apikey = None
 
-    self.api('api:add')('note', self.api_note)
-    self.api('api:add')('link', self.api_link)
+    self.api('libs.api:add')('note', self.api_note)
+    self.api('libs.api:add')('link', self.api_link)
 
   def initialize(self):
     """

@@ -117,15 +117,15 @@ class PluginMgr(BasePlugin):
 
     self.plugin_format_string = "%-20s : %-25s %-10s %-5s %s@w"
 
-    self.api('api:add')('is:plugin:loaded', self._api_is_plugin_loaded)
-    self.api('api:add')('get:plugin:instance', self._api_get_plugin_instance)
-    self.api('api:add')('get:plugin:module', self._api_get_plugin_module)
-    self.api('api:add')('get:all:plugin:info', self._api_get_all_plugin_info)
-    self.api('api:add')('save:state', self.api_save_state)
-    self.api('api:add')('get:loaded:plugins:list', self._api_get_loaded_plugins_list)
-    self.api('api:add')('get:packages:list', self._api_get_packages_list)
-    self.api('api:add')('get:all:short:names', self._api_get_all_short_names)
-    self.api('api:add')('short:name:convert:plugin:id', self._api_short_name_convert_plugin_id)
+    self.api('libs.api:add')('is:plugin:loaded', self._api_is_plugin_loaded)
+    self.api('libs.api:add')('get:plugin:instance', self._api_get_plugin_instance)
+    self.api('libs.api:add')('get:plugin:module', self._api_get_plugin_module)
+    self.api('libs.api:add')('get:all:plugin:info', self._api_get_all_plugin_info)
+    self.api('libs.api:add')('save:state', self.api_save_state)
+    self.api('libs.api:add')('get:loaded:plugins:list', self._api_get_loaded_plugins_list)
+    self.api('libs.api:add')('get:packages:list', self._api_get_packages_list)
+    self.api('libs.api:add')('get:all:short:names', self._api_get_all_short_names)
+    self.api('libs.api:add')('short:name:convert:plugin:id', self._api_short_name_convert_plugin_id)
 
   def _api_short_name_convert_plugin_id(self, short_name):
     """

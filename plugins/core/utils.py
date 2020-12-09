@@ -34,15 +34,15 @@ class Plugin(BasePlugin):
     BasePlugin.__init__(self, *args, **kwargs)
 
     # new api format
-    self.api('api:add')('convert:timedelta:to:string', self._api_convert_timedelta_to_string)
-    self.api('api:add')('convert:to:readable:number', self._api_convert_to_readable_number)
-    self.api('api:add')('convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
-    self.api('api:add')('format:time', self._api_format_time)
-    self.api('api:add')('center:colored:string', self._api_center_colored_string)
-    self.api('api:add')('check:list:for:match', self._api_check_list_for_match)
-    self.api('api:add')('convert:timelength:to:secs', self._api_convert_timelength_to_secs)
-    self.api('api:add')('verify:value', self._api_verify_value)
-    self.api('api:add')('format:list:into:columns', self._api_format_list_into_columns)
+    self.api('libs.api:add')('convert:timedelta:to:string', self._api_convert_timedelta_to_string)
+    self.api('libs.api:add')('convert:to:readable:number', self._api_convert_to_readable_number)
+    self.api('libs.api:add')('convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
+    self.api('libs.api:add')('format:time', self._api_format_time)
+    self.api('libs.api:add')('center:colored:string', self._api_center_colored_string)
+    self.api('libs.api:add')('check:list:for:match', self._api_check_list_for_match)
+    self.api('libs.api:add')('convert:timelength:to:secs', self._api_convert_timelength_to_secs)
+    self.api('libs.api:add')('verify:value', self._api_verify_value)
+    self.api('libs.api:add')('format:list:into:columns', self._api_format_list_into_columns)
 
     self.dependencies = ['core.colors']
 

@@ -35,11 +35,11 @@ class Plugin(BasePlugin):
     self.mudpw = None
 
     # new api format
-    self.api('api:add')('proxy:restart', self.api_restart)
-    self.api('api:add')('proxy:shutdown', self.api_shutdown)
-    self.api('api:add')('preamble:get', self.api_preamble)
-    self.api('api:add')('preamble:color:get', self.api_preamble_color)
-    self.api('api:add')('preamble:error:color:get', self.api_preamble_error_color)
+    self.api('libs.api:add')('proxy:restart', self.api_restart)
+    self.api('libs.api:add')('proxy:shutdown', self.api_shutdown)
+    self.api('libs.api:add')('preamble:get', self.api_preamble)
+    self.api('libs.api:add')('preamble:color:get', self.api_preamble_color)
+    self.api('libs.api:add')('preamble:error:color:get', self.api_preamble_error_color)
 
   def initialize(self):
     """

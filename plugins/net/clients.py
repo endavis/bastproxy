@@ -31,10 +31,10 @@ class Plugin(BasePlugin):
     self.banned = {}
 
     # new api format
-    self.api('api:add')('clients:get:all', self.api_getall)
-    self.api('api:add')('clients:banned:add', self.api_addbanned)
-    self.api('api:add')('clients:banned:check', self.api_checkbanned)
-    self.api('api:add')('clients:count', self.api_numconnected)
+    self.api('libs.api:add')('clients:get:all', self.api_getall)
+    self.api('libs.api:add')('clients:banned:add', self.api_addbanned)
+    self.api('libs.api:add')('clients:banned:check', self.api_checkbanned)
+    self.api('libs.api:add')('clients:count', self.api_numconnected)
 
   def initialize(self):
     """

@@ -44,14 +44,14 @@ class Plugin(BasePlugin):
     self.regex['noncolor'] = ""
 
     # new api format
-    self.api('api:add')('trigger:add', self._api_trigger_add)
-    self.api('api:add')('trigger:remove', self._api_trigger_remove)
-    self.api('api:add')('trigger:toggle:enable', self._api_trigger_toggle_enable)
-    self.api('api:add')('trigger:toggle:omit', self._api_trigger_toggle_omit)
-    self.api('api:add')('trigger:update', self._api_trigger_update)
-    self.api('api:add')('trigger:get', self._api_trigger_get)
-    self.api('api:add')('group:toggle:enable', self._api_group_toggle_enable)
-    self.api('api:add')('remove:data:for:plugin', self._api_remove_triggers_for_plugin)
+    self.api('libs.api:add')('trigger:add', self._api_trigger_add)
+    self.api('libs.api:add')('trigger:remove', self._api_trigger_remove)
+    self.api('libs.api:add')('trigger:toggle:enable', self._api_trigger_toggle_enable)
+    self.api('libs.api:add')('trigger:toggle:omit', self._api_trigger_toggle_omit)
+    self.api('libs.api:add')('trigger:update', self._api_trigger_update)
+    self.api('libs.api:add')('trigger:get', self._api_trigger_get)
+    self.api('libs.api:add')('group:toggle:enable', self._api_group_toggle_enable)
+    self.api('libs.api:add')('remove:data:for:plugin', self._api_remove_triggers_for_plugin)
 
   def initialize(self):
     """
@@ -198,7 +198,7 @@ class Plugin(BasePlugin):
 
     this function returns no values"""
     if not plugin:
-      plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+      plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
 
     if not plugin:
       print('could not add a trigger for trigger name', trigger_name)
@@ -304,7 +304,7 @@ class Plugin(BasePlugin):
       return True
     else:
       if not plugin:
-        plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+        plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
       self.api('send:msg')('deletetrigger: trigger %s does not exist' % \
                         trigger_name, secondary=plugin)
       return False

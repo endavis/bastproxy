@@ -67,7 +67,7 @@ class Plugin(BasePlugin):
                         help='where to send the action',
                         default='execute',
                         nargs='?',
-                        choices=self.api('api:get:children')('send'))
+                        choices=self.api('libs.api:get:children')('libs.io:send'))
     parser.add_argument('-c',
                         "--color",
                         help="match colors (@@colors)",

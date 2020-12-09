@@ -26,7 +26,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
     self.password = ''
-    self.api('api:add')('send', self.api_send)
+    self.api('libs.api:add')('send', self.api_send)
 
   def initialize(self):
     """

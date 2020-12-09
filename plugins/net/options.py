@@ -33,11 +33,11 @@ class Plugin(BasePlugin):
     self.serveroptions = {}
 
     # new api format
-    self.api('api:add')('server:option:add', self.api_addserveroption)
-    self.api('api:add')('client:option:add', self.api_addclientoption)
-    self.api('api:add')('client:prepare', self.api_prepareclient)
-    self.api('api:add')('server:prepare', self.api_prepareserver)
-    self.api('api:add')('options:reset', self.api_resetoptions)
+    self.api('libs.api:add')('server:option:add', self.api_addserveroption)
+    self.api('libs.api:add')('client:option:add', self.api_addclientoption)
+    self.api('libs.api:add')('client:prepare', self.api_prepareclient)
+    self.api('libs.api:add')('server:prepare', self.api_prepareserver)
+    self.api('libs.api:add')('options:reset', self.api_resetoptions)
 
     self.dependencies = ['core.events', 'core.log', 'core.errors']
 

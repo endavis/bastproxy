@@ -29,13 +29,13 @@ class Plugin(BasePlugin):
     self.reload_dependents_f = True
 
     # new api methods
-    # self.api('api:add')('baseclass', self.api_baseclass)
-    self.api('api:add')('queue:add:command', self._api_queue_add_command)
-    self.api('api:add')('command:start', self._api_command_start)
-    self.api('api:add')('command:finish', self._api_command_finish)
-    self.api('api:add')('commandtype:add', self._api_command_type_add)
-    self.api('api:add')('commandtype:remove', self._api_command_type_remove)
-    self.api('api:add')('remove:commands:for:plugin', self._api_remove_commands_for_plugin)
+    # self.api('libs.api:add')('baseclass', self.api_baseclass)
+    self.api('libs.api:add')('queue:add:command', self._api_queue_add_command)
+    self.api('libs.api:add')('command:start', self._api_command_start)
+    self.api('libs.api:add')('command:finish', self._api_command_finish)
+    self.api('libs.api:add')('commandtype:add', self._api_command_type_add)
+    self.api('libs.api:add')('commandtype:remove', self._api_command_type_remove)
+    self.api('libs.api:add')('remove:commands:for:plugin', self._api_remove_commands_for_plugin)
 
   def initialize(self):
     """
@@ -95,7 +95,7 @@ class Plugin(BasePlugin):
     """
     beforef = None
     afterf = None
-    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+    plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     if 'beforef' in kwargs:
       beforef = kwargs['beforef']
     if 'afterf' in kwargs:
@@ -162,7 +162,7 @@ class Plugin(BasePlugin):
     """
     add a command to the queue
     """
-    plugin = self.api('api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+    plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
     cmd = self.cmds[cmdtype]['cmd']
     if arguments:
       cmd = cmd + ' ' + str(arguments)

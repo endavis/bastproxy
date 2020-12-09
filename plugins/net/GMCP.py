@@ -56,10 +56,10 @@ class Plugin(BasePlugin):
     self.api('dependency:add')('net.options')
 
     # new api format
-    self.api('api:add')('mud:send', self.api_sendmud)
-    self.api('api:add')('mud:module:toggle', self.api_togglemodule)
-    self.api('api:add')('client:module:send', self.api_sendmodule)
-    self.api('api:add')('value:get', self.api_getv)
+    self.api('libs.api:add')('mud:send', self.api_sendmud)
+    self.api('libs.api:add')('mud:module:toggle', self.api_togglemodule)
+    self.api('libs.api:add')('client:module:send', self.api_sendmodule)
+    self.api('libs.api:add')('value:get', self.api_getv)
 
   def initialize(self):
     """
