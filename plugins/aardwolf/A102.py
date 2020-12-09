@@ -50,10 +50,6 @@ for optionn in AOPTIONS:
 ON = chr(1)
 OFF = chr(2)
 
-A102 = chr(102)
-
-CODES[102] = '<A102>'
-
 # Plugin
 class Plugin(BasePlugin):
   """
@@ -75,13 +71,19 @@ class Plugin(BasePlugin):
 
     self.optionstates = {}
     self.a102optionqueue = []
+    self.option_name = 'A102'
+    self.option_num = 102
+    self.option_string = chr(self.option_num)
+    self.option_code = '<%s>' % self.option_name
+
+    CODES[self.option_num] = self.option_code
 
     self.reconnecting = False
 
-    self.api('dependency.add')('net.options')
+    self.api('dependency:add')('net.options')
 
-    self.api('api.add')('sendmud', self.api_sendmud)
-    self.api('api.add')('toggle', self.api_toggle)
+    self.api('libs.api:add')('sendmud', self.api_sendmud)
+    self.api('libs.api:add')('toggle', self.api_toggle)
 
   def initialize(self):
     """
@@ -89,13 +91,13 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('events.register')('A102_from_server', self.a102fromserver)
-    self.api('events.register')('A102_from_client', self.a102fromclient)
-    self.api('events.register')('A102:server-enabled', self.a102request)
-    self.api('events.register')('muddisconnect', self.a102disconnect)
+    self.api('core.events:register:to:event')('A102_from_server', self.a102fromserver)
+    self.api('core.events:register:to:event')('A102_from_client', self.a102fromclient)
+    self.api('core.events:register:to:event')('A102:server-enabled', self.a102request)
+    self.api('core.events:register:to:event')('muddisconnect', self.a102disconnect)
 
-    self.api('options.addserveroption')(self.short_name, SERVER)
-    self.api('options.addclientoption')(self.short_name, CLIENT)
+    self.api('net.options:server:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
+    self.api('net.options:client:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
 
   # Send an A102 packet
   def api_sendmud(self, message):
@@ -105,16 +107,16 @@ class Plugin(BasePlugin):
     Format: IAC SB A102 <atcp message text> IAC SE
 
     this function returns no values"""
-    self.api('send.mud')('%s%s%s%s%s%s' % \
-                              (IAC, SB, A102, message.replace(IAC, IAC+IAC),
+    self.api('libs.io:send:mud')('%s%s%s%s%s%s' % \
+                              (IAC, SB, self.option_string, message.replace(IAC, IAC+IAC),
                                IAC, SE),
-                         raw=True, dtype=A102)
+                                 raw=True, dtype=self.option_string)
 
   def a102disconnect(self, _=None):
     """
     this function is registered with the muddisconnect hook
     """
-    self.api('send.msg')('setting reconnect to true')
+    self.api('libs.io:send:msg')('setting reconnect to true')
     self.reconnecting = True
 
   # toggle an a102 option
@@ -144,33 +146,33 @@ class Plugin(BasePlugin):
     if mstate:
       mstate = 1
       if self.optionstates[aoption] == 0:
-        self.api('send.msg')('Enabling A102 option: %s' % \
+        self.api('libs.io:send:msg')('Enabling A102 option: %s' % \
                                               AOPTIONREV[aoption])
         cmd = '%s%s' % (chr(aoption), ON)
-        self.api('A102.sendmud')(cmd)
+        self.api('sendmud')(cmd)
       self.optionstates[aoption] = self.optionstates[aoption] + 1
 
     else:
       mstate = 2
       self.optionstates[aoption] = self.optionstates[aoption] - 1
       if self.optionstates[aoption] == 0:
-        self.api('send.msg')('Disabling A102 option: %s' % \
+        self.api('libs.io:send:msg')('Disabling A102 option: %s' % \
                                               AOPTIONREV[aoption])
         cmd = '%s%s' % (chr(aoption), OFF)
-        self.api('A102.sendmud')(cmd)
+        self.api('sendmud')(cmd)
 
   def a102fromserver(self, args):
     """
     handle stuff from the server
     """
-    self.api('events.eraise')('A102', args)
-    self.api('events.eraise')('A102:%s' % args['option'], args)
+    self.api('core.events:raise:event')(self.option_name, args)
+    self.api('core.events:raise:event')('%s:%s' % (self.option_name, args['option']), args)
 
   def a102request(self, _=None):
     """
     this function is called when the a102 option is enabled
     """
-    self.api('send.msg')('cleaning a102 queues')
+    self.api('libs.io:send:msg')('cleaning a102 queues')
     if not self.reconnecting:
       for i in self.a102optionqueue:
         self.a102toggleoption(i['option'], i['toggle'])
@@ -179,21 +181,21 @@ class Plugin(BasePlugin):
       for i in self.optionstates:
         tnum = self.optionstates[i]
         if tnum > 0:
-          self.api('send.msg')('Re-Enabling A102 option: %s' % \
+          self.api('libs.io:send:msg')('Re-Enabling A102 option: %s' % \
                                                     AOPTIONREV[i])
           cmd = '%s%s' % (i, 1)
-          self.api('A102.sendmud')(cmd)
+          self.api('sendmud')(cmd)
         else:
-          self.api('send.msg')('Re-Disabling A102 option: %s' % \
+          self.api('libs.io:send:msg')('Re-Disabling A102 option: %s' % \
                                                     AOPTIONREV[i])
           cmd = '%s%s' % (i, 2)
-          self.api('A102.sendmud')(cmd)
+          self.api('sendmud')(cmd)
 
   def a102fromclient(self, args):
     """
     this function is called when we receive an a102 option from the client
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('managers:get')('mud')
     data = args['data']
     option = ord(data[0])
     mstate = ord(data[1])
@@ -208,64 +210,64 @@ class SERVER(BaseTelnetOption):
   """
   a class to handle aard102 for the server
   """
-  def __init__(self, telnetobj):
+  def __init__(self, telnet_object, option_number, plugin_id):
     """
     initialize the instance
     """
-    BaseTelnetOption.__init__(self, telnetobj, A102, SNAME)
+    BaseTelnetOption.__init__(self, telnet_object, option_number, plugin_id)
 
   def handleopt(self, command, sbdata):
     """
     handle the a102 option from the server
     """
-    self.telnetobj.msg('%s - in handleopt' % self.telnetobj.ccode(command),
-                       level=2, mtype='A102')
+    self.telnet_object.msg('%s - in handleopt' % self.telnet_object.ccode(command),
+                           level=2, mtype=self.option_name)
     if command == WILL:
-      self.telnetobj.msg('sending IAC DO A102', level=2, mtype='A102')
-      self.telnetobj.send(IAC + DO + A102)
-      self.telnetobj.options[ord(A102)] = True
-      self.plugin.api('events.eraise')('A102:server-enabled', {})
+      self.telnet_object.msg('sending IAC DO A102', level=2, mtype=self.option_name)
+      self.telnet_object.send(IAC + DO + self.option_string)
+      self.telnet_object.options[ord(self.option_string)] = True
+      self.plugin.api('core.events:raise:event')('A102:server-enabled', {})
 
     elif command in [SB, SE]:
-      if not self.telnetobj.options[ord(A102)]:
+      if not self.telnet_object.options[ord(self.option_string)]:
         print '##BUG: Enabling A102, missed negotiation'
-        self.telnetobj.options[ord(A102)] = True
-        self.plugin.api('events.eraise')('A102:server-enabled', {})
+        self.telnet_object.options[ord(self.option_string)] = True
+        self.plugin.api('core.events:raise:event')('A102:server-enabled', {})
 
       tdata = {}
       tdata['option'] = ord(sbdata[0])
       tdata['flag'] = ord(sbdata[1])
-      tdata['server'] = self.telnetobj
-      self.telnetobj.msg('got %s,%s from server' % \
-              (tdata['option'], tdata['flag']), level=2, mtype='A102')
-      self.plugin.api('send.client')('%s%s%s%s%s%s' % \
-                                  (IAC, SB, A102,
+      tdata['server'] = self.telnet_object
+      self.telnet_object.msg('got %s,%s from server' % \
+              (tdata['option'], tdata['flag']), level=2, mtype=self.option_name)
+      self.plugin.api('libs.io:send:client')('%s%s%s%s%s%s' % \
+                                  (IAC, SB, self.option_string,
                                    sbdata.replace(IAC, IAC+IAC), IAC, SE),
-                                     raw=True, dtype=A102)
-      self.plugin.api('events.eraise')('A102_from_server', tdata)
+                                             raw=True, dtype=self.option_string)
+      self.plugin.api('core.events:raise:event')('A102_from_server', tdata)
 
 # Client
 class CLIENT(BaseTelnetOption):
   """
   a class to handle a102 options from the client
   """
-  def __init__(self, telnetobj):
+  def __init__(self, telnet_object, option_number, plugin_id):
     """
     initialize the instance
     """
-    BaseTelnetOption.__init__(self, telnetobj, A102, SNAME)
-    self.telnetobj.msg('sending IAC WILL A102', mtype='A102')
-    self.telnetobj.addtooutbuffer(IAC + WILL + A102, True)
+    BaseTelnetOption.__init__(self, telnet_object, option_number, plugin_id)
+    self.telnet_object.msg('sending IAC WILL A102', mtype=self.option_name)
+    self.telnet_object.addtooutbuffer(IAC + WILL + self.option_string, True)
 
   def handleopt(self, command, sbdata):
     """
     handle the a102 option for the client
     """
-    self.telnetobj.msg('%s - in handleopt' % self.telnetobj.ccode(command), mtype='A102')
+    self.telnet_object.msg('%s - in handleopt' % self.telnet_object.ccode(command), mtype=self.option_name)
     if command == DO:
-      self.telnetobj.msg('setting options[A102] to True', mtype='A102')
-      self.telnetobj.options[ord(A102)] = True
+      self.telnet_object.msg('setting options[A102] to True', mtype=self.option_name)
+      self.telnet_object.options[ord(self.option_string)] = True
     elif command in [SB, SE]:
-      self.plugin.api('events.eraise')('A102_from_client',
-                                       {'data': sbdata,
-                                        'client':self.telnetobj})
+      self.plugin.api('core.events:raise:event')('A102_from_client',
+                                                 {'data': sbdata,
+                                                  'client':self.telnet_object})
