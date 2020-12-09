@@ -566,8 +566,9 @@ class PluginMgr(BasePlugin):
       full_path = module['fullpath']
       plugin_path = module['fullpath'].replace(self.base_plugin_dir, '')
       plugin_id = module['plugin_id']
+      filename = module['filename']
 
-      if plugin_id in ['_baseplugin']:
+      if filename.startswith('_'):
         continue
 
       info = self.scan_plugin_for_info(full_path)
@@ -577,6 +578,7 @@ class PluginMgr(BasePlugin):
         info['plugin_path'] = plugin_path
         info['fullpath'] = full_path
         info['plugin_id'] = plugin_id
+        info['filename'] = filename
 
         self.all_plugin_info_on_disk[plugin_id] = info
 
@@ -823,7 +825,7 @@ class PluginMgr(BasePlugin):
 
     # update plugins to load at startup
     plugins_to_load = self.api('setting:get')('pluginstoload')
-    if plugin_id not in plugins_to_load:
+    if plugin_id not in plugins_to_load and not self.loaded_plugins[plugin_id]['dev']:
       plugins_to_load.append(plugin_id)
       self.api('setting:change')('pluginstoload', plugins_to_load)
 

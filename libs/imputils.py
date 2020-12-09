@@ -15,9 +15,11 @@ def find_modules(directory, prefix):
   for (loader, module_name, ispkg) in \
           pkgutil.walk_packages([Path(directory).as_posix()], prefix):
 
+    filename = module_name.split('.')[-1]
+
     if not ispkg:
       tmod = loader.find_module(module_name)
-      matches.append({'plugin_id':tmod.fullname.replace('plugins.', ''), 'fullpath':tmod.filename})
+      matches.append({'plugin_id':tmod.fullname.replace('plugins.', ''), 'fullpath':tmod.filename, 'filename':filename})
 
   return matches
 
@@ -49,14 +51,8 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
   if base_path in module_path:
     module_path = module_path.replace(base_path, '')
 
-  import_location, module_name = get_module_name(module_path)
+  import_location, _ = get_module_name(module_path)
   full_import_location = import_base + '.' + import_location
-
-  if module_name.startswith("_"):
-    if not silent:
-      plugin.api('send:msg')('did not import %s because it is in development' % \
-                               full_import_location, primary=plugin.plugin_id)
-    return False, 'dev module', _module, full_import_location
 
   try:
     if full_import_location in sys.modules:
