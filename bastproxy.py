@@ -271,10 +271,10 @@ def main():
 
   # update the port setting if different from the default
   if targs['port'] != 9999:
-    proxy_plugin.api('setting:change')('listenport', targs['port'])
+    API('net.proxy:setting:change')('listenport', targs['port'])
 
   # get the listen port setting
-  listen_port = proxy_plugin.api('setting:get')('listenport')
+  listen_port = API('net.proxy:setting:get')('listenport')
 
   # the proxy is done starting up and we raise an event
   API.__class__.startup = False

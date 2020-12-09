@@ -233,7 +233,7 @@ class Plugin(BasePlugin):
     returns:
       the updated message
     """
-    line_length = self.api('setting:get')('linelen', 'net.proxy')
+    line_length = self.api('net.proxy:setting:get')('linelen')
 
     message.insert(0, '')
     message.insert(1, '%s.%s.%s' % (self.api('setting:get')('cmdprefix'), plugin_id, command))
