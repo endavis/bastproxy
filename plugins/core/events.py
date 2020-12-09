@@ -234,7 +234,7 @@ class Plugin(BasePlugin):
     self.api('libs.api:add')('get:event', self._api_get_event)
     self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
 
-    self.dependencies = ['core.errors']
+    self.dependencies = ['core.errors', 'core.managers']
 
   def initialize(self):
     """
