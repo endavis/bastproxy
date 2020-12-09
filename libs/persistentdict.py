@@ -189,11 +189,11 @@ class PersistentDictEvent(PersistentDict):
   """
   a class to send events when a dictionary object is set
   """
-  def __init__(self, plugin, file_name, *args, **kwds):
+  def __init__(self, plugin_instance, file_name, *args, **kwds):
     """
     init the class
     """
-    self.plugin = plugin
+    self.plugin_instance = plugin_instance
     PersistentDict.__init__(self, file_name, *args, **kwds)
 
   def __setitem__(self, key, val):
@@ -204,32 +204,35 @@ class PersistentDictEvent(PersistentDict):
     val = convert(val)
     old_value = None
     if key in self:
-      old_value = self.plugin.api('setting:get')(key)
+      old_value = self.plugin_instance.api('setting:get')(key)
     if old_value != val:
       dict.__setitem__(self, key, val)
 
-      event_name = '%s_var_%s_modified' % (self.plugin.plugin_id, key)
-      if not self.plugin.reset_f and key != '_version':
-        self.plugin.api('core.events:raise:event')(event_name,
-                                                   {'var':key,
-                                                    'newvalue':self.plugin.api('setting:get')(key),
-                                                    'oldvalue':old_value})
+      event_name = '%s_var_%s_modified' % (self.plugin_instance.plugin_id, key)
+      if not self.plugin_instance.reset_f and key != '_version':
+        self.plugin_instance.api('core.events:raise:event')(
+            event_name,
+            {'var':key,
+             'newvalue':self.plugin_instance.api('setting:get')(key),
+             'oldvalue':old_value})
 
   def raiseall(self):
     """
     go through and raise a <plugin>_var_<setting>_modified event for each setting
     """
     for i in self:
-      event_name = '%s_var_%s_modified' % (self.plugin.plugin_id, i)
-      if not self.plugin.reset_f and i != '_version':
-        self.plugin.api('core.events:raise:event')(event_name,
-                                                   {'var':i,
-                                                    'newvalue':self.plugin.api('setting:get')(i),
-                                                    'oldvalue':'__init__'})
+      event_name = '%s_var_%s_modified' % (self.plugin_instance.plugin_id, i)
+      if not self.plugin_instance.reset_f and i != '_version':
+        self.plugin_instance.api('core.events:raise:event')(
+            event_name,
+            {'var':i,
+             'newvalue':self.plugin_instance.api('setting:get')(i),
+             'oldvalue':'__init__'})
+
   def sync(self):
     """
     always put plugin version in here
     """
-    self['_version'] = self.plugin.version
+    self['_version'] = self.plugin_instance.version
 
     PersistentDict.sync(self)
