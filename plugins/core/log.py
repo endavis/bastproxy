@@ -88,7 +88,7 @@ class Plugin(BasePlugin):
     write directly to a file
     """
     if dtype not in self.datatypes_to_file:
-      self.api('%s.file' % self.plugin_id)(dtype)
+      self.api('toggle:to:file')(dtype)
 
     if stripcolor and self.api('libs.api:has')('core.colors:ansicode:strip'):
       data = self.api('core.colors:ansicode:strip')(data)

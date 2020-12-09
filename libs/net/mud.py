@@ -171,5 +171,5 @@ class Mud(Telnet):
     connection is closed.
     """
     buf = Telnet.fill_rawq(self)
-    self.api('core.log:writefile')('rawmud', buf)
+    self.api('core.log:write:to:file')('rawmud', buf)
     return buf
