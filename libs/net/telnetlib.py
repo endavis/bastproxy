@@ -104,7 +104,9 @@ PRAGMA_LOGON = chr(138) # TELOPT PRAGMA LOGON
 SSPI_LOGON = chr(139) # TELOPT SSPI LOGON
 PRAGMA_HEARTBEAT = chr(140) # TELOPT PRAGMA HEARTBEAT
 EXOPL = chr(255) # Extended-Options-List
+
 NOOPT = chr(0)
+IS = chr(0)
 
 # reverse lookup allowing us to see what's going on more easily
 # when we're debugging.
