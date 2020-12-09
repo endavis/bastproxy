@@ -271,7 +271,7 @@ class Plugin(BasePlugin):
     """
     handle gmcp data from the client
     """
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
     data = args['data']
     if 'core.supports.set' in data.lower():
       mods = data[data.find("[")+1:data.find("]")].split(',')

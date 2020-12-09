@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
     """
     reset the command trace
     """
-    io_manager = self.api('managers:get')('io')
+    io_manager = self.api('core.managers:get')('io')
 
     message = []
     message.append('The following stack was active')

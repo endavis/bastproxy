@@ -20,7 +20,7 @@ class Mud(Telnet):
     self.api('core.events:register:to:event')('to_mud_event', self.addtooutbuffer,
                                               prio=99)
     self.api('net.options:server:prepare')(self)
-    self.api('managers:add')('mud', self)
+    self.api('core.managers:add')('mud', self)
     self.api('core.log:add:datatype')('rawmud')
 
   def handle_read(self):

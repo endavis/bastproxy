@@ -616,7 +616,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     # go through each variable and raise var_%s_changed
     self.setting_values.raiseall()
 
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
 
     if mud and mud.connected:
       if self.api('api:has')('connect:firstactive'):

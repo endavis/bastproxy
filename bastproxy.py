@@ -204,7 +204,7 @@ def start(listen_port):
     required:
       listen_port - the port to listen on
   """
-  API('managers:add')('listener', Listener(listen_port))
+  API('core.managers:add')('listener', Listener(listen_port))
 
   try:
     while True:

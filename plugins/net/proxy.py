@@ -137,7 +137,7 @@ class Plugin(BasePlugin):
     show info about the proxy
     """
     template = "%-15s : %s"
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
     tmsg = ['']
     started = time.strftime(self.api.time_format, self.api.proxy_start_time)
     uptime = self.api('core.utils:convert:timedelta:to:string')(
@@ -185,7 +185,7 @@ class Plugin(BasePlugin):
     """
     disconnect from the mud
     """
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
     if mud.connected:
       mud.handle_close()
 
@@ -197,7 +197,7 @@ class Plugin(BasePlugin):
     """
     disconnect from the mud
     """
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
     if mud.connected:
       return True, ['The proxy is currently connected to the mud']
 
@@ -232,7 +232,7 @@ class Plugin(BasePlugin):
     """
     check for mud settings
     """
-    mud = self.api('managers:get')('mud')
+    mud = self.api('core.managers:get')('mud')
     cmdprefix = self.api('core.commands:get:command:prefix')()
     tmsg = []
     divider = '@R------------------------------------------------@w'
@@ -293,7 +293,7 @@ class Plugin(BasePlugin):
     args.insert(0, 'bastproxy.py')
     args.insert(0, sys.executable)
 
-    plistener = self.api('managers:get')('listener')
+    plistener = self.api('core.managers:get')('listener')
     plistener.close()
     self.api('net.proxy:proxy:shutdown')()
 
