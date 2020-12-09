@@ -128,10 +128,10 @@ def dbcreate(sqldb, plugin, **kwargs):
         narea['texture'] = ''
       #for i in narea:
         #narea[i] = self.fixsql(str(narea[i]))
-      self.api('send.msg')('data: %s' % narea)
+      self.api('libs.io:send:msg')('data: %s' % narea)
       cur = self.dbconn.cursor()
       stmt = self.converttoinsert('areas', replace=True)
-      self.api('send.msg')('stmt: %s' % stmt)
+      self.api('libs.io:send:msg')('stmt: %s' % stmt)
       cur.execute(stmt, narea)
       self.dbconn.commit()
       cur.close()
@@ -174,9 +174,9 @@ def dbcreate(sqldb, plugin, **kwargs):
       if len(tstuff) == 1:
         room = tstuff[0]
       elif len(tstuff) == 0:
-        self.api('send.msg')('no room for %s' % uid)
+        self.api('libs.io:send:msg')('no room for %s' % uid)
       elif len(tstuff) > 1:
-        self.api('send.msg')('more than one room for %s' % uid)
+        self.api('libs.io:send:msg')('more than one room for %s' % uid)
 
       if room:
         room['uid'] = str(room['uid'])
@@ -222,7 +222,7 @@ def dbcreate(sqldb, plugin, **kwargs):
         roomd['ignore_exits_mismatch'] = 0
 
       stmt = self.converttoinsert('rooms', replace=True)
-      self.api('send.msg')('saveroom stmt: %s' % stmt)
+      self.api('libs.io:send:msg')('saveroom stmt: %s' % stmt)
 
       self.modify(stmt, roomd)
 
@@ -236,7 +236,7 @@ def dbcreate(sqldb, plugin, **kwargs):
                       'dir':i, 'level':0})
 
       stmt = self.converttoinsert('exits', replace=True)
-      self.api('send.msg')('saveexits stmt: %s' % stmt)
+      self.api('libs.io:send:msg')('saveexits stmt: %s' % stmt)
 
       self.modifymany(stmt, exits)
 
@@ -246,12 +246,12 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       roomd = copy.deepcopy(roominfo)
 
-      self.api('send.msg')('savegmcproom: %s' % roomd)
+      self.api('libs.io:send:msg')('savegmcproom: %s' % roomd)
 
-      self.api('send.msg')('saving room %s' % roomd['uid'])
+      self.api('libs.io:send:msg')('saving room %s' % roomd['uid'])
       self.saveroom(roomd)
       self.saveexits(roomd)
-      self.api('send.msg')('saved room %s' % roomd['uid'])
+      self.api('libs.io:send:msg')('saved room %s' % roomd['uid'])
 
     def purgeroom(self, uid):
       """
@@ -279,7 +279,7 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('core.sqldb')
+    self.api('dependency:add')('core.sqldb')
 
     self.mapperdb = None
     self.current_room = None
@@ -301,33 +301,33 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('setting.add')('maxdepth', 300, int,
+    self.api('setting:add')('maxdepth', 300, int,
                             'max depth to search')
 
-    self.api('log.console')(self.short_name)
-    self.api('log.client')(self.short_name)
+    self.api('core.log:toggle:to:console')(self.plugin_id)
+    self.api('core.log:toggle:to:client')(self.plugin_id)
 
     self.mapperdb = dbcreate(self.api('sqldb.baseclass')(), self,
                              dbname='mapper', dbdir=self.save_directory)
 
-    self.api('send.msg')('mapperdb: %s' % self.mapperdb)
+    self.api('libs.io:send:msg')('mapperdb: %s' % self.mapperdb)
 
-    self.api('setting.add')('shownotes', True, bool,
+    self.api('setting:add')('shownotes', True, bool,
                             'show notes when entering a room')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show mapper information for a room')
     parser.add_argument('room', help='the room number',
                         default=None, nargs='?', type=int)
-    self.api('commands.add')('showroom', self.cmd_showroom,
-                             parser=parser)
+    self.api('core.commands:command:add')('showroom', self.cmd_showroom,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='purge a room')
     parser.add_argument('room', help='the room number',
                         default=None, nargs='?', type=int)
-    self.api('commands.add')('purgeroom', self.cmd_purgeroom,
-                             parser=parser)
+    self.api('core.commands:command:add')('purgeroom', self.cmd_purgeroom,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='lookup a room')
@@ -335,8 +335,8 @@ class Plugin(AardwolfBasePlugin):
                         default=None, nargs='?')
     parser.add_argument('-e', "--exact", help="the argument is the exact name",
                         action="store_true")
-    self.api('commands.add')('find', self.cmd_find,
-                             parser=parser)
+    self.api('core.commands:command:add')('find', self.cmd_find,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='lookup a room in a specific area')
@@ -346,33 +346,33 @@ class Plugin(AardwolfBasePlugin):
                         default=None, nargs='?')
     parser.add_argument('-e', "--exact", help="the argument is the exact name",
                         action="store_true")
-    self.api('commands.add')('area', self.cmd_area,
-                             parser=parser)
+    self.api('core.commands:command:add')('area', self.cmd_area,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(
         add_help=False,
         description='goto the next room from the previous search result')
-    self.api('commands.add')('next', self.cmd_next,
-                             parser=parser)
+    self.api('core.commands:command:add')('next', self.cmd_next,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='resume going to a room')
-    self.api('commands.add')('resume', self.cmd_resume,
-                             parser=parser)
+    self.api('core.commands:command:add')('resume', self.cmd_resume,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='goto a room')
     parser.add_argument('room', help='the room number',
                         default=None, nargs='?', type=int)
-    self.api('commands.add')('goto', self.cmd_goto,
-                             parser=parser)
+    self.api('core.commands:command:add')('goto', self.cmd_goto,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='walk to room (no portals)')
     parser.add_argument('room', help='the room number',
                         default=None, nargs='?', type=int)
-    self.api('commands.add')('walk', self.cmd_walk,
-                             parser=parser)
+    self.api('core.commands:command:add')('walk', self.cmd_walk,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get speedwalk for a path')
@@ -380,30 +380,30 @@ class Plugin(AardwolfBasePlugin):
                         default=None, nargs='?', type=int)
     parser.add_argument('end', help='the room number',
                         default=None, nargs='?', type=int)
-    self.api('commands.add')('spw', self.cmd_speedwalk,
-                             parser=parser)
+    self.api('core.commands:command:add')('spw', self.cmd_speedwalk,
+                                          parser=parser)
 
-    self.api('triggers.add')('noportal',
-                             r"^Magic walls bounce you back\.$")
-    self.api('triggers.add')('norecall',
-                             r"^You cannot (recall|return home) from this room\.")
+    self.api('core.triggers:trigger:add')('noportal',
+                                          r"^Magic walls bounce you back\.$")
+    self.api('core.triggers:trigger:add')('norecall',
+                                          r"^You cannot (recall|return home) from this room\.")
 
     ## backup the db every 4 hours
-    #self.api('timers.add')('mapper_backup', self.backupdb,
+    #self.api('core.timers:add:timer')('mapper_backup', self.backupdb,
                                 #60*60*4, time='0000')
 
-    #self.api('setting.add')('backupstart', '0000', 'miltime',
+    #self.api('setting:add')('backupstart', '0000', 'miltime',
                       #'the time for a db backup, like 1200 or 2000')
-    #self.api('setting.add')('backupinterval', '4h', 'timelength',
+    #self.api('setting:add')('backupinterval', '4h', 'timelength',
                       #'the interval to backup the db, default every 4 hours')
-    #self.api('events.register')('map_backupstart', self.changetimer)
-    #self.api('events.register')('map_backupinternval', self.changetimer)
+    #self.api('core.events:register:to:event')('map_backupstart', self.changetimer)
+    #self.api('core.events:register:to:event')('map_backupinternval', self.changetimer)
 
-    self.api('events.register')('trigger_noportal', self.noportal)
-    self.api('events.register')('trigger_norecall', self.norecall)
+    self.api('core.events:register:to:event')('trigger_noportal', self.noportal)
+    self.api('core.events:register:to:event')('trigger_norecall', self.norecall)
 
-    self.api('events.register')('GMCP:room.area', self.updatearea)
-    self.api('events.register')('GMCP:room.info', self.updateroom)
+    self.api('core.events:register:to:event')('GMCP:room.area', self.updatearea)
+    self.api('core.events:register:to:event')('GMCP:room.info', self.updateroom)
 
   def comparerooms(self, room1, room2):
     """
@@ -417,12 +417,12 @@ class Plugin(AardwolfBasePlugin):
         for i in room1[key].keys():
           if i in room2[key]:
             if room1[key][i] != room2[key][i]:
-              self.api('send.msg')('did not match on %s:%s' % (key, i))
+              self.api('libs.io:send:msg')('did not match on %s:%s' % (key, i))
               return False
 
       else:
         if room1[key] != room2[key]:
-          self.api('send.msg')('did not match on %s' % key)
+          self.api('libs.io:send:msg')('did not match on %s' % key)
           return False
 
     return True
@@ -431,11 +431,11 @@ class Plugin(AardwolfBasePlugin):
     """
     do something when the reportminutes changes
     """
-    self.api('timers.remove')('mapper_backup')
-    self.api('timers.add')('mapper_backup',
-                           self.backupdb,
-                           self.api('setting.gets')('backupinterval'),
-                           time=self.api('setting.gets')('backupstart'))
+    self.api('core.timers:remove:timer')('mapper_backup')
+    self.api('core.timers:add:timer')('mapper_backup',
+                                      self.backupdb,
+                                      self.api('setting:get')('backupinterval'),
+                                      time=self.api('setting:get')('backupstart'))
 
   def backupdb(self):
     """
@@ -457,7 +457,7 @@ class Plugin(AardwolfBasePlugin):
     add a noportal flag to a room
     """
     if self.api('aflags.check')('blindness'):
-      self.api('send.client')("You are affected by blindness, " \
+      self.api('libs.io:send:client')("You are affected by blindness, " \
                                "room %s will not be set as noportal" % self.current_room)
       return
     if self.current_room != None and self.current_room in self.rooms and \
@@ -465,14 +465,14 @@ class Plugin(AardwolfBasePlugin):
         self.rooms[self.current_room]['noportal'] != 1:
       self.mapperdb.setnoportal(1, self.current_room)
       self.cacheroom(self.current_room, force=True)
-      self.api('send.client')('Marking room %s as noportal' % self.current_room)
+      self.api('libs.io:send:client')('Marking room %s as noportal' % self.current_room)
 
   def norecall(self, _=None):
     """
     add a norecall flag to a room
     """
     if self.api('aflags.check')('blindness'):
-      self.api('send.client')("You are affected by blindness, " \
+      self.api('libs.io:send:client')("You are affected by blindness, " \
                                "room %s will not be set as noportal" % self.current_room)
       return
     if self.current_room != None and self.current_room in self.rooms and \
@@ -480,18 +480,18 @@ class Plugin(AardwolfBasePlugin):
         self.rooms[self.current_room]['norecall'] != 1:
       self.mapperdb.setnorecall(1, self.current_room)
       self.cacheroom(self.current_room, force=True)
-      self.api('send.client')('Marking room %s as norecall' % self.current_room)
+      self.api('libs.io:send:client')('Marking room %s as norecall' % self.current_room)
 
   def updatearea(self, args):
     """
     update the area from GMCP:room.area
     """
-    self.api('send.msg')('room.area: %s' % args)
+    self.api('libs.io:send:msg')('room.area: %s' % args)
     area = args['data']
     area['color'] = area['col']
     area['uid'] = area['id']
     self.mapperdb.updatearea(args['data'])
-    self.api('GMCP.sendpacket')("request room")
+    self.api('net.GMCP:sendpacket')("request room")
 
   def cacheroom(self, roomnum, force=False):
     """
@@ -524,7 +524,7 @@ class Plugin(AardwolfBasePlugin):
     if not(roominfo['zone'] in self.areas) or not self.areas[roominfo['zone']]:
       area = self.mapperdb.getarea(roominfo['zone'])
       if not area:
-        self.api('GMCP.sendpacket')('request area')
+        self.api('net.GMCP:sendpacket')('request area')
       else:
         self.areas[area['uid']] = area
 
@@ -543,7 +543,7 @@ class Plugin(AardwolfBasePlugin):
       dbroom['exits'][i] = str(roominfo['exits'][i])
 
     cachedroom = None
-    self.api('send.msg')('uid in room: %s' % (dbroom['uid'] in self.rooms))
+    self.api('libs.io:send:msg')('uid in room: %s' % (dbroom['uid'] in self.rooms))
     self.cacheroom(dbroom['uid'])
 
     if not dbroom['uid'] in self.rooms:
@@ -553,12 +553,12 @@ class Plugin(AardwolfBasePlugin):
     try:
       cachedroom = self.rooms[dbroom['uid']]
     except KeyError:
-      self.api('send.traceback')('Did not cache room: %s' % dbroom['uid'])
+      self.api('libs.io:send:traceback')('Did not cache room: %s' % dbroom['uid'])
 
     if not cachedroom['ignore_exits_mismatch'] and \
        not self.comparerooms(dbroom, cachedroom):
-      self.api('send.msg')('cachedroom: %s' % cachedroom)
-      self.api('send.msg')('dbroom: %s' % dbroom)
+      self.api('libs.io:send:msg')('cachedroom: %s' % cachedroom)
+      self.api('libs.io:send:msg')('dbroom: %s' % dbroom)
       msg = []
       msg.append('@r---------------------------@w')
       if dbroom['area'] != cachedroom['area']:
@@ -570,18 +570,18 @@ class Plugin(AardwolfBasePlugin):
         msg.append('@RThis room has changed@w')
         msg.append('@Rpurge this room with purgeroom@w')
       msg.append('@r---------------------------@w')
-      self.api('send.client')(msg)
+      self.api('libs.io:send:client')(msg)
       return
 
     room = cachedroom
 
-    if self.api('setting.gets')('shownotes') and room and \
+    if self.api('setting:get')('shownotes') and room and \
               room['notes']:
-      divider = '@R' + self.api('utils.center')('Room Notes', '-', 60) + '@w'
+      divider = '@R' + self.api('core.utils:center:colored:string')('Room Notes', '-', 60) + '@w'
 
-      self.api('send.client')(divider)
-      self.api('send.client')(room['notes'])
-      self.api('send.client')('@R' + 60 * '-' + '@w')
+      self.api('libs.io:send:client')(divider)
+      self.api('libs.io:send:client')(room['notes'])
+      self.api('libs.io:send:client')('@R' + 60 * '-' + '@w')
 
   def cmd_showroom(self, args):
     """
@@ -590,11 +590,11 @@ class Plugin(AardwolfBasePlugin):
     msg = []
 
     if not args['room']:
-      roomnum = self.api('GMCP.getv')('room.info.num')
+      roomnum = self.api('net.GMCP:value:get')('room.info.num')
     else:
       roomnum = args['room']
 
-    self.api('send.msg')('roomnum: %s' % roomnum)
+    self.api('libs.io:send:msg')('roomnum: %s' % roomnum)
 
     if not roomnum:
       return True, ["Don't know what room we are in"]
@@ -641,7 +641,7 @@ class Plugin(AardwolfBasePlugin):
     purge a room
     """
     if not args['room']:
-      roomnum = self.api('GMCP.getv')('room.info.num')
+      roomnum = self.api('net.GMCP:value:get')('room.info.num')
     else:
       roomnum = args['room']
 
@@ -681,7 +681,7 @@ class Plugin(AardwolfBasePlugin):
     area = args['area']
 
     if not area:
-      area = self.api('GMCP.getv')('room.info.zone')
+      area = self.api('net.GMCP:value:get')('room.info.zone')
 
     tdata = self.mapperdb.roomsearch(str(args['room']), args['exact'], area)
 
@@ -773,7 +773,7 @@ class Plugin(AardwolfBasePlugin):
     try:
       uid = int(uid)
     except ValueError:
-      self.api('send.client')('gotoroom: passed a non-numerical uid')
+      self.api('libs.io:send:client')('gotoroom: passed a non-numerical uid')
       return
 
     uid = str(uid)
@@ -782,24 +782,24 @@ class Plugin(AardwolfBasePlugin):
       self.cacheroom(uid)
 
     if uid not in self.rooms:
-      self.api('send.client')('gotoroom: %s is not in the database' % uid)
+      self.api('libs.io:send:client')('gotoroom: %s is not in the database' % uid)
       return
 
     room = self.rooms[uid]
 
-    self.api('send.client')('Going to room %s (%s)' % (
+    self.api('libs.io:send:client')('Going to room %s (%s)' % (
         room['name'], room['uid']))
 
     if self.currentspeedwalk:
-      self.api('send.client')(
+      self.api('libs.io:send:client')(
           'Already in a speedwalk, will abort this speedwalk')
       return
 
     if not start:
-      start = self.api('GMCP.getv')('room.info.num')
+      start = self.api('net.GMCP:value:get')('room.info.num')
 
     if not start:
-      self.api('send.client')(
+      self.api('libs.io:send:client')(
           'Cannot do pathfinding because start room is not known. Try "look"')
       return
 
@@ -812,8 +812,8 @@ class Plugin(AardwolfBasePlugin):
     start = str(start)
     end = str(end)
 
-    charlevel = self.api('GMCP.getv')('char.status.level')
-    chartier = self.api('GMCP.getv')('char.base.tier')
+    charlevel = self.api('net.GMCP:value:get')('char.status.level')
+    chartier = self.api('net.GMCP:value:get')('char.base.tier')
 
     if not chartier:
       chartier = 0
@@ -821,16 +821,16 @@ class Plugin(AardwolfBasePlugin):
       charlevel = 201
 
     if not start or start == 'None':
-      start = self.api('GMCP.getv')('room.info.num')
+      start = self.api('net.GMCP:value:get')('room.info.num')
 
     if start not in self.rooms:
       if not self.cacheroom(start):
-        self.api('send.msg')('findpath: start: %s is not in the database' % start)
+        self.api('libs.io:send:msg')('findpath: start: %s is not in the database' % start)
         return {}, 'start room not in database', 0
 
     #if not(end in self.rooms):
       #if not(self.cacheroom(end)):
-        #self.api('send.msg')('findpath: end: %s is not in the database' % uid)
+        #self.api('libs.io:send:msg')('findpath: end: %s is not in the database' % uid)
         #return {}
 
     walkone = None
@@ -847,7 +847,7 @@ class Plugin(AardwolfBasePlugin):
       return {'dir':walkone, 'uid':end}, 'walkone', 1
 
     depth = 0
-    maxdepth = self.api('setting.gets')('maxdepth')
+    maxdepth = self.api('setting:get')('maxdepth')
 
     room_sets = {}
     rooms_list = []
@@ -932,7 +932,7 @@ class Plugin(AardwolfBasePlugin):
     if depth == maxdepth and not found:
       return {}, 'depth == maxdepth', maxdepth
 
-    if found == False:
+    if found is False:
       return {}, 'found no paths', 0
 
     path = []
@@ -1014,7 +1014,7 @@ class Plugin(AardwolfBasePlugin):
     find the nearest Jump Room
     """
     depth = 0
-    max_depth = self.api('setting.gets')('maxdepth')
+    max_depth = self.api('setting:get')('maxdepth')
     room_sets = {}
     rooms_list = []
     found = False
@@ -1024,8 +1024,8 @@ class Plugin(AardwolfBasePlugin):
     visited = []
     path_type = ""
 
-    charlevel = self.api('GMCP.getv')('char.status.level')
-    chartier = self.api('GMCP.getv')('char.base.tier')
+    charlevel = self.api('net.GMCP:value:get')('char.status.level')
+    chartier = self.api('net.GMCP:value:get')('char.base.tier')
 
     if not chartier:
       chartier = 0
@@ -1069,7 +1069,7 @@ class Plugin(AardwolfBasePlugin):
       if dcount == 0:
         return "", path_type, found_depth
 
-    if found == False:
+    if found is False:
       return "", -1, -1
 
     return destination, path_type, found_depth

@@ -37,7 +37,7 @@ class Plugin(AardwolfBasePlugin):
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
     self.msgs = []
 
-    self.api('dependency.add')('core.timers')
+    self.api('dependency:add')('core.timers')
 
   def initialize(self):
     """
@@ -45,29 +45,29 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('events.register')('aard_quest_comp', self.compquest)
-    self.api('events.register')('aard_cp_comp', self.compcp)
-    self.api('events.register')('aard_level_gain', self.levelgain)
-    self.api('events.register')('aard_gq_won', self.compgq)
-    self.api('events.register')('aard_gq_done', self.compgq)
-    self.api('events.register')('aard_gq_completed', self.compgq)
-    self.api('events.register')('var_statmn_show', self.showchange)
-
-    self.api('setting.add')('statcolor', '@W', 'color', 'the stat color')
-    self.api('setting.add')('infocolor', '@x33', 'color', 'the info color')
-    self.api('setting.add')('show', '5m', 'timelength',
+    self.api('setting:add')('statcolor', '@W', 'color', 'the stat color')
+    self.api('setting:add')('infocolor', '@x33', 'color', 'the info color')
+    self.api('setting:add')('show', '5m', 'timelength',
                             'show the report every x time')
-    self.api('setting.add')('reportminutes', '60m', 'timelength',
+    self.api('setting:add')('reportminutes', '60m', 'timelength',
                             'the # of minutes for the report to show')
-    self.api('setting.add')('exppermin', 20, int,
+    self.api('setting:add')('exppermin', 20, int,
                             'the threshhold for showing exp per minute')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show report')
     parser.add_argument('minutes', help='the number of minutes in the report',
                         default='60m', nargs='?')
-    self.api('commands.add')('rep', self.cmd_rep,
-                             parser=parser, format=False, preamble=False)
+    self.api('core.commands:command:add')('rep', self.cmd_rep,
+                                          parser=parser, format=False, preamble=False)
+
+    self.api('core.events:register:to:event')('aard_quest_comp', self.compquest)
+    self.api('core.events:register:to:event')('aard_cp_comp', self.compcp)
+    self.api('core.events:register:to:event')('aard_level_gain', self.levelgain)
+    self.api('core.events:register:to:event')('aard_gq_won', self.compgq)
+    self.api('core.events:register:to:event')('aard_gq_done', self.compgq)
+    self.api('core.events:register:to:event')('aard_gq_completed', self.compgq)
+    self.api('core.events:register:to:event')('%s_var_show_modified' % self.plugin_id, self.showchange)
 
   def showchange(self, args):
     """
@@ -75,27 +75,27 @@ class Plugin(AardwolfBasePlugin):
     """
     newtime = args['newvalue']
     if newtime > 0:
-      self.api('timers.remove')('statrep')
-      self.api('timers.add')('statrep', self.timershow,
-                             newtime,
-                             nodupe=True)
+      self.api('core.timers:remove:timer')('statrep')
+      self.api('core.timers:add:timer')('statrep', self.timershow,
+                                        newtime,
+                                        nodupe=True)
     else:
-      self.api('timers.remove')('statrep')
-      self.api('send.client')('Turning off the statmon report')
+      self.api('core.timers:remove:timer')('statrep')
+      self.api('libs.io:send:client')('Turning off the statmon report')
 
   def timershow(self):
     """
     show the report
     """
-    self.api('send.execute')('%s.%s.rep' % (self.api('commands.prefix')(), self.short_name))
+    self.api('libs.io:send:execute')('%s.%s.rep' % (self.api('core.commands:get:command:prefix')(), self.plugin_id))
 
   def compquest(self, args):
     """
     handle a quest completion
     """
     msg = []
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
     msg.append('%sStatMonitor: Quest finished for ' % \
                       infocolor)
     msg.append('%s%s' % (statcolor, args['qp']))
@@ -134,16 +134,16 @@ class Plugin(AardwolfBasePlugin):
                                 args['pracs'], infocolor))
     msg.append('. It took %s%s%s.' % \
         (statcolor,
-         self.api('utils.timedeltatostring')(args['starttime'],
-                                             args['finishtime'],
-                                             fmin=True, colorn=statcolor,
-                                             colors=infocolor),
+         self.api('core.utils:convert:timedelta:to:string')(args['starttime'],
+                                                            args['finishtime'],
+                                                            fmin=True, colorn=statcolor,
+                                                            colors=infocolor),
          infocolor))
 
     if self.api('core.plugins:is:plugin:loaded')('statdb'):
       stmt = "SELECT COUNT(*) as COUNT, AVG(totqp) as AVEQP " \
               "FROM quests where failed = 0"
-      tst = self.api('statdb.select')(stmt)
+      tst = self.api('aardwolf.statdb:stats:select')(stmt)
       quest_total = tst[0]['COUNT']
       quest_avg = tst[0]['AVEQP']
       if quest_total > 1:
@@ -159,9 +159,9 @@ class Plugin(AardwolfBasePlugin):
     """
     handle a cp completion
     """
-    self.api('send.msg')('compcp: %s' % args)
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
+    self.api('libs.io:send:msg')('compcp: %s' % args)
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
     msg = []
     msg.append('%sStatMonitor: CP finished for ' % \
                   infocolor)
@@ -187,10 +187,10 @@ class Plugin(AardwolfBasePlugin):
                                 args['pracs'], infocolor))
     msg.append('. %sIt took %s.' % \
         (infocolor,
-         self.api('utils.timedeltatostring')(args['starttime'],
-                                             args['finishtime'],
-                                             fmin=True, colorn=statcolor,
-                                             colors=infocolor)))
+         self.api('core.utils:convert:timedelta:to:string')(args['starttime'],
+                                                            args['finishtime'],
+                                                            fmin=True, colorn=statcolor,
+                                                            colors=infocolor)))
 
     self.addmessage(''.join(msg))
 
@@ -198,9 +198,9 @@ class Plugin(AardwolfBasePlugin):
     """
     handle a gq completion
     """
-    self.api('send.msg')('compgq: %s' % args)
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
+    self.api('libs.io:send:msg')('compgq: %s' % args)
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
     msg = []
     msg.append('%sStatMonitor: GQ finished for ' % \
                            infocolor)
@@ -220,10 +220,10 @@ class Plugin(AardwolfBasePlugin):
     msg.append('.')
     msg.append(' %sIt took %s.' % \
         (infocolor,
-         self.api('utils.timedeltatostring')(args['starttime'],
-                                             args['finishtime'],
-                                             fmin=True, colorn=statcolor,
-                                             colors=infocolor)))
+         self.api('core.utils:convert:timedelta:to:string')(args['starttime'],
+                                                            args['finishtime'],
+                                                            fmin=True, colorn=statcolor,
+                                                            colors=infocolor)))
 
     self.addmessage(''.join(msg))
 
@@ -231,10 +231,10 @@ class Plugin(AardwolfBasePlugin):
     """
     handle a level or pup gain
     """
-    self.api('send.msg')('levelgain: %s' % args)
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
-    exppermin = self.api('setting.gets')('exppermin')
+    self.api('libs.io:send:msg')('levelgain: %s' % args)
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
+    exppermin = self.api('setting:get')('exppermin')
     msg = []
     msg.append('%sStatMonitor: Gained a %s:' % (infocolor,
                                                 args['type']))
@@ -281,17 +281,17 @@ class Plugin(AardwolfBasePlugin):
       msg.append(' %sbonus ' % infocolor)
 
     if args['starttime'] > 0 and args['finishtime'] > 0:
-      msg.append(self.api('utils.timedeltatostring')(args['starttime'],
-                                                     args['finishtime'],
-                                                     fmin=True,
-                                                     colorn=statcolor,
-                                                     colors=infocolor))
+      msg.append(self.api('core.utils:convert:timedelta:to:string')(args['starttime'],
+                                                                    args['finishtime'],
+                                                                    fmin=True,
+                                                                    colorn=statcolor,
+                                                                    colors=infocolor))
 
     if self.api('core.plugins:is:plugin:loaded')('statdb'):
       stmt = "SELECT count(*) as count, AVG(totalxp) as average FROM " \
             "mobkills where time > %d and time < %d and xp > 0" % \
              (args['starttime'], args['finishtime'])
-      tst = self.api('statdb.select')(stmt)
+      tst = self.api('aardwolf.statdb:stats:select')(stmt)
       count = tst[0]['count']
       ave = tst[0]['average']
       if count > 0 and ave > 0:
@@ -301,7 +301,7 @@ class Plugin(AardwolfBasePlugin):
         msg.append(' (%s%02.02f%sxp/mob' % (statcolor,
                                             ave, infocolor))
         if length:
-          expmin = self.api('GMCP.getv')('char.base.perlevel')/(length/60)
+          expmin = self.api('net.GMCP:value:get')('char.base.perlevel')/(length/60)
           if int(expmin) > exppermin:
             msg.append(' %s%02d%sxp/min' % (statcolor,
                                             expmin, infocolor))
@@ -315,19 +315,15 @@ class Plugin(AardwolfBasePlugin):
     """
     self.msgs.append(msg)
 
-    self.api('events.register')('trigger_emptyline', self.showmessages)
-
-    #self.api('timer.add')('msgtimer',
-                #{'func':self.showmessages, 'seconds':1, 'onetime':True,
-                 #'nodupe':True})
+    self.api('core.events:register:to:event')('trigger_emptyline', self.showmessages)
 
   def showmessages(self, _=None):
     """
     show a message
     """
-    self.api('events.unregister')('trigger_emptyline', self.showmessages)
+    self.api('core.events:unregister:from:event')('trigger_emptyline', self.showmessages)
     for i in self.msgs:
-      self.api('send.client')(i, preamble=False)
+      self.api('libs.io:send:client')(i, preamble=False)
 
     self.msgs = []
 
@@ -338,9 +334,9 @@ class Plugin(AardwolfBasePlugin):
     if not self.api('core.plugins:is:plugin:loaded')('statdb'):
       return []
 
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
-    reportminutes = self.api('setting.gets')('reportminutes')
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
+    reportminutes = self.api('setting:get')('reportminutes')
     linelen = 50
     msg = ['']
     finishtime = time.time()
@@ -367,18 +363,18 @@ class Plugin(AardwolfBasePlugin):
     minutes = tminutes or reportminutes
     starttime = finishtime - minutes
 
-    timestr = '%s' % self.api('utils.timedeltatostring')(starttime,
-                                                         finishtime,
-                                                         colorn=statcolor,
-                                                         colors=infocolor,
-                                                         nosec=True)
+    timestr = '%s' % self.api('core.utils:convert:timedelta:to:string')(starttime,
+                                                                        finishtime,
+                                                                        colorn=statcolor,
+                                                                        colors=infocolor,
+                                                                        nosec=True)
 
     stmt = """SELECT COUNT(*) as total,
                      SUM(totqp) as qp,
                      SUM(gold) as gold,
                      SUM(tp) as tp
                      FROM quests where finishtime > %d""" % starttime
-    tst = self.api('statdb.select')(stmt)
+    tst = self.api('aardwolf.statdb:stats:select')(stmt)
     if tst[0]['total'] > 0:
       queststats.update(tst[0])
 
@@ -388,7 +384,7 @@ class Plugin(AardwolfBasePlugin):
                      SUM(tp) as tp
                      FROM campaigns
                      where finishtime > %d and failed = 0""" % starttime
-    tst = self.api('statdb.select')(stmt)
+    tst = self.api('aardwolf.statdb:stats:select')(stmt)
     if tst[0]['total'] > 0:
       cpstats.update(tst[0])
 
@@ -397,7 +393,7 @@ class Plugin(AardwolfBasePlugin):
                      SUM(gold) as gold,
                      SUM(tp) as tp
                      FROM gquests where finishtime > %d""" % starttime
-    tst = self.api('statdb.select')(stmt)
+    tst = self.api('aardwolf.statdb:stats:select')(stmt)
     if tst[0]['total'] > 0:
       gqstats.update(tst[0])
 
@@ -406,7 +402,7 @@ class Plugin(AardwolfBasePlugin):
                      SUM(gold) as gold,
                      SUM(tp) as tp
                      FROM mobkills where time > %d""" % starttime
-    tst = self.api('statdb.select')(stmt)
+    tst = self.api('aardwolf.statdb:stats:select')(stmt)
     if tst[0]['total'] > 0:
       mobstats.update(tst[0])
 
@@ -426,7 +422,7 @@ class Plugin(AardwolfBasePlugin):
     namestr = "Stats for {timestr}".format(timestr=timestr)
 
     msg.append(infocolor + \
-                  self.api('utils.center')(namestr, '-', linelen))
+                  self.api('core.utils:center:colored:string')(namestr, '-', linelen))
     fstring = "{infocolor}{type:<10} | {total:>6} " \
               "{xp:>6} {qp:>5} {tp:>5} {gold:>10}"
     msg.append(fstring.format(type='Type',
@@ -460,9 +456,9 @@ class Plugin(AardwolfBasePlugin):
     """
     do a cmd report
     """
-    minutes = self.api('setting.gets')('reportminutes')
+    minutes = self.api('setting:get')('reportminutes')
     if args and args['minutes']:
-      minutes = self.api('utils.verify')(args['minutes'], 'timelength')
+      minutes = self.api('core.utils:verify:value')(args['minutes'], 'timelength')
 
     msg = self.statreport(minutes)
 

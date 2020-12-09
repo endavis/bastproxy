@@ -15,31 +15,28 @@ class Plugin(AardwolfBasePlugin):
   """
   a plugin to handle aardwolf cp events
   """
-  def __init__(self, *args, **kwargs):
-    AardwolfBasePlugin.__init__(self, *args, **kwargs)
-
   def initialize(self):
     """
     initialize the plugin
     """
     AardwolfBasePlugin.initialize(self)
 
-    itemtypes = self.api('itemu.objecttypes')()
+    itemtypes = self.api('aardwolf.itemu:objecttypes')()
 
     for i in itemtypes:
-      self.api('setting.add')(i, False, bool,
+      self.api('setting:add')(i, False, bool,
                               'autokeep %s' % i)
 
-    self.api('events.register')('eq_inventory_added', self.inventory_added)
+    self.api('core.events:register:to:event')('eq_inventory_added', self.inventory_added)
 
   def inventory_added(self, args):
     """
     check an item added to inventory to autokeep
     """
     item = args['item']
-    itemtypesrev = self.api('itemu.objecttypes')()
+    itemtypesrev = self.api('aardwolf.itemu:objecttypes')()
     ntype = itemtypesrev[item.itype]
 
-    if self.api('setting.gets')(ntype):
+    if self.api('setting:get')(ntype):
       if 'K' not in item.shortflags:
-        self.api('send.execute')('keep %s' % item.serial)
+        self.api('libs.io:send:execute')('keep %s' % item.serial)

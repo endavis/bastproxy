@@ -90,13 +90,13 @@ class AFlagsCmd(object):
 
     self._dump_shallow_attrs = ['plugin', 'api']
 
-    self.api('cmdq.addcmdtype')(self.cid, self.cmd, self.cmdregex,
-                                beforef=self.aflagsbefore, afterf=self.aflagsafter)
+    self.api('core.cmdq:commandtype:add')(self.cid, self.cmd, self.cmdregex,
+                                          beforef=self.aflagsbefore, afterf=self.aflagsafter)
 
-    self.api('triggers.add')('aflagsstart',
-                             self.startregex,
-                             enabled=False, group='cmd_%s' % self.cid,
-                             omit=True)
+    self.api('core.triggers:trigger:add')('aflagsstart',
+                                          self.startregex,
+                                          enabled=False, group='cmd_%s' % self.cid,
+                                          omit=True)
 
   def affoff(self, args=None):
     """
@@ -126,22 +126,22 @@ class AFlagsCmd(object):
     """
     stuff to do before doing aflags command
     """
-    self.api('triggers.togglegroup')('cmd_%s' % self.cmd, True)
-    self.api('events.register')('trigger_aflagsstart', self.aflagsfirstline)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cmd, True)
+    self.api('core.events:register:to:event')('trigger_aflagsstart', self.aflagsfirstline)
     self.plugin.aflags.snapshot('Before')
 
   def aflagsfirstline(self, args):
     """
     process the first aflags line
     """
-    self.api('cmdq.cmdstart')(self.cid)
+    self.api('core.cmdq:command:start')(self.cid)
     allflags = args['flags'].split(',')
     for i in allflags:
       i = i.lower().strip()
       if i:
         self.plugin.aflags.addflag(i)
-    self.api('events.register')('trigger_beall', self.aflagsotherline)
-    self.api('events.register')('trigger_emptyline', self.aflagsend)
+    self.api('core.events:register:to:event')('trigger_beall', self.aflagsotherline)
+    self.api('core.events:register:to:event')('trigger_emptyline', self.aflagsend)
     args['omit'] = True
     return args
 
@@ -166,12 +166,12 @@ class AFlagsCmd(object):
     finished aflags when seeing an emptyline, mainly clean up triggers
     and events
     """
-    self.api('events.unregister')('trigger_beall', self.aflagsotherline)
-    self.api('events.unregister')('trigger_emptyline', self.aflagsend)
+    self.api('core.events:unregister:from:event')('trigger_beall', self.aflagsotherline)
+    self.api('core.events:unregister:from:event')('trigger_emptyline', self.aflagsend)
 
-    self.api('triggers.togglegroup')('cmd_%s' % self.cmd, False)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cmd, False)
 
-    self.api('cmdq.cmdfinish')('aflags')
+    self.api('core.cmdq:command:finish')('aflags')
 
   def aflagsafter(self):
     """
@@ -182,9 +182,9 @@ class AFlagsCmd(object):
                 set(self.plugin.aflags.currentflags)
     added = set(self.plugin.aflags.currentflags) - \
                set(self.plugin.aflags.snapshots['Before'])
-    self.plugin.api('events.eraise')('affect_diff',
-                                     args={'added':added,
-                                           'removed':removed})
+    self.plugin.api('core.events:raise:event')('affect_diff',
+                                               args={'added':added,
+                                                     'removed':removed})
 
 class Plugin(AardwolfBasePlugin):
   """
@@ -196,10 +196,10 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('aardwolf.skills')
-    self.api('dependency.add')('core.cmdq')
+    self.api('dependency:add')('aardwolf.skills')
+    self.api('dependency:add')('core.cmdq')
 
-    self.api('api.add')('check', self.api_checkflag)
+    self.api('libs.api:add')('check', self.api_checkflag)
 
     self.first_active_priority = 1
     self.cmdaflags = None
@@ -218,35 +218,35 @@ class Plugin(AardwolfBasePlugin):
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='refresh affect flags')
-    self.api('commands.add')('refresh', self.cmd_refresh,
-                             parser=parser)
+    self.api('core.commands:command:add')('refresh', self.cmd_refresh,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='check to see if affected by a flag')
     parser.add_argument('flag', help='the flag to check',
                         default='', nargs='?')
-    self.api('commands.add')('check', self.cmd_check,
-                             parser=parser)
+    self.api('core.commands:command:add')('check', self.cmd_check,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list affect flags')
-    self.api('commands.add')('list', self.cmd_list,
-                             parser=parser)
+    self.api('core.commands:command:add')('list', self.cmd_list,
+                                          parser=parser)
 
-    self.api('events.register')('aard_skill_affoff',
-                                self.flagschanged, prio=10)
-    self.api('events.register')('aard_skill_affon',
-                                self.flagschanged, prio=10)
-    self.api('events.register')('aard_skill_recoff',
-                                self.refreshflags, prio=99)
-    self.api('events.register')('aard_skill_recon',
-                                self.refreshflags, prio=99)
-    self.api('events.register')('skills_affected_update',
-                                self.refreshflags, prio=99)
-    self.api('events.register')('skills_uptodate',
-                                self.refreshflags, prio=99)
-    self.api('events.register')('affect_diff',
-                                self.flagsdiff)
+    self.api('core.events:register:to:event')('aard_skill_affoff',
+                                              self.flagschanged, prio=10)
+    self.api('core.events:register:to:event')('aard_skill_affon',
+                                              self.flagschanged, prio=10)
+    self.api('core.events:register:to:event')('aard_skill_recoff',
+                                              self.refreshflags, prio=99)
+    self.api('core.events:register:to:event')('aard_skill_recon',
+                                              self.refreshflags, prio=99)
+    self.api('core.events:register:to:event')('skills_affected_update',
+                                              self.refreshflags, prio=99)
+    self.api('core.events:register:to:event')('skills_uptodate',
+                                              self.refreshflags, prio=99)
+    self.api('core.events:register:to:event')('affect_diff',
+                                              self.flagsdiff)
 
   def after_first_active(self, _=None):
     """
@@ -270,10 +270,10 @@ class Plugin(AardwolfBasePlugin):
     if flag not in self.flagstable and not self.currentflag:
       self.currentflag = flag
     elif self.currentflag:
-      self.api('send.msg')('got multiple affects change before getting flags')
+      self.api('libs.io:send:msg')('got multiple affects change before getting flags')
       self.currentflag = None
     else:
-      self.api('send.msg')('%s : flags are %s' % (flag, self.flagstable[flag]))
+      self.api('libs.io:send:msg')('%s : flags are %s' % (flag, self.flagstable[flag]))
 
     self.refreshflags()
 
@@ -283,11 +283,11 @@ class Plugin(AardwolfBasePlugin):
     """
     if self.currentflag:
       if args['added']:
-        self.api('send.msg')('diff : flags %s were associated with sn %s' % \
+        self.api('libs.io:send:msg')('diff : flags %s were associated with sn %s' % \
                     (args['added'], self.currentflag))
         self.flagstable[self.currentflag] = args['added']
       if args['removed']:
-        self.api('send.msg')('diff : flags %s were associated with sn %s' % \
+        self.api('libs.io:send:msg')('diff : flags %s were associated with sn %s' % \
                     (args['removed'], self.currentflag))
         self.flagstable[self.currentflag] = args['removed']
 
@@ -297,7 +297,7 @@ class Plugin(AardwolfBasePlugin):
     """
     start to refresh flags
     """
-    self.api('cmdq.addtoqueue')('aflags')
+    self.api('core.cmdq:queue:add:command')('aflags')
 
   def cmd_refresh(self, _=None):
     """

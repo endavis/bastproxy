@@ -19,5 +19,5 @@ class AardwolfBasePlugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('dependency.add')('aardwolf.connect')
-    self.api('dependency.add')('aardwolf.aardu')
+    self.api('dependency:add')('aardwolf.connect')
+    self.api('dependency:add')('aardwolf.aardu')

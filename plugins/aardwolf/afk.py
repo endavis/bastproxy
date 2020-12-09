@@ -32,7 +32,7 @@ class Plugin(AardwolfBasePlugin):
 
     self.temptitle = ''
 
-    self.api('dependency.add')('aardwolf.connect')
+    self.api('dependency:add')('aardwolf.connect')
 
   def initialize(self):
     """
@@ -40,45 +40,45 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('setting.add')('afktitle', 'is AFK.', str,
+    self.api('setting:add')('afktitle', 'is AFK.', str,
                             'the title when afk mode is enabled')
-    self.api('setting.add')('lasttitle', '', str,
+    self.api('setting:add')('lasttitle', '', str,
                             'the title before afk mode is enabled')
-    self.api('setting.add')('queue', [], list, 'the tell queue',
+    self.api('setting:add')('queue', [], list, 'the tell queue',
                             readonly=True)
-    self.api('setting.add')('isafk', False, bool, 'AFK flag',
+    self.api('setting:add')('isafk', False, bool, 'AFK flag',
                             readonly=True)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show the communication queue')
-    self.api('commands.add')('show', self.cmd_show,
-                             parser=parser)
+    self.api('core.commands:command:add')('show', self.cmd_show,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='clear the communication queue')
-    self.api('commands.add')('clear', self.cmd_clear,
-                             parser=parser)
+    self.api('core.commands:command:add')('clear', self.cmd_clear,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='toggle afk')
-    self.api('commands.add')('toggle', self.cmd_toggle,
-                             parser=parser)
+    self.api('core.commands:command:add')('toggle', self.cmd_toggle,
+                                          parser=parser)
 
-    self.api('watch.add')('titleset', '^(tit|titl|title) (?P<title>.*)$')
+    self.api('core.watch:watch:add')('titleset', '^(tit|titl|title) (?P<title>.*)$')
 
-    self.api('events.register')('client_connected', self.clientconnected)
-    self.api('events.register')('client_disconnected',
-                                self.clientdisconnected)
-    self.api('events.register')('watch_titleset', self._titlesetevent)
+    self.api('core.events:register:to:event')('client_connected', self.clientconnected)
+    self.api('core.events:register:to:event')('client_disconnected',
+                                              self.clientdisconnected)
+    self.api('core.events:register:to:event')('watch_titleset', self._titlesetevent)
 
-    self.api('setting.change')('isafk', False)
-    self.api('events.register')('var_%s_isafk' % self.short_name, self._isafk_changeevent)
+    self.api('setting:change')('isafk', False)
+    self.api('core.events:register:to:event')('%s_var_isafk_modified' % self.plugin_id, self._isafk_changeevent)
 
   def _isafk_changeevent(self, args=None): # pylint: disable=unused-argument
     """
     do something after afk has been changed
     """
-    afkflag = self.api('setting.gets')('isafk')
+    afkflag = self.api('setting:get')('isafk')
     if afkflag:
       self.enableafk()
     else:
@@ -89,17 +89,17 @@ class Plugin(AardwolfBasePlugin):
     set the title when we first connect
     """
     AardwolfBasePlugin.after_first_active(self)
-    if self.api('setting.gets')('lasttitle'):
-      title = self.api('setting.gets')('lasttitle')
-      self.api('send.execute')('title %s' % title)
+    if self.api('setting:get')('lasttitle'):
+      title = self.api('setting:get')('lasttitle')
+      self.api('libs.io:send:execute')('title %s' % title)
 
   def _titlesetevent(self, args):
     """
     check for stuff when the title command is seen
     """
-    self.api('send.msg')('saw title set command %s' % args)
+    self.api('libs.io:send:msg')('saw title set command %s' % args)
     self.temptitle = args['title']
-    self.api('events.register')('trigger_all', self.titlesetline)
+    self.api('core.events:register:to:event')('trigger_all', self.titlesetline)
 
   def titlesetline(self, args):
     """
@@ -110,12 +110,12 @@ class Plugin(AardwolfBasePlugin):
     if line:
       if tmatch:
         newtitle = tmatch.groupdict()['title']
-        if newtitle != self.api('setting.gets')('afktitle'):
-          self.api('setting.change')('lasttitle', self.temptitle)
-          self.api('send.msg')('lasttitle is "%s"' % self.temptitle)
+        if newtitle != self.api('setting:get')('afktitle'):
+          self.api('setting:change')('lasttitle', self.temptitle)
+          self.api('libs.io:send:msg')('lasttitle is "%s"' % self.temptitle)
       else:
-        self.api('send.msg')('unregistering trigger_all from titlesetline')
-        self.api('events.unregister')('trigger_all', self.titlesetline)
+        self.api('libs.io:send:msg')('unregistering trigger_all from titlesetline')
+        self.api('core.events:unregister:from:event')('trigger_all', self.titlesetline)
 
   def cmd_show(self, _=None):
     """
@@ -124,7 +124,7 @@ class Plugin(AardwolfBasePlugin):
       @CUsage@w: show
     """
     msg = []
-    queue = self.api('setting.gets')('queue')
+    queue = self.api('setting:get')('queue')
     if queue:
       msg.append('The queue is empty')
     else:
@@ -142,7 +142,7 @@ class Plugin(AardwolfBasePlugin):
     """
     msg = []
     msg.append('AFK comm queue cleared')
-    self.api('setting.change')('queue', [])
+    self.api('setting:change')('queue', [])
     self.savestate()
     return True, msg
 
@@ -153,8 +153,8 @@ class Plugin(AardwolfBasePlugin):
       @CUsage@w: toggle
     """
     msg = []
-    newafk = not self.api('setting.gets')('isafk')
-    self.api('setting.change')('isafk', newafk)
+    newafk = not self.api('setting:get')('isafk')
+    self.api('setting:change')('isafk', newafk)
 
     return True, msg
 
@@ -168,7 +168,7 @@ class Plugin(AardwolfBasePlugin):
       tdata = copy.deepcopy(args['data'])
       tdata['timestamp'] = \
               time.strftime('%a %b %d %Y %H:%M:%S', time.localtime())
-      queue = self.api('setting.gets')('queue')
+      queue = self.api('setting:get')('queue')
       queue.append(tdata)
       self.savestate()
 
@@ -176,42 +176,42 @@ class Plugin(AardwolfBasePlugin):
     """
     enable afk mode
     """
-    afktitle = self.api('setting.gets')('afktitle')
-    self.api('events.register')('GMCP:comm.channel', self.checkfortell)
-    self.api('send.execute')('title %s' % afktitle)
+    afktitle = self.api('setting:get')('afktitle')
+    self.api('core.events:register:to:event')('GMCP:comm.channel', self.checkfortell)
+    self.api('libs.io:send:execute')('title %s' % afktitle)
 
   def disableafk(self):
     """
     disable afk mode
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('core.managers:get')('mud')
     if mud and mud.connected:
-      lasttitle = self.api('setting.gets')('lasttitle')
-      self.api('send.execute')('title %s' % lasttitle)
+      lasttitle = self.api('setting:get')('lasttitle')
+      self.api('libs.io:send:execute')('title %s' % lasttitle)
       try:
-        self.api('events.unregister')('GMCP:comm.channel', self.checkfortell)
+        self.api('core.events:unregister:from:event')('GMCP:comm.channel', self.checkfortell)
       except KeyError:
         pass
 
-    queue = self.api('setting.gets')('queue')
+    queue = self.api('setting:get')('queue')
 
     if queue:
-      self.api('send.client')("@BAFK Queue")
-      self.api('send.client')("@BYou have %s tells in the queue" % \
+      self.api('libs.io:send:client')("@BAFK Queue")
+      self.api('libs.io:send:client')("@BYou have %s tells in the queue" % \
                 len(queue))
 
   def clientconnected(self, _):
     """
     if we have enabled triggers when there were no clients, disable them
     """
-    if self.api('clients.numconnected')() > 0:
-      self.api('send.msg')('disabling afk mode')
-      self.api('setting.change')('isafk', False)
+    if self.api('net.clients:clients:count')() > 0:
+      self.api('libs.io:send:msg')('disabling afk mode')
+      self.api('setting:change')('isafk', False)
 
   def clientdisconnected(self, _):
     """
     if this is the last client, enable afk triggers
     """
-    if self.api('clients.numconnected')() == 0:
-      self.api('send.msg')('enabling afk mode')
-      self.api('setting.change')('isafk', True)
+    if self.api('net.clients:clients:count')() == 0:
+      self.api('libs.io:send:msg')('enabling afk mode')
+      self.api('setting:change')('isafk', True)

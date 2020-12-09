@@ -29,10 +29,10 @@ class Plugin(AardwolfBasePlugin):
     initialize the instance
     """
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
-    self.api('dependency.add')('utils.pb')
-    self.api('dependency.add')('aardwolf.gq')
-    self.api('dependency.add')('aardwolf.quest')
-    self.api('dependency.add')('aardwolf.iceage')
+    self.api('dependency:add')('utils.pb')
+    self.api('dependency:add')('aardwolf.gq')
+    self.api('dependency:add')('aardwolf.quest')
+    self.api('dependency:add')('aardwolf.iceage')
 
     self.evmap = {}
     self.evmap['quests'] = {'event':'aard_quest_ready',
@@ -59,75 +59,75 @@ class Plugin(AardwolfBasePlugin):
     AardwolfBasePlugin.initialize(self)
 
     for tevent in self.evmap:
-      self.api('setting.add')(tevent, True, bool,
+      self.api('setting:add')(tevent, True, bool,
                               self.evmap[tevent]['help'])
 
-      self.api('events.register')('var_pbalerts_%s' % tevent, self.varchange)
+      self.api('core.events:register:to:event')('%s_var_%s_modified' % (self.plugin_id, tevent), self.varchange)
 
   def varchange(self, args):
     """
     unregister events
     """
     tevent = args['var']
-    tbool = self.api('setting.gets')(tevent)
+    tbool = self.api('setting:get')(tevent)
 
     if tbool:
-      self.api('events.register')(self.evmap[tevent]['event'],
-                                  self.evmap[tevent]['function'])
+      self.api('core.events:register:to:event')(self.evmap[tevent]['event'],
+                                                self.evmap[tevent]['function'])
     else:
-      if self.api('events.isregistered')(self.evmap[tevent]['event'],
-                                         self.evmap[tevent]['function']):
-        self.api('events.unregister')(self.evmap[tevent]['event'],
-                                      self.evmap[tevent]['function'])
+      if self.api('core.events:is:registered:to:event')(self.evmap[tevent]['event'],
+                                                        self.evmap[tevent]['function']):
+        self.api('core.events:unregister:from:event')(self.evmap[tevent]['event'],
+                                                      self.evmap[tevent]['function'])
 
   def _gqdeclared(self, args):
     """
     send a pushbullet note that a gq has been declared
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('core.managers:get')('mud')
     times = time.asctime(time.localtime())
     msg = '%s:%s - A GQuest has been declared for levels %s to %s. (%s)' % \
             (mud.host, mud.port,
              args['lowlev'], args['highlev'], times)
-    self.api('pb.note')('New GQuest', msg)
+    self.api('utils.pb:note')('New GQuest', msg)
 
   def _quest(self, _=None):
     """
     send an pushbullet note that it is time to quest
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('core.managers:get')('mud')
     times = time.asctime(time.localtime())
     msg = '%s:%s - Time to quest! (%s)' % \
             (mud.host, mud.port, times)
-    self.api('pb.note')('Quest Time', msg)
+    self.api('utils.pb:note')('Quest Time', msg)
 
   def _iceage(self, _=None):
     """
     send an pushbullet note that an iceage approaches
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('core.managers:get')('mud')
     times = time.asctime(time.localtime())
     msg = '%s:%s - An ice age approaches! (%s)' % \
             (mud.host, mud.port, times)
-    self.api('pb.note')('Ice Age', msg)
+    self.api('utils.pb:note')('Ice Age', msg)
 
   def _reboot(self, _=None):
     """
     send an pushbullet note that Aardwolf is rebooting
     """
-    mud = self.api('managers.getm')('mud')
+    mud = self.api('core.managers:get')('mud')
     times = time.asctime(time.localtime())
     msg = '%s:%s - Aardwolf is rebooting (%s)' % \
             (mud.host, mud.port, times)
-    self.api('pb.note')('Reboot', msg)
+    self.api('utils.pb:note')('Reboot', msg)
 
   def _daily(self, _=None):
     """
     send a pushbullet note when daily blessing is available
     """
-    self.api('send.msg')('got daily blessing event')
-    mud = self.api('managers.getm')('mud')
+    self.api('libs.io:send:msg')('got daily blessing event')
+    mud = self.api('core.managers:get')('mud')
     times = time.asctime(time.localtime())
     msg = '%s:%s - Daily blessing is available (%s)' % \
             (mud.host, mud.port, times)
-    self.api('pb.note')('Daily Blessing', msg)
+    self.api('utils.pb:note')('Daily Blessing', msg)

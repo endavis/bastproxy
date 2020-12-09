@@ -30,13 +30,13 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('events.register')('GMCP:room.info', self._roominfo)
+    self.api('core.events:register:to:event')('GMCP:room.info', self._roominfo)
 
   def _roominfo(self, _=None):
     """
     figure out if we moved or not
     """
-    room = self.api('GMCP.getv')('room.info')
+    room = self.api('net.GMCP:value:get')('room.info')
     if not self.lastroom:
       self.lastroom = copy.deepcopy(dict(room))
     else:
@@ -48,8 +48,8 @@ class Plugin(AardwolfBasePlugin):
         newdict = {'from':self.lastroom,
                    'to': room, 'direction':direction,
                    'roominfo':copy.deepcopy(dict(room))}
-        self.api('send.msg')('raising moved_room, %s' % (newdict))
-        self.api('events.eraise')('moved_room', newdict)
+        self.api('libs.io:send:msg')('raising moved_room, %s' % (newdict))
+        self.api('core.events:raise:event')('moved_room', newdict)
         self.lastroom = copy.deepcopy(dict(room))
 
   def after_first_active(self, _=None):
@@ -58,5 +58,5 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.after_first_active(self)
 
-    self.api('send.msg')('requesting room')
-    self.api('GMCP.sendmud')('request room')
+    self.api('libs.io:send:msg')('requesting room')
+    self.api('net.GMCP:mud:send')('request room')

@@ -63,121 +63,121 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('setting.add')('instatext', '@x0', 'color',
+    self.api('setting:add')('instatext', '@x0', 'color',
                             'the text color for an instakill')
-    self.api('setting.add')('instaback', '@z10', 'color',
+    self.api('setting:add')('instaback', '@z10', 'color',
                             'the background color for an instakill')
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobxp',
         r"^You (don't )?receive (?P<xp>\d+(?:\+\d+)*) experience points?\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobrarexp',
         r"^You (don't )?receive (?P<xp>\d+) 'rare kill' experience bonus.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobblessxp',
         r"^You (don't )?receive (?P<xp>\d+) bonus " \
           r"experience points from your daily blessing.$",
         priority=99,
         stopevaluating=True)
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobbonusxp',
         r"^You (don't )?receive (?P<xp>\d+) bonus experience points.+$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobxpptless',
         r"^That was a pointless no experience kill\!$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobswitch',
         r"^You switch targets and " \
           r"direct your attacks at (?P<name>.*).\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobflee',
         r"^You flee from combat\!$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobretreat',
         r"^You retreat from the combat\!$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobgold',
         r"^You get (?P<gold>.+) gold coins " \
           r"from .+ corpse of (?P<name>.+)\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobname',
         r"^You get .+ corpse of (?P<name>.+)\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobsac',
         r"^.* gives you (?P<sacgold>.+) gold coins? for " \
           r"the .* ?corpse of (?P<name>.+)\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobconsume',
         r"^You bury your fangs deep into the " \
           r".* ?corpse of (?P<name>.+), drinking thirstily.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobsplitgold',
         r"^\w+ splits? \d+ gold coins?. " \
           r"Your share is (?P<gold>\d+) gold\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobtrivia',
         r"^You killed a Triv bonus mob!! Triv point added\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobtrivia2',
         r"^You killed a Trivia Point bonus mob!! Trivia point added\.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobvorpal',
         r"^Deep magic stirs within your weapon. " \
           r"It seems to have a life of its own.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobassassin',
         r"^You assassinate (?P<name>.*) with cold efficiency.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobdeathblow',
         r"^Your death blow CLEAVES (?P<name>.*) in two!$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobslit',
         r"^You sneak behind (?P<name>.*) and slit .* throat.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobdisintegrate',
         r"^You have disintegrated (?P<name>.*)!$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobbanish',
         r"^You look at (?P<name>.*) very strangely.$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobdamage',
         r"^\[(.*)\] Your (.*) \[(.*)\]$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'mobdamage2',
         r"^Your (.*) \[(.*)\]$")
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'bsincombat',
         r"^You spin around (.*), catching (.*) off guard, " \
           r"and execute a vicious double backstab.$")
 
-    self.api('events.register')('trigger_mobxp', self.mobxp)
-    self.api('events.register')('trigger_mobblessxp', self.bonusxp)
-    self.api('events.register')('trigger_mobrarexp', self.bonusxp)
-    self.api('events.register')('trigger_mobbonusxp', self.bonusxp)
-    self.api('events.register')('trigger_mobxpptless', self.mobxpptless)
-    self.api('events.register')('trigger_mobswitch', self.mobswitch)
-    self.api('events.register')('trigger_mobflee', self.mobnone)
-    self.api('events.register')('trigger_mobretreat', self.mobnone)
-    self.api('events.register')('trigger_mobgold', self.mobgold)
-    self.api('events.register')('trigger_mobsplitgold', self.mobgold)
-    self.api('events.register')('trigger_mobname', self.mobname)
-    self.api('events.register')('trigger_mobsac', self.mobname)
-    self.api('events.register')('trigger_mobconsume', self.mobname)
-    self.api('events.register')('trigger_mobtrivia', self.mobtrivia)
-    self.api('events.register')('trigger_mobtrivia2', self.mobtrivia)
-    self.api('events.register')('trigger_mobvorpal', self.mobvorpal)
-    self.api('events.register')('trigger_mobassassin', self.mobassassin)
-    self.api('events.register')('trigger_mobdeathblow', self.mobdeathblow)
-    self.api('events.register')('trigger_mobslit', self.mobslit)
-    self.api('events.register')('trigger_mobdisintegrate',
-                                self.mobdisintegrate)
-    self.api('events.register')('trigger_mobbanish', self.mobbanish)
-    self.api('events.register')('trigger_mobdamage', self.mobdamage)
-    self.api('events.register')('trigger_mobdamage2', self.mobdamage)
-    self.api('events.register')('trigger_bsincombat', self.bsincombat)
+    self.api('core.events:register:to:event')('trigger_mobxp', self.mobxp)
+    self.api('core.events:register:to:event')('trigger_mobblessxp', self.bonusxp)
+    self.api('core.events:register:to:event')('trigger_mobrarexp', self.bonusxp)
+    self.api('core.events:register:to:event')('trigger_mobbonusxp', self.bonusxp)
+    self.api('core.events:register:to:event')('trigger_mobxpptless', self.mobxpptless)
+    self.api('core.events:register:to:event')('trigger_mobswitch', self.mobswitch)
+    self.api('core.events:register:to:event')('trigger_mobflee', self.mobnone)
+    self.api('core.events:register:to:event')('trigger_mobretreat', self.mobnone)
+    self.api('core.events:register:to:event')('trigger_mobgold', self.mobgold)
+    self.api('core.events:register:to:event')('trigger_mobsplitgold', self.mobgold)
+    self.api('core.events:register:to:event')('trigger_mobname', self.mobname)
+    self.api('core.events:register:to:event')('trigger_mobsac', self.mobname)
+    self.api('core.events:register:to:event')('trigger_mobconsume', self.mobname)
+    self.api('core.events:register:to:event')('trigger_mobtrivia', self.mobtrivia)
+    self.api('core.events:register:to:event')('trigger_mobtrivia2', self.mobtrivia)
+    self.api('core.events:register:to:event')('trigger_mobvorpal', self.mobvorpal)
+    self.api('core.events:register:to:event')('trigger_mobassassin', self.mobassassin)
+    self.api('core.events:register:to:event')('trigger_mobdeathblow', self.mobdeathblow)
+    self.api('core.events:register:to:event')('trigger_mobslit', self.mobslit)
+    self.api('core.events:register:to:event')('trigger_mobdisintegrate',
+                                              self.mobdisintegrate)
+    self.api('core.events:register:to:event')('trigger_mobbanish', self.mobbanish)
+    self.api('core.events:register:to:event')('trigger_mobdamage', self.mobdamage)
+    self.api('core.events:register:to:event')('trigger_mobdamage2', self.mobdamage)
+    self.api('core.events:register:to:event')('trigger_bsincombat', self.bsincombat)
 
-    self.api('events.register')('GMCP:char.status', self.gmcpcharstatus)
+    self.api('core.events:register:to:event')('GMCP:char.status', self.gmcpcharstatus)
 
   def gmcpcharstatus(self, args):
     """
@@ -185,7 +185,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     status = args['data']
     if status['enemy'] != "" and self.kill_info['name'] == "":
-      self.kill_info['name'] = self.api('colors.stripansi')(
+      self.kill_info['name'] = self.api('core.colors:ansicode:strip')(
           status['enemy'])
       self.reset_damage()
 
@@ -286,7 +286,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     switch mobs
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.reset_damage()
 
   def mobvorpal(self, _=None):
@@ -299,14 +299,14 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     assassinated mob
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.kill_info['assassinate'] = 1
 
   def mobslit(self, args):
     """
     slitted a mob
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.kill_info['slit'] = 1
     self.kill_info['raised'] = False
     self.kill_info['time'] = time.time()
@@ -316,7 +316,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     disintegrated a mob
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.kill_info['disintegrate'] = 1
     self.kill_info['raised'] = False
     self.kill_info['time'] = time.time()
@@ -326,7 +326,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     banished a mob
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.kill_info['banishment'] = 1
     self.kill_info['raised'] = False
     self.kill_info['time'] = time.time()
@@ -336,7 +336,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     deathblowed a mob
     """
-    self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+    self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
     self.kill_info['deathblow'] = 1
 
   def mobgold(self, args):
@@ -347,10 +347,10 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     try:
       self.kill_info['gold'] = int(gold)
     except ValueError:
-      self.api('send.msg')('got an invalid value for gold in mobgold: %s' \
+      self.api('libs.io:send:msg')('got an invalid value for gold in mobgold: %s' \
                                                 % args)
     if not self.kill_info['name']:
-      self.kill_info['name'] = self.api('colors.stripansi')(args['name'])
+      self.kill_info['name'] = self.api('core.colors:ansicode:strip')(args['name'])
 
   def mobtrivia(self, _=None):
     """
@@ -363,11 +363,11 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     raise a kill
     """
     self.kill_info['finishtime'] = time.time()
-    self.kill_info['room_id'] = self.api('GMCP.getv')('room.info.num')
+    self.kill_info['room_id'] = self.api('net.GMCP:value:get')('room.info.num')
     self.kill_info['level'] = self.api('aardu.getactuallevel')()
     self.kill_info['time'] = time.time()
-    wielded = self.api('eq.getworn')(24)
-    second = self.api('eq.getworn')(25)
+    wielded = self.api('aardwolf.eq:getworn')(24)
+    second = self.api('aardwolf.eq:getworn')(25)
     if wielded:
       self.kill_info['wielded_weapon'] = wielded.serial
     if second:
@@ -381,9 +381,9 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
                                   self.kill_info['bonusxp'] + \
                                   self.kill_info['blessingxp']
 
-      self.api('send.msg')('raising a mobkill: %s' % self.kill_info)
-      self.api('events.eraise')('aard_mobkill',
-                                copy.deepcopy(self.kill_info))
+      self.api('libs.io:send:msg')('raising a mobkill: %s' % self.kill_info)
+      self.api('core.events:raise:event')('aard_mobkill',
+                                          copy.deepcopy(self.kill_info))
 
     self.reset_kill()
 
@@ -391,7 +391,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     """
     just saw an incombat backstab
     """
-    self.api('send.msg')('saw bs in combat')
+    self.api('libs.io:send:msg')('saw bs in combat')
     if 'backstab' not in self.kill_info['damage']:
       self.kill_info['damage']['backstab'] = damagedefault()
 

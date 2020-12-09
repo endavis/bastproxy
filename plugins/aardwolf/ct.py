@@ -40,7 +40,7 @@ class Plugin(AardwolfBasePlugin):
 
     self.msgs = []
 
-    self.api('dependency.add')('aardwolf.mobk')
+    self.api('dependency:add')('aardwolf.mobk')
 
   def initialize(self):
     """
@@ -48,10 +48,10 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('setting.add')('statcolor', '@W', 'color', 'the stat color')
-    self.api('setting.add')('infocolor', '@x33', 'color', 'the info color')
+    self.api('setting:add')('statcolor', '@W', 'color', 'the stat color')
+    self.api('setting:add')('infocolor', '@x33', 'color', 'the info color')
 
-    self.api('events.register')('aard_mobkill', self.mobkill)
+    self.api('core.events:register:to:event')('aard_mobkill', self.mobkill)
 
   def mobkill(self, args=None): # pylint: disable=too-many-locals
     """
@@ -59,14 +59,14 @@ class Plugin(AardwolfBasePlugin):
     """
     linelen = 72
     msg = []
-    infocolor = self.api('setting.gets')('infocolor')
-    statcolor = self.api('setting.gets')('statcolor')
+    infocolor = self.api('setting:get')('infocolor')
+    statcolor = self.api('setting:get')('statcolor')
     msg.append(infocolor + '-' * linelen)
     timestr = ''
     damages = args['damage']
     totald = sum(damages[d]['damage'] for d in damages)
     if args['finishtime'] and args['starttime']:
-      timestr = '%s' % self.api('utils.timedeltatostring')(
+      timestr = '%s' % self.api('core.utils:convert:timedelta:to:string')(
           args['starttime'],
           args['finishtime'],
           colorn=statcolor,
@@ -80,7 +80,7 @@ class Plugin(AardwolfBasePlugin):
         name=args['name'],
         time=timestr,
         xp=xpstr)
-    tstr = infocolor + self.api('utils.center')(namestr, '-', linelen)
+    tstr = infocolor + self.api('core.utils:center:colored:string')(namestr, '-', linelen)
 
     msg.append(tstr)
     msg.append(infocolor + '-' * linelen)
@@ -119,7 +119,7 @@ class Plugin(AardwolfBasePlugin):
         try:
           tperc = vdict['damage'] / float(totald)
         except ZeroDivisionError:
-          self.api('send.error')('totald = 0 for %s' % vdict)
+          self.api('libs.io:send:error')('totald = 0 for %s' % vdict)
           tperc = 0
 
         msg.append(bstringt.format(
@@ -151,14 +151,14 @@ class Plugin(AardwolfBasePlugin):
     """
     self.msgs.append(msg)
 
-    self.api('events.register')('trigger_emptyline', self.showmessages)
+    self.api('core.events:register:to:event')('trigger_emptyline', self.showmessages)
 
   def showmessages(self, _=None):
     """
     show a message
     """
-    self.api('events.unregister')('trigger_emptyline', self.showmessages)
+    self.api('core.events:unregister:from:event')('trigger_emptyline', self.showmessages)
     for i in self.msgs:
-      self.api('send.client')(i, preamble=False)
+      self.api('libs.io:send:client')(i, preamble=False)
 
     self.msgs = []

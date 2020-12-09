@@ -32,38 +32,38 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'daily1',
         r"^You can receive a new daily blessing in (?P<hours>[\d]*) hour[s]*, " \
            r"(?P<minutes>[\d]*) minute[s]* and (?P<seconds>[\d]*) second[s]*.$")
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'daily2',
         r"^You can receive a new daily blessing in (?P<minutes>[\d]*) minute[s]* " \
            r"and (?P<seconds>[\d]*) second[s]*.$")
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'daily3',
         r"^You can receive a new daily blessing in (?P<seconds>[\d]*) second[s]*.$")
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'dailynow',
         "^You are ready to receive a new daily blessing.$")
 
-    self.api('triggers.add')(
+    self.api('core.triggers:trigger:add')(
         'tookdaily',
         "^You bow your head to Ayla and receive your daily blessing.$")
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='show next daily')
-    self.api('commands.add')('next', self.cmd_next,
-                             parser=parser)
+    self.api('core.commands:command:add')('next', self.cmd_next,
+                                          parser=parser)
 
-    self.api('events.register')('trigger_daily1', self.dailytime)
-    self.api('events.register')('trigger_daily2', self.dailytime)
-    self.api('events.register')('trigger_daily3', self.dailytime)
-    self.api('events.register')('trigger_tookdaily', self.tookdaily)
-    self.api('events.register')('trigger_dailynow', self.dailyavailable)
+    self.api('core.events:register:to:event')('trigger_daily1', self.dailytime)
+    self.api('core.events:register:to:event')('trigger_daily2', self.dailytime)
+    self.api('core.events:register:to:event')('trigger_daily3', self.dailytime)
+    self.api('core.events:register:to:event')('trigger_tookdaily', self.tookdaily)
+    self.api('core.events:register:to:event')('trigger_dailynow', self.dailyavailable)
 
     self.checkdaily()
 
@@ -117,17 +117,17 @@ class Plugin(AardwolfBasePlugin):
     """
     update the daily timer
     """
-    self.api('send.msg')('updating daily blessing timer')
-    self.api('timers.remove')('dailyblessing')
-    self.api('timers.add')('dailyblessing', self.dailyavailable,
-                           self.seconds, onetime=True)
+    self.api('libs.io:send:msg')('updating daily blessing timer')
+    self.api('core.timers:remove:timer')('dailyblessing')
+    self.api('core.timers:add:timer')('dailyblessing', self.dailyavailable,
+                                      self.seconds, onetime=True)
 
   def dailyavailable(self, _=None):
     """
     send a daily available event
     """
-    self.api('timers.remove')('dailyblessing')
-    self.api('events.eraise')('aard_daily_available')
+    self.api('core.timers:remove:timer')('dailyblessing')
+    self.api('core.events:raise:event')('aard_daily_available')
 
   def after_first_active(self, _=None):
     """
@@ -142,6 +142,6 @@ class Plugin(AardwolfBasePlugin):
     check to see if daily has been seen
     """
     if self.nextdaily == -1:
-      state = self.api('GMCP.getv')('char.status.state')
+      state = self.api('net.GMCP:value:get')('char.status.state')
       if state == 3:
-        self.api('send.execute')('daily')
+        self.api('libs.io:send:execute')('daily')

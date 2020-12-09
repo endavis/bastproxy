@@ -36,51 +36,51 @@ class InvdetailsCmd(object):
 
     self._dump_shallow_attrs = ['plugin', 'api']
 
-    self.api('cmdq.addcmdtype')(self.cid, self.cmd, self.cmdregex,
-                                beforef=self.databefore, afterf=self.dataafter)
+    self.api('core.cmdq:commandtype:add')(self.cid, self.cmd, self.cmdregex,
+                                          beforef=self.databefore, afterf=self.dataafter)
 
-    self.api('triggers.add')('cmd_%s_start' % self.cid,
-                             self.startregex,
-                             enabled=False, group='cmd_%s' % self.cid,
-                             omit=True)
+    self.api('core.triggers:trigger:add')('cmd_%s_start' % self.cid,
+                                          self.startregex,
+                                          enabled=False, group='cmd_%s' % self.cid,
+                                          omit=True)
 
-    self.api('triggers.add')('cmd_%s_end' % self.cid,
-                             self.endregex,
-                             enabled=False, group='cmd_%s' % self.cid,
-                             omit=True)
+    self.api('core.triggers:trigger:add')('cmd_%s_end' % self.cid,
+                                          self.endregex,
+                                          enabled=False, group='cmd_%s' % self.cid,
+                                          omit=True)
 
-    self.api('triggers.add')('cmd_%s_line' % self.cid,
-                             r"^\{(?P<header>.*)\}(?P<data>.+)$",
-                             group='cmd_%s' % self.cid, enabled=False, omit=True)
+    self.api('core.triggers:trigger:add')('cmd_%s_line' % self.cid,
+                                          r"^\{(?P<header>.*)\}(?P<data>.+)$",
+                                          group='cmd_%s' % self.cid, enabled=False, omit=True)
 
   def databefore(self):
     """
     this will be called before the command
     """
-    self.api('events.register')('trigger_cmd_%s_start' % self.cid, self.datastart)
+    self.api('core.events:register:to:event')('trigger_cmd_%s_start' % self.cid, self.datastart)
 
-    self.api('events.register')('trigger_cmd_%s_line' % self.cid,
-                                self.invdetailsline)
+    self.api('core.events:register:to:event')('trigger_cmd_%s_line' % self.cid,
+                                              self.invdetailsline)
 
-    self.api('triggers.togglegroup')('cmd_%s' % self.cid, True)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cid, True)
 
   def datastart(self, args=None): # pylint: disable=unused-argument
     """
     found beginning of data for slist
     """
-    self.api('send.msg')('CMD - %s: found start %s' % (self.cid, self.startregex))
-    self.api('cmdq.cmdstart')(self.cid)
-    self.api('events.register')('trigger_cmd_%s_end' % self.cid, self.dataend)
+    self.api('libs.io:send:msg')('CMD - %s: found start %s' % (self.cid, self.startregex))
+    self.api('core.cmdq:command:start')(self.cid)
+    self.api('core.events:register:to:event')('trigger_cmd_%s_end' % self.cid, self.dataend)
 
   def invdetailsline(self, args):
     """
     parse a line of invdetails
     """
-    self.api('send.msg')('invdetailsline args: %s' % args)
+    self.api('libs.io:send:msg')('invdetailsline args: %s' % args)
     header = args['header']
     data = args['data']
-    self.api('send.msg')('match: %s - %s' % (header,
-                                             data))
+    self.api('libs.io:send:msg')('match: %s - %s' % (header,
+                                                     data))
     titem = self.api('itemu.dataparse')(data,
                                         header)
     if header == 'invheader':
@@ -93,23 +93,23 @@ class InvdetailsCmd(object):
       self.currentitem['enchant'].append(titem)
     else:
       self.currentitem[header] = titem
-    self.api('send.msg')('invdetails parsed item: %s' % titem)
+    self.api('libs.io:send:msg')('invdetails parsed item: %s' % titem)
 
   def dataend(self, args): #pylint: disable=unused-argument
     """
     found end of data for the slist command
     """
-    self.api('send.msg')('CMD - %s: found end %s' % (self.cid, self.endregex))
+    self.api('libs.io:send:msg')('CMD - %s: found end %s' % (self.cid, self.endregex))
 
-    self.api('events.unregister')('trigger_cmd_%s_start' % self.cid, self.datastart)
-    self.api('events.unregister')('trigger_cmd_%s_end' % self.cid, self.dataend)
+    self.api('core.events:unregister:from:event')('trigger_cmd_%s_start' % self.cid, self.datastart)
+    self.api('core.events:unregister:from:event')('trigger_cmd_%s_end' % self.cid, self.dataend)
 
-    self.api('events.unregister')('trigger_cmd_%s_line' % self.cid,
-                                  self.invdetailsline)
+    self.api('core.events:unregister:from:event')('trigger_cmd_%s_line' % self.cid,
+                                                  self.invdetailsline)
 
-    self.api('triggers.togglegroup')('cmd_%s' % self.cid, False)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cid, False)
 
-    self.api('cmdq.cmdfinish')(self.cid)
+    self.api('core.cmdq:command:finish')(self.cid)
 
   def dataafter(self):
     """
@@ -153,8 +153,8 @@ class IdentifyCmd(object):
 
     self._dump_shallow_attrs = ['plugin', 'api']
 
-    self.api('cmdq.addcmdtype')(self.cid, self.cmd, self.cmdregex,
-                                beforef=self.databefore, afterf=self.dataafter)
+    self.api('core.cmdq:commandtype:add')(self.cid, self.cmd, self.cmdregex,
+                                          beforef=self.databefore, afterf=self.dataafter)
 
     self.currentitem = None
 
@@ -171,40 +171,40 @@ class IdentifyCmd(object):
                        'holding', 'totweight', 'clanitem', 'spells', 'healrate',
                        'duration', 'serial']
 
-    self.api('triggers.add')('cmd_%s_divider' % self.cid,
-                             r"\+-*\+",
-                             enabled=False, group='cmd_%s' % self.cid,
-                             omit=True)
+    self.api('core.triggers:trigger:add')('cmd_%s_divider' % self.cid,
+                                          r"\+-*\+",
+                                          enabled=False, group='cmd_%s' % self.cid,
+                                          omit=True)
 
-    self.api('triggers.add')('cmd_%s_line' % self.cid,
-                             r'^\|(?P<data>.*)\|$',
-                             enabled=False, group='cmd_%s' % self.cid,
-                             omit=True)
+    self.api('core.triggers:trigger:add')('cmd_%s_line' % self.cid,
+                                          r'^\|(?P<data>.*)\|$',
+                                          enabled=False, group='cmd_%s' % self.cid,
+                                          omit=True)
 
   def databefore(self):
     """
     this will be called before the command
     """
     self.currentitem = self.plugin.currentitem
-    self.api('events.register')('trigger_cmd_%s_divider' % self.cid, self.datadivider)
+    self.api('core.events:register:to:event')('trigger_cmd_%s_divider' % self.cid, self.datadivider)
 
-    self.api('events.register')('trigger_cmd_%s_line' % self.cid,
-                                self.dataline)
+    self.api('core.events:register:to:event')('trigger_cmd_%s_line' % self.cid,
+                                              self.dataline)
 
-    self.api('triggers.togglegroup')('cmd_%s' % self.cid, True)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cid, True)
 
   def datadivider(self, args=None): # pylint: disable=unused-argument
     """
     found a divider for identify
     """
-    self.api('send.msg')('CMD - %s: found start %s' % (self.cid, self.startregex))
-    self.api('cmdq.cmdstart')(self.cid)
+    self.api('libs.io:send:msg')('CMD - %s: found start %s' % (self.cid, self.startregex))
+    self.api('core.cmdq:command:start')(self.cid)
 
     self.dividercount = self.dividercount + 1
     if self.dividercount == 1:
-      self.api('send.msg')('found identify')
-      self.api('triggers.togglegroup')('cmd_%s' % self.cid, True)
-      self.api('events.register')('trigger_emptyline', self.dataend)
+      self.api('libs.io:send:msg')('found identify')
+      self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cid, True)
+      self.api('core.events:register:to:event')('trigger_emptyline', self.dataend)
     elif self.dividercount == 2:
       self.pastkeywords = True
     self.currentidsection = ''
@@ -228,6 +228,7 @@ class IdentifyCmd(object):
       if section == 'id':
         section = 'serial'
       if section == 'affectmods':
+        self.api('libs.io:send:client')('found affectmod')
         section = 'affectmod'
       if section:
         self.currentidsection = section
@@ -235,7 +236,7 @@ class IdentifyCmd(object):
     if self.currentidsection not in self.idinfoneeded \
         and self.currentidsection not in self.currentitem \
         and self.currentidsection not in self.idinfoskip:
-      self.api('send.msg')('found unknown data in identify: %s' % \
+      self.api('libs.io:send:msg')('found unknown data in identify: %s' % \
                                 self.currentidsection)
 
     # Save the info if we can't get it from invdetails
@@ -262,13 +263,13 @@ class IdentifyCmd(object):
     """
     found end of identify data, clean up triggers and events
     """
-    self.api('send.msg')('CMD - %s: found end' % (self.cid))
-    self.api('events.unregister')('trigger_cmd_%s_divider' % self.cid, self.datadivider)
-    self.api('events.unregister')('trigger_cmd_%s_line' % self.cid,
-                                  self.dataline)
-    self.api('events.unregister')('trigger_emptyline', self.dataend)
-    self.api('triggers.togglegroup')('cmd_%s' % self.cid, False)
-    self.api('cmdq.cmdfinish')(self.cid)
+    self.api('libs.io:send:msg')('CMD - %s: found end' % (self.cid))
+    self.api('core.events:unregister:from:event')('trigger_cmd_%s_divider' % self.cid, self.datadivider)
+    self.api('core.events:unregister:from:event')('trigger_cmd_%s_line' % self.cid,
+                                                  self.dataline)
+    self.api('core.events:unregister:from:event')('trigger_emptyline', self.dataend)
+    self.api('core.triggers:group:toggle:enable')('cmd_%s' % self.cid, False)
+    self.api('core.cmdq:command:finish')(self.cid)
 
   def dataafter(self):
     """
@@ -278,7 +279,7 @@ class IdentifyCmd(object):
     self.dividercount = 0
     self.currentidsection = ''
 
-    self.api('send.msg')('identify item' % self.currentitem)
+    self.api('libs.io:send:msg')('identify item' % self.currentitem)
 
     # split the keywords
     keyw = self.currentitem['keywords'].strip()
@@ -307,16 +308,16 @@ class IdentifyCmd(object):
 
     if self.currentitem['serial'] in self.plugin.waitingforid:
       del self.plugin.waitingforid[int(self.currentitem['serial'])]
-    self.api('eq.addidentify')(self.currentitem['serial'], self.currentitem)
+    self.api('aardwolf.eq:addidentify')(self.currentitem['serial'], self.currentitem)
 
-    titem = self.api('eq.getitem')(self.currentitem['serial'])
+    titem = self.api('aardwolf.eq:getitem')(self.currentitem['serial'])
 
     if titem.origcontainer and titem.origcontainer.cid != 'Inventory':
       self.api('eq.put')(titem.serial)
       self.putevent = 'eq_put_%s_%s' % (self.currentitem['serial'],
                                         titem.origcontainer.cid)
-      self.api('send.msg')('waiting for event: %s' % self.putevent)
-      self.api('events.register')(self.putevent, self.event_put)
+      self.api('libs.io:send:msg')('waiting for event: %s' % self.putevent)
+      self.api('core.events:register:to:event')(self.putevent, self.event_put)
     else:
       self.raiseid()
 
@@ -324,19 +325,19 @@ class IdentifyCmd(object):
     """
     wait for the put event
     """
-    self.api('send.msg')('identify got put event')
-    self.api('events.unregister')(args['eventname'], self.event_put)
+    self.api('libs.io:send:msg')('identify got put event')
+    self.api('core.events:unregister:from:event')(args['eventname'], self.event_put)
     self.raiseid()
 
   def raiseid(self):
     """
     raise an event for id finished
     """
-    titem = self.api('eq.getitem')(self.currentitem['serial'])
-    self.api('send.client')('raiseid item: %s' % titem)
-    self.api('send.msg')('raising id event for %s' % titem.serial)
-    self.api('events.eraise')('itemid_%s' % titem.serial, {'item':titem})
-    self.api('events.eraise')('itemid_all', {'item':titem})
+    titem = self.api('aardwolf.eq:getitem')(self.currentitem['serial'])
+    self.api('libs.io:send:client')('raiseid item: %s' % titem)
+    self.api('libs.io:send:msg')('raising id event for %s' % titem.serial)
+    self.api('core.events:raise:event')('itemid_%s' % titem.serial, {'item':titem})
+    self.api('core.events:raise:event')('itemid_all', {'item':titem})
 
 class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
   """
@@ -358,12 +359,12 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     self.currentitem = {}
 
-    self.api('dependency.add')('aardwolf.itemu')
-    self.api('dependency.add')('core.cmdq')
+    self.api('dependency:add')('aardwolf.itemu')
+    self.api('dependency:add')('core.cmdq')
 
-    self.api('api.add')('identify', self.api_identify)
-    self.api('api.add')('format', self.api_formatitem)
-    self.api('api.add')('show', self.api_showitem)
+    self.api('libs.api:add')('identify', self.api_identify)
+    self.api('libs.api:add')('format', self.api_formatitem)
+    self.api('libs.api:add')('show', self.api_showitem)
 
   def initialize(self):
     """
@@ -374,7 +375,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     self.invdetailscmd = InvdetailsCmd(self)
     self.identifycmd = IdentifyCmd(self)
 
-    self.api('setting.add')('idcmd', True, str,
+    self.api('setting:add')('idcmd', True, str,
                             'identify')
 
     parser = argp.ArgumentParser(add_help=False,
@@ -388,8 +389,8 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
                         help="get the item from the database",
                         action="store_true",
                         default=False)
-    self.api('commands.add')('id', self.cmd_id,
-                             parser=parser)
+    self.api('core.commands:command:add')('id', self.cmd_id,
+                                          parser=parser)
 
   # identify an item
   def api_identify(self, serial, force=False):
@@ -398,15 +399,15 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     this function returns None if the identify data has to gathered,
     or the item if is in the cache"""
-    titem = self.api('eq.getitem')(serial)
+    titem = self.api('aardwolf.eq:getitem')(serial)
     if titem.hasbeenided and not force:
       return titem
     else:
       self.waitingforid[serial] = True
       if titem.curcontainer and titem.curcontainer.cid != 'Inventory':
-        self.api('eq.get')(serial)
-      self.api('cmdq.addtoqueue')('invdetails', serial)
-      self.api('cmdq.addtoqueue')('identify', serial)
+        self.api('aardwolf.eq:get')(serial)
+      self.api('core.cmdq:queue:add:command')('invdetails', serial)
+      self.api('core.cmdq:queue:add:command')('identify', serial)
       return None
 
   def event_showitem(self, args):
@@ -414,8 +415,8 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     this function is for showing an item when using the id command,
     it registers with itemid_<serial>
     """
-    self.api('events.unregister')(args['eventname'], self.event_showitem)
-    self.api('%s.show' % self.short_name)(args['item'].serial)
+    self.api('core.events:unregister:from:event')(args['eventname'], self.event_showitem)
+    self.api('show')(args['item'].serial)
 
   def cmd_id(self, args):
     """
@@ -425,21 +426,21 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     if args['serial']:
       #try:
       serial = int(args['serial'])
-      titem = self.api('eq.getitem')(serial)
+      titem = self.api('aardwolf.eq:getitem')(serial)
       if not titem:
         msg.append('Could not find %s' % serial)
       else:
         if titem.hasbeenided and not args['force'] and not args['database']:
-          self.api('send.msg')('cmd_id item.hasbeenided')
-          self.api('%s.show' % self.short_name)(serial)
+          self.api('libs.io:send:msg')('cmd_id item.hasbeenided')
+          self.api('show')(serial)
         elif args['database']:
-          self.api('send.msg')('getting %s from the database' % serial)
-          self.api('%s.show' % self.short_name)(serial, database=True)
+          self.api('libs.io:send:msg')('getting %s from the database' % serial)
+          self.api('show')(serial, database=True)
         elif not titem.hasbeenided or args['force']:
-          self.api('send.msg')('identifying %s' % serial)
-          self.api('events.register')('itemid_%s' % serial,
-                                      self.event_showitem)
-          self.api('%s.identify' % self.short_name)(serial, force=args['force'])
+          self.api('libs.io:send:msg')('identifying %s' % serial)
+          self.api('core.events:register:to:event')('itemid_%s' % serial,
+                                                    self.event_showitem)
+          self.api('identify')(serial, force=args['force'])
       #except ValueError:
         #msg.append('%s is not a serial number' % args['serial'])
     else:
@@ -457,17 +458,18 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     this function returns nothing"""
     if database:
-      itemc = self.api('eq.itemclass')()
+      itemc = self.api('aardwolf.eq:itemclass')()
       item = itemc(serial, self, loadfromdb=True)
     else:
-      item = self.api('eq.getitem')(serial)
+      item = self.api('aardwolf.eq:getitem')(serial)
     if item:
       if item.hasbeenided:
-        self.api('send.msg')('api_showitem item.hasbeenided')
-        tstuff = self.api('%s.format' % self.short_name)(item)
-        self.api('send.client')('\n'.join(tstuff))
+        self.api('libs.io:send:msg')('api_showitem item.hasbeenided')
+        tstuff = self.api('format')(item)
+        self.api('libs.io:send:client')('\n'.join(tstuff))
       else:
-        self.api('send.execute')('%s.%s.id' % (self.api('commands.prefix')(), self.short_name, serial))
+        self.api('libs.io:send:execute')('%s.%s.id %s' % \
+                  (self.api('core.commands:get:command:prefix')(), self.plugin_id, serial))
 
   def formatsingleline(self, linename, linecolour, data, datacolor=None):
     """
@@ -481,7 +483,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     printstring = '| %s%-11s@w: %s%s'
     ttext = printstring % (linecolour, linename, datacolor, data)
-    newnum = 66 - len(self.api('colors.stripcolor')(ttext))
+    newnum = 66 - len(self.api('core.colors:colorcode:strip')(ttext))
     tstring = "%" + str(newnum) + "s@w|"
     ttext = ttext + tstring % ""
 
@@ -500,8 +502,8 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     data = str(data)
     data2 = str(data2)
 
-    adddata = 24 + self.api('colors.lengthdiff')(data)
-    adddata2 = 17 + self.api('colors.lengthdiff')(data2)
+    adddata = 24 + self.api('core.colors:color:length:diff')(data)
+    adddata2 = 17 + self.api('core.colors:color:length:diff')(data2)
 
     printstring = '| %s%-11s@w: @W%-' + str(adddata) + 's %s%-7s@w: @W%-' + \
             str(adddata2) + 's@w|'
@@ -521,18 +523,18 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     data = str(data)
     data2 = str(data2)
 
-    adddata = 20 + self.api('colors.lengthdiff')(data)
+    adddata = 20 + self.api('core.colors:color:length:diff')(data)
 
     printstring = '| %s%-11s@w: @W%-' + str(adddata) + 's'
 
     ttext = printstring % (linecolour, linename, data)
 
     if linename2:
-      adddata2 = 14 + self.api('colors.lengthdiff')(data2)
+      adddata2 = 14 + self.api('core.colors:color:length:diff')(data2)
       printstring2 = ' %s%-13s:  @W%-' + str(adddata2) + 's@w|'
       ttext = ttext + printstring2 % (linecolour, linename2, data2)
     else:
-      newnum = 66 - len(self.api('colors.stripcolor')(ttext))
+      newnum = 66 - len(self.api('core.colors:colorcode:strip')(ttext))
       tstring = "%" + str(newnum) + "s@w|"
       ttext = ttext + tstring % ""
 
@@ -705,7 +707,7 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
 
     iteml = [divider]
 
-    self.api('send.msg')('formatting item: %s' % item)
+    self.api('libs.io:send:msg')('formatting item: %s' % item)
 
     if item.checkattr('keywords'):
       keywordline = " ".join(item.keywords)

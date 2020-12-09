@@ -259,13 +259,13 @@ def dbcreate(sqldb, plugin, **kwargs):
         return None
 
       select = "SELECT * FROM items WHERE serial = %s;" % serialnum
-      self.api('send.msg')('getitembyserial select: "%s"' % select)
+      self.api('libs.io:send:msg')('getitembyserial select: "%s"' % select)
       items = self.select(select)
       if len(items) == 1:
         item = items[0]
       else:
-        self.api('send.msg')('%s items for serial %s' % (len(items),
-                                                         serialnum))
+        self.api('libs.io:send:msg')('%s items for serial %s' % (len(items),
+                                                                 serialnum))
 
       return item
 
@@ -278,13 +278,13 @@ def dbcreate(sqldb, plugin, **kwargs):
 
       select = "SELECT * FROM identifier WHERE identifier = %s;" % \
                                                   self.fixsql(identifier)
-      self.api('send.msg')('getitembyidentifier select: "%s"' % select)
+      self.api('libs.io:send:msg')('getitembyidentifier select: "%s"' % select)
       iditems = self.select(select)
       if len(iditems) == 1:
         iditem = iditems[0]
       else:
-        self.api('send.msg')('%s items for identifier %s' % (len(iditems),
-                                                             identifier))
+        self.api('libs.io:send:msg')('%s items for identifier %s' % (len(iditems),
+                                                                     identifier))
 
       if iditem:
         return self.getitembyserial(iditem['serial'])
@@ -295,7 +295,7 @@ def dbcreate(sqldb, plugin, **kwargs):
       """
       get an item from the database
       """
-      self.api('send.msg')('eqdb.getitem: %s, details: %s' % (ident, details))
+      self.api('libs.io:send:msg')('eqdb.getitem: %s, details: %s' % (ident, details))
       item = self.getitembyserial(ident)
       if not item:
         item = self.getitembyidentifier(ident)
@@ -312,16 +312,16 @@ def dbcreate(sqldb, plugin, **kwargs):
         item['flags'] = item['flags'].split(',')
         item['keywords'] = item['keywords'].split(',')
 
-      self.api('send.msg')('eqdb.getitem returned: %s' % item)
+      self.api('libs.io:send:msg')('eqdb.getitem returned: %s' % item)
       return item
 
     def getdetail(self, tdet, serial):
       """
       get one detail for an item
       """
-      self.api('send.msg')('geting %s for item %s' % (tdet, serial))
+      self.api('libs.io:send:msg')('geting %s for item %s' % (tdet, serial))
       stmt = "SELECT * FROM %s WHERE serial = %s;" % (tdet, serial)
-      results = self.api('%s.select' % self.plugin.short_name)(stmt)
+      results = self.api('%s:%s:select' % (self.plugin.plugin_id, self.database_name))(stmt)
 
       return results
 
@@ -360,9 +360,9 @@ def dbcreate(sqldb, plugin, **kwargs):
 
       enchant = self.getdetail('enchant', serial)
       if enchant:
-        self.api('send.msg')('enchant returned: %s' % enchant)
+        self.api('libs.io:send:msg')('enchant returned: %s' % enchant)
         for i in enchant:
-          self.api('send.msg')('%s' % i)
+          self.api('libs.io:send:msg')('%s' % i)
           del i['serial']
           del i[self.tables['enchant']['keyfield']]
         nitem['enchant'] = enchant
@@ -383,9 +383,9 @@ def dbcreate(sqldb, plugin, **kwargs):
       save a detail that has many parts, such as stat or resist mods
       details is a dictionary of keys with value
       """
-      self.api('send.msg')('adding %s for item %s' % (tdet, serial))
-      self.api('send.msg')('detail: %s' % detail)
-      self.api('%s.modify' % self.plugin.short_name)('DELETE from %s where serial = %s' % \
+      self.api('libs.io:send:msg')('adding %s for item %s' % (tdet, serial))
+      self.api('libs.io:send:msg')('detail: %s' % detail)
+      self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))('DELETE from %s where serial = %s' % \
                                                   (tdet, serial))
       newdata = []
       for i in detail:
@@ -393,22 +393,22 @@ def dbcreate(sqldb, plugin, **kwargs):
         newdata.append(i)
 
       stmt2 = self.converttoinsert(tdet, keynull=True)
-      self.api('send.msg')('sqmt: %s' % stmt2)
-      self.api('%s.modifymany' % self.plugin.short_name)(stmt2,
-                                                    newdata)
+      self.api('libs.io:send:msg')('sqmt: %s' % stmt2)
+      self.api('%s:%s:modify:many' % (self.plugin.plugin_id, self.database_name))(stmt2,
+                                                                                  newdata)
 
     def saveonedetail(self, tdet, serial, detail):
       """
       save a detail that only has one part, such as weapon
       """
-      self.api('send.msg')('adding %s for item %s' % (tdet, serial))
-      self.api('send.msg')('detail: %s' % detail)
-      self.api('%s.modify' % self.plugin.short_name)('DELETE from %s where serial = %s' % \
+      self.api('libs.io:send:msg')('adding %s for item %s' % (tdet, serial))
+      self.api('libs.io:send:msg')('detail: %s' % detail)
+      self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))('DELETE from %s where serial = %s' % \
                                                   (tdet, serial))
       newitem = self.checkdictforcolumns(tdet, detail)
       newitem['serial'] = serial
       stmt = self.converttoinsert(tdet)
-      self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
+      self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))(stmt, newitem)
 
     def saveitemdetails(self, item): # pylint: disable=too-many-branches
       """
@@ -451,21 +451,21 @@ def dbcreate(sqldb, plugin, **kwargs):
       add an item
       """
       titem = self.getitem(item.serial, details=False)
-      self.api('send.msg')('saveitem: %s' % item)
+      self.api('libs.io:send:msg')('saveitem: %s' % item)
       if not titem:
-        self.api('send.msg')('adding item: %s' % item.serial)
+        self.api('libs.io:send:msg')('adding item: %s' % item.serial)
         newitem = self.checkdictforcolumns('items', vars(item))
         newitem['keywords'] = ",".join(newitem['keywords'])
         newitem['flags'] = ",".join(newitem['flags'])
         stmt = self.converttoinsert('items')
-        self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
+        self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))(stmt, newitem)
       else:
-        self.api('send.msg')('updating item: %s' % item.serial)
+        self.api('libs.io:send:msg')('updating item: %s' % item.serial)
         newitem = self.checkdictforcolumns('items', vars(item))
         newitem['keywords'] = ",".join(newitem['keywords'])
         newitem['flags'] = ",".join(newitem['flags'])
         stmt = self.converttoupdate('items', 'serial')
-        self.api('%s.modify' % self.plugin.short_name)(stmt, newitem)
+        self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))(stmt, newitem)
 
       self.saveitemdetails(item)
 
@@ -483,9 +483,9 @@ class Plugin(AardwolfBasePlugin):
 
     self.eqdb = None
 
-    self.api('dependency.add')('core.sqldb')
-    self.api('api.add')('getitem', self.api_loaditem)
-    self.api('api.add')('saveitem', self.api_saveitem)
+    self.api('dependency:add')('core.sqldb')
+    self.api('libs.api:add')('getitem', self.api_loaditem)
+    self.api('libs.api:add')('saveitem', self.api_saveitem)
 
   def initialize(self):
     """
@@ -493,45 +493,45 @@ class Plugin(AardwolfBasePlugin):
     """
     AardwolfBasePlugin.initialize(self)
 
-    self.eqdb = dbcreate(self.api('sqldb.baseclass')(), self,
+    self.eqdb = dbcreate(self.api('core.sqldb:baseclass')(), self,
                          dbname='eqdb', dbdir=self.save_directory)
 
-    self.api('setting.add')('backupstart', '0000', 'miltime',
+    self.api('setting:add')('backupstart', '0000', 'miltime',
                             'the time for a db backup, like 1200 or 2000')
-    self.api('setting.add')('backupinterval', 60*60*4, int,
+    self.api('setting:add')('backupinterval', 60*60*4, int,
                             'the interval to backup the db, default every 4 hours')
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get item')
     parser.add_argument('id', help='the identifier/serial/wearloc',
                         default='', nargs='?')
-    self.api('commands.add')('getitem', self.cmd_getitem,
-                             parser=parser)
+    self.api('core.commands:command:add')('getitem', self.cmd_getitem,
+                                          parser=parser)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='test')
-    self.api('commands.add')('test', self.cmd_test,
-                             parser=parser)
+    self.api('core.commands:command:add')('test', self.cmd_test,
+                                          parser=parser)
 
-    #self.api('events.register')('GMCP:char.status', self.checkstats)
-    self.api('events.register')('statdb_backupstart', self.changetimer)
-    self.api('events.register')('statdb_backupinternval', self.changetimer)
+    #self.api('core.events:register:to:event')('GMCP:char.status', self.checkstats)
+    self.api('core.events:register:to:event')('statdb_backupstart', self.changetimer)
+    self.api('core.events:register:to:event')('statdb_backupinternval', self.changetimer)
 
-    self.api('events.register')('trigger_dead', self.dead)
+    self.api('core.events:register:to:event')('trigger_dead', self.dead)
 
-    self.api('timers.add')('eq_backup', self.backupdb,
-                           self.api('setting.gets')('backupinterval'),
-                           time=self.api('setting.gets')('backupstart'))
+    self.api('core.timers:add:timer')('eq_backup', self.backupdb,
+                                      self.api('setting:get')('backupinterval'),
+                                      time=self.api('setting:get')('backupstart'))
 
   def changetimer(self, _=None):
     """
     do something when the reportminutes changes
     """
-    backupinterval = self.api('setting.gets')('backupinterval')
-    backupstart = self.api('setting.gets')('backupstart')
-    self.api('timers.remove')('eq_backup')
-    self.api('timers.add')('eq_backup', self.backupdb,
-                           backupinterval, time=backupstart)
+    backupinterval = self.api('setting:get')('backupinterval')
+    backupstart = self.api('setting:get')('backupstart')
+    self.api('core.timers:remove:timer')('eq_backup')
+    self.api('core.timers:add:timer')('eq_backup', self.backupdb,
+                                      backupinterval, time=backupstart)
 
   def backupdb(self):
     """

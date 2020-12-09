@@ -116,12 +116,12 @@ class Plugin(AardwolfBasePlugin):
   def __init__(self, *args, **kwargs):
     AardwolfBasePlugin.__init__(self, *args, **kwargs)
 
-    self.api('api.add')('dataparse', self.api_dataparse)
-    self.api('api.add')('wearlocs', self.api_wearlocs)
-    self.api('api.add')('objecttypes', self.api_objecttypes)
-    self.api('api.add')('itemflags', self.api_itemflags)
-    self.api('api.add')('itemflagscolors', self.api_itemflagscolors)
-    self.api('api.add')('itemflagsname', self.api_itemflagsname)
+    self.api('libs.api:add')('dataparse', self.api_dataparse)
+    self.api('libs.api:add')('wearlocs', self.api_wearlocs)
+    self.api('libs.api:add')('objecttypes', self.api_objecttypes)
+    self.api('libs.api:add')('itemflags', self.api_itemflags)
+    self.api('libs.api:add')('itemflagscolors', self.api_itemflagscolors)
+    self.api('libs.api:add')('itemflagshort_name', self.api_itemflagshort_name)
 
     self.invlayout = {}
     self.invlayout['invheader'] = ["serial", "level", "itype", "worth",
@@ -157,7 +157,7 @@ class Plugin(AardwolfBasePlugin):
 
   @staticmethod
   # get the flags name table
-  def api_itemflagsname():
+  def api_itemflagshort_name():
     """  get the flags name table
     """
     return ITEMFLAGSNAME
@@ -229,13 +229,13 @@ class Plugin(AardwolfBasePlugin):
 
           titem[name] = value
       except:  # pylint: disable=broad-except,bare-except
-        self.api('send.traceback')('dataparse error: %s' % line)
+        self.api('libs.io:send:traceback')('dataparse error: %s' % line)
 
       if layoutname == 'eqdata':
-        titem['name'] = self.api('colors.stripcolor')(titem['cname'])
+        titem['name'] = self.api('core.colors:colorcode:strip')(titem['cname'])
 
       return titem
     else:
-      self.api('send.msg')('layout %s not found' % layoutname)
+      self.api('libs.io:send:msg')('layout %s not found' % layoutname)
 
     return None
