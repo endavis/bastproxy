@@ -89,7 +89,7 @@ class Plugin(BasePlugin):
     toggle the function profiling
     """
     functions = self.api('setting:get')('functions')
-    self.api('libs.timing:timing:toggle')(functions)
+    self.api('libs.timing:toggle')(functions)
 
   def listcommands(self):
     """
