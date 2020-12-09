@@ -370,6 +370,17 @@ class API(object):
       if i.startswith(api_toplevel):
         del self.overloaded_api[i]
 
+  def _api_run_as_plugin(self, plugin_id, api_location):
+    """
+    run an api as another plugin
+    """
+    plugin_instance = self('core.plugins:get:plugin:instance')(plugin_id)
+
+    if plugin_instance:
+      return plugin_instance.api(api_location)
+    else:
+      self('io.error')('API run_as: %s plugin does not exist' % plugin_id)
+
   def get(self, api_location, do_not_overload=False):
     """
     get an api function
