@@ -49,8 +49,8 @@ class Plugin(BasePlugin):
                         default='',
                         nargs='?')
     self.api('core.commands:command:add')('get',
-                             self.cmd_get,
-                             parser=parser)
+                                          self.cmd_get,
+                                          parser=parser)
 
   def cmd_get(self, args):
     """
