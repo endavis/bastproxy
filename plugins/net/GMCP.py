@@ -40,7 +40,7 @@ class Plugin(BasePlugin):
     self.can_reload_f = False
 
     self.option_name = 'GMCP'
-    self.option_num = 86
+    self.option_num = 201
     self.option_string = chr(self.option_num)
     self.option_code = '<%s>' % self.option_name
 
@@ -309,8 +309,7 @@ class SERVER(BaseTelnetOption):
     initialize the instance
     """
     BaseTelnetOption.__init__(self, telnet_object, option_name, option_number, plugin_id)
-
-    #self.telnetobj.debug_types.append('GMCP')
+    #self.telnet_object.debug_types.append(self.option_name)
 
   def handleopt(self, command, sbdata):
     """
@@ -323,7 +322,7 @@ class SERVER(BaseTelnetOption):
 
     # yes, I support GMCP
     if command == WILL:
-      self.telnet_object.msg('sending IAC DO GMCP', level=2, mtype=self.option_name)
+      self.telnet_object.msg('sending IAC DO GMCP (%s)' % self.option_number, level=2, mtype=self.option_name)
       self.telnet_object.send("".join([IAC, DO, self.option_string]))
       self.telnet_object.options[ord(self.option_string)] = True
       self.plugin.api('core.events:raise:event')('GMCP:server-enabled', {})
@@ -346,7 +345,7 @@ class SERVER(BaseTelnetOption):
                              object_hook=convert)
       except (UnicodeDecodeError, ValueError):
         newdata = {}
-        self.plugin.api('send:traceback')('Could not decode: %s' % data)
+        self.plugin.api('libs.io:send:traceback')('Could not decode: %s' % data)
       self.telnet_object.msg("mod: %s, data: '%s'" % (modname, data), level=2, mtype=self.option_name)
       self.telnet_object.msg("modtype: %s, data %s" % (type(newdata), newdata),
                              level=2, mtype=self.option_name)
@@ -356,9 +355,10 @@ class SERVER(BaseTelnetOption):
       tdata['server'] = self.telnet_object
 
       # pass it through to the client
-      self.plugin.api('send:client')('%s%s%s%s%s%s' % \
-                 (IAC, SB, self.option_string, sbdata.replace(IAC, IAC+IAC), IAC, SE),
-                                     raw=True, dtype=self.option_string)
+      self.plugin.api('libs.io:send:client')('%s%s%s%s%s%s' % \
+                                                (IAC, SB, self.option_string,
+                                                 sbdata.replace(IAC, IAC+IAC), IAC, SE),
+                                             raw=True, dtype=self.option_string)
 
       # raise it for internal use
       self.plugin.api('core.events:raise:event')('GMCP_raw', tdata)
@@ -374,7 +374,7 @@ class CLIENT(BaseTelnetOption):
     """
     BaseTelnetOption.__init__(self, telnet_object, option_name, option_number, plugin_id)
     #self.telnet_object.debug_types.append(self.option_name)
-    self.telnet_object.msg('sending IAC WILL GMCP', mtype=self.option_name)
+    self.telnet_object.msg('sending IAC WILL GMCP (%s)' % self.option_number, mtype=self.option_name)
     self.telnet_object.addtooutbuffer("".join([IAC, WILL, self.option_string]), True)
 
   def handleopt(self, command, sbdata):

@@ -174,7 +174,7 @@ class Plugin(BasePlugin):
     tmsg.append(template % ('View Clients', len(vclients)))
     tmsg.append('-------------------------')
 
-    _, nmsg = self.api('core.commands:command:run')('clients', 'show', '')
+    _, nmsg = self.api('core.commands:command:run')('net.clients', 'show', '')
 
     del nmsg[0]
     del nmsg[0]
@@ -226,7 +226,7 @@ class Plugin(BasePlugin):
     """
     restart the proxy
     """
-    self.api('net.proxy:proxy:restart')()
+    self.api('proxy:restart')()
 
   def client_connected(self, args): # pylint: disable=unused-argument
     """
@@ -255,7 +255,7 @@ class Plugin(BasePlugin):
       tmsg.append('The proxy password is still the default password.')
       tmsg.append('Please set the proxy password!')
       tmsg.append('%s.%s.proxypw "This is a password"' % (cmdprefix, self.plugin_id))
-    if self.api('%s:ssc:proxypwview' % self.plugin_id)() == 'defaultviewpass':
+    if self.api('{0.plugin_id}:ssc:proxypwview'.format(self))() == 'defaultviewpass':
       tmsg.append(divider)
       tmsg.append('The proxy view password is still the default password.')
       tmsg.append('Please set the proxy view password!')
@@ -295,7 +295,7 @@ class Plugin(BasePlugin):
 
     plistener = self.api('core.managers:get')('listener')
     plistener.close()
-    self.api('net.proxy:proxy:shutdown')()
+    self.api('proxy:shutdown')()
 
     time.sleep(5)
 
@@ -306,7 +306,7 @@ class Plugin(BasePlugin):
     restart when the listen port changes
     """
     if not self.api.startup and not self.initializing_f:
-      self.api('net.proxy:proxy:restart')()
+      self.api('proxy:restart')()
 
   def command_seperator_change(self, args): # pylint: disable=unused-argument
     """

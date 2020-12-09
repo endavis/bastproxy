@@ -30,7 +30,7 @@ class Plugin(BasePlugin):
 
     self.can_reload_f = False
 
-    self.option_name = 'MCCP'
+    self.option_name = 'MCCP2'
     self.option_num = 86
     self.option_string = chr(self.option_num)
     self.option_code = '<%s>' % self.option_name
@@ -67,7 +67,7 @@ class SERVER(BaseTelnetOption):
     self.telnet_object.msg('%s - in handleopt' % (ord(command)),
                            mtype=self.option_name)
     if command == WILL:
-      self.telnet_object.msg('sending IAC DO MCCP2', mtype=self.option_name)
+      self.telnet_object.msg('sending IAC DO MCCP2 (%s)' % self.option_number, mtype=self.option_name)
       self.telnet_object.send("".join([IAC, DO, self.option_string]))
 
     elif command in [SE, SB]:
@@ -138,8 +138,9 @@ class CLIENT(BaseTelnetOption):
 
     self.orig_convert_outdata = None
     self.zlib_comp = None
-    self.telnet_object.msg('sending IAC WILL MCCP2', mtype=self.option_name)
+    self.telnet_object.msg('sending IAC WILL MCCP2 (%s)' % self.option_number, mtype=self.option_name)
     self.telnet_object.send("".join([IAC, WILL, self.option_string]))
+    #self.telnet_object.debug_types.append(self.option_name)
 
   def handleopt(self, command, sbdata):
     """
@@ -157,7 +158,7 @@ class CLIENT(BaseTelnetOption):
     negotiate the mccp option
     """
     self.telnet_object.msg("starting mccp", level=2, mtype=self.option_name)
-    self.telnet_object.msg('sending IAC SB MCCP2 IAC SE', mtype=self.option_name)
+    self.telnet_object.msg('sending IAC SB MCCP2 (%s) IAC SE' % self.option_number, mtype=self.option_name)
     self.telnet_object.send("".join([IAC, SB, self.option_string, IAC, SE]))
 
     self.zlib_comp = zlib.compressobj(9)

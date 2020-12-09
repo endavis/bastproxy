@@ -107,10 +107,11 @@ class Plugin(BasePlugin):
     """
     add an option to a client
     """
-    for plugin_id in self.clientoptions:
+    for option_name in self.clientoptions:
       try:
-        self.clientoptions[plugin_id]['optionclass'](client, self.clientoptions[plugin_id]['optionname'],
-                                                     self.clientoptions[plugin_id]['optionnum'], plugin_id)
+        self.clientoptions[option_name]['optionclass'](client, self.clientoptions[option_name]['optionname'],
+                                                       self.clientoptions[option_name]['optionnum'],
+                                                       self.clientoptions[option_name]['plugin_id'])
       except AttributeError:
         self.api('libs.io:send:traceback')('Did not add option %s to client' % option_name)
 
@@ -119,11 +120,12 @@ class Plugin(BasePlugin):
     """
     add an option to a server
     """
-    for plugin_id in self.serveroptions:
+    for option_name in self.serveroptions:
       try:
         # self, telnet_object, option_name, option_number, plugin_id
-        self.serveroptions[plugin_id]['optionclass'](server, self.serveroptions[plugin_id]['optionname'],
-                                                     self.serveroptions[plugin_id]['optionnum'], plugin_id)
+        self.serveroptions[option_name]['optionclass'](server, self.serveroptions[option_name]['optionname'],
+                                                       self.serveroptions[option_name]['optionnum'],
+                                                       self.serveroptions[option_name]['plugin_id'])
       except AttributeError:
         self.api('libs.io:send:traceback')('Did not add option %s to server' % option_name)
 
