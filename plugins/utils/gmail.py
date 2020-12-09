@@ -219,7 +219,7 @@ X-Mailer: My-Mail
     subject = args['subject']
     msg = args['message']
     if self.check():
-      self.api('mail.send')(subject, msg)
+      self.api('utils.mail:send')(subject, msg)
       return True, ['Attempted to send test message',
                     'Please check your email']
 
