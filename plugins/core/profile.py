@@ -237,7 +237,7 @@ class Plugin(BasePlugin):
     echocommands = self.api('setting:get')('commands')
 
     if echocommands:
-      self.api('send:client')(self.formatcommandstack(args))
+      self.api('libs.io:send:client')(self.formatcommandstack(args))
 
   def savechanged_mud_data(self, args):
     """

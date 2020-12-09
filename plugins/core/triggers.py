@@ -125,12 +125,12 @@ class Plugin(BasePlugin):
     try:
       self.regex['color'] = re.compile("|".join(color_regex_list))
     except re.error:
-      self.api('send:traceback')('Could not compile color regex')
+      self.api('libs.io:send:traceback')('Could not compile color regex')
 
     try:
       self.regex['noncolor'] = re.compile("|".join(nocolor_regex_list))
     except re.error:
-      self.api('send:traceback')('Could not compile regex')
+      self.api('libs.io:send:traceback')('Could not compile regex')
 
   @staticmethod
   def getuniquename(name):
@@ -144,7 +144,7 @@ class Plugin(BasePlugin):
     update a trigger without deleting it
     """
     if trigger_name not in self.triggers:
-      self.api('send:msg')('triggers.update could not find trigger %s' % trigger_name)
+      self.api('libs.io:send:msg')('triggers.update could not find trigger %s' % trigger_name)
       return False
 
     for key in trigger_data:
@@ -156,7 +156,7 @@ class Plugin(BasePlugin):
           self.triggers[trigger_name]['compiled'] = re.compile(
               self.triggers[trigger_name]['regex'])
         except Exception:  # pylint: disable=broad-except
-          self.api('send:traceback')(
+          self.api('libs.io:send:traceback')(
               'Could not compile regex for trigger: %s : %s' % \
                   (trigger_name, self.triggers[trigger_name]['regex']))
           return False
@@ -164,7 +164,7 @@ class Plugin(BasePlugin):
         self.triggers[trigger_name]['nonamedgroups'] = \
                     re.sub(r"\?P\<.*?\>", "",
                            self.triggers[trigger_name]['regex'])
-        self.api('send:msg')('converted %s to %s' % \
+        self.api('libs.io:send:msg')('converted %s to %s' % \
                                 (self.triggers[trigger_name]['regex'],
                                  self.triggers[trigger_name]['nonamedgroups']))
 
@@ -207,13 +207,13 @@ class Plugin(BasePlugin):
     unique_trigger_name = self.getuniquename(trigger_name)
 
     if trigger_name in self.triggers:
-      self.api('send:error')(
+      self.api('libs.io:send:error')(
           'trigger %s already exists in plugin: %s' % \
               (trigger_name, self.triggers[trigger_name]['plugin']), secondary=plugin)
       return False
 
     if regex in self.regex_lookup:
-      self.api('send:error')(
+      self.api('libs.io:send:error')(
           'trigger %s tried to add a regex that already existed for %s' % \
               (trigger_name, self.regex_lookup[regex]), secondary=plugin)
       return False
@@ -240,13 +240,13 @@ class Plugin(BasePlugin):
     try:
       args['compiled'] = re.compile(args['regex'])
     except Exception:  # pylint: disable=broad-except
-      self.api('send:traceback')(
+      self.api('libs.io:send:traceback')(
           'Could not compile regex for trigger: %s : %s' % \
               (trigger_name, args['regex']))
       return False
 
     args['nonamedgroups'] = re.sub(r"\?P\<.*?\>", "", args['regex'])
-    self.api('send:msg')('converted %s to %s' % (args['regex'], args['nonamedgroups']))
+    self.api('libs.io:send:msg')('converted %s to %s' % (args['regex'], args['nonamedgroups']))
 
     self.regex_lookup[args['regex']] = trigger_name
 
@@ -261,7 +261,7 @@ class Plugin(BasePlugin):
     # go through and rebuild the regexes
     self.rebuild_regexes()
 
-    self.api('send:msg')(
+    self.api('libs.io:send:msg')(
         'added trigger %s for plugin %s' % \
             (trigger_name, plugin), secondary=plugin)
 
@@ -284,7 +284,7 @@ class Plugin(BasePlugin):
       plugin = self.triggers[trigger_name]['plugin']
       if event:
         if not event.isempty() and not force:
-          self.api('send:msg')(
+          self.api('libs.io:send:msg')(
               'deletetrigger: trigger %s has functions registered' % trigger_name,
               secondary=plugin)
           return False
@@ -295,8 +295,8 @@ class Plugin(BasePlugin):
         del self.unique_trigger_lookup[unique_name]
 
       del self.triggers[trigger_name]
-      self.api('send:msg')('removed trigger %s' % trigger_name,
-                           secondary=plugin)
+      self.api('libs.io:send:msg')('removed trigger %s' % trigger_name,
+                                   secondary=plugin)
 
       # go through and rebuild the regexes
       self.rebuild_regexes()
@@ -305,7 +305,7 @@ class Plugin(BasePlugin):
     else:
       if not plugin:
         plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
-      self.api('send:msg')('deletetrigger: trigger %s does not exist' % \
+      self.api('libs.io:send:msg')('deletetrigger: trigger %s does not exist' % \
                         trigger_name, secondary=plugin)
       return False
 
@@ -325,8 +325,8 @@ class Plugin(BasePlugin):
     @Yplugin@w   = The plugin name
 
     this function returns no values"""
-    self.api('send:msg')('removing triggers for plugin %s' % plugin,
-                         secondary=plugin)
+    self.api('libs.io:send:msg')('removing triggers for plugin %s' % plugin,
+                                 secondary=plugin)
     for trigger in self.triggers.values():
       if trigger['plugin'] == plugin:
         self.api('core.triggers:remove:all:triggers:for:plugin')(trigger['name'])
@@ -342,7 +342,7 @@ class Plugin(BasePlugin):
       self.triggers[trigger_name]['enabled'] = flag
       self.rebuild_regexes()
     else:
-      self.api('send:msg')('toggletrigger: trigger %s does not exist' % \
+      self.api('libs.io:send:msg')('toggletrigger: trigger %s does not exist' % \
         trigger_name)
 
   # toggle the omit flag for a trigger
@@ -355,7 +355,7 @@ class Plugin(BasePlugin):
     if trigger_name in self.triggers:
       self.triggers[trigger_name]['omit'] = flag
     else:
-      self.api('send:msg')('toggletriggeromit: trigger %s does not exist' % \
+      self.api('libs.io:send:msg')('toggletriggeromit: trigger %s does not exist' % \
         trigger_name)
 
   # toggle a trigger group
@@ -365,7 +365,7 @@ class Plugin(BasePlugin):
     @Yflag@w        = (optional) True to enable, False otherwise
 
     this function returns no values"""
-    self.api('send:msg')('toggletriggergroup: %s to %s' % \
+    self.api('libs.io:send:msg')('toggletriggergroup: %s to %s' % \
                                                 (trigger_group, flag))
     if trigger_group in self.trigger_groups:
       for i in self.trigger_groups[trigger_group]:
@@ -410,7 +410,7 @@ class Plugin(BasePlugin):
       trigger_match_data = set(color_match_groups.keys()) | set(non_color_match_groups.keys())
 
       if trigger_match_data:
-        self.api('send:msg')('line %s matched the following triggers %s' % \
+        self.api('libs.io:send:msg')('line %s matched the following triggers %s' % \
                               (data, trigger_match_data))
         for trigger in trigger_match_data:
           match = None
@@ -418,12 +418,12 @@ class Plugin(BasePlugin):
               not self.unique_trigger_lookup[trigger]['enabled']:
             continue
           if trigger in color_match_groups:
-            self.api('send:msg')('color matched line %s to trigger %s' % (colored_data,
-                                                                          trigger))
+            self.api('libs.io:send:msg')('color matched line %s to trigger %s' % (colored_data,
+                                                                                  trigger))
             match = self.unique_trigger_lookup[trigger]['compiled'].match(colored_data)
           elif trigger in non_color_match_groups:
-            self.api('send:msg')('noncolor matched line %s to trigger %s' % (data,
-                                                                             trigger))
+            self.api('libs.io:send:msg')('noncolor matched line %s to trigger %s' % (data,
+                                                                                     trigger))
             match = self.unique_trigger_lookup[trigger]['compiled'].match(data)
           if match:
             group_dict = match.groupdict()
@@ -441,11 +441,11 @@ class Plugin(BasePlugin):
                 break
 
           if len(trigger_match_data) > 1:
-            self.api('send:error')('line %s matched multiple triggers %s' % \
+            self.api('libs.io:send:error')('line %s matched multiple triggers %s' % \
                                       (data, trigger_match_data))
 
       else:
-        self.api('send:msg')('no triggers matched for %s' % \
+        self.api('libs.io:send:msg')('no triggers matched for %s' % \
                               (data))
 
 
@@ -464,9 +464,9 @@ class Plugin(BasePlugin):
       origargs['omit'] = True
 
     data_returned = self.api('core.events:raise:event')(event_name, args)
-    self.api('send:msg')('trigger raiseevent returned: %s' % data_returned)
+    self.api('libs.io:send:msg')('trigger raiseevent returned: %s' % data_returned)
     if data_returned and 'newline' in data_returned:
-      self.api('send:msg')('changing line from trigger')
+      self.api('libs.io:send:msg')('changing line from trigger')
       new_data = self.api('core.colors:colorcode:to:ansicode')(data_returned['newline'])
       origargs['trace']['changes'].append({'flag':'Modify',
                                            'data':'trigger "%s" changed "%s" to "%s"' % \

@@ -70,7 +70,7 @@ class Plugin(BasePlugin):
         msg.append('Time: %s' % i['timestamp'])
         msg.append('Error: %s' % i['msg'])
 
-      self.api('send:error')('\n'.join(msg))
+      self.api('libs.io:send:error')('\n'.join(msg))
 
 
   # add an error to the list

@@ -68,7 +68,7 @@ class Plugin(BasePlugin):
     """
     show the gmcp event
     """
-    self.api('send:client')(
+    self.api('libs.io:send:client')(
         '@x52@z192 Event @w- @GGMCP@w: @B%s@w : %s' % \
                   (args['module'], args['data']))
 
@@ -97,12 +97,12 @@ class Plugin(BasePlugin):
     msg.append('getting a variable that doesn\'t exist')
     msg.append('%s' % getv('char.status.test'))
 
-    self.api('send:msg')('\n'.join(msg))
-    self.api('send:client')('@CEvent@w - @GGMCP:char@w: %s' % \
+    self.api('libs.io:send:msg')('\n'.join(msg))
+    self.api('libs.io:send:client')('@CEvent@w - @GGMCP:char@w: %s' % \
                                   args['module'])
 
   def testcharstatus(self, _=None):
     """
     show the gmcp char.status event
     """
-    self.api('send:client')('@CEvent@w - @GGMCP:char.status@w')
+    self.api('libs.io:send:client')('@CEvent@w - @GGMCP:char.status@w')

@@ -122,7 +122,7 @@ class PersistentDict(dict):
       try:
         json.dump(self, file_object, separators=(',', ':'), skipkeys=True)
       except TypeError:
-        self.api('send:traceback')('Could not save object')
+        self.api('libs.io:send:traceback')('Could not save object')
     elif self.format == 'pickle':
       pickle.dump(dict(self), file_object, 2)
     else:
@@ -157,7 +157,7 @@ class PersistentDict(dict):
 
     except Exception:  # pylint: disable=broad-except
       #if 'log' not in self.file_name:
-      self.api('send:traceback')("Error when loading %s from %s" % \
+      self.api('libs.io:send:traceback')("Error when loading %s from %s" % \
                                     (self.format, self.file_name))
       #else:
       #  pass

@@ -46,7 +46,7 @@ class PluginDependencyResolver(object):
       except KeyError:
         if 'REQUIRED' in plugin['module'].__dict__ \
             and plugin['module'].REQUIRED:
-          self.plugin_manager.api('send:error')(
+          self.plugin_manager.api('libs.io:send:error')(
               'Required plugin %s could not be loaded, dependency %s' \
               ' would not load' % \
                 (plugin['plugin_id'], edge))

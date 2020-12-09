@@ -195,15 +195,15 @@ class Plugin(BasePlugin):
         self.sessionhits[akey] = 0
       self.sessionhits[akey] = self.sessionhits[akey] + 1
       action['hits'] = action['hits'] + 1
-      self.api('send:msg')('matched line: %s to action %s' % (args['line'],
-                                                              akey))
+      self.api('libs.io:send:msg')('matched line: %s to action %s' % (args['line'],
+                                                                      akey))
       templ = Template(action['action'])
       newaction = templ.safe_substitute(args)
-      sendtype = 'send:' + action['send']
-      self.api('send:msg')('sent %s to %s' % (newaction, sendtype))
+      sendtype = 'libs.io:send:' + action['send']
+      self.api('libs.io:send:msg')('sent %s to %s' % (newaction, sendtype))
       self.api(sendtype)(newaction)
     else:
-      self.api('send:error')("Bug: could not find action for trigger %s" % \
+      self.api('libs.io:send:error')("Bug: could not find action for trigger %s" % \
                               args['triggername'])
 
   def lookup_action(self, action):

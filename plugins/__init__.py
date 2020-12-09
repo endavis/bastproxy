@@ -193,7 +193,7 @@ class PluginMgr(BasePlugin):
         i = i.replace('.py', '')
         if i[0] == '.':
           i = i[1:]
-      self.api('send:msg')('setting plugin %s to load' % i, secondary=['upgrade'])
+      self.api('libs.io:send:msg')('setting plugin %s to load' % i, secondary=['upgrade'])
       new_plugins_to_load.append(i)
 
     self.api('settings:change')('pluginstoload', new_plugins_to_load)
@@ -394,7 +394,7 @@ class PluginMgr(BasePlugin):
     msg = []
     conflicts = self.read_all_plugin_information()
     if conflicts:
-      self.api('send:msg')('conflicts with plugins, see console and correct')
+      self.api('libs.io:send:msg')('conflicts with plugins, see console and correct')
 
     loaded_plugins = self.loaded_plugins.keys()
     all_plugins = self.all_plugin_info_on_disk.keys()
@@ -612,7 +612,7 @@ class PluginMgr(BasePlugin):
     return_value, dependencies = self.preinitialize_plugin(plugin_id,
                                                            exit_on_error=exit_on_error)
     if not return_value:
-      self.api('send:error')('Could not preinitialize plugin %s' % plugin_id)
+      self.api('libs.io:send:error')('Could not preinitialize plugin %s' % plugin_id)
       if exit_on_error:
         sys.exit(1)
       return False
@@ -637,9 +637,9 @@ class PluginMgr(BasePlugin):
     dependency_solver = PluginDependencyResolver(self, plugin_classes, broken_modules)
     plugin_load_order, unresolved_dependencies = dependency_solver.resolve()
     if unresolved_dependencies:
-      self.api('send:error')('The following dependencies could not be loaded:')
+      self.api('libs.io:send:error')('The following dependencies could not be loaded:')
       for dep in unresolved_dependencies:
-        self.api('send:error')(dep)
+        self.api('libs.io:send:error')(dep)
       if exit_on_error:
         sys.exit(1)
       return False
@@ -670,13 +670,13 @@ class PluginMgr(BasePlugin):
     if plugin_id in self.loaded_plugins:
       return True, self.loaded_plugins[plugin_id]['plugininstance'].dependencies
 
-    self.api('send:msg')('%-30s : attempting to load' % \
+    self.api('libs.io:send:msg')('%-30s : attempting to load' % \
 			    (plugin_id), primary=self.plugin_id)
 
     try:
       plugin_info = self.all_plugin_info_on_disk[plugin_id]
     except KeyError:
-      self.api('send:error')('Could not find plugin %s' % plugin_id)
+      self.api('libs.io:send:error')('Could not find plugin %s' % plugin_id)
       return False, []
 
     try:
@@ -763,7 +763,7 @@ class PluginMgr(BasePlugin):
     elif not success:
       plugin['isimported'] = False
       if msg == 'error':
-        self.api('send:error')(
+        self.api('libs.io:send:error')(
             'Could not import plugin %s' % plugin_id)
         if exit_on_error:
           sys.exit(1)
@@ -795,7 +795,7 @@ class PluginMgr(BasePlugin):
                                                 plugin['full_import_location'],
                                                 plugin['plugin_id'])
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not instantiate instance for plugin %s' % plugin_id)
+      self.api('libs.io:send:traceback')('could not instantiate instance for plugin %s' % plugin_id)
       if exit_on_error:
         sys.exit(1)
       else:
@@ -811,7 +811,7 @@ class PluginMgr(BasePlugin):
 
     # add plugin to lookups
     # if plugin_instance.short_name in self.plugin_lookup_by_short_name:
-    #   self.api('send:error')('plugin %s has a short name conflict with already loaded plugin %s' % \
+    #   self.api('libs.io:send:error')('plugin %s has a short name conflict with already loaded plugin %s' % \
     #                             (plugin_instance.plugin_path,
     #                              self.plugin_lookup_by_short_name[plugin_id].plugin_instance.plugin_path))
     # else:
@@ -835,10 +835,10 @@ class PluginMgr(BasePlugin):
     start with plugins that have REQUIRED=True, then move
     to plugins that were loaded in the config
     """
-    self.api('send:msg')('Reading all plugin information', primary=self.plugin_id)
+    self.api('libs.io:send:msg')('Reading all plugin information', primary=self.plugin_id)
     conflicts = self.read_all_plugin_information()
     if conflicts:
-      self.api('send:msg')('conflicts with plugins, see console and correct')
+      self.api('libs.io:send:msg')('conflicts with plugins, see console and correct')
       sys.exit(1)
 
     plugins_to_load_setting = self.api('setting:get')('pluginstoload')
@@ -853,7 +853,7 @@ class PluginMgr(BasePlugin):
     plugins_not_found = [plugin for plugin in plugins_to_load if plugin not in self.all_plugin_info_on_disk]
     if plugins_not_found:
       for plugin in plugins_not_found:
-        self.api('send:error')(
+        self.api('libs.io:send:error')(
             'plugin %s was marked to load at startup and no longer exists, removing from startup' % plugin)
         plugins_to_load_setting.remove(plugin)
         plugins_to_load.remove(plugin)
@@ -866,7 +866,7 @@ class PluginMgr(BasePlugin):
       found = False
       if not plugin['isinitialized'] or not plugin['isimported'] or not plugin['plugininstance']:
         found = True
-        self.api('send:error')('Plugin %s has not been correctly loaded' % \
+        self.api('libs.io:send:error')('Plugin %s has not been correctly loaded' % \
                                   plugin['plugin_id'])
         self.unload_single_plugin(plugin['plugin_id'])
 
@@ -931,14 +931,14 @@ class PluginMgr(BasePlugin):
     # don't do anything if the plugin has already been initialized
     if plugin['isinitialized']:
       return True
-    self.api('send:msg')('%-30s : attempting to initialize (%s)' % \
+    self.api('libs.io:send:msg')('%-30s : attempting to initialize (%s)' % \
               (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
     # run the initialize function
     try:
       plugin['plugininstance'].initialize()
       plugin['isinitialized'] = True
-      self.api('send:msg')('%-30s : successfully initialized (%s)' % \
+      self.api('libs.io:send:msg')('%-30s : successfully initialized (%s)' % \
                 (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
       self.api('core.events:raise:event')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
@@ -947,16 +947,16 @@ class PluginMgr(BasePlugin):
                                            'plugin_id':plugin['plugin_id']})
 
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')(
+      self.api('libs.io:send:traceback')(
           "load: could not run the initialize function for %s." \
                                               % plugin['plugin_id'])
       if exit_on_error:
         sys.exit(1)
-        self.api('send:msg')('%-30s : DID NOT LOAD' % \
+        self.api('libs.io:send:msg')('%-30s : DID NOT LOAD' % \
 			                      (plugin['plugin_id']), primary=self.plugin_id)
       return False
 
-    self.api('send:msg')('%-30s : successfully loaded' % \
+    self.api('libs.io:send:msg')('%-30s : successfully loaded' % \
 			    (plugin['plugin_id']), primary=self.plugin_id)
 
     # update plugins_to_load
@@ -989,7 +989,7 @@ class PluginMgr(BasePlugin):
 
     if plugin:
       if not plugin['plugininstance'].can_reload_f:
-        self.api('send:msg')('%-30s : this plugin cannot be unloaded (%s)' % \
+        self.api('libs.io:send:msg')('%-30s : this plugin cannot be unloaded (%s)' % \
                   (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
         return False
       else:
@@ -1001,11 +1001,11 @@ class PluginMgr(BasePlugin):
           self.api('core.events:raise:event')('{0.plugin_id}_plugin_uninitialized'.format(self),
                                               {'plugin':plugin['name'],
                                                'plugin_id':plugin['plugin_id']})
-          self.api('send:msg')('%-30s : successfully unitialized (%s)' % \
+          self.api('libs.io:send:msg')('%-30s : successfully unitialized (%s)' % \
                   (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
         except Exception: # pylint: disable=broad-except
-          self.api('send:traceback')(
+          self.api('libs.io:send:traceback')(
               "unload: had problems running the unload method for %s." \
                                     % plugin['plugin_id'])
           return False
@@ -1030,10 +1030,10 @@ class PluginMgr(BasePlugin):
           # delete the module
           success = imputils.deletemodule(plugin['full_import_location'])
           if success:
-            self.api('send:msg')('%-30s : deleting imported module was successful (%s)' % \
+            self.api('libs.io:send:msg')('%-30s : deleting imported module was successful (%s)' % \
                                 (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
           else:
-            self.api('send:error')('%-30s : deleting imported module failed (%s)' % \
+            self.api('libs.io:send:error')('%-30s : deleting imported module failed (%s)' % \
                                 (plugin['plugin_id'], plugin['name']))
 
         # remove from loaded_plugins
@@ -1105,7 +1105,7 @@ class PluginMgr(BasePlugin):
     tmsg = []
     conflicts = self.read_all_plugin_information()
     if conflicts:
-      self.api('send:msg')('conflicts with plugins, see errors and correct before loading a plugin')
+      self.api('libs.io:send:msg')('conflicts with plugins, see errors and correct before loading a plugin')
       tmsg.append('conflicts between plugins, see errors and correct before attempting to load another plugin')
       return True, tmsg
 

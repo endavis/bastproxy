@@ -339,7 +339,7 @@ class Telnet(asyncore.dispatcher):
     """
     handle an error
     """
-    self.api('send:traceback')("Telnet error: %s" % self.terminal_type)
+    self.api('libs.io:send:traceback')("Telnet error: %s" % self.terminal_type)
 
   def handle_read(self):
     """

@@ -140,7 +140,7 @@ class Sqldb(object):
     close the database
     """
     import inspect
-    self.api('send:msg')('close: called by - %s' % inspect.stack()[1][3])
+    self.api('libs.io:send:msg')('close: called by - %s' % inspect.stack()[1][3])
     try:
       self.db_connection.close()
     except Exception: # pylint: disable=broad-except
@@ -155,7 +155,7 @@ class Sqldb(object):
     function_name = inspect.stack()[1][3]
     if function_name == '__getattribute__':
       function_name = inspect.stack()[2][3]
-    self.api('send:msg')('open: called by - %s' % function_name)
+    self.api('libs.io:send:msg')('open: called by - %s' % function_name)
     self.db_connection = sqlite3.connect(
         self.dbfile,
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -552,20 +552,20 @@ class Sqldb(object):
     """
     update a database from old_version to new_version
     """
-    self.api('send:msg')('updating %s from version %s to %s' % \
+    self.api('libs.io:send:msg')('updating %s from version %s to %s' % \
                               (self.db_file, old_version, new_version))
     self.backupdb(old_version)
     for version in range(old_version + 1, new_version + 1):
       try:
         self.version_functions[version]()
-        self.api('send:msg')('updated to version %s' % version)
+        self.api('libs.io:send:msg')('updated to version %s' % version)
       except Exception: # pylint: disable=broad-except
-        self.api('send:traceback')(
+        self.api('libs.io:send:traceback')(
             'could not upgrade db: %s in plugin: %s' % (self.database_name,
                                                         self.plugin.plugin_id))
         return
     self.setversion(new_version)
-    self.api('send:msg')('Done upgrading!')
+    self.api('libs.io:send:msg')('Done upgrading!')
 
   def select(self, sql_statement):
     """
@@ -577,7 +577,7 @@ class Sqldb(object):
       for row in cursor.execute(sql_statement):
         result.append(row)
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not run sql statement : %s' % \
+      self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
                             sql_statement)
     cursor.close()
     return result
@@ -597,7 +597,7 @@ class Sqldb(object):
       row_id = cursor.lastrowid
       result = self.db_connection.commit()
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not run sql statement : %s' % \
+      self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
                             sql_statement)
 
     return row_id, result
@@ -615,7 +615,7 @@ class Sqldb(object):
       result = self.db_connection.commit()
       cursor.close()
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not run sql statement : %s' % \
+      self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
                             sql_statement)
 
     return row_id, result
@@ -633,7 +633,7 @@ class Sqldb(object):
       result = self.db_connection.commit()
       cursor.close()
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not run sql statement : %s' % \
+      self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
                             sql_statement)
 
 
@@ -650,7 +650,7 @@ class Sqldb(object):
       for row in cursor.execute(selectstmt):
         result[row[keyword]] = row
     except Exception: # pylint: disable=broad-except
-      self.api('send:traceback')('could not run sql statement : %s' % \
+      self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
                                       selectstmt)
     cursor.close()
     return result
@@ -661,7 +661,7 @@ class Sqldb(object):
     """
     results = {}
     if table_name not in self.tables:
-      self.api('send:msg')('table %s does not exist in getlast' % table_name)
+      self.api('libs.io:send:msg')('table %s does not exist in getlast' % table_name)
       return {}
 
     column_id_name = self.tables[table_name]['keyfield']
@@ -682,7 +682,7 @@ class Sqldb(object):
     get a row by id
     """
     if table_name not in self.tables:
-      self.api('send:msg')('table %s does not exist in getrow' % table_name)
+      self.api('libs.io:send:msg')('table %s does not exist in getrow' % table_name)
       return {}
 
     column_id_name = self.tables[table_name]['keyfield']
@@ -712,7 +712,7 @@ class Sqldb(object):
     """
     success = False
     #self.cmd_vac()
-    self.api('send:msg')('backing up database %s' % self.database_name)
+    self.api('libs.io:send:msg')('backing up database %s' % self.database_name)
     integrity = True
     cursor = self.db_connection.cursor()
     cursor.execute('PRAGMA integrity_check')
@@ -722,7 +722,7 @@ class Sqldb(object):
       integrity = False
 
     if not integrity:
-      self.api('send:msg')('Integrity check failed, aborting backup')
+      self.api('libs.io:send:msg')('Integrity check failed, aborting backup')
       return success
     self.close()
     try:
@@ -738,7 +738,7 @@ class Sqldb(object):
     try:
       shutil.copy(self.db_file, backupfile)
     except IOError:
-      self.api('send:msg')('backup failed, could not copy file')
+      self.api('libs.io:send:msg')('backup failed, could not copy file')
       return success
 
     try:
@@ -746,10 +746,10 @@ class Sqldb(object):
         myzip.write(backupfile, arcname=os.path.basename(backupfile))
       os.remove(backupfile)
       success = True
-      self.api('send:msg')('%s was backed up to %s' % (self.db_file,
-                                                       backupzipfile))
+      self.api('libs.io:send:msg')('%s was backed up to %s' % (self.db_file,
+                                                               backupzipfile))
     except IOError:
-      self.api('send:msg')('could not zip backupfile')
+      self.api('libs.io:send:msg')('could not zip backupfile')
       return success
 
     return success

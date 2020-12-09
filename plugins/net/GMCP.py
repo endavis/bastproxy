@@ -135,15 +135,16 @@ class Plugin(BasePlugin):
     this function returns no values
 
     Format: IAC SB GMCP <gmcp message text> IAC SE"""
-    self.api('send:mud')('%s%s%s%s%s%s' % \
-                (IAC, SB, self.option_string, message.replace(IAC, IAC+IAC), IAC, SE),
-                         raw=True, dtype=self.option_string)
+    self.api('libs.io:send:mud')('%s%s%s%s%s%s' % \
+                                    (IAC, SB, self.option_string,
+                                     message.replace(IAC, IAC+IAC), IAC, SE),
+                                 raw=True, dtype=self.option_string)
 
   def gmcpdisconnect(self, _=None):
     """
     disconnect
     """
-    self.api('send:msg')('setting reconnect to true')
+    self.api('libs.io:send:msg')('setting reconnect to true')
     self.reconnecting = True
 
   # toggle a GMCP module
@@ -158,7 +159,7 @@ class Plugin(BasePlugin):
 
     if mstate:
       if self.modstates[modname] == 0:
-        self.api('send:msg')('Enabling GMCP module: %s' % modname)
+        self.api('libs.io:send:msg')('Enabling GMCP module: %s' % modname)
         cmd = 'Core.Supports.Set [ "%s %s" ]' % (modname, 1)
         self.api('net.GMCP:mud:send')(cmd)
       self.modstates[modname] = self.modstates[modname] + 1
@@ -166,7 +167,7 @@ class Plugin(BasePlugin):
     else:
       self.modstates[modname] = self.modstates[modname] - 1
       if self.modstates[modname] == 0:
-        self.api('send:msg')('Disabling GMCP module: %s' % modname)
+        self.api('libs.io:send:msg')('Disabling GMCP module: %s' % modname)
         cmd = 'Core.Supports.Set [ "%s %s" ]' % (modname, 0)
         self.api('net.GMCP:mud:send')(cmd)
 
@@ -202,9 +203,10 @@ class Plugin(BasePlugin):
       import json
       tdata = json.dumps(data)
       tpack = '%s %s' % (modname, tdata)
-      self.api('send:client')('%s%s%s%s%s%s' % \
-                 (IAC, SB, self.option_string, tpack.replace(IAC, IAC+IAC), IAC, SE),
-                              raw=True, dtype=self.option_string)
+      self.api('libs.io:send:client')('%s%s%s%s%s%s' % \
+                                         (IAC, SB, self.option_string,
+                                          tpack.replace(IAC, IAC+IAC), IAC, SE),
+                                      raw=True, dtype=self.option_string)
 
   def gmcpfromserver(self, args):
     """
@@ -239,9 +241,9 @@ class Plugin(BasePlugin):
           msg.append('datatable: %s' % datatable)
           msg.append('args: %s' % args)
           msg.append('args[data]: %s' % args['data'])
-          self.api('send:traceback')('\n'.join(msg))
+          self.api('libs.io:send:traceback')('\n'.join(msg))
 
-    self.api('send:msg')('%s : %s' % (args['module'], args['data']))
+    self.api('libs.io:send:msg')('%s : %s' % (args['module'], args['data']))
     self.api('core.events:raise:event')('GMCP', args)
     self.api('core.events:raise:event')('GMCP:%s' % modname, args)
     self.api('core.events:raise:event')('GMCP:%s' % mods[0], args)
@@ -259,7 +261,7 @@ class Plugin(BasePlugin):
       for i in self.modstates:
         tnum = self.modstates[i]
         if tnum > 0:
-          self.api('send:msg')('Re-Enabling GMCP module %s' % i)
+          self.api('libs.io:send:msg')('Re-Enabling GMCP module %s' % i)
           cmd = 'Core.Supports.Set [ "%s %s" ]' % (i, 1)
           self.api('net.GMCP:mud:send')(cmd)
 

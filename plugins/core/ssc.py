@@ -74,7 +74,7 @@ class SSC(object):
 
       return first_line.strip()
     except IOError:
-      self.plugin.api('send:error')('Please set the %s with %s.%s.%s' % \
+      self.plugin.api('libs.io:send:error')('Please set the %s with %s.%s.%s' % \
                              (self.desc,
                               self.plugin.api('core.commands:get:command:prefix')(),
                               self.plugin.plugin_id,

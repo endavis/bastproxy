@@ -97,7 +97,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     else:
       message = exc
 
-    self.api('send:error')(message)
+    self.api('libs.io:send:error')(message)
 
   # write and format an error
   def _api_error(self, text, secondary=None):
@@ -116,7 +116,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         message_list.append(i)
     message = '\n'.join(message_list)
 
-    self.api('send:msg')(message, primary='error', secondary=secondary)
+    self.api('libs.io:send:msg')(message, primary='error', secondary=secondary)
 
     try:
       self.api('core.errors:add')(time.strftime(self.api.time_format,
@@ -158,7 +158,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                                               'client':client},
                                           calledfrom="io")
     except (NameError, TypeError, AttributeError):
-      self.api('send:traceback')("couldn't send msg to client: %s" % text)
+      self.api('libs.io:send:traceback')("couldn't send msg to client: %s" % text)
 
   # execute a command through the interpreter, most data goes through this
   def _api_execute(self, command, fromclient=False, showinhistory=True): # pylint: disable=too-many-branches
@@ -168,8 +168,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       @Ycommand@w      = the command to send through the interpreter
 
     this function returns no values"""
-    self.api('send:msg')('execute: got command %s' % repr(command),
-                         primary='inputparse')
+    self.api('libs.io:send:msg')('execute: got command %s' % repr(command),
+                                 primary='inputparse')
 
     new_trace = False
     if not self.current_trace:
@@ -191,8 +191,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                           calledfrom="io")
 
     if command == '\r\n':
-      self.api('send:msg')('sending %s (cr) to the mud' % repr(command),
-                           primary='inputparse')
+      self.api('libs.io:send:msg')('sending %s (cr) to the mud' % repr(command),
+                                   primary='inputparse')
       self.api('core.events:raise:event')('to_mud_event', {'data':command,
                                                            'dtype':'fromclient',
                                                            'showinhistory':showinhistory,
@@ -230,15 +230,15 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           else:
             split_data = []
           if len(split_data) > 1:
-            self.api('send:msg')('broke %s into %s' % (current_command, split_data),
-                                 primary='inputparse')
+            self.api('libs.io:send:msg')('broke %s into %s' % (current_command, split_data),
+                                         primary='inputparse')
             self.current_trace['changes'].append(
                 {'flag':'Splitchar',
                  'data':'split command: "%s" into: "%s"' % \
                    (current_command, ", ".join(split_data)),
                  'plugin':'io'})
             for cmd in split_data:
-              self.api('send:execute')(cmd, showinhistory=showinhistory)
+              self.api('libs.io:send:execute')(cmd, showinhistory=showinhistory)
 
           # the command did not have a command seperator
           else:
@@ -247,8 +247,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             current_command = current_command.replace('||', '|')
             if current_command[-1] != '\n':
               current_command = "".join([current_command, '\n'])
-            self.api('send:msg')('sending %s to the mud' % current_command.strip(),
-                                 primary='inputparse')
+            self.api('libs.io:send:msg')('sending %s to the mud' % current_command.strip(),
+                                         primary='inputparse')
             self.api('core.events:raise:event')('to_mud_event',
                                                 {'data':current_command,
                                                  'dtype':'fromclient',

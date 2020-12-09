@@ -41,26 +41,26 @@ class Plugin(BasePlugin):
     """
     send a message to the mud and client
     """
-    self.api('send:client')(
+    self.api('libs.io:send:client')(
         '@RHere is the timer that fires every 600 seconds!')
-    self.api('send:execute')('look')
+    self.api('libs.io:send:execute')('look')
 
   def test_to_user(self):
     """
     test a onetime timer
     """
-    self.api('send:client')('@RA onetime timer just fired.')
+    self.api('libs.io:send:client')('@RA onetime timer just fired.')
 
   def test_timewsec(self):
     """
     test an time timer with seconds
     """
-    self.api('send:client')(
+    self.api('libs.io:send:client')(
         'this is the timer that starts at 2010 and goes every 1 minute')
 
   def test_time(self):
     """
     test an time timer
     """
-    self.api('send:client')(
+    self.api('libs.io:send:client')(
         'this is the timer that fires at noon')

@@ -66,8 +66,8 @@ class Plugin(BasePlugin):
       templ = Template(args['cmd'])
       for i in xrange(1, count + 1):
         datan = templ.safe_substitute({'num':i, 'count':i})
-        self.api('send:msg')('sending cmd: %s' % datan)
-        self.api('send:execute')(datan)
+        self.api('libs.io:send:msg')('sending cmd: %s' % datan)
+        self.api('libs.io:send:execute')(datan)
       return True, ['"%s" was sent %s times' % (args['cmd'], count)]
 
     tmsg.append("@RPlease include all arguments@w")

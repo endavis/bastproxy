@@ -153,10 +153,10 @@ class API(object):
     if not overload:
       if full_api_name in self.api and not force:
         try:
-          self.get('send:error')('api:add - %s already exists from plugin %s' % \
+          self.get('libs.io:send:error')('libs.api:add - %s already exists from plugin %s' % \
                                   (full_api_name, plugin_id))
         except AttributeError:
-          print('api:add - %s already exists from plugin %s' % \
+          print('libs.api:add - %s already exists from plugin %s' % \
                                   (full_api_name, plugin_id))
       else:
         self.api[full_api_name] = api_data
@@ -181,11 +181,11 @@ class API(object):
     if not force and \
           (api_data['full_api_name'] in self.overloaded_api):
       try:
-        self.get('send:error')('api:overload - %s already exists added by plugin: %s' % \
+        self.get('libs.io:send:error')('libs.api:overload - %s already exists added by plugin: %s' % \
                                  (api_data['full_api_name'], api_data['plugin']))
       except AttributeError:
-        print('api:overload - %s already exists added by plugin %s ' % (api_data['full_api_name'],
-                                                                        api_data['plugin']))
+        print('libs.api:overload - %s already exists added by plugin %s ' % (api_data['full_api_name'],
+                                                                             api_data['plugin']))
 
       return False
 

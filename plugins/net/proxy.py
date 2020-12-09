@@ -125,12 +125,12 @@ class Plugin(BasePlugin):
     connects to the mud
     """
     if self.api('setting:get')('username') != '':
-      self.api('send:mud')(self.api('setting:get')('username'))
+      self.api('libs.io:send:mud')(self.api('setting:get')('username'))
       pasw = self.api('%s:ssc:mudpw' % self.plugin_id)()
       if pasw != '':
-        self.api('send:mud')(pasw)
-      self.api('send:mud')('\n')
-      self.api('send:mud')('\n')
+        self.api('libs.io:send:mud')(pasw)
+      self.api('libs.io:send:mud')('\n')
+      self.api('libs.io:send:mud')('\n')
 
   def cmd_info(self, _):
     """
@@ -211,10 +211,10 @@ class Plugin(BasePlugin):
     shutdown the proxy
     """
     self.api.__class__.shutdown = True
-    self.api('send:msg')('Proxy: shutdown started', secondary='shutdown')
-    self.api('send:client')('Shutting down bastproxy')
+    self.api('libs.io:send:msg')('Proxy: shutdown started', secondary='shutdown')
+    self.api('libs.io:send:client')('Shutting down bastproxy')
     self.api('core.events:raise:event')('proxy_shutdown')
-    self.api('send:msg')('Proxy: shutdown finished', secondary='shutdown')
+    self.api('libs.io:send:msg')('Proxy: shutdown finished', secondary='shutdown')
 
   def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use
     """
@@ -266,7 +266,7 @@ class Plugin(BasePlugin):
       tmsg.insert(0, divider)
 
     if tmsg:
-      self.api('send:client')(tmsg, client=args['client'])
+      self.api('libs.io:send:client')(tmsg, client=args['client'])
 
     return True
 
@@ -277,7 +277,7 @@ class Plugin(BasePlugin):
     """
     listen_port = self.api('setting:get')('listenport')
 
-    self.api('send:client')("Respawning bastproxy on port: %s in 10 seconds" \
+    self.api('libs.io:send:client')("Respawning bastproxy on port: %s in 10 seconds" \
                                               % listen_port)
 
     self.api('core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)

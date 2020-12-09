@@ -77,7 +77,7 @@ class Plugin(BasePlugin):
                             'set this to True if the connection will use ssl')
 
     if self.api('setting:get')('username') != '':
-      self.api('send:client')('Please set the mail password')
+      self.api('libs.io:send:client')('Please set the mail password')
 
   def check(self):
     """
@@ -165,10 +165,10 @@ X-Mailer: My-Mail
     """
     if self.api('setting:get')('username'):
       if not self.password:
-        self.api('send:client')(
+        self.api('libs.io:send:client')(
             '@CPlease set the email password for account: @M%s@w' \
                 % self.api('setting:get')('username').replace('@', '@@'))
-        self.api('send:client')('#bp.mail.password "somepassword"')
+        self.api('libs.io:send:client')('#bp.mail.password "somepassword"')
 
   def cmd_pw(self, args):
     """

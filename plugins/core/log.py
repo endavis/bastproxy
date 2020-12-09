@@ -164,7 +164,7 @@ class Plugin(BasePlugin):
               self.colors[dtag] + timestampmsg)
 
         if dtag in self.datatypes_to_client and self.datatypes_to_client[dtag] and not senttoclient:
-          self.api('send:client')(timestampmsg)
+          self.api('libs.io:send:client')(timestampmsg)
           senttoclient = True
 
         if dtag in self.datatypes_to_console and self.datatypes_to_console[dtag] and not senttoconsole:
@@ -210,7 +210,7 @@ class Plugin(BasePlugin):
     if datatype in self.datatypes_to_client and datatype != 'frommud':
       self.datatypes_to_client[datatype] = flag
 
-    self.api('send:msg')('setting %s to log to client' % \
+    self.api('libs.io:send:msg')('setting %s to log to client' % \
                       datatype)
 
     self.datatypes_to_client.sync()
@@ -251,7 +251,7 @@ class Plugin(BasePlugin):
     if datatype in self.datatypes_to_console and datatype != 'frommud':
       self.datatypes_to_console[datatype] = flag
 
-    self.api('send:msg')('setting %s to log to console' % \
+    self.api('libs.io:send:msg')('setting %s to log to console' % \
                       datatype, self.plugin_id)
 
     self.datatypes_to_console.sync()
@@ -297,9 +297,9 @@ class Plugin(BasePlugin):
     else:
       self.datatypes_to_file[datatype] = {'file':self.template_for_log_file_name,
                                           'timestamp':timestamp}
-      self.api('send:msg')('setting %s to log to %s' % \
+      self.api('libs.io:send:msg')('setting %s to log to %s' % \
                       (datatype, self.datatypes_to_file[datatype]['file']),
-                           self.plugin_id)
+                                   self.plugin_id)
     self.datatypes_to_file.sync()
 
   # toggle a datatype to log to a file

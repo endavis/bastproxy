@@ -50,9 +50,9 @@ class Mud(Telnet):
         except AttributeError:
           tconvertansi = tosend
         if tosend != tconvertansi:
-          self.api('send:msg')('converted %s to %s' % (repr(tosend),
-                                                       tconvertansi),
-                               'ansi')
+          self.api('libs.io:send:msg')('converted %s to %s' % (repr(tosend),
+                                                               tconvertansi),
+                                       'ansi')
         trace = {}
         trace['dtype'] = 'frommud'
         trace['original'] = tosend
@@ -95,7 +95,7 @@ class Mud(Telnet):
             tconvertansi = self.api('core.colors:ansicode:to:colorcode')(tosend)
           else:
             tconvertansi = tosend
-          self.api('send:client')(tosend, dtype='frommud')
+          self.api('libs.io:send:client')(tosend, dtype='frommud')
 
   def connectmud(self, mudhost, mudport):
     """
@@ -106,15 +106,15 @@ class Mud(Telnet):
     self.outbuffer = ''
     self.doconnect(mudhost, mudport)
     self.connected_time = time.localtime()
-    self.api('send:msg')('Connected to mud', 'net')
+    self.api('libs.io:send:msg')('Connected to mud', 'net')
     self.api('core.events:raise:event')('mudconnect', {}, calledfrom="mud")
 
   def handle_close(self):
     """
     hand closing the connection
     """
-    self.api('send:msg')('Disconnected from mud', 'net')
-    self.api('send:client')(self.api('core.colors:colorcode:to:ansicode')(
+    self.api('libs.io:send:msg')('Disconnected from mud', 'net')
+    self.api('libs.io:send:client')(self.api('core.colors:colorcode:to:ansicode')(
         '%s%s@w: The mud closed the connection' % (self.api('net.proxy:preamble:error:color:get')(),
                                                    self.api('net.proxy:preamble:get')())))
     self.api('net.options:options:reset')(self, True)

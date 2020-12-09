@@ -581,13 +581,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
       for version in range(old_plugin_version + 1, new_plugin_version + 1):
-        self.api('send:msg')(
+        self.api('libs.io:send:msg')(
             '%s: upgrading to version %s' % (self.plugin_id, version),
             secondary='upgrade')
         if version in self.version_functions:
           self.version_functions[version]()
         else:
-          self.api('send:msg')(
+          self.api('libs.io:send:msg')(
               '%s: no function to upgrade to version %s' % (self.plugin_id, version),
               secondary='upgrade')
 
@@ -626,14 +626,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     re-register to firstactive on disconnect
     """
-    self.api('send:msg')('baseplugin, disconnect')
+    self.api('libs.io:send:msg')('baseplugin, disconnect')
     self.api('core.events:register:to:event')('firstactive', self.after_first_active)
 
   def after_first_active(self, _=None):
     """
     if we are connected do
     """
-    self.api('send:msg')('baseplugin, firstactive')
+    self.api('libs.io:send:msg')('baseplugin, firstactive')
     if self.api('core.events:is:registered:to:event')('firstactive', self.after_first_active):
       self.api('core.events:unregister:from:event')('firstactive', self.after_first_active)
 

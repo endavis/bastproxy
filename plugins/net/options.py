@@ -48,8 +48,8 @@ class Plugin(BasePlugin):
                                         class BaseTelnetOption
     """
     if issubclass(option_class, BaseTelnetOption):
-      self.api('send:msg')('adding telnet option %s to server' % \
-                                                              option_name)
+      self.api('libs.io:send:msg')('adding telnet option %s (%s) to server' % \
+                                                              (option_name, option_num))
       option_data = {}
       option_data['plugin_id'] = plugin_id
       option_data['optionname'] = option_name
@@ -66,8 +66,8 @@ class Plugin(BasePlugin):
                                         class BaseTelnetOption
     """
     if issubclass(option_class, BaseTelnetOption):
-      self.api('send:msg')('adding telnet option %s to client' % \
-                                                              option_name)
+      self.api('libs.io:send:msg')('adding telnet option %s (%s) to client' % \
+                                                              (option_name, option_num))
       option_data = {}
       option_data['plugin_id'] = plugin_id
       option_data['optionname'] = option_name
@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
     if hasattr(module, 'SERVER'):
       self.options[plugin] = True
       self.optionsmod[plugin] = module
-      self.api('send:msg')('adding %s as a telnet option' % plugin)
+      self.api('libs.io:send:msg')('adding %s as a telnet option' % plugin)
 
   def reloadmod(self, mod):
     """
@@ -112,7 +112,7 @@ class Plugin(BasePlugin):
         self.clientoptions[plugin_id]['optionclass'](client, self.clientoptions[plugin_id]['optionname'],
                                                      self.clientoptions[plugin_id]['optionnum'], plugin_id)
       except AttributeError:
-        self.api('send:traceback')('Did not add option %s to client' % plugin_id)
+        self.api('libs.io:send:traceback')('Did not add option %s to client' % option_name)
 
   # prepare the server to process telnet options
   def api_prepareserver(self, server):
@@ -125,7 +125,7 @@ class Plugin(BasePlugin):
         self.serveroptions[plugin_id]['optionclass'](server, self.serveroptions[plugin_id]['optionname'],
                                                      self.serveroptions[plugin_id]['optionnum'], plugin_id)
       except AttributeError:
-        self.api('send:traceback')('Did not add option %s to server' % plugin_id)
+        self.api('libs.io:send:traceback')('Did not add option %s to server' % option_name)
 
   # reset options
   def api_resetoptions(self, server, onclose=False):

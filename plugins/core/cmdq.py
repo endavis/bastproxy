@@ -62,8 +62,8 @@ class Plugin(BasePlugin):
     @Yplugin@w   = The plugin name
 
     this function returns no values"""
-    self.api('send:msg')('removing cmdq data for plugin %s' % plugin,
-                         secondary=plugin)
+    self.api('libs.io:send:msg')('removing cmdq data for plugin %s' % plugin,
+                                 secondary=plugin)
     tkeys = self.cmds.keys()
     for i in tkeys: # iterate keys since we are deleting things
       if self.cmds[i]['plugin'] == plugin:
@@ -76,7 +76,7 @@ class Plugin(BasePlugin):
     if cmdtype in self.cmds:
       del self.cmds[cmdtype]
     else:
-      self.api('send:msg')('could not delete command type: %s' % cmdtype)
+      self.api('libs.io:send:msg')('could not delete command type: %s' % cmdtype)
 
   # start a command
   def _api_command_start(self, cmdtype):
@@ -84,7 +84,7 @@ class Plugin(BasePlugin):
     tell the queue a command has started
     """
     if self.current_command and cmdtype != self.current_command['ctype']:
-      self.api('send:msg')("got command start for %s and it's not the current cmd: %s" \
+      self.api('libs.io:send:msg')("got command start for %s and it's not the current cmd: %s" \
                                 % (cmdtype, self.current_command['ctype']))
       return
     self.api('libs.timing:timing:start')('cmd_%s' % cmdtype)
@@ -116,20 +116,20 @@ class Plugin(BasePlugin):
     """
     send the next command
     """
-    self.api('send:msg')('checking queue')
+    self.api('libs.io:send:msg')('checking queue')
     if not self.queue or self.current_command:
       return
 
     cmdt = self.queue.pop(0)
     cmd = cmdt['cmd']
     cmdtype = cmdt['ctype']
-    self.api('send:msg')('sending cmd: %s (%s)' % (cmd, cmdtype))
+    self.api('libs.io:send:msg')('sending cmd: %s (%s)' % (cmd, cmdtype))
 
     if cmdtype in self.cmds and self.cmds[cmdtype]['beforef']:
       self.cmds[cmdtype]['beforef']()
 
     self.current_command = cmdt
-    self.api('send:execute')(cmd)
+    self.api('libs.io:send:execute')(cmd)
 
   def checkinqueue(self, cmd):
     """
@@ -145,12 +145,12 @@ class Plugin(BasePlugin):
     """
     tell the queue that a command has finished
     """
-    self.api('send:msg')('running cmddone: %s' % cmdtype)
+    self.api('libs.io:msg')('running cmddone: %s' % cmdtype)
     if not self.current_command:
       return
     if cmdtype == self.current_command['ctype']:
       if cmdtype in self.cmds and self.cmds[cmdtype]['afterf']:
-        self.api('send:msg')('running afterf: %s' % cmdtype)
+        self.api('libs.io:send:msg')('running afterf: %s' % cmdtype)
         self.cmds[cmdtype]['afterf']()
 
       self.api('libs.timing:timing:finish')('cmd_%s' % self.current_command['ctype'])
@@ -170,7 +170,7 @@ class Plugin(BasePlugin):
             ('cmd' in self.current_command and self.current_command['cmd'] == cmd):
       return
     else:
-      self.api('send:msg')('added %s to queue' % cmd, secondary=[plugin])
+      self.api('libs.io:send:msg')('added %s to queue' % cmd, secondary=[plugin])
       self.queue.append({'cmd':cmd, 'ctype':cmdtype, 'plugin':plugin})
       if not self.current_command:
         self.sendnext()

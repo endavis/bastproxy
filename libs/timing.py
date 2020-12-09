@@ -55,9 +55,9 @@ class Timing(object):
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
       self.timing[timername]['plugin'] = plugin
-      self.api('send:msg')('%-20s : started - from plugin %s with args %s' % \
+      self.api('libs.io:send:msg')('%-20s : started - from plugin %s with args %s' % \
                             (timername, plugin, args),
-                           primary=plugin, secondary=['timing'])
+                                   primary=plugin, secondary=['timing'])
 
   def finishtimer(self, timername, args=None):
     """
@@ -66,17 +66,17 @@ class Timing(object):
     if self.enabled:
       timerfinish = default_timer()
       if timername in self.timing:
-        self.api('send:msg')('%-20s : finished in %s ms - with args %s' % \
+        self.api('libs.io:send:msg')('%-20s : finished in %s ms - with args %s' % \
                              (timername,
                               (timerfinish - self.timing[timername]['start']) * 1000.0,
                               args),
-                             primary=self.timing[timername]['plugin'],
-                             secondary=['timing'])
+                                     primary=self.timing[timername]['plugin'],
+                                     secondary=['timing'])
         del self.timing[timername]
       else:
         plugin = self.api('libs.api:get:caller:plugin')()
-        self.api('send:error')('timername: %s not found, called from %s' % \
+        self.api('libs.io:send:error')('timername: %s not found, called from %s' % \
                               (timername, plugin),
-                               secondary=['timing', plugin])
+                                       secondary=['timing', plugin])
 
 TIMING = Timing()

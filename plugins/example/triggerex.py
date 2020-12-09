@@ -44,4 +44,4 @@ class Plugin(BasePlugin):
     """
     show that the trigger fired
     """
-    self.api('send:client')('Trigger fired: args returned %s' % args)
+    self.api('libs.io:send:client')('Trigger fired: args returned %s' % args)

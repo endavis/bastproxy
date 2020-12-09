@@ -64,12 +64,12 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
               sys.modules[full_import_location], full_import_location)
 
     if not silent:
-      plugin.api('send:msg')('%-30s : attempting import' % \
+      plugin.api('libs.io:send:msg')('%-30s : attempting import' % \
                               full_import_location.replace('plugins.', ''), primary=plugin.plugin_id)
     _module = import_module(full_import_location)
 
     if not silent:
-      plugin.api('send:msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
+      plugin.api('libs.io:send:msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
                                 primary=plugin.plugin_id)
     return True, 'import', _module, full_import_location
 
@@ -77,7 +77,7 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
     if full_import_location in sys.modules:
       del sys.modules[full_import_location]
 
-    plugin.api('send:traceback')(
+    plugin.api('libs.io:send:traceback')(
         "Module '%s' refuses to import/load." % full_import_location)
     return False, 'error', _module, full_import_location
 

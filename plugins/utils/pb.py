@@ -97,7 +97,7 @@ class Plugin(BasePlugin):
       try:
         import pushbullet # pylint: disable=redefined-outer-name
       except ImportError:
-        self.api('send:error')(
+        self.api('libs.io:send:error')(
             'Please install pushbullet.py with "pip(2) install pushbullet.py"')
         return False
 
@@ -115,7 +115,7 @@ class Plugin(BasePlugin):
     apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send:error')('pushbullet apikey not set')
+      self.api('libs.io:send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:
@@ -135,7 +135,7 @@ class Plugin(BasePlugin):
           break
 
       if not found:
-        self.api('send:error')('There was no channel %s' % nchannel)
+        self.api('libs.io:send:error')('There was no channel %s' % nchannel)
         return False
 
     else:
@@ -144,10 +144,10 @@ class Plugin(BasePlugin):
     pbc._session.close() # pylint: disable=protected-access
 
     if 'error' in rval:
-      self.api('send:error')('Pushbullet send failed with %s' % rval)
+      self.api('libs.io:send:error')('Pushbullet send failed with %s' % rval)
       return False
 
-    self.api('send:msg')('pb returned %s' % rval)
+    self.api('libs.io:send:msg')('pb returned %s' % rval)
     return True
 
   # send a url through pushbullet
@@ -162,7 +162,7 @@ class Plugin(BasePlugin):
     apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send:error')('pushbullet apikey not set')
+      self.api('libs.io:send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:
@@ -181,7 +181,7 @@ class Plugin(BasePlugin):
           break
 
       if not found:
-        self.api('send:error')('There was no channel %s' % nchannel)
+        self.api('libs.io:send:error')('There was no channel %s' % nchannel)
         return False
 
     else:
@@ -190,10 +190,10 @@ class Plugin(BasePlugin):
     pbc._session.close() # pylint: disable=protected-access
 
     if 'error' in rval:
-      self.api('send:error')('Pushbullet send failed with %s' % rval)
+      self.api('libs.io:send:error')('Pushbullet send failed with %s' % rval)
       return False
 
-    self.api('send:msg')('pb returned %s' % rval)
+    self.api('libs.io:send:msg')('pb returned %s' % rval)
     return True
 
   def cmd_channels(self, _):
@@ -204,7 +204,7 @@ class Plugin(BasePlugin):
     apikey = self.api('%s:ssc:apikey' % self.plugin_id)()
 
     if not apikey:
-      self.api('send:error')('pushbullet apikey not set')
+      self.api('libs.io:send:error')('pushbullet apikey not set')
       return False
 
     if not pushbullet:

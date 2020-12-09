@@ -125,7 +125,7 @@ class Plugin(BasePlugin):
 
     self.api('core.events:register:to:event')('global_timer', self.check_for_timers_to_fire,
                                               prio=1)
-    self.api('send:msg')('lasttime:  %s' % self.time_last_checked)
+    self.api('libs.io:send:msg')('lasttime:  %s' % self.time_last_checked)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list timers')
@@ -163,8 +163,8 @@ class Plugin(BasePlugin):
     """
     a plugin was uninitialized
     """
-    self.api('send:msg')('removing timers for plugin %s' % args['plugin_id'],
-                         secondary=args['plugin_id'])
+    self.api('libs.io:send:msg')('removing timers for plugin %s' % args['plugin_id'],
+                                 secondary=args['plugin_id'])
     self.api('%s:remove:all:timers:for:plugin' % self.plugin_id)(args['plugin_id'])
 
   def command_log(self, args=None):
@@ -292,26 +292,26 @@ class Plugin(BasePlugin):
       plugin = self.api('core.plugins:get:plugin:instance')(kwargs['plugin'])
 
     if not plugin:
-      self.api('send:msg')('timer %s has no plugin, not adding' % name)
+      self.api('libs.io:send:msg')('timer %s has no plugin, not adding' % name)
       return
     if seconds <= 0:
-      self.api('send:msg')('timer %s has seconds <= 0, not adding' % name,
-                           secondary=plugin)
+      self.api('libs.io:send:msg')('timer %s has seconds <= 0, not adding' % name,
+                                   secondary=plugin)
       return
     if not func:
-      self.api('send:msg')('timer %s has no function, not adding' % name,
-                           secondary=plugin)
+      self.api('libs.io:send:msg')('timer %s has no function, not adding' % name,
+                                   secondary=plugin)
       return
 
     if 'unique' in kwargs and kwargs['unique']:
       if name in self.timer_lookup:
-        self.api('send:msg')('trying to add duplicate timer: %s' % name,
-                             secondary=plugin)
+        self.api('libs.io:send:msg')('trying to add duplicate timer: %s' % name,
+                                     secondary=plugin)
         return
 
     timer = TimerEvent(name, func, seconds, plugin, **kwargs)
-    self.api('send:msg')('adding %s from plugin %s' % (timer, plugin.plugin_id),
-                         secondary=plugin.plugin_id)  # pylint: disable=no-member
+    self.api('libs.io:send:msg')('adding %s from plugin %s' % (timer, plugin.plugin_id),
+                                 secondary=plugin.plugin_id)  # pylint: disable=no-member
     self._add_timer_internal(timer)
     return timer
 
@@ -323,7 +323,7 @@ class Plugin(BasePlugin):
     this function returns no values"""
     plugin = self.api('core.plugins:get:plugin:instance')(name)
     timers_to_remove = []
-    self.api('send:msg')('removing timers for %s' % name, secondary=name)
+    self.api('libs.io:send:msg')('removing timers for %s' % name, secondary=name)
     for i in self.timer_lookup:
       if plugin == self.timer_lookup[i].plugin:
         timers_to_remove.append(i)
@@ -341,14 +341,14 @@ class Plugin(BasePlugin):
     try:
       timer = self.timer_lookup[name]
       if timer:
-        self.api('send:msg')('removing %s' % timer,
-                             secondary=timer.plugin)
+        self.api('libs.io:send:msg')('removing %s' % timer,
+                                     secondary=timer.plugin)
         ttime = timer.next_fire
         if timer in self.timer_events[ttime]:
           self.timer_events[ttime].remove(timer)
         del self.timer_lookup[name]
     except KeyError:
-      self.api('send:msg')('timer %s does not exist' % name)
+      self.api('libs.io:send:msg')('timer %s does not exist' % name)
 
   # toggle a timer
   def _api_toggle_timer(self, name, flag):
@@ -379,7 +379,7 @@ class Plugin(BasePlugin):
     """
     now = int(time.time())
     if now - self.time_last_checked > 1:
-      self.api('send:msg')('timer had to check multiple seconds')
+      self.api('libs.io:send:msg')('timer had to check multiple seconds')
     for i in range(self.time_last_checked, now + 1):
       if i in self.timer_events and self.timer_events[i]:
         for timer in self.timer_events[i][:]:
@@ -389,22 +389,22 @@ class Plugin(BasePlugin):
               timer.fired_count = timer.fired_count + 1
               self.overall_fire_count = self.overall_fire_count + 1
               if timer.log:
-                self.api('send:msg')('Timer fired: %s' % timer,
-                                     secondary=timer.plugin.plugin_id)
+                self.api('libs.io:send:msg')('Timer fired: %s' % timer,
+                                             secondary=timer.plugin.plugin_id)
             except Exception:  # pylint: disable=broad-except
-              self.api('send:traceback')('A timer had an error')
+              self.api('libs.io:send:traceback')('A timer had an error')
           try:
             self.timer_events[i].remove(timer)
           except ValueError:
-            self.api('send:msg')('timer %s did not exist in timerevents' % timer.name)
+            self.api('libs.io:send:msg')('timer %s did not exist in timerevents' % timer.name)
           if not timer.onetime:
             timer.next_fire = timer.next_fire + timer.seconds
             if timer.log:
-              self.api('send:msg')('Re adding timer %s for %s' % \
-                                    (timer.name,
-                                     time.strftime('%a %b %d %Y %H:%M:%S',
-                                                   time.localtime(timer.next_fire))),
-                                   secondary=timer.plugin.plugin_id)
+              self.api('libs.io:send:msg')('Re adding timer %s for %s' % \
+                                              (timer.name,
+                                               time.strftime('%a %b %d %Y %H:%M:%S',
+                                                             time.localtime(timer.next_fire))),
+                                           secondary=timer.plugin.plugin_id)
             self._add_timer_internal(timer)
           else:
             self.api('%s:remove:all:timers:for:plugin' % self.plugin_id)(timer.name)

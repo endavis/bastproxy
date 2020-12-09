@@ -89,7 +89,7 @@ class Client(Telnet):
                                                          self.api('net.proxy:preamble:error:color:get')()))})
         else:
           if data:
-            self.api('send:execute')(data, fromclient=True)
+            self.api('libs.io:send:execute')(data, fromclient=True)
 
       elif self.state == PASSWORD:
         data = data.strip()
@@ -98,15 +98,15 @@ class Client(Telnet):
         vpw = proxyp.api('net.proxy:ssc:proxypwview')()
 
         if dpw and  data == dpw:
-          self.api('send:msg')('Successful password from %s : %s' % \
+          self.api('libs.io:send:msg')('Successful password from %s : %s' % \
                                             (self.host, self.port), 'net')
           self.state = CONNECTED
           self.api('core.events:raise:event')('client_connected', {'client':self},
                                               calledfrom="client")
-          self.api('send:client')("%s - %s: Client Connected" % \
+          self.api('libs.io:send:client')("%s - %s: Client Connected" % \
                                       (self.host, self.port))
         elif vpw and data == vpw:
-          self.api('send:msg')('Successful view password from %s : %s' % \
+          self.api('libs.io:send:msg')('Successful view password from %s : %s' % \
                               (self.host, self.port), 'net')
           self.state = CONNECTED
           self.view_only = True
@@ -116,7 +116,7 @@ class Client(Telnet):
                                                                   self.api('net.proxy:preamble:get')()))})
           self.api('core.events:raise:event')('client_connected_view',
                                               {'client':self}, calledfrom="client")
-          self.api('send:client')(
+          self.api('libs.io:send:client')(
               "%s - %s: Client Connected (View Mode)" % \
                   (self.host, self.port))
         else:
@@ -128,7 +128,7 @@ class Client(Telnet):
                                                                           self.api('net.proxy:preamble:get')(),
                                                                           self.api('net.proxy:preamble:error:color:get')())),
                  'dtype':'passwd'})
-            self.api('send:msg')('%s has been banned.' % self.host, 'net')
+            self.api('libs.io:send:msg')('%s has been banned.' % self.host, 'net')
             self.api('net.clients:banned:add')(self.host)
             self.handle_close()
           else:
@@ -143,9 +143,9 @@ class Client(Telnet):
     """
     handle a close
     """
-    self.api('send:client')("%s - %s: Client Disconnected" % \
+    self.api('libs.io:send:client')("%s - %s: Client Disconnected" % \
                                 (self.host, self.port))
-    self.api('send:msg')("%s - %s: Client Disconnected" % \
+    self.api('libs.io:send:msg')("%s - %s: Client Disconnected" % \
                                 (self.host, self.port), primary='net')
     self.api('core.events:raise:event')('client_disconnected', {'client':self}, calledfrom="client")
     self.api('core.events:unregister:from:event')('to_client_event', self.addtooutbufferevent)

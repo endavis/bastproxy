@@ -46,10 +46,10 @@ class Plugin(BasePlugin):
     """
     show we got an a102 event
     """
-    self.api('send:client')('@RGot A102: %s' % args)
+    self.api('libs.io:send:client')('@RGot A102: %s' % args)
 
   def test101(self, args):
     """
     show we got an a102:101 event
     """
-    self.api('send:client')('@RGot A102:101: %s' % args)
+    self.api('libs.io:send:client')('@RGot A102:101: %s' % args)

@@ -202,8 +202,8 @@ class Plugin(BasePlugin):
 
     registered to the plugin_uninitialized event
     """
-    self.api('send:msg')('removing commands for plugin %s' % args['plugin_id'],
-                         secondary=args['plugin_id'])
+    self.api('libs.io:send:msg')('removing commands for plugin %s' % args['plugin_id'],
+                                 secondary=args['plugin_id'])
     self.api('{0.plugin_id}:remove:data:for:plugin'.format(self))(args['plugin_id'])
 
   # remove all commands for a plugin
@@ -264,13 +264,13 @@ class Plugin(BasePlugin):
 
     # didn't find the command
     if not command_data:
-      self.api('send:error')('command %s does not exist in plugin %s (%s)' % \
+      self.api('libs.io:send:error')('command %s does not exist in plugin %s (%s)' % \
         (command_name, plugin_id, plugin_instance.plugin_id))
       return False
 
     # flag isn't in the command
     if flag_name not in command_data:
-      self.api('send:error')(
+      self.api('libs.io:send:error')(
           'flag %s does not exist in command %s in plugin %s (%s)' % \
             (flag_name, command_name, plugin_id, plugin_instance.plugin_id))
       return False
@@ -393,7 +393,7 @@ class Plugin(BasePlugin):
       message = []
       message.append('Error: %s' % exc.errormsg) # pylint: disable=no-member
       message.extend(command['parser'].format_help().split('\n'))
-      self.api('send:client')('\n'.join(
+      self.api('libs.io:send:client')('\n'.join(
           self.format_return_message(message,
                                      command['plugin_id'],
                                      command['commandname'])))
@@ -410,7 +410,7 @@ class Plugin(BasePlugin):
     # return help if flagged
     if args['help']:
       message = command['parser'].format_help().split('\n')
-      self.api('send:client')('\n'.join(
+      self.api('libs.io:send:client')('\n'.join(
           self.format_return_message(message,
                                      command['plugin_id'],
                                      command['commandname'])))
@@ -430,7 +430,7 @@ class Plugin(BasePlugin):
       if retval is False:
         message.append('')
         message.extend(command['parser'].format_help().split('\n'))
-        self.api('send:client')('\n'.join(
+        self.api('libs.io:send:client')('\n'.join(
             self.format_return_message(message,
                                        command['plugin_id'],
                                        command['commandname'])))
@@ -440,14 +440,14 @@ class Plugin(BasePlugin):
         self.add_command_to_history(data, command)
         # if the format flag is not set then the data is returned
         if (not command['format']) and message:
-          self.api('send:client')(message, preamble=command['preamble'])
+          self.api('libs.io:send:client')(message, preamble=command['preamble'])
         # if the format flag is set, then format the data to the client
         elif message:
-          self.api('send:client')('\n'.join(
+          self.api('libs.io:send:client')('\n'.join(
               self.format_return_message(message,
                                          command['plugin_id'],
                                          command['commandname'])),
-                                  preamble=command['preamble'])
+                                          preamble=command['preamble'])
 
     if 'trace' in data:
       data['trace']['changes'].append({'flag':'Finish',
@@ -555,9 +555,9 @@ class Plugin(BasePlugin):
 
     if command_name not in all_command_data:
       if not self.api.startup:
-        self.api('send:msg')('commands - update_command: plugin %s does not have command %s' % \
+        self.api('libs.io:send:msg')('commands - update_command: plugin %s does not have command %s' % \
                               (plugin_id, command_name),
-                             secondary=plugin_instance.plugin_id)
+                                     secondary=plugin_instance.plugin_id)
 
     all_command_data[command_name] = data
 
@@ -598,7 +598,7 @@ class Plugin(BasePlugin):
                     (self.api('setting:get')('spamcount'),
                      self.api('setting:get')('antispamcommand')),
                'plugin':self.plugin_id})
-        self.api('send:msg')('adding look for 20 commands')
+        self.api('libs.io:send:msg')('adding look for 20 commands')
         self.api('setting:change')('cmdcount', 0)
         return data
 
@@ -617,7 +617,7 @@ class Plugin(BasePlugin):
     else:
       # the command does not match the last command
       self.api('setting:change')('cmdcount', 0)
-      self.api('send:msg')('resetting command to %s' % command_data_dict['orig'].strip())
+      self.api('libs.io:send:msg')('resetting command to %s' % command_data_dict['orig'].strip())
       self.api('setting:change')('lastcmd', command_data_dict['orig'].strip())
 
     # add a trace if it is unknow how the command was changed
@@ -658,13 +658,13 @@ class Plugin(BasePlugin):
     if command_data_dict['orig'][0:len(commandprefix)].lower() != commandprefix:
       return self.pass_through_command(data, command_data_dict)
 
-    self.api('send:msg')('got command: %s' % command_data_dict['orig'])
+    self.api('libs.io:send:msg')('got command: %s' % command_data_dict['orig'])
 
     # split it with shlex
     try:
       split_args = shlex.split(command_data_dict['orig'].strip())
     except ValueError:
-      self.api('send:traceback')('could not parse command')
+      self.api('libs.io:send:traceback')('could not parse command')
       data['fromdata'] = ''
       return data
 
@@ -813,7 +813,7 @@ class Plugin(BasePlugin):
 
       # run the command here
       if command_data_dict['flag'] == 'Bad Command':
-        self.api('send:client')("@R%s@W is not a command" % (command))
+        self.api('libs.io:send:client')("@R%s@W is not a command" % (command))
       else:
         try:
           command_data_dict['success'] = self.run_command(command_data_dict['cmd'],
@@ -822,7 +822,7 @@ class Plugin(BasePlugin):
                                                           command_data_dict['data'])
         except Exception:  # pylint: disable=broad-except
           command_data_dict['success'] = 'Error'
-          self.api('send:traceback')(
+          self.api('libs.io:send:traceback')(
               'Error when calling command %s.%s' % (command_data_dict['plugin_id'],
                                                     command_data_dict['scmd']))
         command_data_dict['cmddata'] = "'%s' - %s" % (command_data_dict['commandran'],
@@ -867,7 +867,7 @@ class Plugin(BasePlugin):
 
     # passed an empty function
     if not func:
-      self.api('send:error')(
+      self.api('libs.io:send:error')(
           'add command for command %s was passed a null function from plugin %s, not adding' % \
                 (command_name, called_from), secondary=called_from)
       return
@@ -881,10 +881,10 @@ class Plugin(BasePlugin):
         plugin_id = plugin.plugin_id
       except AttributeError:
         call_stack = self.api('libs.api:get:call:stack')()
-        self.api('send:error')(
+        self.api('libs.io:send:error')(
             'Function is not part of a plugin class: command %s from plugin %s' % \
                   (command_name, called_from), secondary=called_from)
-        self.api('send:error')("\n".join(call_stack).strip())
+        self.api('libs.io:send:error')("\n".join(call_stack).strip())
         return
 
     # add custom formatter to the parser passed in
@@ -894,7 +894,7 @@ class Plugin(BasePlugin):
 
     # use default parser if none passed in
     else:
-      self.api('send:msg')('adding default parser to command %s.%s' % \
+      self.api('libs.io:send:msg')('adding default parser to command %s.%s' % \
                                       (plugin_id, command_name))
       if 'shelp' not in args:
         args['shelp'] = 'there is no help for this command'
@@ -922,9 +922,9 @@ class Plugin(BasePlugin):
       pass
 
     if 'lname' not in args:
-      self.api('send:msg')('command %s.%s has no long name, not adding' % \
+      self.api('libs.io:send:msg')('command %s.%s has no long name, not adding' % \
                                             (plugin_id, command_name),
-                           secondary=plugin_id)
+                                   secondary=plugin_id)
       return
 
     # build the command dict
@@ -945,9 +945,9 @@ class Plugin(BasePlugin):
 
     self.commands_list.append('%s.%s' % (plugin_instance.plugin_id, command_name))
 
-    self.api('send:msg')('added command %s.%s' % \
+    self.api('libs.io:send:msg')('added command %s.%s' % \
                                             (plugin_id, command_name),
-                         secondary=plugin_instance.plugin_id)
+                                 secondary=plugin_instance.plugin_id)
 
   # remove a command
   def _api_remove_command(self, plugin_id, command_name):
@@ -963,15 +963,15 @@ class Plugin(BasePlugin):
       if data and command_name in data:
         del data[command_name]
         self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
-        self.api('send:msg')('removed command %s.%s' % \
+        self.api('libs.io:send:msg')('removed command %s.%s' % \
                                                 (plugin_id, command_name),
-                             secondary=plugin_id)
+                                     secondary=plugin_id)
         removed = True
 
     if not removed:
-      self.api('send:msg')('remove command: command %s.%s does not exist' % \
+      self.api('libs.io:send:msg')('remove command: command %s.%s does not exist' % \
                                                 (plugin_id, command_name),
-                           secondary=plugin_id)
+                                   secondary=plugin_id)
 
   def format_command_list(self, command_list):
     """
@@ -1073,8 +1073,8 @@ class Plugin(BasePlugin):
     else:
       command = self.command_history_data[args['number']]
 
-    self.api('send:client')('history: sending "%s"' % command)
-    self.api('send:execute')(command)
+    self.api('libs.io:send:client')('history: sending "%s"' % command)
+    self.api('libs.io:send:execute')(command)
 
     return True, []
 

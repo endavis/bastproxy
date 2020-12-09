@@ -139,8 +139,8 @@ class Plugin(BasePlugin):
                                          'data':'changed "%s" to "%s"' % (data, datan),
                                          'plugin':self.plugin_id})
 
-      self.api('send:msg')('replacing "%s" with "%s"' % (data.strip(),
-                                                         datan.strip()))
+      self.api('libs.io:send:msg')('replacing "%s" with "%s"' % (data.strip(),
+                                                                 datan.strip()))
       args['fromdata'] = datan
       args['beforevar'] = data
 

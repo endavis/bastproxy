@@ -151,15 +151,15 @@ class Plugin(BasePlugin):
         datan = data
         matchd = re.match(mem, data)
         if matchd:
-          self.api('send:msg')('matched input on %s' % mem)
+          self.api('libs.io:send:msg')('matched input on %s' % mem)
           tlistn = [data]
           for i in xrange(1, len(matchd.groups()) + 1):
             tlistn.append(matchd.group(i))
-          self.api('send:msg')('args: %s' % tlistn)
+          self.api('libs.io:send:msg')('args: %s' % tlistn)
           try:
             datan = self._aliases[mem]['alias'].format(*tlistn)
           except Exception: # pylint: disable=broad-except
-            self.api('send:traceback')('alias %s had an issue' % (mem))
+            self.api('libs.io:send:traceback')('alias %s had an issue' % (mem))
         else:
           cre = re.compile('^%s' % mem)
           datan = cre.sub(self._aliases[mem]['alias'], data)
@@ -173,13 +173,13 @@ class Plugin(BasePlugin):
             self._aliases[mem]['hits'] = 0
           if not mem in self.sessionhits:
             self.sessionhits[mem] = 0
-          self.api('send:msg')('incrementing hits for %s' % mem)
+          self.api('libs.io:send:msg')('incrementing hits for %s' % mem)
           self._aliases[mem]['hits'] = self._aliases[mem]['hits'] + 1
           self.sessionhits[mem] = self.sessionhits[mem] + 1
-          self.api('send:msg')('replacing "%s" with "%s"' % \
+          self.api('libs.io:send:msg')('replacing "%s" with "%s"' % \
                                           (data.strip(), datan.strip()))
           if datan[0:len(cmdprefix)].lower() == cmdprefix:
-            self.api('send:execute')(datan, showinhistory=False, fromclient=False)
+            self.api('libs.io:send:execute')(datan, showinhistory=False, fromclient=False)
             args['fromdata'] = ''
             args['history'] = False
           else:
