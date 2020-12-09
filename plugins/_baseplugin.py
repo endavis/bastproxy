@@ -54,7 +54,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.can_reload_f = True
     self.can_reset_f = True
     self.reset_f = True
-    self.api = API()
+    self.api = API(parent_plugin_id=self.plugin_id)
     self.first_active_priority = None
     self.loaded_time = time.time()
     self.save_directory = os.path.join(self.api.BASEPATH, 'data',

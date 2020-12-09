@@ -69,7 +69,7 @@ class API(object):
   # the proxy plugin
   command_split_regex = None
 
-  def __init__(self):
+  def __init__(self, parent_plugin_id=None):
     """
     initialize the class
     """
@@ -78,6 +78,9 @@ class API(object):
 
     # the format for the time
     self.time_format = '%a %b %d %Y %H:%M:%S'
+
+    # this is the plugin the api was created from
+    self.parent_plugin_id = parent_plugin_id
 
     # added functions
     self.add('api', 'add', self.add, overload=True)
@@ -139,7 +142,7 @@ class API(object):
     this function returns no values"""
     full_api_name = top_level_api + ':' + name
 
-    plugin_id = self._api_caller_plugin()
+    plugin_id = self.parent_plugin_id
 
     api_data = {}
     api_data['full_api_name'] = full_api_name
@@ -400,6 +403,14 @@ class API(object):
 
     api_data = None
 
+    # all apis should have a . in the first part
+    # if not, we add the parent plugin id to the api
+    if '.' not in api_location:
+      if self.parent_plugin_id:
+        api_location = self.parent_plugin_id + ':' + api_location
+      else:
+        self('libs.io:send:error')('api lookup: %s : did not contain a .' % api_location)
+
     # check overloaded api
     if not do_not_overload:
       if api_location in self.overloaded_api:
@@ -421,22 +432,23 @@ class API(object):
   __call__ = get
 
   # return a list of api functions in a toplevel api
-  def _api_get_children(self, top_level_api):
+  def _api_get_children(self, parent_api):
     """
     return a list of apis in a toplevel api
     """
     api_list = []
-    api_toplevel = top_level_api + "."
+    if parent_api[-1] != ':':
+      parent_api = parent_api + ':'
 
     tkeys = sorted(self.api.keys())
     for full_api_name in tkeys:
-      if full_api_name.startswith(api_toplevel):
-        api_list.append(":".join(full_api_name.split(':')[1:]))
+      if full_api_name.startswith(parent_api):
+        api_list.append(full_api_name[len(parent_api):])
 
     tkeys = sorted(self.overloaded_api.keys())
     for full_api_name in tkeys:
-      if full_api_name.startswith(api_toplevel):
-        api_list.append(":".join(full_api_name.split(':')[1:]))
+      if full_api_name.startswith(parent_api):
+        api_list.append(full_api_name[len(parent_api):])
 
     return list(set(api_list))
 
