@@ -122,10 +122,13 @@ class Plugin(BasePlugin):
         else:
           nocolor_regex_list.append("(?P<%s>%s)" % (trigger['unique'], trigger['nonamedgroups']))
 
-    try:
-      self.regex['color'] = re.compile("|".join(color_regex_list))
-    except re.error:
-      self.api('libs.io:send:traceback')('Could not compile color regex')
+    if color_regex_list:
+      try:
+        self.regex['color'] = re.compile("|".join(color_regex_list))
+      except re.error:
+        self.api('libs.io:send:traceback')('Could not compile color regex')
+    else:
+      self.regex['color'] = ""
 
     try:
       self.regex['noncolor'] = re.compile("|".join(nocolor_regex_list))
