@@ -16,6 +16,7 @@ How plugin loading works on startup:
   3. Import and instantiate all dependencies
   4. Run initialize function of all instantiated plugins in dependency order
 """
+from __future__ import print_function
 import glob
 import os
 import sys
@@ -489,7 +490,7 @@ class PluginMgr(BasePlugin):
       ast.parse(contents)
       info['isvalidpythoncode'] = True
     except SyntaxError:
-      print 'will not compile set for %s' % path
+      print('isvalidpythoncode set to false for %s' % path)
       info['isvalidpythoncode'] = False
 
 
@@ -573,7 +574,7 @@ class PluginMgr(BasePlugin):
 
       info = self.scan_plugin_for_info(full_path)
       if 'isvalidpythoncode' not in info:
-        print '%s info does not have isvalidpythoncode key' % full_path
+        print('%s info does not have isvalidpythoncode key' % full_path)
       if info['isplugin']:
         info['plugin_path'] = plugin_path
         info['fullpath'] = full_path

@@ -3,10 +3,11 @@ This module handles commands and parsing input
 
 All commands are #bp.[package].[plugin].[command] or #bp.[plugin].[command]
 
-Commands are stored in a dictionary, use #bp.commands.inspect -o data:commands
+Commands are stored in a dictionary in the source plugin, use #bp.<plugin>.inspect -o data:commands -s
     to find what's in the dictionary
-$cmd{'#bp.commands.inspect -o data.commands.stats -s'}
+$cmd{'#bp.client.actions.inspect -o data.commands -s'}
 """
+from __future__ import print_function
 import shlex
 import os
 import textwrap as _textwrap
@@ -389,7 +390,7 @@ class Plugin(BasePlugin):
     # parse the arguments and deal with errors
     try:
       args, dummy = command['parser'].parse_known_args(targs)
-    except argp.ArgumentError, exc:
+    except argp.ArgumentError as exc:
       message = []
       message.append('Error: %s' % exc.errormsg) # pylint: disable=no-member
       message.extend(command['parser'].format_help().split('\n'))
@@ -773,7 +774,7 @@ class Plugin(BasePlugin):
       # at least have a plugin
       else:
         if '.' not in found_plugin_id:
-          print 'found_plugin_id is not a plugin_id'
+          print('found_plugin_id is not a plugin_id')
         if plugin_command:
           commands = self.api('core.commands:get:commands:for:plugin:data')(found_plugin_id).keys()
           found_command = self.api('core.fuzzy:get:best:match')(plugin_command, commands)
