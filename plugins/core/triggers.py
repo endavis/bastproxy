@@ -130,10 +130,13 @@ class Plugin(BasePlugin):
     else:
       self.regex['color'] = ""
 
-    try:
-      self.regex['noncolor'] = re.compile("|".join(nocolor_regex_list))
-    except re.error:
-      self.api('libs.io:send:traceback')('Could not compile regex')
+    if nocolor_regex_list:
+      try:
+        self.regex['noncolor'] = re.compile("|".join(nocolor_regex_list))
+      except re.error:
+        self.api('libs.io:send:traceback')('Could not compile regex')
+    else:
+      self.regex['nocolor'] = ""
 
   @staticmethod
   def getuniquename(name):
