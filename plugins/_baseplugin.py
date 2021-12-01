@@ -2,15 +2,25 @@
 This module holds the class BasePlugin, which all plugins should have as
 their base class.
 """
+from __future__ import print_function
 import os
 import sys
 import textwrap
 import pprint
 import inspect
 import time
+
+
+try:
+  from dumper import dumps
+except ImportError:
+  print("Please install the dumper library: pip(2) install dumper")
+  sys.exit(1)
+
 import libs.argp as argp
 from libs.persistentdict import PersistentDictEvent
 from libs.api import API
+
 
 class BasePlugin(object): # pylint: disable=too-many-instance-attributes
   """
@@ -243,7 +253,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
       simple - only dump topllevel attributes
     """
-    from libs.objectdump import dumps as dumper
 
     message = []
     found_list = []
@@ -301,7 +310,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           if args['simple']:
             tvars = pprint.pformat(obj)
           else:
-            tvars = dumper(obj)
+            tvars = str(dumps(obj))
+
           message.append('found: %s' % '.'.join(found_list))
           message.append(tvars)
       else:
@@ -311,7 +321,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       if args['simple']:
         tvars = pprint.pformat(vars(self))
       else:
-        tvars = dumper(self)
+        tvars = str(dumps(self))
 
       message.append('@M' + '-' * 60 + '@x')
       message.append('Variables')
