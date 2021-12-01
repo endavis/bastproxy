@@ -954,9 +954,9 @@ class PluginMgr(BasePlugin):
           "load: could not run the initialize function for %s." \
                                               % plugin['plugin_id'])
       if exit_on_error:
-        sys.exit(1)
         self.api('libs.io:send:msg')('%-30s : DID NOT LOAD' % \
 			                      (plugin['plugin_id']), primary=self.plugin_id)
+        sys.exit(1)
       return False
 
     self.api('libs.io:send:msg')('%-30s : successfully loaded' % \
