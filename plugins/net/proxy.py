@@ -160,6 +160,10 @@ class Plugin(BasePlugin):
             time.localtime())))
         tmsg.append(template % ('Host', mud.host))
         tmsg.append(template % ('Port', mud.port))
+        tmsg.append(template % ('Options', ''))
+        options = mud.options_info()
+        for i in options:
+          tmsg.append('     %s' % i)
       else:
         tmsg.append(template % ('Mud', 'disconnected'))
 

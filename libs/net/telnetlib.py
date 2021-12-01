@@ -188,6 +188,16 @@ class Telnet(asyncore.dispatcher):
     self.terminal_type = 'Unknown'
     self.debug_types = []
 
+  def options_info(self):
+    """
+    return a formatted list of options and their state
+    """
+    msg = []
+    for key in self.options.keys():
+      msg.append('%-10s : %s' % (CODES[key], self.options[key]))
+
+    return msg
+
   @staticmethod
   def ccode(newchar):
     """
