@@ -233,6 +233,9 @@ class PersistentDictEvent(PersistentDict):
     """
     always put plugin version in here
     """
-    self['_version'] = self.plugin_instance.version
+    try:
+      self['_version'] = self.plugin_instance.version
+    except AttributeError:
+      pass
 
     PersistentDict.sync(self)
