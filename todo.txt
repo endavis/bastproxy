@@ -1,3 +1,69 @@
+### First
+# Commands are kept in the plugin and then the command plugin can get them specific to api call for each plugin instead of them being stored in
+# the idea
+     attach to the plugin_loaded and plugin_unloaded event and update command list when seen
+     how to be able to call the api for each plugin to get its commands?
+  # could this be used for all plugins?, pull from source plugin vs push to action plugin (commands, triggers, etc)
+  # and then plugins could be reloaded much easier
+# Plugins done: core.commands
+
+  Reloading plugins:
+    #OLD Copy data into a dict in PluginManager (something like self.pluginreload)
+    #OLD on reload check this dict for any data and load it
+    #OLD check for a version difference and run a version function if available
+  #NEW save data to the specific plugin, so command data goes into each plugin instead
+  #NEW of the command plugin, then the command plugin registers to the initialize and
+  #NEW and uninitialize events to update it's local caches, data, etc..
+
+
+# convert to use dumper from pip(2) install dumper
+
+#BUG: #bp.<plugin>.api always does "Commands in core.apihelp"
+
+Events to change:
+io_execute_event to just io_execute
+
+refactor:
+all event names start with the plugin or file and end/start with ev?
+    core.commands_savestate
+    core.commands_var_cmdprefix
+    core.commands_initialized
+    core.commands_uninitialized
+all function registered to an event start with _event_<eventname>
+all api functions start with _api
+all command functions start with _command
+change all prio keywords to priority
+remove any short_name references
+update all events
+update all function, variable, class, etc.. names to be uniform
+
+check get:caller:plugin get:caller:stack in api to see what the ignore matches on, shortname or pluginid
+
+don't save plugin_instances in data structures inside a plugin unless absolutely needed
+  save the plugin_id and then use the api 'core.plugins:get:plugin:instance'
+  saving instances could lead to a memory leak and stale plugin instances floating around
+
+for plugins: standardize on show or list
+  add a details for all plugins if needed
+
+change remove:all:commands:for:plugin to remove:all:data:for:plugin to be consistant
+
+# command scripting language
+waitfor <event>
+events could be item.inventoryadd "Some Item Name"
+                room.enter roomnmum
+
+Break up logging into multiple plugins for facility purposes
+  - one plugin per facility, so console, file (use python logger?), client, etc..
+
+able to change client identification
+client specific settings, such as not showing tags
+
+change GMCP.send to have a flag for clients or servers
+
+redo all option level stuff to send outside of the to_mud, to_client events
+
+@Y(@WFabled@Y)@w, @Y(@WLegendary@Y)@w, @Y(@WEpic@Y)@w, @Y(@WUnknown@Y)@w, @Y(@WUnknown@Y)@w, @R(@WExalted@R)@w, @R(@WWondrous@R)@w, @R(@WRadiant@R)@w, @R(@WMajestic@R)@w, @G(@WBrilliant@G)@w, @G(@WDazzling@G)@w, @G(@WShimmering@G)@w, @G(@WGleaming@G)@w, @G(@WSparkling@G)@w, @G(@WVibrant@G)@w, @G(@WShiny@G)@w, @G(@WBurnished@G)@w, @G(@WEnhanced@G)@w, @G(@WPolished@G)@w
 
 Overall:
   #TODO: figure out a way to document raised events, decorator?
@@ -6,9 +72,6 @@ Overall:
   #TODO: add a debug event (in a debug plugin, summary command), so we can get all stats for various plugins
   #TODO: add sys.getsizeof to stats for plugins (either the pluginclass or module, etc)
   #TODO: make all functions that add things use kwargs instead of a table
-  #TODO: make #bp dynamic, and change command checking to check for that setting
-  #TODO: make a command to show which plugins are different on disk compared
-     to its loaded counterpart
   #BUG: reload first plugin (eq), disconnect, reconnect, firstactive isn't called
         reload second plugin (skills), disconnect, reconnect, firstactive is called for eq, but not skills
         sometimes firstactive is called, sometimes not
@@ -23,13 +86,11 @@ New Plugins:
     #TODO: create a help plugin
     #TODO: create a plugin to search log files (or maybe a seperate process that is a webserver?)
     #TODO: create a generic mapper plugin
-    #TODO: make the config editable in a plugin
-        have an event attached to the mudname/port that will autoconnect when they change
-        or a command to do it manually
-        command seperator, mud address, mud port
     #TODO: plugin to show last x lines in log or buffer
     #TODO: add a note plugin (like bast_notes)
     #TODO: grep plugin for a command
+    #TODO: make an announcment plugin that prints announcments to a new client for things like errors that happened when loading and a way to clear it
+
   Aardwolf Plugins:
     #TODO: create an autohunt plugin
     #TODO: create a plugin to do eqsets
@@ -38,6 +99,10 @@ New Plugins:
 
 cmdq:
   #TODO: convert gq to use cmdq
+  #TODO: keep up with when multiple plugins add the same command
+    If aardwolf.gq adds a command in the command queue and then aardwolf.whois does the same thing,
+      keep up with both plugins in the event that one of them is uninitialized. Only remove the command
+      from the queue if no plugins are left in the plugin_list for the cmdq entry
 
 eq:
   #TODO: an item_<serial>_change event, so that itemcaches can be cleared
@@ -121,8 +186,38 @@ su:
   #TODO: add spell arguments
     searg           : add an argument to be cast with a spell
 
+whois:
+  #TODO: convert to use command plugin
 
-Reloading plugins:
-  Copy data into a dict in PluginManager (something like self.pluginreload)
-  on reload check this dict for any data and load it
-  check for a version difference and run a version function if available
+####################   COMPLETED OR WILL NOT FIX ITEMS ########################
+#DONE: make the api have multiple levels log.file.write or log.file.toggle
+
+#DONE: make the config editable in a plugin
+    #DONE have an event attached to the mudname/port that will autoconnect when they change
+    #DONE or a command to do it manually
+    #DONE mud_address, port, preamble
+    #DONE command seperator
+
+#DONE: Change api to use : as seperator instead of .
+#FIXED: reloading the proxy plugin causes the proxy to restart (due to the port setting:change event)
+#DONE: make #bp dynamic, and change command checking to check for that setting
+#DONE: make a command to show which plugins are different on disk compared
+     to its loaded counterpart
+
+#DONE api: count api calls
+#DONE convert all apis to be like core.commands:command:add or core.trigger:trigger:add (see triggers plugin)
+
+#DONE: change setting.add, data.add, etc to not use an argument, but those apis are specific to the plugin
+  # changed it so that each API instance can be passed a parent_plugin arg and if a '.' is not found in the api
+  #     the parent_plugin id is added to the beginning of the api
+  # Plugins done: everything
+
+#DONE: create an api to call from a specific plugin, like api('call.as')(api='data.get', plugin='net.proxy', arguments=('commands'))
+
+#DONE: GET RID OF SHORT_NAME (SNAME), change it to plugin_name and only use it when doing plugin lookups, never in actual implementation
+  use the plugin id when doing commands #bp.core.log.command or #bp.client.actions.command
+  #DONE: change command parsing to match #bp.cl.actions to #bp.client.actions or #bp.actions to match #bp.client.actions and notify if two commands match
+  change the api to use plugin_id instead of short_name instead of actions.add it would be client.actions.add
+
+#DONE all apis start with either the plugin_id or a dotted toplevel such as libs.api or libs.io
+  # send, io, api, dependency, setting, data are some of the ones that don't fit this
