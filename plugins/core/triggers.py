@@ -6,7 +6,7 @@ import sys
 try:
   import regex as re
 except ImportError:
-  print("Please install the regex library: pip install regex")
+  print("Please install the regex library: pip(2) install regex")
   sys.exit(1)
 
 import libs.argp as argp

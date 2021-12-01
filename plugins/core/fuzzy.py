@@ -1,11 +1,12 @@
 """
 This plugin holds an api to do fuzzy matching
 """
+from __future__ import print_function
 import sys
 try:
   from fuzzywuzzy import process
 except ImportError:
-  print "Please install the fuzzywuzzy library: pip install fuzzywuzzy python-Levenshtein"
+  print("Please install the fuzzywuzzy library: pip(2) install fuzzywuzzy python-Levenshtein")
   sys.exit(1)
 from plugins._baseplugin import BasePlugin
 
