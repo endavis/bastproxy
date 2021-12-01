@@ -158,7 +158,7 @@ class EventContainer(object):
     message = []
     message.append('%-13s : %s' % ('Event', self.name))
     message.append('%-13s : %s' % ('Raised', self.raised_count))
-    message.append('core.utils:center:colored:string')('Registrations', '-', 60)
+    message.append(self.api('core.utils:center:colored:string')('Registrations', '-', 60))
     message.append('%-13s : %-15s - %-s' % ('priority',
                                             'plugin',
                                             'function name'))
