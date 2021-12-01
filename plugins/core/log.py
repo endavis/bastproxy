@@ -391,7 +391,7 @@ class Plugin(BasePlugin):
     #print('log api after adding', self.api.api)
     self.api('core.events:register:to:event')('from_mud_event', self.logmud)
     self.api('core.events:register:to:event')('to_mud_event', self.logmud)
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description="""toggle datatypes to clients

@@ -944,8 +944,8 @@ class PluginMgr(BasePlugin):
       self.api('libs.io:send:msg')('%-30s : successfully initialized (%s)' % \
                 (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
 
-      self.api('core.events:raise:event')('{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
-      self.api('core.events:raise:event')('{0.plugin_id}_plugin_initialized'.format(self),
+      self.api('core.events:raise:event')('ev_{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
+      self.api('core.events:raise:event')('ev_{0.plugin_id}_plugin_initialized'.format(self),
                                           {'plugin':plugin['name'],
                                            'plugin_id':plugin['plugin_id']})
 

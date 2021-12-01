@@ -135,7 +135,7 @@ class Plugin(AardwolfBasePlugin):
 #    self.api('core.events:register:to:event')('GMCP:config', self.ongmcpconfig)
 #    self.api('core.events:register:to:event')('GMCP:char.status', self.ongmcpcharstatus)
 
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def api_oncp(self):
     """

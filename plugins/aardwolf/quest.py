@@ -35,7 +35,7 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('core.events:register:to:event')('GMCP:comm.quest', self.quest)
 
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
 
   def resetquest(self):

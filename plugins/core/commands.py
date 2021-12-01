@@ -195,7 +195,7 @@ class Plugin(BasePlugin):
     # register events
     self.api('core.events:register:to:event')('io_execute_event', self._event_io_execute_check_command, prio=5)
     self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._event_savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def _event_plugin_uninitialized(self, args):
     """
@@ -1099,7 +1099,7 @@ class Plugin(BasePlugin):
 
     return True, message
 
-  def _event_savestate(self, _=None):
+  def _savestate(self, _=None):
     """
     save states
     """

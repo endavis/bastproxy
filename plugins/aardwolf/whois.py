@@ -81,7 +81,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('core.events:register:to:event')('trigger_whois3', self._whoisstats)
     self.api('core.events:register:to:event')('trigger_whoispowerup', self._whoisstats)
     self.api('core.events:register:to:event')('trigger_whoisend', self._whoisend)
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def _whois(self, args=None):
     """

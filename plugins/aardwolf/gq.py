@@ -159,7 +159,7 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('core.events:register:to:event')('watch_gq_check', self._gqcheckcmd)
 
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def _gqnew(self):
     """

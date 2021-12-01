@@ -135,7 +135,7 @@ class Plugin(BasePlugin):
     # self.api('commands.default')('list')
     self.api('core.events:register:to:event')('io_execute_event', self.checkalias,
                                               prio=2)
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def checkalias(self, args): # pylint: disable=too-many-branches
     """

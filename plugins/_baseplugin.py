@@ -605,7 +605,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     self.setting_values.sync()
 
-  def __save_state(self, _=None):
+  def __baseplugin_savestate(self, _=None):
     """
     save the settings state
     """
@@ -679,9 +679,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     save all settings for the plugin
     do not overload!
 
-    attach to the <plugin_id>_savestate event
+    attach to the ev_<plugin_id>_savestate event
     """
-    self.api('core.events:raise:event')('{0.plugin_id}_savestate'.format(self))
+    self.api('core.events:raise:event')('ev_{0.plugin_id}_savestate'.format(self))
 
   def is_changed_on_disk(self):
     """
@@ -724,10 +724,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
       self._add_commands()
 
-      self.api('core.events:register:to:event')('{0.plugin_id}_initialized'.format(self),
+      self.api('core.events:register:to:event')('ev_{0.plugin_id}_initialized'.format(self),
                                                 self.__after_initialize, prio=1)
-      self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self),
-                                                self.__save_state)
+      self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self),
+                                                self.__baseplugin_savestate)
 
       self.api('core.events:register:to:event')('muddisconnect', self.__disconnect)
 

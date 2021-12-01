@@ -86,7 +86,7 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('io_execute_event',
                                               self.checkline,
                                               prio=1)
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   # get a variable
   def api_getv(self, varname):

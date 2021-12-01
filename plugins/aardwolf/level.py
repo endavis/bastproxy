@@ -152,7 +152,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('core.events:register:to:event')('trigger_lvlremortcomp', self._remortcomp)
     self.api('core.events:register:to:event')('trigger_lvltier', self._tier)
 
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def _gmcpstatus(self, _=None):
     """

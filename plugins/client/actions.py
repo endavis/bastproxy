@@ -162,7 +162,7 @@ class Plugin(BasePlugin):
     for action in self.actions.values():
       self.register_action(action)
 
-    self.api('core.events:register:to:event')('{0.plugin_id}_savestate'.format(self), self._savestate)
+    self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
   def register_action(self, action):
     """
