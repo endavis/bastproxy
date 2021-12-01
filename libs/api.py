@@ -575,6 +575,8 @@ class API(object):
     else:
       api_list = self.get_full_api_list()
 
+    api_list.sort()
+
     top_levels = []
     for i in api_list:
       toplevel, therest = i.split(':', 1)
