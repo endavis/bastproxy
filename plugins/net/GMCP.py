@@ -70,7 +70,7 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('GMCP_raw', self.gmcpfromserver)
     self.api('core.events:register:to:event')('GMCP_from_client', self.gmcpfromclient)
     self.api('core.events:register:to:event')('GMCP:server-enabled', self.gmcprequest)
-    self.api('core.events:register:to:event')('muddisconnect', self.gmcpdisconnect)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.gmcpdisconnect)
 
     self.api('net.options:server:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
     self.api('net.options:client:option:add')(self.plugin_id, self.option_name, self.option_num, CLIENT)

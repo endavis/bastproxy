@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('A102_from_server', self.a102fromserver)
     self.api('core.events:register:to:event')('A102_from_client', self.a102fromclient)
     self.api('core.events:register:to:event')('A102:server-enabled', self.a102request)
-    self.api('core.events:register:to:event')('muddisconnect', self.a102disconnect)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.a102disconnect)
 
     self.api('net.options:server:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
     self.api('net.options:client:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)

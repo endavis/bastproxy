@@ -41,7 +41,7 @@ class Plugin(BasePlugin):
     self.api('core.triggers:trigger:add')('connect_return',
                                           r"\[ Press Return to continue \]")
 
-    self.api('core.events:register:to:event')('muddisconnect', self._disconnect)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self._disconnect)
     self.api('core.events:register:to:event')('GMCP:char', self._check)
     self.api('core.events:register:to:event')('GMCP:room.info', self._check)
     self.api('core.events:register:to:event')('GMCP:comm.quest', self._check)

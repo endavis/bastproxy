@@ -729,6 +729,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
       self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self),
                                                 self.__baseplugin_savestate)
 
-      self.api('core.events:register:to:event')('muddisconnect', self.__disconnect)
+      self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.__disconnect)
 
       self.reset_f = False

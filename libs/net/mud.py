@@ -120,7 +120,7 @@ class Mud(Telnet):
     self.api('net.options:options:reset')(self, True)
     Telnet.handle_close(self)
     self.connected_time = None
-    self.api('core.events:raise:event')('muddisconnect', {}, calledfrom="mud")
+    self.api('core.events:raise:event')('ev_libs.net.mud_muddisconnect', {}, calledfrom="mud")
 
   def addtooutbuffer(self, data, raw=False):
     """

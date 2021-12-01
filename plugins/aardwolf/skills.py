@@ -507,7 +507,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('core.events:register:to:event')('aard_level_tier', self.cmd_refresh)
     self.api('core.events:register:to:event')('aard_level_remort', self.cmd_refresh)
 
-    self.api('core.events:register:to:event')('muddisconnect', self.skillsdisconnect)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.skillsdisconnect)
 
   def skillsdisconnect(self, args=None): # pylint: disable=unused-argument
     """
