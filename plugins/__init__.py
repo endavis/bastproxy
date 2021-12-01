@@ -1000,8 +1000,8 @@ class PluginMgr(BasePlugin):
           # run the uninitialize function if it exists
           if plugin['isinitialized']:
             plugin['plugininstance'].uninitialize()
-          self.api('core.events:raise:event')('{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
-          self.api('core.events:raise:event')('{0.plugin_id}_plugin_uninitialized'.format(self),
+          self.api('core.events:raise:event')('ev_{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
+          self.api('core.events:raise:event')('ev_{0.plugin_id}_plugin_uninitialized'.format(self),
                                               {'plugin':plugin['name'],
                                                'plugin_id':plugin['plugin_id']})
           self.api('libs.io:send:msg')('%-30s : successfully unitialized (%s)' % \
@@ -1299,4 +1299,4 @@ class PluginMgr(BasePlugin):
 
     self.api('core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
 
-    self.api('core.events:register:to:event')('proxy_shutdown', self.shutdown)
+    self.api('core.events:register:to:event')('ev_net.proxy_proxy_shutdown', self.shutdown)

@@ -31,7 +31,7 @@ class Client(Telnet):
       self.connected = True
       self.connected_time = time.localtime()
 
-    self.api('core.events:register:to:event')('to_client_event',
+    self.api('core.events:register:to:event')('ev_libs.io_to_client_event',
                                               self.addtooutbufferevent, prio=99)
 
     self.api('net.options:client:prepare')(self)
@@ -101,7 +101,7 @@ class Client(Telnet):
           self.api('libs.io:send:msg')('Successful password from %s : %s' % \
                                             (self.host, self.port), 'net')
           self.state = CONNECTED
-          self.api('core.events:raise:event')('client_connected', {'client':self},
+          self.api('core.events:raise:event')('ev_libs.net.client_client_connected', {'client':self},
                                               calledfrom="client")
           self.api('libs.io:send:client')("%s - %s: Client Connected" % \
                                       (self.host, self.port))
@@ -114,7 +114,7 @@ class Client(Telnet):
               {'original':self.api('core.colors:colorcode:to:ansicode')(
                   '%s%s@W: @GYou are connected in view mode@w' % (self.api('net.proxy:preamble:error:color:get')(),
                                                                   self.api('net.proxy:preamble:get')()))})
-          self.api('core.events:raise:event')('client_connected_view',
+          self.api('core.events:raise:event')('ev_libs.net.client_client_connected_view',
                                               {'client':self}, calledfrom="client")
           self.api('libs.io:send:client')(
               "%s - %s: Client Connected (View Mode)" % \
@@ -151,8 +151,9 @@ class Client(Telnet):
                                   (self.host, self.port))
       self.api('libs.io:send:msg')("%s - %s: Client Disconnected" % \
                                   (self.host, self.port), primary='net')
-      self.api('core.events:raise:event')('client_disconnected', {'client':self}, calledfrom="client")
-      self.api('core.events:unregister:from:event')('to_client_event', self.addtooutbufferevent)
+      self.api('core.events:raise:event')('ev_libs.net.client_client_disconnected',
+                                          {'client':self}, calledfrom="client")
+      self.api('core.events:unregister:from:event')('ev_libs.io_to_client_event', self.addtooutbufferevent)
       if self.connected:
         while self.outbuffer:
           self.handle_write()

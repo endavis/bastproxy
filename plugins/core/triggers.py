@@ -83,9 +83,9 @@ class Plugin(BasePlugin):
                                           self.cmd_list,
                                           parser=parser)
 
-    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+    self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
 
-    self.api('core.events:register:to:event')('from_mud_event',
+    self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
                                               self.check_trigger, prio=1)
 
   def enablechange(self, args):
@@ -94,10 +94,10 @@ class Plugin(BasePlugin):
     """
     change = args['newvalue']
     if change:
-      self.api('core.events:register:to:event')('from_mud_event',
+      self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
                                                 self.check_trigger, prio=1)
     else:
-      self.api('core.events:unregister:from:event')('from_mud_event',
+      self.api('core.events:unregister:from:event')('ev_libs.net.mud_from_mud_event',
                                                     self.check_trigger)
 
   def event_plugin_uninitialized(self, args):
@@ -380,7 +380,7 @@ class Plugin(BasePlugin):
   def check_trigger(self, args): # pylint: disable=too-many-branches
     """
     check a line of text from the mud to see if it matches any triggers
-    called whenever the from_mud_event is raised
+    called whenever the ev_libs.net.mud_from_mud_event is raised
     """
     data = args['noansi']
     colored_data = args['convertansi']

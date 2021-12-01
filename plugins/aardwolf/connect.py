@@ -46,7 +46,7 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('GMCP:room.info', self._check)
     self.api('core.events:register:to:event')('GMCP:comm.quest', self._check)
     self.api('core.events:register:to:event')('trigger_connect_return', self._connect_return)
-    self.api('core.events:register:to:event')('client_connected', self.clientconnected)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.clientconnected)
 
     self.api('core.events:register:to:event')('GMCP:server-enabled', self.enablemods)
 

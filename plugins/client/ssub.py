@@ -77,7 +77,7 @@ class Plugin(BasePlugin):
                                           parser=parser)
 
     # self.api('commands.default')('list')
-    self.api('core.events:register:to:event')('from_mud_event', self.findsub)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.findsub)
 
     self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 

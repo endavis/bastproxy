@@ -153,9 +153,9 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       text = "\n".join(text)
 
     try:
-      self.api('core.events:raise:event')('to_client_event', {'original':text,
-                                                              'raw':raw, 'dtype':dtype,
-                                                              'client':client},
+      self.api('core.events:raise:event')('ev_libs.io_to_client_event', {'original':text,
+                                                                         'raw':raw, 'dtype':dtype,
+                                                                         'client':client},
                                           calledfrom="io")
     except (NameError, TypeError, AttributeError):
       self.api('libs.io:send:traceback')("couldn't send msg to client: %s" % text)
@@ -193,10 +193,10 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     if command == '\r\n':
       self.api('libs.io:send:msg')('sending %s (cr) to the mud' % repr(command),
                                    primary='inputparse')
-      self.api('core.events:raise:event')('to_mud_event', {'data':command,
-                                                           'dtype':'fromclient',
-                                                           'showinhistory':showinhistory,
-                                                           'trace':self.current_trace},
+      self.api('core.events:raise:event')('ev_libs.io_to_mud_event', {'data':command,
+                                                                      'dtype':'fromclient',
+                                                                      'showinhistory':showinhistory,
+                                                                      'trace':self.current_trace},
                                           calledfrom="io")
     else:
 
@@ -249,7 +249,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
               current_command = "".join([current_command, '\n'])
             self.api('libs.io:send:msg')('sending %s to the mud' % current_command.strip(),
                                          primary='inputparse')
-            self.api('core.events:raise:event')('to_mud_event',
+            self.api('core.events:raise:event')('ev_libs.io_to_mud_event',
                                                 {'data':current_command,
                                                  'dtype':'fromclient',
                                                  'showinhistory':showinhistory,
@@ -275,7 +275,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
     if not raw and data and data[-1] != '\n':
       data = "".join([data, '\n'])
-    self.api('core.events:raise:event')('to_mud_event',
+    self.api('core.events:raise:event')('ev_libs.io_to_mud_event',
                                         {'data':data,
                                          'dtype':dtype,
                                          'raw':raw},

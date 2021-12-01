@@ -186,7 +186,7 @@ class EventContainer(object):
     """
     self.raised_count = self.raised_count + 1
 
-    if self.name != 'global_timer':
+    if self.name != 'ev_bastproxy_global_timer':
       self.api('libs.io:send:msg')('event %s raised by %s with args %s' % \
                              (self.name, calledfrom, new_args),
                                    secondary=calledfrom)
@@ -241,7 +241,7 @@ class Plugin(BasePlugin):
     initialize the plugin
     """
     BasePlugin.initialize(self)
-    self.api('core.events:register:to:event')('plugin_log_loaded', self.logloaded)
+    self.api('core.events:register:to:event')('ev_core.logs_initialized', self.logloaded)
     #self.api('core.events:raise:event')('event_plugin_loaded', {})
 
     parser = argp.ArgumentParser(add_help=False,
@@ -275,7 +275,7 @@ class Plugin(BasePlugin):
                                           self._command_raise,
                                           parser=parser)
 
-    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized',
+    self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized',
                                               self.pluginuninitialized, priority=10)
 
   def pluginuninitialized(self, args):

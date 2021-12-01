@@ -48,7 +48,7 @@ class Plugin(BasePlugin):
     self.api('core.commands:command:add')('fixqueue', self.cmd_fixqueue,
                                           parser=parser)
 
-    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+    self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
 
   def _event_plugin_uninitialized(self, args):
     """

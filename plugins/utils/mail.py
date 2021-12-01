@@ -35,7 +35,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('core.events:register:to:event')('client_connected', self.checkpassword)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.checkpassword)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='set the password for the mail account')

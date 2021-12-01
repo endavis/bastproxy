@@ -87,8 +87,8 @@ class Plugin(BasePlugin):
                                           self.cmd_shutdown,
                                           shelp='shutdown the proxy')
 
-    self.api('core.events:register:to:event')('client_connected', self.client_connected)
-    self.api('core.events:register:to:event')('mudconnect', self.sendusernameandpw)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.client_connected)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
     self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'listenport'),
                                               self.listen_port_change)
     self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'cmdseparator'),
@@ -213,7 +213,7 @@ class Plugin(BasePlugin):
     self.api.__class__.shutdown = True
     self.api('libs.io:send:msg')('Proxy: shutdown started', secondary='shutdown')
     self.api('libs.io:send:client')('Shutting down bastproxy')
-    self.api('core.events:raise:event')('proxy_shutdown')
+    self.api('core.events:raise:event')('ev_net.proxy_proxy_shutdown')
     self.api('libs.io:send:msg')('Proxy: shutdown finished', secondary='shutdown')
 
   def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use

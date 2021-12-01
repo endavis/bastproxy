@@ -123,7 +123,7 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('core.events:register:to:event')('global_timer', self.check_for_timers_to_fire,
+    self.api('core.events:register:to:event')('ev_bastproxy_global_timer', self.check_for_timers_to_fire,
                                               prio=1)
     self.api('libs.io:send:msg')('lasttime:  %s' % self.time_last_checked)
 
@@ -157,7 +157,7 @@ class Plugin(BasePlugin):
                                           self.command_detail,
                                           parser=parser)
 
-    self.api('core.events:register:to:event')('core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+    self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
 
   def event_plugin_uninitialized(self, args):
     """

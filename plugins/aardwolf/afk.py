@@ -66,8 +66,8 @@ class Plugin(AardwolfBasePlugin):
 
     self.api('core.watch:watch:add')('titleset', '^(tit|titl|title) (?P<title>.*)$')
 
-    self.api('core.events:register:to:event')('client_connected', self.clientconnected)
-    self.api('core.events:register:to:event')('client_disconnected',
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.clientconnected)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_disconnected',
                                               self.clientdisconnected)
     self.api('core.events:register:to:event')('watch_titleset', self._titlesetevent)
 

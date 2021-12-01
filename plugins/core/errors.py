@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
                                           self.cmd_clear,
                                           parser=parser)
 
-    self.api('core.events:register:to:event')('proxy_ready', self.proxy_ready)
+    self.api('core.events:register:to:event')('ev_bastproxy_proxy_ready', self.proxy_ready)
 
   # show all errors that happened during startup
   def proxy_ready(self, _=None):

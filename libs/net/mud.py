@@ -17,7 +17,7 @@ class Mud(Telnet):
 
     self.last_data = ''
     self.terminal_type = 'BastProxy'
-    self.api('core.events:register:to:event')('to_mud_event', self.addtooutbuffer,
+    self.api('core.events:register:to:event')('ev_libs.io_to_mud_event', self.addtooutbuffer,
                                               prio=99)
     self.api('net.options:server:prepare')(self)
     self.api('core.managers:add')('mud', self)
@@ -69,7 +69,7 @@ class Mud(Telnet):
                                             calledfrom='proxy')
 
         # this event can be used to transform the data
-        newdata = self.api('core.events:raise:event')('from_mud_event',
+        newdata = self.api('core.events:raise:event')('ev_libs.net.mud_from_mud_event',
                                                       data,
                                                       calledfrom="mud")
 
@@ -107,7 +107,7 @@ class Mud(Telnet):
     self.doconnect(mudhost, mudport)
     self.connected_time = time.localtime()
     self.api('libs.io:send:msg')('Connected to mud', 'net')
-    self.api('core.events:raise:event')('mudconnect', {}, calledfrom="mud")
+    self.api('core.events:raise:event')('ev_libs.net.mud_mudconnect', {}, calledfrom="mud")
 
   def handle_close(self):
     """

@@ -46,13 +46,13 @@ class Plugin(BasePlugin):
                                           self.cmd_show,
                                           shelp='list clients that are connected')
 
-    self.api('core.events:register:to:event')('proxy_shutdown',
+    self.api('core.events:register:to:event')('ev_net.proxy_proxy_shutdown',
                                               self.shutdown)
 
-    self.api('core.events:register:to:event')('client_connected', self.addclient)
-    self.api('core.events:register:to:event')('client_connected_view', self.addviewclient)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.addclient)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_connected_view', self.addviewclient)
 
-    self.api('core.events:register:to:event')('client_disconnected', self.removeclient)
+    self.api('core.events:register:to:event')('ev_libs.net.client_client_disconnected', self.removeclient)
 
   def api_numconnected(self):
     """

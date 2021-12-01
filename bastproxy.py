@@ -216,7 +216,7 @@ def start(listen_port):
         break
 
       # check our timer event
-      API('core.events:raise:event')('global_timer', {}, calledfrom="globaltimer")
+      API('core.events:raise:event')('ev_bastproxy_global_timer', {}, calledfrom="globaltimer")
 
   # catch a KeyBoardInterrupt so that bastproxy can be exited
   except KeyboardInterrupt:
@@ -278,7 +278,7 @@ def main():
 
   # the proxy is done starting up and we raise an event
   API.__class__.startup = False
-  API('core.events:raise:event')('proxy_ready', calledfrom='bastproxy')
+  API('core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
 
   # start the proxy in an infinite loop which can be broken with a Ctrl-C
   if not daemon:

@@ -373,9 +373,9 @@ class Plugin(BasePlugin):
     log all data from the mud
     """
     if 'frommud' in self.datatypes_to_file and self.datatypes_to_file['frommud']['file']:
-      if args['eventname'] == 'from_mud_event':
+      if args['eventname'] == 'ev_libs.net.mud_from_mud_event':
         data = args['noansi']
-      elif args['eventname'] == 'to_mud_event':
+      elif args['eventname'] == 'ev_libs.io_to_mud_event':
         data = 'tomud: ' + args['data'].strip()
       self.logtofile(data, 'frommud', stripcolor=False)
     return args
@@ -389,8 +389,8 @@ class Plugin(BasePlugin):
     #print('log api before adding', self.api.api)
 
     #print('log api after adding', self.api.api)
-    self.api('core.events:register:to:event')('from_mud_event', self.logmud)
-    self.api('core.events:register:to:event')('to_mud_event', self.logmud)
+    self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.logmud)
+    self.api('core.events:register:to:event')('ev_libs.io_to_mud_event', self.logmud)
     self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
     parser = argp.ArgumentParser(add_help=False,
