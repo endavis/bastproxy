@@ -62,7 +62,7 @@ class Plugin(AardwolfBasePlugin):
       self.api('setting:add')(tevent, True, bool,
                               self.evmap[tevent]['help'])
 
-      self.api('core.events:register:to:event')('%s_var_%s_modified' % (self.plugin_id, tevent), self.varchange)
+      self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, tevent), self.varchange)
 
   def varchange(self, args):
     """

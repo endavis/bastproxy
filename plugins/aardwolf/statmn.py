@@ -67,7 +67,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('core.events:register:to:event')('aard_gq_won', self.compgq)
     self.api('core.events:register:to:event')('aard_gq_done', self.compgq)
     self.api('core.events:register:to:event')('aard_gq_completed', self.compgq)
-    self.api('core.events:register:to:event')('%s_var_show_modified' % self.plugin_id, self.showchange)
+    self.api('core.events:register:to:event')('ev_%s_var_show_modified' % self.plugin_id, self.showchange)
 
   def showchange(self, args):
     """

@@ -82,7 +82,7 @@ class Plugin(BasePlugin):
 
     self.api('core.events:register:to:event')('io_execute_trace_finished', self.savecommand, prio=99)
     self.api('core.events:register:to:event')('from_mud_event', self.savechanged_mud_data, prio=99)
-    self.api('core.events:register:to:event')('%s_var_functions_modified' % self.plugin_id, self.onfunctionschange)
+    self.api('core.events:register:to:event')('ev_%s_var_functions_modified' % self.plugin_id, self.onfunctionschange)
 
   def onfunctionschange(self, _=None):
     """

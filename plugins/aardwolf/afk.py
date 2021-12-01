@@ -72,7 +72,7 @@ class Plugin(AardwolfBasePlugin):
     self.api('core.events:register:to:event')('watch_titleset', self._titlesetevent)
 
     self.api('setting:change')('isafk', False)
-    self.api('core.events:register:to:event')('%s_var_isafk_modified' % self.plugin_id, self._isafk_changeevent)
+    self.api('core.events:register:to:event')('ev_%s_var_isafk_modified' % self.plugin_id, self._isafk_changeevent)
 
   def _isafk_changeevent(self, args=None): # pylint: disable=unused-argument
     """

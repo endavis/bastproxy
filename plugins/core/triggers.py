@@ -61,7 +61,7 @@ class Plugin(BasePlugin):
 
     self.api('setting:add')('enabled', 'True', bool,
                             'enable triggers')
-    self.api('core.events:register:to:event')('%s_var_enabled_modified' % self.plugin_id, self.enablechange)
+    self.api('core.events:register:to:event')('ev_%s_var_enabled_modified' % self.plugin_id, self.enablechange)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='get details of a trigger')

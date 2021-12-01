@@ -886,8 +886,8 @@ class Plugin(AardwolfBasePlugin): # pylint: disable=too-many-public-methods
     self.api('core.events:register:to:event')('aard_gq_done', self.gqevent)
     self.api('core.events:register:to:event')('aard_gq_won', self.gqevent)
     self.api('core.events:register:to:event')('GMCP:char.status', self.checkstats)
-    self.api('core.events:register:to:event')('%s_var_backupstart_modified' % self.plugin_id, self.changetimer)
-    self.api('core.events:register:to:event')('%s_var_backupinternval_modified' % self.plugin_id,
+    self.api('core.events:register:to:event')('ev_%s_var_backupstart_modified' % self.plugin_id, self.changetimer)
+    self.api('core.events:register:to:event')('ev_%s_var_backupinternval_modified' % self.plugin_id,
                                               self.changetimer)
 
     self.api('core.events:register:to:event')('trigger_dead', self.dead)

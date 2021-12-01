@@ -208,7 +208,7 @@ class PersistentDictEvent(PersistentDict):
     if old_value != val:
       dict.__setitem__(self, key, val)
 
-      event_name = '%s_var_%s_modified' % (self.plugin_instance.plugin_id, key)
+      event_name = 'ev_%s_var_%s_modified' % (self.plugin_instance.plugin_id, key)
       if not self.plugin_instance.reset_f and key != '_version':
         self.plugin_instance.api('core.events:raise:event')(
             event_name,
@@ -218,10 +218,10 @@ class PersistentDictEvent(PersistentDict):
 
   def raiseall(self):
     """
-    go through and raise a <plugin>_var_<setting>_modified event for each setting
+    go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
     """
     for i in self:
-      event_name = '%s_var_%s_modified' % (self.plugin_instance.plugin_id, i)
+      event_name = 'ev_%s_var_%s_modified' % (self.plugin_instance.plugin_id, i)
       if not self.plugin_instance.reset_f and i != '_version':
         self.plugin_instance.api('core.events:raise:event')(
             event_name,

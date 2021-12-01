@@ -89,9 +89,9 @@ class Plugin(BasePlugin):
 
     self.api('core.events:register:to:event')('client_connected', self.client_connected)
     self.api('core.events:register:to:event')('mudconnect', self.sendusernameandpw)
-    self.api('core.events:register:to:event')('%s_var_%s_modified' % (self.plugin_id, 'listenport'),
+    self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'listenport'),
                                               self.listen_port_change)
-    self.api('core.events:register:to:event')('%s_var_%s_modified' % (self.plugin_id, 'cmdseparator'),
+    self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'cmdseparator'),
                                               self.command_seperator_change)
 
     ssc = self.api('core.ssc:baseclass:get')()
