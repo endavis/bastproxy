@@ -65,7 +65,7 @@ class Mud(Telnet):
                 'convertansi':tconvertansi,
                 'trace':trace}
 
-        self.api('core.events:raise:event')('muddata_trace_started', data,
+        self.api('core.events:raise:event')('ev_libs.net.net_muddata_trace_started', data,
                                             calledfrom='proxy')
 
         # this event can be used to transform the data
@@ -73,7 +73,7 @@ class Mud(Telnet):
                                                       data,
                                                       calledfrom="mud")
 
-        self.api('core.events:raise:event')('muddata_trace_finished', data,
+        self.api('core.events:raise:event')('ev_libs.net.mud_muddata_trace_finished', data,
                                             calledfrom='proxy')
 
         # use the original key in the returned dictionary
