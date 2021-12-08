@@ -42,6 +42,10 @@ class Plugin(BasePlugin):
     self.can_reload_f = False
     self.latest_regex_id = 0
 
+    self.beall_id = self.create_trigger_id('beall', self.plugin_id)
+    self.all_id = self.create_trigger_id('beall', self.plugin_id)
+    self.emptyline_id = self.create_trigger_id('beall', self.plugin_id)
+
     # The dictionary of triggers
     # This will likely get moved into the source plugin
     # key: trigger_id
@@ -111,6 +115,22 @@ class Plugin(BasePlugin):
 
     self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
                                               self.check_trigger, prio=1)
+
+    self.beall_id = self.create_trigger_id('beall', self.plugin_id)
+    self.all_id = self.create_trigger_id('beall', self.plugin_id)
+    self.emptyline_id = self.create_trigger_id('beall', self.plugin_id)
+
+    self.triggers[self.beall_id] = {}
+    self.triggers[self.beall_id]['eventname'] = 'ev_core.triggers_' + self.beall_id
+    self.triggers[self.beall_id]['omit'] = False
+
+    self.triggers[self.all_id] = {}
+    self.triggers[self.all_id]['eventname'] = 'ev_core.triggers_' + self.all_id
+    self.triggers[self.all_id]['omit'] = False
+
+    self.triggers[self.emptyline_id] = {}
+    self.triggers[self.emptyline_id]['eventname'] = 'ev_core.triggers_' + self.emptyline_id
+    self.triggers[self.emptyline_id]['omit'] = False
 
   def enablechange(self, args):
     """
@@ -501,13 +521,13 @@ class Plugin(BasePlugin):
     data = args['noansi']
     colored_data = args['convertansi']
 
-    self.raisetrigger('beall',
-                      {'line':data, 'triggername':'all'},
+    self.raisetrigger(self.beall_id,
+                      {'line':data, 'trigger_name':'trigger_all'},
                       args)
 
     if data == '': # pylint: disable=too-many-nested-blocks
-      self.raisetrigger('emptyline',
-                        {'line':'', 'triggername':'emptyline'},
+      self.raisetrigger(self.emptyline_id,
+                        {'line':'', 'trigger_name':'trigger_emptyline'},
                         args)
     else:
       if self.created_regex['created_regex_compiled']:
@@ -561,7 +581,7 @@ class Plugin(BasePlugin):
                               (data))
 
 
-    self.raisetrigger('all', {'line':data, 'triggername':'all'}, args)
+    self.raisetrigger(self.all_id, {'line':data, 'triggername':'trigger_all'}, args)
     return args
 
   def raisetrigger(self, trigger_id, args, origargs):
@@ -626,7 +646,6 @@ class Plugin(BasePlugin):
     """
     return stats for this plugin
     """
-    #TODO: add regex info
     stats = BasePlugin.get_stats(self)
 
     overall_hit_count = 0
@@ -639,16 +658,20 @@ class Plugin(BasePlugin):
       else:
         total_disabled_triggers = total_disabled_triggers + 1
 
-    total_triggers = len(self.triggers)
+    regex_hits = sum(regex['hits'] for regex in self.regexes.values() if regex)
 
     stats['Triggers'] = {}
-    stats['Triggers']['showorder'] = ['Total', 'Enabled', 'Disabled',
-                                      'Overall Hits', 'Memory Usage']
-    stats['Triggers']['Total'] = total_triggers
-    stats['Triggers']['Enabled'] = total_enabled_triggers
-    stats['Triggers']['Disabled'] = total_disabled_triggers
-    stats['Triggers']['Overall Hits'] = overall_hit_count
-    stats['Triggers']['Memory Usage'] = sys.getsizeof(self.triggers)
+    stats['Triggers']['showorder'] = ['Total Triggers', 'Enabled Triggers', 'Disabled Triggers',
+                                      'Overall Trigger Hits', 'Triggers Memory Usage',
+                                      'Total Regexes', 'Total Regex Hits', 'Regexes Memory Usage']
+    stats['Triggers']['Total Triggers'] = len(self.triggers)
+    stats['Triggers']['Enabled Triggers'] = total_enabled_triggers
+    stats['Triggers']['Disabled Triggers'] = total_disabled_triggers
+    stats['Triggers']['Overall Trigger Hits'] = overall_hit_count
+    stats['Triggers']['Triggers Memory Usage'] = sys.getsizeof(self.triggers)
+    stats['Triggers']['Total Regexes'] = len(self.regexes.keys())
+    stats['Triggers']['Total Regex Hits'] = regex_hits
+    stats['Triggers']['Regex Memory Usage'] = sys.getsizeof(self.regexes)
     return stats
 
   def cmd_detail(self, args):
@@ -657,7 +680,6 @@ class Plugin(BasePlugin):
       list the details of a trigger
       @CUsage@w: detail
     """
-    # TODO: add argtypes
     message = []
     if args['trigger']:
       for trigger in args['trigger']:
@@ -680,6 +702,9 @@ class Plugin(BasePlugin):
             message.append('%-24s : %s' % ('Match Color', 'True'))
           message.append('%-24s : %s' % ('Group',
                                          self.triggers[trigger]['group']))
+          if self.triggers[trigger]['argtypes']:
+            message.append('%-24s : %s' % ('Argument Types',
+                                           self.triggers[trigger]['argtypes']))
           message.append('%-24s : %s' % ('Priority', self.triggers[trigger]['priority']))
           message.append('%-24s : %s' % ('Omit', self.triggers[trigger]['omit']))
           message.append('%-24s : %s' % ('Hits', self.triggers[trigger]['hits']))
