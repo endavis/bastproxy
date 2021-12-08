@@ -5,7 +5,7 @@ This is an example plugin about how to use triggers
 ### Add the regex
  * ```self.api('core.triggers:trigger:add')('testtrig', "^some test$")```
 ### Register a function to the event
- * ```self.api('core.events:register:to:event')('trigger_testtrig', somefunc)```
+ * ```self.api('core.events:register:to:event')('ev_core.triggers_testtrig', somefunc)```
 """
 from plugins._baseplugin import BasePlugin
 
@@ -38,7 +38,7 @@ class Plugin(BasePlugin):
     self.api('core.triggers:trigger:add')(
         'example_trigger',
         r"^(?P<name>.*) flicks a (?P<insect>.*) off his bar\.$")
-    self.api('core.events:register:to:event')('trigger_example_trigger', self.testtrigger)
+    self.api('core.triggers:trigger:register')('example_trigger', self.testtrigger)
 
   def testtrigger(self, args):
     """

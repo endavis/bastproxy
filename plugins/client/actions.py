@@ -33,9 +33,6 @@ class Plugin(BasePlugin):
     """
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.regexlookup = {}
-    self.actiongroups = {}
-    self.compiledregex = {}
     self.sessionhits = {}
 
     self.saveactionsfile = os.path.join(self.save_directory, 'actions.txt')
@@ -160,7 +157,8 @@ class Plugin(BasePlugin):
                                           parser=parser)
 
     for action in self.actions.values():
-      self.register_action(action)
+      if action['enabled']:
+        self.register_action(action)
 
     self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
@@ -168,26 +166,26 @@ class Plugin(BasePlugin):
     """
     register an action as a trigger
     """
-    if 'triggername' not in action:
-      action['triggername'] = "action_%s" % action['num']
-    self.api('core.triggers:trigger:add')(action['triggername'],
+    if 'actionname' not in action:
+      action['actionname'] = "action_%s" % action['num']
+    self.api('core.triggers:trigger:add')(action['actionname'],
                                           action['regex'])
-    self.api('core.events:register:to:event')('trigger_%s' % action['triggername'],
-                                              self.action_matched)
+    self.api('core.triggers:trigger:register')(action['actionname'],
+                                               self.action_matched)
 
   def unregister_action(self, action):
     """
     unregister an action
     """
-    self.api('core.events:unregister:from:event')('trigger_%s' % action['triggername'],
-                                                  self.action_matched)
-    self.api('core.triggers:trigger:remove')(action['triggername'])
+    self.api('core.triggers:trigger:unregister')(action['actionname'],
+                                                 self.action_matched)
+    self.api('core.triggers:trigger:remove')(action['actionname'])
 
   def action_matched(self, args):
     """
     do something when an action is matched
     """
-    actionnum = int(args['triggername'].split('_')[-1])
+    actionnum = int(args['trigger_name'].split('_')[-1])
     action = self.lookup_action(actionnum)
     if action:
       akey = action['regex']
@@ -204,7 +202,7 @@ class Plugin(BasePlugin):
       self.api(sendtype)(newaction)
     else:
       self.api('libs.io:send:error')("Bug: could not find action for trigger %s" % \
-                              args['triggername'])
+                              args['actionname'])
 
   def lookup_action(self, action):
     """
@@ -254,7 +252,7 @@ class Plugin(BasePlugin):
           'matchcolor':args['color'],
           'enabled':not args['disable'],
           'group':args['group'],
-          'triggername':"action_%s" % num
+          'actionname':"action_%s" % num
       }
       self.actions.sync()
 
@@ -375,8 +373,8 @@ class Plugin(BasePlugin):
         tmsg.append('%-12s : %s' % ('Group', action['group']))
         tmsg.append('%-12s : %s' % ('Match Color',
                                     action['matchcolor']))
-        tmsg.append('%-12s : %s' % ('Trigger Name',
-                                    action['triggername']))
+        tmsg.append('%-12s : %s' % ('Action Name',
+                                    action['actionname']))
       else:
         return True, ['@RAction does not exist@w : \'%s\'' % (args['action'])]
 
@@ -432,14 +430,17 @@ class Plugin(BasePlugin):
     """
     action = self.lookup_action(item)
     if action:
+      old_enabled = action['enabled']
       if flag == "toggle":
         action['enabled'] = not action['enabled']
       else:
         action['enabled'] = bool(flag)
-      if action['enabled']:
-        self.register_action(action)
-      else:
-        self.unregister_action(action)
+
+      if old_enabled != action['enabled']:
+        if action['enabled']:
+          self.register_action(action)
+        else:
+          self.unregister_action(action)
 
     return action
 
