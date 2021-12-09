@@ -1,12 +1,5 @@
 """
 This plugin handles internal triggers for the proxy
-
-#TODO: add api to register to a trigger that uses events internally
-look for triggers defined in this plugin first, then look for triggers otherwise
-   beall
-   empytyline
-   all
-
 """
 from __future__ import print_function
 import sys
@@ -353,9 +346,9 @@ class Plugin(BasePlugin):
         else:
           self.api('libs.io:send:error')(
               'trigger %s (%s) already exists in regex: %s' % \
-                      (trigger_name, plugin_id,
-                        regex), secondary=plugin_id)
+                      (trigger_name, plugin_id, regex), secondary=plugin_id)
 
+      # go through and rebuild the regexes
       if need_rebuild:
         self.rebuild_regexes()
 
@@ -365,8 +358,6 @@ class Plugin(BasePlugin):
       self.trigger_groups[args['group']].append(trigger_id)
 
     self.triggers[trigger_id] = args
-
-    # go through and rebuild the regexes
 
     self.api('libs.io:send:msg')(
         'added trigger %s (unique name: %s) for plugin %s' % \
