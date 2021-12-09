@@ -43,8 +43,8 @@ class Plugin(BasePlugin):
     self.latest_regex_id = 0
 
     self.beall_id = self.create_trigger_id('beall', self.plugin_id)
-    self.all_id = self.create_trigger_id('beall', self.plugin_id)
-    self.emptyline_id = self.create_trigger_id('beall', self.plugin_id)
+    self.all_id = self.create_trigger_id('all', self.plugin_id)
+    self.emptyline_id = self.create_trigger_id('emptyline', self.plugin_id)
 
     # The dictionary of triggers
     # This will likely get moved into the source plugin
@@ -116,21 +116,9 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
                                               self.check_trigger, prio=1)
 
-    self.beall_id = self.create_trigger_id('beall', self.plugin_id)
-    self.all_id = self.create_trigger_id('beall', self.plugin_id)
-    self.emptyline_id = self.create_trigger_id('beall', self.plugin_id)
-
-    self.triggers[self.beall_id] = {}
-    self.triggers[self.beall_id]['eventname'] = 'ev_core.triggers_' + self.beall_id
-    self.triggers[self.beall_id]['omit'] = False
-
-    self.triggers[self.all_id] = {}
-    self.triggers[self.all_id]['eventname'] = 'ev_core.triggers_' + self.all_id
-    self.triggers[self.all_id]['omit'] = False
-
-    self.triggers[self.emptyline_id] = {}
-    self.triggers[self.emptyline_id]['eventname'] = 'ev_core.triggers_' + self.emptyline_id
-    self.triggers[self.emptyline_id]['omit'] = False
+    self.api('core.triggers:trigger:add')('beall', None, self.plugin_id, enabled=False)
+    self.api('core.triggers:trigger:add')('all', None, self.plugin_id, enabled=False)
+    self.api('core.triggers:trigger:add')('emptyline', None, self.plugin_id, enabled=False)
 
   def enablechange(self, args):
     """
@@ -190,8 +178,9 @@ class Plugin(BasePlugin):
     """
     register a function to a trigger
     """
-    plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
-    trigger_id = self.create_trigger_id(trigger_name, plugin_id)
+    if trigger_name not in self.triggers:
+      plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+      trigger_id = self.create_trigger_id(trigger_name, plugin_id)
     return self.api('core.events:register:to:event')(self.triggers[trigger_id]['eventname'],
                                                      function, *kwargs)
 
@@ -199,8 +188,9 @@ class Plugin(BasePlugin):
     """
     unregister a function from a trigger
     """
-    plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
-    trigger_id = self.create_trigger_id(trigger_name, plugin_id)
+    if trigger_name not in self.triggers:
+      plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+      trigger_id = self.create_trigger_id(trigger_name, plugin_id)
     return self.api('core.events:unregister:from:event')(self.triggers[trigger_id]['eventname'],
                                                          function)
 
@@ -310,15 +300,12 @@ class Plugin(BasePlugin):
               (trigger_name, self.triggers[trigger_id]['plugin_id']), secondary=plugin_id)
       return False
 
-    orig_regex = regex
-    regex = re.sub(r"\?P\<.*?\>", "", orig_regex)
-
-    regex_id = self.find_regex_id(regex)
-
     args = kwargs.copy()
-    args['regex'] = regex
-    args['regex_id'] = regex_id
-    args['original_regex'] = orig_regex
+
+    args['regex'] = None
+    args['regex_id'] = None
+    args['original_regex'] = None
+
     if 'enabled' not in args:
       args['enabled'] = True
     if 'group' not in args:
@@ -339,37 +326,47 @@ class Plugin(BasePlugin):
     args['trigger_name'] = trigger_name
     args['eventname'] = 'ev_core.triggers_' + trigger_id
 
-    try:
-      args['original_regex_compiled'] = re.compile(args['original_regex'])
-    except Exception:  # pylint: disable=broad-except
-      self.api('libs.io:send:traceback')(
-          'Could not compile regex for trigger: %s : %s' % \
-              (trigger_name, args['original_regex']))
-      return False
+    if regex:
+      orig_regex = regex
+      regex = re.sub(r"\?P\<.*?\>", "", orig_regex)
 
-    self.api('libs.io:send:msg')('converted %s to %s' % (args['original_regex'], args['regex']))
+      regex_id = self.find_regex_id(regex)
+      args['regex'] = regex
+      args['regex_id'] = regex_id
+      args['original_regex'] = orig_regex
+
+      try:
+        args['original_regex_compiled'] = re.compile(args['original_regex'])
+      except Exception:  # pylint: disable=broad-except
+        self.api('libs.io:send:traceback')(
+            'Could not compile regex for trigger: %s : %s' % \
+                (trigger_name, args['original_regex']))
+        return False
+
+      self.api('libs.io:send:msg')('converted %s to %s' % (args['original_regex'], args['regex']))
+
+      need_rebuild = False
+      if args['enabled']:
+        need_rebuild = True
+        if trigger_id not in self.regexes[regex_id]['triggers']:
+          self.regexes[regex_id]['triggers'].append(trigger_id)
+        else:
+          self.api('libs.io:send:error')(
+              'trigger %s (%s) already exists in regex: %s' % \
+                      (trigger_name, plugin_id,
+                        regex), secondary=plugin_id)
+
+      if need_rebuild:
+        self.rebuild_regexes()
 
     if args['group']:
       if args['group'] not in self.trigger_groups:
         self.trigger_groups[args['group']] = []
       self.trigger_groups[args['group']].append(trigger_id)
 
-    need_rebuild = False
-    if args['enabled']:
-      need_rebuild = True
-      if trigger_id not in self.regexes[regex_id]['triggers']:
-        self.regexes[regex_id]['triggers'].append(trigger_id)
-      else:
-        self.api('libs.io:send:error')(
-            'trigger %s (%s) already exists in regex: %s' % \
-                     (trigger_name, plugin_id,
-                      regex), secondary=plugin_id)
-
     self.triggers[trigger_id] = args
 
     # go through and rebuild the regexes
-    if need_rebuild:
-      self.rebuild_regexes()
 
     self.api('libs.io:send:msg')(
         'added trigger %s (unique name: %s) for plugin %s' % \
@@ -630,13 +627,13 @@ class Plugin(BasePlugin):
     trigger_ids.sort()
     match = args['match']
 
-    message.append('%-25s : %-13s %-9s %-5s %s' % ('Name', 'Defined in',
+    message.append('%-25s : %-30s %-9s %-5s %s' % ('Name', 'Defined in',
                                                    'Enabled', 'Hits', 'Id'))
     message.append('@B' + '-' * 60 + '@w')
     for trigger_id in trigger_ids:
       trigger = self.triggers[trigger_id]
       if not match or match in trigger_id or trigger['plugin_id'] == match:
-        message.append('%-25s : %-13s %-9s %-5s %s' % \
+        message.append('%-25s : %-30s %-9s %-5s %s' % \
           (trigger['trigger_name'], trigger['plugin_id'], trigger['enabled'],
            trigger['hits'], trigger_id))
 
