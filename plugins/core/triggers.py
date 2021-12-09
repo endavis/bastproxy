@@ -400,7 +400,7 @@ class Plugin(BasePlugin):
     regex = self.regexes[self.triggers[trigger_id]['regex_id']]
     need_rebuild = False
     if trigger_id in regex['triggers']:
-      print('removing trigger %s from %s' % (trigger_name, regex['regex_id)']))
+      print('removing trigger %s from %s' % (trigger_name, regex['regex_id']))
       need_rebuild = True
       regex['triggers'].remove(trigger_id)
 
@@ -659,7 +659,7 @@ class Plugin(BasePlugin):
     stats['Triggers']['Triggers Memory Usage'] = sys.getsizeof(self.triggers)
     stats['Triggers']['Total Regexes'] = len(self.regexes.keys())
     stats['Triggers']['Total Regex Hits'] = regex_hits
-    stats['Triggers']['Regex Memory Usage'] = sys.getsizeof(self.regexes)
+    stats['Triggers']['Regexes Memory Usage'] = sys.getsizeof(self.regexes)
     return stats
 
   def cmd_detail(self, args):
@@ -686,8 +686,7 @@ class Plugin(BasePlugin):
                                          self.triggers[trigger]['regex']))
           message.append('%-24s : %s' % ('Regex ID',
                                          self.triggers[trigger]['regex_id']))
-          if self.triggers[trigger]['matchcolor']:
-            message.append('%-24s : %s' % ('Match Color', 'True'))
+          message.append('%-24s : %s' % ('Match Color', self.triggers[trigger]['matchcolor']))
           message.append('%-24s : %s' % ('Group',
                                          self.triggers[trigger]['group']))
           if self.triggers[trigger]['argtypes']:
