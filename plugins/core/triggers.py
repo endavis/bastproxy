@@ -510,12 +510,12 @@ class Plugin(BasePlugin):
     colored_data = args['convertansi']
 
     self.raisetrigger(self.beall_id,
-                      {'line':data, 'trigger_name':'trigger_all'},
+                      {'line':data, 'trigger_name':self.triggers[self.beall_id]['trigger_name']},
                       args)
 
     if data == '': # pylint: disable=too-many-nested-blocks
       self.raisetrigger(self.emptyline_id,
-                        {'line':'', 'trigger_name':'trigger_emptyline'},
+                        {'line':'', 'trigger_name':self.triggers[self.emptyline_id]['trigger_name']},
                         args)
     else:
       if self.created_regex['created_regex_compiled']:
@@ -569,7 +569,7 @@ class Plugin(BasePlugin):
                               (data))
 
 
-    self.raisetrigger(self.all_id, {'line':data, 'triggername':'trigger_all'}, args)
+    self.raisetrigger(self.all_id, {'line':data, 'trigger_name':self.triggers[self.all_id]['trigger_name']}, args)
     return args
 
   def raisetrigger(self, trigger_id, args, origargs):
