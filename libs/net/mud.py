@@ -18,7 +18,7 @@ class Mud(Telnet):
     self.last_data = ''
     self.terminal_type = 'BastProxy'
     self.api('core.events:register:to:event')('ev_libs.io_to_mud_event', self.addtooutbuffer,
-                                              prio=99)
+                                              prio=99, plugin_id='libs.net.mud')
     self.api('net.options:server:prepare')(self)
     self.api('core.managers:add')('mud', self)
     self.api('core.log:add:datatype')('rawmud')
