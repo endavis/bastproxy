@@ -186,7 +186,8 @@ class EventContainer(object):
     """
     self.raised_count = self.raised_count + 1
 
-    if self.name != 'ev_bastproxy_global_timer':
+    if self.name != 'ev_bastproxy_global_timer' and \
+        ('_savestate' in self.name and self.api('setting:get')('log_savestate')):
       self.api('libs.io:send:msg')('event %s raised by %s with args %s' % \
                              (self.name, calledfrom, new_args),
                                    secondary=calledfrom)
@@ -233,6 +234,9 @@ class Plugin(BasePlugin):
     self.api('libs.api:add')('remove:events:for:plugin', self._api_remove_events_from_plugin)
     self.api('libs.api:add')('get:event', self._api_get_event)
     self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
+
+    self.api('setting:add')('log_savestate', False, bool,
+                            'flag to log savestate events, reduces log spam if False')
 
     self.dependencies = ['core.errors', 'core.managers']
 
