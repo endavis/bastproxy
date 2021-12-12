@@ -91,7 +91,7 @@ class Plugin(BasePlugin):
     self.api('core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
     self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'listenport'),
                                               self.listen_port_change)
-    self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'cmdseparator'),
+    self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'cmdseperator'),
                                               self.command_seperator_change)
 
     ssc = self.api('core.ssc:baseclass:get')()
