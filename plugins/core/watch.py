@@ -212,11 +212,9 @@ class Plugin(BasePlugin):
         self.api('libs.io:send:msg')('raising %s' % match_args['cmdname'])
         event_data = self.api('core.events:raise:event')('watch_' + watch_name, match_args)
         if 'changed' in event_data:
-          if 'trace' in data:
-            data['trace']['changes'].append({'cmd':client_data,
-                                             'flag':'modify',
-                                             'newcmd':event_data['changed'],
-                                             'plugin':self.plugin_id})
+          self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
+                                                original_data=client_data,
+                                                new_data=event_data['changed'])
           data['nfromdata'] = event_data['changed']
 
     if 'nfromdata' in data:

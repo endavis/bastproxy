@@ -134,15 +134,13 @@ class Plugin(BasePlugin):
     datan = self.api('client.vars:replace')(data)
 
     if datan != data:
-      if 'trace' in args:
-        args['trace']['changes'].append({'flag':'Modify',
-                                         'data':'changed "%s" to "%s"' % (data, datan),
-                                         'plugin':self.plugin_id})
+      self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
+                                            original_data=data,
+                                            new_data=datan)
 
       self.api('libs.io:send:msg')('replacing "%s" with "%s"' % (data.strip(),
                                                                  datan.strip()))
       args['fromdata'] = datan
-      args['beforevar'] = data
 
     return args
 

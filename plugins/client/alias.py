@@ -164,11 +164,11 @@ class Plugin(BasePlugin):
           cre = re.compile('^%s' % mem)
           datan = cre.sub(self._aliases[mem]['alias'], data)
         if datan != data:
-          if 'trace' in args:
-            args['trace']['changes'].append({'flag':'Modify',
-                                             'data':'changed "%s" to "%s"' % \
-                                                (data, datan),
-                                             'plugin':self.plugin_id})
+          self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
+                                                info='Matched id "%s" with alias "%s"' % \
+                                                        (self._aliases[mem]['num'], mem),
+                                                original_data=data,
+                                                new_data=datan)
           if not 'hits' in self._aliases[mem]:
             self._aliases[mem]['hits'] = 0
           if not mem in self.sessionhits:

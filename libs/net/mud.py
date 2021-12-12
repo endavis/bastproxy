@@ -62,8 +62,7 @@ class Mud(Telnet):
                 'data':tosend,
                 'dtype':'frommud',
                 'noansi':tnoansi,
-                'convertansi':tconvertansi,
-                'trace':trace}
+                'convertansi':tconvertansi}
 
         self.api('core.events:raise:event')('ev_libs.net.net_muddata_trace_started', data,
                                             calledfrom='proxy')
@@ -141,26 +140,20 @@ class Mud(Telnet):
       dtype = data['dtype']
       if 'raw' in data:
         raw = data['raw']
-      if 'trace' in data:
-        trace = data['trace']
     else:
       datastr = data
 
     if len(dtype) == 1 and ord(dtype) in self.options:
-      if trace:
-        trace['changes'].append({'flag':'Sent',
-                                 'data':'"%s" to mud with raw: %s and datatype: %s' %
-                                        (repr(datastr.strip()), raw, dtype),
-                                 'plugin':'proxy',
-                                 'callstack':self.api('libs.api:get:call:stack')()})
+      self.api('libs.io:trace:add:execute')('libs.net.mud', 'Sent',
+                                            info='"%s" to mud with raw: %s and datatype: %s' % \
+                                              (repr(datastr.strip()), raw, dtype),
+                                            callstack=self.api('libs.api:get:call:stack')())
       Telnet.addtooutbuffer(self, datastr, raw)
     elif dtype == 'fromclient':
-      if trace:
-        trace['changes'].append({'flag':'Sent',
-                                 'data':'"%s" to mud with raw: %s and datatype: %s' %
-                                        (datastr.strip(), raw, dtype),
-                                 'plugin':'proxy',
-                                 'callstack':self.api('libs.api:get:call:stack')()})
+      self.api('libs.io:trace:add:execute')('libs.net.mud', 'Sent',
+                                            info='"%s" to mud with raw: %s and datatype: %s' % \
+                                               (datastr.strip(), raw, dtype),
+                                            callstack=self.api('libs.api:get:call:stack')())
       Telnet.addtooutbuffer(self, datastr, raw)
 
   def fill_rawq(self):

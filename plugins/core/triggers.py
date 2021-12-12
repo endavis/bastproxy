@@ -586,9 +586,10 @@ class Plugin(BasePlugin):
       self.api('libs.io:send:msg')('changing line from trigger')
       new_data = self.api('core.colors:colorcode:to:ansicode')(data_returned['newline'])
       origargs['trace']['changes'].append({'flag':'Modify',
-                                           'data':'trigger "%s" added by plugin %s changed "%s" to "%s"' % \
-                                              (trigger_id, self.triggers[trigger_id]['plugin_id'],
-                                               origargs['original'], new_data),
+                                           'info':'trigger "%s" added by plugin %s' % \
+                                              (trigger_id, self.triggers[trigger_id]['plugin_id']),
+                                           'original_data':origargs['original'],
+                                           'new_data':new_data,
                                            'plugin_id':self.plugin_id})
       origargs['original'] = new_data
 

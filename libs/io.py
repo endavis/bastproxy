@@ -33,6 +33,32 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     self.api('libs.api:add')('libs.io', 'send:client', self._api_client)
     self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
     self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)
+    self.api('libs.api:add')('libs.io', 'trace:add:execute', self._api_trace_add_execute)
+
+  def _api_trace_add_execute(self, plugin_id, flag, info=None, data=None,
+                             original_data=None, new_data=None, callstack=None):
+    """
+    add a trace when going through execute
+      'plugin_id'     : The plugin that made the change
+      'flag'          : The type of trace
+      'info'          : Info about the trace
+      'original data' : The original data
+      'new data'      : The modified data
+    """
+    trace = {}
+    trace['plugin_id'] = plugin_id
+    trace['flag'] = flag
+    if info:
+      trace['info'] = info
+    if original_data:
+      trace['original_data'] = original_data
+    if new_data:
+      trace['new_data'] = new_data
+    if data:
+      trace['data'] = data
+    if callstack:
+      trace['callstack'] = callstack
+    self.current_trace['changes'].append(trace)
 
   # send a message
   def _api_msg(self, message, primary=None, secondary=None):
@@ -156,7 +182,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       self.api('core.events:raise:event')('ev_libs.io_to_client_event', {'original':text,
                                                                          'raw':raw, 'dtype':dtype,
                                                                          'client':client},
-                                          calledfrom="io")
+                                          calledfrom="libs.io")
     except (NameError, TypeError, AttributeError):
       self.api('libs.io:send:traceback')("couldn't send msg to client: %s" % text)
 
@@ -171,9 +197,9 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
     self.api('libs.io:send:msg')('execute: got command %s' % repr(command),
                                  primary='inputparse')
 
-    new_trace = False
+    tracing = False
     if not self.current_trace:
-      new_trace = True
+      tracing = True
       self.current_trace = {}
       self.current_trace['fromclient'] = False
       self.current_trace['internal'] = True
@@ -188,35 +214,32 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         self.current_trace['internal'] = False
 
       self.api('core.events:raise:event')('io_execute_trace_started', self.current_trace,
-                                          calledfrom="io")
+                                          calledfrom="libs.io")
 
     if command == '\r\n':
       self.api('libs.io:send:msg')('sending %s (cr) to the mud' % repr(command),
                                    primary='inputparse')
       self.api('core.events:raise:event')('ev_libs.io_to_mud_event', {'data':command,
                                                                       'dtype':'fromclient',
-                                                                      'showinhistory':showinhistory,
-                                                                      'trace':self.current_trace},
-                                          calledfrom="io")
+                                                                      'showinhistory':showinhistory},
+                                          calledfrom="libs.io")
     else:
 
       command = command.strip()
 
       commands = command.split('\r\n')
       if len(commands) > 1:
-        self.current_trace['changes'].append({'flag':'Splitcr',
-                                              'data':'split command: "%s" into: "%s"' % \
-                                                         (command, ", ".join(commands)),
-                                              'plugin':'io'})
+        self.api('libs.io:trace:add:execute')('libs.io', 'Splitcr',
+                                              info='split command: "%s" into: "%s"' % \
+                                                         (command, ", ".join(commands)))
 
       for current_command in commands:
         newdata = self.api('core.events:raise:event')('io_execute_event',
                                                       {'fromdata':current_command,
                                                        'fromclient':fromclient,
                                                        'internal':not fromclient,
-                                                       'showinhistory':showinhistory,
-                                                       'trace':self.current_trace},
-                                                      calledfrom="io")
+                                                       'showinhistory':showinhistory},
+                                                      calledfrom="libs.io")
 
         if 'fromdata' in newdata:
           current_command = newdata['fromdata']
@@ -232,11 +255,10 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           if len(split_data) > 1:
             self.api('libs.io:send:msg')('broke %s into %s' % (current_command, split_data),
                                          primary='inputparse')
-            self.current_trace['changes'].append(
-                {'flag':'Splitchar',
-                 'data':'split command: "%s" into: "%s"' % \
-                   (current_command, ", ".join(split_data)),
-                 'plugin':'io'})
+            self.api('libs.io:trace:add:execute')('libs.io', 'SplitChar',
+                                                  data='split command: "%s" into: "%s"' % \
+                                                    (current_command, ", ".join(split_data)))
+
             for cmd in split_data:
               self.api('libs.io:send:execute')(cmd, showinhistory=showinhistory)
 
@@ -252,13 +274,12 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             self.api('core.events:raise:event')('ev_libs.io_to_mud_event',
                                                 {'data':current_command,
                                                  'dtype':'fromclient',
-                                                 'showinhistory':showinhistory,
-                                                 'trace':self.current_trace},
-                                                calledfrom="io")
+                                                 'showinhistory':showinhistory},
+                                                calledfrom="libs.io")
 
-    if new_trace:
+    if tracing:
       self.api('core.events:raise:event')('io_execute_trace_finished', self.current_trace,
-                                          calledfrom="io")
+                                          calledfrom="libs.io")
       self.current_trace = None
 
   # send data directly to the mud
@@ -279,6 +300,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                         {'data':data,
                                          'dtype':dtype,
                                          'raw':raw},
-                                        calledfrom="io")
+                                        calledfrom="libs.io")
 
 IO = ProxyIO()

@@ -9,8 +9,16 @@ $cmd{'#bp.client.actions.inspect -o data.commands -s'}
 """
 from __future__ import print_function
 import shlex
+import sys
 import os
+import copy
 import textwrap as _textwrap
+
+try:
+  from deepdiff import DeepDiff
+except ImportError:
+  print("Please install the DeepDiff library: pip(2) install DeepDiff")
+  sys.exit(1)
 
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
@@ -381,11 +389,8 @@ class Plugin(BasePlugin):
     command_ran = '%s.%s.%s %s' % (self.api('setting:get')('cmdprefix'),
                                    command['plugin_id'], command['commandname'], full_arguments)
 
-    # add a trace if needed
-    if 'trace' in data:
-      data['trace']['changes'].append({'flag':'Start',
-                                       'data':"'%s'" % command_ran,
-                                       'plugin':self.plugin_id})
+    self.api('libs.io:trace:add:execute')(self.plugin_id, 'Running Command',
+                                          info="Command: '%s'" % command_ran)
 
     # parse the arguments and deal with errors
     try:
@@ -398,11 +403,10 @@ class Plugin(BasePlugin):
           self.format_return_message(message,
                                      command['plugin_id'],
                                      command['commandname'])))
-      if 'trace' in data:
-        data['trace']['changes'].append(
-            {'flag': 'Error',
-             'data':'%s - error parsing args: %s' % (command_ran, exc.errormsg), # pylint: disable=no-member
-             'plugin':self.plugin_id})
+      self.api('libs.io:trace:add:execute')(
+          self.plugin_id, 'Command Error',
+          info='%s - error parsing args' % command_ran, # pylint: disable=no-member
+          data='%s' % exc.errormsg)
       return retval
 
     args = vars(args)
@@ -450,10 +454,10 @@ class Plugin(BasePlugin):
                                          command['commandname'])),
                                           preamble=command['preamble'])
 
-    if 'trace' in data:
-      data['trace']['changes'].append({'flag':'Finish',
-                                       'data':"'%s'" % command_ran,
-                                       'plugin':self.plugin_id})
+    self.api('libs.io:trace:add:execute')(
+        self.plugin_id, 'Running Command',
+        info="Command: '%s' was %s" % (command_ran,
+                                       'Successful' if retval else "Unsuccessful"))
 
     return retval
 
@@ -591,14 +595,14 @@ class Plugin(BasePlugin):
                             self.api('setting:get')('spamcount'):
         data['fromdata'] = self.api('setting:get')('antispamcommand') \
                                     + '|' + command_data_dict['orig']
-        if 'trace' in data:
-          data['addedtohistory'] = addedtohistory
-          data['trace']['changes'].append(
-              {'flag':'Antispam',
-               'data':'command was sent %s times, sending %s for antispam' % \
-                    (self.api('setting:get')('spamcount'),
-                     self.api('setting:get')('antispamcommand')),
-               'plugin':self.plugin_id})
+        self.api('libs.io:trace:add:execute')(
+            self.plugin_id, 'Command Antispam',
+            info='command was sent %s times, sending %s for antispam' % \
+                      (self.api('setting:get')('spamcount'),
+                       self.api('setting:get')('antispamcommand')))
+
+        data['addedtohistory'] = addedtohistory
+
         self.api('libs.io:send:msg')('adding look for 20 commands')
         self.api('setting:change')('cmdcount', 0)
         return data
@@ -606,13 +610,10 @@ class Plugin(BasePlugin):
       # if the command is seen multiple times in a row and it has been flagged to only be sent once,
       # swallow it
       if command_data_dict['orig'] in self.no_multiple_commands:
-        if 'trace' in data:
-          data['trace']['changes'].append(
-              {'flag':'Nomultiple',
-               'data':'This command has been flagged" \
-                  " not to be sent multiple times in a row',
-               'plugin':self.plugin_id})
-
+        self.api('libs.io:trace:add:execute')(
+            self.plugin_id, 'Command Nomultiple',
+            data='This command has been flagged" \
+                  " not to be sent multiple times in a row')
         data['fromdata'] = ''
         return data
     else:
@@ -623,12 +624,10 @@ class Plugin(BasePlugin):
 
     # add a trace if it is unknown how the command was changed
     if data['fromdata'] != command_data_dict['orig']:
-      if 'trace' in data:
-        data['trace']['changes'].append(
-            {'flag':'Unknown',
-             'data':"'%s' - Don't know why we got here" % data['fromdata'],
-             'plugin':self.plugin_id})
-
+      self.api('libs.io:trace:add:execute')(
+          self.plugin_id, 'Command Unknown',
+          info="Don't know why we got here",
+          data=data['fromdata'])
     return data
 
   def _event_io_execute_check_command(self, data):
@@ -754,19 +753,8 @@ class Plugin(BasePlugin):
         if len(packages) == 1:
           found_package = packages[0]
 
-      # didn't find anything
-      if not found_plugin_id and not found_package and not found_command:
-        command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
-        command_data_dict['commandran'] = '%s.%s.%s' % \
-              (self.api('setting:get')('cmdprefix'),
-               self.plugin_id,
-               'list')
-        command_data_dict['flag'] = 'List2'
-        command_data_dict['targs'] = []
-        command_data_dict['fullargs'] = ''
-
       # couldn't find a plugin
-      elif not found_plugin_id:
+      if not found_plugin_id:
 
         command_data_dict['flag'] = 'Bad Command'
         command_data_dict['cmddata'] = 'could not find command %s' % command
@@ -801,7 +789,7 @@ class Plugin(BasePlugin):
           command_data_dict['commandran'] = '%s.%s.%s %s' % \
                 (self.api('setting:get')('cmdprefix'), found_plugin_id,
                  command['commandname'], ' '.join(split_args))
-          command_data_dict['flag'] = 'Run'
+          command_data_dict['flag'] = 'Found Command'
           command_data_dict['targs'] = split_args
           command_data_dict['fullargs'] = full_args_string
 
@@ -815,8 +803,15 @@ class Plugin(BasePlugin):
 
       # run the command here
       if command_data_dict['flag'] == 'Bad Command':
+        self.api('libs.io:trace:add:execute')(self.plugin_id, 'Bad Command',
+                                              data=copy.copy(command_data_dict))
         self.api('libs.io:send:client')("@R%s@W is not a command" % (command))
       else:
+        command_data_dict_copy = copy.copy(command_data_dict)
+        self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
+                                              data=command_data_dict_copy,
+                                              info='Pre Run Command Data')
+
         try:
           command_data_dict['success'] = self.run_command(command_data_dict['cmd'],
                                                           command_data_dict['targs'],
@@ -827,13 +822,15 @@ class Plugin(BasePlugin):
           self.api('libs.io:send:traceback')(
               'Error when calling command %s.%s' % (command_data_dict['plugin_id'],
                                                     command_data_dict['scmd']))
+        self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
+                                              data=DeepDiff(command_data_dict_copy, command_data_dict,
+                                                            exclude_paths=["root['parser']"],
+                                                            verbose_level=2),
+                                              info="Post Run Command Data Difference")
+
         command_data_dict['cmddata'] = "'%s' - %s" % (command_data_dict['commandran'],
                                                       'Outcome: %s' % command_data_dict['success'])
 
-      if 'trace' in data:
-        data['trace']['changes'].append({'flag':command_data_dict['flag'],
-                                         'data':command_data_dict,
-                                         'plugin':self.plugin_id})
       return {'fromdata':''}
 
   # add a command
