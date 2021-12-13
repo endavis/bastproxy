@@ -45,20 +45,21 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
       'original data' : The original data
       'new data'      : The modified data
     """
-    trace = {}
-    trace['plugin_id'] = plugin_id
-    trace['flag'] = flag
-    if info:
-      trace['info'] = info
-    if original_data:
-      trace['original_data'] = original_data
-    if new_data:
-      trace['new_data'] = new_data
-    if data:
-      trace['data'] = data
-    if callstack:
-      trace['callstack'] = callstack
-    self.current_trace['changes'].append(trace)
+    if self.current_trace:
+      trace = {}
+      trace['plugin_id'] = plugin_id
+      trace['flag'] = flag
+      if info:
+        trace['info'] = info
+      if original_data:
+        trace['original_data'] = original_data
+      if new_data:
+        trace['new_data'] = new_data
+      if data:
+        trace['data'] = data
+      if callstack:
+        trace['callstack'] = callstack
+      self.current_trace['changes'].append(trace)
 
   # send a message
   def _api_msg(self, message, primary=None, secondary=None):
