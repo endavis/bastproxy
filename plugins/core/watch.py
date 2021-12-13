@@ -45,7 +45,7 @@ class Plugin(BasePlugin):
     #self.api('core.commands:command:add')('detail', self.cmd_detail,
                                  #shelp='details of an event')
 
-    self.api('core.events:register:to:event')('io_execute_event', self.checkcmd)
+    self.api('core.events:register:to:event')('ev_libs.io_execute', self.checkcmd)
 
     parser = argp.ArgumentParser(add_help=False,
                                  description='list watches')

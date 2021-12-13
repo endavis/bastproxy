@@ -214,7 +214,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         self.current_trace['fromclient'] = True
         self.current_trace['internal'] = False
 
-      self.api('core.events:raise:event')('io_execute_trace_started', self.current_trace,
+      self.api('core.events:raise:event')('ev_libs.io_execute_trace_started', self.current_trace,
                                           calledfrom="libs.io")
 
     if command == '\r\n':
@@ -235,7 +235,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                                          (command, ", ".join(commands)))
 
       for current_command in commands:
-        newdata = self.api('core.events:raise:event')('io_execute_event',
+        newdata = self.api('core.events:raise:event')('ev_libs.io_execute',
                                                       {'fromdata':current_command,
                                                        'fromclient':fromclient,
                                                        'internal':not fromclient,
@@ -279,7 +279,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                                 calledfrom="libs.io")
 
     if tracing:
-      self.api('core.events:raise:event')('io_execute_trace_finished', self.current_trace,
+      self.api('core.events:raise:event')('ev_libs.io_execute_trace_finished', self.current_trace,
                                           calledfrom="libs.io")
       self.current_trace = None
 
