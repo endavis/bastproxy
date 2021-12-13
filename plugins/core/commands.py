@@ -236,7 +236,7 @@ class Plugin(BasePlugin):
     arguments:
       required:
         message     - the message
-        plugin_id  - the short name of the plugin
+        plugin_id   - the id of the plugin
         command     - the command from the plugin
 
     returns:

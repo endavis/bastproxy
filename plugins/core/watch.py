@@ -1,6 +1,7 @@
 """
 This plugin will handle watching for commands coming from the client
 """
+from __future__ import print_function
 import re
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
@@ -134,7 +135,7 @@ class Plugin(BasePlugin):
       plugin = self.api('libs.api:get:caller:plugin')()
 
     if not plugin:
-      print 'could not add a watch for watchname', watch_name
+      print('could not add a watch for watchname', watch_name)
       return
 
     if regex in self.regex_lookup:
