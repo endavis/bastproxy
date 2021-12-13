@@ -67,9 +67,9 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('core.events:register:to:event')('GMCP_raw', self.gmcpfromserver)
-    self.api('core.events:register:to:event')('GMCP_from_client', self.gmcpfromclient)
-    self.api('core.events:register:to:event')('GMCP:server-enabled', self.gmcprequest)
+    self.api('core.events:register:to:event')('ev_net.GMCP_raw', self.gmcpfromserver)
+    self.api('core.events:register:to:event')('ev_net.GMCP_from_client', self.gmcpfromclient)
+    self.api('core.events:register:to:event')('ev_net.GMCP_server_enabled', self.gmcprequest)
     self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.gmcpdisconnect)
 
     self.api('net.options:server:option:add')(self.plugin_id, self.option_name, self.option_num, SERVER)
@@ -244,9 +244,9 @@ class Plugin(BasePlugin):
           self.api('libs.io:send:traceback')('\n'.join(msg))
 
     self.api('libs.io:send:msg')('%s : %s' % (args['module'], args['data']))
-    self.api('core.events:raise:event')('GMCP', args)
-    self.api('core.events:raise:event')('GMCP:%s' % modname, args)
-    self.api('core.events:raise:event')('GMCP:%s' % mods[0], args)
+    self.api('core.events:raise:event')('ev_net.GMCP_ALL', args)
+    self.api('core.events:raise:event')('ev_net.GMCP_MOD_%s' % modname, args)
+    self.api('core.events:raise:event')('ev_net.GMCP_MOD_%s' % mods[0], args)
 
   def gmcprequest(self, _=None):
     """
@@ -325,7 +325,7 @@ class SERVER(BaseTelnetOption):
       self.telnet_object.msg('sending IAC DO GMCP (%s)' % self.option_number, level=2, mtype=self.option_name)
       self.telnet_object.send("".join([IAC, DO, self.option_string]))
       self.telnet_object.options[ord(self.option_string)] = True
-      self.plugin.api('core.events:raise:event')('GMCP:server-enabled', {})
+      self.plugin.api('core.events:raise:event')('ev_net.GMCP_server_enabled', {})
 
     # GMCP data
     elif command in [SE, SB]:
@@ -334,7 +334,7 @@ class SERVER(BaseTelnetOption):
         self.telnet_object.msg('##BUG: Enabling GMCP, missed negotiation',
                                level=2, mtype=self.option_name)
         self.telnet_object.options[ord(self.option_string)] = True
-        self.plugin.api('core.events:raise:event')('GMCP:server-enabled', {})
+        self.plugin.api('core.events:raise:event')('ev_net.GMCP_server_enabled', {})
 
       data = sbdata
       # split it for further use
@@ -361,7 +361,7 @@ class SERVER(BaseTelnetOption):
                                              raw=True, dtype=self.option_string)
 
       # raise it for internal use
-      self.plugin.api('core.events:raise:event')('GMCP_raw', tdata)
+      self.plugin.api('core.events:raise:event')('ev_net.GMCP_raw', tdata)
 
 # Client
 class CLIENT(BaseTelnetOption):
@@ -387,6 +387,6 @@ class CLIENT(BaseTelnetOption):
                              mtype=self.option_name)
       self.telnet_object.options[ord(self.option_string)] = True
     elif command in [SE, SB]:
-      self.plugin.api('core.events:raise:event')('GMCP_from_client',
+      self.plugin.api('core.events:raise:event')('ev_net.GMCP_from_client',
                                                  {'data': sbdata,
                                                   'client':self.telnet_object})

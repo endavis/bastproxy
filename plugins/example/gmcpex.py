@@ -37,9 +37,9 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('core.events:register:to:event')('GMCP', self.test)
-    self.api('core.events:register:to:event')('GMCP:char', self.testchar)
-    self.api('core.events:register:to:event')('GMCP:char.status', self.testcharstatus)
+    self.api('core.events:register:to:event')('ev_net.GMCP_ALL', self.test)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_char', self.testchar)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_char.status', self.testcharstatus)
 
     parser = argp.ArgumentParser(
         add_help=False,
