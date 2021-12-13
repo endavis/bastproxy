@@ -271,7 +271,7 @@ class API(object):
     """  return a list of all plugins in the call stack
     @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
 
-    this function returns a list of plugins on the stack, each element will be the plugin short name"""
+    this function returns a list of plugins on the stack, each element will be the plugin_id"""
     from plugins._baseplugin import BasePlugin
 
     if not ignore_plugin_list:
@@ -320,7 +320,7 @@ class API(object):
        it checks for a BasePlugin instance of self
        if it doesn't find that, it checks for an attribute of plugin
 
-    returns the short name of the plugin on the stack"""
+    returns the plugin_id of the plugin on the stack"""
     #print("calling get:caller:plugin with ignore %s" % ignore_plugin_list)
     from plugins._baseplugin import BasePlugin
 
