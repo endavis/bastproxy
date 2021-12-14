@@ -642,6 +642,16 @@ class Plugin(BasePlugin):
       None if no data
       Otherwise it returns the update data stack
     """
+    # strip single ctrl chars that mess up unicode encoding
+    # this keeps the command history data clean for encoding
+    # like ctrl-c from a linux terminal client
+    if len(data['fromdata']) == 1:
+      try:
+        temps = data['fromdata']
+        temps.encode('utf-8')
+      except UnicodeDecodeError:
+        return None
+
     command_data_dict = {}
     command_data_dict['orig'] = data['fromdata']
     command_data_dict['commandran'] = data['fromdata']
