@@ -65,7 +65,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     self.can_reset_f = True
     self.reset_f = True
     self.api = API(parent_plugin_id=self.plugin_id)
-    self.first_active_priority = None
+    self.is_character_active_priority = None
     self.loaded_time = time.time()
     self.save_directory = os.path.join(self.api.BASEPATH, 'data',
                                        'plugins', self.plugin_id)
@@ -621,31 +621,30 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     mud = self.api('core.managers:get')('mud')
 
     if mud and mud.connected:
-      if self.api('libs.api:has')('connect:firstactive'):
-        if self.api('connect:firstactive')():
-          self.after_first_active()
+      if self.api('libs.api:is_character_active')():
+        self.after_character_is_active()
       else:
-        self.api('core.events:register:to:event')('firstactive', self.after_first_active,
-                                                  prio=self.first_active_priority)
+        self.api('core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active,
+                                                  prio=self.is_character_active_priority)
     else:
-      self.api('core.events:register:to:event')('firstactive', self.after_first_active,
-                                                prio=self.first_active_priority)
+      self.api('core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active,
+                                                prio=self.is_character_active_priority)
     self.initializing_f = False
 
   def __disconnect(self, _=None):
     """
-    re-register to firstactive on disconnect
+    re-register to character active event on disconnect
     """
     self.api('libs.io:send:msg')('baseplugin, disconnect')
-    self.api('core.events:register:to:event')('firstactive', self.after_first_active)
+    self.api('core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active)
 
-  def after_first_active(self, _=None):
+  def after_character_is_active(self, _=None):
     """
-    if we are connected do
+    tasks to do after character is active
     """
-    self.api('libs.io:send:msg')('baseplugin, firstactive')
-    if self.api('core.events:is:registered:to:event')('firstactive', self.after_first_active):
-      self.api('core.events:unregister:from:event')('firstactive', self.after_first_active)
+    self.api('libs.io:send:msg')('baseplugin, after_character_is_active')
+    if self.api('core.events:is:registered:to:event')('ev_libs.api_character_active', self.after_character_is_active):
+      self.api('core.events:unregister:from:event')('ev_libs.api_character_active', self.after_character_is_active)
 
   def get_stats(self):
     """

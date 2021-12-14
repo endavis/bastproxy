@@ -69,6 +69,11 @@ class API(object):
   # the proxy plugin
   command_split_regex = None
 
+  # flag to set the character active flag for connecting.
+  # set this ater the mud has been connected to and
+  # is available for active commands to be sent
+  is_character_active = False
+
   def __init__(self, parent_plugin_id=None):
     """
     initialize the class
@@ -107,6 +112,32 @@ class API(object):
       self.add('libs.api', 'get:call:stack:simple', self._api_simple_call_stack, overload=True)
     if not self('libs.api:has')('libs.api:add:event:description'):
       self.add('libs.api', 'add:event:description', self._api_add_event_description, overload=True)
+    if not self('libs.api:has')('libs.api:is_character_active'):
+      self.add('libs.api', 'is_character_active', self._api_is_character_active_get, overload=True)
+    if not self('libs.api:has')('libs.api:is_character_active:set'):
+      self.add('libs.api', 'is_character_active:set', self._api_is_character_active_set, overload=True)
+
+  # get the firstactive flag
+  def _api_is_character_active_get(self):
+    """
+    returns the is_character_active flag
+    """
+    return self.is_character_active
+
+  def _api_is_character_active_set(self, flag):
+    """
+    set the is_character_active flag
+    """
+    self.__class__.is_character_active = flag
+
+    if flag:
+      self('core.events:raise:event')('ev_libs.api_character_active',
+                                      args={'is_character_active':self.is_character_active},
+                                      calledfrom='libs.api')
+    else:
+      self('core.events:raise:event')('ev_libs.api_character_inactive',
+                                      args={'is_character_active':self.is_character_active},
+                                      calledfrom='libs.api')
 
   # return the data for an api
   def _api_data_get(self, api_name, base=True):
