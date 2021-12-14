@@ -1,7 +1,7 @@
 """
 This plugin is a utility plugin for aardwolf functions
 
-It adds functions to the api as well as takes care of the firstactive flag
+It adds functions to the api as well as takes care of the is_character_active flag
 """
 from __future__ import print_function
 from plugins._baseplugin import BasePlugin
@@ -20,15 +20,11 @@ class Plugin(BasePlugin):
   def __init__(self, *args, **kwargs):
     BasePlugin.__init__(self, *args, **kwargs)
 
-    self.firstactive = False
     self.connected = False
 
     self.sentchar = False
     self.sentquest = False
     self.sentroom = False
-
-    # the firstactive flag
-    self.api('libs.api:add')('firstactive', self.api_firstactive)
 
     self.api('dependency:add')('net.GMCP')
 
@@ -38,21 +34,24 @@ class Plugin(BasePlugin):
     """
     BasePlugin.initialize(self)
 
-    self.api('core.triggers:trigger:add')('connect_return',
-                                          r"\[ Press Return to continue \]")
+    self.api('core.triggers:trigger:add')('return_to_continue',
+                                          r"(\[ Press Return to continue \])|(\[Press Return\])")
 
     self.api('core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self._disconnect)
-    self.api('core.events:register:to:event')('GMCP:char', self._check)
-    self.api('core.events:register:to:event')('GMCP:room.info', self._check)
-    self.api('core.events:register:to:event')('GMCP:comm.quest', self._check)
-    self.api('core.events:register:to:event')('trigger_connect_return', self._connect_return)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_char', self._check)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_room.info', self._check)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_comm.quest', self._check)
+    self.api('core.events:register:to:event')('ev_core.triggers_t_aardwolf.connect_return_to_continue',
+                                              self._connect_return)
     self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.clientconnected)
 
-    self.api('core.events:register:to:event')('GMCP:server-enabled', self.enablemods)
+    self.api('core.events:register:to:event')('ev_net.GMCP_server_enabled', self.enablemods)
 
-    state = self.api('net.GMCP:value:get')('char.status.state')
+    #state = self.api('net.GMCP:value:get')('char.status.state')
     mud = self.api('core.managers:get')('mud')
-    if state == 3 and mud and mud.connected:
+#    if state == 3 and mud and mud.connected:
+    if mud and mud.connected:
+      print('mud connected')
       self.enablemods()
       self.clientconnected()
 
@@ -77,53 +76,53 @@ class Plugin(BasePlugin):
     """
     enable modules for aardwolf
     """
-    self.api('net.GMCP:mud:send')("rawcolor on")
-    self.api('net.GMCP:mud:send')("group on")
-    self.api('net.GMCP:mud:toggle:module')('Char', True)
-    self.api('net.GMCP:mud:toggle:module')('Room', True)
-    self.api('net.GMCP:mud:toggle:module')('Comm', True)
-    self.api('net.GMCP:mud:toggle:module')('Group', True)
-    self.api('net.GMCP:mud:toggle:module')('Core', True)
+    mud = self.api('core.managers:get')('mud')
+    if mud.connected:
+      self.api('net.GMCP:mud:send')("rawcolor on")
+      self.api('net.GMCP:mud:send')("group on")
+      self.api('net.GMCP:mud:module:toggle')('Char', True)
+      self.api('net.GMCP:mud:module:toggle')('Room', True)
+      self.api('net.GMCP:mud:module:toggle')('Comm', True)
+      self.api('net.GMCP:mud:module:toggle')('Group', True)
+      self.api('net.GMCP:mud:module:toggle')('Core', True)
 
   def _disconnect(self, _=None):
     """
     reattach to GMCP:char.status
     """
+    self.connected = False
     self.sentchar = False
-    self.api('core.events:register:to:event')('GMCP:char', self._check)
-    self.api('core.events:register:to:event')('GMCP:room.info', self._check)
-    self.api('core.events:register:to:event')('GMCP:comm.quest', self._check)
-    self.api('core.events:register:to:event')('trigger_connect_return', self._connect_return)
+    self.sentquest = False
+    self.sentroom = False
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_char', self._check)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_room.info', self._check)
+    self.api('core.events:register:to:event')('ev_net.GMCP_MOD_comm.quest', self._check)
+    self.api('core.events:register:to:event')('ev_core.triggers_t_aardwolf.connect_return_to_continue',
+                                              self._connect_return)
+    self.api('libs.api:is_character_active:set')(False)
 
-  # returns the firstactive flag
-  def api_firstactive(self):
-    """  return the firstactive flag
-    this function returns True or False"""
-    return self.firstactive
 
-  def sendfirstactive(self):
+  def set_character_to_active(self):
     """
-    send the firstactive event
+    set the character_is_active flag
     """
     mud = self.api('core.managers:get')('mud')
     if mud and mud.connected:
       state = self.api('net.GMCP:value:get')('char.status.state')
       if state == 3:
-        self.api('core.events:unregister:from:event')('GMCP:char', self._check)
-        self.api('core.events:unregister:from:event')('GMCP:room.info', self._check)
-        self.api('core.events:unregister:from:event')('GMCP:comm.quest', self._check)
-        self.api('core.events:unregister:from:event')('trigger_connect_return',
+        self.api('core.events:unregister:from:event')('ev_net.GMCP_MOD_char', self._check)
+        self.api('core.events:unregister:from:event')('ev_net.GMCP_MOD_room.info', self._check)
+        self.api('core.events:unregister:from:event')('ev_net.GMCP_MOD_comm.quest', self._check)
+        self.api('core.events:unregister:from:event')('ev_core.triggers_t_aardwolf.connect_return_to_continue',
                                                       self._connect_return)
         self.api('libs.io:send:mud')('look')
         self.api('libs.io:send:mud')('map')
         self.api('libs.io:send:mud')('')
         self.connected = True
-        self.firstactive = True
         self.sentquest = False
         self.sentchar = False
         self.sentroom = False
-        self.api('libs.io:send:msg')('sending first active')
-        self.api('core.events:raise:event')('firstactive', {})
+        self.api('libs.api:is_character_active:set')(True)
 
   def checkall(self):
     """
@@ -183,4 +182,4 @@ class Plugin(BasePlugin):
     check to see if we have seen quest gmcp data
     """
     if self.checkall():
-      self.sendfirstactive()
+      self.set_character_to_active()
