@@ -106,7 +106,7 @@ if __name__ == "__main__":
             shell=libs.net.client.client_telnet_handler,
             connect_maxwait=0.5,
             timeout=3600,
-            log=log,
+            #log=log,
         ))
 
     log.info("mudproxy.py:__main__ - Launching proxy loop")
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         loop.add_signal_handler(
             sig, lambda: asyncio.create_task(shutdown(sig, loop)))
 
-    #loop.set_exception_handler(handle_exceptions)
+    loop.set_exception_handler(handle_exceptions)
 
     for server in all_servers:
         log.debug('running server: %s', server)
