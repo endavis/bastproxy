@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: log.py
+# Filename: libs/log.py
 #
 # File Description: setup logging with some customizations
 #
