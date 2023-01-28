@@ -18,16 +18,45 @@
 import asyncio
 import logging
 import signal
+import time
+import os
+from pathlib import Path
 
 # Third Party
 
 # Project
-#from libs.net.mudserver import MudServer
-#from libs.net.mudclient import MudClient
 import libs.net.client
 import libs.argp
+import libs.log
+from libs.api import API as BASEAPI
 from libs.net import telnetlib3
 
+API = BASEAPI()
+API.__class__.proxy_start_time = time.localtime()
+API.__class__.startup = True
+
+def setup_api():
+    """
+    find the base path of the bastproxy.py file for later use
+    in importing plugins and create data directories
+    """
+    npath = Path(__file__).resolve()
+    BASEAPI.BASEPATH = npath.parent
+
+    if API('libs.api:has')('libs.io:send:msg'):
+        API('libs.io:send:msg')('setting basepath to: %s' % BASEAPI.BASEPATH, 'startup')
+    else:
+        print('setting basepath to: %s' % BASEAPI.BASEPATH)
+
+    BASEAPI.BASEDATAPATH = BASEAPI.BASEPATH / 'data'
+    BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / 'plugins'
+    BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / 'logs'
+
+    os.makedirs(BASEAPI.BASEDATAPATH, exist_ok=True)
+    os.makedirs(BASEAPI.BASEDATALOGPATH, exist_ok=True)
+    os.makedirs(BASEAPI.BASEDATAPLUGINPATH, exist_ok=True)
+
+    BASEAPI.TIMEZONE = time.strftime('%z')
 
 async def shutdown(signal_, loop_) -> None:
     """
@@ -63,16 +92,18 @@ def handle_exceptions(loop_, context) -> None:
 
 
 if __name__ == "__main__":
+    setup_api()
+
     # create an ArgumentParser to parse the command line
     parser = libs.argp.ArgumentParser(description='A python mud proxy')
-    
+
     # create a port option, this sets the variable automatically in the proxy plugin
     parser.add_argument(
-        '-p', 
+        '-p',
         "--port",
         help="the port for the proxy to listen on",
         default=9000)
-    
+
     parser.add_argument(
         '-d',
         '--debug',
