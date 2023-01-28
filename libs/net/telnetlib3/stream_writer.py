@@ -2521,6 +2521,10 @@ class TelnetWriterUnicode(TelnetWriter):
             compliance of the telnet RFC.
         """
         encoding = self.fn_encoding(outgoing=True)
+
+        if type(string) is bytes:
+            return string
+
         return bytes(string, encoding, errors or self.encoding_errors)
 
     def write(self, string, errors=None):
