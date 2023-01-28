@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-# # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Project: Bast's MUD Proxy
 # Filename: mudproxy.py
 #
 # File Description: This is the main file for the MUD Proxy.
 #
-# By: Bast
+# By: Bast/Jubelo
 """
-    Mud Proxy that supports multiple clients logged into a single user on a MUD. 
+    Mud Proxy that supports multiple clients logged into a single user on a MUD.
 
     It will support clients that can interact with the mud as well as clients that can only see output.
 
