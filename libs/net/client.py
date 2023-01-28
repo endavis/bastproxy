@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: client.py
+# Filename: libs/net/client.py
 #
 # File Description: Client connection handling.
 #

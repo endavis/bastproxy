@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: telnet.py
+# Filename: libs/net/telnet.py
 #
 # File Description: Consolidate various protocols.
 #
