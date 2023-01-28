@@ -4,7 +4,7 @@
 #
 # File Description: setup logging with some customizations
 #
-# By: Bast/Jubelo
+# By: Bast
 """
 This plugin sets up logging for various types of data
 

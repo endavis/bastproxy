@@ -4,7 +4,7 @@
 #
 # File Description: create an api for use by plugins and modules
 #
-# By: Bast/Jubelo
+# By: Bast
 """
 this module handles the api for all other modules
 

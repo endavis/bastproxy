@@ -4,7 +4,7 @@
 #
 # File Description: setup argument parser with some customizations
 #
-# By: Bast/Jubelo
+# By: Bast
 """
 This plugin overrides some default argparse behavior to allow for
 errors to be raised instead of exiting the program.
