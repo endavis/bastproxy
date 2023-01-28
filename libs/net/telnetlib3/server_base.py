@@ -175,7 +175,6 @@ class BaseServer(asyncio.streams.FlowControlMixin, asyncio.Protocol):
         #
         # The writer receives a copy of all raw bytes because, as an IAC
         # interpreter, it may likely **write** a responding reply.
-        logger.debug("data_received: %s", data)
         self._last_received = datetime.datetime.now()
 
         cmd_received = False

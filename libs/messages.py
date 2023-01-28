@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Project: akrios_frontend
+# Project: bastproxy
 # Filename: messages.py
 #
 # File Description: Message queues for passing input and output between the game and clients.
 #
-# By: Jubelo
+# By: Bast/Jubelo
 """
     Housing the message queues and one Class to facilitate commands between the game
     engine and front end.

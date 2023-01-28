@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Project: akrios_frontend
-# Filename: clients.py
+# Project: bastproxy
+# Filename: client.py
 #
-# File Description: Client connections via Telnet, Secure Telnet and SSH.
+# File Description: Client connection handling.
 #
-# By: Jubelo
+# By: Bast/Jubelo
 """
     Housing the Class(es) and coroutines for accepting and maintaining connections from clients
     via Telnet, Secure Telnet and SSH.

@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-
-# Project: akrios_frontend
+# Project: bastproxy
 # Filename: telnet.py
 #
 # File Description: Consolidate various protocols.
 #
-# By: Jubelo
+# By: Bast/Jubelo
 """
     Housing various Telnet elements and MUD protocols.  I don't believe we really need
     to go full blown Telnet with all capabilities.  We'll try and create a useful subset

@@ -1,9 +1,22 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: argp.py
+#
+# File Description: setup argument parser with some customizations
+#
+# By: Bast/Jubelo
 """
 This plugin overrides some default argparse behavior to allow for
 errors to be raised instead of exiting the program.
 """
+
+# Standard Library
 import sys
 import argparse
+
+# Third Party
+
+# Project
 
 class ArgumentParser(argparse.ArgumentParser):
   """
