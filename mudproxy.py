@@ -123,7 +123,7 @@ if __name__ == "__main__":
     log: logging.Logger = logging.getLogger(__name__)
     log.debug("Args: %s", args)
 
-    all_servers: list[asyncio.tasks] = []
+    all_servers: list[asyncio.Task] = []
 
     telnet_port: int = args['port']
     log.info(

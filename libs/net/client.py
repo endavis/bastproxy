@@ -235,7 +235,7 @@ async def client_telnet_handler(reader, writer) -> None:
 
     await register_client(connection)
 
-    tasks: list[asyncio.tasks] = [
+    tasks: list[asyncio.Task] = [
         asyncio.create_task(client_read(reader, connection),
                             name=f"{connection.uuid} telnet read"),
         asyncio.create_task(client_write(writer, connection),
