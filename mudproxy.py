@@ -83,22 +83,22 @@ if __name__ == "__main__":
 
     args = vars(parser.parse_args())
 
-    LOG_LEVEL = logging.DEBUG if args['debug'] else logging.INFO
+    log_level = logging.DEBUG if args['debug'] else logging.INFO
 
-    logging.basicConfig(
-        format="%(asctime)s: %(name)-10s - %(levelname)-9s - %(message)s",
-        level=LOG_LEVEL)
+    # setup the various paths for use
+
+    libs.log.setup_loggers(log_level)
+
     log: logging.Logger = logging.getLogger(__name__)
     log.debug("Args: %s", args)
 
     all_servers: list[asyncio.tasks] = []
 
-
     telnet_port: int = args['port']
     log.info(
         "mudproxy.py:__main__ - Creating client Telnet listener on port %s",
         telnet_port)
-    
+
     all_servers.append(
         telnetlib3.create_server(
             host="localhost",
