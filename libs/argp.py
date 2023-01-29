@@ -19,17 +19,17 @@ import argparse
 # Project
 
 class ArgumentParser(argparse.ArgumentParser):
-  """
-  argparse class that doesn't exit on error
-  """
-  def error(self, message):
     """
-    override the error class to raise an error and not exit
+    argparse class that doesn't exit on error
     """
-    exc = sys.exc_info()[1]
-    if exc:
-      exc.errormsg = message
-      raise exc
+    def error(self, message):
+        """
+        override the error class to raise an error and not exit
+        """
+        exc = sys.exc_info()[1]
+        if exc:
+            exc.errormsg = message
+            raise exc
 
 RawDescriptionHelpFormatter = argparse.RawDescriptionHelpFormatter
 HelpFormatter = argparse.HelpFormatter
