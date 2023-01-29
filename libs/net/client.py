@@ -206,7 +206,7 @@ async def client_write(writer, connection) -> None:
         We want this coroutine to run while the client is connected, so we begin with a while loop
         We await for any messages from the game to this client, then write and drain it.
     """
-    log.debug(f"Starting client_write coroutine for {connection.uuid}"
+    log.debug(f"Starting client_write coroutine for {connection.uuid}")
     while connection.state['connected']:
         msg_obj: Message = await messages_to_clients[connection.uuid].get()
         if msg_obj.is_io:
