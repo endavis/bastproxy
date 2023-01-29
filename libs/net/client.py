@@ -141,7 +141,7 @@ async def client_read(reader, connection) -> None:
     log.debug(f"Starting client_read coroutine for {connection.uuid}")
     while connection.state['connected']:
         inp: bytes = await reader.readline()
-        log.info("Raw received data in client_read : %s", inp)
+        log.debug(f"Raw received data in client_read : {inp}")
 
         if not inp:  # This is an EOF.  Hard disconnect.
             connection.state['connected'] = False
@@ -201,7 +201,7 @@ async def client_write(writer, connection) -> None:
         We want this coroutine to run while the client is connected, so we begin with a while loop
         We await for any messages from the game to this client, then write and drain it.
     """
-    log.debug('Starting client_write coroutine for %s', connection.uuid)
+    log.debug(f"Starting client_write coroutine for {connection.uuid}"
     while connection.state['connected']:
         msg_obj: Message = await messages_to_clients[connection.uuid].get()
         if msg_obj.is_io:
