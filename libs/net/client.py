@@ -48,7 +48,7 @@ class ClientConnection:
         self.rows: int = rows
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
-        self.state: dict[str, bool] = {"connected": True, "logged in": False}
+        self.state: dict[str, bool] = {'connected': True, 'logged in': False}
         self.uuid: str = str(uuid4())
         self.read_only = False
         self.reader: asyncio.StreamReader = reader
@@ -61,20 +61,20 @@ class ClientConnection:
         """
         log.debug('Sending client connected message to game engine.')
         payload: dict[str, str | int] = {
-            "uuid": self.uuid,
-            "addr": self.addr,
-            "port": self.port,
-            "rows": self.rows,
+            'uuid': self.uuid,
+            'addr': self.addr,
+            'port': self.port,
+            'rows': self.rows,
         }
         msg: dict[str, str] = {
-            "event": "connection/connected",
+            'event': 'connection/connected',
 #            "secret": WS_SECRET,
-            "payload": payload,
+            'payload': payload,
         }
 
         asyncio.create_task(
             messages_to_game.put(
-                Message("IO",
+                Message('IO',
                         message=json.dumps(msg, sort_keys=True, indent=4))))
         log.debug('Sent client connected message to game engine.')
 
@@ -85,19 +85,19 @@ class ClientConnection:
         """
         log.debug('Sending client disconnected message to game engine.')
         payload: dict[str, str | int] = {
-            "uuid": self.uuid,
-            "addr": self.addr,
-            "port": self.port,
+            'uuid': self.uuid,
+            'addr': self.addr,
+            'port': self.port,
         }
         msg: dict[str, str] = {
-            "event": "connection/disconnected",
+            'event': 'connection/disconnected',
 #            "secret": WS_SECRET,
-            "payload": payload,
+            'payload': payload,
         }
 
         asyncio.create_task(
             messages_to_game.put(
-                Message("IO",
+                Message('IO',
                         message=json.dumps(msg, sort_keys=True, indent=4))))
         log.debug('Sent client disconnected message to game engine.')
 
@@ -138,56 +138,56 @@ async def client_read(reader, connection) -> None:
             else we handle the input. Client input packaged into a JSON payload and put into the
             messages_to_game asyncio.Queue()
     """
-    while connection.state["connected"]:
     log.debug(f"Starting client_read coroutine for {connection.uuid}")
+    while connection.state['connected']:
         inp: bytes = await reader.readline()
         log.info("Raw received data in client_read : %s", inp)
 
         if not inp:  # This is an EOF.  Hard disconnect.
-            connection.state["connected"] = False
+            connection.state['connected'] = False
             return
 
-        if not connection.state["logged in"]:
+        if not connection.state['logged in']:
             if inp.strip() == 'bastpass':
-                connection.state["logged in"] = True
+                connection.state['logged in'] = True
                 # EVENT: client_logged_in
-                msg = "#BP: You are now logged in.\r\n"
+                msg = '#BP: You are now logged in.\r\n'
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
-                        Message("IO",
+                        Message('IO',
                             message=msg)))
                 continue
 
             elif inp.strip() == 'bastviewpass':
-                connection.state["logged in"] = True
+                connection.state['logged in'] = True
                 connection.read_only = True
                 # EVENT: client_logged_in
-                msg = "#BP: You are now logged in as view only user.\r\n"
+                msg = '#BP: You are now logged in as view only user.\r\n'
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
-                        Message("IO",
+                        Message('IO',
                             message=msg)))
                 continue
 
             elif connection.login_attempts < 3:
-                msg = "#BP: Invalid password. Please try again.\r\n"
+                msg = '#BP: Invalid password. Please try again.\r\n'
                 connection.login_attempts = connection.login_attempts + 1
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
-                        Message("IO",
+                        Message('IO',
                             message=msg)))
                 continue
 
             else:
                 tasks = asyncio.all_tasks()
                 print('Tasks1', pprint.pformat(tasks))
-                msg = "#BP: Too many login attempts. Goodbye.\r\n"
+                msg = '#BP: Too many login attempts. Goodbye.\r\n'
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
-                        Message("IO",
+                        Message('IO',
                             message=msg)))
                 await asyncio.sleep(1)
-                connection.state["connected"] = False
+                connection.state['connected'] = False
 
         # This is where we start using events, such as from_client_event
 
@@ -202,7 +202,7 @@ async def client_write(writer, connection) -> None:
         We await for any messages from the game to this client, then write and drain it.
     """
     log.debug('Starting client_write coroutine for %s', connection.uuid)
-    while connection.state["connected"]:
+    while connection.state['connected']:
         msg_obj: Message = await messages_to_clients[connection.uuid].get()
         if msg_obj.is_io:
             writer.write(msg_obj.msg)
@@ -221,8 +221,8 @@ async def client_telnet_handler(reader, writer) -> None:
     This handler is for telnet client connections. Upon a client connection this handler is
     the starting point for creating the tasks necessary to handle the client.
     """
-    client_details: str = writer.get_extra_info("peername")
     log.debug(f"client.py:client_telnet_handler - telnet details are: {dir(reader)}")
+    client_details: str = writer.get_extra_info('peername')
 
     addr, port, *rest = client_details
     log.info(f"Connection established with {addr} : {port} : {rest}")
@@ -230,7 +230,7 @@ async def client_telnet_handler(reader, writer) -> None:
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....
 
-    connection: ClientConnection = ClientConnection(addr, port, "telnet", reader, writer)
+    connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
 
     await register_client(connection)
 
@@ -251,16 +251,16 @@ async def client_telnet_handler(reader, writer) -> None:
 
     await writer.drain()
 
-    log.debug("Sending welcome message")
-    writer.write("#BP: Welcome to Bastproxy.\r\n")
-    writer.write("#BP: Please enter your password.\r\n")
+    log.debug('Sending welcome message')
+    writer.write('#BP: Welcome to Bastproxy.\r\n')
+    writer.write('#BP: Please enter your password.\r\n')
     connection.login_attempts += 1
-    log.debug("Welcome message sent")
+    log.debug('Welcome message sent')
 
     # We want to .wait until the first task is completed.  "Completed" could be an actual finishing
     # of execution or an exception.  If either the reader or writer "completes", we want to ensure
     # we move beyond this point and cleanup the tasks associated with this client.
-    _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
+    _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
 
     # Once we reach this point one of our tasks (reader/writer) have completed or failed.
     # Remove client from the registration list and perform connection specific cleanup.

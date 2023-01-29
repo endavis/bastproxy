@@ -83,7 +83,7 @@ def handle_exceptions(loop_, context) -> None:
         We attach this as the exception handler to the event loop.  Currently we just
         log, as warnings, any exceptions caught.
     """
-    msg = context.get("exception", context["message"])
+    msg = context.get('exception', context['message'])
     log.warning(f"mudproxy.py:handle_exceptions - Caught exception: {msg} in loop: {loop_}")
     log.warning(f"mudproxy.py:handle_exceptions - Caught in task: {asyncio.current_task()}")
 
@@ -97,14 +97,14 @@ if __name__ == "__main__":
     # create a port option, this sets the variable automatically in the proxy plugin
     parser.add_argument(
         '-p',
-        "--port",
-        help="the port for the proxy to listen on",
+        '--port',
+        help='the port for the proxy to listen on',
         default=9000)
 
     parser.add_argument(
         '-d',
         '--debug',
-        action="store_true",
+        action='store_true',
         default=False,
         help='Set log level to debug',
     )
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     all_servers.append(
         telnetlib3.create_server(
-            host="localhost",
+            host='localhost',
             port=telnet_port,
             shell=libs.net.client.client_telnet_handler,
             connect_maxwait=0.5,
@@ -135,7 +135,7 @@ if __name__ == "__main__":
             #log=log,
         ))
 
-    log.info("mudproxy.py:__main__ - Launching proxy loop")
+    log.info('mudproxy.py:__main__ - Launching proxy loop')
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -154,4 +154,4 @@ if __name__ == "__main__":
     log.debug('run_forever')
     loop.run_forever()
 
-    log.info("mudproxy.py:__main__ - shut down.")
+    log.info('mudproxy.py:__main__ - shut down.')
