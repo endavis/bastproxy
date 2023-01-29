@@ -145,7 +145,7 @@ if __name__ == "__main__":
         loop.add_signal_handler(
             sig, lambda: asyncio.create_task(shutdown(sig, loop)))
 
-    loop.set_exception_handler(handle_exceptions)
+    #loop.set_exception_handler(handle_exceptions)
 
     for server in all_servers:
         log.debug(f"running server: {server}")
