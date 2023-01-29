@@ -43,10 +43,11 @@ def setup_api():
     npath = Path(__file__).resolve()
     BASEAPI.BASEPATH = npath.parent
 
+    msg = f"setting basepath to: {BASEAPI.BASEPATH}"
     if API('libs.api:has')('libs.io:send:msg'):
-        API('libs.io:send:msg')('setting basepath to: %s' % BASEAPI.BASEPATH, 'startup')
+        API('libs.io:send:msg')(msg, 'startup')
     else:
-        print('setting basepath to: %s' % BASEAPI.BASEPATH)
+        print(msg)
 
     BASEAPI.BASEDATAPATH = BASEAPI.BASEPATH / 'data'
     BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / 'plugins'
@@ -63,18 +64,17 @@ async def shutdown(signal_, loop_) -> None:
         shutdown coroutine utilized for cleanup on receipt of certain signals.
         Created and added as a handler to the loop in main.
     """
-    log.warning("mudproxy.py:shutdown - Received exit signal %s", signal_.name)
+    log.warning(f"mudproxy.py:shutdown - Received exit signal {signal_.name}")
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 
-    log.info("mudproxy.py:shutdown - Cancelling %s outstanding tasks",
-             len(tasks))
+    log.info(f"mudproxy.py:shutdown - Cancelling {len(tasks)} outstanding tasks")
 
     for task in tasks:
         task.cancel()
 
     exceptions = await asyncio.gather(*tasks, return_exceptions=True)
-    log.warning("mudproxy.py:shutdown - Exceptions: %s", exceptions)
+    log.warning(f"mudproxy.py:shutdown - Exceptions: {exceptions}")
     loop_.stop()
 
 
@@ -84,11 +84,8 @@ def handle_exceptions(loop_, context) -> None:
         log, as warnings, any exceptions caught.
     """
     msg = context.get("exception", context["message"])
-    log.warning(
-        "mudproxy.py:handle_exceptions - Caught exception: %s in loop: %s",
-        msg, loop_)
-    log.warning("mudproxy.py:handle_exceptions - Caught in task: %s",
-                asyncio.current_task())
+    log.warning(f"mudproxy.py:handle_exceptions - Caught exception: {msg} in loop: {loop_}")
+    log.warning(f"mudproxy.py:handle_exceptions - Caught in task: {asyncio.current_task()}")
 
 
 if __name__ == "__main__":
@@ -121,14 +118,12 @@ if __name__ == "__main__":
     libs.log.setup_loggers(log_level)
 
     log: logging.Logger = logging.getLogger(__name__)
-    log.debug("Args: %s", args)
+    log.debug(f"Args: {args}")
 
     all_servers: list[asyncio.Task] = []
 
     telnet_port: int = args['port']
-    log.info(
-        "mudproxy.py:__main__ - Creating client Telnet listener on port %s",
-        telnet_port)
+    log.info(f"mudproxy.py:__main__ - Creating client Telnet listener on port {telnet_port}")
 
     all_servers.append(
         telnetlib3.create_server(
@@ -153,7 +148,7 @@ if __name__ == "__main__":
     loop.set_exception_handler(handle_exceptions)
 
     for server in all_servers:
-        log.debug('running server: %s', server)
+        log.debug(f"running server: {server}")
         loop.run_until_complete(server)
 
     log.debug('run_forever')

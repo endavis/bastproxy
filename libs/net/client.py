@@ -106,26 +106,26 @@ async def register_client(connection) -> None:
     """
         Upon a new client connection, we register it to the connections dict.
     """
-    log.debug('Registering client %s', connection.uuid)
+    log.debug(f"Registering client {connection.uuid}")
     connections[connection.uuid] = connection
     messages_to_clients[connection.uuid] = asyncio.Queue()
 
     await connection.notify_connected()
-    log.debug('Registered client %s', connection.uuid)
+    log.debug(f"Registered client {connection.uuid}")
 
 
 async def unregister_client(connection) -> None:
     """
         Upon client disconnect/quit, we unregister it from the connections dict.
     """
-    log.debug('Unregistering client %s', connection.uuid)
+    log.debug(f"Unregistering client {connection.uuid}")
     if connection.uuid in connections:
         connections.pop(connection.uuid)
         messages_to_clients.pop(connection.uuid)
 
         await connection.notify_disconnected()
-        log.debug('Unregistered client %s', connection.uuid)
-    log.debug('Client %s already unregistered', connection.uuid)
+        log.debug(f"Unregistered client {connection.uuid}")
+    log.debug(f"Client {connection.uuid} already unregistered")
 
 
 async def client_read(reader, connection) -> None:
@@ -138,8 +138,8 @@ async def client_read(reader, connection) -> None:
             else we handle the input. Client input packaged into a JSON payload and put into the
             messages_to_game asyncio.Queue()
     """
-    log.debug('Starting client_read coroutine for %s', connection.uuid)
     while connection.state["connected"]:
+    log.debug(f"Starting client_read coroutine for {connection.uuid}")
         inp: bytes = await reader.readline()
         log.info("Raw received data in client_read : %s", inp)
 
@@ -191,7 +191,7 @@ async def client_read(reader, connection) -> None:
 
         # This is where we start using events, such as from_client_event
 
-    log.debug('Ending client_read coroutine for %s', connection.uuid)
+    log.debug(f"Ending client_read coroutine for {connection.uuid}")
 
 
 async def client_write(writer, connection) -> None:
@@ -212,8 +212,8 @@ async def client_write(writer, connection) -> None:
             writer.write(telnet.iac([msg_obj.command]))
 
         task = asyncio.create_task(writer.drain())
-        logging.getLogger("asyncio").debug("Created task %s for write.drain() in client_write" % task.get_name())
-    log.debug('Ending client_write coroutine for %s', connection.uuid)
+        logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")
+    log.debug(f"Ending client_write coroutine for {connection.uuid}")
 
 
 async def client_telnet_handler(reader, writer) -> None:
@@ -221,12 +221,11 @@ async def client_telnet_handler(reader, writer) -> None:
     This handler is for telnet client connections. Upon a client connection this handler is
     the starting point for creating the tasks necessary to handle the client.
     """
-    log.debug("client.py:client_telnet_handler - telnet details are: %s",
-              dir(reader))
     client_details: str = writer.get_extra_info("peername")
+    log.debug(f"client.py:client_telnet_handler - telnet details are: {dir(reader)}")
 
     addr, port, *rest = client_details
-    log.info("Connection established with %s : %s : %s", addr, port, rest)
+    log.info(f"Connection established with {addr} : {port} : {rest}")
 
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....

@@ -41,7 +41,7 @@ def get_args(api_function):
   for i in argsl:
     if i == 'self':
       continue
-    argn.append('@Y%s@w' % i.strip())
+    argn.append(f"@Y{i.strip()}@w")
 
   args = ', '.join(argn)
 
@@ -199,12 +199,11 @@ class API(object):
 
     if not overload:
       if full_api_name in self.api and not force:
+        msg = f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}"
         try:
-          self.get('libs.io:send:error')('libs.api:add - %s already exists from plugin %s' % \
-                                  (full_api_name, plugin_id))
+          self.get('libs.io:send:error')(msg)
         except AttributeError:
-          print('libs.api:add - %s already exists from plugin %s' % \
-                                  (full_api_name, plugin_id))
+          print(msg)
       else:
         self.api[full_api_name] = api_data
 
@@ -227,12 +226,11 @@ class API(object):
 
     if not force and \
           (api_data['full_api_name'] in self.overloaded_api):
+      msg = f"libs.api:overload - {api_data['full_api_name']} already exists added by plugin: {api_data['plugin']}"
       try:
-        self.get('libs.io:send:error')('libs.api:overload - %s already exists added by plugin: %s' % \
-                                 (api_data['full_api_name'], api_data['plugin']))
+        self.get('libs.io:send:error')(msg)
       except AttributeError:
-        print('libs.api:overload - %s already exists added by plugin %s ' % (api_data['full_api_name'],
-                                                                             api_data['plugin']))
+        print(msg)
 
       return False
 
@@ -368,7 +366,7 @@ class API(object):
        if it doesn't find that, it checks for an attribute of plugin
 
     returns the plugin_id of the plugin on the stack"""
-    #print("calling get:caller:plugin with ignore %s" % ignore_plugin_list)
+    #print(f"calling get:caller:plugin with ignore {ignore_plugin_list}")
     from plugins._baseplugin import BasePlugin
 
     if not ignore_plugin_list:
@@ -389,11 +387,11 @@ class API(object):
         tcs = parent_frame.f_locals['self']
         if tcs != self and isinstance(tcs, BasePlugin) \
                        and tcs.plugin_id not in ignore_plugin_list:
-          # print( "found: %s" % tcs.plugin_id)
+          # print(f"found: {tcs.plugin_id}")
           return tcs.plugin_id
         if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
                 and tcs.plugin.plugin_id not in ignore_plugin_list:
-          # print("found: %s" % tcs.plugin.plugin_id)
+          # print(f"found: {tcs.plugin.plugin_id}")
           return tcs.plugin.plugin_id
 
     del stack
@@ -426,7 +424,7 @@ class API(object):
     if plugin_instance:
       return plugin_instance.api(api_location)
     else:
-      self('io.error')('API run_as: %s plugin does not exist' % plugin_id)
+      self('io.error')(f"API run_as: {plugin_id} plugin does not exist")
 
   def get(self, api_location, do_not_overload=False):
     """
@@ -447,7 +445,7 @@ class API(object):
       if self.parent_plugin_id:
         api_location = self.parent_plugin_id + ':' + api_location
       else:
-        self('libs.io:send:error')('api lookup: %s : did not contain a .' % api_location)
+        self('libs.io:send:error')(f"api lookup: {api_location} : did not contain a .")
 
     # check overloaded api
     if not do_not_overload:
@@ -465,7 +463,7 @@ class API(object):
       self.stats[api_location][caller_plugin] = self.stats[api_location][caller_plugin] + 1
       return api_data['function']
 
-    raise AttributeError('%s is not in the api' % api_location)
+    raise AttributeError(f"{api_location} is not in the api")
 
   __call__ = get
 
@@ -515,7 +513,7 @@ class API(object):
     api_overloaded_path = None
 
     if ':' not in api_location:
-      tmsg.append('%s is not a : api format' % api_location)
+      tmsg.append(f"{api_location} is not a : api format")
       return tmsg
 
     if api_location:
@@ -526,15 +524,15 @@ class API(object):
       try:
         api_original = self.get(api_location, do_not_overload=True)
       except AttributeError:
-        print('%s not in original api' % api_location)
+        print(f"{api_location} not in original api")
 
       try:
         api_overloaded = self.get(api_location)
       except AttributeError:
-        print('%s not in any api' % api_location)
+        print(f"{api_location} not in overloaded api")
 
       if not api_original and not api_overloaded:
-        tmsg.append('%s is not in the api' % api_location)
+        tmsg.append(f"{api_location} is not in the api")
         return tmsg
 
       if api_original == api_overloaded:
@@ -551,17 +549,17 @@ class API(object):
 
       args = get_args(api_function)
 
-      tmsg.append('@G%s@w(%s)' % (api_location, args))
+      tmsg.append(f"@G{api_location}@w({args})")
       if api_function.__doc__:
         tmsg.append(api_function.__doc__ % tdict)
 
       tmsg.append('')
       if api_original_path:
-        tmsg.append('original defined in %s' % api_original_path)
+        tmsg.append(f"original defined in {api_original_path}")
       if api_overloaded_path and api_original_path:
-        tmsg.append('overloaded in %s' % api_overloaded_path)
+        tmsg.append(f"overloaded in {api_overloaded_path}")
       elif api_overloaded_path:
-        tmsg.append('original defined in %s' % api_overloaded_path)
+        tmsg.append(f"original defined in {api_overloaded_path}")
 
       if stats_by_plugin:
         api_data = self._api_data_get(api_location)
@@ -573,10 +571,10 @@ class API(object):
           stats_keys.sort()
           for i in stats_keys:
 
-            tmsg.append('%-20s: %s' % (i or 'Unknown', api_data['stats'][i]))
+            tmsg.append(f"{i or 'Unknown':-20}: {api_data['stats'][i]}")
 
     else:
-      tmsg.append('%s is not in the api' % api_location)
+      tmsg.append(f"{api_location} is not in the api")
 
     return tmsg
 
@@ -629,7 +627,7 @@ class API(object):
       toplevel, therest = i.split(':', 1)
       if toplevel not in top_levels:
         top_levels.append(toplevel)
-        tmsg.append('@G%-10s@w' % toplevel)
+        tmsg.append(f"@G{toplevel:<10}@w")
       api_data = self._api_data_get(i)
 
       comments = inspect.getcomments(api_data['function'])
@@ -637,9 +635,8 @@ class API(object):
         comments = comments.strip()
       added_by = ''
       if api_data['plugin']:
-        added_by = '- added by %s ' % api_data['plugin']
-      tmsg.append('  @G%-30s %s- called %s times @w\n    %s' % \
-         (therest, added_by, api_data['count'], comments))
+        added_by = f"- added by {api_data['plugin']} "
+      tmsg.append(f"  @G{therest:<30} {added_by}- called {api_data['count']} times @w\n    {comments}")
 
     return tmsg
 
