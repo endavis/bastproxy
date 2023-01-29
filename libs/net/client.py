@@ -35,9 +35,13 @@ class ClientConnection:
             self.addr is the IP address portion of the client
             self.port is the port portion of the client
             self.conn_type is the type of client connection
+            self.rows is the number of rows the client requested
+            self.login_attempts is the number of login attempts
+                close connection on 3 failed attempts
             self.state is the current state of the client connection
                 Currently used for "softboot" capability
             self.uuid is a str(uuid.uuid4()) for unique session tracking
+            self.read_only is a bool to determine if the client is read only
             self.reader is the asyncio.StreamReader for the connection
             self.writer is the asyncio.StreamWriter for the connection
 
