@@ -146,6 +146,7 @@ async def client_read(reader, connection) -> None:
     while connection.state['connected']:
         inp: bytes = await reader.readline()
         log.debug(f"Raw received data in client_read : {inp}")
+        logging.getLogger('data.client').info(inp)
 
         if not inp:  # This is an EOF.  Hard disconnect.
             connection.state['connected'] = False
