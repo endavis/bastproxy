@@ -29,6 +29,11 @@ messages_to_clients = {}
 class Message:
     """
     A Message is specifically a message meant for a connected client.
+
+    COMMAND-TELNET
+        command should be a byte string of telnet options
+    IO
+        msg can be strings or bytes
     """
     def __init__(self, msg_type, **kwargs):
         self.msg = kwargs['message']
