@@ -36,10 +36,10 @@ class Message:
         msg can be strings or bytes
     """
     def __init__(self, msg_type, **kwargs):
-        self.msg = kwargs['message']
+        self.msg = kwargs.get('message', '')
         self.command = kwargs.get('command', None)
-        self.prompt = kwargs.get('is_prompt', "false")
-        if msg_type in ["IO", "COMMAND-TELNET"]:
+        self.prompt = kwargs.get('is_prompt', 'false')
+        if msg_type in ['IO', 'COMMAND-TELNET']:
             self.msg_type = msg_type
 
     @property
@@ -47,18 +47,18 @@ class Message:
         """
         A shortcut property to determine if this message is a Telnet Opcode.
         """
-        return self.msg_type == "COMMAND-TELNET"
+        return self.msg_type == 'COMMAND-TELNET'
 
     @property
     def is_io(self):
         """
         A shortcut property to determine if this message is normal I/O.
         """
-        return self.msg_type == "IO"
+        return self.msg_type == 'IO'
 
     @property
     def is_prompt(self):
         """
         A shortcut property to determine if this message is a prompt (versus normal I/O).
         """
-        return self.prompt == "true"
+        return self.prompt == 'true'
