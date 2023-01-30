@@ -159,6 +159,10 @@ async def client_read(reader, connection) -> None:
                 msg = '#BP: You are now logged in.\r\n'
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
+                        Message('COMMAND-TELNET',
+                            command=telnet.echo_off())))
+                asyncio.create_task(
+                    messages_to_clients[connection.uuid].put(
                         Message('IO',
                             message=msg)))
                 continue
@@ -168,6 +172,11 @@ async def client_read(reader, connection) -> None:
                 connection.read_only = True
                 # EVENT: client_logged_in
                 msg = '#BP: You are now logged in as view only user.\r\n'
+                asyncio.create_task(
+                    messages_to_clients[connection.uuid].put(
+                        Message('COMMAND-TELNET',
+                            command=telnet.echo_off())))
+
                 asyncio.create_task(
                     messages_to_clients[connection.uuid].put(
                         Message('IO',
@@ -210,14 +219,23 @@ async def client_write(writer, connection) -> None:
     while connection.state['connected']:
         msg_obj: Message = await messages_to_clients[connection.uuid].get()
         if msg_obj.is_io:
-            writer.write(msg_obj.msg)
-            if msg_obj.is_prompt:
-                writer.write(telnet.go_ahead())
+            if msg_obj.msg:
+                log.debug(f"Writing message to client {connection.uuid}: {msg_obj.msg}")
+                log.debug(f"type of msg_obj.msg = {type(msg_obj.msg)}")
+                writer.write(msg_obj.msg)
+                if msg_obj.is_prompt:
+                    writer.write(telnet.go_ahead())
+            else:
+                log.debug('No message to write to client.')
+
         elif msg_obj.is_command_telnet:
-            writer.write(telnet.iac([msg_obj.command]))
+            log.debug(f"Writing telnet option to client {connection.uuid}: {msg_obj.msg}")
+            log.debug(f"type of msg_obj.msg = {type(msg_obj.msg)}")
+            writer.send_iac(msg_obj.command)
 
         task = asyncio.create_task(writer.drain())
         logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")
+
     log.debug(f"Ending client_write coroutine for {connection.uuid}")
 
 
@@ -248,11 +266,16 @@ async def client_telnet_handler(reader, writer) -> None:
 
     asyncio.current_task().set_name(f"{connection.uuid} ssh handler")
 
+    log.debug('Sending telnet options to client')
     # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
-    writer.write(telnet.echo_on())
+    asyncio.create_task(
+        messages_to_clients[connection.uuid].put(
+            Message('COMMAND-TELNET',
+                command=telnet.echo_on())))
 
     # Advertise to the client that we will do features we are capable of.
     writer.write(telnet.advertise_features())
+    log.debug('telnet options sent')
 
     await writer.drain()
 
