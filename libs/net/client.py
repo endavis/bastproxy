@@ -129,7 +129,8 @@ async def unregister_client(connection) -> None:
 
         await connection.notify_disconnected()
         log.debug(f"Unregistered client {connection.uuid}")
-    log.debug(f"Client {connection.uuid} already unregistered")
+    else:
+        log.debug(f"Client {connection.uuid} already unregistered")
 
 
 async def client_read(reader, connection) -> None:
