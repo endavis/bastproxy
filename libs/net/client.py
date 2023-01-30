@@ -278,4 +278,5 @@ async def client_telnet_handler(reader, writer) -> None:
     for task in rest:
         task.cancel()
 
+    await asyncio.sleep(1)
 
