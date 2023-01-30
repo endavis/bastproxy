@@ -60,7 +60,6 @@ code_by_byte: dict[int, bytes] = {ord(v): k for k, v in code.items()}
 # Game capabilities to advertise
 GAME_CAPABILITIES: list[str] = []
 
-
 # Utility functions
 def iac(codes) -> bytes:
     """
@@ -122,7 +121,7 @@ def advertise_features() -> bytes:
     Build and return a byte string of the features we are capable of and want to
     advertise to the connecting client.
     """
-    features = b""
+    features = b''
     for each_feature in GAME_CAPABILITIES:
         features += features + IAC + WILL + code[each_feature]
     log.info(f"Advertising features: {features}")
@@ -171,4 +170,4 @@ async def handle(opcodes, writer) -> None:
             log.info(f"Responding to previous opcode with: {result}")
             writer.write(result)
             await writer.drain()
-    log.debug("Finished handling opcodes.")
+    log.debug('Finished handling opcodes.')
