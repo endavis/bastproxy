@@ -121,9 +121,9 @@ class TelnetServer(server_base.BaseServer):
         from .telopt import DO, WILL, SGA, ECHO, BINARY, NEW_ENVIRON, NAWS, CHARSET
 
         super().begin_advanced_negotiation()
-        self.writer.iac(WILL, SGA)
-        self.writer.iac(WILL, ECHO)
-        self.writer.iac(WILL, BINARY)
+        #self.writer.iac(WILL, SGA)
+        #self.writer.iac(WILL, ECHO)
+        #self.writer.iac(WILL, BINARY)
         self.writer.iac(DO, NEW_ENVIRON)
         self.writer.iac(DO, NAWS)
         if self.default_encoding:
