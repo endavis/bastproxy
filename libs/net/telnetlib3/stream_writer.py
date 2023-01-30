@@ -2527,7 +2527,7 @@ class TelnetWriterUnicode(TelnetWriter):
 
         return bytes(string, encoding, errors or self.encoding_errors)
 
-    def write(self, string, errors=None):
+    def write(self, string, errors=None, escape_iac=True):
         """
         Write unicode string to transport, using protocol-preferred encoding.
 
@@ -2541,7 +2541,7 @@ class TelnetWriterUnicode(TelnetWriter):
         :rtype: None
         """
         errors = errors or self.encoding_errors
-        self._write(self.encode(string, errors))
+        self._write(self.encode(string, errors), escape_iac=escape_iac)
 
     def writelines(self, lines, errors=None):
         """
