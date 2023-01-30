@@ -128,14 +128,14 @@ def advertise_features() -> bytes:
     return features
 
 
-def echo_off() -> bytes:
+def echo_on() -> bytes:
     """
     Return the Telnet opcode for IAC WILL ECHO.
     """
     return IAC + WILL + ECHO
 
 
-def echo_on() -> bytes:
+def echo_off() -> bytes:
     """
     Return the Telnet opcode for IAC WONT ECHO.
     """
