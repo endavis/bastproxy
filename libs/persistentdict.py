@@ -69,7 +69,7 @@ class PersistentDict(dict):
 
     '''
     def __init__(self, file_name, flag='c', mode=None,
-                 tformat='json', *args, **kwds):
+                 tformat='json', *args, **kwargs):
         """
         initialize the instance
         """
@@ -86,7 +86,7 @@ class PersistentDict(dict):
         self.format = tformat
         self.file_name = file_name
         self.pload()
-        dict.__init__(self, *args, **kwds)
+        super().__init__(*args, **kwargs)
 
     def sync(self):
         """
@@ -129,10 +129,10 @@ class PersistentDict(dict):
         dump the file
         """
         if self.format == 'json':
-            with open(file_object, mode='w', encoding='utf-8') as f:
+            with file_object.open(mode='w', encoding='utf-8') as f:
                 json.dump(self, f, separators=(',', ':'), skipkeys=True, indent=2)
         elif self.format == 'pickle':
-            with open(file_object, 'wb') as f:
+            with file_object.open(mode='wb') as f:
                 pickle.dump(dict(self), f, 2)
         else:
             raise NotImplementedError('Unknown format: ' + repr(self.format))
@@ -142,7 +142,7 @@ class PersistentDict(dict):
         load from file
         """
         # try formats from most restrictive to least restrictive
-        if os.path.exists(self.file_name):
+        if self.file_name.exists():
             if self.flag != 'n' and os.access(self.file_name, os.R_OK):
                 self.load()
 
@@ -151,14 +151,14 @@ class PersistentDict(dict):
         load the dictionary
         """
         tstuff = {}
-        if not os.path.exists(self.file_name):
+        if not self.file_name.exists():
             return
         try:
             if self.format == 'pickle':
-                with open(self.file_name, 'rb') as tfile:
+                with self.file_name.open(mode='rb') as tfile:
                     tstuff = pickle.load(tfile)
             elif self.format == 'json':
-                with open(self.file_name, 'r', encoding='utf-8') as tfile:
+                with self.file_name.open('r', encoding='utf-8') as tfile:
                     tstuff = json.load(tfile, object_hook=convert)
 
             nstuff = convert_keys_to_int(tstuff)
