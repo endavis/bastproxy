@@ -20,22 +20,30 @@ import logging
 import signal
 import time
 import os
+import sys
 from pathlib import Path
 
 # Third Party
 
 # Project
+import libs.log
 import libs.net.client
 import libs.argp
-import libs.log
 from libs.api import API as BASEAPI
 from libs.net import telnetlib3
 # import io so the "send" functions are added to the api
 from libs import io      # pylint: disable=unused-import
 
+
+logging.basicConfig(stream=sys.stdout,
+                    level='INFO',
+                    format=f"%(asctime)s {time.strftime('%z')} : %(name)-12s - %(levelname)-9s - %(message)s")
+
 API = BASEAPI()
 API.__class__.proxy_start_time = time.localtime()
 API.__class__.startup = True
+
+BASEAPI.TIMEZONE = time.strftime('%z')
 
 def setup_api():
     """
@@ -59,7 +67,7 @@ def setup_api():
     os.makedirs(BASEAPI.BASEDATALOGPATH, exist_ok=True)
     os.makedirs(BASEAPI.BASEDATAPLUGINPATH, exist_ok=True)
 
-    BASEAPI.TIMEZONE = time.strftime('%z')
+
 
 async def shutdown(signal_, loop_) -> None:
     """
@@ -91,7 +99,6 @@ def handle_exceptions(loop_, context) -> None:
 
 
 if __name__ == "__main__":
-    setup_api()
 
     # create an ArgumentParser to parse the command line
     parser = libs.argp.ArgumentParser(description='A python mud proxy')
@@ -116,7 +123,9 @@ if __name__ == "__main__":
     log_level = logging.DEBUG if args['debug'] else logging.INFO
 
     # setup the various paths for use
+    setup_api()
 
+    # setup file logging and network data logging
     libs.log.setup_loggers(log_level)
 
     log: logging.Logger = logging.getLogger(__name__)

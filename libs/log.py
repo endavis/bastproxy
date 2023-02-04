@@ -20,12 +20,15 @@ import logging.handlers
 # Third Party
 
 # Project
-from libs.api import API
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
 
 def setup_loggers(log_level):
+
+    from libs.api import API
+
+    logging.getLogger().setLevel(log_level)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
     os.makedirs(API.BASEDATALOGPATH / 'networkdata', exist_ok=True)
@@ -33,19 +36,12 @@ def setup_loggers(log_level):
 
     # This logger is the root logger and will be setup with log_level from
     # a command line argument. It will log to a file and to the console.
-    logging.basicConfig(
-        format="%(asctime)s: %(name)-10s - %(levelname)-9s - %(message)s",
-        filename=default_log_file_path,
-        filemode='w',
-        level=log_level)
-
-    # Create a console handler with a log level of log_level
-    console = logging.StreamHandler()
-    console.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(name)-12s - %(levelname)-9s - %(message)s")
-    console.setLevel(log_level)
+    file_handler = logging.handlers.TimedRotatingFileHandler(filename=default_log_file_path,
+                                                    when='midnight')
+    file_handler.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(name)-12s - %(levelname)-9s - %(message)s")
 
     # add the handler to the root logger
-    logging.getLogger().addHandler(console)
+    logging.getLogger().addHandler(file_handler)
 
     # This logger is for any network data from both the mud and the client to facilitate
     # debugging. It is not intended to be used for general logging. It will not use the same
