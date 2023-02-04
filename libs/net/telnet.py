@@ -104,7 +104,7 @@ def split_opcode_from_input(data) -> tuple[bytes, str]:
     This one will need some love once we get into sub negotiation, ie NAWS.  Review
     iterating over the data and clean up the hot mess below.
     """
-    log.info(f"Received raw data (len={len(data)} of: {data}")
+    log.debug(f"Received raw data (len={len(data)} of: {data}")
     opcodes = b''
     inp = ''
     for position, _ in enumerate(data):
@@ -112,7 +112,7 @@ def split_opcode_from_input(data) -> tuple[bytes, str]:
             opcodes += bytes([data[position]])
         elif chr(data[position]) in printable:
             inp += chr(data[position])
-    log.info(f"Bytecodes found in input.\n\ropcodes: {opcodes}\n\rinput returned: {inp}")
+    log.debug(f"Bytecodes found in input.\n\ropcodes: {opcodes}\n\rinput returned: {inp}")
     return opcodes, inp
 
 
@@ -124,7 +124,7 @@ def advertise_features() -> bytes:
     features = b''
     for each_feature in GAME_CAPABILITIES:
         features += features + IAC + WILL + code[each_feature]
-    log.info(f"Advertising features: {features}")
+    log.debug(f"Advertising features: {features}")
     return features
 
 
@@ -167,7 +167,7 @@ async def handle(opcodes, writer) -> None:
     for each_code in opcodes.split(IAC):
         if each_code and each_code in opcode_match:
             result = iac_sb(opcode_match[each_code]())
-            log.info(f"Responding to previous opcode with: {result}")
+            log.debug(f"Responding to previous opcode with: {result}")
             writer.write(result)
             await writer.drain()
     log.debug('Finished handling opcodes.')
