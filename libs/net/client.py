@@ -57,7 +57,7 @@ class ClientConnection:
         self.conn_type: str = conn_type
         self.state: dict[str, bool] = {'connected': True, 'logged in': False}
         self.uuid: str = str(uuid4())
-        self.read_only = False
+        self.view_only = False
         self.msg_queue = asyncio.Queue()
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
@@ -125,7 +125,7 @@ class ClientConnection:
 
                 elif inp.strip() == 'bastviewpass':
                     self.state['logged in'] = True
-                    self.read_only = True
+                    self.view_only = True
                     # EVENT: view_client_logged_in
                     msg = 'You are now logged in as view only user.'
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
