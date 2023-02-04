@@ -7,6 +7,10 @@
 # By: Bast
 """
 handle output and input functions, adds items under the send api
+
+The send to client and send to mud functions are the only ones that
+will interact with the asyncio event loop, so all data sent to clients
+and the mud will go through the apis libs.io:send:client and libs.io:send:mud
 """
 
 # Standard Library
@@ -15,11 +19,14 @@ import sys
 import traceback
 import re
 import logging
+import asyncio
 
 # Third Party
 
 # Project
 from libs.api import API
+from libs.messages import Message
+from libs.net.client import connections
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """
@@ -164,24 +171,25 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             pass
 
     # send text to the clients
-    def _api_client(self, text, raw=False, preamble=True, dtype='fromproxy', client=None):  # pylint: disable=too-many-arguments
+    def _api_client(self, text, msg_type='IO', preamble=True, internal=False, client_uuid=None):  # pylint: disable=too-many-arguments
         """  handle a traceback
-          @Ytext@w      = The text to send to the clients
-          @Yraw@w       = if True, don't convert colors or add the preamble
-          @Ypreamble@w  = if True, send the preamble, defaults to True
-          @Ydtype@w     = datatype, defaults to 'fromproxy'
+          @Ytext@w        = The text to send to the clients, a list of strings or bytestrings
+          @Yraw@w         = if True, don't convert colors or add the preamble
+          @Ypreamble@w    = if True, send the preamble, defaults to True
+          @Yinternal@w    = if True, this came from the proxy, if false, came from the mud
+          @Yclient_uuid@w = The client to send to, if None, send to all
 
         this function returns no values"""
 
-        # if the data is from the proxy (internal) and not raw, add the preamble to each line
-        if not raw and dtype == 'fromproxy':
-            if isinstance(text, bytes):
-                text = str(text)
-            if isinstance(text, str):
-                text = text.split('\n')
-
-            test = []
+        # if the data is from the proxy (internal) and msg_type is 'IO', add the preamble to each line
+        converted_message = []
+        if internal and msg_type == 'IO':
             for i in text:
+                if isinstance(text, bytes):
+                    text = str(text)
+                if isinstance(text, str):
+                    text = text.split('\n')
+
                 if preamble:
                     if self.api('libs.api:has')('net.proxy:preamble:color:get'):
                         preamblecolor = self.api('net.proxy:preamble:color:get')(i)
@@ -193,19 +201,32 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                         preambletext = '#BP: '
                     i = f"{preamblecolor}{preambletext}@w: {i}"
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
-                    test.append(self.api('core.colors:colorcode:to:ansicode')(i))
+                    converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i))
                 else:
-                    test.append(i)
-            text = test
-            text = '\n'.join(text)
+                    converted_message.append(i + '\r\n')
 
-        try:
-            self.api('core.events:raise:event')('ev_libs.io_to_client_event', {'original':text,
-                                                                               'raw':raw, 'dtype':dtype,
-                                                                               'client':client},
-                                                calledfrom='libs.io')
-        except (NameError, TypeError, AttributeError):
-            self.api('libs.io:send:traceback')(f"couldn't send msg to client: {text}")
+        else:
+            converted_message = text
+
+        if client_uuid:
+            try:
+                client = connections[client_uuid]
+                loop = asyncio.get_event_loop()
+                for i in converted_message:
+                    message = Message(msg_type, message=i, client_uuid=client_uuid)
+                    loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+
+            except KeyError:
+                self.api('libs.io:send:error')(f"client {client_uuid} not found in _api_client")
+                return
+
+        else:
+            loop = asyncio.get_event_loop()
+            for client in connections:
+                for i in converted_message:
+                    message = Message(msg_type, message=i, client_uuid=client_uuid)
+                    loop.call_soon_threadsafe(connections[client].msg_queue.put_nowait, message)
+
 
     # execute a command through the interpreter, most data goes through this
     def _api_execute(self, command, fromclient=False, showinhistory=True): # pylint: disable=too-many-branches

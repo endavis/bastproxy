@@ -12,6 +12,7 @@
 
 # Standard Library
 import asyncio
+from uuid import uuid4
 
 # Third Party
 
@@ -20,10 +21,6 @@ import asyncio
 # There is only one game connection, create a asyncio.Queue to hold messages to the game from
 # clients.
 messages_to_game = asyncio.Queue()
-
-# There will be multiple clients connected.  uuid of client will be key, values will be an
-# asyncio.Queue.
-messages_to_clients = {}
 
 
 class Message:
@@ -37,8 +34,10 @@ class Message:
     """
     def __init__(self, msg_type, **kwargs):
         self.msg = kwargs.get('message', '')
-        self.command = kwargs.get('command', None)
         self.prompt = kwargs.get('is_prompt', 'false')
+        self.client_uuid = kwargs.get('client_uuid', None)
+        self.uuid = uuid4()
+        self.msg_type = None
         if msg_type in ['IO', 'COMMAND-TELNET']:
             self.msg_type = msg_type
 

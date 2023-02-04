@@ -74,20 +74,19 @@ class ClientConnection:
         """
         log.debug('Sending telnet options to client')
         # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
-        asyncio.create_task(
-            self.msg_queue.put(
-                Message('COMMAND-TELNET',
-                    command=telnet.echo_on())))
+        self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
 
         # Advertise to the client that we will do features we are capable of.
-        self.writer.write(telnet.advertise_features())
+        features = telnet.advertise_features()
+        if features:
+            self.api('libs.io:send:client')([telnet.advertise_features()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
         log.debug('telnet options sent')
 
         await self.writer.drain()
 
         log.debug('Sending welcome message')
-        self.writer.write('#BP: Welcome to Bastproxy.\r\n')
-        self.writer.write('#BP: Please enter your password.\r\n')
+        self.api('libs.io:send:client')(['Welcome to Bastproxy.'], internal=True, client_uuid=self.uuid)
+        self.api('libs.io:send:client')(['Please enter your password.'], internal=True, client_uuid=self.uuid)
         self.login_attempts += 1
         log.debug('Welcome message sent')
 
@@ -118,54 +117,39 @@ class ClientConnection:
                 if inp.strip() == 'bastpass':
                     self.state['logged in'] = True
                     # EVENT: client_logged_in
-                    msg = '#BP: You are now logged in.\r\n'
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('COMMAND-TELNET',
-                                command=telnet.echo_off())))
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('IO',
-                                message=msg)))
+                    msg = 'You are now logged in.'
+                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
+                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     continue
 
                 elif inp.strip() == 'bastviewpass':
                     self.state['logged in'] = True
                     self.read_only = True
-                    # EVENT: client_logged_in
-                    msg = '#BP: You are now logged in as view only user.\r\n'
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('COMMAND-TELNET',
-                                command=telnet.echo_off())))
-
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('IO',
-                                message=msg)))
+                    # EVENT: view_client_logged_in
+                    msg = 'You are now logged in as view only user.'
+                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
+                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     continue
 
                 elif self.login_attempts < 3:
-                    msg = '#BP: Invalid password. Please try again.\r\n'
+                    msg = 'Invalid password. Please try again.'
                     self.login_attempts = self.login_attempts + 1
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('IO',
-                                message=msg)))
+                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     continue
 
-                else:
+                elif self.login_attempts == 3:
                     tasks = asyncio.all_tasks()
-                    print('Tasks1', pprint.pformat(tasks))
-                    msg = '#BP: Too many login attempts. Goodbye.\r\n'
-                    asyncio.create_task(
-                        self.msg_queue.put(
-                            Message('IO',
-                                message=msg)))
+
+                    msg = 'Too many login attempts. Goodbye.'
+                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     await asyncio.sleep(1)
                     self.state['connected'] = False
 
-            # This is where we start using events, such as from_client_event
+                else:
+                    # EVENT: from_client_event
+                    # transform data if needed
+                    # EVENT: to_mud_event
+                    pass
 
         log.debug(f"Ending client_read coroutine for {self.uuid}")
 
@@ -192,7 +176,7 @@ class ClientConnection:
             elif msg_obj.is_command_telnet:
                 log.debug(f"Writing telnet option to client {self.uuid}: {msg_obj.msg}")
                 log.debug(f"type of msg_obj.msg = {type(msg_obj.msg)}")
-                self.writer.send_iac(msg_obj.command)
+                self.writer.send_iac(msg_obj.msg)
 
             task = asyncio.create_task(self.writer.drain())
             logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")

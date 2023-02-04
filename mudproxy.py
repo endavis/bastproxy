@@ -30,6 +30,8 @@ import libs.argp
 import libs.log
 from libs.api import API as BASEAPI
 from libs.net import telnetlib3
+# import io so the "send" functions are added to the api
+from libs import io      # pylint: disable=unused-import
 
 API = BASEAPI()
 API.__class__.proxy_start_time = time.localtime()
