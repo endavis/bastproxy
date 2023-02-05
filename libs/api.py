@@ -63,6 +63,7 @@ class API(object):
     BASEDATAPATH = ''
     BASEDATAPLUGINPATH = ''
     BASEDATALOGPATH = ''
+    BASEPLUGINPATH = ''
 
     TIMEZONE = ''
 
