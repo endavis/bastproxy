@@ -123,7 +123,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             print(f"Did not get any tags for {message}")
 
         try:
-            self.api('core.log:message')(message, tags=tags)
+            self.api('core.msg:message')(message, level=log_level, tags=tags)
         except (AttributeError, RuntimeError):
             loggingfunc = getattr(logging.getLogger(primary or plugin), log_level)
             loggingfunc(message)
