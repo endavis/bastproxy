@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: messages.py
+# Filename: networkmessage.py
 #
-# File Description: Message queues for passing input and output between the game and clients.
+# File Description: Message queues for passing input and output to clients.
 #
 # By: Bast/Jubelo
 """
-    Housing the message queues and one Class to facilitate commands between the game
-    engine and front end.
+    Housing the message queues and one Class to facilitate data between the proxy
+    and the mud and clients.
 """
 
 # Standard Library
@@ -22,8 +22,7 @@ from uuid import uuid4
 # clients.
 messages_to_game = asyncio.Queue()
 
-
-class Message:
+class NetworkData:
     """
     A Message is specifically a message meant for a connected client.
 

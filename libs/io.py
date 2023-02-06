@@ -25,7 +25,7 @@ import asyncio
 
 # Project
 from libs.api import API
-from libs.messages import Message
+from libs.net.networkdata import NetworkData
 from libs.net.client import connections
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
@@ -213,7 +213,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                 client = connections[client_uuid]
                 loop = asyncio.get_event_loop()
                 for i in converted_message:
-                    message = Message(msg_type, message=i, client_uuid=client_uuid)
+                    message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
                     loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
 
             except KeyError:
@@ -224,7 +224,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             loop = asyncio.get_event_loop()
             for client in connections:
                 for i in converted_message:
-                    message = Message(msg_type, message=i, client_uuid=client_uuid)
+                    message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
                     loop.call_soon_threadsafe(connections[client].msg_queue.put_nowait, message)
 
 

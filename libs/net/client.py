@@ -20,9 +20,9 @@ from uuid import uuid4
 # Third Party
 
 # Project
-from libs.messages import Message
 from libs.net import telnet
 import libs.api
+from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class ClientConnection:
         """
         log.debug(f"client_write - Starting client_write coroutine for {self.uuid}")
         while self.state['connected']:
-            msg_obj: Message = await self.msg_queue.get()
+            msg_obj: NetworkData = await self.msg_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
                     log.debug(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}")
