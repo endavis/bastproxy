@@ -124,6 +124,8 @@ class API(object):
             self.add('libs.api', 'list', self._api_list, overload=True)
         if not self('libs.api:has')('libs.api:data:get'):
             self.add('libs.api', 'api:data:get', self._api_data_get, overload=True)
+        if not self('libs.api:has')('libs.api:get:function:plugin:owner'):
+            self.add('libs.api', 'get:function:plugin:owner', self._api_get_function_plugin_owner, overload=True)
         if not self('libs.api:has')('libs.api:get:caller:plugin'):
             self.add('libs.api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
         if not self('libs.api:has')('libs.api:get:plugins:from:stack:list'):
@@ -402,6 +404,22 @@ class API(object):
 
         del stack
         return None
+
+    def _api_get_function_plugin_owner(self, function):
+        """  get the plugin_id of the plugin that owns the function
+        @Yfunction@w  = the function
+
+        this function returns the plugin_id of the plugin that owns the function"""
+        plugin_id = None
+        try:
+            plugin_id = function.__self__.plugin_id
+        except AttributeError:
+            try:
+                plugin_id = function.__self__.plugin.plugin_id
+            except AttributeError:
+                pass
+
+        return plugin_id
 
     # remove a toplevel api
     def _api_remove(self, top_level_api):
