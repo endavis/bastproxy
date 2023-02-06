@@ -94,7 +94,7 @@ class PersistentDict(dict):
         """
         if self.flag == 'r':
             return
-        temp_name = self.file_name + '.tmp'
+        temp_name = self.file_name.with_suffix('.tmp')
 
         try:
             self.dump(temp_name)
@@ -151,6 +151,7 @@ class PersistentDict(dict):
         load the dictionary
         """
         tstuff = {}
+
         if not self.file_name.exists():
             return
         try:
