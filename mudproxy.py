@@ -55,7 +55,7 @@ def setup_api():
 
     msg = f"setup_api - setting basepath to: {BASEAPI.BASEPATH}"
     if API('libs.api:has')('libs.io:send:msg'):
-        API('libs.io:send:msg')(msg, logging.INFO, 'mudproxy')
+        API('libs.io:send:msg')(msg, log_level='info', primary='mudproxy')
     else:
         print(msg)
 

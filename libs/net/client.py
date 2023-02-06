@@ -107,7 +107,7 @@ class ClientConnection:
             inp: bytes = await self.reader.readline()
             log.debug(f"client_read - Raw received data in client_read : {inp}")
             log.debug(f"client_read - inp type = {type(inp)}")
-            logging.getLogger('data.client').info(inp)
+            logging.getLogger(f"data.{self.uuid}").info(f"{'from_client':<12} : {inp:r}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
                 self.state['connected'] = False
@@ -169,8 +169,10 @@ class ClientConnection:
                     log.debug(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}")
                     log.debug(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}")
                     self.writer.write(msg_obj.msg)
+                    logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg:r}")
                     if msg_obj.is_prompt:
                         self.writer.write(telnet.go_ahead())
+                        logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.goahead():r}")
                 else:
                     log.debug('client_write - No message to write to client.')
 
@@ -178,6 +180,7 @@ class ClientConnection:
                 log.debug(f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.msg}")
                 log.debug(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}")
                 self.writer.send_iac(msg_obj.msg)
+                logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg:r}")
 
             task = asyncio.create_task(self.writer.drain())
             logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")

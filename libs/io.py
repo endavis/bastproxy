@@ -82,7 +82,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             self.current_trace['changes'].append(trace)
 
     # send a message
-    def _api_msg(self, message, log_level, primary=None, secondary=None):
+    def _api_msg(self, message, log_level='info', primary=None, secondary=None):
         """  send a message through the log plugin
           @Ymessage@w        = This message to send
           @Yprimary@w    = the primary data tag of the message (default: None)
@@ -125,7 +125,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         try:
             self.api('core.log:message')(message, tags=tags)
         except (AttributeError, RuntimeError):
-            logging.getLogger(primary or plugin).info(message)
+            loggingfunc = getattr(logging.getLogger(primary or plugin), log_level)
+            loggingfunc(message)
 
     # write and format a traceback
     def _api_traceback(self, message=''):
@@ -161,7 +162,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                 message_list.append(i)
         message = '\n'.join(message_list)
 
-        self.api('libs.io:send:msg')(message, primary='error', secondary=secondary)
+        self.api('libs.io:send:msg')(message, log_level='error', primary='error', secondary=secondary)
 
         try:
             self.api('core.errors:add')(time.strftime(self.api.time_format,
@@ -217,7 +218,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                     loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
 
             except KeyError:
-                self.api('libs.io:send:error')(f"client {client_uuid} not found in _api_client")
+                self.api('libs.io:send:error')(f"libs.io - _api_client - client {client_uuid} not found")
                 return
 
         else:

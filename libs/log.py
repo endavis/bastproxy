@@ -47,7 +47,7 @@ def setup_loggers(log_level):
     # debugging. It is not intended to be used for general logging. It will not use the same
     # log settings as the root logger. It will log to a file and not to the console.
     # logging network data from the mud will use data.mud
-    # logging network data from the client will use data.client
+    # logging network data to/from the client will use data.<client_uuid>
     data_logger = logging.getLogger("data")
     data_logger.setLevel(logging.INFO)
     data_logger_file_handler = logging.handlers.TimedRotatingFileHandler(data_logger_log_file_path, when='midnight')

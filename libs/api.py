@@ -23,6 +23,7 @@ import inspect
 import sys
 import traceback
 import pprint
+import logging
 
 # Third Party
 
@@ -97,6 +98,10 @@ class API(object):
         """
         # apis that have been overloaded will be put here
         self.overloaded_api = {}
+        if parent_plugin_id:
+            self.log = logging.getLogger(parent_plugin_id)
+        else:
+            self.log = logging.getLogger('libs.api')
 
         # the format for the time
         self.time_format = '%a %b %d %Y %H:%M:%S'
@@ -204,7 +209,7 @@ class API(object):
                 try:
                     self.get('libs.io:send:error')(msg)
                 except AttributeError:
-                    print(msg)
+                    self.log.error(msg)
             else:
                 self.api[full_api_name] = api_data
 
@@ -231,7 +236,7 @@ class API(object):
             try:
                 self.get('libs.io:send:error')(msg)
             except AttributeError:
-                print(msg)
+                self.log.error(msg)
 
             return False
 
@@ -525,12 +530,12 @@ class API(object):
             try:
                 api_original = self.get(api_location, do_not_overload=True)
             except AttributeError:
-                print(f"{api_location} not in original api")
+                self.log.debug(f"{api_location} not in original api")
 
             try:
                 api_overloaded = self.get(api_location)
             except AttributeError:
-                print(f"{api_location} not in overloaded api")
+                self.log.debug(f"{api_location} not in overloaded api")
 
             if not api_original and not api_overloaded:
                 tmsg.append(f"{api_location} is not in the api")
