@@ -241,9 +241,13 @@ async def client_telnet_handler(reader, writer) -> None:
     # Remove client from the registration list and perform connection specific cleanup.
     await unregister_client(connection)
 
-    writer.write_eof()
-    await writer.drain()
-    writer.close()
+    try:
+        writer.write_eof()
+        await writer.drain()
+        writer.close()
+    except AttributeError:
+        # The transport was already closed
+        pass
 
     for task in rest:
         task.cancel()
