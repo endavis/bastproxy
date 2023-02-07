@@ -68,7 +68,20 @@ def setup_api():
     os.makedirs(BASEAPI.BASEDATALOGPATH, exist_ok=True)
     os.makedirs(BASEAPI.BASEDATAPLUGINPATH, exist_ok=True)
 
+def post_plugins_init():
+  """
+  do any actions that are post plugin init here
+  """
+  # add the IO manager
+  from libs.io import IO
+  API('core.managers:add')('libs.io', IO)
 
+  # add some logging of various plugins and functionality
+  API('core.msg:add:datatype')('net')
+  API('core.msg:toggle:to:console')('net')
+  API('core.msg:add:datatype')('inputparse')
+  API('core.msg:add:datatype')('ansi')
+  API('core.msg:add:datatype')('libs.io')
 
 async def shutdown(signal_, loop_) -> None:
     """
@@ -131,6 +144,17 @@ if __name__ == "__main__":
 
     log: logging.Logger = logging.getLogger('mudproxy')
     log.debug(f"Args: {args}")
+
+    # initialize all plugins
+    log.info('Plugin Manager - loading')
+    # instantiate the plugin manager
+    from plugins import PluginMgr
+    plugin_manager = PluginMgr()
+
+    # initialize the plugin manager which will load plugins
+    plugin_manager.initialize()
+    log.info('Plugin Manager - loaded')
+    post_plugins_init()
 
     all_servers: list[asyncio.Task] = []
 
