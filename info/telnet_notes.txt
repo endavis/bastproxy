@@ -1,0 +1,26 @@
+# From CHATGPT
+
+import asyncio
+
+class GMCPServerProtocol(asyncio.Protocol):
+    def connection_made(self, transport):
+        self.transport = transport
+        self.gmcp_data = b''
+
+    def data_received(self, data):
+        self.gmcp_data += data
+
+        if b'\xFF\xF0' in self.gmcp_data:
+            gmcp_packet, self.gmcp_data = self.gmcp_data.split(b'\xFF\xF0', 1)
+            # Parse GMCP packet here and respond as necessary
+
+async def main(loop):
+    await loop.create_server(GMCPServerProtocol, '0.0.0.0', 23)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main(loop))
+loop.run_forever()
+
+This code sets up an asynchronous server that listens on all available network interfaces on port 23 (the standard Telnet port). The GMCPServerProtocol class implements the connection_made and data_received methods from the asyncio.Protocol interface, which handle new connections and incoming data, respectively.
+
+In the data_received method, the incoming data is accumulated in the gmcp_data buffer. When the GMCP packet delimiter (\xFF\xF0) is found in the data, the packet is extracted and parsed. You can implement the actual GMCP parsing logic and response generation as needed for your application.

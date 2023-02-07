@@ -1,0 +1,13 @@
+using logging module
+
+root logger logs to console and file with log_level from command line
+
+#bp.core.msg plugin
+  send to file
+    add a handler to the plugins logger to log to a file
+  send to console
+    send to logging.logger(datatype)
+  send to client
+    send to client
+
+add ability to change log_level for various dtypes

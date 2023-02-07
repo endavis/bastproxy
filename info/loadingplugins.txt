@@ -1,0 +1,14 @@
+Notes:
+Plugin loading at startup
+1) Load all REQUIRED plugins
+    at least import them and create the instance of the plugin class
+2) load all other plugins
+
+Single instance Plugin loading
+1) import Plugin
+2) instantiate Plugin
+3) check for dependencies
+    import all dependencies
+      instantiate all dependencies
+      add to dependency list
+4) run initialize function in dependency order

@@ -1,0 +1,25 @@
+using pathlib.Path instead of os.path, include using open()
+use f strings
+change to using super()
+look for / operators, if int needed change to //
+change dict.iterkeys(), dict.iteritems() and dict.itervalues() to dict.keys(), dict.items() and dict.values()
+see if importlib works
+
+Tracking execution of a function
+    https://docs.python.org/3/whatsnew/3.2.html#contextlib
+
+eval vs literal_eval
+
+see match objects example at https://docs.python.org/3/whatsnew/3.8.html#assignment-expressions
+
+what are slots?
+
+functools for lru? https://docs.python.org/3/whatsnew/3.8.html#functools
+
+match for lots of nested ifs - https://docs.python.org/3/whatsnew/3.10.html#pep-634-structural-pattern-matching
+
+use exception.add_note - https://peps.python.org/pep-0678/ https://docs.python.org/3/tutorial/errors.html#enriching-exceptions-with-notes
+
+"with open()" instead of open
+
+https://stackoverflow.com/questions/57818164/add-item-to-asyncio-queue-from-a-request-handler
