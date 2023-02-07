@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: libs/dependency.py
+#
+# File Description: class to resolve plugin dependencies
+#
+# By: Bast
 """
 libraries to resolve plugin dependencies
 """
@@ -52,16 +59,13 @@ class PluginDependencyResolver(object):
                 if 'REQUIRED' in plugin['module'].__dict__ \
                        and plugin['module'].REQUIRED:
                     self.plugin_manager.api('libs.io:send:error')(
-                        'Required plugin %s could not be loaded, dependency %s' \
-                        ' would not load' % \
-                          (plugin['plugin_id'], edge))
+                        f"Required plugin {plugin['plugin_id']} could not be loaded, dependency {edge} would not load")
                     sys.exit(1)
 
             if plugin['plugin_id'] != edge_plugin['plugin_id']:
                 if edge_plugin['plugin_id'] not in self.resolved:
                     if edge_plugin['plugin_id'] in self.unresolved:
-                        raise Exception('Circular reference detected: %s -> %s' % \
-                                            (plugin['plugin_id'], edge_plugin['plugin_id']))
+                        raise Exception(f"Circular reference detected: {plugin['plugin_id']} -> {plugin['plugin_id']}")
                     self.resolve_helper(edge_plugin)
         self.resolved.append(plugin['plugin_id'])
         self.unresolved.remove(plugin['plugin_id'])

@@ -1,16 +1,23 @@
 # pylint: disable=too-many-lines
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/__init__.py
+#
+# File Description: holds the plugin manager
+#
+# By: Bast
 """
 manages all plugins
 
-#TODO: make all functions that add things use kwargs instead of a table
+#TODO: make all functions that add things use kwargs instead of a dict
 
 How plugin loading works on startup:
 1. Plugin directories are scanned for basic plugin information
     see readpluginforinformation and scan_plugin_for_info
-2. Find the list of plugins to load
-    the pluginstoload variable is used. If it is empty, then plugins
-      that have REQUIRED=True will be loaded
-3. Go through the list of plugins
+2. All plugins with REQUIRED=True are loaded and initialized
+3. the pluginstoload variable is used to load all other plugins
+
+When loading a plugin:
   1. Import if it isn't already imported (goes in imported_plugins dictionary)
   2. Instantiate it (goes in loaded_plugins dictionary)
   3. Import and instantiate all dependencies
@@ -22,8 +29,6 @@ import operator
 import re
 import time
 import ast
-import pprint
-from pathlib import Path
 
 # 3rd Party
 
@@ -54,7 +59,7 @@ class PluginMgr(BasePlugin):
                       '__init__.py', #plugin_path
                       API.BASEPLUGINPATH, # base_plugin_dir
                       'plugins.__init__', # full_import_location
-                      "core.plugins" # plugin_id
+                      'core.plugins' # plugin_id
             )
 
         self.author = 'Bast'
@@ -261,14 +266,13 @@ class PluginMgr(BasePlugin):
 
         if plist:
             plugins = sorted(plist, key=operator.attrgetter('plugin_id'))
-            limp = 'plugins.%s' % package
+            limp = f"plugins.{package}"
             mod = __import__(limp)
             try:
                 desc = getattr(mod, package).DESCRIPTION
             except AttributeError:
                 desc = ''
-            msg.append('@GPackage: %s%s@w' % \
-                  (package, ' - ' + desc if desc else ''))
+            msg.append(f"@GPackage: {package}{' - ' + desc if desc else ''}@w")
             msg.append('@G' + '-' * 75 + '@w')
             msg.append(self.plugin_format_string % \
                                 ('Id', 'Name',
@@ -305,14 +309,13 @@ class PluginMgr(BasePlugin):
                 if package_header:
                     msg.append('')
                 package_header.append(tpl.package)
-                limp = 'plugins.%s' % tpl.package
+                limp = f"plugins.{tpl.package}"
                 mod = __import__(limp)
                 try:
                     desc = getattr(mod, tpl.package).DESCRIPTION
                 except AttributeError:
                     desc = ''
-                msg.append('@GPackage: %s%s@w' % \
-                    (tpl.package, ' - ' + desc if desc else ''))
+                msg.append(f"@GPackage: {tpl.package}{' - ' + desc if desc else ''}@w")
                 msg.append('@G' + '-' * 75 + '@w')
             msg.append(self.plugin_format_string % \
                         (tpl.plugin_id, tpl.name,
@@ -448,7 +451,7 @@ class PluginMgr(BasePlugin):
             ast.parse(contents)
             info['isvalidpythoncode'] = True
         except SyntaxError:
-            print('isvalidpythoncode set to false for %s' % path)
+            print(f"isvalidpythoncode set to false for {path}")
             info['isvalidpythoncode'] = False
 
 
@@ -534,7 +537,7 @@ class PluginMgr(BasePlugin):
 
             info = self.scan_plugin_for_info(full_path)
             if 'isvalidpythoncode' not in info:
-                print('%s info does not have isvalidpythoncode key' % full_path)
+                print(f"{full_path} info does not have isvalidpythoncode key")
             if info['isplugin']:
                 info['plugin_path'] = plugin_path
                 info['fullpath'] = full_path
@@ -576,7 +579,7 @@ class PluginMgr(BasePlugin):
                                                                exit_on_error=exit_on_error,
                                                                check_dependencies=check_dependencies)
         if not return_value:
-            self.api('libs.io:send:error')('Could not preinitialize plugin %s' % plugin_id)
+            self.api('libs.io:send:error')(f"Could not preinitialize plugin {plugin_id}")
             if exit_on_error:
                 sys.exit(1)
             return False
@@ -640,13 +643,12 @@ class PluginMgr(BasePlugin):
         if plugin_id in self.loaded_plugins:
             return True, self.loaded_plugins[plugin_id]['plugininstance'].dependencies
 
-        self.api('libs.io:send:msg')('%-30s : attempting to load' % \
-                                (plugin_id), primary=self.plugin_id)
+        self.api('libs.io:send:msg')(f"{plugin_id:<30} : attempting to load", primary=self.plugin_id)
 
         try:
             plugin_info = self.all_plugin_info_on_disk[plugin_id]
         except KeyError:
-            self.api('libs.io:send:error')('Could not find plugin %s' % plugin_id)
+            self.api('libs.io:send:error')(f"Could not find plugin {plugin_id}")
             return False, []
 
         try:
@@ -701,7 +703,6 @@ class PluginMgr(BasePlugin):
         # import the plugin
         success, msg, module, full_import_location = \
           imputils.importmodule(plugin_path,
-                                self.base_plugin_dir,
                                 self, 'plugins')
         if not success:
             return False
@@ -735,8 +736,7 @@ class PluginMgr(BasePlugin):
         elif not success:
             plugin['isimported'] = False
             if msg == 'error':
-                self.api('libs.io:send:error')(
-                    'Could not import plugin %s' % plugin_id)
+                self.api('libs.io:send:error')(f"Could not import plugin {plugin_id}")
                 if exit_on_error:
                     sys.exit(1)
                 return False
@@ -767,7 +767,7 @@ class PluginMgr(BasePlugin):
                                                       plugin['full_import_location'],
                                                       plugin['plugin_id'])
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not instantiate instance for plugin %s' % plugin_id)
+            self.api('libs.io:send:traceback')(f"could not instantiate instance for plugin {plugin_id}")
             if exit_on_error:
                 sys.exit(1)
             else:
@@ -822,7 +822,7 @@ class PluginMgr(BasePlugin):
         if plugins_not_found:
             for plugin in plugins_not_found:
                 self.api('libs.io:send:error')(
-                    'plugin %s was marked to load at startup and no longer exists, removing from startup' % plugin)
+                    f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup")
                 plugins_to_load_setting.remove(plugin)
                 plugins_to_load.remove(plugin)
             self.api('setting:change')('pluginstoload', plugins_to_load_setting)
@@ -836,8 +836,7 @@ class PluginMgr(BasePlugin):
             found = False
             if not plugin['isinitialized'] or not plugin['isimported'] or not plugin['plugininstance']:
                 found = True
-                self.api('libs.io:send:error')('Plugin %s has not been correctly loaded' % \
-                                          plugin['plugin_id'])
+                self.api(f"libs.io:send:error')('Plugin {plugin['plugin_id']} has not been correctly loaded")
                 self.unload_single_plugin(plugin['plugin_id'])
 
         if found:
@@ -901,33 +900,32 @@ class PluginMgr(BasePlugin):
         # don't do anything if the plugin has already been initialized
         if plugin['isinitialized']:
             return True
-        self.api('libs.io:send:msg')('%-30s : attempting to initialize (%s)' % \
-                  (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
+        self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : attempting to initialize ({plugin['name']})",
+                                     primary=self.plugin_id)
 
         # run the initialize function
         try:
             plugin['plugininstance'].initialize()
             plugin['isinitialized'] = True
-            self.api('libs.io:send:msg')('%-30s : successfully initialized (%s)' % \
-                      (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
+            self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : successfully initialized ({plugin['name']})",
+                                         primary=self.plugin_id)
 
-            self.api('core.events:raise:event')('ev_{0.plugin_id}_initialized'.format(plugin['plugininstance']), {})
-            self.api('core.events:raise:event')('ev_{0.plugin_id}_plugin_initialized'.format(self),
+            self.api('core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_initialized", {})
+            self.api('core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_plugin_initialized",
                                                 {'plugin':plugin['name'],
                                                  'plugin_id':plugin['plugin_id']})
 
         except Exception: # pylint: disable=broad-except
             self.api('libs.io:send:traceback')(
-                "load: could not run the initialize function for %s." \
-                                                    % plugin['plugin_id'])
+                f"load: could not run the initialize function for {plugin['plugin_id']}.")
             if exit_on_error:
-                self.api('libs.io:send:msg')('%-30s : DID NOT LOAD' % \
-                                                      (plugin['plugin_id']), primary=self.plugin_id)
+                self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : DID NOT LOAD",
+                                             primary=self.plugin_id)
                 sys.exit(1)
             return False
 
-        self.api('libs.io:send:msg')('%-30s : successfully loaded' % \
-                                (plugin['plugin_id']), primary=self.plugin_id)
+        self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : successfully loaded",
+                                     primary=self.plugin_id)
 
         # update plugins_to_load
         plugins_to_load = self.api('setting:get')('pluginstoload')
@@ -959,25 +957,24 @@ class PluginMgr(BasePlugin):
 
         if plugin:
             if not plugin['plugininstance'].can_reload_f:
-                self.api('libs.io:send:msg')('%-30s : this plugin cannot be unloaded (%s)' % \
-                          (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
+                self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : this plugin cannot be unloaded ({plugin['name']})",
+                                             primary=self.plugin_id)
                 return False
             else:
                 try:
                     # run the uninitialize function if it exists
                     if plugin['isinitialized']:
                         plugin['plugininstance'].uninitialize()
-                    self.api('core.events:raise:event')('ev_{0.plugin_id}_uninitialized'.format(plugin['plugininstance']), {})
-                    self.api('core.events:raise:event')('ev_{0.plugin_id}_plugin_uninitialized'.format(self),
+                    self.api('core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_uninitialized", {})
+                    self.api('core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_plugin_uninitialized",
                                                         {'plugin':plugin['name'],
                                                          'plugin_id':plugin['plugin_id']})
-                    self.api('libs.io:send:msg')('%-30s : successfully unitialized (%s)' % \
-                            (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
+                    self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : successfully unitialized ({plugin['name']})",
+                                                 primary=self.plugin_id)
 
                 except Exception: # pylint: disable=broad-except
                     self.api('libs.io:send:traceback')(
-                        "unload: had problems running the uninitialize method for %s." \
-                                              % plugin['plugin_id'])
+                        f"unload: had problems running the uninitialize method for {plugin['plugin_id']}.")
                     return False
 
                 # remove from pluginstoload so it doesn't load at startup
@@ -1000,11 +997,10 @@ class PluginMgr(BasePlugin):
                     # delete the module
                     success = imputils.deletemodule(plugin['full_import_location'])
                     if success:
-                        self.api('libs.io:send:msg')('%-30s : deleting imported module was successful (%s)' % \
-                                            (plugin['plugin_id'], plugin['name']), primary=self.plugin_id)
+                        self.api('libs.io:send:msg')(f"{plugin['plugin_id']:<30} : deleting imported module was successful ({plugin['name']})",
+                                                     primary=self.plugin_id)
                     else:
-                        self.api('libs.io:send:error')('%-30s : deleting imported module failed (%s)' % \
-                                            (plugin['plugin_id'], plugin['name']))
+                        self.api('libs.io:send:error')(f"{plugin['plugin_id']:<30} : deleting imported module failed ({plugin['name']})")
 
                 # remove from loaded_plugins
                 plugin = None
@@ -1025,22 +1021,16 @@ class PluginMgr(BasePlugin):
 
         stats['Base Sizes']['showorder'] = ['Class', 'Api', 'loaded_plugins',
                                             'all_plugin_info_from_disk']
-        stats['Base Sizes']['loaded_plugins'] = '%s bytes' % \
-                                          sys.getsizeof(self.loaded_plugins)
-        stats['Base Sizes']['all_plugin_info_from_disk'] = '%s bytes' % \
-                                          sys.getsizeof(self.all_plugin_info_on_disk)
+        stats['Base Sizes']['loaded_plugins'] = f"{sys.getsizeof(self.loaded_plugins)} bytes"
+        stats['Base Sizes']['all_plugin_info_from_disk'] = f"{sys.getsizeof(self.all_plugin_info_on_disk)} bytes"
 
-        stats['Base Sizes']['Class'] = '%s bytes' % sys.getsizeof(self)
-        stats['Base Sizes']['Api'] = '%s bytes' % sys.getsizeof(self.api)
+        stats['Base Sizes']['Class'] = f"{sys.getsizeof(self)} bytes"
+        stats['Base Sizes']['Api'] = f"{sys.getsizeof(self.api)} bytes"
 
         stats['Plugins'] = {}
         stats['Plugins']['showorder'] = ['Total', 'Loaded']
         stats['Plugins']['Total'] = len(self.all_plugin_info_on_disk)
         stats['Plugins']['Loaded'] = len(self.loaded_plugins)
-
-        # bad_plugins = self._updateall_plugin_info()
-
-        # stats['Plugins']['Bad'] = len(bad_plugins)
 
         return stats
 
@@ -1085,22 +1075,22 @@ class PluginMgr(BasePlugin):
             if plugin in self.all_plugin_info_on_disk.keys():
                 plugin_found_f = True
             else:
-                tmsg.append('plugin %s not in cache, rereading plugins from disk' % plugin)
+                tmsg.append(f"plugin {plugin} not in cache, rereading plugins from disk")
                 self.read_all_plugin_information()
                 if plugin in self.all_plugin_info_on_disk.keys():
                     plugin_found_f = True
 
         if plugin_found_f:
             if self.api('core.plugins:is:plugin:loaded')(plugin):
-                tmsg.append('%s is already loaded' % plugin)
+                tmsg.append(f"{plugin} is already loaded")
             else:
                 success = self.load_single_plugin(plugin, exit_on_error=False)
                 if success:
-                    tmsg.append('Plugin %s was loaded' % plugin)
+                    tmsg.append(f"Plugin {plugin} was loaded")
                 else:
-                    tmsg.append('Plugin %s would not load' % plugin)
+                    tmsg.append(f"Plugin {plugin} would not load")
         else:
-            tmsg.append('plugin %s not found' % plugin)
+            tmsg.append(f"plugin {plugin} not found")
 
         return True, tmsg
 
@@ -1122,11 +1112,11 @@ class PluginMgr(BasePlugin):
         if plugin_found_f:
             success = self.unload_single_plugin(plugin)
             if success:
-                tmsg.append('Plugin %s successfully unloaded' % plugin)
+                tmsg.append(f"Plugin {plugin} successfully unloaded")
             else:
-                tmsg.append('Plugin %s could not be unloaded' % plugin)
+                tmsg.append(f"Plugin {plugin} could not be unloaded")
         else:
-            tmsg.append('plugin %s not found' % plugin)
+            tmsg.append(f"plugin {plugin} not found")
 
         return True, tmsg
 
@@ -1148,21 +1138,21 @@ class PluginMgr(BasePlugin):
         if plugin_found_f:
             success = self.unload_single_plugin(plugin)
             if success:
-                tmsg.append('Plugin %s successfully unloaded' % plugin)
+                tmsg.append(f"Plugin {plugin} successfully unloaded")
             else:
-                tmsg.append('Plugin %s could not be unloaded' % plugin)
+                tmsg.append(f"Plugin {plugin} could not be unloaded")
                 return True, tmsg
 
             if self.api('core.plugins:is:plugin:loaded')(plugin):
-                tmsg.append('%s is already loaded' % plugin)
+                tmsg.append(f"{plugin} is already loaded")
             else:
                 success = self.load_single_plugin(plugin, exit_on_error=False)
                 if success:
-                    tmsg.append('Plugin %s was loaded' % plugin)
+                    tmsg.append(f"Plugin {plugin} was loaded")
                 else:
-                    tmsg.append('Plugin %s would not load' % plugin)
+                    tmsg.append(f"Plugin {plugin} would not load")
         else:
-            tmsg.append('plugin %s not found' % plugin)
+            tmsg.append(f"plugin {plugin} not found")
 
         return True, tmsg
 
@@ -1214,15 +1204,15 @@ class PluginMgr(BasePlugin):
         BasePlugin._add_commands(self)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="list plugins")
+                                     description='list plugins')
         parser.add_argument('-n',
-                            "--notloaded",
-                            help="list plugins that are not loaded",
-                            action="store_true")
+                            '--notloaded',
+                            help='list plugins that are not loaded',
+                            action='store_true')
         parser.add_argument('-c',
-                            "--changed",
-                            help="list plugins that are load but are changed on disk",
-                            action="store_true")
+                            '--changed',
+                            help='list plugins that are load but are changed on disk',
+                            action='store_true')
         parser.add_argument('package',
                             help='the to list',
                             default='',
@@ -1233,7 +1223,7 @@ class PluginMgr(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="load a plugin")
+                                     description='load a plugin')
         parser.add_argument('plugin',
                             help='the plugin to load, don\'t include the .py',
                             default='',
@@ -1244,7 +1234,7 @@ class PluginMgr(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="unload a plugin")
+                                     description='unload a plugin')
         parser.add_argument('plugin',
                             help='the plugin to unload',
                             default='',
@@ -1255,7 +1245,7 @@ class PluginMgr(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="reload a plugin")
+                                     description='reload a plugin')
         parser.add_argument('plugin',
                             help='the plugin to reload',
                             default='',

@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: libs/imputils.py
+#
+# File Description: import utility functions
+#
+# By: Bast
 """
 holds functions to import plugins and files
 """
@@ -5,7 +12,6 @@ holds functions to import plugins and files
 import os
 import sys
 import pkgutil
-import pprint
 from importlib import import_module
 from pathlib import Path
 
@@ -59,7 +65,7 @@ def get_module_name(module_path):
     return value1, value2
 
 # import a module
-def importmodule(module_path, base_path, plugin, import_base, silent=False):
+def importmodule(module_path, plugin, import_base, silent=False):
     """
     import a single module
     """
@@ -73,14 +79,15 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
             return (True, 'already',
                     sys.modules[full_import_location], full_import_location)
 
+        plugin_id = full_import_location.replace('plugins.', '')
         if not silent:
-            plugin.api('libs.io:send:msg')('%-30s : attempting import' % \
-                                    full_import_location.replace('plugins.', ''), primary=plugin.plugin_id)
+            plugin.api('libs.io:send:msg')(f"{plugin_id:<30} : attempting import",
+                                           primary=plugin.plugin_id)
         _module = import_module(full_import_location)
 
         if not silent:
-            plugin.api('libs.io:send:msg')('%-30s : successfully imported' % full_import_location.replace('plugins.', ''), \
-                                      primary=plugin.plugin_id)
+            plugin.api('libs.io:send:msg')(f"{plugin_id:<30} : successfully imported",
+                                           primary=plugin.plugin_id)
         return True, 'import', _module, full_import_location
 
     except Exception: # pylint: disable=broad-except
@@ -88,7 +95,7 @@ def importmodule(module_path, base_path, plugin, import_base, silent=False):
             del sys.modules[full_import_location]
 
         plugin.api('libs.io:send:traceback')(
-            "Module '%s' refuses to import/load." % full_import_location)
+            f"Module '{full_import_location}' refuses to import/load.")
         return False, 'error', _module, full_import_location
 
 def deletemodule(full_import_location, modules_to_keep=None):
