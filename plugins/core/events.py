@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/events.py
+#
+# File Description: a plugin to handle events
+#
+# By: Bast
 """
 This plugin handles events.
   You can register/unregister with events, raise events
@@ -12,7 +19,11 @@ This plugin handles events.
 ### Raising an event
  * ```self.api('core.events:raise:event')(event_name, eventdictionary)```
 """
-from __future__ import print_function
+# Standard Library
+
+# 3rd Party
+
+# Project
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 
@@ -47,7 +58,7 @@ class EFunc(object): # pylint: disable=too-few-public-methods
         """
         return a string representation of the function
         """
-        return '%-10s : %-15s' % (self.name, self.plugin_id)
+        return f"{self.name:<10} : {self.plugin_id:15}"
 
     def __eq__(self, other_function):
         """
@@ -114,8 +125,8 @@ class EventContainer(object):
 
         if event_function not in self.priority_dictionary[priority]:
             self.priority_dictionary[priority].append(event_function)
-            self.api('libs.io:send:msg')('%s - register function %s with priority %s' \
-                    % (self.name, event_function, priority), secondary=event_function.plugin_id)
+            self.api('libs.io:send:msg')(f"{self.name} - register function {event_function} with priority {priority}",
+                                         secondary=event_function.plugin_id)
             return True
 
         return False
@@ -127,13 +138,12 @@ class EventContainer(object):
         for priority in self.priority_dictionary:
             if func in self.priority_dictionary[priority]:
                 event_function = self.priority_dictionary[priority][self.priority_dictionary[priority].index(func)]
-                self.api('libs.io:send:msg')('%s - unregister function %s with priority %s' \
-                      % (self.name, event_function, priority), secondary=event_function.plugin_id)
+                self.api('libs.io:send:msg')(f"{self.name} - unregister function {event_function} with priority {priority}",
+                                             secondary=event_function.plugin_id)
                 self.priority_dictionary[priority].remove(event_function)
                 return True
 
-        self.api('libs.io:send:error')('Could not find function %s in event %s' % \
-                                  (func.__name__, self.name))
+        self.api('libs.io:send:error')(f"Could not find function {func.__name__} in event {self.name}")
         return False
 
     def removeplugin(self, plugin):
@@ -154,21 +164,17 @@ class EventContainer(object):
         format a detail of the event
         """
         message = []
-        message.append('%-13s : %s' % ('Event', self.name))
-        message.append('%-13s : %s' % ('Raised', self.raised_count))
+        message.append(f"{'Event':<13} : {self.name}")
+        message.append(f"{'Raised':<13} : {self.raised_count}")
         message.append(self.api('core.utils:center:colored:string')('Registrations', '-', 60))
-        message.append('%-13s : %-15s - %-s' % ('priority',
-                                                'plugin',
-                                                'function name'))
+        message.append(f"{'priority':<13} : {'plugin':<15} - {'function name'}")
         message.append('@B' + '-' * 60)
         function_message = []
         key_list = self.priority_dictionary.keys()
         key_list.sort()
         for priority in key_list:
             for event_function in self.priority_dictionary[priority]:
-                function_message.append('%-13s : %-15s - %-s' % (priority,
-                                                                 event_function.plugin_id,
-                                                                 event_function.name))
+                function_message.append(f"{priority:<13} : {event_function.plugin_id:<15} - {event_function.name}")
 
         if not function_message:
             message.append('None')
@@ -186,8 +192,7 @@ class EventContainer(object):
 
         if self.name != 'ev_bastproxy_global_timer' and \
             ('_savestate' in self.name and self.api('setting:get')('log_savestate')):
-            self.api('libs.io:send:msg')('event %s raised by %s with args %s' % \
-                                   (self.name, calledfrom, new_args),
+            self.api('libs.io:send:msg')(f"event {self.name} raised by {calledfrom} with args {new_args}",
                                          secondary=calledfrom)
         keys = self.priority_dictionary.keys()
         if keys:
@@ -198,13 +203,12 @@ class EventContainer(object):
                         temp_new_args = event_function.execute(new_args)
                         if temp_new_args and not isinstance(temp_new_args, dict):
                             self.api('libs.io:send:msg')(
-                                "Event: %s with function %s returned a nondict object" % \
-                                  (self.name, event_function.name))
+                                f"Event: {self.name} with function {event_function.name} returned a nondict object")
                         if temp_new_args and isinstance(temp_new_args, dict):
                             new_args = temp_new_args
                     except Exception:  # pylint: disable=broad-except
                         self.api('libs.io:send:traceback')(
-                            "error when calling function for event %s" % self.name)
+                            f"error when calling function for event {self.name}")
 
         return new_args
 
@@ -214,8 +218,7 @@ class Plugin(BasePlugin):
       events
     """
     def __init__(self, *args, **kwargs):
-
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.can_reload_f = False
 
@@ -284,9 +287,9 @@ class Plugin(BasePlugin):
         """
         a plugin was uninitialized
         """
-        self.api('libs.io:send:msg')('removing events for plugin %s' % args['plugin_id'],
+        self.api('libs.io:send:msg')(f"removing events for plugin {args['plugin_id']}",
                                      secondary=args['plugin_id'])
-        self.api('%s:remove:events:for:plugin' % self.plugin_id)(args['plugin_id'])
+        self.api(f"{self.plugin_id}:remove:events:for:plugin")(args['plugin_id'])
 
     # return the event, will have registered functions
     def _api_get_event(self, event_name):
@@ -352,14 +355,14 @@ class Plugin(BasePlugin):
         if event_name in self.events:
             self.events[event_name].unregister(func)
         else:
-            self.api('libs.io:send:error')('could not find event %s' % (event_name))
+            self.api('libs.io:send:error')(f"could not find event {event_name}")
 
     # remove all registered functions that are specific to a plugin
     def _api_remove_events_from_plugin(self, plugin):
         """  remove all registered functions that are specific to a plugin
         @Yplugin@w   = The plugin to remove events for
         this function returns no values"""
-        self.api('libs.io:send:msg')('removing plugin %s' % plugin,
+        self.api('libs.io:send:msg')(f"removing plugin {plugin}",
                                      secondary=plugin)
 
         for event in self.events:
@@ -380,7 +383,7 @@ class Plugin(BasePlugin):
             calledfrom = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
 
         if not calledfrom:
-            print('event %s raised with unknown caller' % event_name)
+            print(f"event {event_name} raised with unknown caller")
 
         new_args = args.copy()
         new_args['eventname'] = event_name
@@ -403,7 +406,7 @@ class Plugin(BasePlugin):
         if event_name in self.events:
             message.extend(self.events[event_name].detail())
         else:
-            message.append('Event %s does not exist' % event_name)
+            message.append(f"event {event_name} does not exist")
         return message
 
     def _command_raise(self, args):
@@ -414,12 +417,12 @@ class Plugin(BasePlugin):
             @Yevent_name@w  = the event_name to raise
         """
         message = []
-        event = self.api('%s:get:event' % self.plugin_id)(args['event'])
+        event = self.api(f"{self.plugin_id}:get:event")(args['event'])
         if event:
-            self.api('%s:raise:event' % self.plugin_id)(args['event'])
-            message.append('raised event: %s' % args['event'])
+            self.api(f"{self.plugin_id}:raise:event")(args['event'])
+            message.append(f"raised event: {args['event']}")
         else:
-            message.append('event does not exist: %s' % args['event'])
+            message.append(f"event does not exist: {args['event']}")
 
         return True, message
 
@@ -448,7 +451,9 @@ class Plugin(BasePlugin):
         """
         message = []
         match = args['match']
-        for name in self.events:
+        eventnames = self.events.keys()
+        eventnames = sorted(eventnames)
+        for name in eventnames:
             if not match or match in name:
                 if self.events[name]:
                     message.append(name)
@@ -468,8 +473,7 @@ class Plugin(BasePlugin):
         """
         return a one line stats summary
         """
-        return self.summary_template % ("Events", "Total: %d   Raised: %d" % \
-                                        (len(self.events), self.global_raised_count))
+        return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
 
     def get_stats(self):
         """

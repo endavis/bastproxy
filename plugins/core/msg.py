@@ -1,19 +1,28 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/msg.py
+#
+# File Description: a plugin to handle messaging in the proxy
+#
+# By: Bast
 """
-This module will do both debugging and logging
+This module handles messaging to various places: log files, console, clients, etc
 """
+# Standard Library
 from __future__ import print_function
 import logging
-import time
 import os
-import zipfile
 
+# 3rd Party
+
+# Project
 import libs.argp as argp
 from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Messaging'
 SNAME = 'msg'
-PURPOSE = 'Handle send messages to various places: log files, console, clients, etc'
+PURPOSE = 'Handles sending messages to various places: log files, console, clients, etc'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
@@ -26,7 +35,7 @@ class Plugin(BasePlugin):
         """
         init the class
         """
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.can_reload_f = False
 
@@ -50,12 +59,6 @@ class Plugin(BasePlugin):
         self.colors = {}
 
         self.log_handlers = {}
-
-        self.template_for_log_file_name = '%a-%b-%d-%Y.log'
-        #self.datatypes_to_file['default'] = {
-                                    #'log_directory':os.path.join(self.log_directory, 'default'),
-                                    #'file':'%a-%b-%d-%Y.log', 'timestamp':True
-                                      #}
 
         self.colors['error'] = '@x136'
 
@@ -134,8 +137,7 @@ class Plugin(BasePlugin):
         if datatype in self.datatypes_to_client and datatype != 'frommud':
             self.datatypes_to_client[datatype] = flag
 
-        self.api('libs.io:send:msg')('setting %s to log to client' % \
-                          datatype)
+        self.api('libs.io:send:msg')(f"setting {datatype} to log to client")
 
         self.datatypes_to_client.sync()
 
@@ -150,12 +152,12 @@ class Plugin(BasePlugin):
                 if i in self.datatypes_to_client and i != 'frommud':
                     self.datatypes_to_client[i] = not self.datatypes_to_client[i]
                     if self.datatypes_to_client[i]:
-                        tmsg.append('sending %s to client' % i)
+                        tmsg.append(f"setting {i} to log to client")
                     else:
-                        tmsg.append('no longer sending %s to client' % i)
+                        tmsg.append(f"no longer sending {i} to client")
 
                 elif i != 'frommud':
-                    tmsg.append('Type %s does not exist' % i)
+                    tmsg.append(f"datatype {i} does not exist")
             self.datatypes_to_client.sync()
             return True, tmsg
 
@@ -175,8 +177,7 @@ class Plugin(BasePlugin):
         if datatype in self.datatypes_to_console and datatype != 'frommud':
             self.datatypes_to_console[datatype] = flag
 
-        self.api('libs.io:send:msg')('setting %s to log to console' % \
-                          datatype, self.plugin_id)
+        self.api('libs.io:send:msg')(f"setting {datatype} to log to console")
 
         self.datatypes_to_console.sync()
 
@@ -191,12 +192,12 @@ class Plugin(BasePlugin):
                 if i in self.datatypes_to_console and i != 'frommud':
                     self.datatypes_to_console[i] = not self.datatypes_to_console[i]
                     if self.datatypes_to_console[i]:
-                        tmsg.append('sending %s to console' % i)
+                        tmsg.append(f"setting {i} to console")
                     else:
-                        tmsg.append('no longer sending %s to console' % i)
+                        tmsg.append(f"no longer sending {i} to console")
 
                 elif i != 'frommud':
-                    tmsg.append('Type %s does not exist' % i)
+                    tmsg.append(f"datatype {i} does not exist")
             self.datatypes_to_console.sync()
             return True, tmsg
 
@@ -225,9 +226,9 @@ class Plugin(BasePlugin):
             logger_file_path = self.api.BASEDATALOGPATH / datatype
             logger_file_handler = logging.handlers.TimedRotatingFileHandler(logger_file_path, when='midnight')
             if timestamp:
-                logger_file_handler.formatter = logging.Formatter("%(asctime)s " + self.api.TIMEZONE + " : %(name)-11s - %(message)s")
+                logger_file_handler.formatter = logging.Formatter('%(asctime)s ' + self.api.TIMEZONE + ' : %(name)-11s - %(message)s')
             else:
-                logger_file_handler.formatter = logging.Formatter("%(name)-13s - %(message)s")
+                logger_file_handler.formatter = logging.Formatter('%(name)-13s - %(message)s')
             logger_file_handler.setLevel(logging.DEBUG)
             logger = logging.getLogger(logger_name)
             logger.addHandler(logger_file_handler)
@@ -302,7 +303,7 @@ class Plugin(BasePlugin):
         #print('log api after adding', self.api.api)
         self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.logmud)
         self.api('core.events:register:to:event')('ev_libs.io_to_mud_event', self.logmud)
-        self.api('core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
+        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description="""toggle datatypes to clients
@@ -330,10 +331,10 @@ class Plugin(BasePlugin):
                             help='the datatype to toggle',
                             default='list',
                             nargs='?')
-        parser.add_argument("-n",
-                            "--notimestamp",
-                            help="do not log to file with a timestamp",
-                            action="store_false")
+        parser.add_argument('-n',
+                            '--notimestamp',
+                            help='do not log to file with a timestamp',
+                            action='store_false')
         self.api('core.commands:command:add')('file',
                                               self.cmd_file,
                                               lname='Logger',
@@ -353,7 +354,7 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="list all datatypes")
+                                     description='list all datatypes')
         parser.add_argument('match',
                             help='only list datatypes that have this argument in their name',
                             default='',

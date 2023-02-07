@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/managers.py
+#
+# File Description: a plugin to keep up with managers
+#
+# By: Bast
 """
 This plugin holds keeps up with various managers
 """
@@ -23,7 +30,7 @@ class Plugin(BasePlugin):
         """
         init the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.managers = {}
 

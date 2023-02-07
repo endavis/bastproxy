@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/errors.py
+#
+# File Description: a plugin to handle errors
+#
+# By: Bast
 """
 This plugin shows and clears errors seen during plugin execution
 """
@@ -24,7 +31,7 @@ class Plugin(BasePlugin):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.errors = []
 
@@ -70,8 +77,8 @@ class Plugin(BasePlugin):
         if errors:
             for i in errors:
                 msg.append('')
-                msg.append('Time: %s' % i['timestamp'])
-                msg.append('Error: %s' % i['msg'])
+                msg.append(f"Time: {i['timestamp']}")
+                msg.append(f"Error: {i['msg']}")
 
             self.api('libs.io:send:error')('\n'.join(msg))
 
@@ -126,14 +133,14 @@ class Plugin(BasePlugin):
             if args and number > 0:
                 for i in errors[-int(number):]:
                     msg.append('')
-                    msg.append('Time: %s' % i['timestamp'])
-                    msg.append('Error: %s' % i['msg'])
+                    msg.append(f"Time: {i['timestamp']}")
+                    msg.append(f"Error: {i['msg']}")
 
             else:
                 for i in errors:
                     msg.append('')
-                    msg.append('Time: %s' % i['timestamp'])
-                    msg.append('Error: %s' % i['msg'])
+                    msg.append(f"Time: {i['timestamp']}")
+                    msg.append(f"Error: {i['msg']}")
 
         return True, msg
 

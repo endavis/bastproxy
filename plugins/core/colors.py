@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/colors.py
+#
+# File Description: a plugin to handle ansi and xterm colors
+#
+# By: Bast
 """
 This plugin handles colors
 
@@ -28,19 +35,19 @@ import re
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 
-NAME = 'Ansi Colors'
+NAME = 'Ansi/Xterm Colors'
 SNAME = 'colors'
-PURPOSE = 'Ansi color functions'
+PURPOSE = 'Ansi/Xterm color functions'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
 
 # for finding ANSI color sequences
-XTERM_COLOR_REGEX = re.compile(r'^@[xz](?P<num>[\d]{1,3})$')
-ANSI_COLOR_REGEX = re.compile(chr(27) + r'\[(?P<arg_1>\d+)(;(?P<arg_2>\d+)' \
-                                              r'(;(?P<arg_3>\d+))?)?m')
+XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
+ANSI_COLOR_REGEX = re.compile(chr(27) + r"\[(?P<arg_1>\d+)(;(?P<arg_2>\d+)" \
+                                              r"(;(?P<arg_3>\d+))?)?m")
 
-COLORCODE_REGEX = re.compile(r'(@[cmyrgbwCMYRGBWD|xz[\d{0:3}]])(?P<stuff>.*)')
+COLORCODE_REGEX = re.compile(r"(@[cmyrgbwCMYRGBWD|xz[\d{0:3}]])(?P<stuff>.*)")
 
 CONVERTANSI = {}
 
@@ -128,14 +135,16 @@ def convertcolorcodetohtml(colorcode):
         colorcode = int(colorcode)
         if colorcode in COLORTABLE:
             #print COLORTABLE[colorcode]
-            return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
-                                      COLORTABLE[colorcode][1],
-                                      COLORTABLE[colorcode][2])
+            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
+            # return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
+            #                           COLORTABLE[colorcode][1],
+            #                           COLORTABLE[colorcode][2])
     except ValueError:
         if colorcode in COLORTABLE:
-            return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
-                                      COLORTABLE[colorcode][1],
-                                      COLORTABLE[colorcode][2])
+            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
+            # return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
+            #                           COLORTABLE[colorcode][1],
+            #                           COLORTABLE[colorcode][2])
 
     return '#000'
 
@@ -158,13 +167,9 @@ def createspan(color, text):
         ncolor = convertcolorcodetohtml(color)
 
     if background:
-        return '<span style="background-color:%(COLOR)s">%(TEXT)s</span>' % \
-            {'COLOR':ncolor,
-             'TEXT':text}
+        return f"<span style='background-color:{ncolor}'>{text}</span>"
 
-    return '<span style="color:%(COLOR)s">%(TEXT)s</span>' % \
-        {'COLOR':ncolor,
-         'TEXT':text}
+    return f"<span style='color:{ncolor}'>{text}</span>"
 
 for colorc in CONVERTCOLORS:
     CONVERTANSI[CONVERTCOLORS[colorc]] = colorc
@@ -196,19 +201,19 @@ def fixstring(tstr):
     # http://code.google.com/p/aardwolfclientpackage/
 
     # fix tildes
-    tstr = re.sub(r"@-", "~", tstr)
+    tstr = re.sub(r"@-", '~', tstr)
     # change @@ to \0
-    tstr = re.sub(r"@@", "\0", tstr)
+    tstr = re.sub(r"@@", '\0', tstr)
     # strip invalid xterm codes (non-number)
     tstr = re.sub(r"@[xz]([^\d])", genrepl, tstr)
     # strip invalid xterm codes (300+)
-    tstr = re.sub(r"@[xz][3-9]\d\d", "", tstr)
+    tstr = re.sub(r"@[xz][3-9]\d\d", '', tstr)
     # strip invalid xterm codes (260+)
-    tstr = re.sub(r"@[xz]2[6-9]\d", "", tstr)
+    tstr = re.sub(r"@[xz]2[6-9]\d", '', tstr)
     # strip invalid xterm codes (256+)
-    tstr = re.sub(r"@[xz]25[6-9]", "", tstr)
+    tstr = re.sub(r"@[xz]25[6-9]", '', tstr)
     # rip out hidden garbage
-    tstr = re.sub(r"@[^xzcmyrgbwCMYRGBWD]", "", tstr)
+    tstr = re.sub(r"@[^xzcmyrgbwCMYRGBWD]", '', tstr)
     return tstr
 
 class Plugin(BasePlugin):
@@ -216,7 +221,7 @@ class Plugin(BasePlugin):
     a plugin to handle ansi colors
     """
     def __init__(self, *args, **kwargs):
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # convert to easier to read api
         self.api('libs.api:add')('colorcode:is:valid', self._api_is_color)
@@ -266,7 +271,7 @@ class Plugin(BasePlugin):
             #line = fixstring(line)
             if '@@' in line:
                 line = line.replace('@@', '\0')
-            tlist = re.split(r'(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)', line)
+            tlist = re.split(r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", line)
 
             nlist = []
             color = 'w'
@@ -316,7 +321,7 @@ class Plugin(BasePlugin):
         """
         get the length difference of a colored string and its noncolor equivalent
         """
-        lennocolor = len(self.api('%s:colorcode:strip' % self.plugin_id)(colorstring))
+        lennocolor = len(self.api(f"{self.plugin_id}:colorcode:strip")(colorstring))
         lencolor = len(colorstring)
         return lencolor - lennocolor
 
@@ -326,7 +331,7 @@ class Plugin(BasePlugin):
         """
         check if a string is a @ color, either xterm or ansi
         """
-        if re.match(r'^@[cmyrgbwCMYRGBWD]$', color):
+        if re.match(r"^@[cmyrgbwCMYRGBWD]$", color):
             return True
         else:
             mat = XTERM_COLOR_REGEX.match(color)
@@ -367,12 +372,12 @@ class Plugin(BasePlugin):
                     tstr2 = tstr2 + self._api_ansicode(CONVERTCOLORS[color], text)
 
             if tstr2:
-                tstr = tstr2 + "%c[0m" % chr(27)
+                tstr = tstr2 + '%c[0m' % chr(27)
             if test:
                 print(f"After: {tstr}")
         else:
             pass
-        tstr = re.sub("\0", "@", tstr)    # put @ back in
+        tstr = re.sub('\0', '@', tstr)    # put @ back in
         return tstr
 
     # convert ansi color escape sequences to @@ colors
@@ -407,7 +412,7 @@ class Plugin(BasePlugin):
         """
         return an ansi coded string
         """
-        return "%c[%sm%s" % (chr(27), color, data)
+        return f"{chr(27)}[{color}m{data}"
 
     # strip all ansi from a string
     def _api_strip_ansi(self, text):

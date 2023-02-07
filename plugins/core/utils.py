@@ -1,11 +1,23 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/core/utils.py
+#
+# File Description: a plugin with various utility functions
+#
+# By: Bast
 """
 This plugin handles utility functions
 """
+# Standard Library
 import re
 import datetime
 import math
 import time
 import fnmatch
+
+# 3rd Party
+
+# Project
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Utility functions'
@@ -29,7 +41,7 @@ class Plugin(BasePlugin):
         """
         initialize the plugin
         """
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # new api format
         self.api('libs.api:add')('convert:timedelta:to:string', self._api_convert_timedelta_to_string)
@@ -102,24 +114,24 @@ class Plugin(BasePlugin):
         delta = datetime.timedelta(seconds=abs(end_time - start_time))
         if delta.days > 0:
             temp_string = str(delta)
-            temp_string = temp_string.replace(" day, ", ":")
-            out = temp_string.replace(" days, ", ":")
+            temp_string = temp_string.replace(' day, ', ':')
+            out = temp_string.replace(' days, ', ':')
         else:
-            out = "0:" + str(delta)
+            out = '0:' + str(delta)
         outar = out.split(':')
         outar = [(int(float(x))) for x in outar]
         message = []
         days, hours = False, False
         if outar[0] != 0:
             days = True
-            message.append('%s%02d%sd' % (colorn, outar[0], colors))
+            message.append(f"{colorn}{outar[0]:02d}{colors}d")
         if outar[1] != 0 or days:
             hours = True
-            message.append('%s%02d%sh' % (colorn, outar[1], colors))
+            message.append(f"{colorn}{outar[1]:02d}{colors}h")
         if outar[2] != 0 or days or hours or fmin:
-            message.append('%s%02d%sm' % (colorn, outar[2], colors))
+            message.append(f"{colorn}{outar[2]:02d}{colors}m")
         if not nosec:
-            message.append('%s%02d%ss' % (colorn, outar[3], colors))
+            message.append(f"{colorn}{outar[3]:02d}{colors}s")
 
         out = ":".join(message)
         return out
@@ -185,26 +197,26 @@ class Plugin(BasePlugin):
         mins = False
         if converted_time['years'] > 0:
             years = True
-            message.append('%dy' % (converted_time['years'] or 0))
+            message.append(f"{converted_time['years'] or 0}y")
         if converted_time['days'] > 0:
             if years:
                 message.append(':')
             days = True
-            message.append('%02dd' % (converted_time['days'] or 0))
+            message.append(f"{converted_time['days'] or 0:02d}d")
         if converted_time['hours']:
             if years or days:
                 message.append(':')
             hours = True
-            message.append('%02dh' % (converted_time['hours'] or 0))
+            message.append(f"{converted_time['hours'] or 0:02d}h")
         if converted_time['mins'] > 0:
             if years or days or hours:
                 message.append(':')
             mins = True
-            message.append('%02dm' % (converted_time['mins'] or 0))
+            message.append(f"{converted_time['mins'] or 0:02d}m")
         if (converted_time['secs'] > 0 or not message) and not nosec:
             if years or days or hours or mins:
                 message.append(':')
-            message.append('%02ds' % (converted_time['secs'] or 0))
+            message.append(f"{converted_time['secs'] or 0:02d}s")
 
         return ''.join(message)
 
@@ -217,7 +229,7 @@ class Plugin(BasePlugin):
             return False
         elif value == 1 or value == '1':
             return True
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             value = value.lower()
             if value == 'false' or value == 'no':
                 return False
@@ -321,7 +333,7 @@ class Plugin(BasePlugin):
         for i in tlist:
             if fnmatch.fnmatch(i, match):
                 matches['frontofstring'].append(i)
-            elif isinstance(i, basestring) and string_to_match in i:
+            elif isinstance(i, str) and string_to_match in i:
                 matches['partofstring'].append(i)
 
         if matches['front']:
@@ -343,34 +355,34 @@ class Plugin(BasePlugin):
 
         timelength_match_groups = timelength_match.groupdict()
 
-        if not timelength_match_groups["days"] \
-             and not timelength_match_groups["hours"] \
-             and not timelength_match_groups["minutes"] \
-             and not timelength_match_groups["seconds"]:
+        if not timelength_match_groups['days'] \
+             and not timelength_match_groups['hours'] \
+             and not timelength_match_groups['minutes'] \
+             and not timelength_match_groups['seconds']:
             return None
 
-        days = timelength_match_groups["days"]
+        days = timelength_match_groups['days']
         if not days:
             days = 0
-        elif days.endswith("d"):
+        elif days.endswith('d'):
             days = float(days[:-1])
 
-        hours = timelength_match_groups["hours"]
+        hours = timelength_match_groups['hours']
         if not hours:
             hours = 0
-        elif hours.endswith("h"):
+        elif hours.endswith('h'):
             hours = float(hours[:-1])
 
-        minutes = timelength_match_groups["minutes"]
+        minutes = timelength_match_groups['minutes']
         if not minutes:
             minutes = 0
-        elif minutes.endswith("m"):
+        elif minutes.endswith('m'):
             minutes = float(minutes[:-1])
 
-        seconds = timelength_match_groups["seconds"]
+        seconds = timelength_match_groups['seconds']
         if not seconds:
             seconds = 0
-        elif seconds.endswith("s"):
+        elif seconds.endswith('s'):
             seconds = int(seconds[:-1])
 
         return days * 24 * 60 * 60 + hours * 60 * 60 + minutes * 60 + seconds
