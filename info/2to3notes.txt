@@ -3,7 +3,6 @@ use f strings
 change to using super()
 look for / operators, if int needed change to //
 change dict.iterkeys(), dict.iteritems() and dict.itervalues() to dict.keys(), dict.items() and dict.values()
-see if importlib works
 
 Tracking execution of a function
     https://docs.python.org/3/whatsnew/3.2.html#contextlib

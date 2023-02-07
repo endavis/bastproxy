@@ -2,6 +2,7 @@ indention is 4 spaces
 All strings use single quotes
     except
         strings assigned to a variable in the body of a function using a formatting function such as f strings, printf, or building strings with %
+        raw strings
 function names, variable names, class method names, and instance variable names are lower_case_with_underscores
 class names are CapitalizedWords
 constant names are UPPER_CASE_WITH_UNDERSCORES
