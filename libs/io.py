@@ -172,7 +172,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             pass
 
     # send text to the clients
-    def _api_client(self, text, msg_type='IO', preamble=True, internal=False, client_uuid=None):  # pylint: disable=too-many-arguments
+    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None):  # pylint: disable=too-many-arguments
         """  handle a traceback
           @Ytext@w        = The text to send to the clients, a list of strings or bytestrings
           @Yraw@w         = if True, don't convert colors or add the preamble
@@ -182,12 +182,16 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
         this function returns no values"""
 
+        if type(text) == str or type(text) == bytes:
+            self.api('libs.io:send:msg')(f"did not get list for text {text}", log_level='info', primary='libs.io')
+            text = [text]
+
         # if the data is from the proxy (internal) and msg_type is 'IO', add the preamble to each line
         converted_message = []
         if internal and msg_type == 'IO':
             for i in text:
                 if isinstance(text, bytes):
-                    text = str(text)
+                    text = text.decode('utf-8')
                 if isinstance(text, str):
                     text = text.split('\n')
 
@@ -195,25 +199,31 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                     if self.api('libs.api:has')('net.proxy:preamble:color:get'):
                         preamblecolor = self.api('net.proxy:preamble:color:get')(i)
                     else:
-                        preamblecolor = ''
+                        preamblecolor = '@C'
                     if self.api('libs.api:has')('net.proxy:preamble:get'):
                         preambletext = self.api('net.proxy:preamble:get')(i)
                     else:
                         preambletext = '#BP: '
-                    i = f"{preamblecolor}{preambletext}@w: {i}"
+                    i = f"{preamblecolor}{preambletext}@w {i}"
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
-                    converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i))
+                    converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i) + '\r\n')
                 else:
                     converted_message.append(i + '\r\n')
 
         else:
             converted_message = text
 
+        byte_message = []
+        for i in converted_message:
+            if type(i) == str:
+                i = i.encode('utf-8')
+            byte_message.append(i)
+
         if client_uuid:
             try:
                 client = connections[client_uuid]
                 loop = asyncio.get_event_loop()
-                for i in converted_message:
+                for i in byte_message:
                     message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
                     loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
 
@@ -224,7 +234,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         else:
             loop = asyncio.get_event_loop()
             for client in connections:
-                for i in converted_message:
+                for i in byte_message:
                     message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
                     loop.call_soon_threadsafe(connections[client].msg_queue.put_nowait, message)
 
