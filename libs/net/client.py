@@ -12,9 +12,7 @@
 
 # Standard Library
 import asyncio
-import json
 import logging
-import pprint
 from uuid import uuid4
 
 # Third Party
@@ -27,7 +25,6 @@ from libs.net.networkdata import NetworkData
 log = logging.getLogger(__name__)
 
 connections = {}
-
 
 class ClientConnection:
     """
@@ -61,10 +58,6 @@ class ClientConnection:
         self.msg_queue = asyncio.Queue()
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
-
-        # register to the event that is fired when a message is ready to be sent to the client
-        # self.api('core.events:register:to:event')('ev_libs.io_to_client_event',
-        #                                     self.send_to_client, prio=99)
 
     async def setup_client(self):
         """
@@ -139,18 +132,18 @@ class ClientConnection:
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     continue
 
-                elif self.login_attempts == 3:
+                else:
                     msg = 'Too many login attempts. Goodbye.'
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     await asyncio.sleep(1)
                     log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
                     self.state['connected'] = False
 
+            else:
+                if self.view_only:
+                    self.api('libs.io:send:client')(['You are logged in as a view only user.'], internal=True, client_uuid=self.uuid)
                 else:
-                    # EVENT: from_client_event
-                    # transform data if needed
-                    # EVENT: to_mud_event
-                    pass
+                    self.api('libs.io:send:execute')(inp, fromclient=True)
 
         log.debug(f"Ending client_read coroutine for {self.uuid}")
 
