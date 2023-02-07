@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/_baseplugin.py
+#
+# File Description: holds the baseplugin class
+#
+# By: Bast
 """
 This module holds the class BasePlugin, which all plugins should have as
 their base class.
@@ -78,7 +85,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.can_reset_f = True
         self.reset_f = True
         self.is_character_active_priority = None
-        self.loaded_time = time.time()
+        self.loaded_time = time.localtime()
 
 
         os.makedirs(self.save_directory, exist_ok=True)
@@ -436,7 +443,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         msg.append(f"{'Author':<{width}} : {self.author}")
         msg.append(f"{'Version':<{width}} : {self.version}")
         msg.append(f"{'Plugin Path':<{width}} : {self.plugin_path}")
-        msg.append(f"{'Time Loaded':<{width}} : {self.loaded_time}")
+        msg.append(f"{'Time Loaded':<{width}} : {time.strftime(self.api.time_format, self.loaded_time)}")
+        msg.append(f"{'Modified Time':<{width}} : {time.strftime(self.api.time_format, time.localtime(os.path.getmtime(self.full_plugin_path)))}")
+        if self.is_changed_on_disk():
+            msg.append(f"{' ':<{width}} : @RThe plugin has been modified on disk since it was loaded@w")
 
         if '.__init__' in self.full_import_location:
             import_location = self.full_import_location.replace('.__init__', '')
@@ -683,8 +693,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         return:
           True if the plugin is changed on disk, False otherwise
         """
-        file_modified_time = os.path.getmtime(self.plugin_file)
-        if int(file_modified_time) > int(self.loaded_time):
+        file_modified_time = time.localtime(os.path.getmtime(self.full_plugin_path))
+        if file_modified_time > self.loaded_time:
             return True
 
         return False
