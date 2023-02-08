@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
         parser.add_argument('api', help='the api to detail (optional)',
                             default='', nargs='?')
         parser.add_argument('-s',
-                            "--stats",
+                            '--stats',
                             help="add stats",
                             action='store_true')
         self.api('core.commands:command:add')('detail', self.cmd_detail,

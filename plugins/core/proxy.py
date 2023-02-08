@@ -8,10 +8,15 @@
 """
 This plugin will show information about connections to the proxy
 """
+# Standard Library
 import time
 import os
 import sys
 import platform
+
+# 3rd Party
+
+# Project
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required
@@ -20,7 +25,6 @@ SNAME = 'proxy'
 PURPOSE = 'control the proxy'
 AUTHOR = 'Bast'
 VERSION = 1
-PRIORITY = 35
 
 REQUIRED = True
 
@@ -133,7 +137,7 @@ class Plugin(BasePlugin):
         """
         if self.api('setting:get')('username') != '':
             self.api('libs.io:send:mud')(self.api('setting:get')('username'))
-            pasw = self.api('%s:ssc:mudpw' % self.plugin_id)()
+            pasw = self.api(f"{self.plugin_id}:ssc:mudpw")()
             if pasw != '':
                 self.api('libs.io:send:mud')(pasw)
                 self.api('libs.io:send:mud')('\n')
@@ -142,7 +146,7 @@ class Plugin(BasePlugin):
         """
         show info about the proxy
         """
-        template = "%-15s : %s"
+        template = '%-15s : %s'
         mud = self.api('core.managers:get')('mud')
         tmsg = ['']
         started = time.strftime(self.api.time_format, self.api.proxy_start_time)
@@ -173,7 +177,7 @@ class Plugin(BasePlugin):
             else:
                 tmsg.append(template % ('Mud', 'disconnected'))
 
-        clients = self.api('net.clients:clients:get:all')()
+        clients = self.api('core.clients:clients:get:all')()
 
         aclients = clients['active']
         vclients = clients['view']
@@ -250,26 +254,25 @@ class Plugin(BasePlugin):
             if not self.api('setting:get')('mudhost'):
                 tmsg.append(divider)
                 tmsg.append('Please set the mudhost through the net plugin.')
-                tmsg.append('%s.%s.set mudhost "host"' % (cmdprefix, self.plugin_id))
+                tmsg.append(f"{cmdprefix}.{self.plugin_id}.set mudhost 'host'")
             if self.api('setting:get')('mudport') == 0:
                 tmsg.append(divider)
                 tmsg.append('Please set the mudport through the net plugin.')
-                tmsg.append('%s.%s.set mudport "port"' % (cmdprefix, self.plugin_id))
-            tmsg.append('Connect to the mud with "%s.%s.connect"' % (cmdprefix, self.plugin_id))
+                tmsg.append(f"{cmdprefix}.{self.plugin_id}.set mudport 'port'")
+            tmsg.append(f"Conect to the mud with {cmdprefix}.{self.plugin_id}.connect")
         else:
             tmsg.append(divider)
-            tmsg.append('%s%s@W: @GThe proxy is already connected to the mud@w' % \
-                          (self.api('net.proxy:preamble:error:color:get')(), self.api('net.proxy:preamble:get')()))
-        if self.api('%s:ssc:proxypw' % self.plugin_id)() == 'defaultpass':
+            tmsg.append(f"{self.api('net.proxy:preamble:color:get')(error=True)}{self.api('net.proxy:preamble:get')()}: @GThe proxy is already connected to the mud@w")
+        if self.api(f"{self.plugin_id}:ssc:proxypw")() == 'defaultpass':
             tmsg.append(divider)
             tmsg.append('The proxy password is still the default password.')
             tmsg.append('Please set the proxy password!')
-            tmsg.append('%s.%s.proxypw "This is a password"' % (cmdprefix, self.plugin_id))
-        if self.api('{0.plugin_id}:ssc:proxypwview'.format(self))() == 'defaultviewpass':
+            tmsg.append(f"{cmdprefix}.{self.plugin_id}.proxypw 'This is a password'")
+        if self.api(f"{self.plugin_id}:ssc:proxypwview")() == 'defaultviewpass':
             tmsg.append(divider)
             tmsg.append('The proxy view password is still the default password.')
             tmsg.append('Please set the proxy view password!')
-            tmsg.append('%s.%s.proxypwview "This is a view password"' % (cmdprefix, self.plugin_id))
+            tmsg.append(f"{cmdprefix}.{self.plugin_id}.proxypwview 'This is a view password'")
         if tmsg[-1] != divider:
             tmsg.append(divider)
         if tmsg[0] != divider:
@@ -287,8 +290,7 @@ class Plugin(BasePlugin):
         """
         listen_port = self.api('setting:get')('listenport')
 
-        self.api('libs.io:send:client')("Respawning bastproxy on port: %s in 10 seconds" \
-                                                  % listen_port)
+        self.api('libs.io:send:client')(f"Restarting bastproxy on port: {listen_port} in 10 seconds")
 
         self.api('core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)
 
@@ -324,4 +326,4 @@ class Plugin(BasePlugin):
         """
         newsep = args['newvalue']
 
-        self.api.__class__.command_split_regex = r'(?<=[^%s])%s(?=[^%s])' % ('\\' + newsep, '\\' + newsep, '\\' + newsep)
+        self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % ('\\' + newsep, '\\' + newsep, '\\' + newsep)

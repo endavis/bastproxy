@@ -8,7 +8,13 @@
 """
 This plugin will show information about connections to the proxy
 """
+# Standard Library
 import time
+import datetime
+
+# 3rd Party
+
+# Project
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required
@@ -17,7 +23,6 @@ SNAME = 'clients'
 PURPOSE = 'manage clients'
 AUTHOR = 'Bast'
 VERSION = 1
-PRIORITY = 35
 
 REQUIRED = True
 

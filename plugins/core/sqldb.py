@@ -163,7 +163,7 @@ class Sqldb(object):
         function_name = inspect.stack()[1][3]
         if function_name == '__getattribute__':
             function_name = inspect.stack()[2][3]
-        self.api('libs.io:send:msg')('open: called by - %s' % function_name)
+        self.api('libs.io:send:msg')(f"open: called by - {function_name}", level='debug')
         self.db_connection = sqlite3.connect(
             self.dbfile,
             detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -402,11 +402,11 @@ class Sqldb(object):
         """
         if table in self.tables:
             key_field = self.tables[table]['keyfield']
-            sql = "DELETE FROM %s where %s=%s;" % (table, key_field, rownumber)
-            self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))(sql)
-            return True, '%s was removed from table %s' % (rownumber, table)
+            sql = f"DELETE FROM {table} where {key_field}={rownumber};" % (table, key_field, rownumber)
+            self.api(f"{self.plugin.plugin_id}:{self.database_name}:modify")(sql)
+            return True, f"{rownumber} was removed from table {table}"
 
-        return False, '%s is not a table' % table
+        return False, f"{table} is not a table"
 
     def getcolumnumnsfromsql(self, tablename):
         """
@@ -458,12 +458,11 @@ class Sqldb(object):
             temp_list = [':%s' % i for i in columns]
             columnstring = ', '.join(temp_list)
             if replace:
-                sql_string = "INSERT OR REPLACE INTO %s VALUES (%s)" % \
-                                  (tablename, columnstring)
+                sql_string = f"INSERT OR REPLACE INTO {tablename} VALUES ({columnstring})"
             else:
-                sql_string = "INSERT INTO %s VALUES (%s)" % (tablename, columnstring)
+                sql_string = f"INSERT INTO {tablename} VALUES ({columnstring})"
             if keynull and self.tables[tablename]['keyfield']:
-                sql_string = sql_string.replace(":%s" % self.tables[tablename]['keyfield'],
+                sql_string = sql_string.replace(f":{self.tables[tablename]['keyfield']}",
                                                 'NULL')
         return sql_string
 
@@ -494,8 +493,7 @@ class Sqldb(object):
                 else:
                     sql_string_list.append(column + ' = :' + column)
             columnstring = ','.join(sql_string_list)
-            sql_string = "UPDATE %s SET %s WHERE %s = :%s;" % \
-                (tablename, columnstring, wherekey, wherekey)
+            sql_string = f"UPDATE {tablename} SET {columnstring} WHERE {wherekey} = :{wherekey};"
         return sql_string
 
     def getversion(self):
@@ -530,8 +528,7 @@ class Sqldb(object):
         retv = False
         cursor = self.db_connection.cursor()
         for row in cursor.execute(
-            'SELECT * FROM sqlite_master WHERE name = "%s" AND type = "table";'
-            % tablename):
+                f"SELECT * FROM sqlite_master WHERE name = \"{tablename}\" AND type = \"table\";"):
             if row['name'] == tablename:
                 retv = True
         cursor.close()
@@ -552,7 +549,7 @@ class Sqldb(object):
         set the version of the database
         """
         cursor = self.db_connection.cursor()
-        cursor.execute('PRAGMA user_version=%s;' % version)
+        cursor.execute(f"PRAGMA user_version={version};")
         self.db_connection.commit()
         cursor.close()
 
@@ -560,17 +557,15 @@ class Sqldb(object):
         """
         update a database from old_version to new_version
         """
-        self.api('libs.io:send:msg')('updating %s from version %s to %s' % \
-                                  (self.db_file, old_version, new_version))
+        self.api('libs.io:send:msg')(f"updating {self.db_file} from version {old_version} to {new_version}")
         self.backupdb(old_version)
         for version in range(old_version + 1, new_version + 1):
             try:
                 self.version_functions[version]()
-                self.api('libs.io:send:msg')('updated to version %s' % version)
+                self.api('libs.io:send:msg')(f"updated to version {version}")
             except Exception: # pylint: disable=broad-except
                 self.api('libs.io:send:traceback')(
-                    'could not upgrade db: %s in plugin: %s' % (self.database_name,
-                                                                self.plugin.plugin_id))
+                    f"could not upgrade db: {self.database_name} in plugin: {self.plugin.plugin_id}")
                 return
         self.setversion(new_version)
         self.api('libs.io:send:msg')('Done upgrading!')
@@ -585,8 +580,7 @@ class Sqldb(object):
             for row in cursor.execute(sql_statement):
                 result.append(row)
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
-                                  sql_statement)
+            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
         cursor.close()
         return result
 
@@ -605,8 +599,7 @@ class Sqldb(object):
             row_id = cursor.lastrowid
             result = self.db_connection.commit()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
-                                  sql_statement)
+            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
 
         return row_id, result
 
@@ -623,8 +616,7 @@ class Sqldb(object):
             result = self.db_connection.commit()
             cursor.close()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
-                                  sql_statement)
+            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
 
         return row_id, result
 
@@ -641,8 +633,7 @@ class Sqldb(object):
             result = self.db_connection.commit()
             cursor.close()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
-                                  sql_statement)
+            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
 
 
         return row_id, result
@@ -658,8 +649,7 @@ class Sqldb(object):
             for row in cursor.execute(selectstmt):
                 result[row[keyword]] = row
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')('could not run sql statement : %s' % \
-                                            selectstmt)
+            self.api('libs.io:send:traceback')(f"could not run sql statement : {selectstmt}")
         cursor.close()
         return result
 
@@ -669,19 +659,17 @@ class Sqldb(object):
         """
         results = {}
         if table_name not in self.tables:
-            self.api('libs.io:send:msg')('table %s does not exist in getlast' % table_name)
+            self.api('libs.io:send:msg')(f"table {table_name} does not exist in getlast")
             return {}
 
         column_id_name = self.tables[table_name]['keyfield']
         sql_string = ''
         if where:
-            sql_string = "SELECT * FROM %s WHERE %s ORDER by %s desc limit %d" % \
-                              (table_name, where, column_id_name, num)
+            sql_string = f"SELECT * FROM {table_name} WHERE {where} ORDER by {column_id_name} desc limit {num}"
         else:
-            sql_string = "SELECT * FROM %s ORDER by %s desc limit %d" % \
-                              (table_name, column_id_name, num)
+            sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        results = self.api('%s:%s:select' % (self.plugin.plugin_id, self.database_name))(sql_string)
+        results = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(sql_string)
 
         return results
 
@@ -690,14 +678,14 @@ class Sqldb(object):
         get a row by id
         """
         if table_name not in self.tables:
-            self.api('libs.io:send:msg')('table %s does not exist in getrow' % table_name)
+            self.api('libs.io:send:msg')(f"table {table_name} does not exist in getrow")
             return {}
 
         column_id_name = self.tables[table_name]['keyfield']
 
-        sql_string = "SELECT * FROM %s WHERE %s = %s" % (table_name, column_id_name, row_id)
+        sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        results = self.api('%s:%s:select' % (self.plugin.plugin_id, self.database_name))(sql_string)
+        results = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(sql_string)
 
         return results
 
@@ -707,8 +695,8 @@ class Sqldb(object):
         """
         last = -1
         column_id_name = self.tables[table_name]['keyfield']
-        rows = self.api('%s:%s:select' % (self.plugin.plugin_id, self.database_name))(
-            "SELECT MAX(%s) AS MAX FROM %s" % (column_id_name, table_name))
+        rows = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(
+            f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}")
         if rows:
             last = rows[0]['MAX']
 
@@ -720,7 +708,7 @@ class Sqldb(object):
         """
         success = False
         #self.cmd_vac()
-        self.api('libs.io:send:msg')('backing up database %s' % self.database_name)
+        self.api('libs.io:send:msg')(f"backing up database {self.database_name}")
         integrity = True
         cursor = self.db_connection.cursor()
         cursor.execute('PRAGMA integrity_check')
@@ -733,15 +721,14 @@ class Sqldb(object):
             self.api('libs.io:send:msg')('Integrity check failed, aborting backup')
             return success
         self.close()
-        try:
-            os.makedirs(os.path.join(self.database_save_directory, 'archive'))
-        except OSError:
-            pass
 
-        backupzipfile = os.path.join(self.database_save_directory, 'archive',
-                                     self.backup_template % postname + '.zip')
-        backupfile = os.path.join(self.database_save_directory, 'archive',
-                                  self.backup_template % postname)
+        archivedir = self.database_save_directory / 'archive'
+        os.makedirs(archivedir, exist_ok=True)
+
+        backupzip_filename = self.backup_template % postname + '.zip'
+        backupzipfile = archivedir / backupzip_filename
+        backup_filename = self.backup_template % postname
+        backupfile = archivedir / backup_filename
 
         try:
             shutil.copy(self.db_file, backupfile)
@@ -754,8 +741,7 @@ class Sqldb(object):
                 myzip.write(backupfile, arcname=os.path.basename(backupfile))
             os.remove(backupfile)
             success = True
-            self.api('libs.io:send:msg')('%s was backed up to %s' % (self.db_file,
-                                                                     backupzipfile))
+            self.api('libs.io:send:msg')(f"{self.db_file} was backed up to {backupzipfile}")
         except IOError:
             self.api('libs.io:send:msg')('could not zip backupfile')
             return success

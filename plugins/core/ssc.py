@@ -58,10 +58,10 @@ class SSC(object):
         else:
             self.desc = 'setting'
 
-        self.plugin.api('libs.api:add')('ssc:%s' % self.name, self.getss)
+        self.plugin.api('libs.api:add')(f"ssc:{self.name}", self.getss)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description='set the %s' % self.desc)
+                                     description=f"set the {self.desc}")
         parser.add_argument('value',
                             help=self.desc,
                             default='',
@@ -85,11 +85,7 @@ class SSC(object):
 
             return first_line.strip()
         except IOError:
-            self.plugin.api('libs.io:send:error')('Please set the %s with %s.%s.%s' % \
-                                   (self.desc,
-                                    self.plugin.api('core.commands:get:command:prefix')(),
-                                    self.plugin.plugin_id,
-                                    self.name))
+            self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
 
         return self.default
 
@@ -102,9 +98,9 @@ class SSC(object):
             data_file = open(file_name, 'w')
             data_file.write(args['value'])
             os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
-            return True, ['%s saved' % self.desc]
+            return True, [f"{self.desc} saved"]
 
-        return True, ['Please enter the %s' % self.desc]
+        return True, [f"Please enter the {self.desc}"]
 
 class Plugin(BasePlugin):
     """

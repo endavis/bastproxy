@@ -65,8 +65,8 @@ class Plugin(BasePlugin):
                             nargs='?')
         parser.add_argument(
             '-c', '--callstack',
-            help="print callstack if available",
-            action="store_true",
+            help='print callstack if available',
+            action='store_true',
             default=False)
         self.api('core.commands:command:add')('commands', self.cmd_commands,
                                               parser=parser)
@@ -79,9 +79,9 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         # parser.add_argument(
-        #     '-c', "--callstack",
-        #     help="print callstack if available",
-        #     action="store_true",
+        #     '-c', '--callstack',
+        #     help='print callstack if available',
+        #     action='store_true',
         #     default=False)
         self.api('core.commands:command:add')('muddata', self.cmd_muddata,
                                               parser=parser)
@@ -114,7 +114,7 @@ class Plugin(BasePlugin):
         message = ['Command Traces:']
 
         for i in traces.items:
-            message.append('%-6s : %s' % (i['id'], i['originalcommand']))
+            message.append(f"{i['id']:<6} : {i['originalcommand']}")
         return True, message
 
     def listchanged_mud_data(self):
@@ -196,7 +196,7 @@ class Plugin(BasePlugin):
         format the command stack
         """
         message = ['@c------------------- Muddata Trace -------------------@w']
-        message.append('%-17s : %s' % ('Original', stack['trace']['original']))
+        message.append(f"{'Original':<17} : {stack['trace']['original']}")
 
         message.append('@c-------------- Internal Stack --------------@w')
         count = 0

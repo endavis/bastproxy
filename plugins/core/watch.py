@@ -19,7 +19,6 @@ SNAME = 'watch'
 PURPOSE = 'watch for specific commands from clients'
 AUTHOR = 'Bast'
 VERSION = 1
-PRIORITY = 25
 
 REQUIRED = True
 
@@ -49,9 +48,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        #self.api('core.commands:command:add')('detail', self.cmd_detail,
-                                     #shelp='details of an event')
-
         self.api('core.events:register:to:event')('ev_libs.io_execute', self.checkcmd)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -80,9 +76,9 @@ class Plugin(BasePlugin):
         """
         a plugin was uninitialized
         """
-        self.api('libs.io:send:msg')('removing watches for plugin %s' % args['plugin_id'],
+        self.api('libs.io:send:msg')(f"removing watches for plugin {args['plugin_id']}",
                                      secondary=args['plugin_id'])
-        self.api('%s:remove:all:data:for:plugin' % self.plugin_id)(args['plugin_id'])
+        self.api(f"{self.plugin_id}:remove:all:data:for:plugin")(args['plugin_id'])
 
     def cmd_list(self, args):
         """
@@ -93,13 +89,15 @@ class Plugin(BasePlugin):
         watches.sort()
         match = args['match']
 
-        message.append('%-25s : %-13s %s' % ('Name', 'Defined in',
+        template = '%-25s : %-13s %s'
+
+        message.append(template % ('Name', 'Defined in',
                                              'Hits'))
         message.append('@B' + '-' * 60 + '@w')
         for watch_name in watches:
             watch = self.watch_data[watch_name]
             if not match or match in watch_name or watch['plugin'] == match:
-                message.append('%-25s : %-13s %s' % (watch_name, watch['plugin'],
+                message.append(template % (watch_name, watch['plugin'],
                                                      watch['hits']))
 
         return True, message
@@ -109,20 +107,19 @@ class Plugin(BasePlugin):
         list the details of a watch
         """
         message = []
+        columnwidth = 13
         if args['watch']:
             for watch in args['watch']:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]['event_name']
                     watch_event = self.api('core.events:get:event:detail')(event_name)
-                    message.append('%-13s : %s' % ('Name', watch))
-                    message.append('%-13s : %s' % ('Defined in',
-                                                   self.watch_data[watch]['plugin']))
-                    message.append('%-13s : %s' % ('Regex',
-                                                   self.watch_data[watch]['regex']))
-                    message.append('%-13s : %s' % ('Hits', self.watch_data[watch]['hits']))
+                    message.append(f"{'Name':<{columnwidth}} : {watch}")
+                    message.append(f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['plugin']}")
+                    message.append(f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}")
+                    message.append(f"{'Hits':<{columnwidth}} : {self.watch_data[watch]['hits']}")
                     message.extend(watch_event)
                 else:
-                    message.append('trigger %s does not exist' % watch)
+                    message.append(f"watch {watch} does not exist")
         else:
             message.append('Please provide a watch name')
 
@@ -147,8 +144,8 @@ class Plugin(BasePlugin):
 
         if regex in self.regex_lookup:
             self.api('libs.io:send:msg')(
-                'watch %s tried to add a regex that already existed for %s' % \
-                            (watch_name, self.regex_lookup[regex]), secondary=plugin)
+                f"watch {watch_name} tried to add a regex that already existed for {self.regex_lookup[regex]}",
+                secondary=plugin)
             return
         watch_args = kwargs.copy()
         watch_args['regex'] = regex
