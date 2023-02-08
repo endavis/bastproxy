@@ -487,7 +487,7 @@ class API(object):
             self.stats[api_location][caller_plugin] = self.stats[api_location][caller_plugin] + 1
             return api_data['function']
 
-        raise AttributeError(f"{api_location} is not in the api")
+        raise AttributeError(f"{self.parent_plugin_id} : {api_location} is not in the api")
 
     __call__ = get
 
