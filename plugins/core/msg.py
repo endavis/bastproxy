@@ -105,6 +105,11 @@ class Plugin(BasePlugin):
         this function returns no values"""
         senttoconsole = False
         senttoclient = False
+        if not msg:
+            msg = []
+
+        if isinstance(msg, str):
+            msg = [msg]
 
         for dtag in tags:
             if dtag and dtag != 'None' \
@@ -112,11 +117,11 @@ class Plugin(BasePlugin):
 
                 if dtag in self.datatypes_to_file and self.datatypes_to_file[dtag]['logger_name']:
                     loggingfunc = getattr(logging.getLogger(self.datatypes_to_file[dtag]['logger_name']), level)
-                    loggingfunc(msg)
+                    loggingfunc('\n'.join(msg))
 
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode') and \
                         dtag in self.colors:
-                    msg = self.api('core.colors:colorcode:to:ansicode')(self.colors[dtag] + msg)
+                    msg = [self.api('core.colors:colorcode:to:ansicode')(self.colors[dtag] + i) for i in msg if i]
 
                 if dtag in self.datatypes_to_client and self.datatypes_to_client[dtag] and not senttoclient:
                     self.api('libs.io:send:client')(msg)
@@ -124,7 +129,7 @@ class Plugin(BasePlugin):
 
                 if dtag in self.datatypes_to_console and self.datatypes_to_console[dtag] and not senttoconsole:
                     loggingfunc = getattr(logging.getLogger(dtag), level)
-                    loggingfunc(msg)
+                    loggingfunc('\n'.join(msg))
                     senttoconsole = True
 
     # toggle logging a datatype to the clients
