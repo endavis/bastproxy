@@ -8,6 +8,8 @@
 """
     Housing the Class(es) and coroutines for accepting and maintaining connections from clients
     via Telnet, Secure Telnet and SSH.
+
+    We do not register to events here, but we do fire events.
 """
 
 # Standard Library
@@ -65,6 +67,17 @@ class ClientConnection:
         send welcome message to client
         ask for password
         """
+        if self.api('core.clients:client:banned:check')(self.addr):
+            log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.")
+            self.writer.write(b'You are banned from this proxy. Goodbye.\n\r')
+            try:
+                await self.writer.drain()
+            except AttributeError:
+                # the connection is already closed
+                pass
+            self.state['connected'] = False
+            return
+
         log.debug(f"setup_client - Sending telnet options to {self.uuid}")
         # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
         self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
@@ -96,6 +109,7 @@ class ClientConnection:
                 messages_to_game asyncio.Queue()
         """
         log.debug(f"client_read - Starting coroutine for {self.uuid}")
+
         while self.state['connected']:
             inp: bytes = await self.reader.readline()
             log.debug(f"client_read - Raw received data in client_read : {inp}")
@@ -114,6 +128,8 @@ class ClientConnection:
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] logged in.")
+                    self.api('core.events:raise:event')('ev_libs.net.client_client_connected', {'client':self},
+                                              calledfrom="client")
                     continue
 
                 elif inp.strip() == 'bastviewpass':
@@ -124,6 +140,8 @@ class ClientConnection:
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
                     log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] logged in as view only.")
+                    self.api('core.events:raise:event')('ev_libs.net.client_client_connected_view',
+                                              {'client':self}, calledfrom="client")
                     continue
 
                 elif self.login_attempts < 3:
@@ -133,10 +151,11 @@ class ClientConnection:
                     continue
 
                 else:
-                    msg = 'Too many login attempts. Goodbye.'
-                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid)
                     await asyncio.sleep(1)
                     log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
+                    self.api('core.clients:client:banned:add')(self)
                     self.state['connected'] = False
 
             else:
@@ -144,6 +163,9 @@ class ClientConnection:
                     self.api('libs.io:send:client')(['You are logged in as a view only user.'], internal=True, client_uuid=self.uuid)
                 else:
                     self.api('libs.io:send:execute')(inp, fromclient=True)
+
+        self.api('core.events:raise:event')('ev_libs.net.client_client_disconnected',
+                                {'client':self}, calledfrom="client")
 
         log.debug(f"Ending client_read coroutine for {self.uuid}")
 

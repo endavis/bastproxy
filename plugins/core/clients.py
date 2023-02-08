@@ -43,10 +43,10 @@ class Plugin(BasePlugin):
         self.banned = {}
 
         # new api format
-        self.api('libs.api:add')('clients:get:all', self.api_getall)
-        self.api('libs.api:add')('clients:banned:add', self.api_addbanned)
-        self.api('libs.api:add')('clients:banned:check', self.api_checkbanned)
-        self.api('libs.api:add')('clients:count', self.api_numconnected)
+        self.api('libs.api:add')('client:get:all', self.api_getall)
+        self.api('libs.api:add')('client:banned:add', self.api_addbanned)
+        self.api('libs.api:add')('client:banned:check', self.api_checkbanned)
+        self.api('libs.api:add')('client:count', self.api_numconnected)
 
     def initialize(self):
         """
@@ -76,7 +76,8 @@ class Plugin(BasePlugin):
         """
         add a banned ip
         """
-        self.banned[clientip] = time.time()
+        self.api('libs.io:send:error')(f"{clientip} has been banned for 10 minutes")
+        self.banned[clientip] = time.localtime()
 
     def api_checkbanned(self, clientip):
         """
@@ -86,7 +87,13 @@ class Plugin(BasePlugin):
           clientip - the client ip to check
         """
         if clientip in self.banned:
+            difference = time.mktime(time.localtime()) - time.mktime(self.banned[clientip])
+            delta = datetime.timedelta(seconds=difference)
+            if delta.total_seconds() > 600:
+                del self.banned[clientip]
+                return False
             return True
+
         return False
 
     def addclient(self, args):
