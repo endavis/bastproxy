@@ -33,6 +33,8 @@ from libs.api import API as BASEAPI
 from libs.net import telnetlib3
 # import io so the "send" functions are added to the api
 from libs import io      # pylint: disable=unused-import
+# import timing so the "timing" functions are added to the api
+from libs import timing
 
 
 logging.basicConfig(stream=sys.stdout,
