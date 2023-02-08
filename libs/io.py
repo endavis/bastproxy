@@ -129,40 +129,54 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             loggingfunc(message)
 
     # write and format a traceback
-    def _api_traceback(self, message=''):
+    def _api_traceback(self, message=None):
         """  handle a traceback
           @Ymessage@w  = the message to put into the traceback
 
         this function returns no values"""
-        exc = ''.join(traceback.format_exception(sys.exc_info()[0],
-                                                 sys.exc_info()[1],
-                                                 sys.exc_info()[2]))
+        if not message:
+            message = []
 
-        if message:
-            message = ''.join([message, '\n', exc])
-        else:
-            message = exc
+        if isinstance(message, str):
+            message = [message]
+
+        message.extend(traceback.format_exception(sys.exc_info()[0],
+                                         sys.exc_info()[1],
+                                         sys.exc_info()[2]))
+
+        message = [i.rstrip('\n').rstrip('\r') for i in message]
+        new_message = []
+        for message in message:
+            if message.find('\n'):
+                new_message.extend(message.split('\n'))
+            else:
+                new_message.append(message)
 
         self.api('libs.io:send:error')(message)
 
     # write and format an error
-    def _api_error(self, text, secondary=None):
+    def _api_error(self, message=None, secondary=None):
         """  handle an error
           @Ytext@w      = The error to handle
           @Ysecondary@w = Other datatypes to flag this data
 
         this function returns no values"""
-        text = str(text)
+
+        if not message:
+            message = []
+
+        if isinstance(message, str):
+            message = [message]
+
         message_list = []
 
-        for i in text.split('\n'):
+        for i in message:
             if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
                 message_list.append(f"@x136{i}@w")
             else:
                 message_list.append(i)
-        message = '\n'.join(message_list)
 
-        self.api('libs.io:send:msg')(message, log_level='error', primary='error', secondary=secondary)
+        self.api('libs.io:send:msg')(message_list, log_level='error', primary='error', secondary=secondary)
 
         try:
             self.api('core.errors:add')(time.strftime(self.api.time_format,
