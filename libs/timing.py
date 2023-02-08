@@ -8,10 +8,16 @@
 """
 this module is for timing functions
 """
+# Standard Library
 from functools import wraps
 from timeit import default_timer
+
+# 3rd Party
+
+# Project
 from libs.api import API as BASEAPI
 API = BASEAPI()
+
 
 def duration(func):
   """
@@ -22,7 +28,7 @@ def duration(func):
     """
     the wrapper to find the duration of a function
     """
-    tname = '%s' % (func.func_name)
+    tname = f"{func.func_name}"
     TIMING.starttimer(tname, arg)
     res = func(*arg)
     TIMING.finishtimer(tname, arg)
@@ -64,8 +70,7 @@ class Timing(object):
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
       self.timing[timername]['plugin'] = plugin
-      self.api('libs.io:send:msg')('%-20s : started - from plugin %s with args %s' % \
-                            (timername, plugin, args),
+      self.api('libs.io:send:msg')(f"{timername:<20} : started - from plugin {plugin} with args {args}",
                                    primary=plugin, secondary=['timing'])
 
   def finishtimer(self, timername, args=None):
@@ -75,17 +80,13 @@ class Timing(object):
     if self.enabled:
       timerfinish = default_timer()
       if timername in self.timing:
-        self.api('libs.io:send:msg')('%-20s : finished in %s ms - with args %s' % \
-                             (timername,
-                              (timerfinish - self.timing[timername]['start']) * 1000.0,
-                              args),
+        self.api('libs.io:send:msg')(f"{timername:<20} : finished in {(timerfinish - self.timing[timername]['start']) * 1000.0} ms - with args {args}",
                                      primary=self.timing[timername]['plugin'],
                                      secondary=['timing'])
         del self.timing[timername]
       else:
         plugin = self.api('libs.api:get:caller:plugin')()
-        self.api('libs.io:send:error')('timername: %s not found, called from %s' % \
-                              (timername, plugin),
+        self.api('libs.io:send:err')(f"timername: {timername} not found, called from {plugin}",
                                        secondary=['timing', plugin])
 
 TIMING = Timing()

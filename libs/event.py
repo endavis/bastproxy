@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/apihelp.py
+# Filename: libs/event.py
 #
-# File Description: a plugin to show api functions and details
+# File Description: a basic event class
 #
 # By: Bast
 """
 This plugin has the base event class
 """
+# Standard Library
+
+# 3rd Party
+
+# Project
+
 class Event(object): # pylint: disable=too-few-public-methods
     """
     a basic event class
@@ -32,4 +38,4 @@ class Event(object): # pylint: disable=too-few-public-methods
         """
         return a string representation of the timer
         """
-        return 'Event %-10s : %-15s' % (self.name, self.plugin)
+        return f"Event {self.name:<10} : {self.plugin:<15}"
