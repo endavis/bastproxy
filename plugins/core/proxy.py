@@ -118,17 +118,14 @@ class Plugin(BasePlugin):
         """
         return self.api('setting:get')('preamble')
 
-    def api_preamble_color(self):
+    def api_preamble_color(self, error=False):
         """
         get the preamble
         """
-        return self.api('setting:get')('preamblecolor')
-
-    def api_preamble_error_color(self):
-        """
-        get the preamble
-        """
-        return self.api('setting:get')('preambleerrorcolor')
+        if error:
+            return self.api('setting:get')('preambleerrorcolor')
+        else:
+            return self.api('setting:get')('preamblecolor')
 
     def sendusernameandpw(self, args): # pylint: disable=unused-argument
         """

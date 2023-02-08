@@ -172,7 +172,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             pass
 
     # send text to the clients
-    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None):  # pylint: disable=too-many-arguments
+    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None, error=False):  # pylint: disable=too-many-arguments
         """  handle a traceback
           @Ytext@w        = The text to send to the clients, a list of strings or bytestrings
           @Yraw@w         = if True, don't convert colors or add the preamble
@@ -196,14 +196,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                     text = text.split('\n')
 
                 if preamble:
-                    if self.api('libs.api:has')('net.proxy:preamble:color:get'):
-                        preamblecolor = self.api('net.proxy:preamble:color:get')(i)
-                    else:
-                        preamblecolor = '@C'
-                    if self.api('libs.api:has')('net.proxy:preamble:get'):
-                        preambletext = self.api('net.proxy:preamble:get')(i)
-                    else:
-                        preambletext = '#BP: '
+                    preamblecolor = self.api('base.proxy:preamble:color:get')(error=error)
+                    preambletext = self.api('base.proxy:preamble:get')()
                     i = f"{preamblecolor}{preambletext}@w {i}"
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
                     converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i) + '\r\n')
