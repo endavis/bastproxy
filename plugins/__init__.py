@@ -1255,7 +1255,6 @@ class PluginMgr(BasePlugin):
                                               lname='Plugin Manager',
                                               parser=parser)
 
-        # TODO: fix this once timers plugin has been added
-        #self.api('core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
+        self.api('core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
 
         self.api('core.events:register:to:event')('ev_net.proxy_proxy_shutdown', self.shutdown)
