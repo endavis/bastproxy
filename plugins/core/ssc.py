@@ -73,7 +73,7 @@ class SSC(object):
 
 
     # read the secret from a file
-    def getss(self):
+    def getss(self, quiet=False):
         """
         read the secret from a file
         """
@@ -85,7 +85,8 @@ class SSC(object):
 
             return first_line.strip()
         except IOError:
-            self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
+            if not quiet:
+                self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
 
         return self.default
 
