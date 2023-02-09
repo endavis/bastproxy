@@ -21,6 +21,7 @@ from uuid import uuid4
 
 # Project
 from libs.net import telnet
+from libs.task_logger import create_task
 import libs.api
 from libs.net.networkdata import NetworkData
 
@@ -197,7 +198,7 @@ class ClientConnection:
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            task = asyncio.create_task(self.writer.drain())
+            task = create_task(self.writer.drain(), name=f"{self.uuid}.write.drain")
             logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")
 
         log.debug(f"Ending client_write coroutine for {self.uuid}")
@@ -244,9 +245,9 @@ async def client_telnet_handler(reader, writer) -> None:
     await register_client(connection)
 
     tasks: list[asyncio.Task] = [
-        asyncio.create_task(connection.client_read(),
+        create_task(connection.client_read(),
                             name=f"{connection.uuid} telnet read"),
-        asyncio.create_task(connection.client_write(),
+        create_task(connection.client_write(),
                             name=f"{connection.uuid} telnet write"),
     ]
 

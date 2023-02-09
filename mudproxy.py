@@ -29,6 +29,7 @@ from pathlib import Path
 import libs.log
 import libs.net.client
 import libs.argp
+from libs.task_logger import create_task
 from libs.api import API as BASEAPI
 from libs.net import telnetlib3
 # import io so the "send" functions are added to the api
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     log.debug('__main__ - setting up signal handlers')
     for sig in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(
-            sig, lambda: asyncio.create_task(shutdown(sig, loop)))
+            sig, lambda: create_task(shutdown(sig, loop), name='shutdown'))
 
     #loop.set_exception_handler(handle_exceptions)
 
