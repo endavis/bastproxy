@@ -210,8 +210,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                     text = text.split('\n')
 
                 if preamble:
-                    preamblecolor = self.api('base.proxy:preamble:color:get')(error=error)
-                    preambletext = self.api('base.proxy:preamble:get')()
+                    preamblecolor = self.api('core.proxy:preamble:color:get')(error=error)
+                    preambletext = self.api('core.proxy:preamble:get')()
                     i = f"{preamblecolor}{preambletext}@w {i}"
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
                     converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i) + '\r\n')
