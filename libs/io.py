@@ -152,7 +152,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             else:
                 new_message.append(message)
 
-        self.api('libs.io:send:error')(message)
+        self.api('libs.io:send:error')(new_message)
 
     # write and format an error
     def _api_error(self, message=None, secondary=None):
