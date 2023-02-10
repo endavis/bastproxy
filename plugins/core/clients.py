@@ -38,15 +38,21 @@ class Plugin(BasePlugin):
 
         self.can_reload_f = False
 
-        self.clients = []
-        self.vclients = []
+        self.clients = {}
+        self.vclients = {}
         self.banned = {}
 
         # new api format
-        self.api('libs.api:add')('client:get:all', self.api_getall)
+        self.api('libs.api:add')('get:client', self._api_get_client)
+        self.api('libs.api:add')('get:all:clients', self._api_get_all_clients)
         self.api('libs.api:add')('client:banned:add', self.api_addbanned)
         self.api('libs.api:add')('client:banned:check', self.api_checkbanned)
         self.api('libs.api:add')('client:count', self.api_numconnected)
+        self.api('libs.api:add')('client:add', self._api_addclient)
+        self.api('libs.api:add')('client:view:add', self._api_addviewclient)
+        self.api('libs.api:add')('client:remove', self._api_removeclient)
+        self.api('libs.api:add')('client:is:logged:in', self._api_is_client_logged_in)
+        self.api('libs.api:add')('client:logged:in', self._api_client_logged_in)
 
     def initialize(self):
         """
@@ -61,23 +67,46 @@ class Plugin(BasePlugin):
         self.api('core.events:register:to:event')('ev_net.proxy_proxy_shutdown',
                                                   self.shutdown)
 
-        self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.addclient)
-        self.api('core.events:register:to:event')('ev_libs.net.client_client_connected_view', self.addviewclient)
-
-        self.api('core.events:register:to:event')('ev_libs.net.client_client_disconnected', self.removeclient)
-
     def api_numconnected(self):
         """
         return the # of clients connected
         """
         return len(self.clients)
 
-    def api_addbanned(self, clientip):
+    def _api_get_client(self, client_uuid):
+        """
+        get a connection
+        """
+        if client_uuid in self.clients:
+            return self.clients[client_uuid]
+        if client_uuid in self.vclients:
+            return self.vclients[client_uuid]
+        return None
+
+    def api_addbanned(self, client_uuid):
         """
         add a banned ip
         """
-        self.api('libs.io:send:error')(f"{clientip} has been banned for 10 minutes")
-        self.banned[clientip] = time.localtime()
+        if client_uuid in self.clients:
+            addr = self.clients[client_uuid].addr
+            self.api('libs.io:send:error')(f"{addr} has been banned for 10 minutes")
+            self.banned[addr] = time.localtime()
+
+    def _api_is_client_logged_in(self, client_uuid):
+        """
+        check if a client is logged in
+        """
+        if client_uuid in self.clients and self.clients[client_uuid].state['logged in']:
+            return True
+
+        return False
+
+    def _api_client_logged_in(self, client_uuid):
+        """
+        set a client as logged in
+        """
+        if client_uuid in self.clients:
+            self.clients[client_uuid].state['logged in'] = True
 
     def api_checkbanned(self, clientip):
         """
@@ -96,27 +125,42 @@ class Plugin(BasePlugin):
 
         return False
 
-    def addclient(self, args):
+    def _api_addclient(self, client_connection):
         """
         add a client from the connected event
         """
-        self.clients.append(args['client'])
+        self.clients[client_connection.uuid] = client_connection
+        self.api('libs.io:send:msg')(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
+                                     level='info')
+        self.api('core.events:raise:event')('ev_core.clients_client_connected',
+                                    {'client_uuid':client_connection.uuid})
 
-    def addviewclient(self, args):
+
+    def _api_addviewclient(self, client_connection):
         """
         add a view client from the connected event
         """
-        self.vclients.append(args['client'])
+        self.vclients[client_connection.uuid] = client_connection
+        self.api('libs.io:send:msg')(f"View Client {client_connection.uuid} logged from {client_connection.addr}:{client_connection.port}",
+                                     level='info')
+        self.api('core.events:raise:event')('ev_core.clients_client_connected_view',
+                                    {'client_uuid':client_connection.uuid})
 
-    def removeclient(self, args):
+    def _api_removeclient(self, client_connection):
         """
         remove a client
         """
-        client = args['client']
-        if client in self.clients:
-            del self.clients[self.clients.index(client)]
-        if client in self.vclients:
-            del self.vclients[self.vclients.index(client)]
+        removed = False
+        if client_connection.uuid in self.clients:
+            del self.clients[client_connection.uuid]
+            removed = True
+        if client_connection.uuid in self.vclients:
+            del self.vclients[client_connection.uuid]
+            removed = True
+
+        if removed:
+            self.api('core.events:raise:event')('ev_core.clients_client_disconnected',
+                    {'client_uuid':client_connection.uuid})
 
     def shutdown(self, args=None): # pylint: disable=unused-argument
         """
@@ -127,12 +171,15 @@ class Plugin(BasePlugin):
         for client in self.vclients:
             client.handle_close()
 
-    def api_getall(self):
+    def _api_get_all_clients(self):
         """
         return a dictionary of clients
         two keys: view, active
         """
-        return {'view':self.vclients, 'active':self.clients}
+        clients = []
+        clients.extend(self.clients.values())
+        clients.extend(self.vclients.values())
+        return clients
 
     def cmd_show(self, args): # pylint: disable=unused-argument
         """
@@ -144,23 +191,25 @@ class Plugin(BasePlugin):
                                     'Client', 'Connected'))
         tmsg.append('@B' + 60 * '-')
         for i in self.clients:
+            client = self.clients[i]
             ttime = self.api('core.utils:convert:timedelta:to:string')(
-                i.connected_time,
+                client.connected_time,
                 time.localtime())
 
-            tmsg.append(clientformat % ('Active', i.host[:17], i.port,
-                                        i.terminal_type[:17], ttime))
-            options = i.options_info()
-            if options:
-                tmsg.append('Option Info')
-                for j in options:
-                    tmsg.append(j)
+            tmsg.append(clientformat % ('Active', client.addr, client.port,
+                                        'Terminal Type', ttime))
+            # options = i.options_info()
+            # if options:
+            #     tmsg.append('Option Info')
+            #     for j in options:
+            #         tmsg.append(j)
 
         for i in self.vclients:
+            client = self.vclients[i]
             ttime = self.api('core.utils:convert:timedelta:to:string')(
-                i.connected_time,
+                client.connected_time,
                 time.localtime())
-            tmsg.append(clientformat % ('View', i.host[:17], i.port,
-                                        i.terminal_type[:17], ttime))
+            tmsg.append(clientformat % ('View', client.addr, client.port,
+                                        'Unknown', ttime))
 
         return True, tmsg

@@ -44,13 +44,13 @@ class Plugin(BasePlugin):
         self.proxypw = None
         self.proxyvpw = None
         self.mudpw = None
+        self.mud_connection = None
 
         # new api format
         self.api('libs.api:add')('proxy:restart', self.api_restart)
         self.api('libs.api:add')('proxy:shutdown', self.api_shutdown)
         self.api('libs.api:add')('preamble:get', self.api_preamble)
         self.api('libs.api:add')('preamble:color:get', self.api_preamble_color)
-        self.api('libs.api:add')('preamble:error:color:get', self.api_preamble_error_color)
 
     def initialize(self):
         """
@@ -98,11 +98,11 @@ class Plugin(BasePlugin):
                                               self.cmd_shutdown,
                                               shelp='shutdown the proxy')
 
-        self.api('core.events:register:to:event')('ev_libs.net.client_client_connected', self.client_connected)
+        self.api('core.events:register:to:event')('ev_core.clients_client_connected', self.client_connected)
         self.api('core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
-        self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'listenport'),
+        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'listenport'}_modified",
                                                   self.listen_port_change)
-        self.api('core.events:register:to:event')('ev_%s_var_%s_modified' % (self.plugin_id, 'cmdseperator'),
+        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'cmdseperator'}_modified",
                                                   self.command_seperator_change)
 
         ssc = self.api('core.ssc:baseclass:get')()
@@ -170,7 +170,7 @@ class Plugin(BasePlugin):
                 tmsg.append(template % ('Options', ''))
                 options = mud.options_info()
                 for i in options:
-                    tmsg.append('     %s' % i)
+                    tmsg.append(f"     {i}")
             else:
                 tmsg.append(template % ('Mud', 'disconnected'))
 
@@ -243,29 +243,28 @@ class Plugin(BasePlugin):
         """
         check for mud settings
         """
-        mud = self.api('core.managers:get')('mud')
         cmdprefix = self.api('core.commands:get:command:prefix')()
         tmsg = []
         divider = '@R------------------------------------------------@w'
-        if not mud.connected:
+        if not self.mud_connection or not self.mud_connection.connected:
             if not self.api('setting:get')('mudhost'):
                 tmsg.append(divider)
-                tmsg.append('Please set the mudhost through the net plugin.')
+                tmsg.append('Please set the mudhost.')
                 tmsg.append(f"{cmdprefix}.{self.plugin_id}.set mudhost 'host'")
             if self.api('setting:get')('mudport') == 0:
                 tmsg.append(divider)
-                tmsg.append('Please set the mudport through the net plugin.')
+                tmsg.append('Please set the mudport.')
                 tmsg.append(f"{cmdprefix}.{self.plugin_id}.set mudport 'port'")
             tmsg.append(f"Conect to the mud with {cmdprefix}.{self.plugin_id}.connect")
         else:
             tmsg.append(divider)
-            tmsg.append(f"{self.api('net.proxy:preamble:color:get')(error=True)}{self.api('net.proxy:preamble:get')()}: @GThe proxy is already connected to the mud@w")
-        if self.api(f"{self.plugin_id}:ssc:proxypw")() == 'defaultpass':
+            tmsg.append(f"{self.api(f'{self.plugin_id}:preamble:color:get')(error=True)}{self.api(f'{self.plugin_id}:preamble:get')()}: @GThe proxy is already connected to the mud@w")
+        if self.api(f"{self.plugin_id}:ssc:proxypw")(quiet=True) == 'defaultpass':
             tmsg.append(divider)
             tmsg.append('The proxy password is still the default password.')
             tmsg.append('Please set the proxy password!')
             tmsg.append(f"{cmdprefix}.{self.plugin_id}.proxypw 'This is a password'")
-        if self.api(f"{self.plugin_id}:ssc:proxypwview")() == 'defaultviewpass':
+        if self.api(f"{self.plugin_id}:ssc:proxypwview")(quiet=True) == 'defaultviewpass':
             tmsg.append(divider)
             tmsg.append('The proxy view password is still the default password.')
             tmsg.append('Please set the proxy view password!')
@@ -276,9 +275,9 @@ class Plugin(BasePlugin):
             tmsg.insert(0, divider)
 
         if tmsg:
-            self.api('libs.io:send:client')(tmsg, client=args['client'])
+            self.api('libs.io:send:client')(tmsg, client_uuid=args['client_uuid'])
 
-        return True
+        return args
 
     # restart the proxy
     def api_restart(self):

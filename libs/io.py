@@ -26,7 +26,6 @@ import asyncio
 # Project
 from libs.api import API
 from libs.net.networkdata import NetworkData
-from libs.net.client import connections
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """
@@ -187,7 +186,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             pass
 
     # send text to the clients
-    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None, error=False):  # pylint: disable=too-many-arguments
+    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None, error=False, prelogin=False):  # pylint: disable=too-many-arguments
         """  handle a traceback
           @Ytext@w        = The text to send to the clients, a list of strings or bytestrings
           @Yraw@w         = if True, don't convert colors or add the preamble
@@ -229,23 +228,24 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             byte_message.append(i)
 
         if client_uuid:
-            try:
-                client = connections[client_uuid]
-                loop = asyncio.get_event_loop()
-                for i in byte_message:
-                    message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
-                    loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
-
-            except KeyError:
-                self.api('libs.io:send:error')(f"libs.io - _api_client - client {client_uuid} not found")
-                return
+            client = self.api('core.clients:get:client')(client_uuid)
+            if self.api('core.clients:client:is:logged:in')(client_uuid) or prelogin:
+                if client:
+                    loop = asyncio.get_event_loop()
+                    for i in byte_message:
+                        message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
+                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+                else:
+                    self.api('libs.io:send:error')(f"libs.io - _api_client - client {client_uuid} not found")
+                    return
 
         else:
             loop = asyncio.get_event_loop()
-            for client in connections:
-                for i in byte_message:
-                    message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
-                    loop.call_soon_threadsafe(connections[client].msg_queue.put_nowait, message)
+            for client in self.api('core.clients:get:all:clients')():
+                if self.api('core.clients:client:is:logged:in')(client.uuid):
+                    for i in byte_message:
+                        message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
+                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
 
 
     # execute a command through the interpreter, most data goes through this

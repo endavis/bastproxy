@@ -15,6 +15,7 @@
 # Standard Library
 import asyncio
 import logging
+import time
 from uuid import uuid4
 
 # Third Party
@@ -26,8 +27,6 @@ import libs.api
 from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)
-
-connections = {}
 
 class ClientConnection:
     """
@@ -59,6 +58,7 @@ class ClientConnection:
         self.uuid: str = str(uuid4())
         self.view_only = False
         self.msg_queue = asyncio.Queue()
+        self.connected_time = time.localtime()
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
 
@@ -69,7 +69,7 @@ class ClientConnection:
         ask for password
         """
         if self.api('core.clients:client:banned:check')(self.addr):
-            log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.")
+            self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.", level='info')
             self.writer.write(b'You are banned from this proxy. Goodbye.\n\r')
             try:
                 await self.writer.drain()
@@ -81,19 +81,19 @@ class ClientConnection:
 
         self.api('libs.io:send:msg')(f"setup_client - Sending telnet options to {self.uuid}", level='debug')
         # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
-        self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
+        self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
 
         # Advertise to the client that we will do features we are capable of.
         features = telnet.advertise_features()
         if features:
-            self.api('libs.io:send:client')([telnet.advertise_features()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
+            self.api('libs.io:send:client')([telnet.advertise_features()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
         self.api('libs.io:send:msg')(f"setup_client - telnet options sent to {self.uuid}", level='debug')
 
         await self.writer.drain()
 
         self.api('libs.io:send:msg')(f"setup_client - Sending welcome message to {self.uuid}", level='debug')
-        self.api('libs.io:send:client')(['Welcome to Bastproxy.'], internal=True, client_uuid=self.uuid)
-        self.api('libs.io:send:client')(['Please enter your password.'], internal=True, client_uuid=self.uuid)
+        self.api('libs.io:send:client')(['Welcome to Bastproxy.'], internal=True, client_uuid=self.uuid, prelogin=True)
+        self.api('libs.io:send:client')(['Please enter your password.'], internal=True, client_uuid=self.uuid, prelogin=True)
         self.login_attempts += 1
         self.api('libs.io:send:msg')(f"setup_client - welcome message sent to {self.uuid}", )
 
@@ -127,28 +127,26 @@ class ClientConnection:
                     msg = 'You are now logged in.'
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
-                    log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] logged in.")
-                    self.api('core.events:raise:event')('ev_libs.net.client_client_connected', {'client':self},
-                                              calledfrom="client")
+                    self.api("core.clients:client:logged:in")(self.uuid)
                     continue
 
                 elif inp.strip() == 'bastviewpass':
                     self.state['logged in'] = True
                     self.view_only = True
-                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
-                    self.api('libs.io:send:client')(['You are now logged in as view only user.'], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
+                    self.api('libs.io:send:client')(['You are now logged in as view only user.'], internal=True, client_uuid=self.uuid, prelogin=True)
                     continue
 
                 elif self.login_attempts < 3:
                     self.login_attempts = self.login_attempts + 1
-                    self.api('libs.io:send:client')(['Invalid password. Please try again.'], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')(['Invalid password. Please try again.'], internal=True, client_uuid=self.uuid, prelogin=True)
                     continue
 
                 else:
-                    self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid)
-                    self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid, prelogin=True    )
+                    self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid, prelogin=True)
                     self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
-                    self.api('core.clients:client:banned:add')(self)
+                    self.api('core.clients:client:banned:add')(self.uuid)
                     self.state['connected'] = False
 
             else:
@@ -156,8 +154,6 @@ class ClientConnection:
                     self.api('libs.io:send:client')(['You are logged in as a view only user.'], internal=True, client_uuid=self.uuid)
                 else:
                     self.api('libs.io:send:execute')(inp, fromclient=True)
-
-        self.api('core.clients:client:remove')(self)
 
         self.api('libs.io:send:msg')(f"Ending client_read coroutine for {self.uuid}", level='debug')
 
@@ -196,10 +192,11 @@ class ClientConnection:
 
 async def register_client(connection) -> None:
     """
-        Upon a new client connection, we register it to the connections dict.
+        This function is for things to do before the client is fully connected.
     """
     connection.api('libs.io:send:msg')(f"Registering client {connection.uuid}", primary=__name__, level='debug')
-    connections[connection.uuid] = connection
+
+    connection.api('core.clients:client:add')(connection)
 
     connection.api('libs.io:send:msg')(f"Registered client {connection.uuid}", primary=__name__, level='debug')
 
@@ -209,12 +206,12 @@ async def unregister_client(connection) -> None:
         Upon client disconnect/quit, we unregister it from the connections dict.
     """
     connection.api('libs.io:send:msg')(f"Unregistering client {connection.uuid}", primary=__name__, level='debug')
-    if connection.uuid in connections:
-        connections.pop(connection.uuid)
 
-        connection.api('libs.io:send:msg')(f"Unregistered client {connection.uuid}", primary=__name__, level='debug')
-    else:
-        connection.api('libs.io:send:msg')(f"Client {connection.uuid} already unregistered", primary=__name__, level='debug')
+    if connection.state['connected']:
+        connection.state['connected'] = False
+    connection.api('core.clients:client:remove')(connection)
+
+    connection.api('libs.io:send:msg')(f"Unregistered client {connection.uuid}", primary=__name__, level='debug')
 
 
 async def client_telnet_handler(reader, writer) -> None:
