@@ -82,7 +82,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             self.current_trace['changes'].append(trace)
 
     # send a message
-    def _api_msg(self, message, log_level='info', primary=None, secondary=None):
+    def _api_msg(self, message, level='info', primary=None, secondary=None):
         """  send a message through the log plugin
           @Ymessage@w        = This message to send
           @Yprimary@w    = the primary data tag of the message (default: None)
@@ -121,11 +121,12 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
         if not tags:
             print(f"Did not get any tags for {message}")
+            tags = ['Unknown']
 
         try:
-            self.api('core.msg:message')(message, level=log_level, tags=tags)
+            self.api('core.msg:message')(message, level=level, tags=tags)
         except (AttributeError, RuntimeError):
-            loggingfunc = getattr(logging.getLogger(primary or plugin), log_level)
+            loggingfunc = getattr(logging.getLogger(primary or plugin), level)
             loggingfunc(message)
 
     # write and format a traceback
@@ -176,7 +177,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             else:
                 message_list.append(i)
 
-        self.api('libs.io:send:msg')(message_list, log_level='error', primary='error', secondary=secondary)
+        self.api('libs.io:send:msg')(message_list, level='error', primary='error', secondary=secondary)
 
         try:
             self.api('core.errors:add')(time.strftime(self.api.time_format,
@@ -197,7 +198,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         this function returns no values"""
 
         if type(text) == str or type(text) == bytes:
-            self.api('libs.io:send:msg')(f"did not get list for text {text}", log_level='info', primary='libs.io')
+            self.api('libs.io:send:msg')(f"did not get list for text {text}", level='info', primary='libs.io')
             text = [text]
 
         # if the data is from the proxy (internal) and msg_type is 'IO', add the preamble to each line

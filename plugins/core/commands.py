@@ -945,7 +945,7 @@ class Plugin(BasePlugin):
         self.commands_list.append(f"{plugin_instance.plugin_id}.{command_name}")
 
         self.api('libs.io:send:msg')(f"added command {plugin_id}.{command_name}",
-                                     log_level='debug', secondary=plugin_instance.plugin_id)
+                                     level='debug', secondary=plugin_instance.plugin_id)
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):

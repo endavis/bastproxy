@@ -79,7 +79,7 @@ class ClientConnection:
             self.state['connected'] = False
             return
 
-        log.debug(f"setup_client - Sending telnet options to {self.uuid}")
+        self.api('libs.io:send:msg')(f"setup_client - Sending telnet options to {self.uuid}", level='debug')
         # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
         self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
 
@@ -87,15 +87,15 @@ class ClientConnection:
         features = telnet.advertise_features()
         if features:
             self.api('libs.io:send:client')([telnet.advertise_features()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
-        log.debug(f"setup_client - telnet options sent to {self.uuid}")
+        self.api('libs.io:send:msg')(f"setup_client - telnet options sent to {self.uuid}", level='debug')
 
         await self.writer.drain()
 
-        log.debug(f"setup_client - Sending welcome message to {self.uuid}")
+        self.api('libs.io:send:msg')(f"setup_client - Sending welcome message to {self.uuid}", level='debug')
         self.api('libs.io:send:client')(['Welcome to Bastproxy.'], internal=True, client_uuid=self.uuid)
         self.api('libs.io:send:client')(['Please enter your password.'], internal=True, client_uuid=self.uuid)
         self.login_attempts += 1
-        log.debug(f"setup_client - welcome message sent to {self.uuid}")
+        self.api('libs.io:send:msg')(f"setup_client - welcome message sent to {self.uuid}", )
 
         await self.writer.drain()
 
@@ -109,12 +109,12 @@ class ClientConnection:
                 else we handle the input. Client input packaged into a JSON payload and put into the
                 messages_to_game asyncio.Queue()
         """
-        log.debug(f"client_read - Starting coroutine for {self.uuid}")
+        self.api('libs.io:send:msg')(f"client_read - Starting coroutine for {self.uuid}", level='debug')
 
         while self.state['connected']:
             inp: bytes = await self.reader.readline()
-            log.debug(f"client_read - Raw received data in client_read : {inp}")
-            log.debug(f"client_read - inp type = {type(inp)}")
+            self.api('libs.io:send:msg')(f"client_read - Raw received data in client_read : {inp}", level='debug')
+            self.api('libs.io:send:msg')(f"client_read - inp type = {type(inp)}", level='debug')
             logging.getLogger(f"data.{self.uuid}").info(f"{'from_client':<12} : {inp}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
@@ -124,7 +124,6 @@ class ClientConnection:
             if not self.state['logged in']:
                 if inp.strip() == 'bastpass':
                     self.state['logged in'] = True
-                    # EVENT: client_logged_in
                     msg = 'You are now logged in.'
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
@@ -136,26 +135,19 @@ class ClientConnection:
                 elif inp.strip() == 'bastviewpass':
                     self.state['logged in'] = True
                     self.view_only = True
-                    # EVENT: view_client_logged_in
-                    msg = 'You are now logged in as view only user.'
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
-                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
-                    log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] logged in as view only.")
-                    self.api('core.events:raise:event')('ev_libs.net.client_client_connected_view',
-                                              {'client':self}, calledfrom="client")
+                    self.api('libs.io:send:client')(['You are now logged in as view only user.'], internal=True, client_uuid=self.uuid)
                     continue
 
                 elif self.login_attempts < 3:
-                    msg = 'Invalid password. Please try again.'
                     self.login_attempts = self.login_attempts + 1
-                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
+                    self.api('libs.io:send:client')(['Invalid password. Please try again.'], internal=True, client_uuid=self.uuid)
                     continue
 
                 else:
                     self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid)
                     self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid)
-                    await asyncio.sleep(1)
-                    log.info(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
+                    self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
                     self.api('core.clients:client:banned:add')(self)
                     self.state['connected'] = False
 
@@ -165,10 +157,9 @@ class ClientConnection:
                 else:
                     self.api('libs.io:send:execute')(inp, fromclient=True)
 
-        self.api('core.events:raise:event')('ev_libs.net.client_client_disconnected',
-                                {'client':self}, calledfrom="client")
+        self.api('core.clients:client:remove')(self)
 
-        log.debug(f"Ending client_read coroutine for {self.uuid}")
+        self.api('libs.io:send:msg')(f"Ending client_read coroutine for {self.uuid}", level='debug')
 
     async def client_write(self) -> None:
         """
@@ -177,53 +168,53 @@ class ClientConnection:
             We want this coroutine to run while the client is connected, so we begin with a while loop
             We await for any messages from the game to this client, then write and drain it.
         """
-        log.debug(f"client_write - Starting client_write coroutine for {self.uuid}")
+        self.api('libs.io:send:msg')(f"client_write - Starting client_write coroutine for {self.uuid}", level='debug')
         while self.state['connected']:
             msg_obj: NetworkData = await self.msg_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
-                    log.debug(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}")
-                    log.debug(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}")
+                    self.api('libs.io:send:msg')(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}", level='debug')
+                    self.api('libs.io:send:msg')(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug')
                     self.writer.write(msg_obj.msg)
                     logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
                     if msg_obj.is_prompt:
                         self.writer.write(telnet.go_ahead())
                         logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.goahead()}")
                 else:
-                    log.debug('client_write - No message to write to client.')
+                    self.api('libs.io:send:msg')('client_write - No message to write to client.', level='debug')
 
             elif msg_obj.is_command_telnet:
-                log.debug(f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.msg}")
-                log.debug(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}")
+                self.api('libs.io:send:msg')(f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.msg}", level='debug')
+                self.api('libs.io:send:msg')(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug')
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
             task = create_task(self.writer.drain(), name=f"{self.uuid}.write.drain")
-            logging.getLogger("asyncio").debug(f"Created task {task.get_name()} for write.drain() in client_write")
+            self.api('libs.io:send:msg')(f"Created task {task.get_name()} for write.drain() in client_write", primary='asyncio', level='debug')
 
-        log.debug(f"Ending client_write coroutine for {self.uuid}")
+        self.api('libs.io:send:msg')(f"Ending client_write coroutine for {self.uuid}", level='debug')
 
 async def register_client(connection) -> None:
     """
         Upon a new client connection, we register it to the connections dict.
     """
-    log.debug(f"Registering client {connection.uuid}")
+    connection.api('libs.io:send:msg')(f"Registering client {connection.uuid}", primary=__name__, level='debug')
     connections[connection.uuid] = connection
 
-    log.debug(f"Registered client {connection.uuid}")
+    connection.api('libs.io:send:msg')(f"Registered client {connection.uuid}", primary=__name__, level='debug')
 
 
 async def unregister_client(connection) -> None:
     """
         Upon client disconnect/quit, we unregister it from the connections dict.
     """
-    log.debug(f"Unregistering client {connection.uuid}")
+    connection.api('libs.io:send:msg')(f"Unregistering client {connection.uuid}", primary=__name__, level='debug')
     if connection.uuid in connections:
         connections.pop(connection.uuid)
 
-        log.debug(f"Unregistered client {connection.uuid}")
+        connection.api('libs.io:send:msg')(f"Unregistered client {connection.uuid}", primary=__name__, level='debug')
     else:
-        log.debug(f"Client {connection.uuid} already unregistered")
+        connection.api('libs.io:send:msg')(f"Client {connection.uuid} already unregistered", primary=__name__, level='debug')
 
 
 async def client_telnet_handler(reader, writer) -> None:
@@ -231,16 +222,15 @@ async def client_telnet_handler(reader, writer) -> None:
     This handler is for telnet client connections. Upon a client connection this handler is
     the starting point for creating the tasks necessary to handle the client.
     """
-    log.debug(f"client_telnet_handler - telnet details are: {dir(reader)}")
+    #log.debug(f"client_telnet_handler - telnet details are: {dir(reader)}")
     client_details: str = writer.get_extra_info('peername')
 
     addr, port, *rest = client_details
+    connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
     log.info(f"Connection established with {addr} : {port} : {rest}")
 
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....
-
-    connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
 
     await register_client(connection)
 
@@ -251,7 +241,7 @@ async def client_telnet_handler(reader, writer) -> None:
                             name=f"{connection.uuid} telnet write"),
     ]
 
-    asyncio.current_task().set_name(f"{connection.uuid} ssh handler")
+    asyncio.current_task().set_name(f"{connection.uuid} telnet client handler")
 
     await connection.setup_client()
 
