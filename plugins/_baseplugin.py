@@ -261,7 +261,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if args['method']:
             try:
                 found_method = getattr(self, args['method'])
-                message.append(inspect.getsource(found_method))
+                text_list, _ = inspect.getsourcelines(found_method)
+                for i in text_list:
+                    message.append(i.rstrip('\n'))
+                message.append('')
+                message.append('@M' + '-' * 60 + '@x')
+                message.append(f"Defined in {inspect.getfile(found_method)}")
             except AttributeError:
                 message.append(f"There is no method named {args['method']}")
 
