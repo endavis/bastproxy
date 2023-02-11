@@ -23,7 +23,7 @@ from uuid import uuid4
 # Project
 from libs.net import telnet
 from libs.task_logger import create_task
-import libs.api
+from libs.api import API
 from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)
@@ -51,11 +51,11 @@ class ClientConnection:
         self.addr: str = addr
         self.port: str = port
         self.rows: int = rows
-        self.api = libs.api.API()
+        self.api = API()
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
         self.state: dict[str, bool] = {'connected': True, 'logged in': False}
-        self.uuid: str = str(uuid4())
+        self.uuid: str = uuid4()
         self.view_only = False
         self.msg_queue = asyncio.Queue()
         self.connected_time = time.localtime()
