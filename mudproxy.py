@@ -159,6 +159,9 @@ if __name__ == "__main__":
     log.info('Plugin Manager - loaded')
     post_plugins_init()
 
+    API.__class__.startup = False
+    API('core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
+
     all_servers: list[asyncio.Task] = []
 
     telnet_port: int = args['port']
