@@ -463,13 +463,6 @@ class PluginMgr(BasePlugin):
                     info['name'] = gdict['value']
                     continue
 
-            # if info['sname'] == 'not found':
-            #   short_name_match = SNAMERE.match(tline)
-            #   if short_name_match:
-            #     gdict = short_name_match.groupdict()
-            #     info['sname'] = gdict['value']
-            #     continue
-
             if info['purpose'] == 'not found':
                 purpose_match = PURPOSERE.match(tline)
                 if purpose_match:
