@@ -11,13 +11,13 @@ This plugin handles events.
 
 ## Using
 ### Registering an event from a plugin
- * ```self.api('core.events:register:to:event')(event_name, function, prio=50)```
+ * ```self.api('plugins.core.events:register:to:event')(event_name, function, prio=50)```
 
 ### Unregistering an event
- * ```self.api('core.events:unregister:from:event')(event_name, function)```
+ * ```self.api('plugins.core.events:unregister:from:event')(event_name, function)```
 
 ### Raising an event
- * ```self.api('core.events:raise:event')(event_name, eventdictionary)```
+ * ```self.api('plugins.core.events:raise:event')(event_name, eventdictionary)```
 """
 # Standard Library
 
@@ -157,7 +157,7 @@ class EventContainer(object):
                     plugins_to_unregister.append(event_function)
 
         for event_function in plugins_to_unregister:
-            self.api('core.events:unregister:from:event')(self.name, event_function.func)
+            self.api('plugins.core.events:unregister:from:event')(self.name, event_function.func)
 
     def detail(self):
         """
@@ -166,7 +166,7 @@ class EventContainer(object):
         message = []
         message.append(f"{'Event':<13} : {self.name}")
         message.append(f"{'Raised':<13} : {self.raised_count}")
-        message.append(self.api('core.utils:center:colored:string')('Registrations', '-', 60))
+        message.append(self.api('plugins.core.utils:center:colored:string')('Registrations', '-', 60))
         message.append(f"{'priority':<13} : {'plugin':<15} - {'function name'}")
         message.append('@B' + '-' * 60)
         function_message = []
@@ -246,8 +246,8 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-        self.api('core.events:register:to:event')('ev_core.msg_initialized', self.logloaded)
-        #self.api('core.events:raise:event')('event_plugin_loaded', {})
+        self.api('plugins.core.events:register:to:event')('ev_core.msg_initialized', self.logloaded)
+        #self.api('plugins.core.events:raise:event')('event_plugin_loaded', {})
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='get details of an event')
@@ -255,7 +255,7 @@ class Plugin(BasePlugin):
                             help='the event name to get details for',
                             default=[],
                             nargs='*')
-        self.api('core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command:add')('detail',
                                               self._command_detail,
                                               parser=parser)
 
@@ -266,7 +266,7 @@ class Plugin(BasePlugin):
                             help='list only events that have this argument in their name',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('list',
+        self.api('plugins.core.commands:command:add')('list',
                                               self._command_list,
                                               parser=parser)
 
@@ -276,11 +276,11 @@ class Plugin(BasePlugin):
                             help='the event to raise',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('raise',
+        self.api('plugins.core.commands:command:add')('raise',
                                               self._command_raise,
                                               parser=parser)
 
-        self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized',
                                                   self.pluginuninitialized, priority=10)
 
     def pluginuninitialized(self, args):
@@ -436,7 +436,7 @@ class Plugin(BasePlugin):
         message = []
         if args['event']:
             for event_name in args['event']:
-                message.extend(self.api('core.events:get:event:detail')(event_name))
+                message.extend(self.api('plugins.core.events:get:event:detail')(event_name))
                 message.append('')
         else:
             message.append('Please provide an event name')
@@ -465,8 +465,8 @@ class Plugin(BasePlugin):
         """
         initialize the event log types
         """
-        self.api('core.msg:add:datatype')(self.plugin_id)
-        #self.api('core.msg:toggle:to:console')(self.plugin_id)
+        self.api('plugins.core.msg:add:datatype')(self.plugin_id)
+        #self.api('plugins.core.msg:toggle:to:console')(self.plugin_id)
 
     def summarystats(self, args=None):
         # pylint: disable=unused-argument

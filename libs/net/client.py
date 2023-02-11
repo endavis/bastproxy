@@ -68,7 +68,7 @@ class ClientConnection:
         send welcome message to client
         ask for password
         """
-        if self.api('core.clients:client:banned:check')(self.addr):
+        if self.api('plugins.core.clients:client:banned:check')(self.addr):
             self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.", level='info')
             self.writer.write(b'You are banned from this proxy. Goodbye.\n\r')
             try:
@@ -127,7 +127,7 @@ class ClientConnection:
                     msg = 'You are now logged in.'
                     self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
                     self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
-                    self.api("core.clients:client:logged:in")(self.uuid)
+                    self.api('plugins.core.clients:client:logged:in')(self.uuid)
                     continue
 
                 elif inp.strip() == 'bastviewpass':
@@ -146,7 +146,7 @@ class ClientConnection:
                     self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid, prelogin=True    )
                     self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid, prelogin=True)
                     self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
-                    self.api('core.clients:client:banned:add')(self.uuid)
+                    self.api('plugins.core.clients:client:banned:add')(self.uuid)
                     self.state['connected'] = False
 
             else:
@@ -196,7 +196,7 @@ async def register_client(connection) -> None:
     """
     connection.api('libs.io:send:msg')(f"Registering client {connection.uuid}", primary=__name__, level='debug')
 
-    connection.api('core.clients:client:add')(connection)
+    connection.api('plugins.core.clients:client:add')(connection)
 
     connection.api('libs.io:send:msg')(f"Registered client {connection.uuid}", primary=__name__, level='debug')
 
@@ -209,7 +209,7 @@ async def unregister_client(connection) -> None:
 
     if connection.state['connected']:
         connection.state['connected'] = False
-    connection.api('core.clients:client:remove')(connection)
+    connection.api('plugins.core.clients:client:remove')(connection)
 
     connection.api('libs.io:send:msg')(f"Unregistered client {connection.uuid}", primary=__name__, level='debug')
 

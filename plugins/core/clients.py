@@ -60,11 +60,11 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('core.commands:command:add')('show',
+        self.api('plugins.core.commands:command:add')('show',
                                               self.cmd_show,
                                               shelp='list clients that are connected')
 
-        self.api('core.events:register:to:event')('ev_net.proxy_proxy_shutdown',
+        self.api('plugins.core.events:register:to:event')('ev_net.proxy_proxy_shutdown',
                                                   self.shutdown)
 
     def api_numconnected(self):
@@ -132,7 +132,7 @@ class Plugin(BasePlugin):
         self.clients[client_connection.uuid] = client_connection
         self.api('libs.io:send:msg')(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
                                      level='info')
-        self.api('core.events:raise:event')('ev_core.clients_client_connected',
+        self.api('plugins.core.events:raise:event')('ev_core.clients_client_connected',
                                     {'client_uuid':client_connection.uuid})
 
 
@@ -143,7 +143,7 @@ class Plugin(BasePlugin):
         self.vclients[client_connection.uuid] = client_connection
         self.api('libs.io:send:msg')(f"View Client {client_connection.uuid} logged from {client_connection.addr}:{client_connection.port}",
                                      level='info')
-        self.api('core.events:raise:event')('ev_core.clients_client_connected_view',
+        self.api('plugins.core.events:raise:event')('ev_core.clients_client_connected_view',
                                     {'client_uuid':client_connection.uuid})
 
     def _api_removeclient(self, client_connection):
@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
             removed = True
 
         if removed:
-            self.api('core.events:raise:event')('ev_core.clients_client_disconnected',
+            self.api('plugins_core.events:raise:event')('ev_core.clients_client_disconnected',
                     {'client_uuid':client_connection.uuid})
 
     def shutdown(self, args=None): # pylint: disable=unused-argument
@@ -192,7 +192,7 @@ class Plugin(BasePlugin):
         tmsg.append('@B' + 60 * '-')
         for i in self.clients:
             client = self.clients[i]
-            ttime = self.api('core.utils:convert:timedelta:to:string')(
+            ttime = self.api('plugins.core.utils:convert:timedelta:to:string')(
                 client.connected_time,
                 time.localtime())
 
@@ -206,7 +206,7 @@ class Plugin(BasePlugin):
 
         for i in self.vclients:
             client = self.vclients[i]
-            ttime = self.api('core.utils:convert:timedelta:to:string')(
+            ttime = self.api('plugins.core.utils:convert:timedelta:to:string')(
                 client.connected_time,
                 time.localtime())
             tmsg.append(clientformat % ('View', client.addr, client.port,

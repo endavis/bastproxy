@@ -77,35 +77,35 @@ class Plugin(BasePlugin):
         self.api('setting:add')('cmdseperator', '|', str,
                                 'the seperator for sending multiple commands')
 
-        self.api('core.commands:command:add')('info',
+        self.api('plugins.core.commands:command:add')('info',
                                               self.cmd_info,
                                               shelp='list proxy info')
 
-        self.api('core.commands:command:add')('disconnect',
+        self.api('plugins.core.commands:command:add')('disconnect',
                                               self.cmd_disconnect,
                                               shelp='disconnect from the mud')
 
-        self.api('core.commands:command:add')('connect',
+        self.api('plugins.core.commands:command:add')('connect',
                                               self.cmd_connect,
                                               shelp='connect to the mud')
 
-        self.api('core.commands:command:add')('restart',
+        self.api('plugins.core.commands:command:add')('restart',
                                               self.cmd_restart,
                                               shelp='restart the proxy',
                                               format=False)
 
-        self.api('core.commands:command:add')('shutdown',
+        self.api('plugins.core.commands:command:add')('shutdown',
                                               self.cmd_shutdown,
                                               shelp='shutdown the proxy')
 
-        self.api('core.events:register:to:event')('ev_core.clients_client_connected', self.client_connected)
-        self.api('core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
-        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'listenport'}_modified",
+        self.api('plugins.core.events:register:to:event')('ev_core.clients_client_connected', self.client_connected)
+        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'listenport'}_modified",
                                                   self.listen_port_change)
-        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'cmdseperator'}_modified",
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'cmdseperator'}_modified",
                                                   self.command_seperator_change)
 
-        ssc = self.api('core.ssc:baseclass:get')()
+        ssc = self.api('plugins.core.ssc:baseclass:get')()
         self.proxypw = ssc('proxypw', self, desc='Proxy Password',
                            default='defaultpass')
         self.proxyvpw = ssc('proxypwview', self, desc='Proxy View Password',
@@ -144,10 +144,10 @@ class Plugin(BasePlugin):
         show info about the proxy
         """
         template = '%-15s : %s'
-        mud = self.api('core.managers:get')('mud')
+        mud = self.api('plugins.core.managers:get')('mud')
         tmsg = ['']
         started = time.strftime(self.api.time_format, self.api.proxy_start_time)
-        uptime = self.api('core.utils:convert:timedelta:to:string')(
+        uptime = self.api('plugins.core.utils:convert:timedelta:to:string')(
             self.api.proxy_start_time,
             time.localtime())
 
@@ -162,7 +162,7 @@ class Plugin(BasePlugin):
                 tmsg.append(template % ('Connected',
                                         time.strftime(self.api.time_format,
                                                       mud.connected_time)))
-                tmsg.append(template % ('Uptime', self.api('core.utils:convert:timedelta:to:string')(
+                tmsg.append(template % ('Uptime', self.api('plugins.core.utils:convert:timedelta:to:string')(
                     mud.connected_time,
                     time.localtime())))
                 tmsg.append(template % ('Host', mud.host))
@@ -174,7 +174,7 @@ class Plugin(BasePlugin):
             else:
                 tmsg.append(template % ('Mud', 'disconnected'))
 
-        clients = self.api('core.clients:clients:get:all')()
+        clients = self.api('plugins.core.clients:clients:get:all')()
 
         aclients = clients['active']
         vclients = clients['view']
@@ -185,7 +185,7 @@ class Plugin(BasePlugin):
         tmsg.append(template % ('View Clients', len(vclients)))
         tmsg.append('-------------------------')
 
-        _, nmsg = self.api('core.commands:command:run')('net.clients', 'show', '')
+        _, nmsg = self.api('plugins.core.commands:command:run')('net.clients', 'show', '')
 
         del nmsg[0]
         del nmsg[0]
@@ -196,7 +196,7 @@ class Plugin(BasePlugin):
         """
         disconnect from the mud
         """
-        mud = self.api('core.managers:get')('mud')
+        mud = self.api('plugins.core.managers:get')('mud')
         if mud.connected:
             mud.handle_close()
 
@@ -208,7 +208,7 @@ class Plugin(BasePlugin):
         """
         disconnect from the mud
         """
-        mud = self.api('core.managers:get')('mud')
+        mud = self.api('plugins.core.managers:get')('mud')
         if mud.connected:
             return True, ['The proxy is currently connected to the mud']
 
@@ -224,7 +224,7 @@ class Plugin(BasePlugin):
         self.api.__class__.shutdown = True
         self.api('libs.io:send:msg')('Proxy: shutdown started', secondary='shutdown')
         self.api('libs.io:send:client')('Shutting down bastproxy')
-        self.api('core.events:raise:event')('ev_net.proxy_proxy_shutdown')
+        self.api('plugins.core.events:raise:event')('ev_net.proxy_proxy_shutdown')
         self.api('libs.io:send:msg')('Proxy: shutdown finished', secondary='shutdown')
 
     def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use
@@ -243,7 +243,7 @@ class Plugin(BasePlugin):
         """
         check for mud settings
         """
-        cmdprefix = self.api('core.commands:get:command:prefix')()
+        cmdprefix = self.api('plugins.core.commands:get:command:prefix')()
         tmsg = []
         divider = '@R------------------------------------------------@w'
         if not self.mud_connection or not self.mud_connection.connected:
@@ -288,20 +288,20 @@ class Plugin(BasePlugin):
 
         self.api('libs.io:send:client')(f"Restarting bastproxy on port: {listen_port} in 10 seconds")
 
-        self.api('core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)
+        self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)
 
     def timer_restart(self):
         """
         a function to restart the proxy after a timer
         """
-        self.api('core.plugins:save:state')()
+        self.api('plugins.core.plugins:save:state')()
 
         executable = sys.executable
         args = []
         args.insert(0, 'bastproxy.py')
         args.insert(0, sys.executable)
 
-        plistener = self.api('core.managers:get')('listener')
+        plistener = self.api('plugins.core.managers:get')('listener')
         plistener.close()
         self.api('proxy:shutdown')()
 

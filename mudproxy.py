@@ -77,14 +77,14 @@ def post_plugins_init():
   """
   # add the IO manager
   from libs.io import IO
-  API('core.managers:add')('libs.io', IO)
+  API('plugins.core.managers:add')('libs.io', IO)
 
   # add some logging of various plugins and functionality
-  API('core.msg:add:datatype')('net')
-  API('core.msg:toggle:to:console')('net')
-  API('core.msg:add:datatype')('inputparse')
-  API('core.msg:add:datatype')('ansi')
-  API('core.msg:add:datatype')('libs.io')
+  API('plugins.core.msg:add:datatype')('net')
+  API('plugins.core.msg:toggle:to:console')('net')
+  API('plugins.core.msg:add:datatype')('inputparse')
+  API('plugins.core.msg:add:datatype')('ansi')
+  API('plugins.core.msg:add:datatype')('libs.io')
 
 async def shutdown(signal_, loop_) -> None:
     """
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     post_plugins_init()
 
     API.__class__.startup = False
-    API('core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
+    API('plugins.core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
 
     all_servers: list[asyncio.Task] = []
 

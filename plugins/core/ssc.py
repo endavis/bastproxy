@@ -15,7 +15,7 @@ See the source for [net.proxy](/bastproxy/plugins/net/proxy.html)
 for an example of using this plugin
 
 '''python
-    ssc = self.plugin.api('core.ssc:baseclass:get')()
+    ssc = self.plugin.api('plugins.core.ssc:baseclass:get')()
     self.plugin.apikey = ssc('somepassword', self, desc='Password for something')
 '''
 """
@@ -66,7 +66,7 @@ class SSC(object):
                             help=self.desc,
                             default='',
                             nargs='?')
-        self.plugin.api('core.commands:command:add')(self.name,
+        self.plugin.api('plugins.core.commands:command:add')(self.name,
                                                      self.cmd_setssc,
                                                      showinhistory=False,
                                                      parser=parser)
@@ -86,7 +86,7 @@ class SSC(object):
             return first_line.strip()
         except IOError:
             if not quiet:
-                self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
+                self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('plugins.core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
 
         return self.default
 

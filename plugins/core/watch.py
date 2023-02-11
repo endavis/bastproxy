@@ -48,7 +48,7 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('core.events:register:to:event')('ev_libs.io_execute', self.checkcmd)
+        self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self.checkcmd)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='list watches')
@@ -56,7 +56,7 @@ class Plugin(BasePlugin):
                             help='list only watches that have this argument in them',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('list',
+        self.api('plugins.core.commands:command:add')('list',
                                               self.cmd_list,
                                               parser=parser)
 
@@ -66,11 +66,11 @@ class Plugin(BasePlugin):
                             help='the trigger to detail',
                             default=[],
                             nargs='*')
-        self.api('core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command:add')('detail',
                                               self.cmd_detail,
                                               parser=parser)
 
-        self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
 
     def event_plugin_uninitialized(self, args):
         """
@@ -112,7 +112,7 @@ class Plugin(BasePlugin):
             for watch in args['watch']:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]['event_name']
-                    watch_event = self.api('core.events:get:event:detail')(event_name)
+                    watch_event = self.api('plugins.core.events:get:event:detail')(event_name)
                     message.append(f"{'Name':<{columnwidth}} : {watch}")
                     message.append(f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['plugin']}")
                     message.append(f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}")
@@ -172,7 +172,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if watch_name in self.watch_data:
-            event = self.api('core.events:get:event')(self.watch_data[watch_name]['eventname'])
+            event = self.api('plugins.core.events:get:event')(self.watch_data[watch_name]['eventname'])
             plugin = self.watch_data[watch_name]['plugin']
             if event:
                 if not event.isempty() and not force:
@@ -215,7 +215,7 @@ class Plugin(BasePlugin):
                 match_args['cmdname'] = 'cmd_' + watch_name
                 match_args['data'] = client_data
                 self.api('libs.io:send:msg')('raising %s' % match_args['cmdname'])
-                event_data = self.api('core.events:raise:event')('watch_' + watch_name, match_args)
+                event_data = self.api('plugins.core.events:raise:event')('watch_' + watch_name, match_args)
                 if 'changed' in event_data:
                     self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
                                                           original_data=client_data,

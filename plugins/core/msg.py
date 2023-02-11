@@ -119,9 +119,9 @@ class Plugin(BasePlugin):
                     loggingfunc = getattr(logging.getLogger(self.datatypes_to_file[dtag]['logger_name']), level)
                     loggingfunc('\n'.join(msg))
 
-                if self.api('libs.api:has')('core.colors:colorcode:to:ansicode') and \
+                if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode') and \
                         dtag in self.colors:
-                    msg = [self.api('core.colors:colorcode:to:ansicode')(self.colors[dtag] + i) for i in msg if i]
+                    msg = [self.api('plugins.core.colors:colorcode:to:ansicode')(self.colors[dtag] + i) for i in msg if i]
 
                 if dtag in self.datatypes_to_client and self.datatypes_to_client[dtag] and not senttoclient:
                     self.api('libs.io:send:client')(msg)
@@ -306,9 +306,9 @@ class Plugin(BasePlugin):
         #print('log api before adding', self.api.api)
 
         #print('log api after adding', self.api.api)
-        self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.logmud)
-        self.api('core.events:register:to:event')('ev_libs.io_to_mud_event', self.logmud)
-        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
+        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.logmud)
+        self.api('plugins.core.events:register:to:event')('ev_libs.io_to_mud_event', self.logmud)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description="""toggle datatypes to clients
@@ -318,7 +318,7 @@ class Plugin(BasePlugin):
                             help='a list of datatypes to toggle',
                             default=[],
                             nargs='*')
-        self.api('core.commands:command:add')('client',
+        self.api('plugins.core.commands:command:add')('client',
                                               self.cmd_client,
                                               lname='Logger',
                                               parser=parser)
@@ -340,7 +340,7 @@ class Plugin(BasePlugin):
                             '--notimestamp',
                             help='do not log to file with a timestamp',
                             action='store_false')
-        self.api('core.commands:command:add')('file',
+        self.api('plugins.core.commands:command:add')('file',
                                               self.cmd_file,
                                               lname='Logger',
                                               parser=parser)
@@ -353,7 +353,7 @@ class Plugin(BasePlugin):
                             help='a list of datatypes to toggle',
                             default=[],
                             nargs='*')
-        self.api('core.commands:command:add')('console',
+        self.api('plugins.core.commands:command:add')('console',
                                               self.cmd_console,
                                               lname='Logger',
                                               parser=parser)
@@ -364,7 +364,7 @@ class Plugin(BasePlugin):
                             help='only list datatypes that have this argument in their name',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('types',
+        self.api('plugins.core.commands:command:add')('types',
                                               self.cmd_types,
                                               lname='Logger',
                                               parser=parser)

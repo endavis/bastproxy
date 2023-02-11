@@ -155,11 +155,11 @@ class API(object):
         self.__class__.is_character_active = flag
 
         if flag:
-            self('core.events:raise:event')('ev_libs.api_character_active',
+            self('plugins.core.events:raise:event')('ev_libs.api_character_active',
                                             args={'is_character_active':self.is_character_active},
                                             calledfrom='libs.api')
         else:
-            self('core.events:raise:event')('ev_libs.api_character_inactive',
+            self('plugins.core.events:raise:event')('ev_libs.api_character_inactive',
                                             args={'is_character_active':self.is_character_active},
                                             calledfrom='libs.api')
 
@@ -443,12 +443,12 @@ class API(object):
         """
         run an api as another plugin
         """
-        plugin_instance = self('core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self('plugins.core.plugins:get:plugin:instance')(plugin_id)
 
         if plugin_instance:
             return plugin_instance.api(api_location)
         else:
-            self('io.error')(f"API run_as: {plugin_id} plugin does not exist")
+            self('libs.io:send:error')(f"API run_as: {plugin_id} plugin does not exist")
 
     def get(self, api_location, do_not_overload=False):
         """

@@ -94,8 +94,8 @@ class Sqldb(object):
             self.database_name = kwargs['dbname'] or 'db'
         else:
             self.database_name = 'db'
-        self.api('core.log:add:datatype')('sqlite')
-        #self.api('core.log:toggle:to:console')('sqlite')
+        self.api('plugins.core.log:add:datatype')('sqlite')
+        #self.api('plugins.core.log:toggle:to:console')('sqlite')
         self.backup_template = f"{self.database_name}_%%s.sqlite"
         self.database_save_directory = self.api.BASEPATH / 'data' / 'db'
         if 'dbdir' in kwargs:
@@ -208,21 +208,21 @@ class Sqldb(object):
                             help='the name to backup to',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('dbbackup',
+        self.api('plugins.core.commands:command:add')('dbbackup',
                                               self.cmd_backup,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='close the database')
-        self.api('core.commands:command:add')('dbclose',
+        self.api('plugins.core.commands:command:add')('dbclose',
                                               self.cmd_close,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='vacuum the database')
-        self.api('core.commands:command:add')('dbvac',
+        self.api('plugins.core.commands:command:add')('dbvac',
                                               self.cmd_vac,
                                               parser=parser,
                                               group='DB')
@@ -234,7 +234,7 @@ class Sqldb(object):
                             help='the sql statement',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('dbselect',
+        self.api('plugins.core.commands:command:add')('dbselect',
                                               self.cmd_select,
                                               parser=parser,
                                               group='DB')
@@ -246,7 +246,7 @@ class Sqldb(object):
                             help='the sql statement',
                             default='',
                             nargs='?')
-        self.api('core.commands:command:add')('dbmodify',
+        self.api('plugins.core.commands:command:add')('dbmodify',
                                               self.cmd_modify,
                                               parser=parser,
                                               group='DB')
@@ -262,7 +262,7 @@ class Sqldb(object):
                             help='the row number to remove',
                             default=-1,
                             nargs='?')
-        self.api('core.commands:command:add')('dbremove',
+        self.api('plugins.core.commands:command:add')('dbremove',
                                               self.cmd_remove,
                                               parser=parser,
                                               group='DB')

@@ -123,7 +123,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             tags = ['Unknown']
 
         try:
-            self.api('core.msg:message')(message, level=level, tags=tags)
+            self.api('plugins.core.msg:message')(message, level=level, tags=tags)
         except (AttributeError, RuntimeError):
             loggingfunc = getattr(logging.getLogger(primary or plugin), level)
             loggingfunc(message)
@@ -171,7 +171,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         message_list = []
 
         for i in message:
-            if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
+            if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
                 message_list.append(f"@x136{i}@w")
             else:
                 message_list.append(i)
@@ -179,7 +179,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         self.api('libs.io:send:msg')(message_list, level='error', primary='error', secondary=secondary)
 
         try:
-            self.api('core.errors:add')(time.strftime(self.api.time_format,
+            self.api('plugins.core.errors:add')(time.strftime(self.api.time_format,
                                                       time.localtime()),
                                         message)
         except (AttributeError, TypeError):
@@ -204,8 +204,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         converted_message = []
 
         if internal and msg_type == 'IO':
-            preamblecolor = self.api('core.proxy:preamble:color:get')(error=error)
-            preambletext = self.api('core.proxy:preamble:get')()
+            preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=error)
+            preambletext = self.api('plugins.core.proxy:preamble:get')()
             new_message = []
             for i in text:
                 if isinstance(i, bytes):
@@ -223,8 +223,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             for i in new_message:
                 if preamble:
                     i = f"{preamblecolor}{preambletext}@w {i}"
-                if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
-                    converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i) + '\r\n')
+                if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
+                    converted_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(i) + '\r\n')
                 else:
                     converted_message.append(i + '\r\n')
 
@@ -238,8 +238,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             byte_message.append(i)
 
         if client_uuid:
-            client = self.api('core.clients:get:client')(client_uuid)
-            if self.api('core.clients:client:is:logged:in')(client_uuid) or prelogin:
+            client = self.api('plugins.core.clients:get:client')(client_uuid)
+            if self.api('plugins.core.clients:client:is:logged:in')(client_uuid) or prelogin:
                 if client:
                     loop = asyncio.get_event_loop()
                     for i in byte_message:
@@ -251,8 +251,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
         else:
             loop = asyncio.get_event_loop()
-            for client in self.api('core.clients:get:all:clients')():
-                if self.api('core.clients:client:is:logged:in')(client.uuid):
+            for client in self.api('plugins.core.clients:get:all:clients')():
+                if self.api('plugins.core.clients:client:is:logged:in')(client.uuid):
                     for i in byte_message:
                         message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
                         loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
@@ -285,13 +285,13 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                 self.current_trace['fromclient'] = True
                 self.current_trace['internal'] = False
 
-            self.api('core.events:raise:event')('ev_libs.io_execute_trace_started', self.current_trace,
+            self.api('plugins.core.events:raise:event')('ev_libs.io_execute_trace_started', self.current_trace,
                                                 calledfrom='libs.io')
 
         if command == '\r\n':
             self.api('libs.io:send:msg')(f"sending {repr(command)} (cr) to the mud",
                                          primary='inputparse')
-            self.api('core.events:raise:event')('ev_libs.io_to_mud_event', {'data':command,
+            self.api('plugins.core.events:raise:event')('ev_libs.io_to_mud_event', {'data':command,
                                                                             'dtype':'fromclient',
                                                                             'showinhistory':showinhistory},
                                                 calledfrom='libs.io')
@@ -305,7 +305,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                                       info=f"split command: '{command}' into: '{', '.join(commands)}")
 
             for current_command in commands:
-                newdata = self.api('core.events:raise:event')('ev_libs.io_execute',
+                newdata = self.api('plugins.core.events:raise:event')('ev_libs.io_execute',
                                                               {'fromdata':current_command,
                                                                'fromclient':fromclient,
                                                                'internal':not fromclient,
@@ -341,14 +341,14 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                             current_command = ''.join([current_command, '\n'])
                         self.api('libs.io:send:msg')(f"sending {current_command.strip()} to the mud",
                                                      primary='inputparse')
-                        self.api('core.events:raise:event')('ev_libs.io_to_mud_event',
+                        self.api('plugins.core.events:raise:event')('ev_libs.io_to_mud_event',
                                                             {'data':current_command,
                                                              'dtype':'fromclient',
                                                              'showinhistory':showinhistory},
                                                             calledfrom='libs.io')
 
         if tracing:
-            self.api('core.events:raise:event')('ev_libs.io_execute_trace_finished', self.current_trace,
+            self.api('plugins.core.events:raise:event')('ev_libs.io_execute_trace_finished', self.current_trace,
                                                 calledfrom='libs.io')
             self.current_trace = None
 
@@ -366,7 +366,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
         if not raw and data and data[-1] != '\n':
             data = ''.join([data, '\n'])
-        self.api('core.events:raise:event')('ev_libs.io_to_mud_event',
+        self.api('plugins.core.events:raise:event')('ev_libs.io_to_mud_event',
                                             {'data':data,
                                              'dtype':dtype,
                                              'raw':raw},

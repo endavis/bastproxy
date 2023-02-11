@@ -36,7 +36,7 @@ def find_modules(directory, prefix):
             # print(f"name: {tmod.name}")
             # print(f"path: {tmod.path}")
             # print(f"type: {type(tmod.path)}")
-            matches.append({'plugin_id':tmod.name.replace('plugins.', ''),
+            matches.append({'plugin_id':tmod.name,
                             'fullpath':Path(tmod.path),
                             'filename':filename,
                             'full_import_path':tmod.name})

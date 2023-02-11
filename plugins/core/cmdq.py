@@ -57,10 +57,10 @@ class Plugin(BasePlugin):
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='drop the last command')
-        self.api('core.commands:command:add')('fixqueue', self.cmd_fixqueue,
+        self.api('plugins.core.commands:command:add')('fixqueue', self.cmd_fixqueue,
                                               parser=parser)
 
-        self.api('core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
 
     def _event_plugin_uninitialized(self, args):
         """
@@ -165,7 +165,7 @@ class Plugin(BasePlugin):
                 self.cmds[cmdtype]['afterf']()
 
             self.api('libs.timing:timing:finish')(f"cmd_{self.current_command['ctype']}")
-            self.api('core.events:raise:event')(f"cmd_{self.current_command['ctype']}_finished")
+            self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_finished")
             self.current_command = {}
             self.sendnext()
 

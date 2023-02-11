@@ -219,7 +219,7 @@ class PersistentDictEvent(PersistentDict):
 
             event_name = f"ev_{self.plugin_instance.plugin_id}_var_{key}_modified"
             if not self.plugin_instance.reset_f and key != '_version':
-                self.plugin_instance.api('core.events:raise:event')(
+                self.plugin_instance.api('plugins.core.events:raise:event')(
                     event_name,
                     {'var':key,
                      'newvalue':self.plugin_instance.api('setting:get')(key),
@@ -232,7 +232,7 @@ class PersistentDictEvent(PersistentDict):
         for i in self:
             event_name = f"ev_{self.plugin_instance.plugin_id}_var_{i}_modified"
             if not self.plugin_instance.reset_f and i != '_version':
-                self.plugin_instance.api('core.events:raise:event')(
+                self.plugin_instance.api('plugins.core.events:raise:event')(
                     event_name,
                     {'var':i,
                      'newvalue':self.plugin_instance.api('setting:get')(i),

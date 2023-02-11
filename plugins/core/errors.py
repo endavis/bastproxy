@@ -54,24 +54,24 @@ class Plugin(BasePlugin):
                             help='list the last <number> errors',
                             default='-1',
                             nargs='?')
-        self.api('core.commands:command:add')('show',
+        self.api('plugins.core.commands:command:add')('show',
                                               self.cmd_show,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='clear errors')
-        self.api('core.commands:command:add')('clear',
+        self.api('plugins.core.commands:command:add')('clear',
                                               self.cmd_clear,
                                               parser=parser)
 
-        self.api('core.events:register:to:event')('ev_bastproxy_proxy_ready', self.proxy_ready)
+        self.api('plugins.core.events:register:to:event')('ev_bastproxy_proxy_ready', self.proxy_ready)
 
     # show all errors that happened during startup
     def proxy_ready(self, _=None):
         """
         show all errors that happened during startup
         """
-        errors = self.api('core.errors:get:errors')()
+        errors = self.api('plugins.core.errors:get:errors')()
 
         msg = ['The following errors happened during startup:']
         if errors:
@@ -125,7 +125,7 @@ class Plugin(BasePlugin):
             msg.append('Please specify a number')
             return False, msg
 
-        errors = self.api('core.errors:get:errors')()
+        errors = self.api('plugins.core.errors:get:errors')()
 
         if not errors:
             msg.append('There are no errors')

@@ -46,7 +46,7 @@ class Plugin(BasePlugin):
         parser.add_argument('toplevel',
                             help='the top level api to show (optional)',
                             default='', nargs='?')
-        self.api('core.commands:command:add')('list', self.cmd_list,
+        self.api('plugins.core.commands:command:add')('list', self.cmd_list,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -57,7 +57,7 @@ class Plugin(BasePlugin):
                             '--stats',
                             help="add stats",
                             action='store_true')
-        self.api('core.commands:command:add')('detail', self.cmd_detail,
+        self.api('plugins.core.commands:command:add')('detail', self.cmd_detail,
                                               parser=parser)
 
 

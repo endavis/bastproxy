@@ -190,7 +190,7 @@ class Plugin(BasePlugin):
         format a length of time into a string
         """
         message = []
-        converted_time = self.api('core.utils:convert:seconds:to:dhms')(length)
+        converted_time = self.api('plugins.core.utils:convert:seconds:to:dhms')(length)
         years = False
         days = False
         hours = False
@@ -243,7 +243,7 @@ class Plugin(BasePlugin):
         """
         verify an @ color
         """
-        if self.api('core.colors:colorcode:is:valid')(value):
+        if self.api('plugins.core.colors:colorcode:is:valid')(value):
             return value
 
         raise ValueError
@@ -270,7 +270,7 @@ class Plugin(BasePlugin):
         try:
             ttime = int(usertime)
         except ValueError:
-            ttime = self.api('core.utils:convert:timelength:to:secs')(usertime)
+            ttime = self.api('plugins.core.utils:convert:timelength:to:secs')(usertime)
 
         if ttime != 0 and not ttime:
             raise ValueError
@@ -298,8 +298,8 @@ class Plugin(BasePlugin):
         """
         center a string with color codes
         """
-        converted_colors_string = self.api('core.colors:colorcode:to:ansicode')(string_to_center)
-        noncolored_string = self.api('core.colors:ansicode:strip')(converted_colors_string)
+        converted_colors_string = self.api('plugins.core.colors:colorcode:to:ansicode')(string_to_center)
+        noncolored_string = self.api('plugins.core.colors:ansicode:strip')(converted_colors_string)
 
         noncolored_string_length = len(noncolored_string) + 4
         length_difference = length - noncolored_string_length

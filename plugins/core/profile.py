@@ -68,7 +68,7 @@ class Plugin(BasePlugin):
             help='print callstack if available',
             action='store_true',
             default=False)
-        self.api('core.commands:command:add')('commands', self.cmd_commands,
+        self.api('plugins.core.commands:command:add')('commands', self.cmd_commands,
                                               parser=parser)
 
         parser = argp.ArgumentParser(
@@ -83,20 +83,20 @@ class Plugin(BasePlugin):
         #     help='print callstack if available',
         #     action='store_true',
         #     default=False)
-        self.api('core.commands:command:add')('muddata', self.cmd_muddata,
+        self.api('plugins.core.commands:command:add')('muddata', self.cmd_muddata,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='reset command stack')
-        self.api('core.commands:command:add')('rstack', self.cmd_rstack,
+        self.api('plugins.core.commands:command:add')('rstack', self.cmd_rstack,
                                               parser=parser)
 
         self.command_traces = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
         self.changed_mud_data = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
 
-        self.api('core.events:register:to:event')('ev_libs.io_execute_trace_finished', self.savecommand, prio=99)
-        self.api('core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.savechanged_mud_data, prio=99)
-        self.api('core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.onfunctionschange)
+        self.api('plugins.core.events:register:to:event')('ev_libs.io_execute_trace_finished', self.savecommand, prio=99)
+        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.savechanged_mud_data, prio=99)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.onfunctionschange)
 
     def onfunctionschange(self, _=None):
         """
@@ -181,7 +181,7 @@ class Plugin(BasePlugin):
         """
         reset the command trace
         """
-        io_manager = self.api('core.managers:get')('io')
+        io_manager = self.api('plugins.core.managers:get')('io')
 
         message = []
         message.append('The following stack was active')
@@ -204,7 +204,7 @@ class Plugin(BasePlugin):
             count = count + 1
             if 'plugin' in i and i['plugin']:
                 apicall = f"{i['plugin']}.formatmuddatatraceitem"
-                if self.api('api.has')(apicall):
+                if self.api('libs.api:has')(apicall):
                     message.append(self.api(apicall)(i))
                     continue
 
