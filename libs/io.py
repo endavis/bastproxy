@@ -202,16 +202,26 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
 
         # if the data is from the proxy (internal) and msg_type is 'IO', add the preamble to each line
         converted_message = []
-        if internal and msg_type == 'IO':
-            for i in text:
-                if isinstance(text, bytes):
-                    text = text.decode('utf-8')
-                if isinstance(text, str):
-                    text = text.split('\n')
 
+        if internal and msg_type == 'IO':
+            preamblecolor = self.api('core.proxy:preamble:color:get')(error=error)
+            preambletext = self.api('core.proxy:preamble:get')()
+            new_message = []
+            for i in text:
+                if isinstance(i, bytes):
+                    i = i.decode('utf-8')
+                if isinstance(i, str):
+                    test = i.split('\n')
+                    if test:
+                        for j in test:
+                            new_message.append(j)
+                    else:
+                        new_message.append(i)
+                else:
+                    self.api('libs.io:send:error')(f"got a non-string for text {i}")
+
+            for i in new_message:
                 if preamble:
-                    preamblecolor = self.api('core.proxy:preamble:color:get')(error=error)
-                    preambletext = self.api('core.proxy:preamble:get')()
                     i = f"{preamblecolor}{preambletext}@w {i}"
                 if self.api('libs.api:has')('core.colors:colorcode:to:ansicode'):
                     converted_message.append(self.api('core.colors:colorcode:to:ansicode')(i) + '\r\n')
