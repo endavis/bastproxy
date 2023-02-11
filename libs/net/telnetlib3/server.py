@@ -47,7 +47,7 @@ CONFIG = collections.namedtuple(
     timeout=300,
     connect_maxwait=4.0,
 )
-logger = logging.getLogger("telnetlib3.server")
+logger = logging.getLogger(__name__)
 
 
 class TelnetServer(server_base.BaseServer):

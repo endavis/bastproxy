@@ -12,7 +12,7 @@ from .stream_reader import TelnetReader, TelnetReaderUnicode
 __all__ = ("BaseServer",)
 
 
-logger = logging.getLogger("telnetlib3.server_base")
+logger = logging.getLogger(__name__)
 
 
 class BaseServer(asyncio.streams.FlowControlMixin, asyncio.Protocol):
