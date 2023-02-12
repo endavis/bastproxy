@@ -41,9 +41,8 @@ class ClientConnection:
             self.login_attempts is the number of login attempts
                 close connection on 3 failed attempts
             self.state is the current state of the client connection
-                Currently used for "softboot" capability
             self.uuid is a uuid.uuid4() for unique session tracking
-            self.read_only is a bool to determine if the client is read only
+            self.view_only is a bool to determine if the client is view only
             self.reader is the asyncio.StreamReader for the connection
             self.writer is the asyncio.StreamWriter for the connection
 
