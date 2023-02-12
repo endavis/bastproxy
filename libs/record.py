@@ -16,6 +16,7 @@ from collections import UserList, deque
 from uuid import uuid4
 import asyncio
 import logging
+import time
 
 # 3rd Party
 
@@ -37,11 +38,15 @@ class RecordManager(object):
     def add(self, record):
         self.records[record.__class__.__name__].append(record)
 
+RMANAGER = RecordManager()
+
 class BaseRecord(UserList):
     def __init__(self, message, internal=True):
         """
         initialize the class
         """
+        if not isinstance(message, str) or not isinstance(message, bytes):
+            message = [message]
         super().__init__(message)
         # Add an API
         self.api = API()
@@ -50,8 +55,18 @@ class BaseRecord(UserList):
         self.logger = logging.getLogger(self.__class__.__name__ + '.' + str(self.uuid))
         # True if this was created internally
         self.internal = internal
-        self.snapshots = []
-        RManager.add(self)
+        self.changes = []
+        RMANAGER.add(self)
+
+    def replace(self, data, actor=None, extra=None):
+        """
+        replace the data in the message
+        """
+        if not isinstance(data, list):
+            data = [data]
+        if data != self.data:
+            self.data = data
+            self.addchange('Modify', 'replace', actor, extra=extra)
 
     def clean(self, actor=None):
         """
@@ -77,34 +92,38 @@ class BaseRecord(UserList):
             else:
                 #self.api('libs.io:send:error')(Message(['Error: Message.clean: line is not a string'], internal=True))
                 self.api('libs.io:send:error')(f"Error: {self.uuid} Message.clean: line is not a string: {line}")
-        self.data = new_message
-        self.snapshot('Modify', 'clean', actor)
+        if new_message != self.data:
+            self.data = new_message
+            self.addchange('Modify', 'clean', actor)
 
-    def snapshot(self, flag, action, actor):
+    def addchange(self, flag, action, actor, extra=None, data=True):
         """
-        add a snapshot of the message
-            flag: one of 'Modify'
+        add a change event for this record
+            flag: one of 'Modify', 'Set Flag'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
-        a message should be snapshotted at the following times:
+        a message should create a change event at the following times:
             when it is created
             after modification
             when it ends up at it's destination
         """
-        snapshot = {}
-        snapshot['flag'] = flag
-        snapshot['action'] = action
-        snapshot['actor'] = actor
-        snapshot['message'] = self.data
-        self.snapshots.append(snapshot)
+        change = {}
+        change['flag'] = flag
+        change['action'] = action
+        change['actor'] = actor
+        change['extra'] = extra
+        change['time'] = time.localtime()
+        if data:
+            change['data'] = self.data
+        self.changes.append(change)
 
-    def check_for_snapshot(self, flag, action):
+    def check_for_change(self, flag, action):
         """
-        check if there is a snapshot with the given flag and action
+        check if there is a change with the given flag and action
         """
-        for snapshot in self.snapshots:
-            if snapshot['flag'] == flag:
-                if snapshot['action'] == action:
+        for change in self.changes:
+            if change['flag'] == flag:
+                if change['action'] == action:
                     return True
         return False
 
@@ -126,8 +145,6 @@ class ToClientRecord(BaseRecord):
         """
         initialize the class
         """
-        if type(message) == str or type(message) == bytes:
-            message = [message]
         super().__init__(message, internal)
         # flag to include preamble when sending to client
         self.preamble = preamble
@@ -135,6 +152,8 @@ class ToClientRecord(BaseRecord):
         self.prelogin = prelogin
         # flag for this is an error message
         self.error = error
+        # This is so that events can set this and it will not be sent to the client
+        self.send_to_clients = True
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
         self.clients = clients
@@ -145,6 +164,14 @@ class ToClientRecord(BaseRecord):
         self.exclude_clients = exclude_clients
         if not self.exclude_clients:
             self.exclude_clients = []
+
+    def set_send_to_clients(self, flag, actor=None, extra=None):
+        """
+        set the send to clients flag
+        """
+        if flag != self.send_to_clients:
+            self.send_to_clients = flag
+            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra=f"set to {flag}, {extra}", data=False)
 
     def add_client(self, client_uuid):
         """
@@ -193,8 +220,9 @@ class ToClientRecord(BaseRecord):
             new_message = []
             for item in self.data:
                     new_message.append(f"{preamblecolor}{preambletext}@w {item}")
-            self.data = new_message
-            self.snapshot('Modify', 'preamble', actor)
+            if new_message != self.data:
+                self.data = new_message
+                self.addchange('Modify', 'preamble', actor, 'add a preamble to all items')
 
     def convert_to_bytes(self, actor=None):
         """
@@ -202,11 +230,12 @@ class ToClientRecord(BaseRecord):
         """
         byte_message = []
         for i in self.data:
-            if type(i) == str:
+            if isinstance(i, str):
                 i = i.encode('utf-8')
             byte_message.append(i)
-        self.data = byte_message
-        self.snapshot('Modify', 'to_bytes', actor)
+        if byte_message != self.data:
+            self.data = byte_message
+            self.addchange('Modify', 'to_bytes', actor, 'convert all items to byte strings')
 
     def clean(self, actor=None):
         """
@@ -226,8 +255,9 @@ class ToClientRecord(BaseRecord):
             for i in self.data:
                 if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
                     converted_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(i))
-            self.data = converted_message
-            self.snapshot('Modify', 'convert_colors', actor)
+            if self.data != converted_message:
+                self.data = converted_message
+                self.addchange('Modify', 'convert_colors', actor, 'convert color codes to ansi codes on each item')
 
     def add_line_endings(self, actor=None):
         """
@@ -238,34 +268,41 @@ class ToClientRecord(BaseRecord):
             new_message = []
             for item in self.data:
                 new_message.append(f"{item}\n\r")
-            self.data = new_message
-            self.snapshot('Modify', 'add_line_endings', actor)
+            if new_message != self.data:
+                self.data = new_message
+                self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
 
     def send(self, actor=None):
         """
         send the message
         """
-        self.clean(actor=actor)
-        self.add_preamble(actor=actor)
-        self.convert_colors(actor=actor)
-        self.add_line_endings(actor=actor)
-        self.convert_to_bytes(actor=actor)
-        loop = asyncio.get_event_loop()
-        if self.clients:
-            clients = self.clients
-        else:
-            clients = self.api('plugins.core.clients:get:all:clients')(uuid_only=True)
-        for client_uuid in clients:
-            if self.can_send_to_client(client_uuid):
-                client = self.api('plugins.core.clients:get:client')(client_uuid)
-                if self.message_type == 'IO':
-                    message = NetworkData(self.message_type, message=b''.join(self), client_uuid=client_uuid)
-                    loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
-                else:
-                    for i in self:
-                        message = NetworkData(self.message_type, message=i, client_uuid=client_uuid)
-                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+        if not self.internal:
+            self.api('plugins.core.events:raise:event')('before_client_send', args={'ToClientRecord': self})
+        if self.send_to_clients:
+            self.clean(actor=actor)
+            self.add_preamble(actor=actor)
+            self.convert_colors(actor=actor)
+            self.add_line_endings(actor=actor)
+            self.convert_to_bytes(actor=actor)
+            loop = asyncio.get_event_loop()
+            if self.clients:
+                clients = self.clients
             else:
-                self.logger.debug(f"## NOTE: Client {client_uuid} cannot receive this message")
+                clients = self.api('plugins.core.clients:get:all:clients')(uuid_only=True)
+            for client_uuid in clients:
+                if self.can_send_to_client(client_uuid):
+                    client = self.api('plugins.core.clients:get:client')(client_uuid)
+                    if self.message_type == 'IO':
+                        message = NetworkData(self.message_type, message=b''.join(self), client_uuid=client_uuid)
+                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+                    else:
+                        for i in self:
+                            message = NetworkData(self.message_type, message=i, client_uuid=client_uuid)
+                            loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+                else:
+                    self.logger.debug(f"## NOTE: Client {client_uuid} cannot receive this message")
 
-RManager = RecordManager()
+            if not self.internal:
+                self.api('plugins.core.events:raise:event')('after_client_send', args={'ToClientRecord': self})
+
+
