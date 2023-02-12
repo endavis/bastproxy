@@ -25,7 +25,6 @@ import asyncio
 
 # Project
 from libs.api import API
-from libs.net.networkdata import NetworkData
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """
