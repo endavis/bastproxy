@@ -24,6 +24,7 @@ from uuid import uuid4
 from libs.net import telnet
 from libs.task_logger import create_task
 from libs.api import API
+from libs.record import ToClientRecord
 from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class ClientConnection:
                 close connection on 3 failed attempts
             self.state is the current state of the client connection
                 Currently used for "softboot" capability
-            self.uuid is a str(uuid.uuid4()) for unique session tracking
+            self.uuid is a uuid.uuid4() for unique session tracking
             self.read_only is a bool to determine if the client is read only
             self.reader is the asyncio.StreamReader for the connection
             self.writer is the asyncio.StreamWriter for the connection
@@ -55,12 +56,13 @@ class ClientConnection:
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
         self.state: dict[str, bool] = {'connected': True, 'logged in': False}
-        self.uuid: str = uuid4()
+        self.uuid = uuid4()
         self.view_only = False
         self.msg_queue = asyncio.Queue()
         self.connected_time = time.localtime()
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
+        self.api('plugins.core.clients:client:add')(self)
 
     async def setup_client(self):
         """
@@ -80,20 +82,20 @@ class ClientConnection:
             return
 
         self.api('libs.io:send:msg')(f"setup_client - Sending telnet options to {self.uuid}", level='debug')
-        # We send an IAC+WONT+ECHO to the client so that it locally echo's it's own input.
-        self.api('libs.io:send:client')([telnet.echo_on()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
+        # We send an IAC+WILL+ECHO to the client so that it won't locally echo the password.
+        ToClientRecord([telnet.echo_on()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:setup_client')
 
         # Advertise to the client that we will do features we are capable of.
         features = telnet.advertise_features()
         if features:
-            self.api('libs.io:send:client')([telnet.advertise_features()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
+            ToClientRecord([telnet.advertise_features()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:setup_client')
         self.api('libs.io:send:msg')(f"setup_client - telnet options sent to {self.uuid}", level='debug')
 
         await self.writer.drain()
 
         self.api('libs.io:send:msg')(f"setup_client - Sending welcome message to {self.uuid}", level='debug')
-        self.api('libs.io:send:client')(['Welcome to Bastproxy.'], internal=True, client_uuid=self.uuid, prelogin=True)
-        self.api('libs.io:send:client')(['Please enter your password.'], internal=True, client_uuid=self.uuid, prelogin=True)
+        ToClientRecord('Welcome to Bastproxy.', clients=[self.uuid], prelogin=True).send('libs.net.client:setup_client')
+        ToClientRecord('Please enter your password.', clients=[self.uuid], prelogin=True).send('libs.net.client:setup_client')
         self.login_attempts += 1
         self.api('libs.io:send:msg')(f"setup_client - welcome message sent to {self.uuid}", )
 
@@ -123,35 +125,31 @@ class ClientConnection:
 
             if not self.state['logged in']:
                 if inp.strip() == 'bastpass':
-                    self.state['logged in'] = True
-                    msg = 'You are now logged in.'
-                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid)
-                    self.api('libs.io:send:client')([msg], internal=True, client_uuid=self.uuid)
+                    ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
+                    ToClientRecord(['You are now logged in.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     self.api('plugins.core.clients:client:logged:in')(self.uuid)
                     continue
 
                 elif inp.strip() == 'bastviewpass':
-                    self.state['logged in'] = True
-                    self.view_only = True
-                    self.api('libs.io:send:client')([telnet.echo_off()], msg_type='COMMAND-TELNET', client_uuid=self.uuid, prelogin=True)
-                    self.api('libs.io:send:client')(['You are now logged in as view only user.'], internal=True, client_uuid=self.uuid, prelogin=True)
+                    ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
+                    ToClientRecord(['You are now logged in as view only user.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
+                    self.api('plugins.core.clients:client:logged:in:view:only')(self.uuid)
                     continue
 
                 elif self.login_attempts < 3:
                     self.login_attempts = self.login_attempts + 1
-                    self.api('libs.io:send:client')(['Invalid password. Please try again.'], internal=True, client_uuid=self.uuid, prelogin=True)
+                    ToClientRecord(['Invalid password. Please try again.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     continue
 
                 else:
-                    self.api('libs.io:send:client')(['Too many login attempts. Goodbye.'], internal=True, client_uuid=self.uuid, prelogin=True    )
-                    self.api('libs.io:send:client')(['You have been BANNED for 10 minutes'], internal=True, client_uuid=self.uuid, prelogin=True)
+                    ToClientRecord(['Too many login attempts. Goodbye.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     self.api('libs.io:send:msg')(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.")
                     self.api('plugins.core.clients:client:banned:add')(self.uuid)
-                    self.state['connected'] = False
+                    continue
 
             else:
                 if self.view_only:
-                    self.api('libs.io:send:client')(['You are logged in as a view only user.'], internal=True, client_uuid=self.uuid)
+                    ToClientRecord(['You are logged in as a view only user.'], clients=[self.uuid]).send('libs.net.client:client_read')
                 else:
                     self.api('libs.io:send:execute')(inp, fromclient=True)
 

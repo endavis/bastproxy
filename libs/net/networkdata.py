@@ -26,10 +26,12 @@ class NetworkData:
     """
     A Message is specifically a message meant for a connected client.
 
+    message should be a byte string
+
     COMMAND-TELNET
         command should be a byte string of telnet options
     IO
-        msg can be strings or bytes
+        just a regular byte string to send
     """
     def __init__(self, msg_type, **kwargs):
         self.msg = kwargs.get('message', '')

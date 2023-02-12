@@ -32,6 +32,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
+from libs.record import ToClientRecord
 import libs.argp as argp
 
 NAME = 'Commands'
@@ -405,10 +406,9 @@ class Plugin(BasePlugin):
             message = []
             message.append(f"Error: {exc.errormsg}") # pylint: disable=no-member
             message.extend(command['parser'].format_help().split('\n'))
-            self.api('libs.io:send:client')(
-                self.format_return_message(message,
-                                           command['plugin_id'],
-                                           command['commandname']))
+            ToClientRecord(self.format_return_message(message,
+                                                      command['plugin_id'],
+                                                      command['commandname'])).send(__name__ + ':run_command_1')
             self.api('libs.io:trace:add:execute')(
                 self.plugin_id, 'Command Error',
                 info=f"{command_ran} - error parsing args",
@@ -421,10 +421,9 @@ class Plugin(BasePlugin):
         # return help if flagged
         if args['help']:
             message = command['parser'].format_help().split('\n')
-            self.api('libs.io:send:client')(
-                self.format_return_message(message,
-                                           command['plugin_id'],
-                                           command['commandname']))
+            ToClientRecord(self.format_return_message(message,
+                                                      command['plugin_id'],
+                                                      command['commandname'])).send(__name__ + ':run_command_2')
 
         # deal with output and success from running the command
         else:
@@ -441,24 +440,22 @@ class Plugin(BasePlugin):
             if retval is False:
                 message.append('')
                 message.extend(command['parser'].format_help().split('\n'))
-                self.api('libs.io:send:client')(
-                    self.format_return_message(message,
-                                               command['plugin_id'],
-                                               command['commandname']))
+                ToClientRecord(self.format_return_message(message,
+                                                          command['plugin_id'],
+                                                          command['commandname'])).send(__name__ + ':run_command_3')
 
             # succeeded
             else:
                 self.add_command_to_history(data, command)
                 # if the format flag is not set then the data is returned
                 if (not command['format']) and message:
-                    self.api('libs.io:send:client')(message, preamble=command['preamble'])
+                    ToClientRecord(message, preamble=command['preamble']).send(__name__ + ':run_command_4')
                 # if the format flag is set, then format the data to the client
                 elif message:
-                    self.api('libs.io:send:client')(
-                        self.format_return_message(message,
-                                                   command['plugin_id'],
-                                                   command['commandname']),
-                                                    preamble=command['preamble'])
+                    ToClientRecord(self.format_return_message(message,
+                                           command['plugin_id'],
+                                           command['commandname']),
+                                   preamble=command['preamble']).send(__name__ + ':run_command_5')
 
         self.api('libs.io:trace:add:execute')(
             self.plugin_id, 'Running Command',
@@ -812,7 +809,7 @@ class Plugin(BasePlugin):
             if command_data_dict['flag'] == 'Bad Command':
                 self.api('libs.io:trace:add:execute')(self.plugin_id, 'Bad Command',
                                                       data=copy.copy(command_data_dict))
-                self.api('libs.io:send:client')([f"@R{command}@W is not a command"])
+                ToClientRecord(f"@R{command}@W is not a command").send(__name__ + ':_event_io_execute_check_command')
             else:
                 command_data_dict_copy = copy.copy(command_data_dict)
                 self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
@@ -1069,7 +1066,7 @@ class Plugin(BasePlugin):
         else:
             command = self.command_history_data[args['number']]
 
-        self.api('libs.io:send:client')([f"Commands: rerunning command {command}"])
+        ToClientRecord(f"Commands: rerunning command {command}").send(__name__ + ':command_runhistory')
         self.api('libs.io:send:execute')(command)
 
         return True, []

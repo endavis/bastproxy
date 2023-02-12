@@ -17,6 +17,7 @@ import pprint
 from plugins._baseplugin import BasePlugin
 import libs.argp as argp
 from libs.queue import SimpleQueue
+from libs.record import ToClientRecord
 
 NAME = 'Profile Plugin'
 SNAME = 'profile'
@@ -287,7 +288,7 @@ class Plugin(BasePlugin):
         echocommands = self.api('setting:get')('commands')
 
         if echocommands:
-            self.api('libs.io:send:client')(self.formatcommandstack(args))
+            ToClientRecord(self.formatcommandstack()).send(__name__ + ':savecommand')
 
     def savechanged_mud_data(self, args):
         """

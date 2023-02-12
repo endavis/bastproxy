@@ -9,8 +9,8 @@
 handle output and input functions, adds items under the send api
 
 The send to client and send to mud functions are the only ones that
-will interact with the asyncio event loop, so all data sent to clients
-and the mud will go through the apis libs.io:send:client and libs.io:send:mud
+will interact with the asyncio event loop, so all data sent to the
+mud will go through the apis libs.io:send:mud
 """
 
 # Standard Library
@@ -35,7 +35,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                             logging purposes
        'send:error'     : send an error
        'send:traceback' : send a traceback
-       'send:client'    : send data to the clients
        'send:mud'       : send data to the mud
        'send:execute'   : send data through the parser
     """
@@ -49,7 +48,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         self.api('libs.api:add')('libs.io', 'send:msg', self._api_msg)
         self.api('libs.api:add')('libs.io', 'send:error', self._api_error)
         self.api('libs.api:add')('libs.io', 'send:traceback', self._api_traceback)
-        self.api('libs.api:add')('libs.io', 'send:client', self._api_client)
         self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
         self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)
         self.api('libs.api:add')('libs.io', 'trace:add:execute', self._api_trace_add_execute)
@@ -184,79 +182,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                         message)
         except (AttributeError, TypeError):
             pass
-
-    # send text to the clients
-    def _api_client(self, text, msg_type='IO', preamble=True, internal=True, client_uuid=None, error=False, prelogin=False):  # pylint: disable=too-many-arguments
-        """  handle a traceback
-          @Ytext@w        = The text to send to the clients, a list of strings or bytestrings
-          @Yraw@w         = if True, don't convert colors or add the preamble
-          @Ypreamble@w    = if True, send the preamble, defaults to True
-          @Yinternal@w    = if True, this came from the proxy, if false, came from the mud
-          @Yclient_uuid@w = The client to send to, if None, send to all
-
-        this function returns no values"""
-
-        if type(text) == str or type(text) == bytes:
-            self.api('libs.io:send:msg')(f"did not get list for text {text}", level='info', primary='libs.io')
-            text = [text]
-
-        # if the data is from the proxy (internal) and msg_type is 'IO', add the preamble to each line
-        converted_message = []
-
-        if internal and msg_type == 'IO':
-            preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=error)
-            preambletext = self.api('plugins.core.proxy:preamble:get')()
-            new_message = []
-            for i in text:
-                if isinstance(i, bytes):
-                    i = i.decode('utf-8')
-                if isinstance(i, str):
-                    test = i.split('\n')
-                    if test:
-                        for j in test:
-                            new_message.append(j)
-                    else:
-                        new_message.append(i)
-                else:
-                    self.api('libs.io:send:error')(f"got a non-string for text {i}")
-
-            for i in new_message:
-                if preamble:
-                    i = f"{preamblecolor}{preambletext}@w {i}"
-                if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
-                    converted_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(i) + '\r\n')
-                else:
-                    converted_message.append(i + '\r\n')
-
-        else:
-            converted_message = text
-
-        byte_message = []
-        for i in converted_message:
-            if type(i) == str:
-                i = i.encode('utf-8')
-            byte_message.append(i)
-
-        if client_uuid:
-            client = self.api('plugins.core.clients:get:client')(client_uuid)
-            if self.api('plugins.core.clients:client:is:logged:in')(client_uuid) or prelogin:
-                if client:
-                    loop = asyncio.get_event_loop()
-                    for i in byte_message:
-                        message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
-                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
-                else:
-                    self.api('libs.io:send:error')(f"libs.io - _api_client - client {client_uuid} not found")
-                    return
-
-        else:
-            loop = asyncio.get_event_loop()
-            for client in self.api('plugins.core.clients:get:all:clients')():
-                if self.api('plugins.core.clients:client:is:logged:in')(client.uuid):
-                    for i in byte_message:
-                        message = NetworkData(msg_type, message=i, client_uuid=client_uuid)
-                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
-
 
     # execute a command through the interpreter, most data goes through this
     def _api_execute(self, command, fromclient=False, showinhistory=True): # pylint: disable=too-many-branches

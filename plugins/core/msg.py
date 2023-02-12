@@ -17,6 +17,7 @@ import os
 
 # Project
 import libs.argp as argp
+from libs.record import ToClientRecord
 from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
 
@@ -124,7 +125,7 @@ class Plugin(BasePlugin):
                     msg = [self.api('plugins.core.colors:colorcode:to:ansicode')(self.colors[dtag] + i) for i in msg if i]
 
                 if dtag in self.datatypes_to_client and self.datatypes_to_client[dtag] and not senttoclient:
-                    self.api('libs.io:send:client')(msg)
+                    ToClientRecord(msg).send(__name__ + ':api_msg')
                     senttoclient = True
 
                 if dtag in self.datatypes_to_console and self.datatypes_to_console[dtag] and not senttoconsole:

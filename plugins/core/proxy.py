@@ -18,6 +18,7 @@ import platform
 
 # Project
 from plugins._baseplugin import BasePlugin
+from libs.record import ToClientRecord
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -223,7 +224,7 @@ class Plugin(BasePlugin):
         """
         self.api.__class__.shutdown = True
         self.api('libs.io:send:msg')('Proxy: shutdown started', secondary='shutdown')
-        self.api('libs.io:send:client')('Shutting down bastproxy')
+        ToClientRecord('Shutting down bastproxy').send(__name__ + ':api_shutdown')
         self.api('plugins.core.events:raise:event')('ev_net.proxy_proxy_shutdown')
         self.api('libs.io:send:msg')('Proxy: shutdown finished', secondary='shutdown')
 
@@ -274,8 +275,9 @@ class Plugin(BasePlugin):
         if tmsg[0] != divider:
             tmsg.insert(0, divider)
 
+
         if tmsg:
-            self.api('libs.io:send:client')(tmsg, client_uuid=args['client_uuid'])
+            ToClientRecord(tmsg, clients=[args['client_uuid']]).send(__name__ + ':client_connected')
 
         return args
 
@@ -286,7 +288,7 @@ class Plugin(BasePlugin):
         """
         listen_port = self.api('setting:get')('listenport')
 
-        self.api('libs.io:send:client')(f"Restarting bastproxy on port: {listen_port} in 10 seconds")
+        ToClientRecord(f"Restarting bastproxy on port: {listen_port} in 10 seconds").send(__name__ + ':api_restart')
 
         self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)
 
