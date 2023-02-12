@@ -99,7 +99,7 @@ class Plugin(BasePlugin):
                                               self.cmd_shutdown,
                                               shelp='shutdown the proxy')
 
-        self.api('plugins.core.events:register:to:event')('ev_core.clients_client_connected', self.client_connected)
+        self.api('plugins.core.events:register:to:event')('ev_core.clients_client_logged_in', self.client_connected)
         self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'listenport'}_modified",
                                                   self.listen_port_change)
@@ -290,7 +290,7 @@ class Plugin(BasePlugin):
 
         ToClientRecord(f"Restarting bastproxy on port: {listen_port} in 10 seconds").send(__name__ + ':api_restart')
 
-        self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, 5, onetime=True)
+        self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, 10, onetime=True)
 
     def timer_restart(self):
         """
