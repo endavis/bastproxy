@@ -334,7 +334,7 @@ class Plugin(BasePlugin):
                 timers_to_remove.append(i)
 
         for i in timers_to_remove:
-            self.api(f"{self.plugin_id}:remove:all:timers:for:plugin")(i)
+            self.api(f"{self.plugin_id}:remove:timer")(i)
 
 
     # remove a timer
