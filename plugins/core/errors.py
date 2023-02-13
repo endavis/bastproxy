@@ -14,6 +14,7 @@ This plugin shows and clears errors seen during plugin execution
 
 # Project
 import libs.argp as argp
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Error Plugin'
@@ -75,12 +76,13 @@ class Plugin(BasePlugin):
 
         msg = ['The following errors happened during startup:']
         if errors:
+            msg.append('Proxy Errors')
             for i in errors:
                 msg.append('')
                 msg.append(f"Time: {i['timestamp']}")
                 msg.append(f"Error: {i['msg']}")
 
-            self.api('libs.io:send:error')('\n'.join(msg))
+            LogRecord(msg, level='error', sources=[self.plugin_id, 'mudproxy']).send()
 
 
     # add an error to the list

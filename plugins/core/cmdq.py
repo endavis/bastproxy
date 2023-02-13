@@ -17,6 +17,7 @@ import re
 
 # Project
 import libs.argp as argp
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Command Queue'
@@ -74,8 +75,8 @@ class Plugin(BasePlugin):
         @Yplugin@w   = The plugin name
 
         this function returns no values"""
-        self.api('libs.io:send:msg')(f"removing cmdq data for plugin {plugin}",
-                                     secondary=plugin)
+        LogRecord(f"_api_remove_commands_for_plugin - removing cmdq data for plugin {plugin}",
+                  level='debug', sources=[self.plugin_id, plugin]).send()
         tkeys = self.cmds.keys()
         for i in tkeys: # iterate keys since we are deleting things
             if self.cmds[i]['plugin'] == plugin:
@@ -88,7 +89,8 @@ class Plugin(BasePlugin):
         if cmdtype in self.cmds:
             del self.cmds[cmdtype]
         else:
-            self.api('libs.io:send:msg')(f"could not delete command type: {cmdtype}")
+            LogRecord(f"_api_command_type_remove - {cmdtype} not found",
+                      level='debug', sources=[self.plugin_id]).send()
 
     # start a command
     def _api_command_start(self, cmdtype):
@@ -96,7 +98,8 @@ class Plugin(BasePlugin):
         tell the queue a command has started
         """
         if self.current_command and cmdtype != self.current_command['ctype']:
-            self.api('libs.io:send:msg')(f"got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}")
+            LogRecord(f"_api_command_start - got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}",
+                      level='error', sources=[self.plugin_id]).send()
             return
         self.api('libs.timing:timing:start')(f"cmd_{cmdtype}")
 
@@ -127,14 +130,16 @@ class Plugin(BasePlugin):
         """
         send the next command
         """
-        self.api('libs.io:send:msg')('checking queue')
+        LogRecord(f"sendnext - checking queue",
+                  level='debug', sources=[self.plugin_id]).send()
         if not self.queue or self.current_command:
             return
 
         cmdt = self.queue.pop(0)
         cmd = cmdt['cmd']
         cmdtype = cmdt['ctype']
-        self.api('libs.io:send:msg')(f"sending cmd: {cmd} ({cmdtype})")
+        LogRecord(f"sendnext - sending cmd: {cmd} ({cmdtype})",
+                  level='debug', sources=[self.plugin_id]).send()
 
         if cmdtype in self.cmds and self.cmds[cmdtype]['beforef']:
             self.cmds[cmdtype]['beforef']()
@@ -161,7 +166,8 @@ class Plugin(BasePlugin):
             return
         if cmdtype == self.current_command['ctype']:
             if cmdtype in self.cmds and self.cmds[cmdtype]['afterf']:
-                self.api('libs.io:send:msg')(f"running afterf: {cmdtype}")
+                LogRecord(f"_api_command_finish - running afterf for {cmdtype}",
+                          level='debug', sources=[self.plugin_id]).send()
                 self.cmds[cmdtype]['afterf']()
 
             self.api('libs.timing:timing:finish')(f"cmd_{self.current_command['ctype']}")
@@ -181,7 +187,8 @@ class Plugin(BasePlugin):
                 ('cmd' in self.current_command and self.current_command['cmd'] == cmd):
             return
         else:
-            self.api('libs.io:send:msg')(f"added {cmd} to queue", secondary=[plugin])
+            LogRecord(f"_api_queue_add_command - adding {cmd} to queue",
+                      level='debug', sources=[self.plugin_id]).send()
             self.queue.append({'cmd':cmd, 'ctype':cmdtype, 'plugin':plugin})
             if not self.current_command:
                 self.sendnext()

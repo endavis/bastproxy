@@ -21,7 +21,7 @@ import stat
 
 # Project
 from libs.api import API
-#api = API()
+from libs.record import LogRecord
 
 def convert(tinput):
     """
@@ -166,10 +166,11 @@ class PersistentDict(dict):
             return self.update(nstuff)
 
         except Exception:  # pylint: disable=broad-except
-            #if 'log' not in self.file_name:
-            self.api('libs.io:send:traceback')(f"Error when loading {self.format} from {self.file_name}")
-            #else:
-            #  pass
+            record = LogRecord(f"Error when loading {self.format} from {self.file_name}",
+                               level='error', sources=[__name__], exc_info=True)
+            if getattr(self, 'plugin_instance'):
+                record.add_source(self.plugin_instance.plugin_id)
+            record.send()
 
         raise ValueError('File not in a supported format')
 

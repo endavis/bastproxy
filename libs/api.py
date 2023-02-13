@@ -207,11 +207,9 @@ class API(object):
 
         if not overload:
             if full_api_name in self.api and not force:
-                msg = f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}"
-                try:
-                    self.get('libs.io:send:error')(msg)
-                except AttributeError:
-                    self.log.error(msg)
+                from libs.record import LogRecord
+                LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}",
+                              level='error', sources=[__name__, plugin_id]).send()
             else:
                 self.api[full_api_name] = api_data
 
@@ -234,11 +232,9 @@ class API(object):
 
         if not force and \
               (api_data['full_api_name'] in self.overloaded_api):
-            msg = f"libs.api:overload - {api_data['full_api_name']} already exists added by plugin: {api_data['plugin']}"
-            try:
-                self.get('libs.io:send:error')(msg)
-            except AttributeError:
-                self.log.error(msg)
+            from libs.record import LogRecord
+            LogRecord(f"libs.api:overload - {api_data['full_api_name']} already exists added by plugin: {api_data['plugin']}",
+                        level='error', sources=[__name__, api_data['plugin']]).send()
 
             return False
 
@@ -448,7 +444,9 @@ class API(object):
         if plugin_instance:
             return plugin_instance.api(api_location)
         else:
-            self('libs.io:send:error')(f"API run_as: {plugin_id} plugin does not exist")
+            from libs.record import LogRecord
+            LogRecord(f"_api_run_as_plugin: {plugin_id} plugin does not exist",
+                      level='error', sources=[__name__]).send()
 
     def get(self, api_location, do_not_overload=False):
         """
@@ -469,7 +467,9 @@ class API(object):
             if self.parent_plugin_id:
                 api_location = self.parent_plugin_id + ':' + api_location
             else:
-                self('libs.io:send:error')(f"api lookup: {api_location} : did not contain a .")
+                from libs.record import LogRecord
+                LogRecord(f"api lookup: {api_location} : did not contain a .",
+                          level='error', sources=[__name__]).send()
 
         # check overloaded api
         if not do_not_overload:

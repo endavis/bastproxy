@@ -27,6 +27,7 @@ import stat
 
 # Project
 import libs.argp as argp
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Secret Setting Class'
@@ -86,7 +87,8 @@ class SSC(object):
             return first_line.strip()
         except IOError:
             if not quiet:
-                self.plugin.api('libs.io:send:error')(f"Please set the {self.desc} with {self.plugin.api('plugins.core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}")
+                LogRecord(f"getss - Please set the {self.desc} with {self.plugin.api('plugins.core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}",
+                          level='error', sources=[self.plugin.plugin_id, self.plugin_id]).send()
 
         return self.default
 

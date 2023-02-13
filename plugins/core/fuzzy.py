@@ -21,6 +21,7 @@ except ImportError:
 
 # Project
 from plugins._baseplugin import BasePlugin
+from libs.record import LogRecord
 
 NAME = 'Fuzzy Match'
 SNAME = 'fuzzy'
@@ -64,18 +65,23 @@ class Plugin(BasePlugin):
         this function returns:
             a string of the item that best matched or None"""
         found = None
-        self.api('libs.io:send:msg')(f"get_best_match: item_to_match: {item_to_match}")
-        self.api('libs.io:send:msg')(f"get_best_match: list_to_match: {list_to_match}")
+        LogRecord(f"get_best_match - item_to_match: {item_to_match}",
+                  level='debug', sources=[self.plugin_id]).send()
+        LogRecord(f"get_best_match - list_to_match: {list_to_match}",
+                  level='debug', sources=[self.plugin_id]).send()
         matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
         if len(matching_startswith) == 1:
             found = matching_startswith[0]
-            self.api('libs.io:send:msg')(f"get_best_match (startswith) matched {item_to_match} to {found}")
+            LogRecord(f"get_best_match (startswith) matched {item_to_match} to {found}",
+                      level='debug', sources=[self.plugin_id]).send()
         else:
             sorted_extract = sort_fuzzy_result(process.extract(item_to_match, list_to_match))
-            self.api('libs.io:send:msg')(f"extract for {item_to_match} - {sorted_extract}")
+            LogRecord(f"get_best_match - extract for {item_to_match} - {sorted_extract}",
+                       level='debug', sources=[self.plugin_id]).send()
             maxscore = max(sorted_extract.keys())
             if maxscore > 80 and len(sorted_extract[maxscore]) == 1:
                 found = sorted_extract[maxscore][0]
-                self.api('libs.io:send:msg')(f"get_best_match (score) matched {item_to_match} to {found}")
+                LogRecord(f"get_best_match - (score) matched {item_to_match} to {found}",
+                            level='debug', sources=[self.plugin_id])
 
         return found

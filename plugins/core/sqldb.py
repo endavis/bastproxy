@@ -56,6 +56,7 @@ import copy
 
 # Project
 import libs.argp as argp
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'SQL DB base class'
@@ -148,7 +149,7 @@ class Sqldb(object):
         close the database
         """
         import inspect
-        self.api('libs.io:send:msg')('close: called by - %s' % inspect.stack()[1][3])
+        LogRecord(f"close: called by - {inspect.stack()[1][3]}", 'debug', sources=[__name__, self.plugin_id]).send()
         try:
             self.db_connection.close()
         except Exception: # pylint: disable=broad-except
@@ -163,7 +164,7 @@ class Sqldb(object):
         function_name = inspect.stack()[1][3]
         if function_name == '__getattribute__':
             function_name = inspect.stack()[2][3]
-        self.api('libs.io:send:msg')(f"open: called by - {function_name}", level='debug')
+        LogRecord(f"open: called by - {function_name}", 'debug', sources=[__name__, self.plugin_id]).send()
         self.db_connection = sqlite3.connect(
             self.dbfile,
             detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -557,18 +558,21 @@ class Sqldb(object):
         """
         update a database from old_version to new_version
         """
-        self.api('libs.io:send:msg')(f"updating {self.db_file} from version {old_version} to {new_version}")
+        LogRecord(f"updateversion - updating {self.db_file} from version {old_version} to {new_version}",
+                  level='debug', sources=[self.plugin_id, __name__]).send()
         self.backupdb(old_version)
         for version in range(old_version + 1, new_version + 1):
             try:
                 self.version_functions[version]()
-                self.api('libs.io:send:msg')(f"updated to version {version}")
+                LogRecord(f"updateversion - updated to version {version}",
+                          level='debug', sources=[self.plugin_id, __name__]).send()
             except Exception: # pylint: disable=broad-except
-                self.api('libs.io:send:traceback')(
-                    f"could not upgrade db: {self.database_name} in plugin: {self.plugin.plugin_id}")
+                LogRecord(f"updateversion - could not upgrade db: {self.database_name} in plugin: {self.plugin_id}",
+                          level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
                 return
         self.setversion(new_version)
-        self.api('libs.io:send:msg')('Done upgrading!')
+        LogRecord(f"updateversion - updated {self.db_file} to version {new_version}",
+                    level='debug', sources=[self.plugin_id, __name__]).send()
 
     def select(self, sql_statement):
         """
@@ -580,7 +584,8 @@ class Sqldb(object):
             for row in cursor.execute(sql_statement):
                 result.append(row)
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
+            LogRecord(f"select - could not run sql statement : {sql_statement}",
+                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
         cursor.close()
         return result
 
@@ -599,7 +604,8 @@ class Sqldb(object):
             row_id = cursor.lastrowid
             result = self.db_connection.commit()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
+            LogRecord(f"modify - could not run sql statement : {sql_statement}",
+                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
 
         return row_id, result
 
@@ -616,7 +622,8 @@ class Sqldb(object):
             result = self.db_connection.commit()
             cursor.close()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
+            LogRecord(f"modifymany - could not run sql statement : {sql_statement}",
+                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
 
         return row_id, result
 
@@ -633,8 +640,8 @@ class Sqldb(object):
             result = self.db_connection.commit()
             cursor.close()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(f"could not run sql statement : {sql_statement}")
-
+            LogRecord(f"modifyscript - could not run sql statement : {sql_statement}",
+                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
 
         return row_id, result
 
@@ -649,7 +656,8 @@ class Sqldb(object):
             for row in cursor.execute(selectstmt):
                 result[row[keyword]] = row
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(f"could not run sql statement : {selectstmt}")
+            LogRecord(f"selectbykeyword - could not run sql statement : {selectstmt}",
+                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
         cursor.close()
         return result
 
@@ -659,7 +667,8 @@ class Sqldb(object):
         """
         results = {}
         if table_name not in self.tables:
-            self.api('libs.io:send:msg')(f"table {table_name} does not exist in getlast")
+            LogRecord(f"getlast - table {table_name} does not exist in getlast",
+                      level='error', sources=[self.plugin_id, __name__]).send()
             return {}
 
         column_id_name = self.tables[table_name]['keyfield']
@@ -678,7 +687,8 @@ class Sqldb(object):
         get a row by id
         """
         if table_name not in self.tables:
-            self.api('libs.io:send:msg')(f"table {table_name} does not exist in getrow")
+            LogRecord(f"getrow - table {table_name} does not exist in getrow",
+                        level='error', sources=[self.plugin_id, __name__]).send()
             return {}
 
         column_id_name = self.tables[table_name]['keyfield']
@@ -708,7 +718,8 @@ class Sqldb(object):
         """
         success = False
         #self.cmd_vac()
-        self.api('libs.io:send:msg')(f"backing up database {self.database_name}")
+        LogRecord(f"backupdb - backing up database {self.database_name}",
+                  level='debug', sources=[self.plugin_id, __name__]).send()
         integrity = True
         cursor = self.db_connection.cursor()
         cursor.execute('PRAGMA integrity_check')
@@ -718,7 +729,8 @@ class Sqldb(object):
             integrity = False
 
         if not integrity:
-            self.api('libs.io:send:msg')('Integrity check failed, aborting backup')
+            LogRecord(f"backupdb - integrity check failed, aborting backup",
+                      level='error', sources=[self.plugin_id, __name__]).send()
             return success
         self.close()
 
@@ -733,7 +745,8 @@ class Sqldb(object):
         try:
             shutil.copy(self.db_file, backupfile)
         except IOError:
-            self.api('libs.io:send:msg')('backup failed, could not copy file')
+            LogRecord(f"backupdb - could not copy file {self.db_file} to {backupfile}",
+                      level='error', sources=[self.plugin_id, __name__]).send()
             return success
 
         try:
@@ -741,9 +754,11 @@ class Sqldb(object):
                 myzip.write(backupfile, arcname=os.path.basename(backupfile))
             os.remove(backupfile)
             success = True
-            self.api('libs.io:send:msg')(f"{self.db_file} was backed up to {backupzipfile}")
+            LogRecord(f"backupdb - {self.db_file} was backed up to {backupzipfile}",
+                      level='debug', sources=[self.plugin_id, __name__]).send()
         except IOError:
-            self.api('libs.io:send:msg')('could not zip backupfile')
+            LogRecord(f"backupdb - could not zip backupfile {backupfile}",
+                      level='error', sources=[self.plugin_id, __name__]).send()
             return success
 
         return success

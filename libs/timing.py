@@ -16,6 +16,8 @@ from timeit import default_timer
 
 # Project
 from libs.api import API as BASEAPI
+from libs.record import LogRecord
+
 API = BASEAPI()
 
 
@@ -70,8 +72,8 @@ class Timing(object):
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
       self.timing[timername]['plugin'] = plugin
-      self.api('libs.io:send:msg')(f"{timername:<20} : started - from plugin {plugin} with args {args}",
-                                   primary=plugin, secondary=['timing'])
+      LogRecord(f"starttimer - {timername:<20} : started - from plugin {plugin} with args {args}",
+                level='debug', sources=[__name__, plugin]).send()
 
   def finishtimer(self, timername, args=None):
     """
@@ -80,13 +82,12 @@ class Timing(object):
     if self.enabled:
       timerfinish = default_timer()
       if timername in self.timing:
-        self.api('libs.io:send:msg')(f"{timername:<20} : finished in {(timerfinish - self.timing[timername]['start']) * 1000.0} ms - with args {args}",
-                                     primary=self.timing[timername]['plugin'],
-                                     secondary=['timing'])
+        LogRecord(f"finishtimer - {timername:<20} : finished in {(timerfinish - self.timing[timername]['start']) * 1000.0} ms - with args {args}",
+                    level='debug', sources=[__name__, self.timing[timername]['plugin']]).send()
         del self.timing[timername]
       else:
         plugin = self.api('libs.api:get:caller:plugin')()
-        self.api('libs.io:send:err')(f"timername: {timername} not found, called from {plugin}",
-                                       secondary=['timing', plugin])
+        LogRecord(f"finishtimer - {timername:<20} : not found - called from {plugin}",
+                    level='error', sources=[__name__, plugin]).send()
 
 TIMING = Timing()

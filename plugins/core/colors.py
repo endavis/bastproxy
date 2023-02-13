@@ -34,6 +34,7 @@ import re
 # Project
 import libs.argp as argp
 import libs.colors
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Ansi/Xterm Colors'
@@ -56,17 +57,10 @@ def convertcolorcodetohtml(colorcode):
     try:
         colorcode = int(colorcode)
         if colorcode in libs.colors.COLORTABLE:
-            #print COLORTABLE[colorcode]
             return f"#{libs.colors.COLORTABLE[colorcode][0]:02x}{libs.colors.COLORTABLE[colorcode][1]:02x}{libs.colors.COLORTABLE[colorcode][2]:02x}"
-            # return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
-            #                           COLORTABLE[colorcode][1],
-            #                           COLORTABLE[colorcode][2])
     except ValueError:
         if colorcode in libs.colors.COLORTABLE:
             return f"#{libs.colors.COLORTABLE[colorcode][0]:02x}{libs.colors.COLORTABLE[colorcode][1]:02x}{libs.colors.COLORTABLE[colorcode][2]:02x}"
-            # return '#%.2x%.2x%.2x' % (COLORTABLE[colorcode][0],
-            #                           COLORTABLE[colorcode][1],
-            #                           COLORTABLE[colorcode][2])
 
     return '#000'
 
@@ -305,7 +299,8 @@ class Plugin(BasePlugin):
             try:
                 return '@%s' % libs.colors.CONVERTANSI[tstr]
             except KeyError:
-                print(f"could not lookup color {tstr} for text {repr(text)}")
+                LogRecord(f"could not lookup color {tstr} for text {repr(text)}",
+                          level='error', plugin=self.plugin_id).send()
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 

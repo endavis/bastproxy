@@ -15,23 +15,18 @@ mud will go through the apis libs.io:send:mud
 
 # Standard Library
 import time
-import sys
-import traceback
 import re
-import logging
-import asyncio
 
 # Third Party
 
 # Project
 from libs.api import API
+from libs.record import LogRecord
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """
     class for IO in the proxy
       APIs for this class
-       'send:msg'       : send data through the messaging system for
-                            logging purposes
        'send:error'     : send an error
        'send:traceback' : send a traceback
        'send:mud'       : send data to the mud
@@ -44,9 +39,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         self.current_trace = None
         self.api = API()
 
-        self.api('libs.api:add')('libs.io', 'send:msg', self._api_msg)
-        self.api('libs.api:add')('libs.io', 'send:error', self._api_error)
-        self.api('libs.api:add')('libs.io', 'send:traceback', self._api_traceback)
         self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
         self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)
         self.api('libs.api:add')('libs.io', 'trace:add:execute', self._api_trace_add_execute)
@@ -77,111 +69,6 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                 trace['callstack'] = callstack
             self.current_trace['changes'].append(trace)
 
-    # send a message
-    def _api_msg(self, message, level='info', primary=None, secondary=None):
-        """  send a message through the log plugin
-          @Ymessage@w        = This message to send
-          @Yprimary@w    = the primary data tag of the message (default: None)
-          @Ysecondary@w  = the secondary data tag of the message
-                              (default: None)
-
-        If a plugin called this function, it will be automatically added to the tags
-
-        this function returns no values"""
-        tags = []
-        plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=['core.plugins'])
-
-        tags.extend(self.api('libs.api:get:plugins:from:stack:list')(ignore_plugin_list=['core.plugins']))
-
-        if not isinstance(secondary, list):
-            tags.append(secondary)
-        else:
-            tags.extend(secondary)
-
-        ttags = set(tags) # take out duplicates
-        tags = list(ttags)
-
-        if primary:
-            if primary in tags:
-                tags.remove(primary)
-            tags.insert(0, primary)
-
-        if plugin:
-            if not primary:
-                if plugin in tags:
-                    tags.remove(plugin)
-                tags.insert(0, plugin)
-            else:
-                if plugin not in tags:
-                    tags.append(plugin)
-
-        if not tags:
-            print(f"Did not get any tags for {message}")
-            tags = ['Unknown']
-
-        try:
-            self.api('plugins.core.msg:message')(message, level=level, tags=tags)
-        except (AttributeError, RuntimeError):
-            loggingfunc = getattr(logging.getLogger(primary or plugin), level)
-            loggingfunc(message)
-
-    # write and format a traceback
-    def _api_traceback(self, message=None):
-        """  handle a traceback
-          @Ymessage@w  = the message to put into the traceback
-
-        this function returns no values"""
-        if not message:
-            message = []
-
-        if isinstance(message, str):
-            message = [message]
-
-        message.extend(traceback.format_exception(sys.exc_info()[0],
-                                         sys.exc_info()[1],
-                                         sys.exc_info()[2]))
-
-        message = [i.rstrip('\n').rstrip('\r') for i in message]
-        new_message = []
-        for message in message:
-            if message.find('\n'):
-                new_message.extend(message.split('\n'))
-            else:
-                new_message.append(message)
-
-        self.api('libs.io:send:error')(new_message)
-
-    # write and format an error
-    def _api_error(self, message=None, secondary=None):
-        """  handle an error
-          @Ytext@w      = The error to handle
-          @Ysecondary@w = Other datatypes to flag this data
-
-        this function returns no values"""
-
-        if not message:
-            message = []
-
-        if isinstance(message, str):
-            message = [message]
-
-        message_list = []
-
-        for i in message:
-            if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
-                message_list.append(f"@x136{i}@w")
-            else:
-                message_list.append(i)
-
-        self.api('libs.io:send:msg')(message_list, level='error', primary='error', secondary=secondary)
-
-        try:
-            self.api('plugins.core.errors:add')(time.strftime(self.api.time_format,
-                                                      time.localtime()),
-                                        message)
-        except (AttributeError, TypeError):
-            pass
-
     # execute a command through the interpreter, most data goes through this
     def _api_execute(self, command, fromclient=False, showinhistory=True): # pylint: disable=too-many-branches
         """  execute a command through the interpreter
@@ -190,8 +77,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
           @Ycommand@w      = the command to send through the interpreter
 
         this function returns no values"""
-        self.api('libs.io:send:msg')(f"execute: got command {repr(command)}",
-                                     primary='inputparse')
+        LogRecord(f"_api_execute: got {command}",
+                  level='debug', sources=[__name__]).send()
 
         tracing = False
         if not self.current_trace:
@@ -213,8 +100,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                                                 calledfrom='libs.io')
 
         if command == '\r\n':
-            self.api('libs.io:send:msg')(f"sending {repr(command)} (cr) to the mud",
-                                         primary='inputparse')
+            LogRecord('_api_execute: sending cr to the mud',
+                      level='debug', sources=[__name__]).send()
             self.api('plugins.core.events:raise:event')('ev_libs.io_to_mud_event', {'data':command,
                                                                             'dtype':'fromclient',
                                                                             'showinhistory':showinhistory},
@@ -248,8 +135,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                     else:
                         split_data = []
                     if len(split_data) > 1:
-                        self.api('libs.io:send:msg')(f"broke {current_command} into {split_data}",
-                                                     primary='inputparse')
+                        LogRecord(f"_api_execute: split command: '{current_command}' into: '{', '.join(split_data)}",
+                                  level='debug', sources=[__name__]).send()
                         self.api('libs.io:trace:add:execute')('libs.io', 'SplitChar',
                                                               data=f"split command: '{current_command}' into: '{', '.join(split_data)}'")
 
@@ -263,8 +150,8 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
                         current_command = current_command.replace('||', '|')
                         if current_command[-1] != '\n':
                             current_command = ''.join([current_command, '\n'])
-                        self.api('libs.io:send:msg')(f"sending {current_command.strip()} to the mud",
-                                                     primary='inputparse')
+                        LogRecord(f"_api_execute: sending {current_command.strip()} to the mud",
+                                  level='debug', sources=[__name__]).send()
                         self.api('plugins.core.events:raise:event')('ev_libs.io_to_mud_event',
                                                             {'data':current_command,
                                                              'dtype':'fromclient',

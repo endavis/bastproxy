@@ -76,8 +76,8 @@ class Plugin(BasePlugin):
         """
         a plugin was uninitialized
         """
-        self.api('libs.io:send:msg')(f"removing watches for plugin {args['plugin_id']}",
-                                     secondary=args['plugin_id'])
+        LogRecord(f"event_plugin_unitialized - removing watches for plugin {args['plugin_id']}",
+                  'debug', sources=[self.plugin_id, args['plugin_id']]).send()
         self.api(f"{self.plugin_id}:remove:all:data:for:plugin")(args['plugin_id'])
 
     def cmd_list(self, args):
@@ -139,13 +139,13 @@ class Plugin(BasePlugin):
             plugin = self.api('libs.api:get:caller:plugin')()
 
         if not plugin:
-            print('could not add a watch for watchname', watch_name)
+            LogRecord(f"_api_watch_add: no plugin could be found to add {watch_name}",
+                      'error', sources=[self.plugin_id]).send()
             return
 
         if regex in self.regex_lookup:
-            self.api('libs.io:send:msg')(
-                f"watch {watch_name} tried to add a regex that already existed for {self.regex_lookup[regex]}",
-                secondary=plugin)
+            LogRecord(f"_api_watch_add: watch {watch_name} tried to add a regex that already existed for {self.regex_lookup[regex]}",
+                      'debug', sources=[self.plugin_id, plugin]).send()
             return
         watch_args = kwargs.copy()
         watch_args['regex'] = regex
@@ -156,13 +156,11 @@ class Plugin(BasePlugin):
             self.watch_data[watch_name]['hits'] = 0
             self.watch_data[watch_name]['compiled'] = re.compile(watch_args['regex'])
             self.regex_lookup[watch_args['regex']] = watch_name
-            self.api('libs.io:send:msg')(
-                'added watch %s for plugin %s' % \
-                            (watch_name, plugin), secondary=plugin)
+            LogRecord(f"_api_watch_add: watch {watch_name} added for plugin {plugin}",
+                      'debug', sources=[self.plugin_id, plugin]).send()
         except Exception: # pylint: disable=broad-except
-            self.api('libs.io:send:traceback')(
-                'Could not compile regex for cmd watch: %s : %s' % \
-                      (watch_name, regex))
+            LogRecord(f"_api_watch_add: watch {watch_name} failed to compile regex {regex}",
+                      'error', sources=[self.plugin_id, plugin], exc_info=True).send()
 
     # remove a command watch
     def _api_watch_remove(self, watch_name, force=False):
@@ -176,17 +174,16 @@ class Plugin(BasePlugin):
             plugin = self.watch_data[watch_name]['plugin']
             if event:
                 if not event.isempty() and not force:
-                    self.api('libs.io:send:msg')(
-                        'removewatch: watch %s for plugin %s has functions registered' % \
-                                (watch_name, plugin), secondary=plugin)
+                    LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} has functions registered",
+                              'error', sources=[self.plugin_id, plugin]).send()
                     return False
             del self.regex_lookup[self.watch_data[watch_name]['regex']]
             del self.watch_data[watch_name]
-            self.api('libs.io:send:msg')('removed watch %s' % watch_name,
-                                         secondary=plugin)
+            LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} removed",
+                      'debug', sources=[self.plugin_id, plugin]).send()
         else:
-            self.api('libs.io:send:msg')('removewatch: watch %s does not exist' % \
-                                                  watch_name)
+            LogRecord(f"_api_watch_remove: watch {watch_name} does not exist",
+                      'error', sources=[self.plugin_id]).send()
 
     # remove all watches related to a plugin
     def _api_remove_all_data_for_plugin(self, plugin):
@@ -194,8 +191,8 @@ class Plugin(BasePlugin):
         @Yplugin@w   = The plugin
 
         this function returns no values"""
-        self.api('libs.io:send:msg')('removing watches for plugin %s' % plugin,
-                                     secondary=plugin)
+        LogRecord(f"_api_remove_all_data_for_plugin: removing watches for plugin {plugin}",
+                  'debug', sources=[self.plugin_id, plugin]).send()
         watches = self.watch_data.keys()
         for i in watches:
             if self.watch_data[i]['plugin'] == plugin:
@@ -214,7 +211,7 @@ class Plugin(BasePlugin):
                 match_args = match_data.groupdict()
                 match_args['cmdname'] = 'cmd_' + watch_name
                 match_args['data'] = client_data
-                self.api('libs.io:send:msg')('raising %s' % match_args['cmdname'])
+                LogRecord(f"checkcmd: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}", 'debug', sources=[self.plugin_id]).send()
                 event_data = self.api('plugins.core.events:raise:event')('watch_' + watch_name, match_args)
                 if 'changed' in event_data:
                     self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',

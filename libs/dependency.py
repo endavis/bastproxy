@@ -14,6 +14,7 @@ import sys
 # 3rd Party
 
 # Project
+from libs.record import LogRecord
 
 class PluginDependencyResolver(object):
     """
@@ -58,8 +59,8 @@ class PluginDependencyResolver(object):
             except KeyError:
                 if 'REQUIRED' in plugin['module'].__dict__ \
                        and plugin['module'].REQUIRED:
-                    self.plugin_manager.api('libs.io:send:error')(
-                        f"Required plugin {plugin['plugin_id']} could not be loaded, dependency {edge} would not load")
+                    LogRecord(f"Required plugin {plugin['plugin_id']} could not be loaded, dependency {edge} would not load",
+                              level='error', sources=[plugin['plugin_id'], __name__]).send()
                     sys.exit(1)
 
             if plugin['plugin_id'] != edge_plugin['plugin_id']:

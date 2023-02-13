@@ -18,7 +18,7 @@ import platform
 
 # Project
 from plugins._baseplugin import BasePlugin
-from libs.record import ToClientRecord
+from libs.record import ToClientRecord, LogRecord
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -223,10 +223,10 @@ class Plugin(BasePlugin):
         shutdown the proxy
         """
         self.api.__class__.shutdown = True
-        self.api('libs.io:send:msg')('Proxy: shutdown started', secondary='shutdown')
-        ToClientRecord('Shutting down bastproxy').send(__name__ + ':api_shutdown')
+        LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown']).send()
+        ToClientRecord('Shutting down proxy').send(__name__ + ':api_shutdown')
         self.api('plugins.core.events:raise:event')('ev_net.proxy_proxy_shutdown')
-        self.api('libs.io:send:msg')('Proxy: shutdown finished', secondary='shutdown')
+        LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown']).send()
 
     def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use
         """

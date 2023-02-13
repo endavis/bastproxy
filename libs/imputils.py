@@ -18,6 +18,7 @@ from pathlib import Path
 # 3rd Party
 
 # Project
+from libs.record import LogRecord
 
 def find_modules(directory, prefix):
     """
@@ -81,21 +82,18 @@ def importmodule(module_path, plugin, import_base, silent=False):
 
         plugin_id = full_import_location.replace('plugins.', '')
         if not silent:
-            plugin.api('libs.io:send:msg')(f"{plugin_id:<30} : attempting import",
-                                           primary=plugin.plugin_id)
+            LogRecord(f"{plugin_id:<30} : attempting import", 'info', sources=[plugin.plugin_id]).send()
         _module = import_module(full_import_location)
 
         if not silent:
-            plugin.api('libs.io:send:msg')(f"{plugin_id:<30} : successfully imported",
-                                           primary=plugin.plugin_id)
+            LogRecord(f"{plugin_id:<30} : successfully imported", 'info', sources=[plugin.plugin_id]).send()
         return True, 'import', _module, full_import_location
 
     except Exception: # pylint: disable=broad-except
         if full_import_location in sys.modules:
             del sys.modules[full_import_location]
 
-        plugin.api('libs.io:send:traceback')(
-            f"Module '{full_import_location}' refuses to import/load.")
+        LogRecord(f"Module '{full_import_location}' failed to import/load.", 'error', sources=[plugin.plugin_id], exc_info=True).send()
         return False, 'error', _module, full_import_location
 
 def deletemodule(full_import_location, modules_to_keep=None):

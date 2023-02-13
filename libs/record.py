@@ -45,14 +45,13 @@ class BaseRecord(UserList):
         """
         initialize the class
         """
-        if not isinstance(message, str) or not isinstance(message, bytes):
+        if not isinstance(message, list):
             message = [message]
         super().__init__(message)
         # Add an API
         self.api = API()
         # create a unique id for this message
         self.uuid = uuid4()
-        self.logger = logging.getLogger(self.__class__.__name__ + '.' + str(self.uuid))
         # True if this was created internally
         self.internal = internal
         self.changes = []
@@ -90,8 +89,8 @@ class BaseRecord(UserList):
                 else:
                     new_message.append(line.rstrip('\r').rstrip('\n'))
             else:
-                #self.api('libs.io:send:error')(Message(['Error: Message.clean: line is not a string'], internal=True))
-                self.api('libs.io:send:error')(f"Error: {self.uuid} Message.clean: line is not a string: {line}")
+                LogRecord(f"clean - {self.uuid} Message.clean: line is not a string: {line}",
+                          level='error', sources=[__name__])
         if new_message != self.data:
             self.data = new_message
             self.addchange('Modify', 'clean', actor)
@@ -127,6 +126,79 @@ class BaseRecord(UserList):
                     return True
         return False
 
+class LogRecord(BaseRecord):
+    """
+    a simple message record for logging, this may end up sent to a client
+    """
+    def __init__(self, message, level='info', sources=None, extra=None, **kwargs):
+        """
+        initialize the class
+        """
+        super().__init__(message, internal=True)
+        # The type of message
+        self.level = level
+        # The sources of the message for logging purposes, a list
+        self.sources = sources
+        if not self.sources:
+            self.sources = []
+        self.extra = extra
+        if not self.extra:
+            self.extra = {}
+        self.kwargs = kwargs
+        self.wasemitted = {}
+        self.wasemitted['console'] = False
+        self.wasemitted['file'] = False
+        self.wasemitted['client'] = False
+        if not isinstance(str(self), str):
+            print(f"LogRecord does not return str {self.data}")
+
+    def color(self, actor=None):
+        """
+        clean the message
+
+        actor is the item that ran the clean function
+
+        converts it to a string
+        splits it on a newline
+        removes newlines and carriage returns from the end of the line
+        """
+        new_message = []
+        if not self.api('libs.api:has')('plugins.core.log:get:level:color') or \
+            not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
+            return
+        color = self.api('plugins.core.log:get:level:color')(self.level)
+        if color:
+            for line in self.data:
+                new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(f"{color}{line}"))
+            if new_message != self.data:
+                self.data = new_message
+                self.addchange('Modify', 'color', actor)
+
+    def add_source(self, source):
+        """
+        add a source to the message
+        """
+        if source not in self.sources:
+            self.sources.append(source)
+
+    def send(self):
+        """
+        send the message to the logger
+        """
+        #print(f"Sending {self.data} to logger")
+        self.clean()
+        #self.color()
+        for i in self.sources:
+            #print(f"Sending to {i}")
+            logger = logging.getLogger(i)
+            loggingfunc = getattr(logger, self.level)
+            loggingfunc(self, extra=self.extra, **self.kwargs)
+
+    def __str__(self):
+        """
+        return the message as a string
+        """
+        return '\n'.join(self.data)
 
 class ToClientRecord(BaseRecord):
     """
@@ -300,7 +372,8 @@ class ToClientRecord(BaseRecord):
                             message = NetworkData(self.message_type, message=i, client_uuid=client_uuid)
                             loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
                 else:
-                    self.logger.debug(f"## NOTE: Client {client_uuid} cannot receive this message")
+                    LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
+                              level='debug', sources=[__name__]).send()
 
             if not self.internal:
                 self.api('plugins.core.events:raise:event')('after_client_send', args={'ToClientRecord': self})

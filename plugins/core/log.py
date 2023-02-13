@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/msg.py
+# Filename: plugins/core/log.py
 #
-# File Description: a plugin to handle messaging in the proxy
+# File Description: a plugin to change logging settings
 #
 # By: Bast
 """
-This module handles messaging to various places: log files, console, clients, etc
+This module handles changing logging settings
 """
 # Standard Library
-from __future__ import print_function
 import logging
 import os
 
@@ -17,13 +16,13 @@ import os
 
 # Project
 import libs.argp as argp
-from libs.record import ToClientRecord
 from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
+from libs.record import LogRecord, RMANAGER
 
-NAME = 'Messaging'
-SNAME = 'msg'
-PURPOSE = 'Handles sending messages to various places: log files, console, clients, etc'
+NAME = 'Logging'
+SNAME = 'log'
+PURPOSE = 'Handles changing logging settings'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
@@ -39,14 +38,13 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         self.can_reload_f = False
-
+        self.record_manager = RMANAGER
         self.log_directory = self.api.BASEDATAPATH / 'logs'
 
         try:
             os.makedirs(self.save_directory)
         except OSError:
             pass
-        self.datatypes = {}
         self.datatypes_to_client = PersistentDict(
             self.save_directory /'datatypes_to_client.txt',
             'c')
@@ -57,94 +55,118 @@ class Plugin(BasePlugin):
             self.save_directory / 'datatypes_to_file.txt',
             'c')
 
-        self.colors = {}
+        self.api('setting:add')('color_error', '@x136', 'color',
+                                'the color for error messages')
+        self.api('setting:add')('color_warning', '@y', 'color',
+                                'the color for warning messages')
+        self.api('setting:add')('color_info', '@w', 'color',
+                                'the color for info messages')
+        self.api('setting:add')('color_debug', '@x246', 'color',
+                                'the color for debug messages')
+        self.api('setting:add')('color_critical', '@r', 'color',
+                                'the color for critical messages')
+        self.setting_values.pload()
 
-        self.log_handlers = {}
-
-        self.colors['error'] = '@x136'
 
         # new api format
-        self.api('libs.api:add')('message', self.api_msg)
-        self.api('libs.api:add')('add:datatype', self.api_adddtype)
-        self.api('libs.api:add')('toggle:to:console', self.api_toggletoconsole)
-        self.api('libs.api:add')('toggle:to:file', self.api_toggletofile)
-        self.api('libs.api:add')('toggle:to:client', self.api_toggletoclient)
+        self.api('libs.api:add')('toggle:log:to:console', self.api_toggletoconsole)
+        self.api('libs.api:add')('toggle:log:to:file', self.api_toggletofile)
+        self.api('libs.api:add')('toggle:log:to:client', self.api_toggletoclient)
+        self.api('libs.api:add')('can:log:to:console', self._api_can_log_to_console)
+        self.api('libs.api:add')('can:log:to:file', self._api_can_log_to_file)
+        self.api('libs.api:add')('can:log:to:client', self._api_can_log_to_client)
+        self.api('libs.api:add')('get:level:color', self._api_get_level_color)
 
-        # add some default datatypes
-        self.api(f"{self.plugin_id}:add:datatype")('default')
-        self.api(f"{self.plugin_id}:add:datatype")('frommud')
-        self.api(f"{self.plugin_id}:add:datatype")('startup')
-        self.api(f"{self.plugin_id}:add:datatype")('shutdown')
-        self.api(f"{self.plugin_id}:add:datatype")('error')
+    def _api_get_level_color(self, level):
+        """
+        get the color for a log level
+        """
+        if isinstance(level, int):
+            level = logging.getLevelName(level).lower()
+        match level:
+            case 'error':
+                return self.setting_values['color_error']
+            case 'warning':
+                return self.setting_values['color_warning']
+            case 'info':
+                return self.setting_values['color_info']
+            case 'debug':
+                return self.setting_values['color_debug']
+            case 'critical':
+                return self.setting_values['color_critical']
+            case _:
+                return ''
 
-        # log some datatypes by default
-        self.api(f"{self.plugin_id}:toggle:to:client")('error')
-        self.api(f"{self.plugin_id}:toggle:to:console")('error')
-        self.api(f"{self.plugin_id}:toggle:to:console")('default')
-        self.api(f"{self.plugin_id}:toggle:to:console")('startup')
-        self.api(f"{self.plugin_id}:toggle:to:console")('shutdown')
+    def _api_can_log_to_console(self, logger, level):
+        """
+        check if a logger can log to the console
 
-        self.dependencies = ['core.events']
+        if the logger hasn't been seen, it will default to logging.INFO
+        """
+        if logger not in self.datatypes_to_console:
+            self.datatypes_to_console[logger] = logging.INFO
+            self.datatypes_to_console.sync()
 
-    # add a datatype to the log
-    def api_adddtype(self, datatype):
-        """  add a datatype
-        @Ydatatype@w  = the datatype to add
+        if level >= self.datatypes_to_console[logger]:
+            return True
 
-        this function returns no values"""
-        if datatype not in self.datatypes:
-            self.datatypes[datatype] = True
-            self.datatypes_to_client[datatype] = False
-            self.datatypes_to_console[datatype] = False
+        return False
 
-    # process a message, use send:msg instead for the api
-    def api_msg(self, msg, tags=None, level='info'):
-        """  send a message
-        @Ymsg@w        = This message to send
-        @Ydatatype@w   = the type to toggle
+    def _api_can_log_to_file(self, logger, level):
+        """
+        check if a logger can log to the file
 
-        this function returns no values"""
-        senttoconsole = False
-        senttoclient = False
-        if not msg:
-            msg = []
+        if the logger hasn't been seen, it will default to logging.INFO
+        """
+        if logger not in self.datatypes_to_file:
+            self.datatypes_to_file[logger] = logging.INFO
+            self.datatypes_to_file.sync()
 
-        if isinstance(msg, str):
-            msg = [msg]
+        if level >= self.datatypes_to_file[logger]:
+            return True
 
-        for dtag in tags:
-            if dtag and dtag != 'None' \
-                  and dtag != 'default':
+        return False
 
-                if dtag in self.datatypes_to_file and self.datatypes_to_file[dtag]['logger_name']:
-                    loggingfunc = getattr(logging.getLogger(self.datatypes_to_file[dtag]['logger_name']), level)
-                    loggingfunc('\n'.join(msg))
+    def _api_can_log_to_client(self, logger, level):
+        """
+        check if a logger can log to the client
 
-                if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode') and \
-                        dtag in self.colors:
-                    msg = [self.api('plugins.core.colors:colorcode:to:ansicode')(self.colors[dtag] + i) for i in msg if i]
+        if the logger hasn't been seen, do not allow logging to the client
+        logging to the client must be explicitly enabled
+        """
+        if logger in self.datatypes_to_client and level >= self.datatypes_to_client[logger]:
+            return True
 
-                if dtag in self.datatypes_to_client and self.datatypes_to_client[dtag] and not senttoclient:
-                    ToClientRecord(msg).send(__name__ + ':api_msg')
-                    senttoclient = True
+        return False
 
-                if dtag in self.datatypes_to_console and self.datatypes_to_console[dtag] and not senttoconsole:
-                    loggingfunc = getattr(logging.getLogger(dtag), level)
-                    loggingfunc('\n'.join(msg))
-                    senttoconsole = True
+    def _api_log_level_set(self, datatype, level):
+        """
+        set the log level for a datatype
+        """
+        self.log_levels[datatype] = level
 
     # toggle logging a datatype to the clients
-    def api_toggletoclient(self, datatype, flag=True):
+    def api_toggletoclient(self, datatype, level=logging.INFO, flag=True):
         """  toggle a data type to show to clients
         @Ydatatype@w  = the type to toggle, can be multiple (list)
         @Yflag@w      = True to send to clients, false otherwise (default: True)
 
         this function returns no values"""
-        if datatype in self.datatypes_to_client and datatype != 'frommud':
-            self.datatypes_to_client[datatype] = flag
+        if isinstance(level, str):
+            level = getattr(logging, level.upper(), None)
+        if not level:
+            LogRecord(f"api_toggletoclient: invalid log level {level}",
+                      'error', sources=[self.plugin_id, datatype]).send()
+            return
 
-        self.api('libs.io:send:msg')(f"setting {datatype} to log to client")
+        if flag and not datatype in self.datatypes_to_client:
+            self.datatypes_to_client[datatype] = level
+        else:
+            if datatype in self.datatypes_to_client:
+                del(self.datatypes_to_client[datatype])
 
+        LogRecord(f"setting {datatype} to log to client at level {logging.getLevelName(level)}",
+                  'debug', sources=[self.plugin_id, datatype]).send()
         self.datatypes_to_client.sync()
 
     # toggle logging datatypes to the clients
@@ -155,7 +177,7 @@ class Plugin(BasePlugin):
         tmsg = []
         if args['datatype']:
             for i in args['datatype']:
-                if i in self.datatypes_to_client and i != 'frommud':
+                if i in self.datatypes_to_client:
                     self.datatypes_to_client[i] = not self.datatypes_to_client[i]
                     if self.datatypes_to_client[i]:
                         tmsg.append(f"setting {i} to log to client")
@@ -174,16 +196,27 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # toggle logging a datatype to the console
-    def api_toggletoconsole(self, datatype, flag=True):
+    def api_toggletoconsole(self, datatype, flag=True, level='info'):
         """  toggle a data type to show to console
         @Ydatatype@w  = the type to toggle
         @Yflag@w      = True to send to console, false otherwise (default: True)
 
         this function returns no values"""
-        if datatype in self.datatypes_to_console and datatype != 'frommud':
-            self.datatypes_to_console[datatype] = flag
+        if isinstance(level, str):
+            level = getattr(logging, level.upper(), None)
+        if not level:
+            LogRecord(f"api_toggletoconsole: invalid log level {level}", 'error',
+                      sources=[self.plugin_id, datatype]).send()
+            return
 
-        self.api('libs.io:send:msg')(f"setting {datatype} to log to console")
+        if flag and not datatype in self.datatypes_to_console:
+            self.datatypes_to_console[datatype] = level
+        else:
+            if datatype in self.datatypes_to_console:
+                del(self.datatypes_to_console[datatype])
+
+        LogRecord(f"setting {datatype} to log to console at level {logging.getLevelName(level)}",
+                  'debug', sources=[self.plugin_id, datatype]).send()
 
         self.datatypes_to_console.sync()
 
@@ -214,35 +247,28 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # toggle logging a datatype to a file
-    def api_toggletofile(self, datatype, timestamp=True):
+    def api_toggletofile(self, datatype, flag=True, level=logging.INFO):
         """  toggle a data type to show to file
         @Ydatatype@w  = the type to toggle
         @Yflag@w      = True to send to file, false otherwise (default: True)
 
         this function returns no values"""
-        logger_name = datatype + '-log'
-        if datatype in self.datatypes_to_file:
-            logger = logging.getLogger(logger_name)
-            logger.removeHandler(self.log_handlers[datatype])
-            del self.datatypes_to_file[datatype]
-            self.datatypes_to_file.sync()
-            del self.log_handlers[datatype]
-            return 'off'
+        if isinstance(level, str):
+            level = getattr(logging, level.upper(), None)
+        if not level:
+            LogRecord(f"api_toggletofile: invalid log level {level}",
+                      'error', sources=[self.plugin_id, datatype]).send()
+            return
+
+        if flag and not datatype in self.datatypes_to_file:
+            self.datatypes_to_file[datatype] = level
         else:
-            logger_file_path = self.api.BASEDATALOGPATH / datatype
-            logger_file_handler = logging.handlers.TimedRotatingFileHandler(logger_file_path, when='midnight')
-            if timestamp:
-                logger_file_handler.formatter = logging.Formatter('%(asctime)s ' + self.api.TIMEZONE + ' : %(name)-11s - %(message)s')
-            else:
-                logger_file_handler.formatter = logging.Formatter('%(name)-13s - %(message)s')
-            logger_file_handler.setLevel(logging.DEBUG)
-            logger = logging.getLogger(logger_name)
-            logger.addHandler(logger_file_handler)
-            logger.propagate = False
-            self.datatypes_to_file[datatype] = {'timestamp':timestamp, 'logger_name':logger_name}
-            self.datatypes_to_file.sync()
-            self.log_handlers[datatype] = logger_file_handler
-            return 'on'
+            if datatype in self.datatypes_to_file:
+                del(self.datatypes_to_file[datatype])
+
+        LogRecord(f"setting {datatype} to log to file at level {logging.getLevelName(level)}",
+                  'debug', sources=[self.plugin_id, datatype]).send()
+
 
     # toggle a datatype to log to a file
     def cmd_file(self, args):
@@ -275,28 +301,19 @@ class Plugin(BasePlugin):
         """
         list data types
         """
+        types = []
+        types.extend(self.datatypes_to_client.keys())
+        types.extend(self.datatypes_to_console.keys())
+        types.extend(self.datatypes_to_file.keys())
+        types = sorted(set(types))
         tmsg = []
         tmsg.append('Data Types')
         tmsg.append('-' *  30)
         match = args['match']
-        tkeys = self.datatypes.keys()
-        tkeys = sorted(tkeys)
-        for i in tkeys:
+        for i in types:
             if not match or match in i:
                 tmsg.append(i)
         return True, tmsg
-
-    def logmud(self, args):
-        """
-        log all data from the mud
-        """
-        if 'frommud' in self.datatypes_to_file and self.datatypes_to_file['frommud']['file']:
-            if args['eventname'] == 'ev_libs.net.mud_from_mud_event':
-                data = args['noansi']
-            elif args['eventname'] == 'ev_libs.io_to_mud_event':
-                data = 'tomud: ' + args['data'].strip()
-            self.logtofile(data, 'frommud', stripcolor=False)
-        return args
 
     def initialize(self):
         """
@@ -304,11 +321,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        #print('log api before adding', self.api.api)
-
-        #print('log api after adding', self.api.api)
-        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.logmud)
-        self.api('plugins.core.events:register:to:event')('ev_libs.io_to_mud_event', self.logmud)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -318,6 +330,11 @@ class Plugin(BasePlugin):
         parser.add_argument('datatype',
                             help='a list of datatypes to toggle',
                             default=[],
+                            nargs='*')
+        parser.add_argument('level',
+                            help='a list of datatypes to toggle',
+                            default='info',
+                            choices=['debug', 'info', 'warning', 'error', 'critical'],
                             nargs='*')
         self.api('plugins.core.commands:command:add')('client',
                                               self.cmd_client,
@@ -369,8 +386,6 @@ class Plugin(BasePlugin):
                                               self.cmd_types,
                                               lname='Logger',
                                               parser=parser)
-
-        #print('log loaded')
 
     def _savestate(self, _=None):
         """

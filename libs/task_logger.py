@@ -18,6 +18,8 @@ import logging
 
 # Project
 from libs.api import API
+from libs.record import LogRecord
+
 api = API()
 
 T = TypeVar('T')
@@ -61,5 +63,5 @@ def _handle_task_result(
     except Exception as e:  # pylint: disable=broad-except
         # print(f"exception in task {task.get_name()} {e}")
         # print(e.args)
-        api('libs.io:send:traceback')(f"exception in task {task.get_name()}")
-        #logger.exception(message, *message_args)
+        LogRecord(f"exception in task {task.get_name()} {e} {e.args}",
+                  level='error', sources=['asyncio'], exc_info=True).send()

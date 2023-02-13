@@ -16,6 +16,7 @@ import textwrap
 import pprint
 import inspect
 import time
+import logging
 from pathlib import Path
 
 # 3rd Party
@@ -30,6 +31,7 @@ except ImportError:
 import libs.argp as argp
 from libs.persistentdict import PersistentDictEvent
 from libs.api import API
+from libs.record import LogRecord
 
 
 class BasePlugin(object): # pylint: disable=too-many-instance-attributes
@@ -475,7 +477,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
     def _add_commands(self):
         """
-        add commands commands
+        add base commands
         """
         parser = argp.ArgumentParser(
             add_help=False,
@@ -601,15 +603,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
-                self.api('libs.io:send:msg')(
-                    f"{self.plugin_id}: upgrading to version {version}",
-                    secondary='upgrade')
+                LogRecord(f"_update_version: upgrading to version {version}",
+                          sources=[self.plugin_id, 'plugin_upgrade']).send()
                 if version in self.version_functions:
                     self.version_functions[version]()
                 else:
-                    self.api('libs.io:send:msg')(
-                        f"{self.plugin_id}: no function to upgrade to version {version}",
-                        secondary='upgrade')
+                    LogRecord(f"_update_version: no function to upgrade to version {version}",
+                              level='error', sources=[self.plugin_id, 'plugin_upgrade']).send()
 
         self.setting_values['_version'] = self.version
 
@@ -645,14 +645,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         re-register to character active event on disconnect
         """
-        self.api('libs.io:send:msg')('baseplugin, disconnect')
+        LogRecord(f"__disconnect: baseplugin.{self.plugin_id}", sources=[self.plugin_id]).send()
         self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active)
 
     def after_character_is_active(self, _=None):
         """
         tasks to do after character is active
         """
-        self.api('libs.io:send:msg')('baseplugin, after_character_is_active')
+        LogRecord(f"after_character_is_active: baseplugin.{self.plugin_id}", sources=[self.plugin_id]).send()
         if self.api('plugins.core.events:is:registered:to:event')('ev_libs.api_character_active', self.after_character_is_active):
             self.api('plugins.core.events:unregister:from:event')('ev_libs.api_character_active', self.after_character_is_active)
 
@@ -727,8 +727,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.setting_values['_version'] != self.version:
             self._update_version(self.setting_values['_version'], self.version)
 
-        if self.plugin_id != 'core.plugins': # don't initialize the plugins plugin
-            self.api('plugins.core.msg:add:datatype')(self.plugin_id)
+        if self.plugin_id != 'plugins.core.plugins': # don't initialize the plugins plugin
+            #self.api('plugins.core.msg:add:datatype')(self.plugin_id)
 
             self._add_commands()
 

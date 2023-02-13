@@ -16,6 +16,7 @@ import datetime
 
 # Project
 from plugins._baseplugin import BasePlugin
+from libs.record import LogRecord
 
 #these 5 are required
 NAME = 'Clients'
@@ -87,7 +88,8 @@ class Plugin(BasePlugin):
         """
         if client_uuid in self.clients:
             addr = self.clients[client_uuid].addr
-            self.api('libs.io:send:error')(f"{addr} has been banned for 10 minutes")
+            LogRecord(f"{addr} has been banned for 10 minutes",
+                      level='error', sources=[self.plugin_id]).send()
             self.banned[addr] = time.localtime()
             self.clients[client_uuid].state['connected'] = False
 
@@ -116,8 +118,8 @@ class Plugin(BasePlugin):
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
             client_connection.state['logged in'] = True
-            self.api('libs.io:send:msg')(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                                        level='info')
+            LogRecord(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
+                      sources=[self.plugin_id]).send()
             self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in',
                                         {'client_uuid':client_connection.uuid})
 
@@ -129,8 +131,9 @@ class Plugin(BasePlugin):
             client_connection = self.clients[client_uuid]
             client_connection.state['logged in'] = True
             client_connection.view_only = True
-            self.api('libs.io:send:msg')(f"View Client {client_connection.uuid} logged from {client_connection.addr}:{client_connection.port}",
-                                        level='info')
+
+            LogRecord(f"View Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
+                      sources=[self.plugin_id]).send()
             self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in_view_only',
                                         {'client_uuid':client_connection.uuid})
 

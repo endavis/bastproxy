@@ -32,7 +32,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
-from libs.record import ToClientRecord
+from libs.record import ToClientRecord, LogRecord
 import libs.argp as argp
 
 NAME = 'Commands'
@@ -144,10 +144,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        # add a datatype
-        self.api('plugins.core.msg:add:datatype')(self.plugin_id)
-        #self.api('plugins.core.msg:toggle:to:console')(self.plugin_id)
-
         # initialize settings
         self.api('setting:add')('cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
@@ -220,8 +216,7 @@ class Plugin(BasePlugin):
 
         registered to the plugin_uninitialized event
         """
-        self.api('libs.io:send:msg')(f"removing commands for plugin {args['plugin_id']}",
-                                     secondary=args['plugin_id'])
+        self.logger.info(f"removing commands for plugin {args['plugin_id']}")
         self.api('{0.plugin_id}:remove:data:for:plugin'.format(self))(args['plugin_id'])
 
     # remove all commands for a plugin
@@ -283,13 +278,14 @@ class Plugin(BasePlugin):
 
         # didn't find the command
         if not command_data:
-            self.api('libs.io:send:error')(f"command {command_name} does not exist in plugin {plugin_id} ({plugin_instance.plugin_id})")
+            LogRecord(f"_api_change_command: command {command_name} does not exist in plugin {plugin_id} ({plugin_instance.plugin_id})",
+                      level='error', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
             return False
 
         # flag isn't in the command
         if flag_name not in command_data:
-            self.api('libs.io:send:error')(
-                f"flag {flag_name} does not exist in command {command_name} in plugin {plugin_id} ({plugin_instance.plugin_id})")
+            LogRecord(f"_api_change_command: flag {flag_name} does not exist in command {command_name} in plugin {plugin_id} ({plugin_instance.plugin_id})",
+                      level='error', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
             return False
 
         # change the flag and update the command data for the plugin
@@ -428,7 +424,18 @@ class Plugin(BasePlugin):
         # deal with output and success from running the command
         else:
             args['data'] = data
-            return_value = command['func'](args)
+            try:
+                return_value = command['func'](args)
+            except:
+                message = ['']
+                message.append(f"Error running command: {command_ran}")
+                ToClientRecord(self.format_return_message(message,
+                                                          command['plugin_id'],
+                                                          command['commandname'])).send(__name__ + ':run_command_exception')
+                LogRecord(f"Error running command: {command_ran}",
+                          level='error', sources=[self.plugin_id, command['plugin_id']], exc_info=True).send()
+                return
+
             if isinstance(return_value, tuple):
                 retval = return_value[0]
                 message = return_value[1]
@@ -562,8 +569,8 @@ class Plugin(BasePlugin):
 
         if command_name not in all_command_data:
             if not self.api.startup:
-                self.api('libs.io:send:msg')(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
-                                             secondary=plugin_instance.plugin_id)
+                LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
+                          level='debug', sources=[plugin_instance.plugin_id, self.plugin_id]).send()
 
         all_command_data[command_name] = data
 
@@ -602,7 +609,7 @@ class Plugin(BasePlugin):
 
                 data['addedtohistory'] = addedtohistory
 
-                self.api('libs.io:send:msg')('adding look for 20 commands')
+                LogRecord('adding look for 20 commands', level='debug', sources=[self.plugin_id]).send()
                 self.api('setting:change')('cmdcount', 0)
                 return data
 
@@ -617,7 +624,7 @@ class Plugin(BasePlugin):
         else:
             # the command does not match the last command
             self.api('setting:change')('cmdcount', 0)
-            self.api('libs.io:send:msg')(f"resetting command to {command_data_dict['orig'].strip()}")
+            LogRecord(f"resetting command to {command_data_dict['orig'].strip()}", level='debug', sources=[self.plugin_id]).send()
             self.api('setting:change')('lastcmd', command_data_dict['orig'].strip())
 
         # add a trace if it is unknown how the command was changed
@@ -666,13 +673,13 @@ class Plugin(BasePlugin):
         if command_data_dict['orig'][0:len(commandprefix)].lower() != commandprefix:
             return self.pass_through_command(data, command_data_dict)
 
-        self.api('libs.io:send:msg')(f"got command: {command_data_dict['orig']}")
+        LogRecord(f"got command: {command_data_dict['orig']}", level='debug', sources=[self.plugin_id]).send()
 
         # split it with shlex
         try:
             split_args = shlex.split(command_data_dict['orig'].strip())
         except ValueError:
-            self.api('libs.io:send:traceback')('could not parse command')
+            LogRecord('could not parse command', 'error', sources=['self.plugin_id'], exc_info=True).send()
             data['fromdata'] = ''
             return data
 
@@ -770,7 +777,8 @@ class Plugin(BasePlugin):
             # at least have a plugin
             else:
                 if '.' not in found_plugin_id:
-                    print('found_plugin_id is not a plugin_id')
+                    LogRecord(f"{found_plugin_id} is not a plugin_id",
+                              level='error', sources=[self.plugin_id]).send()
                 if plugin_command:
                     commands = self.api('plugins.core.commands:get:commands:for:plugin:data')(found_plugin_id).keys()
                     found_command = self.api('plugins.core.fuzzy:get:best:match')(plugin_command, commands)
@@ -823,8 +831,8 @@ class Plugin(BasePlugin):
                                                                     command_data_dict['data'])
                 except Exception:  # pylint: disable=broad-except
                     command_data_dict['success'] = 'Error'
-                    self.api('libs.io:send:traceback')(
-                        f"Error when calling command {command_data_dict['plugin_id']}.{command_data_dict['scmd']}")
+                    LogRecord(f"Error when calling command {command_data_dict['plugin_id']}.{command_data_dict['scmd']}", level='error',
+                              sources=[self.plugin_id, command_data_dict['plugin_id']], exc_info=True).send()
                 self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
                                                       data=DeepDiff(command_data_dict_copy, command_data_dict,
                                                                     exclude_paths=["root['parser']"],
@@ -867,9 +875,8 @@ class Plugin(BasePlugin):
 
         # passed an empty function
         if not func:
-            self.api('libs.io:send:error')(
-                f"add command for command {command_name} was passed a null function from plugin {called_from}, not adding",
-                secondary=called_from)
+            LogRecord(f"_api_add_command: add command for command {command_name} was passed a null function from plugin {called_from}, not adding",
+                      level='error', sources=[self.plugin_id, called_from]).send()
             return
 
         # find the plugin_id
@@ -878,11 +885,7 @@ class Plugin(BasePlugin):
         else:
             plugin_id = self.api('libs.api:get:function:plugin:owner')(func)
             if not plugin_id:
-                call_stack = self.api('libs.api:get:call:stack')()
-                self.api('libs.io:send:error')(
-                    f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
-                    secondary=called_from)
-                self.api('libs.io:send:error')("\n".join(call_stack).strip())
+                LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}", level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
                 return
 
         # add custom formatter to the parser passed in
@@ -892,8 +895,7 @@ class Plugin(BasePlugin):
 
         # use default parser if none passed in
         else:
-            self.api('libs.io:send:msg')(
-                f"adding default parser to command {plugin_id}.{command_name}")
+            LogRecord(f"adding default parser to command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
             if 'shelp' not in args:
                 args['shelp'] = 'there is no help for this command'
             new_parser = argp.ArgumentParser(add_help=False,
@@ -919,8 +921,7 @@ class Plugin(BasePlugin):
             pass
 
         if not long_name:
-            self.api('libs.io:send:msg')(f"plugin {plugin_id} has no long name, not adding command {command_name}",
-                                         secondary=plugin_id)
+            LogRecord(f"plugin {plugin_id} has no long name, not adding command {command_name}", level='error', sources=[self.plugin_id, plugin_id]).send()
             return
 
         # build the command dict
@@ -941,8 +942,7 @@ class Plugin(BasePlugin):
 
         self.commands_list.append(f"{plugin_instance.plugin_id}.{command_name}")
 
-        self.api('libs.io:send:msg')(f"added command {plugin_id}.{command_name}",
-                                     level='debug', secondary=plugin_instance.plugin_id)
+        LogRecord(f"added command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
@@ -958,13 +958,11 @@ class Plugin(BasePlugin):
             if data and command_name in data:
                 del data[command_name]
                 self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
-                self.api('libs.io:send:msg')(f"removed command {plugin_id}.{command_name}",
-                                             secondary=plugin_id)
+                LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
                 removed = True
 
         if not removed:
-            self.api('libs.io:send:msg')(f"remove command: command {plugin_id}.{command_name} does not exist",
-                                         secondary=plugin_id)
+            LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id]).send()
 
     def format_command_list(self, command_list):
         """

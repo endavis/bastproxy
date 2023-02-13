@@ -21,6 +21,7 @@ except ImportError:
 
 # Project
 import libs.argp as argp
+from libs.record import LogRecord
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required
@@ -157,7 +158,7 @@ class Plugin(BasePlugin):
             try:
                 self.created_regex['created_regex_compiled'] = re.compile(self.created_regex['created_regex'])
             except re.error:
-                self.api('libs.io:send:traceback')('Could not compile created regex')
+                LogRecord('Could not compile created regex', 'error', sources=[self.plugin_id], exc_info=True).send()
                 print(self.created_regex['created_regex'])
         else:
             self.created_regex['created_regex'] = ''
@@ -205,7 +206,8 @@ class Plugin(BasePlugin):
         trigger_id = self.create_trigger_id(trigger_name, plugin_id)
 
         if trigger_id not in self.triggers:
-            self.api('libs.io:send:msg')(f"triggers.update could not find trigger {trigger_name} (maybe plugin {plugin_id})")
+            LogRecord(f"_api_trigger_update - could not find trigger {trigger_name} (maybe plugin {plugin_id})",
+                      level='error', sources=[self.plugin_id, plugin_id]).send()
             return False
 
         if 'enabled' in trigger_data:
@@ -230,11 +232,11 @@ class Plugin(BasePlugin):
                 try:
                     self.triggers[trigger_id]['original_regex_compiled'] = re.compile(orig_regex)
                 except Exception:  # pylint: disable=broad-except
-                    self.api('libs.io:send:traceback')(
-                        f"Could not compile regex for trigger: {trigger_name} : {orig_regex}")
+                    LogRecord(f"Could not compile regex for trigger: {trigger_name} : {orig_regex}", 'error', sources=[self.plugin_id], exc_info=True).send()
                     return False
 
-                self.api('libs.io:send:msg')(f"converted {orig_regex} to {regex}")
+                LogRecord(f"_api_trigger_update - converted {orig_regex} to {regex}",
+                          'debug', sources=[self.plugin_id]).send()
 
                 if trigger_id in self.regexes[old_regex_id]['triggers']:
                     self.regexes[old_regex_id]['triggers'].remove(trigger_id)
@@ -296,9 +298,8 @@ class Plugin(BasePlugin):
         trigger_id = self.create_trigger_id(trigger_name, plugin_id)
 
         if trigger_id in self.triggers:
-            self.api('libs.io:send:error')(
-                f"trigger {trigger_name} already exists in plugin: {self.triggers[trigger_id]['plugin_id']}",
-                secondary=plugin_id)
+            LogRecord(f"_api_trigger_add - trigger {trigger_name} already exists in plugin: {self.triggers[trigger_id]['plugin_id']}",
+                      level='error', sources=[self.plugin_id, plugin_id]).send()
             return False
 
         args = kwargs.copy()
@@ -339,11 +340,12 @@ class Plugin(BasePlugin):
             try:
                 args['original_regex_compiled'] = re.compile(args['original_regex'])
             except Exception:  # pylint: disable=broad-except
-                self.api('libs.io:send:traceback')(
-                    f"Could not compile regex for trigger: {trigger_name} : {args['original_regex']}")
+                LogRecord(f"_api_trigger_add - Could not compile regex for trigger: {trigger_name} : {args['original_regex']}",
+                          'error', sources=[self.plugin_id, plugin_id], exc_info=True).send()
                 return False
 
-            self.api('libs.io:send:msg')(f"converted {args['original_regex']} to {args['regex']}")
+            LogRecord(f"_api_trigger_add - converted {args['original_regex']} to {args['regex']}",
+                      'debug', sources=[self.plugin_id, plugin_id]).send()
 
             need_rebuild = False
             if args['enabled']:
@@ -351,9 +353,8 @@ class Plugin(BasePlugin):
                 if trigger_id not in self.regexes[regex_id]['triggers']:
                     self.regexes[regex_id]['triggers'].append(trigger_id)
                 else:
-                    self.api('libs.io:send:error')(
-                        f"trigger {trigger_name} already exists in regex: {regex}",
-                        secondary=plugin_id)
+                    LogRecord(f"_api_trigger_add - trigger {trigger_name} already exists in regex: {regex}",
+                              level='error', sources=[self.plugin_id, plugin_id]).send()
 
             # go through and rebuild the regexes
             if need_rebuild:
@@ -366,9 +367,8 @@ class Plugin(BasePlugin):
 
         self.triggers[trigger_id] = args
 
-        self.api('libs.io:send:msg')(
-            f"added trigger {trigger_name} (unique name: {trigger_id}) for plugin {plugin_id}",
-            secondary=plugin_id)
+        LogRecord(f"_api_trigger_add - added trigger {trigger_name} (unique name: {trigger_id}) for plugin {plugin_id}",
+                  'debug', sources=[self.plugin_id, plugin_id]).send()
 
         return True, args['eventname']
 
@@ -386,34 +386,36 @@ class Plugin(BasePlugin):
             plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
 
         if not plugin_id:
-            self.api('libs.io:send:msg')(f"deltetrigger: could not find plugin for trigger {trigger_name}")
+            LogRecord(f"_api_trigger_remove - could not find plugin for trigger {trigger_name}",
+                      level='error', sources=[self.plugin_id]).send()
             return False
 
         trigger_id = self.create_trigger_id(trigger_name, plugin_id)
         if trigger_id not in self.triggers:
-            self.api('libs.io:send:msg')(f"deletetrigger: trigger {trigger_name} (maybe plugin {plugin_id}) does not exist")
+            LogRecord(f"_api_trigger_remove - trigger {trigger_name} (maybe plugin {plugin_id}) does not exist",
+                      level='error', sources=[self.plugin_id, plugin_id]).send()
             return False
 
         event = self.api('plugins.core.events:get:event')(self.triggers[trigger_id]['eventname'])
         if event:
             if not event.isempty() and not force:
-                self.api('libs.io:send:msg')(
-                    f"deletetrigger: trigger {trigger_name} for plugin {plugin_id} has functions registered",
-                    secondary=plugin_id)
+                LogRecord(f"_api_trigger_remove - trigger {trigger_name} for plugin {plugin_id} has functions registered",
+                          level='error', sources=[self.plugin_id, plugin_id]).send()
                 return False
 
         regex = self.regexes[self.triggers[trigger_id]['regex_id']]
         need_rebuild = False
         if trigger_id in regex['triggers']:
-            self.api('libs.io:send:msg')(f"removing trigger {trigger_name} from {regex['regex_id']}")
+            LogRecord(f"_api_trigger_remove - removing trigger {trigger_name} from {regex['regex_id']}",
+                      level='debug', sources=[self.plugin_id, plugin_id]).send()
             need_rebuild = True
             regex['triggers'].remove(trigger_id)
 
         if trigger_id in self.triggers:
             del self.triggers[trigger_id]
 
-        self.api('libs.io:send:msg')(f"removed trigger {trigger_name} for plugin {plugin_id}",
-                                     secondary=plugin_id)
+        LogRecord(f"_api_trigger_remove - removed trigger {trigger_name} for plugin {plugin_id}",
+                  level='debug', sources=[self.plugin_id, plugin_id]).send()
 
         # go through and rebuild the regexes
         if need_rebuild:
@@ -441,7 +443,8 @@ class Plugin(BasePlugin):
         @Yplugin_id@w   = The plugin id
 
         this function returns no values"""
-        self.api('libs.io:send:msg')(f"removing triggers for plugin {plugin_id}", secondary=plugin_id)
+        LogRecord(f"_api_remove_triggers_for_plugin - removing triggers for plugin {plugin_id}",
+                  'debug', sources=[self.plugin_id, plugin_id]).send()
         for trigger in self.triggers.values():
             if trigger['plugin_id'] == plugin_id:
                 self.api('plugins.core.triggers:trigger:remove')(trigger['trigger_name'], plugin_id=plugin_id)
@@ -472,7 +475,8 @@ class Plugin(BasePlugin):
             if needs_rebuild:
                 self.rebuild_regexes()
         else:
-            self.api('libs.io:send:msg')(f"toggletrigger: trigger {trigger_name} (maybe plugin {plugin_id}) does not exist")
+            LogRecord(f"toggletrigger - trigger {trigger_name} (maybe plugin {plugin_id}) does not exist",
+                      level='error', sources=[self.plugin_id, plugin_id]).send()
 
     # toggle the omit flag for a trigger
     def _api_trigger_toggle_omit(self, trigger_name, flag, plugin_id=None):
@@ -488,7 +492,8 @@ class Plugin(BasePlugin):
         if trigger_id in self.triggers:
             self.triggers[trigger_id]['omit'] = flag
         else:
-            self.api('libs.io:send:msg')(f"toggletriggeromit: trigger {trigger_name} (maybe plugin {plugin_id}) does not exist")
+            LogRecord(f"toggletriggeromit - trigger {trigger_name} (maybe plugin {plugin_id}) does not exist",
+                      level='error', sources=[self.plugin_id, plugin_id]).send()
 
     # toggle a trigger group
     def _api_group_toggle_enable(self, trigger_group, flag):
@@ -497,7 +502,8 @@ class Plugin(BasePlugin):
         @Yflag@w        = (optional) True to enable, False otherwise
 
         this function returns no values"""
-        self.api('libs.io:send:msg')(f"toggletriggergroup: {trigger_group} to {flag}")
+        LogRecord(f"toggletriggergroup - toggling trigger group {trigger_group} to {flag}",
+                  level='debug', sources=[self.plugin_id]).send()
         if trigger_group in self.trigger_groups:
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger:toggle:enable")(i, flag)
@@ -533,11 +539,13 @@ class Plugin(BasePlugin):
             regex_match_data = match_groups.keys()
 
             if regex_match_data:
-                self.api('libs.io:send:msg')(f"line {data} matched the following regexes {regex_match_data}")
+                LogRecord(f"check_trigger - line {data} matched the following regexes {regex_match_data}",
+                          level='debug', sources=[self.plugin_id]).send()
                 for regex_id in regex_match_data:
                     match = None
                     if regex_id not in self.regexes:
-                        self.api('libs.io:send:msg')(f"regex_id {regex_id} not found in check_trigger")
+                        LogRecord(f"check_trigger - regex_id {regex_id} not found in check_trigger",
+                                  level='error', sources=[self.plugin_id]).send()
                         continue
 
                     self.regexes[regex_id]['hits'] = self.regexes[regex_id]['hits'] + 1
@@ -564,7 +572,8 @@ class Plugin(BasePlugin):
                                 break
 
             else:
-                self.api('libs.io:send:msg')(f"no triggers matched for {data}")
+                LogRecord(f"check_trigger - line {data} did not match any regexes",
+                          level='debug', sources=[self.plugin_id]).send()
 
         self.raisetrigger(self.all_id, {'line':data, 'trigger_name':self.triggers[self.all_id]['trigger_name']}, args)
         return args
@@ -578,9 +587,11 @@ class Plugin(BasePlugin):
             origargs['omit'] = True
 
         data_returned = self.api('plugins.core.events:raise:event')(event_name, args)
-        self.api('libs.io:send:msg')(f"trigger raiseevent returned: {data_returned}")
+        LogRecord(f"raisetrigger - trigger {trigger_id} raised event {event_name} with args {args} and returned {data_returned}",
+                  level='debug', sources=[self.plugin_id, self.triggers[trigger_id]['plugin_id']]).send()
         if data_returned and 'newline' in data_returned:
-            self.api('libs.io:send:msg')('changing line from trigger')
+            LogRecord(f"raisetrigger - trigger {trigger_id} returned a modified line {data_returned['newline']}",
+                      level='debug', sources=[self.plugin_id, self.triggers[trigger_id]['plugin_id']]).send()
             new_data = self.api('plugins.core.colors:colorcode:to:ansicode')(data_returned['newline'])
             origargs['trace']['changes'].append({'flag':'Modify',
                                                  'info':f"trigger '{trigger_id}' added by plugin {self.triggers[trigger_id]['plugin_id']}",
