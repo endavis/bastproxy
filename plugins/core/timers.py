@@ -409,7 +409,7 @@ class Plugin(BasePlugin):
                                                          secondary=timer.plugin.plugin_id)
                         self._add_timer_internal(timer)
                     else:
-                        self.api(f"{self.plugin_id}:remove:all:timers:for:plugin")(timer.name)
+                        self.api(f"{self.plugin_id}:remove:timer")(timer.name)
                     if not self.timer_events[i]:
                         del self.timer_events[i]
 
