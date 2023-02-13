@@ -110,3 +110,8 @@ for acn in range(40, 48):
 #foregrounds
 for abn in range(30, 38):
     CONVERTANSI['%s' % abn] = CONVERTANSI['0;%d' % abn]
+
+ALLCONVERTCOLORS = CONVERTCOLORS.copy()
+for item in CONVERTANSI:
+    ALLCONVERTCOLORS[CONVERTANSI[item]] = item
+    ALLCONVERTCOLORS['@' + CONVERTANSI[item]] = item
