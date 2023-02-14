@@ -1,13 +1,18 @@
-using logging module
+Logging uses the standard python logging module.
 
-root logger logs to console and file with log_level from command line
+see libs.logs, plugins.core.logs, and libs.records for the implementation
 
-#bp.core.msg plugin
-  send to file
-    add a handler to the plugins logger to log to a file
-  send to console
-    send to logging.logger(datatype)
-  send to client
-    send to client
+Brief Overview:
+It removes all handlers from root and adds 3 new custom ones
+    ConsoleHandler
+    TimedRotatingFileHandler
+    ClientHandler
 
-add ability to change log_level for various dtypes
+Each of those handlers verifies with plugins.core.log whether the message
+can be emitted by the handler at the specified level.
+
+It also adds a CustomColorFormatter to color code logs, the colors can be changed
+with the core.plugins.log plugin
+
+If the message is a LogRecord from libs.records, it is tracked through the system
+to see modifications and can be inspected with plugins.core.log.record command
