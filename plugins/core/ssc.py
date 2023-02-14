@@ -88,7 +88,7 @@ class SSC(object):
         except IOError:
             if not quiet:
                 LogRecord(f"getss - Please set the {self.desc} with {self.plugin.api('plugins.core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}",
-                          level='error', sources=[self.plugin.plugin_id, self.plugin_id]).send()
+                          level='error', sources=[self.plugin.plugin_id]).send()
 
         return self.default
 
