@@ -10,9 +10,14 @@ It removes all handlers from root and adds 3 new custom ones
 
 Each of those handlers verifies with plugins.core.log whether the message
 can be emitted by the handler at the specified level.
+Messages that are LogRecords with multiple sources will only be emitted once
+from the same handler. This is tracked with a dictionary in the LogRecord
 
 It also adds a CustomColorFormatter to color code logs, the colors can be changed
 with the core.plugins.log plugin
 
 If the message is a LogRecord from libs.records, it is tracked through the system
 to see modifications and can be inspected with plugins.core.log.record command
+
+A LogRecord will pass all keyword arguments to the logger when the appropriate
+level function is invoked.
