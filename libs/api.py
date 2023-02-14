@@ -48,6 +48,72 @@ def get_args(api_function):
 
     return args
 
+def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
+    """
+    Returns the plugin ID of the plugin that called the current function.
+
+    Args:
+        ignore_plugin_list (list[str]): A list of plugin IDs to ignore if they are on the stack.
+
+    Returns:
+        str: The plugin ID of the plugin on the stack.
+    """
+    from plugins._baseplugin import BasePlugin
+    import inspect
+
+    if ignore_plugin_list is None:
+        ignore_plugin_list = []
+
+    try:
+        stack = inspect.stack()
+    except IndexError:
+        return None
+
+    for ifr in stack[1:]:
+        parent_frame = ifr[0]
+
+        if 'self' in parent_frame.f_locals:
+            tcs = parent_frame.f_locals['self']
+            if isinstance(tcs, BasePlugin) and tcs.plugin_id not in ignore_plugin_list:
+                return tcs.plugin_id
+            if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
+                    and tcs.plugin.plugin_id not in ignore_plugin_list:
+                return tcs.plugin.plugin_id
+            if hasattr(tcs, 'plugin_id') and tcs.plugin_id not in ignore_plugin_list:
+                return tcs.plugin_id
+
+    del stack
+    return None
+
+class APIItem:
+    """
+    Wraps an API function to track its use.
+    """
+    def __init__(self, full_api_name: str, tfunction: callable, plugin_id: str) -> None:
+        """
+        Initializes an APIItem object.
+
+        Args:
+            full_api_name (str): Full name of the API, including the full package,
+                module, and name of the function.
+            tfunction (callable): The function to be wrapped.
+            plugin_id (str): Unique ID of the plugin calling the function.
+        """
+        self.full_api_name: str = full_api_name
+        self.plugin_id: int = plugin_id
+        self.tfunction: callable = tfunction
+
+    def __call__(self, *args, **kwargs):
+        """
+        Calls the wrapped function and adds a call to the StatsManager object.
+        """
+        try:
+            caller_plugin: str = get_caller_plugin_id()
+        except:   # pylint: disable=bare-except
+            caller_plugin: str = 'Unknown'
+        STATS_MANAGER.add_call(self.full_api_name, caller_plugin)
+        return self.tfunction(*args, **kwargs)
+
 class API(object):
     """
     A class that exports an api for plugins and modules to use
@@ -191,10 +257,7 @@ class API(object):
 
         plugin_id = self.parent_plugin_id
 
-        api_data = {}
-        api_data['full_api_name'] = full_api_name
-        api_data['plugin'] = plugin_id
-        api_data['function'] = tfunction
+        api_item = APIItem(full_api_name, tfunction, plugin_id)
 
         if full_api_name not in self.stats:
             self.stats[full_api_name] = {}
@@ -205,34 +268,34 @@ class API(object):
                 LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}",
                               level='error', sources=[__name__, plugin_id]).send()
             else:
-                self.api[full_api_name] = api_data
+                self.api[full_api_name] = api_item
 
         else:
-            self._api_overload(api_data, force)
+            self._api_overload(api_item, force)
 
     # overload a function in the api
-    def _api_overload(self, api_data, force=False):
+    def _api_overload(self, api_item, force=False):
         """  overload a function in the api
         @Yapi_data@w  = the api data dictionary
 
         the function is added as api_data['full_api_name'] into the overloaded api
 
         this function returns True if added, False otherwise"""
+        # This updates the overloaded function with the docstring from the original function
         try:
-            overloaded_func = self.get(api_data['full_api_name'])
-            api_data['function'].__doc__ = overloaded_func.__doc__
+            original_item = self.get(api_item.full_api_name)
+            api_item.tfunction.__doc__ = original_item.tfunction.__doc__
         except AttributeError:
             pass
 
-        if not force and \
-              (api_data['full_api_name'] in self.overloaded_api):
+        if not force and (api_item.full_api_name in self.overloaded_api):
             from libs.record import LogRecord
-            LogRecord(f"libs.api:overload - {api_data['full_api_name']} already exists added by plugin: {api_data['plugin']}",
-                        level='error', sources=[__name__, api_data['plugin']]).send()
+            LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists added by plugin: {api_item.plugin_id}",
+                        level='error', sources=[__name__, api_item.plugin_id]).send()
 
             return False
 
-        self.overloaded_api[api_data['full_api_name']] = api_data
+        self.overloaded_api[api_item.full_api_name] = api_item
         # self.overloaded_api[api_data['new_full_api_name']] = api_data
         return True
 
@@ -257,36 +320,7 @@ class API(object):
            if it doesn't find that, it checks for an attribute of plugin
 
         returns the plugin_id of the plugin on the stack"""
-        #print(f"calling get:caller:plugin with ignore {ignore_plugin_list}")
-        from plugins._baseplugin import BasePlugin
-
-        if not ignore_plugin_list:
-            ignore_plugin_list = []
-
-        try:
-            stack = inspect.stack()
-        except IndexError:
-            return None
-
-        for ifr in stack[1:]:
-            parent_frame = ifr[0]
-
-            if 'self' in parent_frame.f_locals:
-                # I don't know any way to detect call from the object method
-                # NOTE: there seems to be no way to detect static method call - it will
-                #      be just a function call
-                tcs = parent_frame.f_locals['self']
-                if tcs != self and isinstance(tcs, BasePlugin) \
-                               and tcs.plugin_id not in ignore_plugin_list:
-                    # print(f"found: {tcs.plugin_id}")
-                    return tcs.plugin_id
-                if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                        and tcs.plugin.plugin_id not in ignore_plugin_list:
-                    # print(f"found: {tcs.plugin.plugin_id}")
-                    return tcs.plugin.plugin_id
-
-        del stack
-        return None
+        return get_caller_plugin_id(ignore_plugin_list)
 
     def _api_get_function_plugin_owner(self, function):
         """  get the plugin_id of the plugin that owns the function
@@ -341,13 +375,6 @@ class API(object):
 
         do_not_overload = get the non overloaded api
         """
-        try:
-            caller_plugin = self._api_caller_plugin()
-        except:   # pylint: disable=bare-except
-            caller_plugin = 'Unknown'
-
-        api_data = None
-
         # all apis should have a . in the first part
         # if not, we add the parent plugin id to the api
         if '.' not in api_location:
@@ -360,19 +387,12 @@ class API(object):
 
         # check overloaded api
         if not do_not_overload:
-            if api_location in self.overloaded_api:
-                api_data = self.overloaded_api[api_location]
+            if api_location in self.overloaded_api and self.overloaded_api[api_location]:
+                return self.overloaded_api[api_location]
 
         # check api
-        if not api_data:
-            if api_location in self.api:
-                api_data = self.api[api_location]
-
-        if api_data:
-            if caller_plugin not in self.stats[api_location]:
-                self.stats[api_location][caller_plugin] = 0
-            self.stats[api_location][caller_plugin] = self.stats[api_location][caller_plugin] + 1
-            return api_data['function']
+        if api_location in self.api and self.api[api_location]:
+            return self.api[api_location]
 
         raise AttributeError(f"{self.parent_plugin_id} : {api_location} is not in the api")
 
