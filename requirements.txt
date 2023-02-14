@@ -3,3 +3,4 @@ fuzzywuzzy
 python-Levenshtein
 deepdiff
 telnetlib3
+regex
