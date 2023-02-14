@@ -156,14 +156,10 @@ def setup_loggers(log_level):
 
     from libs.api import API
 
-    # for item in logging.root.manager.loggerDict:
-    #     temp = logging.getLogger(item)
-    #     print(f"{temp.name} handlers: {temp.handlers}")
-
     rootlogger = logging.getLogger()
-    # print(f"rootlogger handlers: {rootlogger.handlers}")
     rootlogger.setLevel(log_level)
-    rootlogger.removeHandler(logging.getLogger().handlers[0])
+    for item in rootlogger.handlers:
+        rootlogger.removeHandler(item)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
     os.makedirs(API.BASEDATALOGPATH / 'networkdata', exist_ok=True)
