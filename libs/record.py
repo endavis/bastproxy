@@ -213,7 +213,7 @@ class ToClientRecord(BaseRecord):
     when it goes on the client queue, it will be converted to a NetworkData object
     """
     def __init__(self, message, message_type='IO', clients=None, exclude_clients=None, preamble=True,
-                 internal=True, prelogin=False, error=False):
+                 internal=True, prelogin=False, error=False, color_for_all_lines=None):
         """
         initialize the class
         """
@@ -229,6 +229,8 @@ class ToClientRecord(BaseRecord):
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
         self.clients = clients
+        # This will set the color for all lines in the message
+        self.color_for_all_lines = color_for_all_lines
         self.message_type = message_type
         if not self.clients:
             self.clients = []
@@ -331,6 +333,20 @@ class ToClientRecord(BaseRecord):
                 self.data = converted_message
                 self.addchange('Modify', 'convert_colors', actor, 'convert color codes to ansi codes on each item')
 
+    def add_color_to_all_lines(self, actor=None):
+        """
+        add the color to the beginning of all lines in the message
+        """
+        # add color only if internal and 'IO'
+        if self.internal and self.message_type == 'IO':
+            if self.color_for_all_lines:
+                converted_message = []
+                for i in self.data:
+                    converted_message.append(f"{self.color_for_all_lines}{i}")
+                if self.data != converted_message:
+                    self.data = converted_message
+                    self.addchange('Modify', 'add_color_to_all_lines', actor, 'add color to beginning of each item')
+
     def add_line_endings(self, actor=None):
         """
         add line endings to the message
@@ -352,6 +368,7 @@ class ToClientRecord(BaseRecord):
             self.api('plugins.core.events:raise:event')('before_client_send', args={'ToClientRecord': self})
         if self.send_to_clients:
             self.clean(actor=actor)
+            self.add_color_to_all_lines(actor=actor)
             self.add_preamble(actor=actor)
             self.convert_colors(actor=actor)
             self.add_line_endings(actor=actor)
