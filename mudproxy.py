@@ -31,7 +31,7 @@ import libs.net.client
 import libs.argp
 from libs.task_logger import create_task
 from libs.api import API as BASEAPI
-from libs.net import telnetlib3
+from libs.net import server
 from libs.record import LogRecord
 
 # import io so the "send" functions are added to the api
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy']).send()
 
     all_servers.append(
-        telnetlib3.create_server(
+        server.create_server(
             host='localhost',
             port=telnet_port,
             shell=libs.net.client.client_telnet_handler,

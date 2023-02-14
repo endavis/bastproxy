@@ -426,7 +426,7 @@ class ToClientRecord(BaseRecord):
         self.add_preamble(actor=actor)
         self.convert_colors(actor=actor)
         self.add_line_endings(actor=actor)
-        self.convert_to_bytes(actor=actor)
+        #self.convert_to_bytes(actor=actor)
 
     def send(self, actor=None):
         """
@@ -445,7 +445,7 @@ class ToClientRecord(BaseRecord):
                 if self.can_send_to_client(client_uuid):
                     client = self.api('plugins.core.clients:get:client')(client_uuid)
                     if self.message_type == 'IO':
-                        message = NetworkData(self.message_type, message=b''.join(self), client_uuid=client_uuid)
+                        message = NetworkData(self.message_type, message=''.join(self), client_uuid=client_uuid)
                         loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
                     else:
                         for i in self:
