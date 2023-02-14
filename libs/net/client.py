@@ -124,13 +124,15 @@ class ClientConnection:
                 return
 
             if not self.state['logged in']:
-                if inp.strip() == 'bastpass':
+                dpw = self.api('plugins.core.proxy:ssc:proxypw')()
+                vpw = self.api('plugins.core.proxy:ssc:proxypwview')()
+                if inp.strip() == dpw:
                     ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     ToClientRecord(['You are now logged in.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     self.api('plugins.core.clients:client:logged:in')(self.uuid)
                     continue
 
-                elif inp.strip() == 'bastviewpass':
+                elif inp.strip() == vpw:
                     ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' , clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     ToClientRecord(['You are now logged in as view only user.'], clients=[self.uuid], prelogin=True).send('libs.net.client:client_read')
                     self.api('plugins.core.clients:client:logged:in:view:only')(self.uuid)
