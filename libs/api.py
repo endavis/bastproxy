@@ -20,8 +20,6 @@ See the BasePlugin class
 """
 # Standard Library
 import inspect
-import sys
-import traceback
 import pprint
 import logging
 
@@ -85,6 +83,76 @@ def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
     del stack
     return None
 
+class APIStatItem:
+    """
+    This class is used to track the number of times that a particular
+    API has been called by a particular plugin.  The full_api_name is
+    the full name of the API, including the full package, module,
+    and name of the function, and the plugin_id is the unique ID of
+    the plugin that is making the call.
+
+    This code is used to track which plugins are calling which APIs,
+    so that we can automatically detect when a plugin is using an
+    API that has been removed, and to help us determine which plugins
+    we should remove, since we want to remove plugins that are not
+    being used by any other plugins.
+    """
+    def __init__(self, full_api_name: str) -> None:
+        """
+        Initializes an APIStatItem object.
+
+        Args:
+            full_api_name (str): Full name of the API, including the full package,
+                module, and name of the function.
+        """
+        self.full_api_name: str = full_api_name
+        self.calls_by_plugin: dict = {}
+
+    def add_call(self, plugin_id: str) -> None:
+        """
+        Adds a call to the APIStatItem object.
+
+        Args:
+            plugin_id (str): Unique ID of the plugin making the call.
+        """
+        if plugin_id not in self.calls_by_plugin:
+            self.calls_by_plugin[plugin_id] = 0
+        self.calls_by_plugin[plugin_id] += 1
+
+class StatsManager:
+    """
+    Holds the stats for all API items.
+    """
+    def __init__(self) -> None:
+        """
+        Initializes a StatsManager object.
+        """
+        self.stats: dict = {}
+
+    def add_call(self, full_api_name: str, plugin_id: str) -> None:
+        """
+        Adds a call to the StatsManager object.
+
+        Args:
+            full_api_name (str): Full name of the API, including the full package,
+                module, and name of the function.
+            plugin_id (int): Unique ID of the plugin making the call.
+        """
+        if full_api_name not in self.stats:
+            self.stats[full_api_name] = APIStatItem(full_api_name)
+        self.stats[full_api_name].add_call(plugin_id)
+
+    def get_stats(self) -> dict:
+        """
+        Returns the stats held in the StatsManager object.
+
+        Returns:
+            dict: A dictionary of the stats held in the object.
+        """
+        return self.stats
+
+STATS_MANAGER = StatsManager()
+
 class APIItem:
     """
     Wraps an API function to track its use.
@@ -142,6 +210,7 @@ class API(object):
 
     # a dictionary of managers that could not be made into plugins
     MANAGERS = {}
+    MANAGERS['api_stats'] = STATS_MANAGER
 
     # the proxy start time, will be dynamically set in bastproxy.py
     proxy_start_time = ''
