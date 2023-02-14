@@ -179,7 +179,7 @@ class LogRecord(BaseRecord):
     """
     a simple message record for logging, this may end up sent to a client
     """
-    def __init__(self, message, level='info', sources=None, extra=None, **kwargs):
+    def __init__(self, message, level='info', sources=None, **kwargs):
         """
         initialize the class
         """
@@ -190,16 +190,11 @@ class LogRecord(BaseRecord):
         self.sources = sources
         if not self.sources:
             self.sources = []
-        self.extra = extra
-        if not self.extra:
-            self.extra = {}
         self.kwargs = kwargs
         self.wasemitted = {}
         self.wasemitted['console'] = False
         self.wasemitted['file'] = False
         self.wasemitted['client'] = False
-        if not isinstance(str(self), str):
-            print(f"LogRecord does not return str {self.data}")
 
     def color(self, actor=None):
         """
@@ -230,7 +225,7 @@ class LogRecord(BaseRecord):
         if source not in self.sources:
             self.sources.append(source)
 
-    def send(self):
+    def send(self, actor=None):
         """
         send the message to the logger
         """
@@ -238,10 +233,10 @@ class LogRecord(BaseRecord):
         self.clean()
         #self.color()
         for i in self.sources:
-            #print(f"Sending to {i}")
-            logger = logging.getLogger(i)
-            loggingfunc = getattr(logger, self.level)
-            loggingfunc(self, extra=self.extra, **self.kwargs)
+            if i:
+                logger = logging.getLogger(i)
+                loggingfunc = getattr(logger, self.level)
+                loggingfunc(self, **self.kwargs)
 
     def __str__(self):
         """
