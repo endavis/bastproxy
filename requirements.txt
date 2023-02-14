@@ -2,3 +2,4 @@ dumper
 fuzzywuzzy
 python-Levenshtein
 deepdiff
+telnetlib3
