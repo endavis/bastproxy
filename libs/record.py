@@ -17,12 +17,56 @@ from uuid import uuid4
 import asyncio
 import logging
 import time
+import traceback
 
 # 3rd Party
 
 # Project
 from libs.net.networkdata import NetworkData
 from libs.api import API
+
+class ChangeRecord(object):
+    """
+    a change event for a record
+    flag: one of 'Modify', 'Set Flag'
+    action: a description of what was changed
+    actor: the item that changed the message (likely a plugin)
+    extra: any extra info about this change
+    data: the new data
+
+    will automatically add the time and last 5 stack frames
+    """
+    def __init__(self, flag, action, actor=None, extra=None, data=None):
+        self.uuid = uuid4()
+        self.time_taken = time.time()
+        self.flag = flag
+        self.action = action
+        self.actor = actor
+        self.extra = extra
+        self.data = data
+        # Extract the last 5 stack frames
+        self.stack = traceback.extract_stack(limit=5)
+
+    def format(self):
+        """
+        format the change record
+        """
+        if self.flag == 'Modify':
+            return f"{self.actor} changed {self.action}"
+        if self.flag == 'Set Flag':
+            return f"{self.actor} set {self.action} to {self.data}"
+
+class ChangeManager(object):
+    """
+    a class to manage changes to records
+
+    each record instance will have one of these
+    """
+    def __init__(self):
+        self.changes = deque(maxlen=1000)
+
+    def add(self, change):
+        self.changes.append(change)
 
 class RecordManager(object):
     def __init__(self):
@@ -54,7 +98,7 @@ class BaseRecord(UserList):
         self.uuid = uuid4()
         # True if this was created internally
         self.internal = internal
-        self.changes = []
+        self.changes = ChangeManager()
         RMANAGER.add(self)
 
     def replace(self, data, actor=None, extra=None):
@@ -95,7 +139,7 @@ class BaseRecord(UserList):
             self.data = new_message
             self.addchange('Modify', 'clean', actor)
 
-    def addchange(self, flag, action, actor, extra=None, data=True):
+    def addchange(self, flag, action, actor, extra=None, savedata=True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag'
@@ -112,9 +156,14 @@ class BaseRecord(UserList):
         change['actor'] = actor
         change['extra'] = extra
         change['time'] = time.localtime()
-        if data:
-            change['data'] = self.data
-        self.changes.append(change)
+
+        data = None
+        if savedata:
+            data = self.data
+
+        change = ChangeRecord(flag, action, actor, extra, data)
+
+        self.changes.add(change)
 
     def check_for_change(self, flag, action):
         """
@@ -245,7 +294,7 @@ class ToClientRecord(BaseRecord):
         """
         if flag != self.send_to_clients:
             self.send_to_clients = flag
-            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra=f"set to {flag}, {extra}", data=False)
+            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra=f"set to {flag}, {extra}", savedata=False)
 
     def add_client(self, client_uuid):
         """
