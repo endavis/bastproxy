@@ -175,11 +175,11 @@ class Plugin(BasePlugin):
 
         converted_time['years'] = int(math.floor(seconds/(3600 * 24 * 365)))
         seconds = seconds - (converted_time['years'] * 3600 * 24 * 365)
-        converted_time['days'] = int(math.floor(seconds/(3600 * 24)))
+        converted_time['days'] = seconds // (3600 * 24)
         seconds = seconds - (converted_time['days'] * 3600 * 24)
-        converted_time['hours'] = int(math.floor(seconds/3600))
+        converted_time['hours'] = seconds // 3600
         seconds = seconds - (converted_time['hours'] * 3600)
-        converted_time['mins'] = int(math.floor(seconds/60))
+        converted_time['mins'] = seconds // 60
         seconds = seconds - (converted_time['mins'] * 60)
         converted_time['secs'] = int(seconds % 60)
         return converted_time
@@ -304,7 +304,7 @@ class Plugin(BasePlugin):
         noncolored_string_length = len(noncolored_string) + 4
         length_difference = length - noncolored_string_length
 
-        half_length = length_difference / 2
+        half_length = length_difference // 2
         new_str = "{filler}  {lstring}  {filler}".format(
             filler=filler_character * half_length,
             lstring=string_to_center)
