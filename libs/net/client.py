@@ -71,7 +71,7 @@ class ClientConnection:
         """
         if self.api('plugins.core.clients:client:banned:check')(self.addr):
             LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.", level='warning', sources=[__name__]).send()
-            self.writer.write(b'You are banned from this proxy. Goodbye.\n\r')
+            self.writer.write('You are banned from this proxy. Goodbye.\n\r')
             try:
                 await self.writer.drain()
             except AttributeError:
