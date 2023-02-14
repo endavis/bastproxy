@@ -32,8 +32,6 @@ class Plugin(BasePlugin):
         """
         super().__init__(*args, **kwargs)
 
-        self.managers = {}
-
         self.api('libs.api:add')('add', self._api_manager_add)
         self.api('libs.api:add')('get', self._api_manager_get)
 
@@ -45,8 +43,8 @@ class Plugin(BasePlugin):
         @Yname@w  = the name of the manager to get
 
         this function returns the manager instance"""
-        if name in self.managers:
-            return self.managers[name]
+        if name in self.api.MANAGERS:
+            return self.api.MANAGERS[name]
 
         return None
 
@@ -57,4 +55,4 @@ class Plugin(BasePlugin):
         @Ymanager@w  = the manager instance
 
         this function returns no values"""
-        self.managers[name] = manager
+        self.api.MANAGERS[name] = manager

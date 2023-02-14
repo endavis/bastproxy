@@ -78,6 +78,7 @@ class RecordManager(object):
         self.records['LogRecord'] = deque(maxlen=self.max_records)
         self.records['ToMudRecord'] = deque(maxlen=self.max_records)
         self.records['ToClientRecord'] = deque(maxlen=self.max_records)
+        API.MANAGERS['records'] = self
 
     def add(self, record):
         self.records[record.__class__.__name__].append(record)
