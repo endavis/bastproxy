@@ -360,19 +360,6 @@ class ToClientRecord(BaseRecord):
                 self.data = new_message
                 self.addchange('Modify', 'preamble', actor, 'add a preamble to all items')
 
-    def convert_to_bytes(self, actor=None):
-        """
-        convert the message to bytes
-        """
-        byte_message = []
-        for i in self.data:
-            if isinstance(i, str):
-                i = i.encode('utf-8')
-            byte_message.append(i)
-        if byte_message != self.data:
-            self.data = byte_message
-            self.addchange('Modify', 'to_bytes', actor, 'convert all items to byte strings')
-
     def clean(self, actor=None):
         """
         clean the message
@@ -426,7 +413,6 @@ class ToClientRecord(BaseRecord):
         self.add_preamble(actor=actor)
         self.convert_colors(actor=actor)
         self.add_line_endings(actor=actor)
-        #self.convert_to_bytes(actor=actor)
 
     def send(self, actor=None):
         """
