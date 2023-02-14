@@ -59,7 +59,7 @@ class CustomColorFormatter(logging.Formatter):
                 if isinstance(record.msg, LogRecord):
                     record.msg.extend(formatted_exc_no_newline)
                     record.msg.addchange('Modify', 'add tb', 'CustomColorFormatter')
-                    record.msg.clean()
+                    record.msg.format()
                 elif isinstance(record.msg, str):
                     record.msg += '\n'.join(formatted_exc_no_newline)
                 record.exc_info = None
