@@ -111,6 +111,30 @@ class BaseRecord(UserList):
             self.data = data
             self.addchange('Modify', 'replace', actor, extra=extra)
 
+    def color(self, color, actor=None):
+        """
+        color the message
+
+        actor is the item that ran the color function
+
+        """
+        new_message = []
+        if not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
+            return
+        if color:
+            for line in self.data:
+                if '@x' in line:
+                    line_list = line.split('@x')
+                    new_line_list = []
+                    for item in line_list:
+                        new_line_list.append(f"{color}{item}")
+                    line = f"@x{color}".join(new_line_list)
+                line = f"{color}{line}@x"
+                new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
+            if new_message != self.data:
+                self.data = new_message
+                self.addchange('Modify', 'color', actor)
+
     def clean(self, actor=None):
         """
         clean the message
@@ -198,25 +222,14 @@ class LogRecord(BaseRecord):
 
     def color(self, actor=None):
         """
-        clean the message
+        color the message
 
-        actor is the item that ran the clean function
-
-        converts it to a string
-        splits it on a newline
-        removes newlines and carriage returns from the end of the line
+        actor is the item that ran the color function
         """
-        new_message = []
-        if not self.api('libs.api:has')('plugins.core.log:get:level:color') or \
-            not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
+        if not self.api('libs.api:has')('plugins.core.log:get:level:color'):
             return
         color = self.api('plugins.core.log:get:level:color')(self.level)
-        if color:
-            for line in self.data:
-                new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(f"{color}{line}"))
-            if new_message != self.data:
-                self.data = new_message
-                self.addchange('Modify', 'color', actor)
+        super().color(color, actor)
 
     def add_source(self, source):
         """
@@ -225,13 +238,16 @@ class LogRecord(BaseRecord):
         if source not in self.sources:
             self.sources.append(source)
 
+    def format(self, actor=None):
+        self.clean(actor)
+        self.color(actor)
+
     def send(self, actor=None):
         """
         send the message to the logger
         """
         #print(f"Sending {self.data} to logger")
-        self.clean()
-        #self.color()
+        self.format(actor)
         for i in self.sources:
             if i:
                 logger = logging.getLogger(i)
@@ -377,19 +393,13 @@ class ToClientRecord(BaseRecord):
                 self.data = converted_message
                 self.addchange('Modify', 'convert_colors', actor, 'convert color codes to ansi codes on each item')
 
-    def add_color_to_all_lines(self, actor=None):
+    def color(self, actor=None):
         """
         add the color to the beginning of all lines in the message
         """
         # add color only if internal and 'IO'
         if self.internal and self.message_type == 'IO':
-            if self.color_for_all_lines:
-                converted_message = []
-                for i in self.data:
-                    converted_message.append(f"{self.color_for_all_lines}{i}")
-                if self.data != converted_message:
-                    self.data = converted_message
-                    self.addchange('Modify', 'add_color_to_all_lines', actor, 'add color to beginning of each item')
+            super().color(self.color_for_all_lines, actor)
 
     def add_line_endings(self, actor=None):
         """
@@ -404,6 +414,18 @@ class ToClientRecord(BaseRecord):
                 self.data = new_message
                 self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
 
+    def format(self, actor=None):
+        """
+        format the message
+        """
+        # format only if internal and 'IO'
+        self.clean(actor=actor)
+        self.color(actor=actor)
+        self.add_preamble(actor=actor)
+        self.convert_colors(actor=actor)
+        self.add_line_endings(actor=actor)
+        self.convert_to_bytes(actor=actor)
+
     def send(self, actor=None):
         """
         send the message
@@ -411,12 +433,7 @@ class ToClientRecord(BaseRecord):
         if not self.internal:
             self.api('plugins.core.events:raise:event')('before_client_send', args={'ToClientRecord': self})
         if self.send_to_clients:
-            self.clean(actor=actor)
-            self.add_color_to_all_lines(actor=actor)
-            self.add_preamble(actor=actor)
-            self.convert_colors(actor=actor)
-            self.add_line_endings(actor=actor)
-            self.convert_to_bytes(actor=actor)
+            self.format(actor=actor)
             loop = asyncio.get_event_loop()
             if self.clients:
                 clients = self.clients
