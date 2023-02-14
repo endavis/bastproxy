@@ -914,19 +914,8 @@ class Plugin(BasePlugin):
         if 'group' not in args:
             args['group'] = plugin_id
 
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
-        try:
-            long_name = plugin_instance.name
-        except AttributeError:
-            pass
-
-        if not long_name:
-            LogRecord(f"plugin {plugin_id} has no long name, not adding command {command_name}", level='error', sources=[self.plugin_id, plugin_id]).send()
-            return
-
         # build the command dict
         args['func'] = func
-        args['lname'] = long_name
         args['plugin_id'] = plugin_id
         args['commandname'] = command_name
         if 'preamble' not in args:

@@ -1211,7 +1211,6 @@ class PluginMgr(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('list',
                                               self._command_list,
-                                              lname='Plugin Manager',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -1222,7 +1221,6 @@ class PluginMgr(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('load',
                                               self._command_load,
-                                              lname='Plugin Manager',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -1233,7 +1231,6 @@ class PluginMgr(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('unload',
                                               self._command_unload,
-                                              lname='Plugin Manager',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -1244,7 +1241,6 @@ class PluginMgr(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('reload',
                                               self._command_reload,
-                                              lname='Plugin Manager',
                                               parser=parser)
 
         self.api('plugins.core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)

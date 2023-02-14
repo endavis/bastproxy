@@ -338,7 +338,6 @@ class Plugin(BasePlugin):
                             nargs='*')
         self.api('plugins.core.commands:command:add')('client',
                                               self.cmd_client,
-                                              lname='Logger',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -360,7 +359,6 @@ class Plugin(BasePlugin):
                             action='store_false')
         self.api('plugins.core.commands:command:add')('file',
                                               self.cmd_file,
-                                              lname='Logger',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -373,7 +371,6 @@ class Plugin(BasePlugin):
                             nargs='*')
         self.api('plugins.core.commands:command:add')('console',
                                               self.cmd_console,
-                                              lname='Logger',
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -384,7 +381,6 @@ class Plugin(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('types',
                                               self.cmd_types,
-                                              lname='Logger',
                                               parser=parser)
 
     def _savestate(self, _=None):
