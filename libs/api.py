@@ -128,12 +128,6 @@ class API(object):
             self.add('libs.api', 'get:function:plugin:owner', self._api_get_function_plugin_owner, overload=True)
         if not self('libs.api:has')('libs.api:get:caller:plugin'):
             self.add('libs.api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
-        if not self('libs.api:has')('libs.api:get:plugins:from:stack:list'):
-            self.add('libs.api', 'get:plugins:from:stack:list', self._api_plugin_stack, overload=True)
-        if not self('libs.api:has')('libs.api:get:call:stack'):
-            self.add('libs.api', 'get:call:stack', self._api_call_stack, overload=True)
-        if not self('libs.api:has')('libs.api:get:call:stack:simple'):
-            self.add('libs.api', 'get:call:stack:simple', self._api_simple_call_stack, overload=True)
         if not self('libs.api:has')('libs.api:add:event:description'):
             self.add('libs.api', 'add:event:description', self._api_add_event_description, overload=True)
         if not self('libs.api:has')('libs.api:is_character_active'):
@@ -248,113 +242,6 @@ class API(object):
         @Yraisedevent@w - RaisesEvent from libs/event.py = the event description
         """
         self.event_descriptions[raisedevent.name] = raisedevent
-
-    # return a simple call stack
-    @staticmethod
-    def _api_simple_call_stack():
-        """  build a simple callstack of level, module, funcion name
-
-        Example:
-        6 :          libs.io           : _api_execute
-        5 :    plugins.core.events     : api_eraise
-        4 :    plugins.core.events     : eraise
-        3 :    plugins.core.events     : execute
-        2 :       libs.net.proxy       : addtooutbuffer
-
-        returns a list of callers
-          the caller is a dict with keys index, module, file, name
-        """
-        stack = inspect.stack()
-
-        modules = [(index, inspect.getmodule(stack[index][0]))
-                   for index in reversed(range(1, len(stack)))]
-
-        callers = []
-        for index, module in modules:
-            callers.append({'index':index,
-                            'module':module.__name__,
-                            'file':module.__file__,
-                            'name':stack[index][3]})
-
-        return callers
-
-    # return the call stack
-    def _api_call_stack(self, ignores=None):
-        """  return a list of function calls that form the stack
-        @Yignores@w - list = ignore the line in the stack that contains a string in this list
-
-        The easiest way to ignore anything that comes from a specific plugin is to pass
-        plugin.full_plugin_path in the ignores list
-
-        Example:
-        ['  File "bastproxy.py", line 280, in <module>',
-         '    main()',
-         '  File "bastproxy.py", line 253, in main',
-         '    start(listen_port)',
-         '  File "/home/endavis/src/games/bastproxy/bp/libs/event.py", line 60, in new_func',
-         '    return func(*args, **kwargs)',
-         '  File "/home/endavis/src/games/bastproxy/bp/libs/net/proxy.py", line 63, in handle_read',
-         "    'convertansi':tconvertansi})"]
-
-        returns a string of the stack
-        """
-        if ignores is None:
-            ignores = []
-        call_stack = []
-
-        for _, frame in sys._current_frames().items(): # pylint: disable=protected-access
-            for i in traceback.format_stack(frame)[:-1]:
-                if True in [tstr in i for tstr in ignores]:
-                    continue
-                tlist = i.split('\n')
-                for tline in tlist:
-                    if tline:
-                        if self.BASEPATH:
-                            tline = tline.replace(self.BASEPATH + "/", "")
-                        call_stack.append(tline.rstrip())
-
-        return call_stack
-
-    # return a list of the plugins in the call stack
-    def _api_plugin_stack(self, ignore_plugin_list=None):
-        """  return a list of all plugins in the call stack
-        @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
-
-        this function returns a list of plugins on the stack, each element will be the plugin_id"""
-        from plugins._baseplugin import BasePlugin
-
-        if not ignore_plugin_list:
-            ignore_plugin_list = []
-
-        try:
-            stack = inspect.stack()
-        except IndexError:
-            return None
-
-        plugins = []
-
-        for ifr in stack[1:]:
-            parent_frame = ifr[0]
-
-            if 'self' in parent_frame.f_locals:
-                # I don't know any way to detect call from the object method
-                # NOTE: there seems to be no way to detect static method call - it will
-                #      be just a function call
-                tcs = parent_frame.f_locals['self']
-                if tcs != self and isinstance(tcs, BasePlugin) and tcs.plugin_id not in ignore_plugin_list:
-                    if tcs.plugin_id not in plugins:
-                        plugins.append(tcs.plugin_id)
-                if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                        and tcs.plugin.plugin_id not in ignore_plugin_list:
-                    if tcs.plugin.plugin_id not in plugins:
-                        plugins.append(tcs.plugin.plugin_id)
-
-        del stack
-
-        if 'plugins' in plugins:
-            del plugins[plugins.index('plugins')]
-
-        return plugins
 
     # find the caller of this api
     def _api_caller_plugin(self, ignore_plugin_list=None):
