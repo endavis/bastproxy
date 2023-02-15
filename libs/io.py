@@ -21,7 +21,7 @@ import re
 
 # Project
 from libs.api import API
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 class ProxyIO(object):  # pylint: disable=too-few-public-methods
     """

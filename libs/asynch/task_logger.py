@@ -17,7 +17,7 @@ import functools
 
 # Project
 from libs.api import API
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 api = API()
 

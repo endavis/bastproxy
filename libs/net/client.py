@@ -24,7 +24,7 @@ from uuid import uuid4
 from libs.net import telnet
 from libs.asynch.task_logger import create_task
 from libs.api import API
-from libs.record import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord
 from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)

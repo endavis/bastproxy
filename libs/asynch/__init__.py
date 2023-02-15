@@ -11,7 +11,7 @@ import asyncio
 import signal
 
 from libs.api import API as BASEAPI
-from libs.record import LogRecord
+from libs.records import LogRecord
 from .task_logger import create_task
 
 API = BASEAPI()

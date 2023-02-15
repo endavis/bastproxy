@@ -17,7 +17,7 @@ import pprint
 from plugins._baseplugin import BasePlugin
 import libs.argp as argp
 from libs.queue import SimpleQueue
-from libs.record import ToClientRecord
+from libs.records import ToClientRecord
 
 NAME = 'Profile Plugin'
 SNAME = 'profile'

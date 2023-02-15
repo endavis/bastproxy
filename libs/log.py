@@ -24,7 +24,7 @@ import traceback
 # Project
 from libs.api import API
 import libs.colors
-from libs.record import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"

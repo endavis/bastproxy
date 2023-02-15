@@ -18,7 +18,7 @@ from pathlib import Path
 # 3rd Party
 
 # Project
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 def find_modules(directory, prefix):
     """

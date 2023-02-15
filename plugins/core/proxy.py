@@ -18,7 +18,7 @@ import platform
 
 # Project
 from plugins._baseplugin import BasePlugin
-from libs.record import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord
 
 #these 5 are required
 NAME = 'Proxy Interface'

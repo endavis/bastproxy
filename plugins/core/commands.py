@@ -32,7 +32,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
-from libs.record import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord
 import libs.argp as argp
 
 NAME = 'Commands'

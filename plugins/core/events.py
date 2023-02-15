@@ -26,7 +26,7 @@ This plugin handles events.
 # Project
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 NAME = 'Event Handler'
 SNAME = 'events'

@@ -14,7 +14,7 @@ import sys
 # 3rd Party
 
 # Project
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 class PluginDependencyResolver(object):
     """

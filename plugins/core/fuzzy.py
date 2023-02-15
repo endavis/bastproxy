@@ -21,7 +21,7 @@ except ImportError:
 
 # Project
 from plugins._baseplugin import BasePlugin
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 NAME = 'Fuzzy Match'
 SNAME = 'fuzzy'

@@ -29,7 +29,7 @@ import libs.net.client
 import libs.argp
 from libs.api import API as BASEAPI
 from libs.net import server
-from libs.record import LogRecord
+from libs.records import LogRecord
 from libs.asynch import run_asynch
 
 # The modules below are imported to add their functions to the API

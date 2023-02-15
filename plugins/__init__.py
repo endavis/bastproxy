@@ -38,7 +38,7 @@ from libs.dependency import PluginDependencyResolver
 from libs.api import API
 import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
 NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')

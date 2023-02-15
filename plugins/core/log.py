@@ -18,7 +18,7 @@ import os
 import libs.argp as argp
 from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
-from libs.record import LogRecord, RMANAGER
+from libs.records import LogRecord, RMANAGER
 
 NAME = 'Logging'
 SNAME = 'log'

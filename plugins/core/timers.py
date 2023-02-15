@@ -20,8 +20,7 @@ import asyncio
 from plugins._baseplugin import BasePlugin
 import libs.argp as argp
 from libs.event import Event
-from libs.record import LogRecord
-from libs.asynch import TaskItem
+from libs.records import LogRecord
 
 #these 5 are required
 NAME = 'timers'

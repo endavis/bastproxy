@@ -333,7 +333,7 @@ class API(object):
 
         if not overload:
             if full_api_name in self.api and not force:
-                from libs.record import LogRecord
+                from libs.records import LogRecord
                 LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}",
                               level='error', sources=[__name__, plugin_id]).send()
             else:
@@ -358,7 +358,7 @@ class API(object):
             pass
 
         if not force and (api_item.full_api_name in self.overloaded_api):
-            from libs.record import LogRecord
+            from libs.records import LogRecord
             LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists added by plugin: {api_item.plugin_id}",
                         level='error', sources=[__name__, api_item.plugin_id]).send()
 
@@ -434,7 +434,7 @@ class API(object):
         if plugin_instance:
             return plugin_instance.api(api_location)
         else:
-            from libs.record import LogRecord
+            from libs.records import LogRecord
             LogRecord(f"_api_run_as_plugin: {plugin_id} plugin does not exist",
                       level='error', sources=[__name__]).send()
 
@@ -450,7 +450,7 @@ class API(object):
             if self.parent_plugin_id:
                 api_location = self.parent_plugin_id + ':' + api_location
             else:
-                from libs.record import LogRecord
+                from libs.records import LogRecord
                 LogRecord(f"api lookup: {api_location} : did not contain a .",
                           level='error', sources=[__name__]).send()
 

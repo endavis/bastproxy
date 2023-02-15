@@ -15,7 +15,7 @@ import re
 
 # Project
 import libs.argp as argp
-from libs.record import LogRecord
+from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required

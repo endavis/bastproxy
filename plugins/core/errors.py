@@ -14,7 +14,7 @@ This plugin shows and clears errors seen during plugin execution
 
 # Project
 import libs.argp as argp
-from libs.record import LogRecord
+from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Error Plugin'

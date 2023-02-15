@@ -31,7 +31,7 @@ except ImportError:
 import libs.argp as argp
 from libs.persistentdict import PersistentDictEvent
 from libs.api import API
-from libs.record import LogRecord
+from libs.records import LogRecord
 
 
 class BasePlugin(object): # pylint: disable=too-many-instance-attributes
