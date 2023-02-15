@@ -22,7 +22,7 @@ from uuid import uuid4
 
 # Project
 from libs.net import telnet
-from libs.task_logger import create_task
+from libs.asynch.task_logger import create_task
 from libs.api import API
 from libs.record import ToClientRecord, LogRecord
 from libs.net.networkdata import NetworkData
@@ -186,8 +186,7 @@ class ClientConnection:
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            task = create_task(self.writer.drain(), name=f"{self.uuid}.write.drain")
-            LogRecord(f"client_write - Created task {task.get_name()} for write.drain()", level='debug', sources=[__name__]).send()
+            self.api('libs.asynch:task:add')(self.writer.drain, name=f"{self.uuid}.write.drain")
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}", level='debug', sources=[__name__]).send()
 

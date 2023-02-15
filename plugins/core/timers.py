@@ -12,6 +12,7 @@ this plugin has a timer interface for internal timers
 import time
 import datetime
 import sys
+import asyncio
 
 # 3rd Party
 
@@ -20,6 +21,7 @@ from plugins._baseplugin import BasePlugin
 import libs.argp as argp
 from libs.event import Event
 from libs.record import LogRecord
+from libs.asynch import TaskItem
 
 #these 5 are required
 NAME = 'timers'
@@ -166,6 +168,9 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+
+        # setup the task to check for timers to fire
+        self.api('libs.asynch:task:add')(self.check_for_timers_to_fire, 'Timer thread')
 
     def event_plugin_uninitialized(self, args):
         """
@@ -382,44 +387,57 @@ class Plugin(BasePlugin):
             self.timer_events[timer_next_time_to_fire].append(timer)
         self.timer_lookup[timer.name] = timer
 
-    def check_for_timers_to_fire(self, args):
+    async def check_for_timers_to_fire(self):
         # this is a callback, so disable unused-argument
         # pylint: disable=unused-argument,too-many-nested-blocks
         """
         check all timers
         """
-        now = int(time.time())
-        if now - self.time_last_checked > 1:
-            LogRecord(f"check_for_timers_to_fire - timer had to check multiple seconds: {now - self.time_last_checked}",
-                      'warning', sources=[self.plugin_id]).send()
-        for i in range(self.time_last_checked, now + 1):
-            if i in self.timer_events and self.timer_events[i]:
-                for timer in self.timer_events[i][:]:
-                    if timer.enabled:
-                        try:
-                            timer.execute()
-                            timer.fired_count = timer.fired_count + 1
-                            self.overall_fire_count = self.overall_fire_count + 1
-                            if timer.log:
-                                LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
-                                          'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
-                        except Exception:  # pylint: disable=broad-except
-                            LogRecord(f"check_for_timers_to_fire - timer had an error: {timer}",
-                                      'error', sources=[self.plugin_id, timer.plugin.plugin_id], exc_info=True).send()
-                    try:
-                        self.timer_events[i].remove(timer)
-                    except ValueError:
-                        LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
-                                  'error', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
-                    if not timer.onetime:
-                        timer.next_fire = timer.next_fire + timer.seconds
-                        if timer.log:
-                            LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(timer.next_fire))}",
-                                      'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
-                        self._add_timer_internal(timer)
-                    else:
-                        self.api(f"{self.plugin_id}:remove:timer")(timer.name)
-                    if not self.timer_events[i]:
-                        del self.timer_events[i]
+        asyncio.current_task().set_name(f"timers task")
+        firstrun = True
+        keepgoing = True
+        while keepgoing:
+            now = int(time.time())
+            if now != self.time_last_checked:
+                if not firstrun:
+                    if now - self.time_last_checked > 1:
+                        LogRecord(f"check_for_timers_to_fire - timer had to check multiple seconds: {now - self.time_last_checked}",
+                                'warning', sources=[self.plugin_id]).send()
+                else:
+                    LogRecord('Checking timers coroutine has started', 'debug', sources=[self.plugin_id]).send()
+                firstrun = False
+                for i in range(self.time_last_checked, now + 1):
+                    if i in self.timer_events and self.timer_events[i]:
+                        for timer in self.timer_events[i][:]:
+                            if timer.enabled:
+                                try:
+                                    timer.execute()
+                                    timer.fired_count = timer.fired_count + 1
+                                    self.overall_fire_count = self.overall_fire_count + 1
+                                    if timer.log:
+                                        LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
+                                                'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                                except Exception:  # pylint: disable=broad-except
+                                    LogRecord(f"check_for_timers_to_fire - timer had an error: {timer}",
+                                            'error', sources=[self.plugin_id, timer.plugin.plugin_id], exc_info=True).send()
+                            try:
+                                self.timer_events[i].remove(timer)
+                            except ValueError:
+                                LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
+                                        'error', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                            if not timer.onetime:
+                                timer.next_fire = timer.next_fire + timer.seconds
+                                if timer.log:
+                                    LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(timer.next_fire))}",
+                                            'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                                self._add_timer_internal(timer)
+                            else:
+                                self.api(f"{self.plugin_id}:remove:timer")(timer.name)
+                            if not self.timer_events[i]:
+                                del self.timer_events[i]
 
-        self.time_last_checked = now
+                self.time_last_checked = now
+
+            await asyncio.sleep(.5)
+
+
