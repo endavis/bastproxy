@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/task_logger.py
+# Filename: libs/asynch/task_logger.py
 #
-# File Description: a plugin to handle exceptions for tasks
+# File Description: a module to handle exceptions for tasks
 #
 # From: https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/
 #
@@ -12,7 +12,6 @@ from typing import Any, Coroutine, Optional, TypeVar, Tuple
 
 import asyncio
 import functools
-import logging
 
 # 3rd Party
 
@@ -58,10 +57,8 @@ def _handle_task_result(
         task.result()
     except asyncio.CancelledError:
         pass  # Task cancellation should not be logged as an error.
-    # Ad the pylint ignore: we want to handle all exceptions here so that the result of the task
+    # Add the pylint ignore: we want to handle all exceptions here so that the result of the task
     # is properly logged. There is no point re-raising the exception in this callback.
     except Exception as e:  # pylint: disable=broad-except
-        # print(f"exception in task {task.get_name()} {e}")
-        # print(e.args)
         LogRecord(f"exception in task {task.get_name()} {e} {e.args}",
                   level='error', sources=['asyncio'], exc_info=True).send()
