@@ -9,7 +9,6 @@
 holds base color codes for ansi and xterm
 """
 # Standard Library
-import re
 
 # 3rd Party
 
