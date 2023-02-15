@@ -32,11 +32,9 @@ from libs.net import server
 from libs.record import LogRecord
 from libs.asynch import run_asynch
 
-# import io so the "send" functions are added to the api
-from libs import io      # pylint: disable=unused-import
-# import timing so the "timing" functions are added to the api
+# The modules below are imported to add their functions to the API
+from libs import io
 from libs import timing
-
 
 logging.basicConfig(stream=sys.stdout,
                     level='INFO',
