@@ -232,9 +232,11 @@ class Plugin(BasePlugin):
 
         message.append(f"Local time is: {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime())}")
 
-        templatestring = '%-20s : %-13s %-9s %-8s %s'
+        message.append('@M' + '-' * 80 + '@w')
+        templatestring = '%-20s : %-25s %-9s %-8s %s'
         message.append(templatestring % ('Name', 'Defined in',
                                                        'Enabled', 'Fired', 'Next Fire'))
+        message.append('@M' + '-' * 80 + '@w')
         for i in self.timer_lookup:
             if not match or match in i:
                 timer = self.timer_lookup[i]
@@ -295,7 +297,8 @@ class Plugin(BasePlugin):
         returns an Event instance"""
         plugin = None
         try:
-            plugin = func.im_self
+            _ = func.__self__.plugin_id
+            plugin = func.__self__
         except AttributeError:
             plugin = None
 
@@ -308,22 +311,22 @@ class Plugin(BasePlugin):
             return
         if seconds <= 0:
             LogRecord(f"_api_add_timer: timer {name} has seconds <= 0, not adding",
-                      'error', sources=[plugin.plugin_id, plugin]).send()
+                      'error', sources=[plugin.plugin_id]).send()
             return
         if not func:
             LogRecord(f"_api_add_timer: timer {name} has no function, not adding",
-                      'error', sources=[plugin.plugin_id, plugin]).send()
+                      'error', sources=[plugin.plugin_id]).send()
             return
 
         if 'unique' in kwargs and kwargs['unique']:
             if name in self.timer_lookup:
                 LogRecord(f"_api_add_timer: timer {name} alread exists, not adding",
-                          'error', sources=[plugin.plugin_id, plugin]).send()
+                          'error', sources=[plugin.plugin_id]).send()
                 return
 
         timer = TimerEvent(name, func, seconds, plugin, **kwargs)
         LogRecord(f"_api_add_timer: adding timer {name}",
-                  'debug', sources=[plugin.plugin_id, plugin]).send()
+                  'debug', sources=[plugin.plugin_id]).send()
         self._add_timer_internal(timer)
         return timer
 
@@ -344,7 +347,6 @@ class Plugin(BasePlugin):
         for i in timers_to_remove:
             self.api(f"{self.plugin_id}:remove:timer")(i)
 
-
     # remove a timer
     def _api_remove_timer(self, name):
         """  remove a timer
@@ -363,7 +365,6 @@ class Plugin(BasePlugin):
         except KeyError:
             LogRecord(f"_api_remove_timer - timer {name} does not exist",
                       'error', sources=[self.plugin_id]).send()
-
 
     # toggle a timer
     def _api_toggle_timer(self, name, flag):
