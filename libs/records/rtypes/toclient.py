@@ -444,5 +444,3 @@ class ToClientRecord(BaseRecord):
 
             if not self.internal:
                 self.api('plugins.core.events:raise:event')('after_client_send', args={'ToClientRecord': self})
-
-
