@@ -260,7 +260,7 @@ class Plugin(BasePlugin):
             for timer in args['timers']:
                 if timer in self.timer_lookup:
                     timer = self.timer_lookup[timer]
-                    message.append(f"{'Name':<{columnwidth}} : {timer}")
+                    message.append(f"{'Name':<{columnwidth}} : {timer.name}")
                     message.append(f"{'Enabled':<{columnwidth}} : {timer.enabled}")
                     message.append(f"{'Plugin':<{columnwidth}} : {timer.plugin.plugin_id}")
                     message.append(f"{'Onetime':<{columnwidth}} : {timer.onetime}")
