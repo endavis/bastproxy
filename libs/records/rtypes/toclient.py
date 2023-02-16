@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/message.py
+# Filename: libs/records/rtypes/toclient.py
 #
-# File Description: a message class for sending through libs.io
+# File Description: Holds the toclient record type
 #
 # By: Bast
 # refactor
 """
-This plugin has a classes for various record types
-    ToClientRecord - data to send to the client
-
-At this time, this is not used to send to the mud
+Holds the toclient record type
 """
 # Standard Library
 from collections import UserList, deque
