@@ -9,6 +9,7 @@
 This plugin has the base event class
 """
 # Standard Library
+import time
 
 # 3rd Party
 
@@ -18,7 +19,7 @@ class Event(object): # pylint: disable=too-few-public-methods
     """
     a basic event class
     """
-    def __init__(self, name, plugin, func):
+    def __init__(self, name, plugin, func, enabled=True):
         """
         init the class
         """
@@ -26,6 +27,8 @@ class Event(object): # pylint: disable=too-few-public-methods
         self.plugin = plugin
         self.fired_count = 0
         self.func = func
+        self.enabled = enabled
+        self.created_time = time.time()
 
     def execute(self):
         """

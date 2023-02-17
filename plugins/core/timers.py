@@ -35,23 +35,19 @@ class TimerEvent(Event):
     """
     a class for a timer event
     """
-    def __init__(self, name, func, seconds, plugin, **kwargs):
+    def __init__(self, name, func, seconds, plugin, enabled=True, **kwargs):
         """
         init the class
 
         time should be military time, "1430"
 
         """
-        Event.__init__(self, name, plugin, func)
+        super().__init__(name, plugin, func, enabled)
         self.seconds = seconds
 
         self.onetime = False
         if 'onetime' in kwargs:
             self.onetime = kwargs['onetime']
-
-        self.enabled = True
-        if 'enabled' in kwargs:
-            self.enabled = kwargs['enabled']
 
         self.time = None
         if 'time' in kwargs:
@@ -94,7 +90,7 @@ class TimerEvent(Event):
         execute the event
         """
         self.time_last_fired = time.localtime()
-        Event.execute(self)
+        super().execute()
 
     def __str__(self):
         """
