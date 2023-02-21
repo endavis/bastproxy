@@ -90,12 +90,6 @@ class APIStatItem:
     the full name of the API, including the full package, module,
     and name of the function, and the plugin_id is the unique ID of
     the plugin that is making the call.
-
-    This code is used to track which plugins are calling which APIs,
-    so that we can automatically detect when a plugin is using an
-    API that has been removed, and to help us determine which plugins
-    we should remove, since we want to remove plugins that are not
-    being used by any other plugins.
     """
     def __init__(self, full_api_name: str) -> None:
         """
