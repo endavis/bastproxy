@@ -35,14 +35,14 @@ class TimerEvent(Event):
     """
     a class for a timer event
     """
-    def __init__(self, name, func, seconds, plugin, enabled=True, **kwargs):
+    def __init__(self, name, func, seconds, plugin_id, enabled=True, **kwargs):
         """
         init the class
 
         time should be military time, "1430"
 
         """
-        super().__init__(name, plugin, func, enabled)
+        super().__init__(name, plugin_id, func, enabled)
         self.seconds = seconds
 
         self.onetime = False
@@ -96,7 +96,7 @@ class TimerEvent(Event):
         """
         return a string representation of the timer
         """
-        return f"Timer {self.name:<10} : {self.plugin:<15} : {self.seconds:05d} : {self.enabled:<6} : {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(self.next_fire))}"
+        return f"Timer {self.name:<10} : {self.plugin_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}"
 
 class Plugin(BasePlugin):
     """
