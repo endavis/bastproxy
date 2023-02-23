@@ -305,38 +305,39 @@ class Plugin(BasePlugin):
           @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM
 
         returns an Event instance"""
+        plugin_id = None
         plugin = None
         try:
-            _ = func.__self__.plugin_id
-            plugin = func.__self__
+            plugin_id = func.__self__.plugin_id
         except AttributeError:
-            plugin = None
+            plugin_id = None
 
         if 'plugin' in kwargs:
             plugin = self.api('plugins.core.plugins:get:plugin:instance')(kwargs['plugin'])
+            plugin_id = plugin.plugin_id
 
-        if not plugin:
+        if not plugin_id:
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
                       'error', sources=[self.plugin_id]).send()
             return
         if seconds <= 0:
             LogRecord(f"_api_add_timer: timer {name} has seconds <= 0, not adding",
-                      'error', sources=[plugin.plugin_id]).send()
+                      'error', sources=[self.plugin_id, plugin_id]).send()
             return
         if not func:
             LogRecord(f"_api_add_timer: timer {name} has no function, not adding",
-                      'error', sources=[plugin.plugin_id]).send()
+                      'error', sources=[self.plugin_id, plugin_id]).send()
             return
 
         if 'unique' in kwargs and kwargs['unique']:
             if name in self.timer_lookup:
-                LogRecord(f"_api_add_timer: timer {name} alread exists, not adding",
-                          'error', sources=[plugin.plugin_id]).send()
+                LogRecord(f"_api_add_timer: timer {name} already exists, not adding",
+                          'error', sources=[self.plugin_id, plugin_id]).send()
                 return
 
-        timer = TimerEvent(name, func, seconds, plugin, **kwargs)
+        timer = TimerEvent(name, func, seconds, plugin_id, **kwargs)
         LogRecord(f"_api_add_timer: adding timer {name}",
-                  'debug', sources=[plugin.plugin_id]).send()
+                  'debug', sources=[self.plugin_id, plugin_id]).send()
         self._add_timer_internal(timer)
         return timer
 
@@ -426,20 +427,20 @@ class Plugin(BasePlugin):
                                     self.overall_fire_count = self.overall_fire_count + 1
                                     if timer.log:
                                         LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
-                                                'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                                                'debug', sources=[self.plugin_id, timer.plugin_id]).send()
                                 except Exception:  # pylint: disable=broad-except
                                     LogRecord(f"check_for_timers_to_fire - timer had an error: {timer}",
-                                            'error', sources=[self.plugin_id, timer.plugin.plugin_id], exc_info=True).send()
+                                            'error', sources=[self.plugin_id, timer.plugin_id], exc_info=True).send()
                             try:
                                 self.timer_events[i].remove(timer)
                             except ValueError:
                                 LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
-                                        'error', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                                        'error', sources=[self.plugin_id, timer.plugin_id]).send()
                             if not timer.onetime:
                                 timer.next_fire_datetime = timer.getnext()
                                 if timer.log:
-                                    LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(timer.next_fire))}",
-                                            'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
+                                    LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
+                                            'debug', sources=[self.plugin_id, timer.plugin_id]).send()
                                 self._add_timer_internal(timer)
                             else:
                                 self.api(f"{self.plugin_id}:remove:timer")(timer.name)
