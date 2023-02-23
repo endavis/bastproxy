@@ -9,7 +9,7 @@
 This plugin has the base event class
 """
 # Standard Library
-import time
+import datetime
 
 # 3rd Party
 
@@ -30,7 +30,7 @@ class Event(object): # pylint: disable=too-few-public-methods
         self.fired_count = 0
         self.func = func
         self.enabled = enabled
-        self.created_time = time.time()
+        self.created_time = datetime.datetime.now(datetime.timezone.utc)
 
     def execute(self):
         """

@@ -15,7 +15,7 @@
 # Standard Library
 import asyncio
 import logging
-import time
+import datetime
 from uuid import uuid4
 
 # Third Party
@@ -58,7 +58,7 @@ class ClientConnection:
         self.uuid = uuid4()
         self.view_only = False
         self.msg_queue = asyncio.Queue()
-        self.connected_time = time.localtime()
+        self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
         self.api('plugins.core.clients:client:add')(self)

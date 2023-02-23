@@ -13,6 +13,7 @@ import time
 import os
 import sys
 import platform
+import datetime
 
 # 3rd Party
 
@@ -147,10 +148,10 @@ class Plugin(BasePlugin):
         template = '%-15s : %s'
         mud = self.api('plugins.core.managers:get')('mud')
         tmsg = ['']
-        started = time.strftime(self.api.time_format, self.api.proxy_start_time)
+        started = self.api.proxy_start_time.strftime(self.api.time_format)
         uptime = self.api('plugins.core.utils:convert:timedelta:to:string')(
             self.api.proxy_start_time,
-            time.localtime())
+            datetime.datetime.now(datetime.timezone.utc))
 
         tmsg.append('@B-------------------  Proxy ------------------@w')
         tmsg.append(template % ('Started', started))
@@ -161,11 +162,10 @@ class Plugin(BasePlugin):
         if mud:
             if mud.connected_time:
                 tmsg.append(template % ('Connected',
-                                        time.strftime(self.api.time_format,
-                                                      mud.connected_time)))
+                                        mud.connected_time.strftime(self.api.time_format)))
                 tmsg.append(template % ('Uptime', self.api('plugins.core.utils:convert:timedelta:to:string')(
                     mud.connected_time,
-                    time.localtime())))
+                    datetime.datetime.now(datetime.timezone.utc))))
                 tmsg.append(template % ('Host', mud.host))
                 tmsg.append(template % ('Port', mud.port))
                 tmsg.append(template % ('Options', ''))

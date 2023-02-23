@@ -11,6 +11,7 @@ Holds the change record type
 # Standard Library
 from uuid import uuid4
 import time
+import datetime
 import traceback
 
 # 3rd Party
@@ -30,7 +31,7 @@ class ChangeRecord(object):
     """
     def __init__(self, flag, action, actor=None, extra=None, data=None):
         self.uuid = uuid4()
-        self.time_taken = time.time()
+        self.time_taken = datetime.datetime.now(datetime.timezone.utc)
         self.flag = flag
         self.action = action
         self.actor = actor

@@ -48,9 +48,9 @@ for an example of using sqldb
 import sqlite3
 import os
 import shutil
-import time
 import zipfile
 import copy
+import datetime
 
 # 3rd Party
 
@@ -338,7 +338,7 @@ class Sqldb(object):
         if args['name']:
             name = args['name']
         else:
-            name = time.strftime('%a-%b-%d-%Y-%H-%M', time.localtime())
+            name = datetime.datetime.now(datetime.timezone.utc).strftime('%a-%b-%d-%Y-%H-%M-%Z')
 
         backup_file_name = self.backup_template % name + '.zip'
         if self.backupdb(name):

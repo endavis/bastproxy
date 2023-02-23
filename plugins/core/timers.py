@@ -13,6 +13,7 @@ import time
 import datetime
 import sys
 import asyncio
+import math
 
 # 3rd Party
 
@@ -57,39 +58,54 @@ class TimerEvent(Event):
         if 'log' in kwargs:
             self.log = kwargs['log']
 
-        self.time_last_fired = None
-        self.next_fire = self.getnext() or -1
+        self.last_fired_datetime = None
+
+        # this should be a datetime object
+        self.next_fire_datetime = self.get_first_fire() or None
+
+    def get_first_fire(self):
+        """
+        Gets the first fire time of the timer.
+
+        Returns:
+            datetime: First fire time of the timer.
+        """
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.time:
+            hour_minute = time.strptime(self.time, '%H%M')
+            new_date = now.replace(hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0)
+            while new_date < now:
+                new_date = new_date + datetime.timedelta(days=1)
+            return new_date
+
+        else:
+            new_date = now + datetime.timedelta(seconds=self.seconds)
+
+            while new_date < now:
+                new_date = new_date + datetime.timedelta(seconds=self.seconds)
+            return new_date
 
     def getnext(self):
         """
-        get the next time to call this timer
+        Gets the next timestamp when the timer should fire.
+
+        Returns:
+            int: Timestamp of the next time when the timer should fire.
         """
-        if self.time:
-            now = datetime.datetime(2012, 1, 1)
-            now_time_tuple = now.now()
-            hour_minute = time.strptime(self.time, '%H%M')
-            next_time_tuple = now.replace(hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0)
-            diff = next_time_tuple - now
-            while diff.days < 0:
-                tstuff = self.plugin.api('plugins.core.utils:convert:seconds:to:dhms')(self.seconds)
-                next_time_tuple = next_time_tuple + datetime.timedelta(days=tstuff['days'],
-                                                                       hours=tstuff['hours'],
-                                                                       minutes=tstuff['mins'],
-                                                                       seconds=tstuff['secs'])
-                diff = next_time_tuple - now_time_tuple
-
-            next_time_in_seconds = time.mktime(next_time_tuple.timetuple())
-
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.last_fired_datetime:
+            next_fire = self.last_fired_datetime + datetime.timedelta(seconds=self.seconds)
+            while next_fire < now:
+                next_fire = next_fire + datetime.timedelta(seconds=self.seconds)
+            return next_fire
         else:
-            next_time_in_seconds = int(time.time()) + self.seconds
-
-        return next_time_in_seconds
+            return self.get_first_fire()
 
     def execute(self):
         """
         execute the event
         """
-        self.time_last_fired = time.localtime()
+        self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
         super().execute()
 
     def __str__(self):
@@ -113,7 +129,7 @@ class Plugin(BasePlugin):
         self.timer_events = {}
         self.timer_lookup = {}
         self.overall_fire_count = 0
-        self.time_last_checked = int(time.time())
+        self.time_last_checked = datetime.datetime.now(datetime.timezone.utc)
 
         # new api format
         self.api('libs.api:add')('add:timer', self._api_add_timer)
@@ -226,7 +242,7 @@ class Plugin(BasePlugin):
 
         match = args['match']
 
-        message.append(f"Local time is: {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime())}")
+        message.append(f"UTC time is: {datetime.datetime.now(datetime.timezone.utc).strftime('%a %b %d %Y %H:%M:%S %Z')}")
 
         message.append('@M' + '-' * 80 + '@w')
         templatestring = '%-20s : %-25s %-9s %-8s %s'
@@ -237,10 +253,9 @@ class Plugin(BasePlugin):
             if not match or match in i:
                 timer = self.timer_lookup[i]
                 message.append(templatestring % (
-                    timer.name, timer.plugin.plugin_id,
+                    timer.name, timer.plugin_id,
                     timer.enabled, timer.fired_count,
-                    time.strftime('%a %b %d %Y %H:%M:%S',
-                                  time.localtime(timer.next_fire))))
+                    timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')))
 
         return True, message
 
@@ -258,18 +273,17 @@ class Plugin(BasePlugin):
                     timer = self.timer_lookup[timer]
                     message.append(f"{'Name':<{columnwidth}} : {timer.name}")
                     message.append(f"{'Enabled':<{columnwidth}} : {timer.enabled}")
-                    message.append(f"{'Plugin':<{columnwidth}} : {timer.plugin.plugin_id}")
+                    message.append(f"{'Plugin':<{columnwidth}} : {timer.plugin_id}")
                     message.append(f"{'Onetime':<{columnwidth}} : {timer.onetime}")
                     message.append(f"{'Time':<{columnwidth}} : {timer.time}")
                     message.append(f"{'Seconds':<{columnwidth}} : {timer.seconds}")
                     message.append(f"{'Times Fired':<{columnwidth}} : {timer.fired_count}")
                     message.append(f"{'Log':<{columnwidth}} : {timer.log}")
                     last_fire_time = 'None'
-                    if timer.time_last_fired:
-                        last_fire_time = time.strftime('%a %b %d %Y %H:%M:%S',
-                                                       timer.time_last_fired)
+                    if timer.last_fired_datetime:
+                        last_fire_time = timer.last_fired_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')
                         message.append(f"{'Last Fire':<{columnwidth}} : {last_fire_time}")
-                    message.append(f"{'Next Fire':<{columnwidth}} : {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(timer.next_fire))}")
+                    message.append(f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}")
                     message.append('')
 
         else:
@@ -376,7 +390,7 @@ class Plugin(BasePlugin):
         """
         internally add a timer
         """
-        timer_next_time_to_fire = timer.next_fire
+        timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if timer_next_time_to_fire != -1:
             if timer_next_time_to_fire not in self.timer_events:
                 self.timer_events[timer_next_time_to_fire] = []
@@ -393,22 +407,22 @@ class Plugin(BasePlugin):
         firstrun = True
         keepgoing = True
         while keepgoing:
-            now = int(time.time())
+            now = datetime.datetime.now(datetime.timezone.utc)
             if now != self.time_last_checked:
                 if not firstrun:
-                    if now - self.time_last_checked > 1:
+                    diff = now - self.time_last_checked
+                    if diff.total_seconds() > 1:
                         LogRecord(f"check_for_timers_to_fire - timer had to check multiple seconds: {now - self.time_last_checked}",
                                 'warning', sources=[self.plugin_id]).send()
                 else:
                     LogRecord('Checking timers coroutine has started', 'debug', sources=[self.plugin_id]).send()
                 firstrun = False
-                for i in range(self.time_last_checked, now + 1):
+                for i in range(math.floor(self.time_last_checked.timestamp()), math.floor(now.timestamp()) + 1):
                     if i in self.timer_events and self.timer_events[i]:
                         for timer in self.timer_events[i][:]:
                             if timer.enabled:
                                 try:
                                     timer.execute()
-                                    timer.fired_count = timer.fired_count + 1
                                     self.overall_fire_count = self.overall_fire_count + 1
                                     if timer.log:
                                         LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
@@ -422,7 +436,7 @@ class Plugin(BasePlugin):
                                 LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
                                         'error', sources=[self.plugin_id, timer.plugin.plugin_id]).send()
                             if not timer.onetime:
-                                timer.next_fire = timer.next_fire + timer.seconds
+                                timer.next_fire_datetime = timer.getnext()
                                 if timer.log:
                                     LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {time.strftime('%a %b %d %Y %H:%M:%S', time.localtime(timer.next_fire))}",
                                             'debug', sources=[self.plugin_id, timer.plugin.plugin_id]).send()

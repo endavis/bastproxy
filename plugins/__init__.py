@@ -27,8 +27,8 @@ When loading a plugin:
 import sys
 import operator
 import re
-import time
 import ast
+import datetime
 
 # 3rd Party
 
@@ -722,7 +722,7 @@ class PluginMgr(BasePlugin):
             plugin['purpose'] = module.PURPOSE
             plugin['author'] = module.AUTHOR
             plugin['version'] = module.VERSION
-            plugin['importedtime'] = time.time()
+            plugin['importedtime'] = datetime.datetime.now(datetime.timezone.utc)
 
         # add dictionary to loaded_plugins
         self.loaded_plugins[plugin_id] = plugin

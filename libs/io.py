@@ -14,7 +14,6 @@ mud will go through the apis libs.io:send:mud
 """
 
 # Standard Library
-import time
 import re
 
 # Third Party

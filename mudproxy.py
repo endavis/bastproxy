@@ -16,7 +16,7 @@
 
 # Standard Library
 import logging
-import time
+import datetime
 import os
 import sys
 from pathlib import Path
@@ -36,15 +36,15 @@ from libs.asynch import run_asynch
 from libs import io
 from libs import timing
 
-logging.basicConfig(stream=sys.stdout,
-                    level='INFO',
-                    format=f"%(asctime)s {time.strftime('%z')} : %(name)-12s - %(levelname)-9s - %(message)s")
-
 API = BASEAPI()
-API.__class__.proxy_start_time = time.localtime()
+API.__class__.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
 API.__class__.startup = True
 
-BASEAPI.TIMEZONE = time.strftime('%z')
+BASEAPI.TIMEZONE = API.__class__.proxy_start_time.tzinfo.tzname(API.__class__.proxy_start_time)
+
+logging.basicConfig(stream=sys.stdout,
+                    level='INFO',
+                    format=f"%(asctime)s {BASEAPI.TIMEZONE} : %(name)-12s - %(levelname)-9s - %(message)s")
 
 npath = Path(__file__).resolve()
 BASEAPI.BASEPATH = npath.parent

@@ -233,7 +233,7 @@ class API(object):
             self.log = logging.getLogger('libs.api')
 
         # the format for the time
-        self.time_format = '%a %b %d %Y %H:%M:%S'
+        self.time_format = '%a %b %d %Y %H:%M:%S %Z'
 
         # this is the plugin the api was created from
         self.parent_plugin_id = parent_plugin_id

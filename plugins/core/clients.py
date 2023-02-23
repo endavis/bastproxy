@@ -9,7 +9,6 @@
 This plugin will show information about connections to the proxy
 """
 # Standard Library
-import time
 import datetime
 
 # 3rd Party
@@ -90,7 +89,7 @@ class Plugin(BasePlugin):
             addr = self.clients[client_uuid].addr
             LogRecord(f"{addr} has been banned for 10 minutes",
                       level='error', sources=[self.plugin_id]).send()
-            self.banned[addr] = time.localtime()
+            self.banned[addr] =  datetime.datetime.now(datetime.timezone.utc)
             self.clients[client_uuid].state['connected'] = False
 
     def _api_is_client_view_client(self, client_uuid):
@@ -145,9 +144,8 @@ class Plugin(BasePlugin):
           clientip - the client ip to check
         """
         if clientip in self.banned:
-            difference = time.mktime(time.localtime()) - time.mktime(self.banned[clientip])
-            delta = datetime.timedelta(seconds=difference)
-            if delta.total_seconds() > 600:
+            difference =  datetime.datetime.now(datetime.timezone.utc) - self.banned[clientip]
+            if difference.total_seconds() > 600:
                 del self.banned[clientip]
                 return False
             return True
@@ -208,7 +206,7 @@ class Plugin(BasePlugin):
             client = self.clients[i]
             ttime = self.api('plugins.core.utils:convert:timedelta:to:string')(
                 client.connected_time,
-                time.localtime())
+                datetime.datetime.now(datetime.timezone.utc))
 
             tmsg.append(clientformat % ('Active', client.addr, client.port,
                                         'Terminal Type', ttime, client.view_only))

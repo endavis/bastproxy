@@ -11,7 +11,7 @@ Holds the base record type
 # Standard Library
 from collections import UserList
 from uuid import uuid4
-import time
+import datetime
 
 # 3rd Party
 
@@ -36,6 +36,7 @@ class BaseRecord(UserList):
         # True if this was created internally
         self.internal = internal
         self.plugin_id = plugin_id
+        self.created =  datetime.datetime.now(datetime.timezone.utc)
         self.changes = ChangeManager()
         RMANAGER.add(self)
 
@@ -118,7 +119,7 @@ class BaseRecord(UserList):
         change['action'] = action
         change['actor'] = actor
         change['extra'] = extra
-        change['time'] = time.localtime()
+        change['time'] =  datetime.datetime.now(datetime.timezone.utc)
 
         data = None
         if savedata:

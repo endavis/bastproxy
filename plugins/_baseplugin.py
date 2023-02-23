@@ -15,8 +15,8 @@ import sys
 import textwrap
 import pprint
 import inspect
-import time
 import logging
+import datetime
 from pathlib import Path
 
 # 3rd Party
@@ -87,7 +87,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.can_reset_f = True
         self.reset_f = True
         self.is_character_active_priority = None
-        self.loaded_time = time.localtime()
+        self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
 
 
         os.makedirs(self.save_directory, exist_ok=True)
@@ -450,8 +450,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         msg.append(f"{'Author':<{width}} : {self.author}")
         msg.append(f"{'Version':<{width}} : {self.version}")
         msg.append(f"{'Plugin Path':<{width}} : {self.plugin_path}")
-        msg.append(f"{'Time Loaded':<{width}} : {time.strftime(self.api.time_format, self.loaded_time)}")
-        msg.append(f"{'Modified Time':<{width}} : {time.strftime(self.api.time_format, time.localtime(os.path.getmtime(self.full_plugin_path)))}")
+        msg.append(f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}")
+        msg.append(f"{'Modified Time':<{width}} : {datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc).strftime(self.api.time_format)}")
         if self.is_changed_on_disk():
             msg.append(f"{' ':<{width}} : @RThe plugin has been modified on disk since it was loaded@w")
 
@@ -698,7 +698,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         return:
           True if the plugin is changed on disk, False otherwise
         """
-        file_modified_time = time.localtime(os.path.getmtime(self.full_plugin_path))
+        file_modified_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc)
         if file_modified_time > self.loaded_time:
             return True
 
