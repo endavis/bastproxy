@@ -135,7 +135,7 @@ class EventContainer(object):
         message.append('@B' + '-' * 60)
         function_message = []
         key_list = self.priority_dictionary.keys()
-        key_list.sort()
+        key_list = sorted(key_list)
         for priority in key_list:
             for event_function in self.priority_dictionary[priority]:
                 function_message.append(f"{priority:<13} : {event_function.plugin_id:<15} - {event_function.name}")
