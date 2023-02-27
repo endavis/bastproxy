@@ -328,7 +328,7 @@ class Plugin(BasePlugin):
                           'error', sources=[self.plugin_id, plugin_id]).send()
                 return
 
-        timer = TimerEvent(name, func, seconds, plugin_id, **kwargs)
+        timer = Timer(name, func, seconds, plugin_id, **kwargs)
         LogRecord(f"_api_add_timer: adding timer {name}",
                   'debug', sources=[self.plugin_id, plugin_id]).send()
         self._add_timer_internal(timer)
