@@ -16,7 +16,7 @@ import datetime
 # Project
 from libs.api import API
 
-class Event(object): # pylint: disable=too-few-public-methods
+class Callback: # pylint: disable=too-few-public-methods
     """
     a basic event class
     """
@@ -31,11 +31,13 @@ class Event(object): # pylint: disable=too-few-public-methods
         self.func = func
         self.enabled = enabled
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
+        self.last_fired_datetime = None
 
     def execute(self):
         """
         execute the event
         """
+        self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
         self.fired_count = self.fired_count + 1
         self.func()
 
@@ -44,3 +46,18 @@ class Event(object): # pylint: disable=too-few-public-methods
         return a string representation of the timer
         """
         return f"Event {self.name:<10} : {self.plugin_id:<15}"
+
+    def __eq__(self, other_function):
+        """
+        check equality between two event functions
+        """
+        if callable(other_function):
+            if other_function == self.func:
+                return True
+        try:
+            if self.func == other_function.func:
+                return True
+        except AttributeError:
+            return False
+
+        return False

@@ -25,6 +25,7 @@ This plugin handles events.
 
 # Project
 import libs.argp as argp
+from libs.callback import Callback
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 
@@ -35,46 +36,6 @@ AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
 
-class EFunc(object): # pylint: disable=too-few-public-methods
-    """
-    a basic event class
-    """
-    def __init__(self, func, func_plugin_id):
-        """
-        init the class
-        """
-        self.plugin_id = func_plugin_id
-        self.executed_count = 0
-        self.func = func
-        self.name = func.__name__
-
-    def execute(self, args):
-        """
-        execute the event
-        """
-        self.executed_count = self.executed_count + 1
-        return self.func(args)
-
-    def __str__(self):
-        """
-        return a string representation of the function
-        """
-        return f"{self.name:<10} : {self.plugin_id:15}"
-
-    def __eq__(self, other_function):
-        """
-        check equality between two event functions
-        """
-        if callable(other_function):
-            if other_function == self.func:
-                return True
-        try:
-            if self.func == other_function.func:
-                return True
-        except AttributeError:
-            return False
-
-        return False
 
 class EventContainer(object):
     """
@@ -122,7 +83,7 @@ class EventContainer(object):
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = []
 
-        event_function = EFunc(func, func_plugin_id)
+        event_function = Callback(func.__name__, func_plugin_id, func)
 
         if event_function not in self.priority_dictionary[priority]:
             self.priority_dictionary[priority].append(event_function)

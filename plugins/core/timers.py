@@ -20,7 +20,7 @@ import math
 # Project
 from plugins._baseplugin import BasePlugin
 import libs.argp as argp
-from libs.event import Event
+from libs.callback import Callback
 from libs.records import LogRecord
 
 #these 5 are required
@@ -32,7 +32,7 @@ VERSION = 1
 
 REQUIRED = True
 
-class TimerEvent(Event):
+class Timer(Callback):
     """
     a class for a timer event
     """
@@ -100,13 +100,6 @@ class TimerEvent(Event):
             return next_fire
         else:
             return self.get_first_fire()
-
-    def execute(self):
-        """
-        execute the event
-        """
-        self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
-        super().execute()
 
     def __str__(self):
         """
