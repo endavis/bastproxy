@@ -1,0 +1,60 @@
+Data Flow - Client to Mud: (no longer valid, will update)
+-------------------------------------------------------------------------
+1) Proxy receives the data from the client
+2) Proxy sends the data to send.execute
+    a) send.execute raises the event "io_execute_event"
+      if you want to transform command:
+        register to the io_execute_event
+        internally: anything sent to execute will be raised as an io_execute_event
+
+      if a plugin changes the data, add it to an ordered list that is returned with io_execute_event
+          self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
+                                                info='Matched id "%s" with alias "%s"' % \
+                                                        (self._aliases[mem]['num'], mem),
+                                                original_data=data,
+                                                new_data=datan)
+
+      this way a command can be tracked through plugins and how they change it
+    b) send.execute raises "to_mud_event" if needed
+        - Use this event if you only need to see what was sent to the mud,
+            the command cannot be transformed through this event
+3) Proxy listens for to_mud_event and sends it to the mud
+
+Data Flow - Mud to Client
+-------------------------------------------------------------------------
+1) Proxy receives the data from the mud
+2) The data is transformed to a ToClientRecord and is sent with the send method
+3) ToClientRecord raises the event 'ev_modify_client_data' on data that is not internal
+     - Use this event to transform data received from the mud
+            After any transformation, use ToClientRecord.addchange to track the changes
+            this way data can be tracked through plugins and how they change it
+4) Proxy sends the result of the event to the client by queueing the messasge,
+5) After all data is sent, ToClientRecord will raise "after_client_send" event on data that is not internal
+       - Use this event if you only need to see the data sent to the client,
+           the data cannot be transformed through this event
+
+NOTE: no events are raised for data sent to the client that originated in the proxy
+Because that type of data is generated from a command
+
+Sending data directly to the mud
+-------------------------------------------------------------------------
+1) Use send.mud
+
+Sending data directly to clients
+-------------------------------------------------------------------------
+1)  use a ToClientRecord and send with the send method
+
+Sending a command through the interpreter
+-------------------------------------------------------------------------
+1) Use send.execute
+
+Plugin Developer Notes
+-------------------------------------------------------------------------
+1) Do not save plugin instances in long term storage, lookup plugin instances at runtime.
+    Plugins can be reloaded and if the old plugin instance is still referenced it
+    will not be garbage collected. The old plugin instance could interfere
+    with the new plugin instance.
+2) Location of Data
+    Keep data internal to the source plugin. For Example, command data is kept in the
+    plugin that created the command, not the command plugin itself. This makes
+    reloading plugins viable and easy.
