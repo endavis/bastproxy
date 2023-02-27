@@ -28,6 +28,7 @@ import libs.argp as argp
 from libs.callback import Callback
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
+from libs.api import API
 
 NAME = 'Event Handler'
 SNAME = 'events'
@@ -41,14 +42,14 @@ class EventContainer(object):
     """
     a container of functions for an event
     """
-    def __init__(self, plugin, name):
+    def __init__(self, plugin_id, name):
         """
         init the class
         """
         self.name = name
         self.priority_dictionary = {}
-        self.plugin = plugin
-        self.api = self.plugin.api
+        self.plugin_id = plugin_id
+        self.api = API()
         self.raised_count = 0
 
     def isregistered(self, func):
@@ -88,7 +89,7 @@ class EventContainer(object):
         if event_function not in self.priority_dictionary[priority]:
             self.priority_dictionary[priority].append(event_function)
             LogRecord(f"{self.name} - register function {event_function} with priority {priority}",
-                      level='debug', sources=[event_function.plugin_id, self.plugin.plugin_id]).send()
+                      level='debug', sources=[event_function.plugin_id, self.plugin_id]).send()
             return True
 
         return False
@@ -153,8 +154,8 @@ class EventContainer(object):
         """
         self.raised_count = self.raised_count + 1
 
-        if self.name != 'ev_bastproxy_global_timer' and \
-            ('_savestate' in self.name and self.api('setting:get')('log_savestate')):
+        log_savestate = self.api('libs.api:run:as:plugin')(__name__, 'setting:get')('log_savestate')
+        if '_savestate' in self.name and log_savestate:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with args {new_args}",
                       level='debug', sources=[calledfrom, self.plugin_id]).send()
         keys = self.priority_dictionary.keys()
@@ -300,7 +301,7 @@ class Plugin(BasePlugin):
             func_plugin_id = kwargs['plugin_id']
 
         if event_name not in self.events:
-            self.events[event_name] = EventContainer(self, event_name)
+            self.events[event_name] = EventContainer(self.plugin_id, event_name)
 
         self.events[event_name].register(func, func_plugin_id, priority)
 
@@ -352,7 +353,7 @@ class Plugin(BasePlugin):
         new_args = args.copy()
         new_args['eventname'] = event_name
         if event_name not in self.events:
-            self.events[event_name] = EventContainer(self, event_name)
+            self.events[event_name] = EventContainer(self.plugin_id, event_name)
 
         self.global_raised_count += 1
         new_args = self.events[event_name].raise_event(new_args, calledfrom)
