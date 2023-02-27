@@ -33,13 +33,16 @@ class Callback: # pylint: disable=too-few-public-methods
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_fired_datetime = None
 
-    def execute(self):
+    def execute(self, args=None):
         """
         execute the event
         """
         self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
         self.fired_count = self.fired_count + 1
-        self.func()
+        if args:
+            self.func(args)
+        else:
+            self.func()
 
     def __str__(self):
         """
