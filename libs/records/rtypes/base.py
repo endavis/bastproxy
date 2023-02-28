@@ -39,6 +39,7 @@ class BaseRecord(UserList):
         self.created =  datetime.datetime.now(datetime.timezone.utc)
         self.changes = ChangeManager()
         RMANAGER.add(self)
+        self.addchange('Create', 'init', None)
 
     def replace(self, data, actor=None, extra=None):
         """
@@ -106,7 +107,7 @@ class BaseRecord(UserList):
     def addchange(self, flag, action, actor, extra=None, savedata=True):
         """
         add a change event for this record
-            flag: one of 'Modify', 'Set Flag'
+            flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
         a message should create a change event at the following times:

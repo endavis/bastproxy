@@ -56,6 +56,42 @@ class ToClientRecord(BaseRecord):
         self.exclude_clients = exclude_clients
         if not self.exclude_clients:
             self.exclude_clients = []
+        # This is a flag to prevent the message from being sent to the client more than once
+        self.sending = False
+
+    @property
+    def is_command_telnet(self):
+        """
+        A shortcut property to determine if this message is a Telnet Opcode.
+        """
+        return self.message_type == "COMMAND-TELNET"
+
+    @property
+    def is_io(self):
+        """
+        A shortcut property to determine if this message is normal I/O.
+        """
+        return self.message_type == "IO"
+
+    @property
+    def noansi(self):
+        """
+        return the message without ansi codes
+        """
+        newmessage = []
+        for item in self.data:
+            newmessage.append(self.api('plugins.core.colors:strip:ansi')(item))
+        return newmessage
+
+    @property
+    def color(self):
+        """
+        return the message with ansi codes converted to @ color codes
+        """
+        newmessage = []
+        for item in self.data:
+            newmessage.append(self.api('plugins.core.colors:ansicode:to:colorcode')(item))
+        return newmessage
 
     def set_send_to_clients(self, flag, actor=None, extra=None):
         """
@@ -107,7 +143,7 @@ class ToClientRecord(BaseRecord):
         """
         add the preamble to the message only if it is from internal and is an IO message
         """
-        if self.preamble and self.internal and self.message_type == 'IO':
+        if self.preamble and self.internal and self.is_io:
             preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=self.error)
             preambletext = self.api('plugins.core.proxy:preamble:get')()
             new_message = []
@@ -122,7 +158,7 @@ class ToClientRecord(BaseRecord):
         clean the message
         """
         # clean only if internal and 'IO'
-        if self.internal and self.message_type == 'IO':
+        if self.internal and self.is_io:
             super().clean(actor)
 
     def convert_colors(self, actor=None):
@@ -130,7 +166,7 @@ class ToClientRecord(BaseRecord):
         convert the message colors
         """
         # convert colors only if internal and 'IO'
-        if self.internal and self.message_type == 'IO':
+        if self.internal and self.is_io:
             converted_message = []
             for i in self.data:
                 if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
@@ -144,7 +180,7 @@ class ToClientRecord(BaseRecord):
         add the color to the beginning of all lines in the message
         """
         # add color only if internal and 'IO'
-        if self.internal and self.message_type == 'IO':
+        if self.internal and self.is_io:
             super().color(self.color_for_all_lines, actor)
 
     def add_line_endings(self, actor=None):
@@ -152,7 +188,7 @@ class ToClientRecord(BaseRecord):
         add line endings to the message
         """
         # add line endings only if internal and 'IO'
-        if self.internal and self.message_type == 'IO':
+        if self.internal and self.is_io:
             new_message = []
             for item in self.data:
                 new_message.append(f"{item}\n\r")
@@ -175,8 +211,15 @@ class ToClientRecord(BaseRecord):
         """
         send the message
         """
+        if self.sending:
+            LogRecord(f"LogRecord: {self.uuid} is already sending",
+                                level='debug', stack_info=True, sources=[__name__]).send()
+            return
+        self.sending = True
+        self.addchange('Info', 'Starting Send', actor)
         if not self.internal:
-            self.api('plugins.core.events:raise:event')('before_client_send', args={'ToClientRecord': self})
+            self.api('plugins.core.events:raise:event')('ev_modify_client_data', args={'ToClientRecord': self})
+            self.addchange('Info', 'After event ev_modify_client_data', actor)
         if self.send_to_clients:
             self.format(actor=actor)
             loop = asyncio.get_event_loop()
@@ -187,7 +230,7 @@ class ToClientRecord(BaseRecord):
             for client_uuid in clients:
                 if self.can_send_to_client(client_uuid):
                     client = self.api('plugins.core.clients:get:client')(client_uuid)
-                    if self.message_type == 'IO':
+                    if self.is_io:
                         message = NetworkData(self.message_type, message=''.join(self), client_uuid=client_uuid)
                         loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
                     else:
@@ -196,7 +239,7 @@ class ToClientRecord(BaseRecord):
                             loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
                 else:
                     LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
-                              level='debug', sources=[__name__]).send()
+                            level='debug', sources=[__name__]).send()
 
             if not self.internal:
-                self.api('plugins.core.events:raise:event')('after_client_send', args={'ToClientRecord': self})
+                self.api('plugins.core.events:raise:event')('ev_after_client_send', args={'ToClientRecord': self})
