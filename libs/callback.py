@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/event.py
+# Filename: libs/callback.py
 #
-# File Description: a basic event class
+# File Description: a class to track callbacks
 #
 # By: Bast
 """
-This plugin has the base event class
+This plugin is used to track callbacks
 """
 # Standard Library
 import datetime
@@ -18,7 +18,7 @@ from libs.api import API
 
 class Callback: # pylint: disable=too-few-public-methods
     """
-    a basic event class
+    a basic callback class
     """
     def __init__(self, name, plugin_id, func, enabled=True):
         """
@@ -35,7 +35,7 @@ class Callback: # pylint: disable=too-few-public-methods
 
     def execute(self, args=None):
         """
-        execute the event
+        execute the callback
         """
         self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
         self.fired_count = self.fired_count + 1
@@ -46,13 +46,13 @@ class Callback: # pylint: disable=too-few-public-methods
 
     def __str__(self):
         """
-        return a string representation of the timer
+        return a string representation of the callback
         """
         return f"Event {self.name:<10} : {self.plugin_id:<15}"
 
     def __eq__(self, other_function):
         """
-        check equality between two event functions
+        check equality between two functions
         """
         if callable(other_function):
             if other_function == self.func:
