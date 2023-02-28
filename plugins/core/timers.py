@@ -34,14 +34,22 @@ REQUIRED = True
 
 class Timer(Callback):
     """
-    a class for a timer event
+    a class for a timer
     """
     def __init__(self, name, func, seconds, plugin_id, enabled=True, **kwargs):
         """
-        init the class
+        Initialize the class. Time should be in military format, e.g.,"1430".
 
-        time should be military time, "1430"
-
+        Parameters:
+        name (str): Name of the timer event.
+        func (func): Function to execute on the timer event.
+        seconds (int): Time interval in seconds.
+        plugin (obj): Plugin related to the timer event.
+        **kwargs (Optional): Additional keyword arguments
+            onetime (bool): True if the timer is one-time only. Defaults to False.
+            enabled (bool): True if the timer is enabled. Defaults to True.
+            time (str): Time (in military format) when the timer should fire. If None, timer will fire according to the "seconds" value. Defaults to None.
+            log (bool): True if the timer should show up in the logs. Defaults to True.
         """
         super().__init__(name, plugin_id, func, enabled)
         self.seconds = seconds
@@ -136,8 +144,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')('ev_bastproxy_global_timer', self.check_for_timers_to_fire,
-                                                  prio=1)
         LogRecord(f"initialize - lasttime:  {self.time_last_checked}",
                   'debug', sources=[self.plugin_id]).send()
 
@@ -278,6 +284,8 @@ class Plugin(BasePlugin):
                         message.append(f"{'Last Fire':<{columnwidth}} : {last_fire_time}")
                     message.append(f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}")
                     message.append('')
+                else:
+                    message.append(f"Timer {timer} does not exist")
 
         else:
             message.append('Please specify a timer name')
