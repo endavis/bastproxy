@@ -101,7 +101,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self.settings = {}
         self.data = {}
-        self.setting_values = PersistentDictEvent(self, self.settings_file, 'c')
+        self.setting_values = PersistentDictEvent(self.plugin_id, self.settings_file, 'c')
 
         self._dump_shallow_attrs = ['api']
 
