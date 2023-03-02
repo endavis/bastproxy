@@ -61,7 +61,6 @@ class ClientConnection:
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
-        self.api('plugins.core.clients:client:add')(self)
 
     async def setup_client(self):
         """
