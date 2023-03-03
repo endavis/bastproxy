@@ -108,11 +108,11 @@ class Plugin(BasePlugin):
                                                   self.command_seperator_change)
 
         ssc = self.api('plugins.core.ssc:baseclass:get')()
-        self.proxypw = ssc('proxypw', self, desc='Proxy Password',
+        self.proxypw = ssc('proxypw', self.plugin_id, desc='Proxy Password',
                            default='defaultpass')
-        self.proxyvpw = ssc('proxypwview', self, desc='Proxy View Password',
+        self.proxyvpw = ssc('proxypwview', self.plugin_id, desc='Proxy View Password',
                             default='defaultviewpass')
-        self.mudpw = ssc('mudpw', self, desc='Mud Password')
+        self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud Password')
 
     def api_preamble(self):
         """

@@ -27,6 +27,7 @@ import stat
 
 # Project
 import libs.argp as argp
+from libs.api import API
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 
@@ -42,12 +43,13 @@ class SSC(object):
     """
     a class to manage settings
     """
-    def __init__(self, name, plugin, **kwargs):
+    def __init__(self, name, plugin_id, **kwargs):
         """
         initialize the class
         """
         self.name = name
-        self.plugin = plugin
+        self.api = API()
+        self.plugin_id = plugin_id
 
         if 'default' in kwargs:
             self.default = kwargs['default']
@@ -59,7 +61,8 @@ class SSC(object):
         else:
             self.desc = 'setting'
 
-        self.plugin.api('libs.api:add')(f"ssc:{self.name}", self.getss)
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        plugin_instance.api('libs.api:add')(f"ssc:{self.name}", self.getss)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description=f"set the {self.desc}")
@@ -67,7 +70,7 @@ class SSC(object):
                             help=self.desc,
                             default='',
                             nargs='?')
-        self.plugin.api('plugins.core.commands:command:add')(self.name,
+        plugin_instance.api('plugins.core.commands:command:add')(self.name,
                                                      self.cmd_setssc,
                                                      showinhistory=False,
                                                      parser=parser)
@@ -79,7 +82,8 @@ class SSC(object):
         read the secret from a file
         """
         first_line = ''
-        file_name = os.path.join(self.plugin.save_directory, self.name)
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        file_name = os.path.join(plugin_instance.save_directory, self.name)
         try:
             with open(file_name, 'r') as fileo:
                 first_line = fileo.readline()
@@ -87,8 +91,8 @@ class SSC(object):
             return first_line.strip()
         except IOError:
             if not quiet:
-                LogRecord(f"getss - Please set the {self.desc} with {self.plugin.api('plugins.core.commands:get:command:prefix')()}.{self.plugin.plugin_id}.{self.name}",
-                          level='error', sources=[self.plugin.plugin_id]).send()
+                LogRecord(f"getss - Please set the {self.desc} with {plugin_instance.api('plugins.core.commands:get:command:prefix')()}.{self.plugin_id}.{self.name}",
+                          level='warning', sources=[self.plugin_id]).send()
 
         return self.default
 
@@ -97,7 +101,8 @@ class SSC(object):
         set the secret
         """
         if args['value']:
-            file_name = os.path.join(self.plugin.save_directory, self.name)
+            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+            file_name = os.path.join(plugin_instance.save_directory, self.name)
             data_file = open(file_name, 'w')
             data_file.write(args['value'])
             os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
