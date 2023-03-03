@@ -313,6 +313,24 @@ class Plugin(BasePlugin):
         for i in types:
             if not match or match in i:
                 tmsg.append(i)
+
+    def cmd_test(self, args):
+        """
+        send test records to logging facilities
+        """
+
+        datatype = args['datatype']
+        message = args['message']
+        level = args['level']
+
+        tmsg = [f"'{message}' sent to '{datatype}' as level '{level}'"]
+
+        lr = LogRecord(message, level, sources=[datatype])
+        lr.send()
+
+        tmsg.append(f"Console: {lr.wasemitted['console']}")
+        tmsg.append(f"File: {lr.wasemitted['file']}")
+        tmsg.append(f"Client: {lr.wasemitted['client']}")
         return True, tmsg
 
     def initialize(self):
@@ -381,6 +399,24 @@ class Plugin(BasePlugin):
                             nargs='?')
         self.api('plugins.core.commands:command:add')('types',
                                               self.cmd_types,
+                                              parser=parser)
+
+        parser = argp.ArgumentParser(add_help=False,
+                                     description="""test logging facilities""")
+        parser.add_argument('message',
+                            help='the text to log')
+        parser.add_argument('-d',
+                            '--datatype',
+                            help='the facility to test',
+                            required=True)
+        parser.add_argument('-l',
+                            '--level',
+                            help='the level for the test',
+                            default='info',
+                            choices=['debug', 'info', 'warning', 'error', 'critical'],
+                            required=True)
+        self.api('plugins.core.commands:command:add')('test',
+                                              self.cmd_test,
                                               parser=parser)
 
     def _savestate(self, _=None):
