@@ -168,8 +168,8 @@ class PersistentDict(dict):
         except Exception:  # pylint: disable=broad-except
             record = LogRecord(f"Error when loading {self.format} from {self.file_name}",
                                level='error', sources=[__name__], exc_info=True)
-            if getattr(self, 'plugin_instance'):
-                record.add_source(self.plugin_instance.plugin_id)
+            if getattr(self, 'plugin_id'):
+                record.add_source(self.plugin_id)
             record.send()
 
         raise ValueError('File not in a supported format')
@@ -213,29 +213,34 @@ class PersistentDictEvent(PersistentDict):
         key = convert(key)
         val = convert(val)
         old_value = None
-        plugin_instance = self.api('plugins.core.plugins:get:instance')(self.plugin_id)
-        if key in self:
+        plugin_instance = None
+        try:
+            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        except AttributeError:
+            pass
+        if key in self and plugin_instance:
             old_value = plugin_instance.api('setting:get')(key)
         if old_value != val:
             dict.__setitem__(self, key, val)
 
-            event_name = f"ev_{plugin_instance.plugin_id}_var_{key}_modified"
-            if not plugin_instance.reset_f and key != '_version':
-                self.api('plugins.core.events:raise:event')(
-                    event_name,
-                    {'var':key,
-                     'newvalue':plugin_instance.api('setting:get')(key),
-                     'oldvalue':old_value})
+            if plugin_instance:
+                event_name = f"ev_{plugin_instance.plugin_id}_var_{key}_modified"
+                if not plugin_instance.reset_f and key != '_version':
+                    self.api('plugins.core.events:raise:event')(
+                        event_name,
+                        {'var':key,
+                        'newvalue':plugin_instance.api('setting:get')(key),
+                        'oldvalue':old_value})
 
     def raiseall(self):
         """
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
-        plugin_instance = self.api('plugins.core.plugins:get:instance')(self.plugin_id)
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
         for i in self:
             event_name = f"ev_{plugin_instance.plugin_id}_var_{i}_modified"
             if not plugin_instance.reset_f and i != '_version':
-                plugin_instance.api('plugins.core.events:raise:event')(
+                self.api('plugins.core.events:raise:event')(
                     event_name,
                     {'var':i,
                      'newvalue':plugin_instance.api('setting:get')(i),
@@ -245,8 +250,9 @@ class PersistentDictEvent(PersistentDict):
         """
         always put plugin version in here
         """
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
         try:
-            self['_version'] = self.plugin_instance.version
+            self['_version'] = plugin_instance.version
         except AttributeError:
             pass
 
