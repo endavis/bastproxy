@@ -108,9 +108,13 @@ class Plugin(BasePlugin):
         # convert start_time to seconds
         if isinstance(start_time, time.struct_time):
             start_time = time.mktime(start_time)
+        elif isinstance(start_time, datetime.datetime):
+            start_time = start_time.timestamp()
         # convert end_time to seconds
         if isinstance(end_time, time.struct_time):
             end_time = time.mktime(end_time)
+        elif isinstance(end_time, datetime.datetime):
+            end_time = end_time.timestamp()
         delta = datetime.timedelta(seconds=abs(end_time - start_time))
         if delta.days > 0:
             temp_string = str(delta)
