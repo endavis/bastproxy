@@ -85,14 +85,15 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('group:toggle:enable', self._api_group_toggle_enable)
         self.api('libs.api:add')('remove:data:for:plugin', self._api_remove_triggers_for_plugin)
 
+        self.api('setting:add')('enabled', 'True', bool,
+                                'enable triggers')
+
     def initialize(self):
         """
         initialize the plugin
         """
         BasePlugin.initialize(self)
 
-        self.api('setting:add')('enabled', 'True', bool,
-                                'enable triggers')
         self.api('plugins.core.events:register:to:event')(f"'ev_{self.plugin_id}_var_enabled_modified", self.enablechange)
 
         parser = argp.ArgumentParser(add_help=False,

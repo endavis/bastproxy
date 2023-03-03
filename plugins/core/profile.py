@@ -42,12 +42,6 @@ class Plugin(BasePlugin):
         self.last_command_trace_id = 0
         self.last_changed_mud_data_id = 0
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
         self.api('setting:add')('commands', False, bool,
                                 'flag to echo commands')
         self.api('setting:add')('functions', False, bool,
@@ -56,6 +50,12 @@ class Plugin(BasePlugin):
                                 '# of traces kept')
         self.api('setting:add')('cmdfuncstack', False, bool,
                                 'print the function stack in an echo')
+
+    def initialize(self):
+        """
+        initialize the plugin
+        """
+        BasePlugin.initialize(self)
 
         parser = argp.ArgumentParser(
             add_help=False,

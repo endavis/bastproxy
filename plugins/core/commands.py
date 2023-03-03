@@ -135,15 +135,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
         self.api('libs.api:add')('get:commands:for:plugin:data', self._api_get_plugin_command_data)
 
-        self.dependencies = ['core.events', 'core.msg', 'core.errors', 'core.fuzzy']
-        #self.dependencies.append('core.fuzzy')
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
         # initialize settings
         self.api('setting:add')('cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
@@ -160,6 +151,14 @@ class Plugin(BasePlugin):
                                 readonly=True)
         self.api('setting:add')('historysize', 50, int,
                                 'the size of the history to keep')
+
+        self.dependencies = ['core.events', 'core.msg', 'core.errors', 'core.fuzzy']
+
+    def initialize(self):
+        """
+        initialize the plugin
+        """
+        BasePlugin.initialize(self)
 
         # add commands
         parser = argp.ArgumentParser(add_help=False,

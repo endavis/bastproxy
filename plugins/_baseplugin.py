@@ -44,7 +44,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use api:add, api:overload, dependency:add
+              only use api:add, api:overload, dependency:add, setting:add
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
@@ -59,7 +59,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.name = name
         self.short_name = short_name
         self.plugin_id = plugin_id
-        self.initializing_f = False
+        self.initializing_f = True
         self.author = ''
         self.purpose = ''
         self.version = 0
@@ -102,6 +102,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.settings = {}
         self.data = {}
         self.setting_values = PersistentDictEvent(self.plugin_id, self.settings_file, 'c')
+        self.setting_values.pload()
 
         self._dump_shallow_attrs = ['api']
 
@@ -720,9 +721,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         initialize the plugin, do most things here
         """
-        self.initializing_f = True
-        self.setting_values.pload()
-
         if '_version' in self.setting_values and \
             self.setting_values['_version'] != self.version:
             self._update_version(self.setting_values['_version'], self.version)
@@ -740,3 +738,4 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.__disconnect)
 
             self.reset_f = False
+            self.setting_values.raiseall()

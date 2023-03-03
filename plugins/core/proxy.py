@@ -54,12 +54,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('preamble:get', self.api_preamble)
         self.api('libs.api:add')('preamble:color:get', self.api_preamble_color)
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
         self.api('setting:add')('mudhost', '', str,
                                 'the hostname/ip of the mud')
         self.api('setting:add')('mudport', 0, int,
@@ -78,6 +72,12 @@ class Plugin(BasePlugin):
                                 'the preamble color for an error line')
         self.api('setting:add')('cmdseperator', '|', str,
                                 'the seperator for sending multiple commands')
+
+    def initialize(self):
+        """
+        initialize the plugin
+        """
+        BasePlugin.initialize(self)
 
         self.api('plugins.core.commands:command:add')('info',
                                               self.cmd_info,

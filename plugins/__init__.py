@@ -120,6 +120,10 @@ class PluginMgr(BasePlugin):
         self.api('libs.api:add')('get:all:short:names', self._api_get_all_short_names)
         self.api('libs.api:add')('short:name:convert:plugin:id', self._api_short_name_convert_plugin_id)
 
+        self.api('setting:add')('pluginstoload', [], list,
+                                'plugins to load on startup',
+                                readonly=True)
+
     def _api_short_name_convert_plugin_id(self, short_name):
         """
         convert a short_name to a plugin_id
@@ -1153,9 +1157,6 @@ class PluginMgr(BasePlugin):
         """
         initialize plugin
         """
-        self.api('setting:add')('pluginstoload', [], list,
-                                'plugins to load on startup',
-                                readonly=True)
 
         # add this plugin to loaded plugins and the lookup dictionaries
         self.loaded_plugins[self.plugin_id] = {
