@@ -25,7 +25,6 @@ from pathlib import Path
 
 # Project
 import libs.log
-import libs.net.client
 import libs.argp
 from libs.api import API as BASEAPI
 from libs.net import server
@@ -103,6 +102,9 @@ if __name__ == "__main__":
 
     telnet_port: int = args['port']
     LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy']).send()
+
+    # import the client handler here so that the server can be created
+    import libs.net.client
 
     API('libs.asynch:task:add')(
         server.create_server(
