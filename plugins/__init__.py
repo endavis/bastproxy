@@ -1192,7 +1192,6 @@ class PluginMgr(BasePlugin):
             'plugininstance': self
         }
 
-        # self.plugin_lookup_by_short_name[self.short_name] = self.plugin_id
         self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
         self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
         self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
@@ -1201,14 +1200,9 @@ class PluginMgr(BasePlugin):
         LogRecord('Loading plugins', level='info', sources=[self.plugin_id]).send()
         self._load_plugins_on_startup()
 
-        BasePlugin.initialize(self)
+        super().initialize()
 
-        # self.api('plugins.core.msg:add:datatype')(self.plugin_id)
-        # self.api('plugins.core.msg:toggle:to:console')(self.plugin_id)
-        # self.api('plugins.core.msg:add:datatype')('upgrade')
-        # self.api('plugins.core.msg:toggle:to:console')('upgrade')
-
-        BasePlugin._add_commands(self)
+        super()._add_commands()
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='list plugins')
