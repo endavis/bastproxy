@@ -25,12 +25,12 @@ class RecordManager(object):
         """
         self.max_records = 1000
         self.records = {}
-        self.records['LogRecord'] = deque(maxlen=self.max_records)
-        self.records['ToMudRecord'] = deque(maxlen=self.max_records)
-        self.records['ToClientRecord'] = deque(maxlen=self.max_records)
         API.MANAGERS['records'] = self
 
     def add(self, record):
-        self.records[record.__class__.__name__].append(record)
+        queuename = record.__class__.__name__
+        if queuename not in self.records:
+            self.records[queuename] = deque(maxlen=self.max_records)
+        self.records[queuename].append(record)
 
 RMANAGER = RecordManager()
