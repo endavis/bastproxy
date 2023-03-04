@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/records/rtypes/log.py
+# Filename: libs/records/rtypes/toclient.py
 #
 # File Description: Holds the client record type
 #
@@ -16,9 +16,9 @@ import asyncio
 # Project
 from libs.net.networkdata import NetworkData
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.base import BaseRecord
+from libs.records.rtypes.base import BaseDataRecord
 
-class ToClientRecord(BaseRecord):
+class ToClientRecord(BaseDataRecord):
     """
     a record to a client, this can originate with the mud or internally
     data from the mud will immediately be transformed into this type of record

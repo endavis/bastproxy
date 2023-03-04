@@ -21,25 +21,65 @@ from libs.records.rtypes.change import ChangeRecord
 from libs.records.managers.changes import ChangeManager
 from libs.records.managers.records import RMANAGER
 
-class BaseRecord(UserList):
+class BaseRecord:
+    def __init__(self, plugin_id=None):
+        """
+        initialize the class
+        """
+        # Add an API
+        self.api = API()
+        # create a unique id for this message
+        self.uuid = uuid4()
+        # True if this was created internally
+        self.plugin_id = plugin_id
+        self.created =  datetime.datetime.now(datetime.timezone.utc)
+        self.changes = ChangeManager()
+        RMANAGER.add(self)
+        #self.addchange('Create', 'init', None)
+
+    def addchange(self, flag, action, actor, extra=None):
+        """
+        add a change event for this record
+            flag: one of 'Modify', 'Set Flag', 'Info'
+            action: a description of what was changed
+            actor: the item that changed the message (likely a plugin)
+            extra: any extra info about this change
+        a message should create a change event at the following times:
+            when it is created
+            after modification
+            when it ends up at it's destination
+        """
+        change = {}
+        change['flag'] = flag
+        change['action'] = action
+        change['actor'] = actor
+        change['extra'] = extra
+        change['time'] =  datetime.datetime.now(datetime.timezone.utc)
+
+        change = ChangeRecord(flag, action, actor, extra)
+
+        self.changes.add(change)
+
+    def check_for_change(self, flag, action):
+        """
+        check if there is a change with the given flag and action
+        """
+        for change in self.changes:
+            if change['flag'] == flag:
+                if change['action'] == action:
+                    return True
+        return False
+
+class BaseDataRecord(BaseRecord, UserList):
     def __init__(self, message, internal=True, plugin_id=None):
         """
         initialize the class
         """
         if not isinstance(message, list):
             message = [message]
-        super().__init__(message)
-        # Add an API
-        self.api = API()
-        # create a unique id for this message
-        self.uuid = uuid4()
-        # True if this was created internally
+        UserList.__init__(self, message)
+        BaseRecord.__init__(self, plugin_id)
         self.internal = internal
-        self.plugin_id = plugin_id
-        self.created =  datetime.datetime.now(datetime.timezone.utc)
-        self.changes = ChangeManager()
-        RMANAGER.add(self)
-        self.addchange('Create', 'init', None)
 
     def replace(self, data, actor=None, extra=None):
         """
@@ -110,6 +150,7 @@ class BaseRecord(UserList):
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
+            extra: any extra info about this change
         a message should create a change event at the following times:
             when it is created
             after modification
@@ -124,18 +165,8 @@ class BaseRecord(UserList):
 
         data = None
         if savedata:
-            data = self.data
+            data = self.data[:]
 
         change = ChangeRecord(flag, action, actor, extra, data)
 
         self.changes.add(change)
-
-    def check_for_change(self, flag, action):
-        """
-        check if there is a change with the given flag and action
-        """
-        for change in self.changes:
-            if change['flag'] == flag:
-                if change['action'] == action:
-                    return True
-        return False

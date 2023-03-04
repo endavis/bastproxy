@@ -14,9 +14,9 @@ import logging
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseRecord
+from libs.records.rtypes.base import BaseDataRecord
 
-class LogRecord(BaseRecord):
+class LogRecord(BaseDataRecord):
     """
     a simple message record for logging, this may end up sent to a client
     """

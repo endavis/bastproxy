@@ -13,9 +13,9 @@ Holds the tomud record type
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseRecord
+from libs.records.rtypes.base import BaseDataRecord
 
-class ToMudRecord(BaseRecord):
+class ToMudRecord(BaseDataRecord):
     """
     a record to the mud, all client data will start as this type of record
     data from a client will be immediately transformed into this type of record
