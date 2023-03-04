@@ -149,7 +149,7 @@ class Sqldb(object):
         close the database
         """
         import inspect
-        LogRecord(f"close: called by - {inspect.stack()[1][3]}", 'debug', sources=[__name__, self.plugin_id]).send()
+        LogRecord(f"close: called by - {inspect.stack()[1][3]}", level='debug', sources=[__name__, self.plugin_id]).send()
         try:
             self.db_connection.close()
         except Exception: # pylint: disable=broad-except
@@ -164,7 +164,7 @@ class Sqldb(object):
         function_name = inspect.stack()[1][3]
         if function_name == '__getattribute__':
             function_name = inspect.stack()[2][3]
-        LogRecord(f"open: called by - {function_name}", 'debug', sources=[__name__, self.plugin_id]).send()
+        LogRecord(f"open: called by - {function_name}", level='debug', sources=[__name__, self.plugin_id]).send()
         self.db_connection = sqlite3.connect(
             self.dbfile,
             detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)

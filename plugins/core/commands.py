@@ -678,7 +678,7 @@ class Plugin(BasePlugin):
         try:
             split_args = shlex.split(command_data_dict['orig'].strip())
         except ValueError:
-            LogRecord('could not parse command', 'error', sources=['self.plugin_id'], exc_info=True).send()
+            LogRecord('could not parse command', level='error', sources=['self.plugin_id'], exc_info=True).send()
             data['fromdata'] = ''
             return data
 
@@ -884,7 +884,8 @@ class Plugin(BasePlugin):
         else:
             plugin_id = self.api('libs.api:get:function:plugin:owner')(func)
             if not plugin_id:
-                LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}", level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
+                LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
+                          level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
                 return
 
         # add custom formatter to the parser passed in
@@ -894,7 +895,8 @@ class Plugin(BasePlugin):
 
         # use default parser if none passed in
         else:
-            LogRecord(f"adding default parser to command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
+            LogRecord(f"adding default parser to command {plugin_id}.{command_name}",
+                      level='debug', sources=[self.plugin_id, plugin_id]).send()
             if 'shelp' not in args:
                 args['shelp'] = 'there is no help for this command'
             new_parser = argp.ArgumentParser(add_help=False,
@@ -930,7 +932,8 @@ class Plugin(BasePlugin):
 
         self.commands_list.append(f"{plugin_instance.plugin_id}.{command_name}")
 
-        LogRecord(f"added command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
+        LogRecord(f"added command {plugin_id}.{command_name}",
+                  level='debug', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):

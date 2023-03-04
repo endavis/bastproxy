@@ -65,8 +65,14 @@ class LogRecord(BaseRecord):
         """
         #print(f"Sending {self.data} to logger")
         self.format(actor)
+        if self.api('libs.api:has')('plugins.core.log:add:log:count'):
+            add_log_count_func = self.api('plugins.core.log:add:log:count')
+        else:
+            add_log_count_func = None
         for i in self.sources:
             if i:
+                if add_log_count_func:
+                    add_log_count_func(i, self.level)
                 try:
                     logger = logging.getLogger(i)
                     loggingfunc = getattr(logger, self.level)

@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
             try:
                 self.created_regex['created_regex_compiled'] = re.compile(self.created_regex['created_regex'])
             except re.error:
-                LogRecord('Could not compile created regex', 'error', sources=[self.plugin_id], exc_info=True).send()
+                LogRecord('Could not compile created regex', level='error', sources=[self.plugin_id], exc_info=True).send()
                 print(self.created_regex['created_regex'])
         else:
             self.created_regex['created_regex'] = ''
@@ -233,11 +233,12 @@ class Plugin(BasePlugin):
                 try:
                     self.triggers[trigger_id]['original_regex_compiled'] = re.compile(orig_regex)
                 except Exception:  # pylint: disable=broad-except
-                    LogRecord(f"Could not compile regex for trigger: {trigger_name} : {orig_regex}", 'error', sources=[self.plugin_id], exc_info=True).send()
+                    LogRecord(f"Could not compile regex for trigger: {trigger_name} : {orig_regex}",
+                              level='error', sources=[self.plugin_id], exc_info=True).send()
                     return False
 
                 LogRecord(f"_api_trigger_update - converted {orig_regex} to {regex}",
-                          'debug', sources=[self.plugin_id]).send()
+                          level='debug', sources=[self.plugin_id]).send()
 
                 if trigger_id in self.regexes[old_regex_id]['triggers']:
                     self.regexes[old_regex_id]['triggers'].remove(trigger_id)
@@ -342,11 +343,11 @@ class Plugin(BasePlugin):
                 args['original_regex_compiled'] = re.compile(args['original_regex'])
             except Exception:  # pylint: disable=broad-except
                 LogRecord(f"_api_trigger_add - Could not compile regex for trigger: {trigger_name} : {args['original_regex']}",
-                          'error', sources=[self.plugin_id, plugin_id], exc_info=True).send()
+                          level='error', sources=[self.plugin_id, plugin_id], exc_info=True).send()
                 return False
 
             LogRecord(f"_api_trigger_add - converted {args['original_regex']} to {args['regex']}",
-                      'debug', sources=[self.plugin_id, plugin_id]).send()
+                      level='debug', sources=[self.plugin_id, plugin_id]).send()
 
             need_rebuild = False
             if args['enabled']:
@@ -369,7 +370,7 @@ class Plugin(BasePlugin):
         self.triggers[trigger_id] = args
 
         LogRecord(f"_api_trigger_add - added trigger {trigger_name} (unique name: {trigger_id}) for plugin {plugin_id}",
-                  'debug', sources=[self.plugin_id, plugin_id]).send()
+                  level='debug', sources=[self.plugin_id, plugin_id]).send()
 
         return True, args['eventname']
 
@@ -445,7 +446,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         LogRecord(f"_api_remove_triggers_for_plugin - removing triggers for plugin {plugin_id}",
-                  'debug', sources=[self.plugin_id, plugin_id]).send()
+                  level='debug', sources=[self.plugin_id, plugin_id]).send()
         for trigger in self.triggers.values():
             if trigger['plugin_id'] == plugin_id:
                 self.api('plugins.core.triggers:trigger:remove')(trigger['trigger_name'], plugin_id=plugin_id)

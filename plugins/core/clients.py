@@ -118,7 +118,8 @@ class Plugin(BasePlugin):
             client_connection = self.clients[client_uuid]
             client_connection.state['logged in'] = True
             LogRecord(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                      sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id]).send()
+
             self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in',
                                         {'client_uuid':client_connection.uuid})
 
@@ -132,7 +133,8 @@ class Plugin(BasePlugin):
             client_connection.view_only = True
 
             LogRecord(f"View Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                      sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id]).send()
+
             self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in_view_only',
                                         {'client_uuid':client_connection.uuid})
 

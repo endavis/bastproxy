@@ -7,10 +7,13 @@
 # By: Bast
 """
 This module handles changing logging settings
+
+see info/logging_notes.txt for more information about logging
 """
 # Standard Library
 import logging
 import os
+import numbers
 
 # 3rd Party
 
@@ -22,7 +25,7 @@ from libs.records import LogRecord, RMANAGER
 
 NAME = 'Logging'
 SNAME = 'log'
-PURPOSE = 'Handles changing logging settings'
+PURPOSE = 'Handles changing and testing of logging configuration'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
@@ -40,19 +43,23 @@ class Plugin(BasePlugin):
         self.can_reload_f = False
         self.record_manager = RMANAGER
         self.log_directory = self.api.BASEDATAPATH / 'logs'
+        self.logtype_col_length = 35
+
+        self.type_counts = {}
 
         try:
             os.makedirs(self.save_directory)
         except OSError:
             pass
-        self.datatypes_to_client = PersistentDict(
-            self.save_directory /'datatypes_to_client.txt',
+        self.handlers = {}
+        self.handlers['client'] = PersistentDict(
+            self.save_directory /'logtypes_to_client.txt',
             'c')
-        self.datatypes_to_console = PersistentDict(
-            self.save_directory / 'datatypes_to_console.txt',
+        self.handlers['console'] = PersistentDict(
+            self.save_directory / 'logtypes_to_console.txt',
             'c')
-        self.datatypes_to_file = PersistentDict(
-            self.save_directory / 'datatypes_to_file.txt',
+        self.handlers['file'] = PersistentDict(
+            self.save_directory / 'logtypes_to_file.txt',
             'c')
 
         self.api('setting:add')('color_error', '@x136', 'color',
@@ -65,17 +72,31 @@ class Plugin(BasePlugin):
                                 'the color for debug messages')
         self.api('setting:add')('color_critical', '@r', 'color',
                                 'the color for critical messages')
-        self.setting_values.pload()
-
 
         # new api format
-        self.api('libs.api:add')('toggle:log:to:console', self.api_toggletoconsole)
-        self.api('libs.api:add')('toggle:log:to:file', self.api_toggletofile)
-        self.api('libs.api:add')('toggle:log:to:client', self.api_toggletoclient)
+        self.api('libs.api:add')('set:log:to:console', self.api_set_log_to_console)
+        self.api('libs.api:add')('set:log:to:file', self.api_set_log_to_file)
+        self.api('libs.api:add')('set:log:to:client', self.api_set_log_to_client)
         self.api('libs.api:add')('can:log:to:console', self._api_can_log_to_console)
         self.api('libs.api:add')('can:log:to:file', self._api_can_log_to_file)
         self.api('libs.api:add')('can:log:to:client', self._api_can_log_to_client)
         self.api('libs.api:add')('get:level:color', self._api_get_level_color)
+        self.api('libs.api:add')('add:log:count', self._api_add_log_count)
+
+    def _api_add_log_count(self, logtype, level):
+        """
+        add a log count
+        """
+        if logtype not in self.type_counts:
+            self.type_counts[logtype] = {}
+            self.type_counts[logtype]['debug'] = 0
+            self.type_counts[logtype]['info'] = 0
+            self.type_counts[logtype]['warning'] = 0
+            self.type_counts[logtype]['error'] = 0
+            self.type_counts[logtype]['critical'] = 0
+        if level not in self.type_counts[logtype]:
+            self.type_counts[logtype][level] = 0
+        self.type_counts[logtype][level] += 1
 
     def _api_get_level_color(self, level):
         """
@@ -103,11 +124,12 @@ class Plugin(BasePlugin):
 
         if the logger hasn't been seen, it will default to logging.INFO
         """
-        if logger not in self.datatypes_to_console:
-            self.datatypes_to_console[logger] = logging.INFO
-            self.datatypes_to_console.sync()
+        if logger not in self.handlers['console']:
+            self.handlers['console'][logger] = 'info'
+            self.handlers['console'].sync()
 
-        if level >= self.datatypes_to_console[logger]:
+        convlevel = getattr(logging, self.handlers['console'][logger].upper(), None)
+        if level >= convlevel:
             return True
 
         return False
@@ -118,11 +140,12 @@ class Plugin(BasePlugin):
 
         if the logger hasn't been seen, it will default to logging.INFO
         """
-        if logger not in self.datatypes_to_file:
-            self.datatypes_to_file[logger] = logging.INFO
-            self.datatypes_to_file.sync()
+        if logger not in self.handlers['file']:
+            self.handlers['file'][logger] = 'info'
+            self.handlers['file'].sync()
 
-        if level >= self.datatypes_to_file[logger]:
+        convlevel = getattr(logging, self.handlers['file'][logger].upper(), None)
+        if level >= convlevel:
             return True
 
         return False
@@ -134,203 +157,246 @@ class Plugin(BasePlugin):
         if the logger hasn't been seen, do not allow logging to the client
         logging to the client must be explicitly enabled
         """
-        if logger in self.datatypes_to_client and level >= self.datatypes_to_client[logger]:
-            return True
+        if logger in self.handlers['client']:
+            convlevel = getattr(logging, self.handlers['client'][logger].upper(), None)
+            if level >= convlevel:
+                return True
 
         return False
 
-    def _api_log_level_set(self, datatype, level):
-        """
-        set the log level for a datatype
-        """
-        self.log_levels[datatype] = level
-
-    # toggle logging a datatype to the clients
-    def api_toggletoclient(self, datatype, level=logging.INFO, flag=True):
-        """  toggle a data type to show to clients
-        @Ydatatype@w  = the type to toggle, can be multiple (list)
+    # toggle logging a logtype to the clients
+    def api_set_log_to_client(self, logtype, level: str='info', flag=True):
+        """  toggle a log type to show to clients
+        @Ylogtype@w   = the type to toggle, can be multiple (list)
         @Yflag@w      = True to send to clients, false otherwise (default: True)
 
         this function returns no values"""
-        if isinstance(level, str):
-            level = getattr(logging, level.upper(), None)
+        if isinstance(level, numbers.Number):
+            level = logging.getLevelName(level).lower()
         if not level:
             LogRecord(f"api_toggletoclient: invalid log level {level}",
-                      'error', sources=[self.plugin_id, datatype]).send()
+                      level='error', sources=[self.plugin_id, logtype]).send()
             return
 
-        if flag and not datatype in self.datatypes_to_client:
-            self.datatypes_to_client[datatype] = level
-        else:
-            if datatype in self.datatypes_to_client:
-                del(self.datatypes_to_client[datatype])
+        if flag and not logtype in self.handlers['client']:
+            self.handlers['client'][logtype] = level
+            LogRecord(f"setting {logtype} to log to client at level {level}",
+                      level='debug', sources=[self.plugin_id, logtype]).send()
+        elif not flag and logtype in self.handlers['client']:
+            del(self.handlers['client'][logtype])
+            LogRecord(f"removing {logtype} logging to client {level}",
+                      level='debug', sources=[self.plugin_id, logtype]).send()
 
-        LogRecord(f"setting {datatype} to log to client at level {logging.getLevelName(level)}",
-                  'debug', sources=[self.plugin_id, datatype]).send()
-        self.datatypes_to_client.sync()
+        self.handlers['client'].sync()
 
-    # toggle logging datatypes to the clients
+    # toggle logging logtypes to the clients
     def cmd_client(self, args):
         """
-        toggle datatypes shown to client
+        toggle logtypes shown to client
         """
         tmsg = []
-        if args['datatype']:
-            for i in args['datatype']:
-                if i in self.datatypes_to_client:
-                    self.datatypes_to_client[i] = not self.datatypes_to_client[i]
-                    if self.datatypes_to_client[i]:
-                        tmsg.append(f"setting {i} to log to client")
-                    else:
-                        tmsg.append(f"no longer sending {i} to client")
+        level = args['level']
+        remove = not args['remove']
+        if args['logtype']:
+            for i in args['logtype']:
+                self.api(f"{self.plugin_id}:set:log:to:client")(i, level=level, flag=remove)
+                if i in self.handlers['client']:
+                    tmsg.append(f"setting {i} to log to client at level {level}")
+                else:
+                    tmsg.append(f"no longer sending {i} to client")
 
-                elif i != 'frommud':
-                    tmsg.append(f"datatype {i} does not exist")
-            self.datatypes_to_client.sync()
+            self.handlers['client'].sync()
             return True, tmsg
 
         tmsg.append('Current types going to client')
-        for i in self.datatypes_to_client:
-            if self.datatypes_to_client[i]:
-                tmsg.append(i)
+        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
+        for i in self.handlers['client']:
+            if self.handlers['client'][i]:
+                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['client'][i]:<}")
         return True, tmsg
 
-    # toggle logging a datatype to the console
-    def api_toggletoconsole(self, datatype, flag=True, level='info'):
-        """  toggle a data type to show to console
-        @Ydatatype@w  = the type to toggle
+    # toggle logging a logtype to the console
+    def api_set_log_to_console(self, logtype, level='info'):
+        """  toggle a log type to show to console
+        @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to console, false otherwise (default: True)
 
         this function returns no values"""
-        if isinstance(level, str):
-            level = getattr(logging, level.upper(), None)
+        if isinstance(level, numbers.Number):
+            level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(f"api_toggletoconsole: invalid log level {level}", 'error',
-                      sources=[self.plugin_id, datatype]).send()
+            LogRecord(f"api_set_log_to_console: invalid log level {level}",
+                      level='error', sources=[self.plugin_id, logtype]).send()
             return
 
-        if flag and not datatype in self.datatypes_to_console:
-            self.datatypes_to_console[datatype] = level
-        else:
-            if datatype in self.datatypes_to_console:
-                del(self.datatypes_to_console[datatype])
+        self.handlers['console'][logtype] = level
+        LogRecord(f"setting {logtype} to log to console at level {level}",
+                  level='debug', sources=[self.plugin_id, logtype]).send()
 
-        LogRecord(f"setting {datatype} to log to console at level {logging.getLevelName(level)}",
-                  'debug', sources=[self.plugin_id, datatype]).send()
+        self.handlers['console'].sync()
 
-        self.datatypes_to_console.sync()
-
-    # toggle logging datatypes to the console
+    # toggle logging logtypes to the console
     def cmd_console(self, args):
         """
-        log datatypes to the console
+        toggle logtypes to the console
         """
         tmsg = []
-        if args['datatype']:
-            for i in args['datatype']:
-                if i in self.datatypes_to_console and i != 'frommud':
-                    self.datatypes_to_console[i] = not self.datatypes_to_console[i]
-                    if self.datatypes_to_console[i]:
-                        tmsg.append(f"setting {i} to console")
-                    else:
-                        tmsg.append(f"no longer sending {i} to console")
+        if args['logtype']:
+            for i in args['logtype']:
+                if i not in self.handlers['console']:
+                    self.handlers['console'][i] = 'info'
+                if self.handlers['console'][i] == 'info':
+                    self.api(f"{self.plugin_id}:set:log:to:console")(i, level='debug')
+                    tmsg.append(f"setting {i} to log to console at level 'debug'")
+                else:
+                    self.api(f"{self.plugin_id}:set:log:to:console")(i, level='info')
+                    tmsg.append(f"setting {i} to log to console at default level 'info'")
 
-                elif i != 'frommud':
-                    tmsg.append(f"datatype {i} does not exist")
-            self.datatypes_to_console.sync()
+            self.handlers['console'].sync()
             return True, tmsg
 
         tmsg.append('Current types going to console')
-        for i in self.datatypes_to_console:
-            if self.datatypes_to_console[i]:
-                tmsg.append(i)
+        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
+        for i in self.handlers['console']:
+            if self.handlers['console'][i]:
+                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['console'][i]:<}")
         return True, tmsg
 
-    # toggle logging a datatype to a file
-    def api_toggletofile(self, datatype, flag=True, level=logging.INFO):
-        """  toggle a data type to show to file
-        @Ydatatype@w  = the type to toggle
+    # toggle logging a logtype to a file
+    def api_set_log_to_file(self, logtype, level='info'):
+        """  toggle a log type to show to file
+        @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to file, false otherwise (default: True)
 
         this function returns no values"""
-        if isinstance(level, str):
-            level = getattr(logging, level.upper(), None)
+        if isinstance(level, numbers.Number):
+            level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(f"api_toggletofile: invalid log level {level}",
-                      'error', sources=[self.plugin_id, datatype]).send()
+            LogRecord(f"api_set_log_to_file: invalid log level {level}",
+                      level='error', sources=[self.plugin_id, logtype]).send()
             return
 
-        if flag and not datatype in self.datatypes_to_file:
-            self.datatypes_to_file[datatype] = level
-        else:
-            if datatype in self.datatypes_to_file:
-                del(self.datatypes_to_file[datatype])
+        self.handlers['file'][logtype] = level
+        LogRecord(f"setting {logtype} to log to file at level {level}",
+                  level='debug', sources=[self.plugin_id, logtype]).send()
 
-        LogRecord(f"setting {datatype} to log to file at level {logging.getLevelName(level)}",
-                  'debug', sources=[self.plugin_id, datatype]).send()
+        self.handlers['file'].sync()
 
 
-    # toggle a datatype to log to a file
+    # toggle a logtype to log to a file
     def cmd_file(self, args):
         """
-        toggle a datatype to log to a file
+        toggle a logtype to log to a file
         """
         tmsg = []
-        timestamp = True
-        if args['datatype'] != 'list':
-            dtype = args['datatype']
-            timestamp = args['notimestamp']
+        if args['logtype']:
+            for i in args['logtype']:
+                if i not in self.handlers['file']:
+                    self.handlers['file'][i] = 'info'
+                if self.handlers['file'][i] == 'info':
+                    self.api(f"{self.plugin_id}:set:log:to:file")(i, level='debug')
+                    tmsg.append(f"setting {i} to log to file at level 'debug'")
+                else:
+                    self.api(f"{self.plugin_id}:set:log:to:file")(i, level='info')
+                    tmsg.append(f"setting {i} to log to file at default level 'info'")
 
-            result = self.api(f"{self.plugin_id}:toggle:to:file")(dtype, timestamp)
-
-            if result == 'on':
-                tmsg.append(f"Sending {dtype} to file")
-            elif result == 'off':
-                tmsg.append(f"No longer sending {dtype} to file")
-
+            self.handlers['file'].sync()
             return True, tmsg
-        else:
-            tmsg.append('Current types going to file')
-            for i in self.datatypes_to_file:
-                if self.datatypes_to_file[i]:
-                    tmsg.append(f"{i:<20} - Timestamp: {self.datatypes_to_file[i]['timestamp']}")
-            return True, tmsg
+
+        tmsg.append('Current types going to file')
+        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
+        for i in self.handlers['file']:
+            if self.handlers['file'][i]:
+                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['file'][i]:<}")
+        return True, tmsg
 
     # show all types
     def cmd_types(self, args):
         """
-        list data types
+        list log types
         """
         types = []
-        types.extend(self.datatypes_to_client.keys())
-        types.extend(self.datatypes_to_console.keys())
-        types.extend(self.datatypes_to_file.keys())
+        types.extend(self.handlers['client'].keys())
+        types.extend(self.handlers['console'].keys())
+        types.extend(self.handlers['file'].keys())
         types = sorted(set(types))
         tmsg = []
-        tmsg.append('Data Types')
-        tmsg.append('-' *  30)
+        tmsg.append('Statistics are only tracked after the log plugin is loaded')
+        tmsg.append('so they will not be accurate for all log types.')
+        tmsg.append('-' *  79)
         match = args['match']
-        for i in types:
-            if not match or match in i:
-                tmsg.append(i)
+
+        if match:
+            types = [i for i in types if match in i]
+
+        if types:
+            tmsg.append(f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} {'warning':<7} {'error':<5} {'critical':<8}")
+            tmsg.append('-' *  79)
+            for i in types:
+                if i in self.type_counts:
+                    tmsg.append(f"{i:<{self.logtype_col_length}} : {self.type_counts[i]['debug']:<5} {self.type_counts[i]['info']:<5} {self.type_counts[i]['warning']:<7} {self.type_counts[i]['error']:<5} {self.type_counts[i]['critical']:<8}")
+                else:
+                    tmsg.append(f"{i:<{self.logtype_col_length}} : {'0':<5} {'0':<5} {'0':<7} {'0':<5} {'0':<8}")
+        else:
+            tmsg.append(f"No matches found for {match}")
+
+        return True, tmsg
+
 
     def cmd_test(self, args):
         """
         send test records to logging facilities
         """
-
-        datatype = args['datatype']
+        logtype = args['logtype']
         message = args['message']
-        level = args['level']
+        level = args['loglevel']
 
-        tmsg = [f"'{message}' sent to '{datatype}' as level '{level}'"]
+        tmsg = [f"'{message}' sent to '{logtype}' as level '{level}'"]
 
-        lr = LogRecord(message, level, sources=[datatype])
+        lr = LogRecord(message, level=level, sources=[logtype])
         lr.send()
 
         tmsg.append(f"Console: {lr.wasemitted['console']}")
         tmsg.append(f"File: {lr.wasemitted['file']}")
         tmsg.append(f"Client: {lr.wasemitted['client']}")
+        return True, tmsg
+
+    def cmd_clean(self, args):
+        """
+        remove log types that have not been used
+        """
+        tmsg = []
+        types = []
+        types.extend(self.handlers['client'].keys())
+        types.extend(self.handlers['console'].keys())
+        types.extend(self.handlers['file'].keys())
+        types = sorted(set(types))
+
+        remove = []
+
+        for i in types:
+            if i not in self.type_counts:
+                remove.append(i)
+            else:
+                if not max(self.type_counts[i].values()) > 0:
+                    remove.append(i)
+
+        tmsg.append('Removed the following types:')
+        for i in remove:
+            tmsg.append(i)
+            if i in self.handlers['client']:
+                del(self.handlers['client'][i])
+            if i in self.handlers['console']:
+                del(self.handlers['console'][i])
+            if i in self.handlers['file']:
+                del(self.handlers['file'][i])
+            if i in self.type_counts:
+                del(self.type_counts[i])
+
+        self.handlers['file'].sync()
+        self.handlers['client'].sync()
+        self.handlers['console'].sync()
+
         return True, tmsg
 
     def initialize(self):
@@ -342,33 +408,36 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="""toggle datatypes to clients
+                                     description="""toggle logtypes to clients
 
-          if no arguments, data types that are currenty sent to clients will be listed""")
-        parser.add_argument('datatype',
-                            help='a list of datatypes to toggle',
+          if no arguments, log types that are currenty sent to clients will be listed""")
+        parser.add_argument('logtype',
+                            help='a list of logtypes to toggle',
                             default=[],
                             nargs='*')
-        parser.add_argument('level',
-                            help='a list of datatypes to toggle',
+        parser.add_argument('-l',
+                            '--level',
+                            help='the level to log at',
                             default='info',
-                            choices=['debug', 'info', 'warning', 'error', 'critical'],
-                            nargs='*')
+                            choices=['debug', 'info', 'warning', 'error', 'critical'])
+        parser.add_argument('-r',
+                            '--remove',
+                            help='remove the logtype from logging to the client',
+                            action='store_true',
+                            default=False)
+
         self.api('plugins.core.commands:command:add')('client',
                                               self.cmd_client,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="""toggle datatype to log to a file
+                                     description="""toggle logtype to log to a file
 
-          the file will be located in the data/logs/<dtype> directory
-
-          the filename for the log will be <date>.log
-              Example: Tue-Feb-26-2013.log
+          the file will be located in the data/logs/<logtype> directory
 
           if no arguments, types that are sent to file will be listed""")
-        parser.add_argument('datatype',
-                            help='the datatype to toggle',
+        parser.add_argument('logtype',
+                            help='the logtype to toggle',
                             default='list',
                             nargs='?')
         parser.add_argument('-n',
@@ -380,11 +449,12 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description="""toggle datatypes to the console
+                                     description="""change the level of logging for a logtype to the console
+          this will toggle the logtype between 'info' and 'debug'
 
-          if no arguments, data types that are currenty sent to the console will be listed""")
-        parser.add_argument('datatype',
-                            help='a list of datatypes to toggle',
+          if no arguments, log types that are currenty sent to the console will be listed""")
+        parser.add_argument('logtype',
+                            help='a list of logtypes to toggle',
                             default=[],
                             nargs='*')
         self.api('plugins.core.commands:command:add')('console',
@@ -392,9 +462,9 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
-                                     description='list all datatypes')
+                                     description='list all logtypes')
         parser.add_argument('match',
-                            help='only list datatypes that have this argument in their name',
+                            help='only list logtypes that have this argument in their name',
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command:add')('types',
@@ -405,12 +475,12 @@ class Plugin(BasePlugin):
                                      description="""test logging facilities""")
         parser.add_argument('message',
                             help='the text to log')
-        parser.add_argument('-d',
-                            '--datatype',
+        parser.add_argument('-l',
+                            '--logtype',
                             help='the facility to test',
                             required=True)
-        parser.add_argument('-l',
-                            '--level',
+        parser.add_argument('-ll',
+                            '--loglevel',
                             help='the level for the test',
                             default='info',
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
@@ -419,10 +489,18 @@ class Plugin(BasePlugin):
                                               self.cmd_test,
                                               parser=parser)
 
+        parser = argp.ArgumentParser(add_help=False,
+                                     description="""clean up log types
+
+          will remove any log types that have not been used""")
+        self.api('plugins.core.commands:command:add')('clean',
+                                              self.cmd_clean,
+                                              parser=parser)
+
     def _savestate(self, _=None):
         """
         save items not covered by baseplugin class
         """
-        self.datatypes_to_client.sync()
-        self.datatypes_to_file.sync()
-        self.datatypes_to_console.sync()
+        self.handlers['client'].sync()
+        self.handlers['file'].sync()
+        self.handlers['console'].sync()

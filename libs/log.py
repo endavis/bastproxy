@@ -10,6 +10,8 @@ This plugin sets up logging for various types of data
 
 data from the mud and the client
 general logging of everything else which will use the root logger
+
+see info/logging_notes.txt for more information about logging
 """
 
 # Standard Library
@@ -80,14 +82,11 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
+        canlog = True
         # can we log to the console for this logger
         if self.api('libs.api:has')('plugins.core.log:can:log:to:console'):
-            if self.api('plugins.core.log:can:log:to:console')(record.name, record.levelno):
-                canlog = True
-            else:
+            if not self.api('plugins.core.log:can:log:to:console')(record.name, record.levelno):
                 canlog = False
-        else:
-            canlog = True
 
         if type(record.msg) == LogRecord:
             if canlog and not record.msg.wasemitted['console']:
@@ -104,13 +103,10 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
 
     def emit(self, record):
         # can we log to the file for this logger
+        canlog = True
         if self.api('libs.api:has')('plugins.core.log:can:log:to:file'):
-            if self.api('plugins.core.log:can:log:to:file')(record.name, record.levelno):
-                canlog = True
-            else:
+            if not self.api('plugins.core.log:can:log:to:file')(record.name, record.levelno):
                 canlog = False
-        else:
-            canlog = True
 
         if canlog:
             if type(record.msg) == LogRecord:
@@ -131,13 +127,10 @@ class CustomClientHandler(logging.Handler):
             return
 
         # can we log to the client for this logger
+        canlog = True
         if self.api('libs.api:has')('plugins.core.log:can:log:to:client'):
-            if self.api('plugins.core.log:can:log:to:client')(record.name, record.levelno):
-                canlog = True
-            else:
+            if not self.api('plugins.core.log:can:log:to:client')(record.name, record.levelno):
                 canlog = False
-        else:
-            canlog = True
 
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
@@ -165,17 +158,15 @@ def setup_loggers(log_level):
     os.makedirs(API.BASEDATALOGPATH / 'networkdata', exist_ok=True)
     data_logger_log_file_path = API.BASEDATALOGPATH / 'networkdata' / data_logger_log_file
 
-    # This logger is the root logger and will be setup with log_level from
-    # a command line argument. It will log to a file and to the console.
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path,
                                                     when='midnight')
-    file_handler.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-12s - %(message)s")
+    file_handler.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
     console_handler = CustomConsoleHandler()
-    console_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-12s - %(message)s")
+    console_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
     client_handler = CustomClientHandler()
-    client_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-12s - %(message)s")
+    client_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
     # add the handler to the root logger
     logging.getLogger().addHandler(file_handler)

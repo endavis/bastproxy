@@ -222,7 +222,7 @@ async def client_telnet_handler(reader, writer) -> None:
 
     addr, port, *rest = client_details
     connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
-    log.info(f"Connection established with {addr} : {port} : {rest}")
+    LogRecord(f"Connection established with {addr} : {port} : {rest} : uuid - {connection.uuid}", level='warning', sources=[__name__]).send()
 
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....

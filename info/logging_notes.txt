@@ -1,23 +1,40 @@
 Logging uses the standard python logging module.
 
-see libs.logs, plugins.core.logs, and libs.records for the implementation
+libs.logs:
+    All handlers are removed from root and new custom ones are added
+        ConsoleHandler
+        TimedRotatingFileHandler
+        ClientHandler
 
-Brief Overview:
-It removes all handlers from root and adds 3 new custom ones
-    ConsoleHandler
-    TimedRotatingFileHandler
-    ClientHandler
+    Each of those handlers verifies with plugins.core.log whether the message
+    can be emitted by the handler at the specified level.
+    Messages that are LogRecords with multiple sources will only be emitted once
+    from the same handler. This is tracked with a dictionary in the LogRecord
 
-Each of those handlers verifies with plugins.core.log whether the message
-can be emitted by the handler at the specified level.
-Messages that are LogRecords with multiple sources will only be emitted once
-from the same handler. This is tracked with a dictionary in the LogRecord
+    A CustomColorFormatter is added to color code log events, the colors can be
+    changed with the plugins.core.log plugin
 
-It also adds a CustomColorFormatter to color code logs, the colors can be changed
-with the core.plugins.log plugin
+libs.records.rtypes.log
+    has the implementation of LogRecord
+    A LogRecord will pass all keyword arguments to the logger when the appropriate
+    level function is invoked.
 
-If the message is a LogRecord from libs.records, it is tracked through the system
-to see modifications and can be inspected with plugins.core.log.record command
+plugins.core.log
+    sets the levels of log types in the handlers
 
-A LogRecord will pass all keyword arguments to the logger when the appropriate
-level function is invoked.
+plugins.core.records
+    If the message is a LogRecord from libs.records, it is tracked through the system
+    to see modifications and can be inspected with #bp.core.records command
+
+Handler Information:
+    Console:
+        By default, anything 'info' level or above is logged to the console
+        To change the behavior of a specific log type, look at #bp.core.log.console
+
+    File:
+        By default, anything 'info' level or above is logged to the global log file
+        To change the behavior of a specific log type, look at #bp.core.log.file
+
+    Client
+        By default, anything 'error' level or above is logged to the client
+        To change the behavior of a specific log type, look at #bp.core.log.client

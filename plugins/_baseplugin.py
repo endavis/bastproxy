@@ -604,7 +604,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
-                LogRecord(f"_update_version: upgrading to version {version}",
+                LogRecord(f"_update_version: upgrading to version {version}", level='info',
                           sources=[self.plugin_id, 'plugin_upgrade']).send()
                 if version in self.version_functions:
                     self.version_functions[version]()
@@ -646,14 +646,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         re-register to character active event on disconnect
         """
-        LogRecord(f"__disconnect: baseplugin.{self.plugin_id}", sources=[self.plugin_id]).send()
+        LogRecord(f"__disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
         self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active)
 
     def after_character_is_active(self, _=None):
         """
         tasks to do after character is active
         """
-        LogRecord(f"after_character_is_active: baseplugin.{self.plugin_id}", sources=[self.plugin_id]).send()
+        LogRecord(f"after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
         if self.api('plugins.core.events:is:registered:to:event')('ev_libs.api_character_active', self.after_character_is_active):
             self.api('plugins.core.events:unregister:from:event')('ev_libs.api_character_active', self.after_character_is_active)
 
