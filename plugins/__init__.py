@@ -919,7 +919,7 @@ class PluginMgr(BasePlugin):
                       sources=[self.plugin_id, plugin['plugin_id']]).send()
 
             self.api('plugins.core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_initialized", {})
-            self.api('plugins.core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_plugin_initialized",
+            self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_initialized",
                                                 {'plugin':plugin['name'],
                                                  'plugin_id':plugin['plugin_id']})
 
@@ -974,7 +974,7 @@ class PluginMgr(BasePlugin):
                     if plugin['isinitialized']:
                         plugin['plugininstance'].uninitialize()
                     self.api('plugins.core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_uninitialized", {})
-                    self.api('plugins.core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_plugin_uninitialized",
+                    self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_uninitialized",
                                                         {'plugin':plugin['name'],
                                                          'plugin_id':plugin['plugin_id']})
                     LogRecord(f"{plugin['plugin_id']:<30} : successfully unitialized ({plugin['name']})", level='info',
