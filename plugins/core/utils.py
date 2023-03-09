@@ -298,7 +298,7 @@ class Plugin(BasePlugin):
         return vtype(value)
 
     # center a string with color codes
-    def _api_center_colored_string(self, string_to_center, filler_character, length):
+    def _api_center_colored_string(self, string_to_center, filler_character, length, filler_color=None):
         """
         center a string with color codes
         """
@@ -309,14 +309,19 @@ class Plugin(BasePlugin):
         length_difference = length - noncolored_string_length
 
         half_length = length_difference // 2
-        new_str = "{filler}  {lstring}  {filler}".format(
+        new_str = "{filler_color}{filler}{filler_end}  {lstring}  {filler_color}{filler}".format(
+            filler_color=filler_color if filler_color else '',
             filler=filler_character * half_length,
+            filler_end='@w' if filler_color else '',
             lstring=string_to_center)
 
         new_length = (half_length * 2) + noncolored_string_length
 
         if new_length < length:
             new_str = new_str + '-' * (length - new_length)
+
+        if filler_color:
+            new_str = new_str + '@w'
 
         return new_str
 
