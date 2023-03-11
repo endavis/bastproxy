@@ -177,7 +177,8 @@ class Plugin(BasePlugin):
                                               self.command_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+                                                          self.event_plugin_uninitialized)
 
         # setup the task to check for timers to fire
         self.api('libs.asynch:task:add')(self.check_for_timers_to_fire, 'Timer thread')

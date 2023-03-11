@@ -60,6 +60,19 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_client_logged_in", self.plugin_id,
+                                                  description='An event that is raised when a client logs in',
+                                                  arg_descriptions={'client_uuid':'the uuid of the client'})
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_client_logged_in_view_only", self.plugin_id,
+                                                  description='An event that is raised when a client logs in as a view client',
+                                                  arg_descriptions={'client_uuid':'the uuid of the client'})
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_client_connected", self.plugin_id,
+                                                  description='An event that is raised when a client connects',
+                                                  arg_descriptions={'client_uuid':'the uuid of the client'})
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_client_disconnected", self.plugin_id,
+                                                  description='An event that is raised when a client disconnects',
+                                                  arg_descriptions={'client_uuid':'the uuid of the client'})
+
         self.api('plugins.core.commands:command:add')('show',
                                               self.cmd_show,
                                               shelp='list clients that are connected')
@@ -120,7 +133,7 @@ class Plugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id]).send()
 
-            self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in',
+            self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_logged_in",
                                         {'client_uuid':client_connection.uuid})
 
     def _api_client_logged_in_view_only(self, client_uuid):
@@ -135,7 +148,7 @@ class Plugin(BasePlugin):
             LogRecord(f"View Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id]).send()
 
-            self.api('plugins.core.events:raise:event')('ev_core.clients_client_logged_in_view_only',
+            self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
                                         {'client_uuid':client_connection.uuid})
 
     def api_checkbanned(self, clientip):
@@ -159,8 +172,8 @@ class Plugin(BasePlugin):
         add a client from the connected event
         """
         self.clients[client_connection.uuid] = client_connection
-        self.api('plugins.core.events:raise:event')('ev_core.clients_client_connected',
-                                        {'client_uuid':client_connection.uuid})
+        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_connected",
+                                                    {'client_uuid' : client_connection.uuid})
 
     def _api_removeclient(self, client_connection):
         """
@@ -172,8 +185,8 @@ class Plugin(BasePlugin):
             removed = True
 
         if removed:
-            self.api('plugins.core.events:raise:event')('ev_core.clients_client_disconnected',
-                    {'client_uuid':client_connection.uuid})
+            self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_disconnected",
+                                                        {'client_uuid' : client_connection.uuid})
 
     def shutdown(self, args=None): # pylint: disable=unused-argument
         """

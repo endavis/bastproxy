@@ -739,3 +739,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
             self.reset_f = False
             self.setting_values.raiseall()
+
+        for i in self.settings:
+            self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_var_{i}_modified", self.plugin_id,
+                                description=f"An event to modify the setting {i}",
+                                arg_descriptions={'var':'the variable that was modified',
+                                                    'newvalue':'the new value',
+                                                    'oldvalue':'the old value'})
+
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_savestate", self.plugin_id,
+                                    description='An event to save the state of the plugin',
+                                    arg_descriptions={'None': None})

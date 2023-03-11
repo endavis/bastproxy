@@ -206,7 +206,7 @@ class Plugin(BasePlugin):
 
         # register events
         self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
         self.api('plugins.core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
 
     def _event_plugin_uninitialized(self, args):

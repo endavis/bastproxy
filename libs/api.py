@@ -264,6 +264,17 @@ class API(object):
         if not self('libs.api:has')('libs.api:is_character_active:set'):
             self.add('libs.api', 'is_character_active:set', self._api_is_character_active_set, overload=True)
 
+    def add_events(self):
+        """
+        add events for the api
+        """
+        self('plugins.core.events:add:event')('ev_libs.api_character_active', __name__,
+                                            description='An event for when the character is active and ready for commands',
+                                            arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
+        self('plugins.core.events:add:event')('ev_libs.api_character_inactive', __name__,
+                                            description='An event for when the character is inactive and not ready for commands',
+                                            arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
+
     # get the firstactive flag
     def _api_is_character_active_get(self):
         """

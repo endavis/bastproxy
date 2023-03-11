@@ -25,10 +25,9 @@ This plugin handles events.
 
 # Project
 import libs.argp as argp
-from libs.callback import Callback
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
-from libs.api import API
+from libs.event import Event
 
 NAME = 'Event Handler'
 SNAME = 'events'
@@ -36,145 +35,6 @@ PURPOSE = 'Handle events'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
-
-
-class EventContainer(object):
-    """
-    a container of functions for an event
-    """
-    def __init__(self, plugin_id, name):
-        """
-        init the class
-        """
-        self.name = name
-        self.priority_dictionary = {}
-        self.plugin_id = plugin_id
-        self.api = API()
-        self.raised_count = 0
-
-    def isregistered(self, func):
-        """
-        check if a function is registered to this event
-        """
-        for priority in self.priority_dictionary:
-            if func in self.priority_dictionary[priority]:
-                return True
-
-        return False
-
-    def isempty(self):
-        """
-        check if an event has no functions registered
-        """
-        for priority in self.priority_dictionary:
-            if self.priority_dictionary[priority]:
-                return False
-
-        return True
-
-    def register(self, func, func_plugin_id, prio=50):
-        """
-        register a function to this event container
-        """
-        if not prio:
-            priority = 50
-        else:
-            priority = prio
-
-        if priority not in self.priority_dictionary:
-            self.priority_dictionary[priority] = []
-
-        event_function = Callback(func.__name__, func_plugin_id, func)
-
-        if event_function not in self.priority_dictionary[priority]:
-            self.priority_dictionary[priority].append(event_function)
-            LogRecord(f"{self.name} - register function {event_function} with priority {priority}",
-                      level='debug', sources=[event_function.plugin_id, self.plugin_id]).send()
-            return True
-
-        return False
-
-    def unregister(self, func):
-        """
-        unregister a function from this event container
-        """
-        for priority in self.priority_dictionary:
-            if func in self.priority_dictionary[priority]:
-                event_function = self.priority_dictionary[priority][self.priority_dictionary[priority].index(func)]
-                LogRecord(f"unregister - {self.name} - unregister function {event_function} with priority {priority}",
-                          level='debug', sources=[event_function.plugin_id, self.plugin_id]).send()
-                self.priority_dictionary[priority].remove(event_function)
-                return True
-
-        LogRecord(f"unregister - {self.name} - could not find function {func.__name__}",
-                  level='error', sources=[self.plugin_id]).send()
-        return False
-
-    def removeplugin(self, plugin):
-        """
-        remove all functions related to a plugin
-        """
-        plugins_to_unregister = []
-        for priority in self.priority_dictionary:
-            for event_function in self.priority_dictionary[priority]:
-                if event_function.plugin_id == plugin:
-                    plugins_to_unregister.append(event_function)
-
-        for event_function in plugins_to_unregister:
-            self.api('plugins.core.events:unregister:from:event')(self.name, event_function.func)
-
-    def detail(self):
-        """
-        format a detail of the event
-        """
-        message = []
-        message.append(f"{'Event':<13} : {self.name}")
-        message.append(f"{'Raised':<13} : {self.raised_count}")
-        message.append(self.api('plugins.core.utils:center:colored:string')('Registrations', '-', 60))
-        message.append(f"{'priority':<13} : {'plugin':<15} - {'function name'}")
-        message.append('@B' + '-' * 60)
-        function_message = []
-        key_list = self.priority_dictionary.keys()
-        key_list = sorted(key_list)
-        for priority in key_list:
-            for event_function in self.priority_dictionary[priority]:
-                function_message.append(f"{priority:<13} : {event_function.plugin_id:<15} - {event_function.name}")
-
-        if not function_message:
-            message.append('None')
-        else:
-            message.extend(function_message)
-        message.append('')
-
-        return message
-
-    def raise_event(self, new_args, calledfrom):
-        """
-        raise this event
-        """
-        self.raised_count = self.raised_count + 1
-
-        log_savestate = self.api('libs.api:run:as:plugin')(__name__, 'setting:get')('log_savestate')
-        if '_savestate' in self.name and log_savestate:
-            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with args {new_args}",
-                      level='debug', sources=[calledfrom, self.plugin_id]).send()
-        keys = self.priority_dictionary.keys()
-        if keys:
-            keys = sorted(keys)
-            for priority in keys:
-                for event_function in self.priority_dictionary[priority][:]:
-                    try:
-                        temp_new_args = event_function.execute(new_args)
-                        if temp_new_args and not isinstance(temp_new_args, dict):
-                            LogRecord(f"raise_event - event {self.name} with function {event_function.name} returned a nondict object",
-                                      level='error', sources=[event_function.plugin_id, self.plugin_id]).send()
-                        if temp_new_args and isinstance(temp_new_args, dict):
-                            new_args = temp_new_args
-                    except Exception:  # pylint: disable=broad-except
-                        LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
-                                    level='error', sources=[event_function.plugin_id, self.plugin_id], exc_info=True).send()
-
-        return new_args
 
 class Plugin(BasePlugin):
     """
@@ -198,6 +58,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('is:registered:to:event', self._api_is_registered_to_event)
         self.api('libs.api:add')('remove:events:for:plugin', self._api_remove_events_from_plugin)
         self.api('libs.api:add')('get:event', self._api_get_event)
+        self.api('libs.api:add')('add:event', self._api_add_event)
         self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
 
         self.api('setting:add')('log_savestate', False, bool,
@@ -210,8 +71,6 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-        self.api('plugins.core.events:register:to:event')('ev_core.msg_initialized', self.logloaded)
-        #self.api('plugins.core.events:raise:event')('event_plugin_loaded', {})
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='get details of an event')
@@ -230,6 +89,16 @@ class Plugin(BasePlugin):
                             help='list only events that have this argument in their name',
                             default='',
                             nargs='?')
+        parser.add_argument('-sr',
+                            '--show-registered-only',
+                            help="show only events that have registered functions",
+                            action='store_true',
+                            default=False)
+        parser.add_argument('-snda',
+                            '--show-no-description-or-args',
+                            help="show events that have no description or args",
+                            action='store_true',
+                            default=False)
         self.api('plugins.core.commands:command:add')('list',
                                               self._command_list,
                                               parser=parser)
@@ -244,7 +113,7 @@ class Plugin(BasePlugin):
                                               self._command_raise,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
                                                   self.plugin_uninitialized, priority=10)
 
     def plugin_uninitialized(self, args):
@@ -255,17 +124,27 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, args['plugin_id']]).send()
         self.api(f"{self.plugin_id}:remove:events:for:plugin")(args['plugin_id'])
 
+    # add an event for the plugin to track
+    def _api_add_event(self, event_name, created_by, description=None, arg_descriptions=None):
+        """
+        add an event for the plugin to track
+        """
+        event = self._api_get_event(event_name)
+        event.created_by = created_by
+        event.description = description
+        event.arg_descriptions = arg_descriptions
+
     # return the event, will have registered functions
     def _api_get_event(self, event_name):
         """  return an event
         @Yevent_name@w   = the event to return
 
-        this function returns an EventContainer object
+        this function returns an Event object
         """
-        if event_name in self.events:
-            return self.events[event_name]
+        if event_name not in self.events:
+            self.events[event_name] = Event(event_name)
 
-        return None
+        return self.events[event_name]
 
     def _api_is_registered_to_event(self, event_name, func):
         """  check if a function is registered to an event
@@ -294,25 +173,22 @@ class Plugin(BasePlugin):
         else:
             priority = kwargs['prio']
         try:
-            func_plugin_id = func.im_self.plugin_id
+            func_plugin_id = func.__self__.plugin_id
         except AttributeError:
             func_plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
         if not func_plugin_id and 'plugin' in kwargs:
             func_plugin_id = kwargs['plugin_id']
 
-        if event_name not in self.events:
-            self.events[event_name] = EventContainer(self.plugin_id, event_name)
+        event = self._api_get_event(event_name)
 
-        self.events[event_name].register(func, func_plugin_id, priority)
+        event.register(func, func_plugin_id, priority)
 
     # unregister a function from an event
-    def _api_unregister_from_event(self, event_name, func, **kwargs):
+    def _api_unregister_from_event(self, event_name, func):
         # pylint: disable=unused-argument
         """  unregister a function with an event
         @Yevent_name@w   = The event to unregister with
         @Yfunc@w        = The function to unregister
-        keyword arguments:
-          plugin        = the plugin this function is a part of
 
         this function returns no values"""
         if event_name in self.events:
@@ -337,9 +213,8 @@ class Plugin(BasePlugin):
         # pylint: disable=too-many-nested-blocks
         """  raise an event with args
         @Yevent_name@w   = The event to raise
-        @Yargs@w         = A table of arguments
-
-        this function returns no values"""
+        @Yargs@w         = A dict or libs.records.EventArgsRecord of arguments
+        """
         if not args:
             args = {}
 
@@ -350,13 +225,13 @@ class Plugin(BasePlugin):
             LogRecord(f"event {event_name} raised with unknown caller",
                       level='error', sources=[self.plugin_id]).send()
 
-        new_args = args.copy()
-        new_args['eventname'] = event_name
-        if event_name not in self.events:
-            self.events[event_name] = EventContainer(self.plugin_id, event_name)
+        if not args:
+            args = {}
+
+        event = self._api_get_event(event_name)
 
         self.global_raised_count += 1
-        new_args = self.events[event_name].raise_event(new_args, calledfrom)
+        new_args = event.raise_event(args, calledfrom)
 
         return new_args
 
@@ -416,23 +291,29 @@ class Plugin(BasePlugin):
         """
         message = []
         match = args['match']
+        show_registered_only = args['show_registered_only']
+        show_no_description_or_args = args['show_no_description_or_args']
         eventnames = self.events.keys()
         eventnames = sorted(eventnames)
-        for name in eventnames:
+        eventlist = []
+
+        if show_registered_only:
+            for name in eventnames:
+                if self.events[name].count() > 0:
+                    eventlist.append(name)
+        elif show_no_description_or_args:
+            for name in eventnames:
+                if not self.events[name].description or not self.events[name].arg_descriptions:
+                    eventlist.append(name)
+        else:
+            eventlist = eventnames
+
+        for name in eventlist:
             if not match or match in name:
                 if self.events[name]:
-                    message.append(name)
+                    message.append(f"{self.events[name].count():<3} - {name:<30}")
 
         return True, message
-
-    def logloaded(self, args=None):
-        # pylint: disable=unused-argument
-        """
-        initialize the event log types
-        """
-        pass
-        #self.api('plugins.core.msg:add:datatype')(self.plugin_id)
-        #self.api('plugins.core.msg:toggle:to:console')(self.plugin_id)
 
     def summarystats(self, args=None):
         # pylint: disable=unused-argument

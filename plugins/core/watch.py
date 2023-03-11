@@ -75,7 +75,8 @@ class Plugin(BasePlugin):
                                               self.cmd_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+                                                          self.event_plugin_uninitialized)
 
     def event_plugin_uninitialized(self, args):
         """
@@ -167,6 +168,13 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_watch_add: watch {watch_name} failed to compile regex {regex}",
                       level='error', sources=[self.plugin_id, plugin], exc_info=True).send()
 
+        # add the event so it can be tracked
+        self.api('plugins.core.events:add:event')(watch_args['eventname'], watch_args['plugin'],
+                                                  description = f"event for {watch_name} for {watch_args['regex']}",
+                                                  arg_descriptions = { 'matched' : 'The matched arguments from the regex',
+                                                                       'cmdname' : 'The command name that was matched',
+                                                                       'data'    : 'The data that was matched'})
+
     # remove a command watch
     def _api_watch_remove(self, watch_name, force=False):
         """  remove a command watch
@@ -213,11 +221,14 @@ class Plugin(BasePlugin):
             match_data = cmdre.match(client_data)
             if match_data:
                 self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
-                match_args = match_data.groupdict()
+                match_args = {}
+                match_args['matched'] = match_data.groupdict()
                 match_args['cmdname'] = 'cmd_' + watch_name
                 match_args['data'] = client_data
                 LogRecord(f"checkcmd: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
                           level='debug', sources=[self.plugin_id]).send()
+                event_data = self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)
+                # Since this is an EventArgRecord, we can check to see if it was changed
                 if 'changed' in event_data:
                     self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
                                                           original_data=client_data,

@@ -24,19 +24,20 @@ Data Flow - Mud to Client
 -------------------------------------------------------------------------
 1) Proxy receives the data from the mud
 2) The data is transformed to a ToClientRecord and is sent with the send method
-3) ToClientRecord raises the event 'ev_modify_client_data' on data that is not internal
+3) ToClientRecord raises the event 'ev_client_data_modify' on data that is not internal
      - Use this event to transform data received from the mud
             After any transformation, use ToClientRecord.addchange to track the changes
             this way data can be tracked through plugins and how they change it
 4) Proxy sends the result of the event to the client by queueing the messasge,
-5) After all data is sent, ToClientRecord will raise "after_client_send" event on data that is not internal
+5) After all data is sent, ToClientRecord will raise "ev_client_data_read" event on data
+    that is not internal
        - Use this event if you only need to see the data sent to the client,
            the data cannot be transformed through this event
 
 NOTE: no events are raised for data sent to the client that originated in the proxy
 Because that type of data is generated from a command
 
-Sending data directly to the mud
+Sending data directly to the mud (no longer valid)
 -------------------------------------------------------------------------
 1) Use send.mud
 

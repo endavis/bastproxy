@@ -61,7 +61,8 @@ class Plugin(BasePlugin):
         self.api('plugins.core.commands:command:add')('fixqueue', self.cmd_fixqueue,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+                                                          self._event_plugin_uninitialized)
 
     def _event_plugin_uninitialized(self, args):
         """
@@ -126,6 +127,13 @@ class Plugin(BasePlugin):
             self.cmds[cmdtype]['ctype'] = cmdtype
             self.cmds[cmdtype]['plugin'] = plugin
 
+            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['plugin'],
+                                                        description=f"event for the command {self.cmds[cmdtype]['ctype']} being sent",
+                                                        arg_descriptions={'None': None})
+            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['plugin'],
+                                                        description=f"event for the command {self.cmds[cmdtype]['ctype']} completing",
+                                                        arg_descriptions={'None': None})
+
     def sendnext(self):
         """
         send the next command
@@ -145,6 +153,7 @@ class Plugin(BasePlugin):
             self.cmds[cmdtype]['beforef']()
 
         self.current_command = cmdt
+        self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_send")
         self.api('libs.io:send:execute')(cmd)
 
     def checkinqueue(self, cmd):
@@ -171,7 +180,7 @@ class Plugin(BasePlugin):
                 self.cmds[cmdtype]['afterf']()
 
             self.api('libs.timing:timing:finish')(f"cmd_{self.current_command['ctype']}")
-            self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_finished")
+            self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_completed")
             self.current_command = {}
             self.sendnext()
 

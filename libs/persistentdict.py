@@ -23,6 +23,8 @@ import stat
 from libs.api import API
 from libs.records import LogRecord
 
+EVENTSSETUP = False
+
 def convert(tinput):
     """
     converts input to ascii (utf-8)
@@ -205,6 +207,23 @@ class PersistentDictEvent(PersistentDict):
         """
         self.plugin_id = plugin_id
         super().__init__(file_name, *args, **kwds)
+        self.add_events()
+
+    def add_events(self):
+        """
+        add events for each setting
+        """
+        global EVENTSSETUP
+        if not EVENTSSETUP:
+            if self.api('libs.api:has')('plugins.core.events:add:event'):
+                EVENTSSETUP = True
+                for i in self:
+                    event_name = f"ev_{self.plugin_id}_var_{i}_modified"
+                    self.api('plugins.core.events:add:event')(event_name, self.plugin_id,
+                                            description=f"An event raised when {i} is modified in {self.plugin_id}",
+                                            arg_descriptions={'var':'The variable that was modified',
+                                            'newvalue':'the new value of the variable',
+                                            'oldvalue':'the old value of the variable, will be "__init__" if the variable was not set before'})
 
     def __setitem__(self, key, val):
         """

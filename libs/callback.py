@@ -27,18 +27,18 @@ class Callback: # pylint: disable=too-few-public-methods
         self.api = API()
         self.name = name
         self.plugin_id = plugin_id
-        self.fired_count = 0
+        self.raised_count = 0
         self.func = func
         self.enabled = enabled
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
-        self.last_fired_datetime = None
+        self.last_raised_datetime = None
 
     def execute(self, args=None):
         """
         execute the callback
         """
-        self.last_fired_datetime = datetime.datetime.now(datetime.timezone.utc)
-        self.fired_count = self.fired_count + 1
+        self.last_raised_datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.raised_count = self.raised_count + 1
         if args:
             self.func(args)
         else:

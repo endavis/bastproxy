@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')(f"'ev_{self.plugin_id}_var_enabled_modified", self.enablechange)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_enabled_modified", self.enablechange)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='get details of a trigger')
@@ -116,7 +116,8 @@ class Plugin(BasePlugin):
                                               self.cmd_list,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_core.plugins_plugin_uninitialized', self.event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+                                                          self.event_plugin_uninitialized)
 
         self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
                                                   self.check_trigger, prio=1)
@@ -515,8 +516,15 @@ class Plugin(BasePlugin):
         check a line of text from the mud to see if it matches any triggers
         called whenever the ev_libs.net.mud_from_mud_event is raised
         """
-        data = args['noansi']
-        colored_data = args['convertansi']
+        toclientrecord = args['ToClientRecord']
+
+        # don't check internal data
+        if toclientrecord.internal:
+            return args
+
+        data = toclientrecord.noansi
+        colored_data = toclientrecord.color
+
 
         self.raisetrigger(self.beall_id,
                           {'line':data, 'trigger_name':self.triggers[self.beall_id]['trigger_name']},

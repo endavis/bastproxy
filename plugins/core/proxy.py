@@ -79,6 +79,10 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
+        self.api('plugins.core.events:add:event')('ev_net.proxy_proxy_shutdown', self.plugin_id,
+                                                  description='event when the proxy is shutting down',
+                                                  arg_descriptions={'None': None})
+
         self.api('plugins.core.commands:command:add')('info',
                                               self.cmd_info,
                                               shelp='list proxy info')
@@ -100,7 +104,7 @@ class Plugin(BasePlugin):
                                               self.cmd_shutdown,
                                               shelp='shutdown the proxy')
 
-        self.api('plugins.core.events:register:to:event')('ev_core.clients_client_logged_in', self.client_logged_in)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.clients_client_logged_in', self.client_logged_in)
         self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_{'listenport'}_modified",
                                                   self.listen_port_change)
@@ -225,7 +229,7 @@ class Plugin(BasePlugin):
         self.api.__class__.shutdown = True
         LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown']).send()
         ToClientRecord('Shutting down proxy').send(__name__ + ':api_shutdown')
-        self.api('plugins.core.events:raise:event')('ev_net.proxy_proxy_shutdown')
+        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_proxy_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown']).send()
 
     def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use

@@ -918,6 +918,12 @@ class PluginMgr(BasePlugin):
             LogRecord(f"{plugin['plugin_id']:<30} : successfully initialized ({plugin['name']})", level='info',
                       sources=[self.plugin_id, plugin['plugin_id']]).send()
 
+            self.api('plugins.core.events:add:event')(f"ev_{plugin['plugininstance'].plugin_id}_initialized", self.plugin_id,
+                                                        description=f"Raised when {plugin['plugininstance'].plugin_id} is initialized",
+                                                        arg_descriptions={'None': None})
+
+
+
             self.api('plugins.core.events:raise:event')(f"ev_{plugin['plugininstance'].plugin_id}_initialized", {})
             self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_initialized",
                                                 {'plugin':plugin['name'],
@@ -1254,4 +1260,22 @@ class PluginMgr(BasePlugin):
 
         self.api('plugins.core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
 
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_plugin_initialized", self.plugin_id,
+                                                    description=f"Raised when any plugin is initialized",
+                                                    arg_descriptions={'plugin': 'The plugin name',
+                                                                          'plugin_id': 'The plugin id'})
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_plugin_uninitialized", self.plugin_id,
+                                                    description=f"Raised when any plugin is initialized",
+                                                    arg_descriptions={'plugin': 'The plugin name',
+                                                                        'plugin_id': 'The plugin id'})
+
+
+        for plugin in self.loaded_plugins.values():
+            plugin_id = plugin['plugin_id']
+            self.api('plugins.core.events:add:event')(f"ev_{plugin_id}_initialized", self.plugin_id,
+                                                        description=f"Raised when {plugin_id} is initialized",
+                                                        arg_descriptions={'None': None})
+            self.api('plugins.core.events:add:event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
+                                                        description=f"Raised when {plugin_id} is initialized",
+                                                        arg_descriptions={'None': None})
         self.api('plugins.core.events:register:to:event')('ev_net.proxy_proxy_shutdown', self.shutdown)

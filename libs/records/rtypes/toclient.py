@@ -18,6 +18,8 @@ from libs.net.networkdata import NetworkData
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.base import BaseDataRecord
 
+SETUPEVENTS = False
+
 class ToClientRecord(BaseDataRecord):
     """
     a record to a client, this can originate with the mud or internally
@@ -58,6 +60,18 @@ class ToClientRecord(BaseDataRecord):
             self.exclude_clients = []
         # This is a flag to prevent the message from being sent to the client more than once
         self.sending = False
+        self.setup_events()
+
+    def setup_events(self):
+        global SETUPEVENTS
+        if not SETUPEVENTS:
+            SETUPEVENTS = True
+            self.api('plugins.core.events:add:event')('ev_client_data_modify', __name__,
+                                                description='An event to modify data before it is sent to the client',
+                                                arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
+            self.api('plugins.core.events:add:event')('ev_client_data_read', __name__,
+                                                description='An event to see data that was sent to the client',
+                                                arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
 
     @property
     def is_command_telnet(self):
@@ -218,7 +232,7 @@ class ToClientRecord(BaseDataRecord):
         self.sending = True
         self.addchange('Info', 'Starting Send', actor)
         if not self.internal:
-            self.api('plugins.core.events:raise:event')('ev_modify_client_data', args={'ToClientRecord': self})
+            self.api('plugins.core.events:raise:event')('ev_client_data_modify', args={'ToClientRecord': self})
             self.addchange('Info', 'After event ev_modify_client_data', actor)
         if self.send_to_clients:
             self.format(actor=actor)
@@ -242,4 +256,4 @@ class ToClientRecord(BaseDataRecord):
                             level='debug', sources=[__name__]).send()
 
             if not self.internal:
-                self.api('plugins.core.events:raise:event')('ev_after_client_send', args={'ToClientRecord': self})
+                self.api('plugins.core.events:raise:event')('ev_client_data_read', args={'ToClientRecord': self})

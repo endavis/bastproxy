@@ -97,6 +97,11 @@ if __name__ == "__main__":
     LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy']).send()
     post_plugins_init()
 
+    API.add_events()
+    API('plugins.core.events:add:event')('ev_bastproxy_proxy_ready', 'bastproxy',
+                                        description='An event to be raised when the proxy is ready to accept connections',
+                                        arg_descriptions={'None': None})
+
     API.__class__.startup = False
     API('plugins.core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
 
