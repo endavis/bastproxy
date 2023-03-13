@@ -138,7 +138,7 @@ class Plugin(BasePlugin):
 
     def _api_client_logged_in_view_only(self, client_uuid):
         """
-        set a client as logged in
+        set a client as logged in for view only
         """
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
@@ -169,24 +169,25 @@ class Plugin(BasePlugin):
 
     def _api_addclient(self, client_connection):
         """
-        add a client from the connected event
+        add a connected client
         """
+        if client_connection.uuid in self.clients:
+            LogRecord(f"Client {client_connection.uuid} already exists", level='warning', sources=[self.plugin_id]).send()
         self.clients[client_connection.uuid] = client_connection
         self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_connected",
                                                     {'client_uuid' : client_connection.uuid})
 
     def _api_removeclient(self, client_connection):
         """
-        remove a client
+        remove a connected client
         """
         removed = False
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
-            removed = True
-
-        if removed:
             self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_client_disconnected",
                                                         {'client_uuid' : client_connection.uuid})
+            LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
+                      level='warning', sources=[self.plugin_id]).send()
 
     def shutdown(self, args=None): # pylint: disable=unused-argument
         """
