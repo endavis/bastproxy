@@ -193,7 +193,7 @@ class ToClientRecord(BaseDataRecord):
                 self.data = converted_message
                 self.addchange('Modify', 'convert_colors', actor, 'convert color codes to ansi codes on each item')
 
-    def color(self, actor=None):
+    def color_lines(self, actor=None):
         """
         add the color to the beginning of all lines in the message
         """
@@ -218,9 +218,8 @@ class ToClientRecord(BaseDataRecord):
         """
         format the message
         """
-        # format only if internal and 'IO'
         self.clean(actor=actor)
-        self.color(actor=actor)
+        self.color_lines(actor=actor)
         self.add_preamble(actor=actor)
         self.convert_colors(actor=actor)
         self.add_line_endings(actor=actor)
