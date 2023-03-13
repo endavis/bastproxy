@@ -1269,6 +1269,7 @@ class PluginMgr(BasePlugin):
                                                     arg_descriptions={'plugin': 'The plugin name',
                                                                         'plugin_id': 'The plugin id'})
 
+        self.initializing_f = False
 
         for plugin in self.loaded_plugins.values():
             plugin_id = plugin['plugin_id']
