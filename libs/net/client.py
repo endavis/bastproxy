@@ -102,13 +102,9 @@ class ClientConnection:
 
     async def client_read(self) -> None:
         """
-            Utilized by the Telnet and SSH client_handlers.
+            Utilized by the Telnet client_handler.
 
             We want this coroutine to run while the client is connected, so we begin with a while loop
-            We first await control back to the loop until we have received some input (or an EOF)
-                Mark the connection to disconnected and break out if a disconnect (EOF)
-                else we handle the input. Client input packaged into a JSON payload and put into the
-                messages_to_game asyncio.Queue()
         """
         LogRecord(f"client_read - Starting coroutine for {self.uuid}", level='debug', sources=[__name__]).send()
 

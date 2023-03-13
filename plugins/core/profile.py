@@ -21,7 +21,7 @@ from libs.records import ToClientRecord
 
 NAME = 'Profile Plugin'
 SNAME = 'profile'
-PURPOSE = 'profile proxy internals'
+PURPOSE = 'profile and inspect proxy internals'
 AUTHOR = 'Bast'
 VERSION = 1
 

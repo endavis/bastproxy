@@ -26,6 +26,10 @@ class ToClientRecord(BaseDataRecord):
     data from the mud will immediately be transformed into this type of record
     will not neccesarily end up going to the client
 
+    The message format is a list of strings
+
+    line endings will be added to each line before sending to the client
+
     Valid message_types:
         'IO' - a regular string to send to the client
         'TELNET-COMMAND' - a telnet command to the client
