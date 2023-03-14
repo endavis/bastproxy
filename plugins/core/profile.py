@@ -2,7 +2,7 @@
 # Project: bastproxy
 # Filename: plugins/core/profile.py
 #
-# File Description: a plugin to profile proxy internals
+# File Description: a plugin to profile and inspect proxy internals
 #
 # By: Bast
 """
@@ -10,6 +10,8 @@ This plugin profiles functions, commands, and data
 """
 # Standard Library
 import pprint
+import asyncio
+import textwrap
 
 # 3rd Party
 
@@ -85,6 +87,11 @@ class Plugin(BasePlugin):
         #     action='store_true',
         #     default=False)
         self.api('plugins.core.commands:command:add')('muddata', self.cmd_muddata,
+                                              parser=parser)
+
+        parser = argp.ArgumentParser(add_help=False,
+                                     description='show tasks in the scheduler')
+        self.api('plugins.core.commands:command:add')('tasks', self.cmd_tasks,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -168,6 +175,27 @@ class Plugin(BasePlugin):
             return self.showcommand(int(args['item']), callstack=args['callstack'])
 
         return self.listcommands()
+
+    def cmd_tasks(self, args=None):
+        """
+        get info about scheduled tasks in asyncio
+
+        # tasks = asyncio.all_tasks()
+        # print(tasks)
+        """
+        msg = []
+        tasks = asyncio.all_tasks()
+        for task in tasks:
+            msg.append('----------------------------------------')
+            msg.append(f"'Name'         : {task.get_name()}")
+            reps = f"{task}"
+            reps_new = textwrap.wrap(width=75, text=reps, subsequent_indent=' '*22)
+            msg.append(f"   Repr        : {reps_new[0]}")
+            for line in reps_new[1:]:
+                msg.append(f"{line}")
+        msg.append('----------------------------------------')
+
+        return True, msg
 
     def cmd_muddata(self, args=None):
         """
