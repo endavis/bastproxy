@@ -209,9 +209,6 @@ class API(object):
     # the proxy start time, will be dynamically set in bastproxy.py
     proxy_start_time = ''
 
-    # this will hold event descriptions and usage
-    event_descriptions = {}
-
     # the regex to use to split commands, the seperator is configured in
     # the proxy plugin
     command_split_regex = None
@@ -257,8 +254,6 @@ class API(object):
             self.add('libs.api', 'get:function:plugin:owner', self._api_get_function_plugin_owner, overload=True)
         if not self('libs.api:has')('libs.api:get:caller:plugin'):
             self.add('libs.api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
-        if not self('libs.api:has')('libs.api:add:event:description'):
-            self.add('libs.api', 'add:event:description', self._api_add_event_description, overload=True)
         if not self('libs.api:has')('libs.api:is_character_active'):
             self.add('libs.api', 'is_character_active', self._api_is_character_active_get, overload=True)
         if not self('libs.api:has')('libs.api:is_character_active:set'):
@@ -372,13 +367,6 @@ class API(object):
         self.overloaded_api[api_item.full_api_name] = api_item
         # self.overloaded_api[api_data['new_full_api_name']] = api_data
         return True
-
-    # add an event description
-    def _api_add_event_description(self, raisedevent):
-        """  add an event description
-        @Yraisedevent@w - RaisesEvent from libs/event.py = the event description
-        """
-        self.event_descriptions[raisedevent.name] = raisedevent
 
     # find the caller of this api
     def _api_caller_plugin(self, ignore_plugin_list=None):
