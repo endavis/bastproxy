@@ -91,29 +91,30 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = data
             self.addchange('Modify', 'replace', actor, extra=extra)
 
-    def color(self, color, actor=None):
+    def color_lines(self, color, actor=None):
         """
-        color the message
+        color the message and convert all colors to ansicodes
+
+        color is the color for all lines
 
         actor is the item that ran the color function
-
         """
         new_message = []
         if not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
             return
-        if color:
-            for line in self.data:
-                if '@x' in line:
-                    line_list = line.split('@x')
+        for line in self.data:
+            if color:
+                if '@w' in line:
+                    line_list = line.split('@w')
                     new_line_list = []
                     for item in line_list:
                         new_line_list.append(f"{color}{item}")
-                    line = f"@x{color}".join(new_line_list)
-                line = f"{color}{line}@x"
-                new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
-            if new_message != self.data:
-                self.data = new_message
-                self.addchange('Modify', 'color', actor)
+                    line = f"@w{color}".join(new_line_list)
+                line = f"{color}{line}@w"
+            new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
+        if new_message != self.data:
+            self.data = new_message
+            self.addchange('Modify', 'color_lines', actor, 'convert color codes to ansi codes on each item')
 
     def clean(self, actor=None):
         """

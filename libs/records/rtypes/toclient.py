@@ -161,12 +161,12 @@ class ToClientRecord(BaseDataRecord):
         """
         add the preamble to the message only if it is from internal and is an IO message
         """
-        if self.preamble and self.internal and self.is_io:
+        if self.preamble:
             preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=self.error)
             preambletext = self.api('plugins.core.proxy:preamble:get')()
             new_message = []
             for item in self.data:
-                    new_message.append(f"{preamblecolor}{preambletext}@w {item}")
+                    new_message.append(f"{preamblecolor}{preambletext}@w: {item}")
             if new_message != self.data:
                 self.data = new_message
                 self.addchange('Modify', 'preamble', actor, 'add a preamble to all items')
@@ -175,54 +175,34 @@ class ToClientRecord(BaseDataRecord):
         """
         clean the message
         """
-        # clean only if internal and 'IO'
-        if self.internal and self.is_io:
-            super().clean(actor)
-
-    def convert_colors(self, actor=None):
-        """
-        convert the message colors
-        """
-        # convert colors only if internal and 'IO'
-        if self.internal and self.is_io:
-            converted_message = []
-            for i in self.data:
-                if self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
-                    converted_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(i))
-            if self.data != converted_message:
-                self.data = converted_message
-                self.addchange('Modify', 'convert_colors', actor, 'convert color codes to ansi codes on each item')
+        super().clean(actor)
 
     def color_lines(self, actor=None):
         """
         add the color to the beginning of all lines in the message
         """
-        # add color only if internal and 'IO'
-        if self.internal and self.is_io:
-            super().color(self.color_for_all_lines, actor)
+        super().color_lines(self.color_for_all_lines, actor)
 
     def add_line_endings(self, actor=None):
         """
         add line endings to the message
         """
-        # add line endings only if internal and 'IO'
-        if self.internal and self.is_io:
-            new_message = []
-            for item in self.data:
-                new_message.append(f"{item}\n\r")
-            if new_message != self.data:
-                self.data = new_message
-                self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
+        new_message = []
+        for item in self.data:
+            new_message.append(f"{item}\n\r")
+        if new_message != self.data:
+            self.data = new_message
+            self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
 
     def format(self, actor=None):
         """
-        format the message
+        format the message only if it is an internal message and is an IO message
         """
-        self.clean(actor=actor)
-        self.color_lines(actor=actor)
-        self.add_preamble(actor=actor)
-        self.convert_colors(actor=actor)
-        self.add_line_endings(actor=actor)
+        if self.internal and self.is_io:
+            self.clean(actor=actor)
+            self.add_preamble(actor=actor)
+            self.color_lines(actor=actor)
+            self.add_line_endings(actor=actor)
 
     def send(self, actor=None):
         """

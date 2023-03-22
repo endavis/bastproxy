@@ -37,7 +37,7 @@ class LogRecord(BaseDataRecord):
         self.wasemitted['file'] = False
         self.wasemitted['client'] = False
 
-    def color(self, actor=None):
+    def color_lines(self, actor=None):
         """
         color the message
 
@@ -46,7 +46,7 @@ class LogRecord(BaseDataRecord):
         if not self.api('libs.api:has')('plugins.core.log:get:level:color'):
             return
         color = self.api('plugins.core.log:get:level:color')(self.level)
-        super().color(color, actor)
+        super().color_lines(color, actor)
 
     def add_source(self, source):
         """
