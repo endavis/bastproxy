@@ -32,15 +32,13 @@ def find_modules(directory, prefix):
 
         if not ispkg:
             # print(f"finding module: {module_name}")
-            tmod = loader.find_module(module_name)
-            # print(f"found module: {tmod}")
-            # print(f"name: {tmod.name}")
-            # print(f"path: {tmod.path}")
-            # print(f"type: {type(tmod.path)}")
-            matches.append({'plugin_id':tmod.name,
-                            'fullpath':Path(tmod.path),
-                            'filename':filename,
-                            'full_import_path':tmod.name})
+
+            tspec = loader.find_spec(module_name)
+            if tspec:
+                matches.append({'plugin_id':tspec.name,
+                                'fullpath':Path(tspec.loader.path),
+                                'filename':filename,
+                                'full_import_path':tspec.name})
 
     # print('found the following plugins:')
     # print(pprint.pformat(matches))
@@ -80,13 +78,12 @@ def importmodule(module_path, plugin, import_base, silent=False):
             return (True, 'already',
                     sys.modules[full_import_location], full_import_location)
 
-        plugin_id = full_import_location.replace('plugins.', '')
         if not silent:
-            LogRecord(f"{plugin_id:<30} : attempting import", level='info', sources=[plugin.plugin_id]).send()
+            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[plugin.plugin_id]).send()
         _module = import_module(full_import_location)
 
         if not silent:
-            LogRecord(f"{plugin_id:<30} : successfully imported", level='info', sources=[plugin.plugin_id]).send()
+            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[plugin.plugin_id]).send()
         return True, 'import', _module, full_import_location
 
     except Exception: # pylint: disable=broad-except
