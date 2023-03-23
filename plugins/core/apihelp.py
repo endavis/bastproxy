@@ -13,6 +13,7 @@ This plugin will show api functions and details
 # 3rd Party
 
 # Project
+from libs.api import API
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 
@@ -46,6 +47,10 @@ class Plugin(BasePlugin):
         parser.add_argument('toplevel',
                             help='the top level api to show (optional)',
                             default='', nargs='?')
+        parser.add_argument('-np',
+                            '--noplugin',
+                            help="use an API that is not from a plugin",
+                            action='store_true')
         self.api('plugins.core.commands:command:add')('list', self.cmd_list,
                                               parser=parser)
 
@@ -56,6 +61,10 @@ class Plugin(BasePlugin):
         parser.add_argument('-s',
                             '--stats',
                             help="add stats",
+                            action='store_true')
+        parser.add_argument('-np',
+                            '--noplugin',
+                            help="use an API that is not from a plugin",
                             action='store_true')
         self.api('plugins.core.commands:command:add')('detail', self.cmd_detail,
                                               parser=parser)
@@ -69,8 +78,11 @@ class Plugin(BasePlugin):
           @Yapi@w = (optional) the api to detail
         """
         tmsg = []
+        api = self.api
+        if args['noplugin']:
+            api = API()
         if args['api']:
-            tmsg.extend(self.api('libs.api:detail')(args['api'], stats_by_plugin=args['stats']))
+            tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats']))
 
         else: # args <= 0
             tmsg.append('Please provide an api to detail')
@@ -85,7 +97,10 @@ class Plugin(BasePlugin):
           @Yapiname@w = (optional) the toplevel api to show
         """
         tmsg = []
-        apilist = self.api('libs.api:list')(args['toplevel'])
+        api = self.api
+        if args['noplugin']:
+            api = API()
+        apilist = api('libs.api:list')(args['toplevel'])
         if not apilist:
             tmsg.append('%s does not exist in the api' % args['toplevel'])
         else:
