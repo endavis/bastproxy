@@ -162,7 +162,9 @@ class Plugin(BasePlugin):
         template = '%-15s : %s'
         mud = self.api('plugins.core.managers:get')('mud')
         tmsg = ['']
-        started = self.api.proxy_start_time.strftime(self.api.time_format)
+        started = 'Unknown'
+        if self.api.proxy_start_time:
+            started = self.api.proxy_start_time.strftime(self.api.time_format)
         uptime = self.api('plugins.core.utils:convert:timedelta:to:string')(
             self.api.proxy_start_time,
             datetime.datetime.now(datetime.timezone.utc))
