@@ -14,12 +14,14 @@ import os
 import sys
 import platform
 import datetime
+import signal
 
 # 3rd Party
 
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.records import ToClientRecord, LogRecord
+import libs.argp as argp
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -95,10 +97,18 @@ class Plugin(BasePlugin):
                                               self.cmd_connect,
                                               shelp='connect to the mud')
 
+        parser = argp.ArgumentParser(add_help=False,
+                                    description='restart the proxy')
+        parser.add_argument('-s',
+                            '--seconds',
+                            type=int,
+                            default=10,
+                            help='# of seconds to wait before restart')
         self.api('plugins.core.commands:command:add')('restart',
                                               self.cmd_restart,
                                               shelp='restart the proxy',
-                                              format=False)
+                                              format=False,
+                                              parser=parser)
 
         self.api('plugins.core.commands:command:add')('shutdown',
                                               self.cmd_shutdown,
@@ -179,20 +189,19 @@ class Plugin(BasePlugin):
             else:
                 tmsg.append(template % ('Mud', 'disconnected'))
 
-        clients = self.api('plugins.core.clients:clients:get:all')()
+        clients = self.api('plugins.core.clients:get:all:clients')()
 
-        aclients = clients['active']
-        vclients = clients['view']
+        # client.view_only
+        aclients = [client for client in clients if not client.view_only]
+        vclients = [client for client in clients if client.view_only]
 
         tmsg.append('')
         tmsg.append('@B-----------------   Clients  ----------------@w')
         tmsg.append(template % ('Clients', len(aclients)))
         tmsg.append(template % ('View Clients', len(vclients)))
-        tmsg.append('-------------------------')
+        tmsg.append('@B---------------------------------------------@w')
+        _, nmsg = self.api('plugins.core.commands:command:run')('plugins.core.clients', 'show', '')
 
-        _, nmsg = self.api('plugins.core.commands:command:run')('net.clients', 'show', '')
-
-        del nmsg[0]
         del nmsg[0]
         tmsg.extend(nmsg)
         return True, tmsg
@@ -236,13 +245,14 @@ class Plugin(BasePlugin):
         """
         shutdown the proxy
         """
-        raise KeyboardInterrupt
+        signal.raise_signal( signal.SIGINT )
 
     def cmd_restart(self, args): # pylint: disable=unused-argument
         """
         restart the proxy
         """
-        self.api('proxy:restart')()
+        seconds = args['seconds'] or None
+        self.api(f"{self.plugin_id}:proxy:restart")(seconds)
 
     def client_logged_in(self, event_args): # pylint: disable=unused-argument
         """
@@ -287,15 +297,17 @@ class Plugin(BasePlugin):
         return event_args
 
     # restart the proxy
-    def api_restart(self):
+    def api_restart(self, restart_in=None):
         """
         restart the proxy after 10 seconds
         """
+        restart_in = restart_in or 10
         listen_port = self.api('setting:get')('listenport')
 
-        ToClientRecord(f"Restarting bastproxy on port: {listen_port} in 10 seconds").send(__name__ + ':api_restart')
+        ToClientRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds").send(__name__ + ':api_restart')
+        LogRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds", level='warning', sources=[self.plugin_id]).send()
 
-        self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, 10, onetime=True)
+        self.api('plugins.core.timers:add:timer')('restart', self.timer_restart, restart_in, onetime=True)
 
     def timer_restart(self):
         """
@@ -303,18 +315,11 @@ class Plugin(BasePlugin):
         """
         self.api('plugins.core.plugins:save:state')()
 
-        executable = sys.executable
-        args = []
-        args.insert(0, 'bastproxy.py')
-        args.insert(0, sys.executable)
-
-        plistener = self.api('plugins.core.managers:get')('listener')
-        plistener.close()
-        self.api('proxy:shutdown')()
+        self.api(f"{self.plugin_id}:proxy:shutdown")()
 
         time.sleep(5)
 
-        os.execv(executable, args)
+        os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
     def listen_port_change(self, args): # pylint: disable=unused-argument
         """
