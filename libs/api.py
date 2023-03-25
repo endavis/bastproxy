@@ -104,7 +104,9 @@ class APIStatItem:
                 module, and name of the function.
         """
         self.full_api_name: str = full_api_name
-        self.calls_by_plugin: dict = {}
+        self.calls_by_caller: dict = {}
+        self.detailed_calls: dict = {}
+        self.count = 0  # Total number of calls to this API
 
     def add_call(self, plugin_id: str) -> None:
         """
@@ -113,11 +115,18 @@ class APIStatItem:
         Args:
             plugin_id (str): Unique ID of the plugin making the call.
         """
-        if not plugin_id:
+        self.count += 1
+        if not caller_id:
             return
-        if plugin_id not in self.calls_by_plugin:
-            self.calls_by_plugin[plugin_id] = 0
-        self.calls_by_plugin[plugin_id] += 1
+        if caller_id not in self.detailed_calls:
+            self.detailed_calls[caller_id] = 0
+        self.detailed_calls[caller_id] += 1
+
+        if ':' in caller_id:
+            caller_id = caller_id.split(':')[0]
+        if caller_id not in self.calls_by_caller:
+            self.calls_by_caller[caller_id] = 0
+        self.calls_by_caller[caller_id] += 1
 
 class StatsManager:
     """
@@ -151,6 +160,19 @@ class StatsManager:
         """
         return self.stats
 
+    def get_stats(self, full_api_name) -> dict | None:
+        """
+        Returns the stats for a specific API.
+
+        Args:
+            full_api_name (str): Full name of the API, including the full package,
+                module, and name of the function.
+
+        Returns:
+            dict: A dictionary of the stats for the API.
+        """
+        return self.stats.get(full_api_name, None)
+
 STATS_MANAGER = StatsManager()
 
 class APIItem:
@@ -168,8 +190,10 @@ class APIItem:
             plugin_id (str): Unique ID of the plugin calling the function.
         """
         self.full_api_name: str = full_api_name
-        self.plugin_id: int = plugin_id
-        self.tfunction: callable = tfunction
+        self.plugin_id: str = plugin_id if plugin_id else 'Unknown'
+        self.tfunction: typing.Callable = tfunction
+        self.overloaded: bool = False
+        self.overwritten_api: APIItem | None = None
 
     def __call__(self, *args, **kwargs):
         """
@@ -182,7 +206,92 @@ class APIItem:
         STATS_MANAGER.add_call(self.full_api_name, caller_plugin)
         return self.tfunction(*args, **kwargs)
 
-class API(object):
+    @property
+    def count(self) -> int:
+        """
+        Returns the number of times the API has been called.
+
+        Returns:
+            int: The number of times the API has been called.
+        """
+        stats = STATS_MANAGER.stats.get(self.full_api_name, None)
+        if stats:
+            return stats.count
+        return 0
+
+    @property
+    def stats(self) -> APIStatItem | None:
+        """
+        Returns the stats for the API.
+
+        Returns:
+            dict: A dictionary of the stats for the API.
+        """
+        stats = STATS_MANAGER.stats.get(self.full_api_name, None)
+        if stats:
+            return STATS_MANAGER.stats[self.full_api_name]
+        else:
+            return None
+
+    def detail(self) -> list[str]:
+        """
+        create a detailed message for this item
+        """
+        tmsg = []
+
+        tmsg.append(f"@C{'API':<11}@w : {self.full_api_name}")
+        tmsg.append(f"@C{'Function':<11}@w : {self.tfunction}")
+        tmsg.append(f"@C{'From Plugin':<11}@w : {self.plugin_id}")
+        tmsg.append(f"@C{'Overloaded':<11}@w : {self.overloaded}")
+
+        tmsg.append('')
+
+        args = get_args(self.tfunction)
+
+        location_split = self.full_api_name.split(':')
+        name = location_split[0]
+        command_name = ':'.join(location_split[1:])
+        tdict = {'name':name, 'cmdname':command_name, 'api_location':self.full_api_name}
+
+        tmsg.append(f"@G{self.full_api_name}@w({args})")
+        if self.tfunction.__doc__:
+            tmsg.append(self.tfunction.__doc__ % tdict)
+
+        tmsg.append('')
+
+        sourcefile = inspect.getsourcefile(self.tfunction)
+        if sourcefile:
+            tmsg.append(f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}")
+
+        tmsg.append('')
+
+        if self.overwritten_api:
+            tmsg.append('')
+            tmsg.append(f"This API overwrote the following:")
+            for line in self.overwritten_api.detail():
+                tmsg.append(f"    {line}")
+
+        return tmsg
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the APIItem object.
+
+        Returns:
+            str: A string representation of the object.
+        """
+        return f"APIItem({self.full_api_name}, {self.plugin_id}, {self.tfunction})"
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the APIItem object.
+
+        Returns:
+            str: A string representation of the object.
+        """
+        return f"APIItem({self.full_api_name}, {self.plugin_id}, {self.tfunction})"
+
+class API():
     """
     A class that exports an api for plugins and modules to use
     """
@@ -224,7 +333,7 @@ class API(object):
     # is available for active commands to be sent
     is_character_active = False
 
-    def __init__(self, parent_plugin_id=None):
+    def __init__(self, parent_id=None) -> None:
         """
         initialize the class
         """
@@ -235,7 +344,7 @@ class API(object):
         self.time_format = '%a %b %d %Y %H:%M:%S %Z'
 
         # this is the plugin the api was created from
-        self.parent_plugin_id = parent_plugin_id
+        self.parent_id: str | None = parent_id
 
         # added functions
         self.add('libs.api', 'add', self.add, overload=True)
@@ -321,9 +430,9 @@ class API(object):
         this function returns no values"""
         full_api_name = top_level_api + ':' + name
 
-        plugin_id = self.parent_plugin_id
+        parent_id: str | None = self.parent_id
 
-        api_item = APIItem(full_api_name, tfunction, plugin_id)
+        api_item = APIItem(full_api_name, tfunction, parent_id)
 
         if not overload:
             if full_api_name in self.api:
@@ -333,8 +442,8 @@ class API(object):
                 else:
                     try:
                         from libs.records import LogRecord
-                        LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {plugin_id}",
-                                    level='error', sources=[__name__, plugin_id]).send()
+                        LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {parent_id}",
+                                    level='error', sources=[__name__, parent_id]).send()
                     except ImportError:
                         print(f"libs.api:add - {full_api_name} already exists")
             else:
@@ -446,8 +555,8 @@ class API(object):
         # all apis should have a . in the first part
         # if not, we add the parent plugin id to the api
         if '.' not in api_location:
-            if self.parent_plugin_id:
-                api_location = self.parent_plugin_id + ':' + api_location
+            if self.parent_id:
+                api_location = self.parent_id + ':' + api_location
             else:
                 try:
                     from libs.records import LogRecord
@@ -465,7 +574,7 @@ class API(object):
         if api_location in self.api and self.api[api_location]:
             return self.api[api_location]
 
-        raise AttributeError(f"{self.parent_plugin_id} : {api_location} is not in the api")
+        raise AttributeError(f"{self.parent_id} : {api_location} is not in the api")
 
     __call__ = get
 
@@ -543,14 +652,17 @@ class API(object):
 
             if stats_by_plugin:
                 api_data = self._api_data_get(api_location)
-                if api_data:
+                if api_data and api_data.stats:
                     tmsg.append('')
+                    tmsg.append(self('plugins.core.utils:center:colored:string')('Stats', '-', 70, '@B'))
+                    tmsg.append('Total Calls: %s' % api_data.stats.count)
+                    tmsg.append('@B' + '-' * 50)
                     tmsg.append('Stats by plugin')
                     tmsg.append('@B' + '-' * 50)
-                    stats_keys = api_data.stats.keys()
+                    stats_keys = api_data.stats.calls_by_caller.keys()
                     stats_keys = sorted(stats_keys)
                     for i in stats_keys:
-                        tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats[i]}")
+                        tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats.calls_by_caller[i]}")
 
         else:
             tmsg.append(f"{api_location} is not in the api")
