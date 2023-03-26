@@ -22,20 +22,21 @@ TASK_QUEUE = asyncio.Queue()
 
 class TaskItem:
     """
-    a class to hold the task and the message to be sent to the logger
+    a class to hold the task to be added to the event loop
     """
     def __init__(self, task, name):
         self.task = task
         self.name = name
 
     def start(self):
-        if asyncio.isfuture(self.task) or asyncio.iscoroutine(self.task):
+        if asyncio.iscoroutine(self.task):
             create_task(self.task, name=self.name)
         else:
             create_task(self.task(), name=self.name)
-        LogRecord(f"TaskItem - Created task {self.name} for write.drain()", level='debug', sources=[__name__]).send()
+        LogRecord(f"TaskItem - Created task {self.name}", level='debug', sources=[__name__]).send()
 
-def add_task(task, name, *args, **kwargs):
+# add a task to the asyncio_tasks queue
+def add_task(task, name):
     """
     add a task to the asyncio_tasks queue
     """

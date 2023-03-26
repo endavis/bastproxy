@@ -26,15 +26,14 @@ T = TypeVar('T')
 def create_task(
     coroutine: Coroutine[Any, Any, T],
     *,
-    message: str = None,
+    message: str = '',
     loop: Optional[asyncio.AbstractEventLoop] = None,
     name: str = '',
 ) -> 'asyncio.Task[T]':  # This type annotation has to be quoted for Python < 3.9, see https://www.python.org/dev/peps/pep-0585/
     '''
     This helper function wraps a ``loop.create_task(coroutine())`` call and ensures there is
     an exception handler added to the resulting task. If the task raises an exception it is logged
-    using the provided ``logger``, with additional context provided by ``message`` and optionally
-    ``message_args``.
+    using the provided ``logger``, with additional context provided by ``message``.
     '''
     if loop is None:
         loop = asyncio.get_running_loop()
@@ -51,7 +50,7 @@ def create_task(
 def _handle_task_result(
     task: asyncio.Task,
     *,
-    message: str = None,
+    message: str = '',
 ) -> None:
     try:
         task.result()
@@ -60,5 +59,5 @@ def _handle_task_result(
     # Add the pylint ignore: we want to handle all exceptions here so that the result of the task
     # is properly logged. There is no point re-raising the exception in this callback.
     except Exception as e:  # pylint: disable=broad-except
-        LogRecord(f"exception in task {task.get_name()} {e} {e.args}",
+        LogRecord(f"exception in task {task.get_name()} {e} {e.args} {message}",
                   level='error', sources=['asyncio'], exc_info=True).send()
