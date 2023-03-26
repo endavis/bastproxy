@@ -10,6 +10,7 @@ This plugin is used to track callbacks
 """
 # Standard Library
 import datetime
+import typing
 
 # 3rd Party
 
@@ -20,43 +21,44 @@ class Callback: # pylint: disable=too-few-public-methods
     """
     a basic callback class
     """
-    def __init__(self, name, plugin_id, func, enabled=True):
+    def __init__(self, name: str, plugin_id: str, func: typing.Callable, enabled: bool=True):
         """
         init the class
         """
-        self.name = name
-        self.plugin_id = plugin_id
-        self.raised_count = 0
-        self.func = func
-        self.enabled = enabled
-        self.created_time = datetime.datetime.now(datetime.timezone.utc)
-        self.last_raised_datetime = None
         self.api = API(parent_id=f"{plugin_id}:callback:{name}")
+        self.name: str = name
+        self.plugin_id: str = plugin_id
+        self.raised_count: int = 0
+        self.func: typing.Callable = func
+        self.enabled: bool = enabled
+        self.created_time: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.last_raised_datetime: datetime.datetime | None = None
 
-    def execute(self, args=None):
+    def execute(self, args: dict | None = None):
         """
         execute the callback
         """
         self.last_raised_datetime = datetime.datetime.now(datetime.timezone.utc)
         self.raised_count = self.raised_count + 1
         if args:
-            self.func(args)
+            return self.func(args)
         else:
-            self.func()
+            return self.func()
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         return a string representation of the callback
         """
         return f"Event {self.name:<10} : {self.plugin_id:<15}"
 
-    def __eq__(self, other_function):
+    def __eq__(self, other_function) -> bool:
         """
         check equality between two functions
         """
         if callable(other_function):
             if other_function == self.func:
                 return True
+
         try:
             if self.func == other_function.func:
                 return True
