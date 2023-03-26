@@ -76,7 +76,7 @@ class PersistentDict(dict):
         initialize the instance
         """
         self._dump_shallow_attrs = ['api']
-        self.api = API()
+        self.api = API(parent_id=f"{__name__}:{file_name}")
 
         # r=readonly, c=create, or n=new
         self.flag = flag

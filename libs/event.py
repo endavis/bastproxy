@@ -27,7 +27,7 @@ class Event:
     """
     def __init__(self, name, created_by=None, description=None, arg_descriptions=None):
         self.name = name
-        self.api = API()
+        self.api = API(parent_id=f"{__name__}:{self.name}")
         # this is the plugin or module that created the event
         # it should be the __name__ of the module or plugin
         self.created_by = created_by

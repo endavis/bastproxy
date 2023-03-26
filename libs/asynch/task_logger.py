@@ -19,7 +19,7 @@ import functools
 from libs.api import API
 from libs.records import LogRecord
 
-api = API()
+api = API(parent_id=__name__)
 
 T = TypeVar('T')
 

@@ -18,7 +18,7 @@ from timeit import default_timer
 from libs.api import API as BASEAPI
 from libs.records import LogRecord
 
-API = BASEAPI()
+API = BASEAPI(parent_id=__name__)
 
 
 def duration(func):

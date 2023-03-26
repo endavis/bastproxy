@@ -16,7 +16,7 @@ from collections import deque
 # Project
 from libs.api import API as BASEAPI
 
-API = BASEAPI()
+API = BASEAPI(parent_id=__name__)
 
 class RecordManager(object):
     def __init__(self):

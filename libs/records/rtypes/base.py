@@ -27,7 +27,7 @@ class BaseRecord:
         initialize the class
         """
         # Add an API
-        self.api = API()
+        self.api = API(parent_id=self.__class__.__name__)
         # create a unique id for this message
         self.uuid = uuid4()
         # True if this was created internally

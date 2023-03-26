@@ -36,7 +36,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         initialize the class
         """
         self.current_trace = None
-        self.api = API()
+        self.api = API(parent_id=__name__)
 
         self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
         self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)

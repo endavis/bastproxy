@@ -80,7 +80,7 @@ class Plugin(BasePlugin):
         tmsg = []
         api = self.api
         if args['noplugin']:
-            api = API()
+            api = API(parent_id=f"{self.plugin_id}:cmd_detail")
         if args['api']:
             tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats']))
 
@@ -99,7 +99,7 @@ class Plugin(BasePlugin):
         tmsg = []
         api = self.api
         if args['noplugin']:
-            api = API()
+            api = API(parent_id=f"{self.plugin_id}:cmd_list")
         apilist = api('libs.api:list')(args['toplevel'])
         if not apilist:
             tmsg.append('%s does not exist in the api' % args['toplevel'])

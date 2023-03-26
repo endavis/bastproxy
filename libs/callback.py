@@ -24,7 +24,6 @@ class Callback: # pylint: disable=too-few-public-methods
         """
         init the class
         """
-        self.api = API()
         self.name = name
         self.plugin_id = plugin_id
         self.raised_count = 0
@@ -32,6 +31,7 @@ class Callback: # pylint: disable=too-few-public-methods
         self.enabled = enabled
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_raised_datetime = None
+        self.api = API(parent_id=f"{plugin_id}:callback:{name}")
 
     def execute(self, args=None):
         """

@@ -48,7 +48,7 @@ class SSC(object):
         initialize the class
         """
         self.name = name
-        self.api = API()
+        self.api = API(parent_id=f"{plugin_id}:{name}")
         self.plugin_id = plugin_id
 
         if 'default' in kwargs:

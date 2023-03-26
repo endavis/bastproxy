@@ -65,7 +65,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.version = 0
         self.priority = 100
 
-        self.api = API(parent_plugin_id=self.plugin_id)
+        self.api = API(parent_id=self.plugin_id)
         self.full_import_location = full_import_location
         self.plugin_path = plugin_path
         self.base_plugin_dir = base_plugin_dir

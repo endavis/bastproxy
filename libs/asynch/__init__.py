@@ -14,7 +14,7 @@ from libs.api import API as BASEAPI
 from libs.records import LogRecord
 from .task_logger import create_task
 
-API = BASEAPI()
+API = BASEAPI(parent_id=__name__)
 
 # holds the asyncio tasks to start after plugin initialization
 TASK_QUEUE = asyncio.Queue()
