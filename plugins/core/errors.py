@@ -65,6 +65,12 @@ class Plugin(BasePlugin):
                                               self.cmd_clear,
                                               parser=parser)
 
+        parser = argp.ArgumentParser(add_help=False,
+                                     description='raise a test error')
+        self.api('plugins.core.commands:command:add')('test',
+                                              self.cmd_test,
+                                              parser=parser)
+
         self.api('plugins.core.events:register:to:event')('ev_bastproxy_proxy_ready', self.proxy_ready)
 
     # show all errors that happened during startup
@@ -154,3 +160,9 @@ class Plugin(BasePlugin):
         self.api('errors.clear')()
 
         return True, ['Errors cleared']
+
+    def cmd_test(self, args=None):
+        """
+        test errors
+        """
+        raise Exception('@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w')
