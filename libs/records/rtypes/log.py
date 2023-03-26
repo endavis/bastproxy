@@ -57,7 +57,7 @@ class LogRecord(BaseDataRecord):
 
     def format(self, actor=None):
         self.clean(actor)
-        self.color(actor)
+        self.color_lines(actor)
 
     def send(self, actor=None):
         """
