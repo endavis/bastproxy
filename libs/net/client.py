@@ -41,13 +41,14 @@ class ClientConnection:
             self.login_attempts is the number of login attempts
                 close connection on 3 failed attempts
             self.state is the current state of the client connection
-            self.uuid is a uuid.uuid4() for unique session tracking
+            self.uuid is a uuid.uuid4() converted to hex for unique session tracking
             self.view_only is a bool to determine if the client is view only
             self.reader is the asyncio.StreamReader for the connection
             self.writer is the asyncio.StreamWriter for the connection
 
     """
     def __init__(self, addr, port, conn_type, reader, writer, rows=24):
+        self.uuid = uuid4().hex
         self.addr: str = addr
         self.port: str = port
         self.rows: int = rows
@@ -55,7 +56,6 @@ class ClientConnection:
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
         self.state: dict[str, bool] = {'connected': True, 'logged in': False}
-        self.uuid = uuid4()
         self.view_only = False
         self.msg_queue = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)

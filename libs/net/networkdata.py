@@ -37,7 +37,7 @@ class NetworkData:
         self.msg = kwargs.get('message', '')
         self.prompt = kwargs.get('is_prompt', 'false')
         self.client_uuid = kwargs.get('client_uuid', None)
-        self.uuid = uuid4()
+        self.uuid = uuid4().hex
         self.msg_type = None
         if msg_type in ['IO', 'COMMAND-TELNET']:
             self.msg_type = msg_type

@@ -29,7 +29,7 @@ class BaseRecord:
         # Add an API
         self.api = API(parent_id=self.__class__.__name__)
         # create a unique id for this message
-        self.uuid = uuid4()
+        self.uuid = uuid4().hex
         # True if this was created internally
         self.plugin_id = plugin_id
         self.created =  datetime.datetime.now(datetime.timezone.utc)
