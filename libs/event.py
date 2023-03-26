@@ -43,11 +43,7 @@ class Event:
         """
         return the number of functions registered to this event
         """
-        count = 0
-        for priority in self.priority_dictionary:
-            count = count + len(self.priority_dictionary[priority])
-
-        return count
+        return sum([len(v) for v in self.priority_dictionary.values()])
 
     def isregistered(self, func):
         """
