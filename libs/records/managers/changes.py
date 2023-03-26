@@ -16,14 +16,14 @@ from collections import deque
 # Project
 
 
-class ChangeManager(object):
+class ChangeManager(deque):
     """
     a class to manage changes to records
 
     each record instance will have one of these
     """
     def __init__(self):
-        self.changes = deque(maxlen=1000)
+        super().__init__(maxlen=1000)
 
     def add(self, change):
-        self.changes.append(change)
+        self.append(change)
