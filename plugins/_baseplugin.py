@@ -82,7 +82,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             pass
         self.version_functions = {}
         self.reload_dependents_f = False
-#        self.summary_template = "%20s : %s"
+        self.summary_template = "%20s : %s"
         self.can_reload_f = True
         self.can_reset_f = True
         self.reset_f = True
