@@ -365,7 +365,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         tmsg = []
         if args['api']:
-            tmsg.extend(self.api('libs.api:detail')(f"{self.plugin_id}.{args['api']}"))
+            tmsg.extend(self.api('libs.api:detail')(f"{self.plugin_id}:{args['api']}"))
         else:
             api_list = self.api('libs.api:list')(self.plugin_id)
             if not api_list:
