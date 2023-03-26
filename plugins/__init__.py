@@ -801,6 +801,8 @@ class PluginMgr(BasePlugin):
             plugins_to_load.append(plugin_id)
             self.api('setting:change')('pluginstoload', plugins_to_load)
 
+        LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[self.plugin_id]).send()
+
         return True
 
     def _load_plugins_on_startup(self):
