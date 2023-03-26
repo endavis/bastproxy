@@ -22,14 +22,13 @@ class ArgumentParser(argparse.ArgumentParser):
     """
     argparse class that doesn't exit on error
     """
-    def error(self, message):
+    def __init__(self, *args, **kwargs):
         """
-        override the error class to raise an error and not exit
+        initialize the class
         """
-        exc = sys.exc_info()[1]
-        if exc:
-            exc.errormsg = message
-            raise exc
+        argparse.ArgumentParser.__init__(self, *args, **kwargs)
+        self.exit_on_error = False
+
 
 RawDescriptionHelpFormatter = argparse.RawDescriptionHelpFormatter
 HelpFormatter = argparse.HelpFormatter
