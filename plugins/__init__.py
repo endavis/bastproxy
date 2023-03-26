@@ -337,6 +337,8 @@ class PluginMgr(BasePlugin):
 
         plugins = [i['plugininstance'] for i in self.loaded_plugins.values()]
 
+        msg.append(self.api('plugins.core.utils:center:colored:string')('@x86Changed Plugins@w', '-',
+                                                                        80, filler_color='@B'))
         msg.append(self.plugin_format_string % \
                             ('Id', 'Name', 'Author', 'Vers', 'Purpose'))
         msg.append('-' * 75)
@@ -372,6 +374,8 @@ class PluginMgr(BasePlugin):
         pdiff = set(all_plugins) - set(loaded_plugins)
 
         if pdiff:
+            msg.insert(0, self.api('plugins.core.utils:center:colored:string')('@x86Not Loaded Plugins@w', '-',
+                                                                               80, filler_color='@B'))
             msg.insert(0, '-' * 75)
             msg.insert(0, self.plugin_format_string % \
                                 ('Location', 'Name', 'Author', 'Vers', 'Purpose'))
@@ -388,6 +392,8 @@ class PluginMgr(BasePlugin):
 
         if bad_plugins:
             msg.append('')
+            msg.append(self.api('plugins.core.utils:center:colored:string')('@x86Bad Plugins@w', '-',
+                                                                        80, filler_color='@B'))
             msg.append('The following files are not valid python code')
             for plugin_id in sorted(bad_plugins):
                 plugin_info = self.all_plugin_info_on_disk[plugin_id]
