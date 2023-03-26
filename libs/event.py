@@ -170,31 +170,37 @@ class Event:
         if not data:
             data = {}
 
+        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
         if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} did not pass a dict or EventArgsRecord object",
                         level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
             LogRecord(f"The event will not be processed", level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
             return
 
-        if not isinstance(data, EventArgsRecord) and isinstance(data, dict):
-            args = EventArgsRecord(plugin_id=calledfrom, event_name=self.name, data=data)
+        # convert a dict to an EventArgsRecord object
+        if not isinstance(data, EventArgsRecord):
+            data = EventArgsRecord(plugin_id=calledfrom, event_name=self.name, data=data)
 
+        # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
-        if '_savestate' in self.name and log_savestate:
-            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with args {args}",
+        log = True if log_savestate else True if not self.name.startswith('_savestate') else False
+        if log:
+            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by]).send()
+
+        # execute the event functions in priority order
         keys = self.priority_dictionary.keys()
         if keys:
             keys = sorted(keys)
             for priority in keys:
                 for event_function in self.priority_dictionary[priority][:]:
                     try:
-                        # Args is a record that acts like a dictionary can now be updated.
+                        # data is a record that acts like a dictionary and can be updated.
                         # If the registered event changes the args, it should snapshot it with addchange
-                        event_function.execute(args)
+                        event_function.execute(data)
                     except Exception:  # pylint: disable=broad-except
                         LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
                                     level='error', sources=[event_function.plugin_id, self.created_by], exc_info=True).send()
 
-        return args
+        return data
 
