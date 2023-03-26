@@ -29,6 +29,7 @@ import operator
 import re
 import ast
 import datetime
+from pathlib import Path
 
 # 3rd Party
 
@@ -57,7 +58,7 @@ class PluginMgr(BasePlugin):
         """
         super().__init__('Plugin Manager', #name,
                       'plugins', #short_name,
-                      '__init__.py', #plugin_path
+                      Path('__init__.py'), #plugin_path
                       API.BASEPLUGINPATH, # base_plugin_dir
                       'plugins.__init__', # full_import_location
                       'plugins.core.plugins' # plugin_id
