@@ -812,6 +812,7 @@ class PluginMgr(BasePlugin):
         to plugins that were loaded in the config
         """
         conflicts = self.read_all_plugin_information()
+        found = False
         if conflicts:
             LogRecord(f"conflicts with plugins, see console and correct", level='error', sources=[self.plugin_id]).send()
             sys.exit(1)
@@ -849,7 +850,6 @@ class PluginMgr(BasePlugin):
 
         # clean up plugins that were not imported, initialized, or instantiated
         for plugin in self.loaded_plugins.values():
-            found = False
             if not plugin['isinitialized'] or not plugin['isimported'] or not plugin['plugininstance']:
                 found = True
                 LogRecord(f"Plugin {plugin['plugin_id']} has not been correctly loaded", level='error',
