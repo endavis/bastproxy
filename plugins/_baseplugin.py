@@ -15,7 +15,6 @@ import sys
 import textwrap
 import pprint
 import inspect
-import logging
 import datetime
 from pathlib import Path
 
