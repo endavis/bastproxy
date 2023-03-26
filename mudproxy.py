@@ -35,15 +35,17 @@ from libs.asynch import run_asynch
 from libs import io
 from libs import timing
 
-API = BASEAPI()
-API.__class__.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
-API.__class__.startup = True
+API = BASEAPI(parent_id='mudproxy')
 
-BASEAPI.TIMEZONE = API.__class__.proxy_start_time.tzinfo.tzname(API.__class__.proxy_start_time)
+BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
+BASEAPI.startup = True
+tzinfo = BASEAPI.proxy_start_time.tzinfo
+if tzinfo:
+    BASEAPI.TIMEZONE = tzinfo.tzname(BASEAPI.proxy_start_time) or ''
 
 logging.basicConfig(stream=sys.stdout,
                     level='INFO',
-                    format=f"%(asctime)s {BASEAPI.TIMEZONE} : %(name)-12s - %(levelname)-9s - %(message)s")
+                    format="%(asctime)s " + BASEAPI.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
 npath = Path(__file__).resolve()
 BASEAPI.BASEPATH = npath.parent
