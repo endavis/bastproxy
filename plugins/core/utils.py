@@ -371,27 +371,15 @@ class Plugin(BasePlugin):
             return None
 
         days = timelength_match_groups['days']
-        if not days:
-            days = 0
-        elif days.endswith('d'):
-            days = float(days[:-1])
+        converted_days = int(days[:-1]) if days.endswith('d') else 0 if not days else int(days)
 
         hours = timelength_match_groups['hours']
-        if not hours:
-            hours = 0
-        elif hours.endswith('h'):
-            hours = float(hours[:-1])
+        converted_hours = int(hours[:-1]) if hours.endswith('h') else 0 if not hours else int(hours)
 
         minutes = timelength_match_groups['minutes']
-        if not minutes:
-            minutes = 0
-        elif minutes.endswith('m'):
-            minutes = float(minutes[:-1])
+        converted_minutes = int(minutes[:-1]) if minutes.endswith('m') else 0 if not minutes else int(minutes)
 
         seconds = timelength_match_groups['seconds']
-        if not seconds:
-            seconds = 0
-        elif seconds.endswith('s'):
-            seconds = int(seconds[:-1])
+        converted_seconds = int(seconds[:-1]) if seconds.endswith('s') else 0 if not seconds else int(seconds)
 
-        return days * 24 * 60 * 60 + hours * 60 * 60 + minutes * 60 + seconds
+        return converted_days * 24 * 60 * 60 + converted_hours * 60 * 60 + converted_minutes * 60 + converted_seconds
