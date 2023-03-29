@@ -62,6 +62,10 @@ class Plugin(BasePlugin):
                             '--stats',
                             help="add stats",
                             action='store_true')
+        parser.add_argument('-sd',
+                            '--statsdetail',
+                            help='The caller to show detailed stats for the api',
+                            default='', nargs='?')
         parser.add_argument('-np',
                             '--noplugin',
                             help="use an API that is not from a plugin",
@@ -82,7 +86,7 @@ class Plugin(BasePlugin):
         if args['noplugin']:
             api = API(parent_id=f"{self.plugin_id}:cmd_detail")
         if args['api']:
-            tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats']))
+            tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats'], stats_by_caller=args['statsdetail']))
 
         else: # args <= 0
             tmsg.append('Please provide an api to detail')

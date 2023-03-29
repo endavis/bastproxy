@@ -650,19 +650,30 @@ class API():
                 tmsg.append('============')
                 tmsg.extend(api_overloaded.detail())
 
-            if stats_by_plugin:
+            if stats_by_plugin or stats_by_caller:
                 api_data = self._api_data_get(api_location)
-                if api_data and api_data.stats:
-                    tmsg.append('')
-                    tmsg.append(self('plugins.core.utils:center:colored:string')('Stats', '-', 70, '@B'))
-                    tmsg.append('Total Calls: %s' % api_data.stats.count)
-                    tmsg.append('@B' + '-' * 50)
-                    tmsg.append('Stats by plugin')
-                    tmsg.append('@B' + '-' * 50)
-                    stats_keys = api_data.stats.calls_by_caller.keys()
-                    stats_keys = sorted(stats_keys)
-                    for i in stats_keys:
-                        tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats.calls_by_caller[i]}")
+
+                if stats_by_plugin:
+                    if api_data and api_data.stats:
+                        tmsg.append('')
+                        tmsg.append(self('plugins.core.utils:center:colored:string')('Stats', '-', 70, '@B'))
+                        tmsg.append('Total Calls: %s' % api_data.stats.count)
+                        tmsg.append('@B' + '-' * 50)
+                        tmsg.append('Stats by plugin')
+                        tmsg.append('@B' + '-' * 50)
+                        stats_keys = api_data.stats.calls_by_caller.keys()
+                        stats_keys = sorted(stats_keys)
+                        for i in stats_keys:
+                            tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats.calls_by_caller[i]}")
+
+                if stats_by_caller:
+                    if api_data and api_data.stats:
+                        tmsg.append('')
+                        tmsg.append(self('plugins.core.utils:center:colored:string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
+                        stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
+                        stats_keys = sorted(stats_keys)
+                        for i in stats_keys:
+                            tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats.detailed_calls[i]}")
 
         else:
             tmsg.append(f"{api_location} is not in the api")
