@@ -183,7 +183,7 @@ class Event:
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
-        log = True if log_savestate else True if not self.name.startswith('_savestate') else False
+        log = True if log_savestate else True if not self.name.endswith('_savestate') else False
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by]).send()
