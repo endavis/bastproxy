@@ -404,7 +404,7 @@ class API():
                                             calledfrom='libs.api')
 
     # return the data for an api
-    def _api_data_get(self, api_name, base=True):
+    def _api_data_get(self, api_name, base=False):
         """
         return the data for an api
         """
