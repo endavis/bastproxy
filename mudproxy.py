@@ -37,22 +37,30 @@ from libs import timing
 
 API = BASEAPI(parent_id='mudproxy')
 
+# set the start time
 BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
+
+# set the startup flag
 BASEAPI.startup = True
+
+# set the timezone
 tzinfo = BASEAPI.proxy_start_time.tzinfo
 if tzinfo:
     BASEAPI.TIMEZONE = tzinfo.tzname(BASEAPI.proxy_start_time) or ''
 
+# set the logging format (this is overwritten when libs.log.setup_loggers is called)
 logging.basicConfig(stream=sys.stdout,
                     level='INFO',
                     format="%(asctime)s " + BASEAPI.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
+# set the base path from the parent of the current file
 npath = Path(__file__).resolve()
 BASEAPI.BASEPATH = npath.parent
 
 LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
           level='info', sources=['mudproxy']).send()
 
+# set the paths based on where the executable is
 BASEAPI.BASEDATAPATH = BASEAPI.BASEPATH / 'data'
 BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / 'plugins'
 BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / 'logs'
@@ -97,13 +105,17 @@ if __name__ == "__main__":
     # initialize the plugin manager which will load plugins
     plugin_manager.initialize()
     LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy']).send()
+
+    # do any post plugin init actions
     post_plugins_init()
 
+    # add events
     API.add_events()
     API('plugins.core.events:add:event')('ev_bastproxy_proxy_ready', 'bastproxy',
                                         description='An event to be raised when the proxy is ready to accept connections',
                                         arg_descriptions={'None': None})
 
+    # done starting up, set the flag to False and raise the ev_bastproxy_proxy_ready event
     API.__class__.startup = False
     API('plugins.core.events:raise:event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
 
