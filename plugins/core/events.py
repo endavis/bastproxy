@@ -313,6 +313,9 @@ class Plugin(BasePlugin):
                 if self.events[name]:
                     message.append(f"{self.events[name].count():<3} - {name:<30}")
 
+        if not message:
+            message = ['No events found']
+
         return True, message
 
     def summarystats(self, args=None):
