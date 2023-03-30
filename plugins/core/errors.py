@@ -127,6 +127,7 @@ class Plugin(BasePlugin):
           @CUsage@w: show
         """
         msg = []
+        args = args if args else {}
         try:
             number = int(args['number'])
         except ValueError:
