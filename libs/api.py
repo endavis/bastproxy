@@ -278,7 +278,7 @@ class API():
     A class that exports an api for plugins and modules to use
     """
     # where the main api resides
-    api = {}
+    _class_api: dict[str, APIItem] = {}
 
     # stats for the api
     stats = {}
@@ -320,7 +320,7 @@ class API():
         initialize the class
         """
         # apis that have been overloaded will be put here
-        self.overloaded_api = {}
+        self._instance_api: dict[str, APIItem] = {}
 
         # the format for the time
         self.time_format = '%a %b %d %Y %H:%M:%S %Z'
@@ -390,10 +390,10 @@ class API():
         """
         return the data for an api
         """
-        if api_name in self.overloaded_api and not base:
-            return self.overloaded_api[api_name]
-        elif api_name in self.api:
-            return self.api[api_name]
+        if api_name in self._instance_api and not base:
+            return self._instance_api[api_name]
+        elif api_name in self._class_api:
+            return self._class_api[api_name]
 
         return None
 
@@ -417,10 +417,10 @@ class API():
         api_item = APIItem(full_api_name, tfunction, parent_id)
 
         if not overload:
-            if full_api_name in self.api:
+            if full_api_name in self._class_api:
                 if force:
-                    api_item.overwritten_api = self.api[full_api_name]
-                    self.api[full_api_name] = api_item
+                    api_item.overwritten_api = self._class_api[full_api_name]
+                    self._class_api[full_api_name] = api_item
                 else:
                     try:
                         from libs.records import LogRecord
@@ -429,10 +429,12 @@ class API():
                     except ImportError:
                         print(f"libs.api:add - {full_api_name} already exists")
             else:
-                self.api[full_api_name] = api_item
+                self._class_api[full_api_name] = api_item
 
         else:
-            self._api_overload(api_item, force)
+            return self._api_overload(api_item, force)
+
+        return False
 
     # overload a function in the api
     def _api_overload(self, api_item, force=False):
@@ -442,11 +444,11 @@ class API():
         the function is added as api_data['full_api_name'] into the overloaded api
 
         this function returns True if added, False otherwise"""
-        if api_item.full_api_name in self.overloaded_api:
+        if api_item.full_api_name in self._instance_api:
             if force:
-                api_item.overwritten_api = self.overloaded_api[api_item.full_api_name]
+                api_item.overwritten_api = self._instance_api[api_item.full_api_name]
                 api_item.overloaded = True
-                self.overloaded_api[api_item.full_api_name] = api_item
+                self._instance_api[api_item.full_api_name] = api_item
             else:
                 try:
                     from libs.records import LogRecord
@@ -502,15 +504,15 @@ class API():
         this function returns no values"""
         api_toplevel = top_level_api + ":"
 
-        tkeys = sorted(self.api.keys())
+        tkeys = sorted(self._class_api.keys())
         for i in tkeys:
             if i.startswith(api_toplevel):
-                del self.api[i]
+                del self._class_api[i]
 
-        tkeys = sorted(self.overloaded_api.keys())
+        tkeys = sorted(self._instance_api.keys())
         for i in tkeys:
             if i.startswith(api_toplevel):
-                del self.overloaded_api[i]
+                del self._instance_api[i]
 
     def _api_run_as_plugin(self, plugin_id, api_location):
         """
@@ -549,12 +551,12 @@ class API():
 
         # check overloaded api
         if not do_not_overload:
-            if api_location in self.overloaded_api and self.overloaded_api[api_location]:
-                return self.overloaded_api[api_location]
+            if api_location in self._instance_api and self._instance_api[api_location]:
+                return self._instance_api[api_location]
 
         # check api
-        if api_location in self.api and self.api[api_location]:
-            return self.api[api_location]
+        if api_location in self._class_api and self._class_api[api_location]:
+            return self._class_api[api_location]
 
         raise AttributeError(f"{self.parent_id} : {api_location} is not in the api")
 
@@ -569,12 +571,12 @@ class API():
         if parent_api[-1] != ':':
             parent_api = parent_api + ':'
 
-        tkeys = sorted(self.api.keys())
+        tkeys = sorted(self._class_api.keys())
         for full_api_name in tkeys:
             if full_api_name.startswith(parent_api):
                 api_list.append(full_api_name[len(parent_api):])
 
-        tkeys = sorted(self.overloaded_api.keys())
+        tkeys = sorted(self._instance_api.keys())
         for full_api_name in tkeys:
             if full_api_name.startswith(parent_api):
                 api_list.append(full_api_name[len(parent_api):])
@@ -609,12 +611,12 @@ class API():
 
         if api_location:
             try:
-                api_original = self.api[api_location]
+                api_original = self._class_api[api_location]
             except KeyError:
                 pass
 
             try:
-                api_overloaded = self.overloaded_api[api_location]
+                api_overloaded = self._instance_api[api_location]
             except KeyError:
                 pass
 
@@ -668,11 +670,11 @@ class API():
         """
         api_list = []
 
-        for i in self.api:
+        for i in self._class_api:
             if i.startswith(top_level_api):
                 api_list.append(i)
 
-        for i in self.overloaded_api:
+        for i in self._instance_api:
             if i.startswith(top_level_api):
                 api_list.append(i)
 
@@ -684,8 +686,8 @@ class API():
         build a dictionary of all apis
         """
         api_list = []
-        api_list.extend(self.api.keys())
-        api_list.extend(self.overloaded_api.keys())
+        api_list.extend(self._class_api.keys())
+        api_list.extend(self._instance_api.keys())
 
         api_list = set(api_list)
         api_list = list(api_list)
@@ -764,13 +766,13 @@ def test():
     print('called api a.test:api', api('a.test:api')('success'))
     print('called api a.test:over', api('a.test:over')('success'))
     print('called api a.test:some:api', api('a.test:some:api')('success'))
-    print('dict api.api:\n', pprint.pformat(api.api))
-    print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
+    print('dict api._class_api:\n', pprint.pformat(api._class_api))
+    print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
     print('overloading over.api')
     api('libs.api:add')('a.over', 'api', overloadtestapi, overload=True)
     print('overloading test.over')
     api('libs.api:add')('a.test', 'over', overloadtestapi, overload=True)
-    print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
+    print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
     print('called api over:api', api('a.over:api')('success'))
     print('called api test:over', api('a.test:over')('success'))
     print('called api test:api', api('a.test:api')('success'))
@@ -778,8 +780,8 @@ def test():
     print('api.has test:over2', api('libs.api:has')('a.test:over2'))
     print('api.has over:api', api('libs.api:has')('a.over:api'))
     print('api.has test:some:api', api('libs.api:has')('a.test:some.api'))
-    print('dict api.api:\n', pprint.pformat(api.api))
-    print('dict api.overloadapi:\n', pprint.pformat(api.overloaded_api))
+    print('dict api._class_api:\n', pprint.pformat(api._class_api))
+    print('dict api.overloadapi:\n', pprint.pformat(api._instance_api))
     print('\n'.join(api('libs.api:list')(top_level_api="test")))
     print('--------------------')
     print('\n'.join(api('libs.api:list')()))
@@ -792,22 +794,22 @@ def test():
     api2 = API()
     print('api: ', api)
     print('api2: ', api2)
-    print('dict api.api:\n', pprint.pformat(api.api))
-    print('dict api.overloaded_api:\n', pprint.pformat(api.overloaded_api))
-    print('api2 dict api2.api:\n', pprint.pformat(api2.api))
-    print('api2 dict api2.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
+    print('dict api._class_api:\n', pprint.pformat(api._class_api))
+    print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
+    print('api2 dict api2.api:\n', pprint.pformat(api2._class_api))
+    print('api2 dict api2._instance_api:\n', pprint.pformat(api2._instance_api))
     print('api2 api_has over:api', api2('libs.api:has')('a.over:api'))
     print('api2 api_has over:api', api2('libs.api:has')('a.test:over'))
     print('api2 called test:api', api2('a.test:api')('success'))
     print('api2 called test:over', api2('a.test:over')('success'))
     print('api2 overloading over.api')
     api2('libs.api:add')('a.over', 'api', overloadtestapi2, overload=True)
-    print('api2 dict api.overloaded_api:\n', pprint.pformat(api2.overloaded_api))
+    print('api2 dict api._instance_api:\n', pprint.pformat(api2._instance_api))
     print('api2 called over:api', api2('a.over:api')('success'))
     print('api2 overloading test.over')
     api2('libs.api:add')('a.test', 'over', overloadtestapi2, overload=True)
-    print('api2 dict api2:api:\n', pprint.pformat(api2.api))
-    print('api2 dict api2:overloadapi:\n', pprint.pformat(api2.overloaded_api))
+    print('api2 dict api2:api:\n', pprint.pformat(api2._class_api))
+    print('api2 dict api2:overloadapi:\n', pprint.pformat(api2._instance_api))
     print('api2 called a.test:over', api2('a.test:over')('success'))
     print('api2 called a.test:api', api2('a.test:api')('success'))
     print('api2 api_has a.test:three', api2('libs.api:has')('a.test.three'))
