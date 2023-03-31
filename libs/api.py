@@ -54,20 +54,31 @@ def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
     """
     ignore_plugin_list = ignore_plugin_list if ignore_plugin_list else []
 
+    caller_id = 'unknown'
     try:
         stack = inspect.stack()
     except IndexError:
-        return 'unknown'
+        return caller_id
 
     for ifr in stack[1:]:
         parent_frame = ifr[0]
         if 'self' in parent_frame.f_locals and not isinstance(parent_frame.f_locals['self'], APIItem):
             tcs = parent_frame.f_locals['self']
-            if hasattr(tcs, 'plugin_id') and tcs.plugin_id not in ignore_plugin_list:
-                return tcs.plugin_id
+            if hasattr(tcs, 'plugin_id') and tcs.plugin_id and tcs.plugin_id not in ignore_plugin_list:
+                caller_id = tcs.plugin_id
+                break
+            if hasattr(tcs, 'parent_id') and tcs.parent_id and tcs.parent_id not in ignore_plugin_list:
+                caller_id = tcs.parent_id
+                break
+            if hasattr(tcs, 'api'):
+                if isinstance(tcs.api, API):
+                    if tcs.api.parent_id and tcs.api.parent_id not in ignore_plugin_list:
+                        caller_id = tcs.api.parent_id
+                        break
 
     del stack
-    return 'unknown'
+
+    return caller_id
 
 class APIStatItem:
     """
