@@ -31,16 +31,12 @@ def get_args(api_function):
     """
     get arguments from the function declaration
     """
-    src = inspect.getsource(api_function)
-    dec = src.split('\n')[0]
-    args = dec.split('(')[-1].strip()
-    args = args.split(')')[0]
-    argsl = args.split(',')
-    argn = []
-    for i in argsl:
-        if i == 'self':
+    sig = inspect.signature(api_function)
+    argn: list[str] = []
+    for i in sig.parameters:
+        if str(i) == 'self':
             continue
-        argn.append(f"@Y{i.strip()}@w")
+        argn.append(f"@Y{str(i)}@w")
 
     args = ', '.join(argn)
 
