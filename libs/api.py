@@ -52,36 +52,22 @@ def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
     Returns:
         str: The plugin ID of the plugin on the stack.
     """
-    from plugins._baseplugin import BasePlugin
-    import inspect
-
-    if ignore_plugin_list is None:
-        ignore_plugin_list = []
+    ignore_plugin_list = ignore_plugin_list if ignore_plugin_list else []
 
     try:
         stack = inspect.stack()
     except IndexError:
-        return None
+        return 'unknown'
 
     for ifr in stack[1:]:
         parent_frame = ifr[0]
-        if 'self' in parent_frame.f_locals:
+        if 'self' in parent_frame.f_locals and not isinstance(parent_frame.f_locals['self'], APIItem):
             tcs = parent_frame.f_locals['self']
             if hasattr(tcs, 'plugin_id') and tcs.plugin_id not in ignore_plugin_list:
                 return tcs.plugin_id
-            if hasattr(tcs, 'plugin') and isinstance(tcs.plugin, BasePlugin) \
-                    and tcs.plugin.plugin_id not in ignore_plugin_list:
-                try:
-                    from libs.records import LogRecord
-                    LogRecord(f"Api found 'plugin' attribute in {tcs}", 'warning', sources=[__name__], stack_info=True)
-                except ImportError:
-                    pass
-                return tcs.plugin.plugin_id # pyright:ignore[reportGeneralTypeIssues]
-            if isinstance(tcs, BasePlugin) and tcs.plugin_id not in ignore_plugin_list:
-                return tcs.plugin_id
 
     del stack
-    return None
+    return 'unknown'
 
 class APIStatItem:
     """
