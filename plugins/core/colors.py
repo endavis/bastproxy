@@ -146,6 +146,7 @@ class Plugin(BasePlugin):
         self.api('plugins.core.commands:command:add')('show',
                                               self.cmd_show,
                                               parser=parser)
+
         parser = argp.ArgumentParser(add_help=False,
                                      description='show color examples')
         self.api('plugins.core.commands:command:add')('example',
