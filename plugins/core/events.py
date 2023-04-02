@@ -274,7 +274,7 @@ class Plugin(BasePlugin):
         message = []
         if args['event']:
             for event_name in args['event']:
-                message.extend(self.api('plugins.core.events:get:event:detail')(event_name))
+                message.extend(self.api(f"{self.plugin_id}:get:event:detail")(event_name))
                 message.append('')
         else:
             message.append('Please provide an event name')
