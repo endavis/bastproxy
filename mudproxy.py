@@ -34,11 +34,6 @@ from libs.asynch import run_asynch
 from libs import io
 from libs import timing
 
-# set the logging format (this is overwritten when libs.log.setup_loggers is called)
-logging.basicConfig(stream=sys.stdout,
-                    level='INFO',
-                    format="%(asctime)s " + BASEAPI.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
-
 # set the start time
 BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
 
@@ -49,6 +44,11 @@ BASEAPI.startup = True
 tzinfo = BASEAPI.proxy_start_time.tzinfo
 if tzinfo:
     BASEAPI.TIMEZONE = tzinfo.tzname(BASEAPI.proxy_start_time) or ''
+
+# set the logging format (this is overwritten when libs.log.setup_loggers is called)
+logging.basicConfig(stream=sys.stdout,
+                    level='INFO',
+                    format="%(asctime)s " + BASEAPI.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
 
 # set the base path from the parent of the current file
 npath = Path(__file__).resolve()
@@ -74,12 +74,13 @@ class MudProxy:
         """
         self.api = BASEAPI(owner_id='mudproxy')
 
-    def run(self, args):
-        LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
-                level='info', sources=['mudproxy']).send()
 
+    def run(self, args):
         # setup file logging and network data logging
         setup_loggers(logging.DEBUG)
+
+        LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
+                level='info', sources=['mudproxy']).send()
 
         # initialize all plugins
         LogRecord('Plugin Manager - loading', level='info', sources=['mudproxy']).send()
