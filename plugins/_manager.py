@@ -100,7 +100,7 @@ class PluginMgr(BasePlugin):
         initialize the instance
         """
         super().__init__('Plugin Manager', #name,
-                      Path('__init__.py'), #plugin_path
+                      Path('_rmanager.py'), #plugin_path
                       API.BASEPLUGINPATH, # base_plugin_dir
                       'plugins.__init__', # full_import_location
                       'plugins.core.plugins' # plugin_id
@@ -1245,6 +1245,7 @@ class PluginMgr(BasePlugin):
         loaded_plugin_info.isinitialized = True
         loaded_plugin_info.plugininstance = self
         loaded_plugin_info.importedtime = self.loaded_time
+        loaded_plugin_info.short_name = 'plugins'
         self.loaded_plugins_info[self.plugin_id] = loaded_plugin_info
 
 
