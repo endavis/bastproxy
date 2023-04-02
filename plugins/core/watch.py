@@ -92,7 +92,7 @@ class Plugin(BasePlugin):
         """
         message = []
         watches = self.watch_data.keys()
-        watches.sort()
+        watches = sorted(watches)
         match = args['match']
 
         template = '%-25s : %-13s %s'
