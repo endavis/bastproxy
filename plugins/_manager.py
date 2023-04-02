@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/__init__.py
+# Filename: plugins/_manager.py
 #
 # File Description: holds the plugin manager
 #
@@ -112,6 +112,7 @@ class PluginMgr(BasePlugin):
         self.plugin_format_string = "%-22s : %-25s %-10s %-5s %s@w"
 
         self.api('libs.api:add')('is:plugin:loaded', self._api_is_plugin_loaded)
+        self.api('libs.api:add')('is:plugin:id', self._api_is_plugin_id)
         self.api('libs.api:add')('get:plugin:instance', self._api_get_plugin_instance)
         self.api('libs.api:add')('get:plugin:module', self._api_get_plugin_module)
         self.api('libs.api:add')('get:all:plugin:info', self._api_get_all_plugin_info)
@@ -236,6 +237,21 @@ class PluginMgr(BasePlugin):
             plugin = plugin_name
 
         return plugin
+
+    # get a plugin instance
+    def _api_is_plugin_id(self, plugin_id):
+        """  get a loaded plugin instance
+        @Ypluginname@w  = the plugin to get
+
+        returns:
+          if the plugin exists, returns a plugin instance, otherwise returns None"""
+
+        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(plugin_id)
+
+        if not plugin:
+            return False
+
+        return True
 
     # check if a plugin is loaded
     def _api_is_plugin_loaded(self, pluginname):
