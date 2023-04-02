@@ -326,7 +326,7 @@ class Plugin(BasePlugin):
         return new_str
 
     # check a list for a match
-    def _api_check_list_for_match(self, arg, tlist):
+    def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
         """
         check a list for a match of arg
         """
@@ -336,19 +336,19 @@ class Plugin(BasePlugin):
         matches['partofstring'] = []
         matches['frontofstring'] = []
 
-        if arg in tlist or string_to_match in tlist:
+        if arg in item_list or string_to_match in item_list:
             return [arg]
 
-        for i in tlist:
+        for i in item_list:
             if fnmatch.fnmatch(i, match):
                 matches['frontofstring'].append(i)
             elif isinstance(i, str) and string_to_match in i:
                 matches['partofstring'].append(i)
 
-        if matches['front']:
-            return matches['front']
+        if matches['frontofstring']:
+            return matches['frontofstring']
 
-        return matches['part']
+        return matches['partofstring']
 
     # convert a time length to seconds
     def _api_convert_timelength_to_secs(self, timel):
