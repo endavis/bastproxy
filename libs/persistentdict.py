@@ -241,23 +241,24 @@ class PersistentDictEvent(PersistentDict):
         if old_value != val:
             dict.__setitem__(self, key, val)
 
-            if plugin_instance:
-                if plugin_instance.reset_f or key == '_version':
-                    return
-                new_value = plugin_instance.api('setting:get')(key)
+            if not self.api.startup:
+                if plugin_instance:
+                    if plugin_instance.reset_f or key == '_version':
+                        return
+                    new_value = plugin_instance.api('setting:get')(key)
 
-            else:
-                new_value = val
+                else:
+                    new_value = val
 
-            event_name = f"ev_{self.owner_id}_var_{key}_modified"
-            old_value = old_value
+                event_name = f"ev_{self.owner_id}_var_{key}_modified"
+                old_value = old_value
 
-            if self.api('libs.api:has')('plugins.core.events:raise:event'):
-                self.api('plugins.core.events:raise:event')(
-                    event_name,
-                    {'var':key,
-                    'newvalue':new_value,
-                    'oldvalue':old_value})
+                if self.api('libs.api:has')('plugins.core.events:raise:event'):
+                    self.api('plugins.core.events:raise:event')(
+                        event_name,
+                        {'var':key,
+                        'newvalue':new_value,
+                        'oldvalue':old_value})
 
     def raiseall(self):
         """
@@ -267,7 +268,7 @@ class PersistentDictEvent(PersistentDict):
         old_value = '__init__'
         for i in self:
             if plugin_instance:
-                if plugin_instance.reset_f or i == '_version':
+                if i == '_version':
                     return
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = plugin_instance.api('setting:get')(i)
