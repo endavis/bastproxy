@@ -733,7 +733,7 @@ class PluginMgr(BasePlugin):
 
         # create the dictionary for the plugin
         plugin_id = full_import_location
-        plugin = {'module':module, 'full_import_location':full_import_location,
+        plugin_dict = {'module':module, 'full_import_location':full_import_location,
                   'plugin_id':plugin_id,
                   'isrequired':self.all_plugin_info_on_disk[plugin_id]['isrequired'],
                   'plugin_path':plugin_path, 'base_plugin_dir':self.base_plugin_dir,
@@ -742,23 +742,23 @@ class PluginMgr(BasePlugin):
                   'dev':False, 'isimported':False, 'isinitialized':False}
 
         if msg == 'dev module':
-            plugin['dev'] = True
+            plugin_dict['dev'] = True
 
         if module:
-            plugin['short_name'] = plugin_id.split('.')[-1]
-            plugin['name'] = module.NAME
-            plugin['purpose'] = module.PURPOSE
-            plugin['author'] = module.AUTHOR
-            plugin['version'] = module.VERSION
-            plugin['importedtime'] = datetime.datetime.now(datetime.timezone.utc)
+            plugin_dict['short_name'] = plugin_id.split('.')[-1]
+            plugin_dict['name'] = module.NAME
+            plugin_dict['purpose'] = module.PURPOSE
+            plugin_dict['author'] = module.AUTHOR
+            plugin_dict['version'] = module.VERSION
+            plugin_dict['importedtime'] = datetime.datetime.now(datetime.timezone.utc)
 
         # add dictionary to loaded_plugins
-        self.loaded_plugins[plugin_id] = plugin
+        self.loaded_plugins[plugin_id] = plugin_dict
 
         if success:
-            plugin['isimported'] = True
+            plugin_dict['isimported'] = True
         elif not success:
-            plugin['isimported'] = False
+            plugin_dict['isimported'] = False
             if msg == 'error':
                 LogRecord(f"Could not import plugin {plugin_id}", level='error', sources=[self.plugin_id]).send()
                 if exit_on_error:
