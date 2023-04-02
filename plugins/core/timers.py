@@ -403,7 +403,9 @@ class Plugin(BasePlugin):
         """
         check all timers
         """
-        asyncio.current_task().set_name(f"timers task")
+        current_task = asyncio.current_task()
+        if current_task:
+            current_task.set_name(f"timers task")
         firstrun = True
         keepgoing = True
         while keepgoing:
