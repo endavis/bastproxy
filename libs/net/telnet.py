@@ -55,7 +55,7 @@ code: dict[str, bytes] = {
 }
 
 # Telnet protocol, int representation as key, string designator value.
-code_by_byte: dict[int, bytes] = {ord(v): k for k, v in code.items()}
+code_by_byte: dict[int, str] = {ord(v): k for k, v in code.items()}
 
 # Game capabilities to advertise
 GAME_CAPABILITIES: list[str] = []

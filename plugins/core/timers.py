@@ -196,6 +196,7 @@ class Plugin(BasePlugin):
         change the log flag for a timer
         """
         message = []
+        args = args if args else {}
         if args['timername'] in self.timer_lookup:
             self.timer_lookup[args['timername']].log = \
                 not self.timer_lookup[args['timername']].log

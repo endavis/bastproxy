@@ -9,6 +9,7 @@
 # Standard Library
 import asyncio
 import signal
+from typing import Callable, Awaitable
 
 from libs.api import API as BASEAPI
 from libs.records import LogRecord
@@ -18,11 +19,11 @@ class TaskItem:
     """
     a class to hold the task to be added to the event loop
     """
-    def __init__(self, task, name):
+    def __init__(self, task: Awaitable | Callable, name: str) -> None:
         self.task = task
         self.name = name
 
-    def start(self):
+    def start(self) -> None:
         if asyncio.iscoroutine(self.task):
             create_task(self.task, name=self.name)
         elif isinstance(self.task, Callable):
@@ -56,7 +57,7 @@ class QueueManager:
 
             await asyncio.sleep(.1)
 
-async def shutdown(signal_, loop_) -> None:
+async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) -> None:
     """
         shutdown coroutine utilized for cleanup on receipt of certain signals.
         Created and added as a handler to the loop in main.
@@ -74,7 +75,7 @@ async def shutdown(signal_, loop_) -> None:
     LogRecord(f"shutdown - Exceptions: {exceptions}", level='warning', sources=['mudproxy']).send()
     loop_.stop()
 
-def run_asynch():
+def run_asynch() -> None:
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

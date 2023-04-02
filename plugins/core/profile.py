@@ -197,10 +197,11 @@ class Plugin(BasePlugin):
 
         return True, msg
 
-    def cmd_muddata(self, args=None):
+    def cmd_muddata(self, args: dict | None = None):
         """
         get info for a muddata trace
         """
+        args: dict = args if args else {}
         if 'item' in args and args['item']:
             return self.showchanged_mud_data(int(args['item']), callstack=False)
 

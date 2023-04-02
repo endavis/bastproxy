@@ -36,34 +36,30 @@ class ToClientRecord(BaseDataRecord):
 
     when it goes on the client queue, it will be converted to a NetworkData object
     """
-    def __init__(self, message, message_type='IO', clients=None, exclude_clients=None, preamble=True,
-                 internal=True, prelogin=False, error=False, color_for_all_lines=None):
+    def __init__(self, message, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
+                 internal: bool=True, prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
         initialize the class
         """
         super().__init__(message, internal)
         # flag to include preamble when sending to client
-        self.preamble = preamble
+        self.preamble: bool = preamble
         # flag to send to client before login
-        self.prelogin = prelogin
+        self.prelogin: bool = prelogin
         # flag for this is an error message
-        self.error = error
+        self.error: bool = error
         # This is so that events can set this and it will not be sent to the client
-        self.send_to_clients = True
+        self.send_to_clients: bool = True
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
-        self.clients = clients
-        # This will set the color for all lines in the message
-        self.color_for_all_lines = color_for_all_lines
-        self.message_type = message_type
-        if not self.clients:
-            self.clients = []
+        self.clients: list = clients if clients else []
         # clients to exclude, a list of client uuids
-        self.exclude_clients = exclude_clients
-        if not self.exclude_clients:
-            self.exclude_clients = []
+        self.exclude_clients: list = exclude_clients if exclude_clients else []
+        # This will set the color for all lines to the specified @ color
+        self.color_for_all_lines: str = color_for_all_lines if color_for_all_lines else ''
+        self.message_type: str = message_type
         # This is a flag to prevent the message from being sent to the client more than once
-        self.sending = False
+        self.sending: bool = False
         self.setup_events()
 
     def setup_events(self):

@@ -62,7 +62,7 @@ class ClientConnection:
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
 
-    async def setup_client(self):
+    async def setup_client(self) -> None:
         """
         send telnet options
         send welcome message to client

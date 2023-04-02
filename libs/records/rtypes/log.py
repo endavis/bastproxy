@@ -20,19 +20,17 @@ class LogRecord(BaseDataRecord):
     """
     a simple message record for logging, this may end up sent to a client
     """
-    def __init__(self, message, level='info', sources=None, **kwargs):
+    def __init__(self, message: list[str] | str, level: str='info', sources: list | None = None, **kwargs):
         """
         initialize the class
         """
         super().__init__(message, internal=True)
         # The type of message
-        self.level = level
+        self.level: str = level
         # The sources of the message for logging purposes, a list
-        self.sources = sources
-        if not self.sources:
-            self.sources = []
+        self.sources: list = sources if sources else []
         self.kwargs = kwargs
-        self.wasemitted = {}
+        self.wasemitted: dict[str,bool] = {}
         self.wasemitted['console'] = False
         self.wasemitted['file'] = False
         self.wasemitted['client'] = False

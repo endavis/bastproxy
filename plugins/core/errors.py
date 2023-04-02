@@ -120,7 +120,7 @@ class Plugin(BasePlugin):
         """
         self.errors = []
 
-    def cmd_show(self, args=None):
+    def cmd_show(self, args: dict | None=None):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           show the error queue

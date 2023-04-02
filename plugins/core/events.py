@@ -38,8 +38,7 @@ REQUIRED = True
 
 class Plugin(BasePlugin):
     """
-    a class to manage events, events include
-      events
+    a class to manage events
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -124,10 +123,10 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, args['plugin_id']]).send()
         self.api(f"{self.plugin_id}:remove:events:for:plugin")(args['plugin_id'])
 
-    # add an event for the plugin to track
+    # add an event for this plugin to track
     def _api_add_event(self, event_name, created_by, description=None, arg_descriptions=None):
         """
-        add an event for the plugin to track
+        add an event for this plugin to track
         """
         event = self._api_get_event(event_name)
         event.created_by = created_by

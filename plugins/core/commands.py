@@ -82,7 +82,7 @@ class CustomFormatter(argp.HelpFormatter):
         returns:
           returns a formatted help string
         """
-        temp_help = action.help
+        temp_help: str = action.help
         # we add the default value to the argument help
         if '%(default)' not in action.help:
             if action.default is not argp.SUPPRESS:
