@@ -260,7 +260,7 @@ class PluginMgr(BasePlugin):
 
         returns:
           True if the plugin is loaded, False if not"""
-        plugin = self.api('plugins.core.plugins:get:plugin:instance')(pluginname)
+        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
 
         if plugin:
             return True
@@ -1012,7 +1012,7 @@ class PluginMgr(BasePlugin):
                               sources=[self.plugin_id, plugin['plugin_id']]).send()
 
                 except Exception: # pylint: disable=broad-except
-                    LogRecord(f"unload: erros running the uninitialize method for {plugin['plugin_id']}", level='error',
+                    LogRecord(f"unload: error running the uninitialize method for {plugin['plugin_id']}", level='error',
                               sources=[self.plugin_id, plugin['plugin_id']], exc_info=True).send()
                     return False
 
