@@ -21,13 +21,13 @@ class Callback: # pylint: disable=too-few-public-methods
     """
     a basic callback class
     """
-    def __init__(self, name: str, plugin_id: str, func: typing.Callable, enabled: bool=True):
+    def __init__(self, name: str, owner_id: str, func: typing.Callable, enabled: bool=True):
         """
         init the class
         """
-        self.api = API(parent_id=f"{plugin_id}:callback:{name}")
         self.name: str = name
-        self.plugin_id: str = plugin_id
+        self.owner_id: str = owner_id if owner_id else f"{owner_id}:callback:{name}"
+        self.api = API(owner_id=self.owner_id)
         self.raised_count: int = 0
         self.func: typing.Callable = func
         self.enabled: bool = enabled
@@ -49,7 +49,7 @@ class Callback: # pylint: disable=too-few-public-methods
         """
         return a string representation of the callback
         """
-        return f"Event {self.name:<10} : {self.plugin_id:<15}"
+        return f"Event {self.name:<10} : {self.owner_id:<15}"
 
     def __eq__(self, other_function) -> bool:
         """

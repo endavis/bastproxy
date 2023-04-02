@@ -19,7 +19,7 @@ from libs.records.rtypes.base import BaseRecord
 from libs.records.rtypes.change import ChangeRecord
 
 class EventArgsRecord(BaseRecord, UserDict):
-    def __init__(self, plugin_id=None, event_name=None, data=None):
+    def __init__(self, owner_id: str = '', event_name: str = 'unknown', data: dict | None = None):
         """
         initialize the class
         """
@@ -29,7 +29,7 @@ class EventArgsRecord(BaseRecord, UserDict):
         else:
             data = {}
         UserDict.__init__(self, data)
-        BaseRecord.__init__(self, plugin_id)
+        BaseRecord.__init__(self, owner_id)
         self.event_name = event_name
 
     def addchange(self, flag, action, actor, extra=None, saveargs=True):

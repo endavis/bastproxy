@@ -71,16 +71,16 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:remove:commands:for:plugin")(args['plugin_id'])
 
     # remove all triggers related to a plugin
-    def _api_remove_commands_for_plugin(self, plugin):
+    def _api_remove_commands_for_plugin(self, plugin_id):
         """  remove all commands related to a plugin
-        @Yplugin@w   = The plugin name
+        @Yplugin_id@w   = The plugin name
 
         this function returns no values"""
-        LogRecord(f"_api_remove_commands_for_plugin - removing cmdq data for plugin {plugin}",
-                  level='debug', sources=[self.plugin_id, plugin]).send()
+        LogRecord(f"_api_remove_commands_for_plugin - removing cmdq data for plugin {plugin_id}",
+                  level='debug', sources=[self.plugin_id, plugin_id]).send()
         tkeys = self.cmds.keys()
         for i in tkeys: # iterate keys since we are deleting things
-            if self.cmds[i]['plugin'] == plugin:
+            if self.cmds[i]['owner'] == plugin_id:
                 self.api(f"{self.plugin_id}:remove:command:type")(i)
 
     def _api_command_type_remove(self, cmdtype):
@@ -110,13 +110,13 @@ class Plugin(BasePlugin):
         """
         beforef = None
         afterf = None
-        plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+        owner = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
         if 'beforef' in kwargs:
             beforef = kwargs['beforef']
         if 'afterf' in kwargs:
             afterf = kwargs['afterf']
         if 'plugin' in kwargs:
-            plugin = kwargs['plugin']
+            owner = kwargs['owner']
         if cmdtype not in self.cmds:
             self.cmds[cmdtype] = {}
             self.cmds[cmdtype]['cmd'] = cmd
@@ -125,12 +125,12 @@ class Plugin(BasePlugin):
             self.cmds[cmdtype]['beforef'] = beforef
             self.cmds[cmdtype]['afterf'] = afterf
             self.cmds[cmdtype]['ctype'] = cmdtype
-            self.cmds[cmdtype]['plugin'] = plugin
+            self.cmds[cmdtype]['owner'] = owner
 
-            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['plugin'],
+            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['owner'],
                                                         description=f"event for the command {self.cmds[cmdtype]['ctype']} being sent",
                                                         arg_descriptions={'None': None})
-            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['plugin'],
+            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['owner'],
                                                         description=f"event for the command {self.cmds[cmdtype]['ctype']} completing",
                                                         arg_descriptions={'None': None})
 
@@ -188,7 +188,7 @@ class Plugin(BasePlugin):
         """
         add a command to the queue
         """
-        plugin = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+        plugin = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]['cmd']
         if arguments:
             cmd = cmd + ' ' + str(arguments)

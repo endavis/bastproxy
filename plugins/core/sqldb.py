@@ -56,6 +56,7 @@ import datetime
 
 # Project
 import libs.argp as argp
+from libs.api import API
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 
@@ -82,21 +83,17 @@ class Sqldb(object):
     """
     a class to manage sqlite3 databases
     """
-    def __init__(self, plugin, **kwargs):
+    def __init__(self, plugin_id, **kwargs):
         """
         initialize the class
         """
         self.db_connection = None
-        self.plugin = plugin
-        self.plugin_id = plugin.plugin_id
-        self.name = plugin.name
-        self.api = plugin.api
+        self.plugin_id = plugin_id
         if 'dbname' in kwargs:
             self.database_name = kwargs['dbname'] or 'db'
         else:
             self.database_name = 'db'
-        self.api('plugins.core.log:add:datatype')('sqlite')
-        #self.api('plugins.core.log:toggle:to:console')('sqlite')
+        self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
         self.backup_template = f"{self.database_name}_%%s.sqlite"
         self.database_save_directory = self.api.BASEPATH / 'data' / 'db'
         if 'dbdir' in kwargs:
@@ -276,7 +273,7 @@ class Sqldb(object):
         if args:
             sqlstmt = args['stmt']
             if sqlstmt:
-                results = self.api('%s:%s:select' % (self.plugin.plugin_id, self.database_name))(sqlstmt)
+                results = self.api('%s:%s:select' % (self.plugin_id, self.database_name))(sqlstmt)
                 for i in results:
                     message.append('%s' % i)
             else:
@@ -291,7 +288,7 @@ class Sqldb(object):
         if args:
             sqlstmt = args['stmt']
             if sqlstmt:
-                self.api('%s:%s:modify' % (self.plugin.plugin_id, self.database_name))(sqlstmt)
+                self.api('%s:%s:modify' % (self.plugin_id, self.database_name))(sqlstmt)
             else:
                 message.append('Please enter an update statement')
         return True, message
@@ -404,7 +401,7 @@ class Sqldb(object):
         if table in self.tables:
             key_field = self.tables[table]['keyfield']
             sql = f"DELETE FROM {table} where {key_field}={rownumber};" % (table, key_field, rownumber)
-            self.api(f"{self.plugin.plugin_id}:{self.database_name}:modify")(sql)
+            self.api(f"{self.plugin_id}:{self.database_name}:modify")(sql)
             return True, f"{rownumber} was removed from table {table}"
 
         return False, f"{table} is not a table"
@@ -678,7 +675,7 @@ class Sqldb(object):
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        results = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(sql_string)
+        results = self.api(f"{self.plugin_id}:{self.database_name}:select")(sql_string)
 
         return results
 
@@ -695,7 +692,7 @@ class Sqldb(object):
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        results = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(sql_string)
+        results = self.api(f"{self.plugin_id}:{self.database_name}:select")(sql_string)
 
         return results
 
@@ -705,7 +702,7 @@ class Sqldb(object):
         """
         last = -1
         column_id_name = self.tables[table_name]['keyfield']
-        rows = self.api(f"{self.plugin.plugin_id}:{self.database_name}:select")(
+        rows = self.api(f"{self.plugin_id}:{self.database_name}:select")(
             f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}")
         if rows:
             last = rows[0]['MAX']

@@ -18,7 +18,7 @@ from timeit import default_timer
 from libs.api import API as BASEAPI
 from libs.records import LogRecord
 
-API = BASEAPI(parent_id=__name__)
+API = BASEAPI(owner_id=__name__)
 
 
 def duration(func):
@@ -68,12 +68,12 @@ class Timing(object):
     start a timer
     """
     if self.enabled:
-      plugin = self.api('libs.api:get:caller:plugin')()
+      owner_id = self.api('libs.api:get:caller:owner')()
       self.timing[timername] = {}
       self.timing[timername]['start'] = default_timer()
-      self.timing[timername]['plugin'] = plugin
-      LogRecord(f"starttimer - {timername:<20} : started - from plugin {plugin} with args {args}",
-                level='debug', sources=[__name__, plugin]).send()
+      self.timing[timername]['owner_id'] = owner_id
+      LogRecord(f"starttimer - {timername:<20} : started - from {owner_id} with args {args}",
+                level='debug', sources=[__name__, owner_id]).send()
 
   def finishtimer(self, timername, args=None):
     """
@@ -83,11 +83,11 @@ class Timing(object):
       timerfinish = default_timer()
       if timername in self.timing:
         LogRecord(f"finishtimer - {timername:<20} : finished in {(timerfinish - self.timing[timername]['start']) * 1000.0} ms - with args {args}",
-                    level='debug', sources=[__name__, self.timing[timername]['plugin']]).send()
+                    level='debug', sources=[__name__, self.timing[timername]['owner_id']]).send()
         del self.timing[timername]
       else:
-        plugin = self.api('libs.api:get:caller:plugin')()
-        LogRecord(f"finishtimer - {timername:<20} : not found - called from {plugin}",
-                    level='error', sources=[__name__, plugin]).send()
+        owner_id = self.api('libs.api:get:caller:owner')()
+        LogRecord(f"finishtimer - {timername:<20} : not found - called from {owner_id}",
+                    level='error', sources=[__name__, owner_id]).send()
 
 TIMING = Timing()

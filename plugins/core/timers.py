@@ -113,7 +113,7 @@ class Timer(Callback):
         """
         return a string representation of the timer
         """
-        return f"Timer {self.name:<10} : {self.plugin_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}"
+        return f"Timer {self.name:<10} : {self.owner_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}"
 
 class Plugin(BasePlugin):
     """
@@ -307,21 +307,17 @@ class Plugin(BasePlugin):
           @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM
 
         returns an Event instance"""
-        plugin_id = None
-        plugin = None
-        try:
-            plugin_id = func.__self__.plugin_id
-        except AttributeError:
-            plugin_id = None
+        plugin_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
 
-        if 'plugin' in kwargs:
-            plugin = self.api('plugins.core.plugins:get:plugin:instance')(kwargs['plugin'])
-            plugin_id = plugin.plugin_id
+        if 'plugin_id' in kwargs:
+            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(kwargs['plugin'])
+            plugin_id = plugin_instance.plugin_id
 
-        if not plugin_id:
+        if not plugin_id or not self.api('plugins.core.plugins:is:plugin:id')(plugin_id):
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
                       'error', sources=[self.plugin_id]).send()
             return
+
         if seconds <= 0:
             LogRecord(f"_api_add_timer: timer {name} has seconds <= 0, not adding",
                       'error', sources=[self.plugin_id, plugin_id]).send()

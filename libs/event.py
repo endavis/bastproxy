@@ -27,7 +27,8 @@ class Event:
     """
     def __init__(self, name, created_by=None, description=None, arg_descriptions=None):
         self.name = name
-        self.api = API(parent_id=f"{__name__}:{self.name}")
+        self.owner_id = f"{__name__}:{self.name}"
+        self.api = API(owner_id=self.owner_id)
         # this is the plugin or module that created the event
         # it should be the __name__ of the module or plugin
         self.created_by = created_by
@@ -65,7 +66,7 @@ class Event:
 
         return True
 
-    def register(self, func, func_plugin_id, prio=50):
+    def register(self, func, func_owner_id, prio=50):
         """
         register a function to this event container
         """
@@ -77,12 +78,12 @@ class Event:
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = []
 
-        event_function = Callback(func.__name__, func_plugin_id, func)
+        event_function = Callback(func.__name__, func_owner_id, func)
 
         if event_function not in self.priority_dictionary[priority]:
             self.priority_dictionary[priority].append(event_function)
             LogRecord(f"{self.name} - register function {event_function} with priority {priority}",
-                      level='debug', sources=[event_function.plugin_id, self.created_by]).send()
+                      level='debug', sources=[event_function.owner_id, self.created_by]).send()
             return True
 
         return False
@@ -95,7 +96,7 @@ class Event:
             if func in self.priority_dictionary[priority]:
                 event_function = self.priority_dictionary[priority][self.priority_dictionary[priority].index(func)]
                 LogRecord(f"unregister - {self.name} - unregister function {event_function} with priority {priority}",
-                          level='debug', sources=[event_function.plugin_id, self.created_by]).send()
+                          level='debug', sources=[event_function.owner_id, self.created_by]).send()
                 self.priority_dictionary[priority].remove(event_function)
                 return True
 
@@ -103,14 +104,14 @@ class Event:
                   level='error', sources=[self.created_by]).send()
         return False
 
-    def removeplugin(self, plugin):
+    def removeplugin(self, plugin_id):
         """
         remove all functions related to a plugin
         """
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
             for event_function in self.priority_dictionary[priority]:
-                if event_function.plugin_id == plugin:
+                if event_function.owner_id == plugin_id:
                     plugins_to_unregister.append(event_function)
 
         for event_function in plugins_to_unregister:
@@ -134,7 +135,7 @@ class Event:
         key_list = sorted(key_list)
         for priority in key_list:
             for event_function in self.priority_dictionary[priority]:
-                function_message.append(f"{priority:<13} : {event_function.plugin_id:<25} - {event_function.name}")
+                function_message.append(f"{priority:<13} : {event_function.owner_id:<25} - {event_function.name}")
 
         if not function_message:
             message.append('None')
@@ -179,7 +180,7 @@ class Event:
 
         # convert a dict to an EventArgsRecord object
         if not isinstance(data, EventArgsRecord):
-            data = EventArgsRecord(plugin_id=calledfrom, event_name=self.name, data=data)
+            data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
@@ -200,7 +201,7 @@ class Event:
                         event_function.execute(data)
                     except Exception:  # pylint: disable=broad-except
                         LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
-                                    level='error', sources=[event_function.plugin_id, self.created_by], exc_info=True).send()
+                                    level='error', sources=[event_function.owner_id, self.created_by], exc_info=True).send()
 
         return data
 

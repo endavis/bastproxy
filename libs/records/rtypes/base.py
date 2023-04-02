@@ -22,16 +22,15 @@ from libs.records.managers.changes import ChangeManager
 from libs.records.managers.records import RMANAGER
 
 class BaseRecord:
-    def __init__(self, plugin_id=None):
+    def __init__(self, owner_id: str = ''):
         """
         initialize the class
         """
-        # Add an API
-        self.api = API(parent_id=self.__class__.__name__)
         # create a unique id for this message
         self.uuid = uuid4().hex
-        # True if this was created internally
-        self.plugin_id = plugin_id
+        self.owner_id = owner_id if owner_id else f"{self.__class__.__name__}:{self.uuid}"
+        # Add an API
+        self.api = API(owner_id=self.owner_id)
         self.created =  datetime.datetime.now(datetime.timezone.utc)
         self.changes = ChangeManager()
         RMANAGER.add(self)
@@ -71,14 +70,14 @@ class BaseRecord:
         return False
 
 class BaseDataRecord(BaseRecord, UserList):
-    def __init__(self, message, internal=True, plugin_id=None):
+    def __init__(self, message: list[str] | str, internal: bool=True, owner_id: str=''):
         """
         initialize the class
         """
         if not isinstance(message, list):
             message = [message]
         UserList.__init__(self, message)
-        BaseRecord.__init__(self, plugin_id)
+        BaseRecord.__init__(self, owner_id)
         self.internal = internal
 
     def replace(self, data, actor=None, extra=None):

@@ -36,17 +36,17 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         initialize the class
         """
         self.current_trace = None
-        self.api = API(parent_id=__name__)
+        self.api = API(owner_id=__name__)
 
         self.api('libs.api:add')('libs.io', 'send:mud', self._api_tomud)
         self.api('libs.api:add')('libs.io', 'send:execute', self._api_execute)
         self.api('libs.api:add')('libs.io', 'trace:add:execute', self._api_trace_add_execute)
 
-    def _api_trace_add_execute(self, plugin_id, flag, info=None, data=None,
+    def _api_trace_add_execute(self, owner_id, flag, info=None, data=None,
                                original_data=None, new_data=None, callstack=None):
         """
         add a trace when going through execute
-          'plugin_id'     : The plugin that made the change
+          'owner_id'     : The plugin that made the change
           'flag'          : The type of trace
           'info'          : Info about the trace
           'original data' : The original data
@@ -54,7 +54,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
         """
         if self.current_trace:
             trace = {}
-            trace['plugin_id'] = plugin_id
+            trace['owner_id'] = owner_id
             trace['flag'] = flag
             if info:
                 trace['info'] = info
@@ -89,7 +89,7 @@ class ProxyIO(object):  # pylint: disable=too-few-public-methods
             self.current_trace['showinhistory'] = showinhistory
             self.current_trace['addedtohistory'] = False
             self.current_trace['originalcommand'] = command.strip()
-            self.current_trace['fromplugin'] = self.api('libs.api:get:caller:plugin')()
+            self.current_trace['owner_id'] = self.api('libs.api:get:caller:owner')()
 
             if fromclient:
                 self.current_trace['fromclient'] = True

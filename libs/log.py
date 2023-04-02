@@ -44,7 +44,7 @@ class CustomColorFormatter(logging.Formatter):
     def __init__(self, fmt):
         super().__init__()
         self.fmt = fmt
-        self.api = API(parent_id=f"{__name__}:CustomColorFormatter")
+        self.api = API(owner_id=f"{__name__}:CustomColorFormatter")
         self.FORMATS = {
             logging.DEBUG: self.debug + self.fmt + self.reset,
             logging.INFO: self.info + self.fmt + self.reset,
@@ -78,7 +78,7 @@ class CustomColorFormatter(logging.Formatter):
 class CustomConsoleHandler(logging.StreamHandler):
     def __init__(self, stream=sys.stdout):
         super().__init__(stream=stream)
-        self.api = API(parent_id=f"{__name__}:CustomConsoleHandler")
+        self.api = API(owner_id=f"{__name__}:CustomConsoleHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
@@ -98,7 +98,7 @@ class CustomConsoleHandler(logging.StreamHandler):
 class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
     def __init__(self, filename, when='midnight', interval=1, backupCount=0, encoding=None, delay=False, utc=False, atTime=None):
         super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
-        self.api = API(parent_id=f"{__name__}:CustomRotatingFileHandler")
+        self.api = API(owner_id=f"{__name__}:CustomRotatingFileHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
@@ -120,7 +120,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
 class CustomClientHandler(logging.Handler):
     def __init__(self):
         super().__init__()
-        self.api = API(parent_id=f"{__name__}:CustomClientHandler")
+        self.api = API(owner_id=f"{__name__}:CustomClientHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):

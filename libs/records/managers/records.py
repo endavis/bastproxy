@@ -16,8 +16,6 @@ from collections import deque
 # Project
 from libs.api import API as BASEAPI
 
-API = BASEAPI(parent_id=__name__)
-
 class RecordManager(object):
     def __init__(self):
         """
@@ -25,7 +23,8 @@ class RecordManager(object):
         """
         self.max_records = 1000
         self.records = {}
-        API.MANAGERS['records'] = self
+        self.api = BASEAPI(owner_id=__name__)
+        self.api.MANAGERS['records'] = self
 
     def add(self, record):
         queuename = record.__class__.__name__

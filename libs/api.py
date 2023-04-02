@@ -42,17 +42,21 @@ def get_args(api_function):
 
     return args
 
-def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
+def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
     """
-    Returns the plugin ID of the plugin that called the current function.
+    Returns the owner ID of the plugin that called the current function.
+
+    It goes through the stack and checks each frame for one of the following:
+        an owner_id attribute
+        an api attribute and gets the owner_id from that
 
     Args:
-        ignore_plugin_list (list[str]): A list of plugin IDs to ignore if they are on the stack.
+        ignore_owner_list (list[str]): A list of owner IDs to ignore if they are on the stack.
 
     Returns:
-        str: The plugin ID of the plugin on the stack.
+        str: The owner ID of the plugin on the stack.
     """
-    ignore_plugin_list = ignore_plugin_list if ignore_plugin_list else []
+    ignore_owner_list = ignore_owner_list if ignore_owner_list else []
 
     caller_id = 'unknown'
     try:
@@ -64,16 +68,13 @@ def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
         parent_frame = ifr[0]
         if 'self' in parent_frame.f_locals and not isinstance(parent_frame.f_locals['self'], APIItem):
             tcs = parent_frame.f_locals['self']
-            if hasattr(tcs, 'plugin_id') and tcs.plugin_id and tcs.plugin_id not in ignore_plugin_list:
-                caller_id = tcs.plugin_id
-                break
-            if hasattr(tcs, 'parent_id') and tcs.parent_id and tcs.parent_id not in ignore_plugin_list:
-                caller_id = tcs.parent_id
+            if hasattr(tcs, 'owner_id') and tcs.owner_id and tcs.owner_id not in ignore_owner_list:
+                caller_id = tcs.owner_id
                 break
             if hasattr(tcs, 'api'):
                 if isinstance(tcs.api, API):
-                    if tcs.api.parent_id and tcs.api.parent_id not in ignore_plugin_list:
-                        caller_id = tcs.api.parent_id
+                    if tcs.api.owner_id and tcs.api.owner_id not in ignore_owner_list:
+                        caller_id = tcs.api.owner_id
                         break
 
     del stack
@@ -83,10 +84,10 @@ def get_caller_plugin_id(ignore_plugin_list: list[str] = None) -> str:
 class APIStatItem:
     """
     This class is used to track the number of times that a particular
-    API has been called by a particular plugin.  The full_api_name is
+    API has been called by a particular caller.  The full_api_name is
     the full name of the API, including the full package, module,
-    and name of the function, and the plugin_id is the unique ID of
-    the plugin that is making the call.
+    and name of the function, and the caller_id is the ID of
+    the object/function that is making the call.
     """
     def __init__(self, full_api_name: str) -> None:
         """
@@ -101,12 +102,12 @@ class APIStatItem:
         self.detailed_calls: dict = {}
         self.count = 0  # Total number of calls to this API
 
-    def add_call(self, plugin_id: str) -> None:
+    def add_call(self, caller_id: str) -> None:
         """
         Adds a call to the APIStatItem object.
 
         Args:
-            plugin_id (str): Unique ID of the plugin making the call.
+            caller_id (str): ID of the caller
         """
         self.count += 1
         if not caller_id:
@@ -131,18 +132,18 @@ class StatsManager:
         """
         self.stats: dict = {}
 
-    def add_call(self, full_api_name: str, plugin_id: str) -> None:
+    def add_call(self, full_api_name: str, caller_id: str) -> None:
         """
         Adds a call to the StatsManager object.
 
         Args:
             full_api_name (str): Full name of the API, including the full package,
                 module, and name of the function.
-            plugin_id (int): Unique ID of the plugin making the call.
+            caller_id (str): Id of what object is calling the function
         """
         if full_api_name not in self.stats:
             self.stats[full_api_name] = APIStatItem(full_api_name)
-        self.stats[full_api_name].add_call(plugin_id)
+        self.stats[full_api_name].add_call(caller_id)
 
     def get_stats(self) -> dict:
         """
@@ -172,7 +173,7 @@ class APIItem:
     """
     Wraps an API function to track its use.
     """
-    def __init__(self, full_api_name: str, tfunction: callable, plugin_id: str) -> None:
+    def __init__(self, full_api_name: str, tfunction: typing.Callable, owner_id: str | None) -> None:
         """
         Initializes an APIItem object.
 
@@ -183,7 +184,7 @@ class APIItem:
             plugin_id (str): Unique ID of the plugin calling the function.
         """
         self.full_api_name: str = full_api_name
-        self.plugin_id: str = plugin_id if plugin_id else 'Unknown'
+        self.owner_id: str = owner_id if owner_id else 'unknown'
         self.tfunction: typing.Callable = tfunction
         self.overloaded: bool = False
         self.overwritten_api: APIItem | None = None
@@ -192,11 +193,8 @@ class APIItem:
         """
         Calls the wrapped function and adds a call to the StatsManager object.
         """
-        try:
-            caller_plugin: str = get_caller_plugin_id()
-        except:   # pylint: disable=bare-except
-            caller_plugin: str = 'Unknown'
-        STATS_MANAGER.add_call(self.full_api_name, caller_plugin)
+        caller_id: str = get_caller_owner_id()
+        STATS_MANAGER.add_call(self.full_api_name, caller_id)
         return self.tfunction(*args, **kwargs)
 
     @property
@@ -230,11 +228,11 @@ class APIItem:
         """
         create a detailed message for this item
         """
-        tmsg = []
+        tmsg: list[str] = []
 
         tmsg.append(f"@C{'API':<11}@w : {self.full_api_name}")
         tmsg.append(f"@C{'Function':<11}@w : {self.tfunction}")
-        tmsg.append(f"@C{'From Plugin':<11}@w : {self.plugin_id}")
+        tmsg.append(f"@C{'Owner':<11}@w : {self.owner_id}")
         tmsg.append(f"@C{'Overloaded':<11}@w : {self.overloaded}")
 
         tmsg.append('')
@@ -273,7 +271,7 @@ class APIItem:
         Returns:
             str: A string representation of the object.
         """
-        return f"APIItem({self.full_api_name}, {self.plugin_id}, {self.tfunction})"
+        return f"APIItem({self.full_api_name}, {self.owner_id}, {self.tfunction})"
 
     def __str__(self) -> str:
         """
@@ -282,7 +280,7 @@ class APIItem:
         Returns:
             str: A string representation of the object.
         """
-        return f"APIItem({self.full_api_name}, {self.plugin_id}, {self.tfunction})"
+        return f"APIItem({self.full_api_name}, {self.owner_id}, {self.tfunction})"
 
 class API():
     """
@@ -326,7 +324,7 @@ class API():
     # is available for active commands to be sent
     is_character_active = False
 
-    def __init__(self, parent_id=None) -> None:
+    def __init__(self, owner_id: str | None=None) -> None:
         """
         initialize the class
         """
@@ -336,8 +334,8 @@ class API():
         # the format for the time
         self.time_format = '%a %b %d %Y %H:%M:%S %Z'
 
-        # this is the plugin the api was created from
-        self.parent_id: str | None = parent_id
+        # this is the parent of the API, couild be a plugin or a module
+        self.owner_id: str = owner_id if owner_id else 'unknown'
 
         # added functions
         self.add('libs.api', 'add', self.add, overload=True)
@@ -354,10 +352,10 @@ class API():
             self.add('libs.api', 'list', self._api_list, overload=True)
         if not self('libs.api:has')('libs.api:data:get'):
             self.add('libs.api', 'api:data:get', self._api_data_get, overload=True)
-        if not self('libs.api:has')('libs.api:get:function:plugin:owner'):
-            self.add('libs.api', 'get:function:plugin:owner', self._api_get_function_plugin_owner, overload=True)
-        if not self('libs.api:has')('libs.api:get:caller:plugin'):
-            self.add('libs.api', 'get:caller:plugin', self._api_caller_plugin, overload=True)
+        if not self('libs.api:has')('libs.api:get:function:owner:plugin'):
+            self.add('libs.api', 'get:function:owner:plugin', self._api_get_function_plugin_owner, overload=True)
+        if not self('libs.api:has')('libs.api:get:caller:owner'):
+            self.add('libs.api', 'get:caller:owner', self._api_caller_owner, overload=True)
         if not self('libs.api:has')('libs.api:is_character_active'):
             self.add('libs.api', 'is_character_active', self._api_is_character_active_get, overload=True)
         if not self('libs.api:has')('libs.api:is_character_active:set'):
@@ -423,9 +421,7 @@ class API():
         this function returns no values"""
         full_api_name = top_level_api + ':' + name
 
-        parent_id: str | None = self.parent_id
-
-        api_item = APIItem(full_api_name, tfunction, parent_id)
+        api_item = APIItem(full_api_name, tfunction, self.owner_id)
 
         if not overload:
             if full_api_name in self._class_api:
@@ -435,10 +431,12 @@ class API():
                 else:
                     try:
                         from libs.records import LogRecord
-                        LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {parent_id}",
-                                    level='error', sources=[__name__, parent_id]).send()
+                        added_in = self._class_api[full_api_name].owner_id
+                        LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {added_in}",
+                                    level='error', sources=[__name__, self.owner_id]).send()
                     except ImportError:
                         print(f"libs.api:add - {full_api_name} already exists")
+                        return False
             else:
                 self._class_api[full_api_name] = api_item
 
@@ -463,21 +461,21 @@ class API():
             else:
                 try:
                     from libs.records import LogRecord
-                    LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists from plugin: {api_item.plugin_id}",
-                            level='error', sources=[__name__, api_item.plugin_id]).send()
+                    LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists from plugin: {api_item.owner_id}",
+                            level='error', sources=[__name__, api_item.owner_id]).send()
                 except ImportError:
                     print(f"libs.api:overload - {api_item.full_api_name} already exists")
 
                 return False
         else:
             api_item.overloaded = True
-            self.overloaded_api[api_item.full_api_name] = api_item
+            self._instance_api[api_item.full_api_name] = api_item
 
         return True
 
     # find the caller of this api
-    def _api_caller_plugin(self, ignore_plugin_list=None):
-        """  get the plugin on the top of the stack
+    def _api_caller_owner(self, ignore_owner_list: list[str] | None=None):
+        """  get the plugin on the top of the frame stack
         @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
 
         check to see if the caller is a plugin, if so return the plugin id
@@ -489,21 +487,18 @@ class API():
            if it doesn't find that, it checks for an attribute of plugin
 
         returns the plugin_id of the plugin on the stack"""
-        return get_caller_plugin_id(ignore_plugin_list)
+        return get_caller_owner_id(ignore_owner_list)
 
     def _api_get_function_plugin_owner(self, function):
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
 
         this function returns the plugin_id of the plugin that owns the function"""
-        plugin_id = None
+        plugin_id = 'unknown'
         try:
             plugin_id = function.__self__.plugin_id
         except AttributeError:
-            try:
-                plugin_id = function.__self__.plugin.plugin_id
-            except AttributeError:
-                pass
+            pass
 
         return plugin_id
 
@@ -550,8 +545,8 @@ class API():
         # all apis should have a . in the first part
         # if not, we add the parent plugin id to the api
         if '.' not in api_location:
-            if self.parent_id:
-                api_location = self.parent_id + ':' + api_location
+            if self.owner_id.lower() != 'unknown':
+                api_location = self.owner_id + ':' + api_location
             else:
                 try:
                     from libs.records import LogRecord
@@ -569,7 +564,7 @@ class API():
         if api_location in self._class_api and self._class_api[api_location]:
             return self._class_api[api_location]
 
-        raise AttributeError(f"{self.parent_id} : {api_location} is not in the api")
+        raise AttributeError(f"{self.owner_id} : {api_location} is not in the api")
 
     __call__ = get
 
@@ -666,6 +661,7 @@ class API():
                         tmsg.append('')
                         tmsg.append(self('plugins.core.utils:center:colored:string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
                         stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
+                        tmsg.append(f"Unique Callers: {len(stats_keys)}")
                         stats_keys = sorted(stats_keys)
                         for i in stats_keys:
                             tmsg.append(f"{i or 'Unknown':<22}: {api_data.stats.detailed_calls[i]}")
@@ -735,8 +731,8 @@ class API():
                 if comments:
                     comments = comments.strip()
                 added_by = ''
-                if api_data.plugin_id:
-                    added_by = f"- added by {api_data.plugin_id} "
+                if api_data.owner_id:
+                    added_by = f"- added in {api_data.owner_id} "
                 tmsg.append(f"   @C{therest:<30}@w - {comments}@w")
                 tmsg.append(f"        {added_by} - called {api_data.count} times @w")
 

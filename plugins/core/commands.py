@@ -110,7 +110,7 @@ class Plugin(BasePlugin):
 
         # load the history
         self.history_save_file = self.save_directory / 'history.txt'
-        self.command_history_dict = PersistentDict(self.history_save_file, 'c')
+        self.command_history_dict = PersistentDict(self.plugin_id, self.history_save_file, 'c')
         if 'history' not in self.command_history_dict:
             self.command_history_dict['history'] = []
         self.command_history_data = self.command_history_dict['history']
@@ -868,13 +868,11 @@ class Plugin(BasePlugin):
 
         args = kwargs.copy()
 
-        called_from = self.api('libs.api:get:caller:plugin')()
-
-        long_name = None
+        called_from = self.api('libs.api:get:caller:owner')()
 
         # passed an empty function
         if not func:
-            LogRecord(f"_api_add_command: add command for command {command_name} was passed a null function from plugin {called_from}, not adding",
+            LogRecord(f"_api_add_command: add command for command {command_name} was passed a null function from {called_from}, not adding",
                       level='error', sources=[self.plugin_id, called_from]).send()
             return
 
@@ -882,11 +880,16 @@ class Plugin(BasePlugin):
         if 'plugin_id' in args:
             plugin_id = args['plugin_id']
         else:
-            plugin_id = self.api('libs.api:get:function:plugin:owner')(func)
-            if not plugin_id:
-                LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
-                          level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
-                return
+            plugin_id = self.api('libs.api:get:function:owner:plugin')(func)
+
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        if not plugin_instance:
+            plugin_id = called_from
+            plugin_instance = self.api('libs.api:get:plugin:instance')(called_from)
+        if not plugin_id or not plugin_instance:
+            LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
+                        level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
+            return
 
         # add custom formatter to the parser passed in
         if 'parser' in args:
@@ -927,7 +930,6 @@ class Plugin(BasePlugin):
             args['showinhistory'] = True
 
         # update the command
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
         self.update_command(plugin_instance.plugin_id, command_name, args)
 
         self.commands_list.append(f"{plugin_instance.plugin_id}.{command_name}")

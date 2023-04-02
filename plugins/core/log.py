@@ -52,13 +52,13 @@ class Plugin(BasePlugin):
         except OSError:
             pass
         self.handlers = {}
-        self.handlers['client'] = PersistentDict(
+        self.handlers['client'] = PersistentDict(self.plugin_id,
             self.save_directory /'logtypes_to_client.txt',
             'c')
-        self.handlers['console'] = PersistentDict(
+        self.handlers['console'] = PersistentDict(self.plugin_id,
             self.save_directory / 'logtypes_to_console.txt',
             'c')
-        self.handlers['file'] = PersistentDict(
+        self.handlers['file'] = PersistentDict(self.plugin_id,
             self.save_directory / 'logtypes_to_file.txt',
             'c')
 

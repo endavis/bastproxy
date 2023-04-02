@@ -70,13 +70,14 @@ class PersistentDict(dict):
     All three serialization formats are backed by fast C implementations.
 
     '''
-    def __init__(self, file_name, flag='c', mode=None,
+    def __init__(self, owner_id, file_name, flag='c', mode=None,
                  tformat='json', *args, **kwargs):
         """
         initialize the instance
         """
+        self.owner_id = owner_id
         self._dump_shallow_attrs = ['api']
-        self.api = API(parent_id=f"{__name__}:{file_name}")
+        self.api = API(owner_id=f"{self.owner_id}:{__name__}:{file_name}")
 
         # r=readonly, c=create, or n=new
         self.flag = flag
@@ -170,8 +171,8 @@ class PersistentDict(dict):
         except Exception:  # pylint: disable=broad-except
             record = LogRecord(f"Error when loading {self.format} from {self.file_name}",
                                level='error', sources=[__name__], exc_info=True)
-            if getattr(self, 'plugin_id'):
-                record.add_source(self.plugin_id)
+            if getattr(self, 'owner_id'):
+                record.add_source(self.owner_id)
             record.send()
 
         raise ValueError('File not in a supported format')
@@ -201,12 +202,11 @@ class PersistentDictEvent(PersistentDict):
     """
     a class to send events when a dictionary object is set
     """
-    def __init__(self, plugin_id, file_name, *args, **kwds):
+    def __init__(self, owner_id, file_name, *args, **kwds):
         """
         init the class
         """
-        self.plugin_id = plugin_id
-        super().__init__(file_name, *args, **kwds)
+        super().__init__(owner_id, file_name, *args, **kwds)
         self.add_events()
 
     def add_events(self):
@@ -218,9 +218,9 @@ class PersistentDictEvent(PersistentDict):
             if self.api('libs.api:has')('plugins.core.events:add:event'):
                 EVENTSSETUP = True
                 for i in self:
-                    event_name = f"ev_{self.plugin_id}_var_{i}_modified"
-                    self.api('plugins.core.events:add:event')(event_name, self.plugin_id,
-                                            description=f"An event raised when {i} is modified in {self.plugin_id}",
+                    event_name = f"ev_{self.owner_id}_var_{i}_modified"
+                    self.api('plugins.core.events:add:event')(event_name, self.owner_id,
+                                            description=f"An event raised when {i} is modified in {self.owner_id}",
                                             arg_descriptions={'var':'The variable that was modified',
                                             'newvalue':'the new value of the variable',
                                             'oldvalue':'the old value of the variable, will be "__init__" if the variable was not set before'})
@@ -232,44 +232,62 @@ class PersistentDictEvent(PersistentDict):
         key = convert(key)
         val = convert(val)
         old_value = None
-        plugin_instance = None
         try:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.owner_id)
         except AttributeError:
-            pass
+            plugin_instance = None
         if key in self and plugin_instance:
             old_value = plugin_instance.api('setting:get')(key)
         if old_value != val:
             dict.__setitem__(self, key, val)
 
             if plugin_instance:
-                event_name = f"ev_{plugin_instance.plugin_id}_var_{key}_modified"
-                if not plugin_instance.reset_f and key != '_version':
-                    self.api('plugins.core.events:raise:event')(
-                        event_name,
-                        {'var':key,
-                        'newvalue':plugin_instance.api('setting:get')(key),
-                        'oldvalue':old_value})
+                if plugin_instance.reset_f or key == '_version':
+                    return
+                new_value = plugin_instance.api('setting:get')(key)
+
+            else:
+                new_value = val
+
+            event_name = f"ev_{self.owner_id}_var_{key}_modified"
+            old_value = old_value
+
+            if self.api('libs.api:has')('plugins.core.events:raise:event'):
+                self.api('plugins.core.events:raise:event')(
+                    event_name,
+                    {'var':key,
+                    'newvalue':new_value,
+                    'oldvalue':old_value})
 
     def raiseall(self):
         """
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.owner_id)
+        old_value = '__init__'
         for i in self:
-            event_name = f"ev_{plugin_instance.plugin_id}_var_{i}_modified"
-            if not plugin_instance.reset_f and i != '_version':
-                self.api('plugins.core.events:raise:event')(
-                    event_name,
-                    {'var':i,
-                     'newvalue':plugin_instance.api('setting:get')(i),
-                     'oldvalue':'__init__'})
+            if plugin_instance:
+                if plugin_instance.reset_f or i == '_version':
+                    return
+                event_name = f"ev_{self.owner_id}_var_{i}_modified"
+                new_value = plugin_instance.api('setting:get')(i)
+                old_value = old_value
+            else:
+                event_name = f"ev_{self.owner_id}_var_{i}_modified"
+                new_value = self[i]
+                old_value = old_value
+
+            self.api('plugins.core.events:raise:event')(
+                event_name,
+                {'var':i,
+                'newvalue':new_value,
+                'oldvalue':old_value})
 
     def sync(self):
         """
         always put plugin version in here
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.owner_id)
         try:
             self['_version'] = plugin_instance.version
         except AttributeError:

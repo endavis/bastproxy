@@ -56,7 +56,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('unregister:from:event', self._api_unregister_from_event)
         self.api('libs.api:add')('raise:event', self._api_raise_event)
         self.api('libs.api:add')('is:registered:to:event', self._api_is_registered_to_event)
-        self.api('libs.api:add')('remove:events:for:plugin', self._api_remove_events_from_plugin)
+        self.api('libs.api:add')('remove:events:for:owner', self._api_remove_events_from_owner)
         self.api('libs.api:add')('get:event', self._api_get_event)
         self.api('libs.api:add')('add:event', self._api_add_event)
         self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
@@ -84,7 +84,7 @@ class Plugin(BasePlugin):
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='list events and the ' \
-                                                      'plugins registered with them')
+                                                      'owners registered with them')
         parser.add_argument('match',
                             help='list only events that have this argument in their name',
                             default='',
@@ -172,16 +172,15 @@ class Plugin(BasePlugin):
             priority = 50
         else:
             priority = kwargs['prio']
-        try:
-            func_plugin_id = func.__self__.plugin_id
-        except AttributeError:
-            func_plugin_id = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
-        if not func_plugin_id and 'plugin' in kwargs:
-            func_plugin_id = kwargs['plugin_id']
+        func_owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        if not func_owner_id:
+            LogRecord(f"_api_register_to_event - could not find owner for {func}",
+                      level='error', sources=[self.plugin_id]).send()
+            return
 
         event = self._api_get_event(event_name)
 
-        event.register(func, func_plugin_id, priority)
+        event.register(func, func_owner_id, priority)
 
     # unregister a function from an event
     def _api_unregister_from_event(self, event_name, func):
@@ -197,16 +196,16 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_unregister_from_event - could not find event {event_name}",
                       level='error', sources=[self.plugin_id]).send()
 
-    # remove all registered functions that are specific to a plugin
-    def _api_remove_events_from_plugin(self, plugin):
-        """  remove all registered functions that are specific to a plugin
-        @Yplugin@w   = The plugin to remove events for
+    # remove all registered functions that are specific to an owner_id
+    def _api_remove_events_from_owner(self, owner_id):
+        """  remove all registered functions that are specific to a owner_id
+        @Yowner_id@w   = The owner to remove events for
         this function returns no values"""
-        LogRecord(f"_api_remove_events_from_plugin - removing events for {plugin}",
-                  level='debug', sources=[self.plugin_id, plugin]).send()
+        LogRecord(f"_api_remove_events_from_owner - removing events for {owner_id}",
+                  level='debug', sources=[self.plugin_id, owner_id]).send()
 
         for event in self.events:
-            self.events[event].removeplugin(plugin)
+            self.events[event].removeowner(owner_id)
 
     # raise an event, args vary
     def _api_raise_event(self, event_name, args=None, calledfrom=None):
@@ -219,11 +218,11 @@ class Plugin(BasePlugin):
             args = {}
 
         if not calledfrom:
-            calledfrom = self.api('libs.api:get:caller:plugin')(ignore_plugin_list=[self.plugin_id])
+            calledfrom = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
 
         if not calledfrom:
             LogRecord(f"event {event_name} raised with unknown caller",
-                      level='error', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id]).send()
 
         if not args:
             args = {}
@@ -269,7 +268,7 @@ class Plugin(BasePlugin):
     def _command_detail(self, args):
         """
         @G%(name)s@w - @B%(cmdname)s@w
-          list events and the plugins registered with them
+          list events and the owner ids registered with them
           @CUsage@w: detail show @Y<event_name>@w
             @Yevent_name@w  = the event_name to get info for
         """
@@ -286,7 +285,7 @@ class Plugin(BasePlugin):
     def _command_list(self, args):
         """
         @G%(name)s@w - @B%(cmdname)s@w
-          list events and the plugins registered with them
+          list events and the owner_ids registered with them
           @CUsage@w: list
         """
         message = []

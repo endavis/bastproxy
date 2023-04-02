@@ -52,7 +52,7 @@ class ClientConnection:
         self.addr: str = addr
         self.port: str = port
         self.rows: int = rows
-        self.api = API(parent_id=f"{__name__}:{self.uuid}")
+        self.api = API(owner_id=f"{__name__}:{self.uuid}")
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
         self.state: dict[str, bool] = {'connected': True, 'logged in': False}
