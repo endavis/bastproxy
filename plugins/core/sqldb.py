@@ -368,9 +368,9 @@ class Sqldb(object):
         add a table to the database
 
         keyword args:
-         precreate
-         postcreate
-         keyfield
+            precreate
+            postcreate
+            keyfield
 
         """
         if not kwargs:
