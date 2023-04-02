@@ -14,12 +14,6 @@ from libs.api import API as BASEAPI
 from libs.records import LogRecord
 from .task_logger import create_task
 
-API = BASEAPI(parent_id=__name__)
-
-# holds the asyncio tasks to start after plugin initialization
-TASK_QUEUE = asyncio.Queue()
-
-
 class TaskItem:
     """
     a class to hold the task to be added to the event loop
@@ -31,31 +25,36 @@ class TaskItem:
     def start(self):
         if asyncio.iscoroutine(self.task):
             create_task(self.task, name=self.name)
-        else:
+        elif isinstance(self.task, Callable):
             create_task(self.task(), name=self.name)
         LogRecord(f"TaskItem - Created task {self.name}", level='debug', sources=[__name__]).send()
 
-# add a task to the asyncio_tasks queue
-def add_task(task, name):
-    """
-    add a task to the asyncio_tasks queue
-    """
-    TASK_QUEUE.put_nowait(TaskItem(task, name))
+class QueueManager:
+    def __init__(self) -> None:
+        # holds the asyncio tasks to start after plugin initialization
+        self.task_queue: asyncio.Queue[TaskItem] = asyncio.Queue()
+        self.api = BASEAPI(owner_id=f"{__name__}:QueueManager")
+        self.api('libs.api:add')('libs.asynch', 'task:add', self.add_task)
 
-API('libs.api:add')('libs.asynch', 'task:add', add_task)
+    # add a task to the asyncio_tasks queue
+    def add_task(self, task: Awaitable | Callable, name: str) -> None:
+        """
+        add a task to the asyncio_tasks queue
+        """
+        self.task_queue.put_nowait(TaskItem(task, name))
 
-async def check_for_new_tasks():
-    """
-    wait for new tasks to be added to the asyncio_tasks queue and then run them
-    """
-    while True:
-        task = await TASK_QUEUE.get()
+    async def task_check_for_new_tasks(self) -> None:
+        """
+        wait for new tasks to be added to the asyncio_tasks queue and then run them
+        """
+        while True:
+            task: TaskItem = await self.task_queue.get()
 
-        task.start()
+            task.start()
 
-        LogRecord(f"Tasks - {asyncio.all_tasks()}", level='debug', sources=[__name__]).send()
+            LogRecord(f"Tasks - {asyncio.all_tasks()}", level='debug', sources=[__name__]).send()
 
-        await asyncio.sleep(.1)
+            await asyncio.sleep(.1)
 
 async def shutdown(signal_, loop_) -> None:
     """
@@ -75,16 +74,6 @@ async def shutdown(signal_, loop_) -> None:
     LogRecord(f"shutdown - Exceptions: {exceptions}", level='warning', sources=['mudproxy']).send()
     loop_.stop()
 
-
-def handle_exceptions(loop_, context) -> None:
-    """
-        We attach this as the exception handler to the event loop.  Currently we just
-        log, as warnings, any exceptions caught.
-    """
-    msg = context.get('exception', context['message'])
-    LogRecord(f"handle_exceptions - Caught exception: {msg} in loop: {loop_}", level='warning', sources=['mudproxy']).send()
-    LogRecord(f"handle_exceptions - Caught in task: {asyncio.current_task()}", level='warning', sources=['mudproxy']).send()
-
 def run_asynch():
 
     loop = asyncio.new_event_loop()
@@ -95,8 +84,9 @@ def run_asynch():
         loop.add_signal_handler(
             sig, lambda: create_task(shutdown(sig, loop), name='shutdown'))
 
-    #loop.set_exception_handler(handle_exceptions)
-    loop.create_task(check_for_new_tasks(), name='New Task Checker')
+    loop.create_task(QUEUEMANAGER.task_check_for_new_tasks(), name='New Task Checker')
 
     LogRecord('__main__ - run_forever', level='debug', sources=['mudproxy']).send()
     loop.run_forever()
+
+QUEUEMANAGER = QueueManager()
