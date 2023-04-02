@@ -107,9 +107,13 @@ class BaseDataRecord(BaseRecord, UserList):
                     line_list = line.split('@w')
                     new_line_list = []
                     for item in line_list:
-                        new_line_list.append(f"{color}{item}")
+                        if item:
+                            new_line_list.append(f"{color}{item}")
+                        else:
+                            new_line_list.append(item)
                     line = f"@w{color}".join(new_line_list)
-                line = f"{color}{line}@w"
+                if line:
+                    line = f"{color}{line}@w"
             new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
         if new_message != self.data:
             self.data = new_message
