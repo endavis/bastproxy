@@ -61,7 +61,6 @@ class LogRecord(BaseDataRecord):
         """
         send the message to the logger
         """
-        #print(f"Sending {self.data} to logger")
         self.format(actor)
         if self.api('libs.api:has')('plugins.core.log:add:log:count'):
             add_log_count_func = self.api('plugins.core.log:add:log:count')
