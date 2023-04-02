@@ -37,7 +37,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     a base class for plugins
     """
-    def __init__(self, name, short_name, plugin_path: Path, base_plugin_dir: Path,
+    def __init__(self, name, plugin_path: Path, base_plugin_dir: Path,
                  full_import_location, plugin_id): # pylint: disable=too-many-arguments
         """
         initialize the instance
@@ -48,7 +48,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         Arguments and examples:
           name : 'Actions' - from plugin file variable NAME (long name)
-          short_name : 'actions' - file name without extension - not guaranteed to be unique
           plugin_path : pathlib.Path : '/client/actions.py' - path relative to the plugins directory
           base_plugin_dir : pathlib.Path : '/home/src/games/bastproxy/bp/plugins' -
                             the full path to the plugins directory
@@ -56,7 +55,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           plugin_id : 'client.actions' - guaranteed to be unique
         """
         self.name = name
-        self.short_name = short_name
         self.plugin_id = plugin_id
         self.initializing_f = True
         self.author = ''
