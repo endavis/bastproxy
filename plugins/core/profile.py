@@ -229,9 +229,7 @@ class Plugin(BasePlugin):
         message.append(f"{'Original':<17} : {stack['trace']['original']}")
 
         message.append('@c-------------- Internal Stack --------------@w')
-        count = 0
-        for i in stack['trace']['changes']:
-            count = count + 1
+        for count, i in enumerate(stack['trace']['changes'], start=1):
             if 'plugin' in i and i['plugin']:
                 apicall = f"{i['plugin']}.formatmuddatatraceitem"
                 if self.api('libs.api:has')(apicall):
@@ -270,9 +268,7 @@ class Plugin(BasePlugin):
         message.append(f"{'Added to History':<17} : {stack['addedtohistory']}")
 
         message.append('@c-------------- Internal Stack --------------@w')
-        count = 0
-        for i in stack['changes']:
-            count = count + 1
+        for count, i in enumerate(stack['changes'], start=1):
             if 'plugin' in i and i['plugin']:
                 apicall = f"{i['plugin']}.formatcmdtraceitem"
                 if self.api('libs.api:has')(apicall):
