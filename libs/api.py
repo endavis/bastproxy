@@ -16,20 +16,37 @@ a class instance calls an api function and needs to access itself,
 or there are multiple instances of a class that will add the
 same function to the api.
 
+regular apis are in the class variable "api"
+overloaded apis are in the instance variable "_instance_api"
+
 See the BasePlugin class
 """
 # Standard Library
 import inspect
 import pprint
-import logging
+import typing
+from itertools import chain
+import traceback
+from pathlib import Path
+from datetime import datetime
 
 # Third Party
 
 # Project
 
-def get_args(api_function):
+def get_args(api_function: typing.Callable) -> str:
     """
-    get arguments from the function declaration
+    Get the arguments of a given function from a it's function declaration.
+
+    Parameters
+    ----------
+    api_function : Callable
+        The function to get the arguments for.
+
+    Returns
+    -------
+    str
+        A string containing the function arguments.
     """
     sig = inspect.signature(api_function)
     argn: list[str] = []
@@ -100,7 +117,7 @@ class APIStatItem:
         self.full_api_name: str = full_api_name
         self.calls_by_caller: dict = {}
         self.detailed_calls: dict = {}
-        self.count = 0  # Total number of calls to this API
+        self.count: int = 0  # Total number of calls to this API
 
     def add_call(self, caller_id: str) -> None:
         """
@@ -130,7 +147,7 @@ class StatsManager:
         """
         Initializes a StatsManager object.
         """
-        self.stats: dict = {}
+        self.stats: dict[str, APIStatItem] = {}
 
     def add_call(self, full_api_name: str, caller_id: str) -> None:
         """
@@ -145,7 +162,7 @@ class StatsManager:
             self.stats[full_api_name] = APIStatItem(full_api_name)
         self.stats[full_api_name].add_call(caller_id)
 
-    def get_stats(self) -> dict:
+    def get_all_stats(self) -> dict[str, APIStatItem]:
         """
         Returns the stats held in the StatsManager object.
 
@@ -154,7 +171,7 @@ class StatsManager:
         """
         return self.stats
 
-    def get_stats(self, full_api_name) -> dict | None:
+    def get_stats(self, full_api_name) -> APIStatItem | None:
         """
         Returns the stats for a specific API.
 
@@ -290,39 +307,39 @@ class API():
     _class_api: dict[str, APIItem] = {}
 
     # stats for the api
-    stats = {}
+    stats: dict[str, APIStatItem] = {}
 
     # the basepath that the proxy was run from, will be dynamically set in
     # bastproxy.py
-    BASEPATH = ''
-    BASEDATAPATH = ''
-    BASEDATAPLUGINPATH = ''
-    BASEDATALOGPATH = ''
-    BASEPLUGINPATH = ''
+    BASEPATH: Path = Path('')
+    BASEDATAPATH: Path = Path('')
+    BASEDATAPLUGINPATH: Path = Path('')
+    BASEDATALOGPATH: Path = Path('')
+    BASEPLUGINPATH: Path = Path('')
 
-    TIMEZONE = ''
+    TIMEZONE: str = ''
 
     # a flag to show that bastproxy is starting up
-    startup = False
+    startup: bool = False
 
     # a flag to show that bastproxy is shutting down
-    shutdown = False
+    shutdown: bool = False
 
     # a dictionary of managers that could not be made into plugins
     MANAGERS = {}
     MANAGERS['api_stats'] = STATS_MANAGER
 
     # the proxy start time, will be dynamically set in bastproxy.py
-    proxy_start_time = ''
+    proxy_start_time: datetime | None = None
 
     # the regex to use to split commands, the seperator is configured in
     # the proxy plugin
-    command_split_regex = None
+    command_split_regex: str | None = None
 
     # flag to set the character active flag for connecting.
-    # set this ater the mud has been connected to and
+    # set this after the mud has been connected to and
     # is available for active commands to be sent
-    is_character_active = False
+    is_character_active: bool = False
 
     def __init__(self, owner_id: str | None=None) -> None:
         """
@@ -332,7 +349,7 @@ class API():
         self._instance_api: dict[str, APIItem] = {}
 
         # the format for the time
-        self.time_format = '%a %b %d %Y %H:%M:%S %Z'
+        self.time_format: str = '%a %b %d %Y %H:%M:%S %Z'
 
         # this is the parent of the API, couild be a plugin or a module
         self.owner_id: str = owner_id if owner_id else 'unknown'
@@ -361,7 +378,7 @@ class API():
         if not self('libs.api:has')('libs.api:is_character_active:set'):
             self.add('libs.api', 'is_character_active:set', self._api_is_character_active_set, overload=True)
 
-    def add_events(self):
+    def add_events(self) -> None:
         """
         add events for the api
         """
@@ -373,13 +390,13 @@ class API():
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
     # get the firstactive flag
-    def _api_is_character_active_get(self):
+    def _api_is_character_active_get(self) -> bool:
         """
         returns the is_character_active flag
         """
         return self.is_character_active
 
-    def _api_is_character_active_set(self, flag):
+    def _api_is_character_active_set(self, flag:bool) -> None:
         """
         set the is_character_active flag
         """
@@ -395,7 +412,7 @@ class API():
                                             calledfrom='libs.api')
 
     # return the data for an api
-    def _api_data_get(self, api_name, base=False):
+    def _api_data_get(self, api_name: str, base: bool = False) -> APIItem | None:
         """
         return the data for an api
         """
@@ -407,7 +424,7 @@ class API():
         return None
 
     # add a function to the api
-    def add(self, top_level_api, name, tfunction, overload=False, force=False):
+    def add(self, top_level_api: str, name: str, tfunction: typing.Callable, overload: bool = False, force: bool = False) -> bool:
         """  add a function to the api
         @Ytop_level_api@w  = the toplevel that the api should be under
         @Yname@w  = the name of the api
@@ -446,7 +463,7 @@ class API():
         return False
 
     # overload a function in the api
-    def _api_overload(self, api_item, force=False):
+    def _api_overload(self, api_item: APIItem, force: bool = False) -> bool:
         """  overload a function in the api
         @Yapi_data@w  = the api data dictionary
 
@@ -483,13 +500,13 @@ class API():
         this is so plugins can figure out who gave them data and keep up with it.
 
         it will return the first plugin found when going through the stack
-           it checks for a BasePlugin instance of self
-           if it doesn't find that, it checks for an attribute of plugin
+            it checks for a BasePlugin instance of self
+            if it doesn't find that, it checks for an attribute of plugin
 
         returns the plugin_id of the plugin on the stack"""
         return get_caller_owner_id(ignore_owner_list)
 
-    def _api_get_function_plugin_owner(self, function):
+    def _api_get_function_plugin_owner(self, function: typing.Callable) -> str:
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
 
@@ -503,7 +520,7 @@ class API():
         return plugin_id
 
     # remove a toplevel api
-    def _api_remove(self, top_level_api):
+    def _api_remove(self, top_level_api: str) -> None:
         """  remove a toplevel api
         @Ytop_level_api@w  = the toplevel of the api to remove
 
@@ -520,7 +537,7 @@ class API():
             if i.startswith(api_toplevel):
                 del self._instance_api[i]
 
-    def _api_run_as_plugin(self, plugin_id, api_location):
+    def _api_run_as_plugin(self, plugin_id: str, api_location: str):
         """
         run an api as another plugin
         """
@@ -532,11 +549,11 @@ class API():
             try:
                 from libs.records import LogRecord
                 LogRecord(f"_api_run_as_plugin: {plugin_id} plugin does not exist",
-                      level='error', sources=[__name__]).send()
+                          level='error', sources=[__name__]).send()
             except ImportError:
                 print(f"_api_run_as_plugin: {plugin_id} plugin does not exist")
 
-    def get(self, api_location, do_not_overload=False):
+    def get(self, api_location: str, do_not_overload: bool = False) -> typing.Callable:
         """
         get an api function
 
@@ -551,7 +568,7 @@ class API():
                 try:
                     from libs.records import LogRecord
                     LogRecord(f"api lookup: {api_location} : did not contain a .",
-                          level='error', sources=[__name__]).send()
+                              level='error', sources=[__name__]).send()
                 except ImportError:
                     print(f"api lookup: {api_location} : did not contain a .")
 
@@ -569,11 +586,11 @@ class API():
     __call__ = get
 
     # return a list of api functions in a toplevel api
-    def _api_get_children(self, parent_api):
+    def _api_get_children(self, parent_api: str) -> list[str]:
         """
         return a list of apis in a toplevel api
         """
-        api_list = []
+        api_list: list[str] = []
         if parent_api[-1] != ':':
             parent_api = parent_api + ':'
 
@@ -590,7 +607,7 @@ class API():
         return list(set(api_list))
 
     # check to see if something exists in the api
-    def _api_has(self, api_location):
+    def _api_has(self, api_location: str) -> bool:
         """
         see if something exists in the api
         """
@@ -601,13 +618,13 @@ class API():
             return False
 
     # get the details for an api function
-    def _api_detail(self, api_location, stats_by_plugin=False):     # pylint: disable=too-many-locals,too-many-branches
+    def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches
         # parsing a function declaration and figuring out where the function
         # resides is intensive, so disabling pylint warning
         """
         return the detail of an api function
         """
-        tmsg = []
+        tmsg: list[str] = []
         api_original = None
         api_overloaded = None
 
@@ -671,11 +688,11 @@ class API():
 
         return tmsg
 
-    def get_top_level_api_list(self, top_level_api):
+    def get_top_level_api_list(self, top_level_api: str) -> list[str]:
         """
-        build a dictionary of apis in toplevel
+        build a list of apis in toplevel
         """
-        api_list = []
+        api_list: list[str] = []
 
         for i in self._class_api:
             if i.startswith(top_level_api):
@@ -688,11 +705,11 @@ class API():
         api_list = set(api_list)
         return list(api_list)
 
-    def get_full_api_list(self):
+    def get_full_api_list(self) -> list[str]:
         """
-        build a dictionary of all apis
+        build a list of all apis
         """
-        api_list = []
+        api_list: list[str] = []
         api_list.extend(self._class_api.keys())
         api_list.extend(self._instance_api.keys())
 
@@ -702,7 +719,7 @@ class API():
         return api_list
 
     # return a formatted list of functions in a toplevel api
-    def _api_list(self, top_level_api=None):
+    def _api_list(self, top_level_api: str = '') -> list[str]:
         """
         return a formatted list of functions in an api
         """
@@ -715,7 +732,7 @@ class API():
 
         api_list.sort()
 
-        top_levels = []
+        top_levels: list[str] = []
         for i in api_list:
             toplevel, therest = i.split(':', 1)
             if toplevel not in top_levels:
