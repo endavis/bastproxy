@@ -34,6 +34,29 @@ from datetime import datetime
 
 # Project
 
+def stackdump(id='', msg='HERE'):
+    raw_tb = traceback.extract_stack()
+    entries = traceback.format_list(raw_tb)
+
+    # Remove the last two entries for the call to extract_stack() and to
+    # the one before that, this function. Each entry consists of single
+    # string with consisting of two lines, the script file path then the
+    # line of source code making the call to this function.
+    del entries[-2:]
+
+    # Split the stack entries on line boundaries.
+    lines = list(chain.from_iterable(line.splitlines() for line in entries))
+    lines.insert(0, msg)
+    lines.insert(0, '\n')
+    if msg:  # Append it to last line with name of caller function.
+        lines.append('LEAVING STACK_DUMP' + (': '+id) if id else '')
+    try:
+        from libs.records import LogRecord
+        LogRecord(lines, level='warning', sources=[__name__]).send()
+    except ImportError:
+        print('\n'.join(lines))
+        print()
+
 def get_args(api_function: typing.Callable) -> str:
     """
     Get the arguments of a given function from a it's function declaration.
@@ -127,8 +150,8 @@ class APIStatItem:
             caller_id (str): ID of the caller
         """
         self.count += 1
-        if not caller_id:
-            return
+        if (not caller_id or caller_id == 'unknown'):
+            stackdump(msg=f"------------ Unknown caller_id for API call: {self.full_api_name} -----------------")
         if caller_id not in self.detailed_calls:
             self.detailed_calls[caller_id] = 0
         self.detailed_calls[caller_id] += 1
