@@ -701,8 +701,7 @@ class API():
             if i.startswith(top_level_api):
                 api_list.append(i)
 
-        api_list = set(api_list)
-        return list(api_list)
+        return list(set(api_list))
 
     def get_full_api_list(self) -> list[str]:
         """
@@ -712,8 +711,7 @@ class API():
         api_list.extend(self._class_api.keys())
         api_list.extend(self._instance_api.keys())
 
-        api_list = set(api_list)
-        api_list = list(api_list)
+        api_list = list(set(api_list))
         api_list.sort()
         return api_list
 
@@ -722,12 +720,8 @@ class API():
         """
         return a formatted list of functions in an api
         """
-        api_list = []
-        tmsg = []
-        if top_level_api:
-            api_list = self.get_top_level_api_list(top_level_api)
-        else:
-            api_list = self.get_full_api_list()
+        tmsg: list[str] = []
+        api_list = self.get_top_level_api_list(top_level_api) if top_level_api else self.get_full_api_list()
 
         api_list.sort()
 
