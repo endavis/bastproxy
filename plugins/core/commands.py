@@ -207,7 +207,7 @@ class Plugin(BasePlugin):
         # register events
         self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
-        self.api('plugins.core.events:register:to:event')('ev_{0.plugin_id}_savestate'.format(self), self._savestate)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
     def _event_plugin_uninitialized(self, args):
         """
@@ -215,8 +215,9 @@ class Plugin(BasePlugin):
 
         registered to the plugin_uninitialized event
         """
-        self.logger.info(f"removing commands for plugin {args['plugin_id']}")
-        self.api('{0.plugin_id}:remove:data:for:plugin'.format(self))(args['plugin_id'])
+        LogRecord(f"removing commands for plugin {args['plugin_id']}",
+                  level='debug', sources=[self.plugin_id, args['plugin_id']])
+        self.api(f"{self.plugin_id}:remove:data:for:plugin")(args['plugin_id'])
 
     # remove all commands for a plugin
     def _api_remove_plugin_data(self, plugin_id):
@@ -401,6 +402,8 @@ class Plugin(BasePlugin):
             message = []
             message.append(f"Error: {exc.errormsg}") # pylint: disable=no-member
             message.extend(command['parser'].format_help().split('\n'))
+            LogRecord(f"Error parsing args for command {command_ran} - {exc.errormsg}",
+                      level='error', sources=[self.plugin_id, command['plugin_id']]).send()
             ToClientRecord(self.format_return_message(message,
                                                       command['plugin_id'],
                                                       command['commandname'])).send(__name__ + ':run_command_1')
