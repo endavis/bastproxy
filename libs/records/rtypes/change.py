@@ -37,8 +37,8 @@ class ChangeRecord(object):
         self.actor = actor
         self.extra = extra
         self.data = data
-        # Extract the last 5 stack frames
-        self.stack = traceback.extract_stack(limit=5)
+        # Extract the last 7 stack frames
+        self.stack = traceback.extract_stack(limit=7)
 
     def format(self):
         """
