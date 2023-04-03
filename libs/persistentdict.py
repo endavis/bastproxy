@@ -241,7 +241,7 @@ class PersistentDictEvent(PersistentDict):
         if old_value != val:
             dict.__setitem__(self, key, val)
 
-            if plugin_instance and (plugin_instance.reset_f or plugin_instance.initializing_f and key == '_version'):
+            if plugin_instance and (plugin_instance.reset_f or plugin_instance.initializing_f or key == '_version'):
                 return
             if self.api.startup:
                 return
