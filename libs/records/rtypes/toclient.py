@@ -145,7 +145,7 @@ class ToClientRecord(BaseDataRecord):
             # This way view clients don't see the output of commands entered by other clients
             if self.api('plugins.core.clients:client:is:view:client')(client_uuid) and self.internal:
                 return False
-            # If the client is in the list of clients to send to or send to all is true,
+            # If the client is in the list of clients or self.clients is empty,
             # then we can check to make sure the client is logged in or the prelogin flag is set
             if not self.clients or client_uuid in self.clients:
                 if self.api('plugins.core.clients:client:is:logged:in')(client_uuid) or self.prelogin:

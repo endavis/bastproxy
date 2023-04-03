@@ -466,7 +466,6 @@ class PluginMgr(BasePlugin):
         It looks for the foillowing items:
           a "REQUIRED" line
           a "Plugin" class
-          an SNAME line
           a NAME line
           a PURPOSE line
           an AUTHOR line

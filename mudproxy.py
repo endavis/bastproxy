@@ -13,7 +13,6 @@
 
     It will support multiple MUD protocols, such as GMCP, MCCP2, etc.
 """
-
 # Standard Library
 import logging
 import datetime
