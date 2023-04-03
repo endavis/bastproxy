@@ -407,8 +407,8 @@ class Plugin(BasePlugin):
         current_task = asyncio.current_task()
         if current_task:
             current_task.set_name(f"timers task")
-        firstrun = True
-        keepgoing = True
+        firstrun: bool = True
+        keepgoing: bool = True
         while keepgoing:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now != self.time_last_checked:
