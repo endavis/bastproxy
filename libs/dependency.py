@@ -41,8 +41,8 @@ class PluginDependencyResolver(object):
         """
         resolve dependencies
         """
-        for plugin_id in self.plugin_list:
-            self.resolve_helper(plugin_id)
+        for plugin in self.plugin_list:
+            self.resolve_helper(plugin)
 
         return self.resolved, self.unresolved
 
