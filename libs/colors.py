@@ -16,9 +16,9 @@ holds base color codes for ansi and xterm
 
 # for finding ANSI color sequences
 
-CONVERTANSI = {}
+CONVERTANSI: dict[str, str] = {}
 
-CONVERTCOLORS = {
+CONVERTCOLORS: dict[str, str] = {
     'k' : '0;30',
     'r' : '0;31',
     'g' : '0;32',
@@ -38,7 +38,7 @@ CONVERTCOLORS = {
     'x' : '0',
 }
 
-COLORTABLE = {}
+COLORTABLE: dict[str | int, tuple[int, int, int]] = {}
 def build_color_table():
     """
     colors 0..15: 16 basic colors

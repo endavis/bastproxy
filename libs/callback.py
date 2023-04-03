@@ -51,7 +51,7 @@ class Callback: # pylint: disable=too-few-public-methods
         """
         return f"Event {self.name:<10} : {self.owner_id:<15}"
 
-    def __eq__(self, other_function) -> bool:
+    def __eq__(self, other_function: typing.Callable) -> bool:
         """
         check equality between two functions
         """

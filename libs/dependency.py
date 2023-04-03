@@ -10,6 +10,7 @@ libraries to resolve plugin dependencies
 """
 # Standard Library
 import sys
+import typing
 
 # 3rd Party
 
@@ -20,16 +21,15 @@ class PluginDependencyResolver(object):
     """
     a class to resolve dependencies in order to load plugins
     """
-    def __init__(self, plugin_manager, plugin_list, resolved=None, broken_modules=None):
+    def __init__(self, plugin_list: list[dict[str, typing.Any]], resolved=None, broken_modules=None):
         """
         init the class
         """
-        self.plugin_manager = plugin_manager
         self.plugin_list = plugin_list
-        self.unresolved = []
-        self.resolved = []
-        self.broken_modules = []
-        self.plugin_lookup = {}
+        self.unresolved: list[str] = []
+        self.resolved: list[str] = []
+        self.broken_modules: list[str] = []
+        self.plugin_lookup: dict[str, typing.Any] = {}
         for plugin in plugin_list:
             self.plugin_lookup[plugin['plugin_id']] = plugin
         if resolved:
@@ -54,7 +54,7 @@ class PluginDependencyResolver(object):
             return
         self.unresolved.append(plugin['plugin_id'])
         for edge in plugin['plugininstance'].dependencies:
-            edge_plugin = None
+            edge_plugin: dict[str, typing.Any] | None = None
             try:
                 edge_plugin = self.plugin_lookup[edge]
             except KeyError:

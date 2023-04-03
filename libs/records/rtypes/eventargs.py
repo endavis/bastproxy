@@ -32,7 +32,7 @@ class EventArgsRecord(BaseRecord, UserDict):
         BaseRecord.__init__(self, owner_id)
         self.event_name = event_name
 
-    def addchange(self, flag, action, actor, extra=None, saveargs=True):
+    def addchange(self, flag: str, action: str, actor: str, extra: str='', saveargs: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'

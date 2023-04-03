@@ -21,8 +21,8 @@ class RecordManager(object):
         """
         Keep the last 1000 records of each type
         """
-        self.max_records = 1000
-        self.records = {}
+        self.max_records: int = 1000
+        self.records: dict[str, deque] = {}
         self.api = BASEAPI(owner_id=__name__)
         self.api.MANAGERS['records'] = self
 

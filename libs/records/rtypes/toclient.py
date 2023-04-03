@@ -36,7 +36,7 @@ class ToClientRecord(BaseDataRecord):
 
     when it goes on the client queue, it will be converted to a NetworkData object
     """
-    def __init__(self, message, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
+    def __init__(self, message: list[str] | str, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
                  internal: bool=True, prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
         initialize the class
@@ -52,9 +52,9 @@ class ToClientRecord(BaseDataRecord):
         self.send_to_clients: bool = True
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
-        self.clients: list = clients if clients else []
+        self.clients: list[str] = clients if clients else []
         # clients to exclude, a list of client uuids
-        self.exclude_clients: list = exclude_clients if exclude_clients else []
+        self.exclude_clients: list[str] = exclude_clients if exclude_clients else []
         # This will set the color for all lines to the specified @ color
         self.color_for_all_lines: str = color_for_all_lines if color_for_all_lines else ''
         self.message_type: str = message_type
@@ -92,7 +92,7 @@ class ToClientRecord(BaseDataRecord):
         """
         return the message without ansi codes
         """
-        newmessage = []
+        newmessage: list[str] = []
         for item in self.data:
             newmessage.append(self.api('plugins.core.colors:strip:ansi')(item))
         return newmessage
@@ -102,12 +102,12 @@ class ToClientRecord(BaseDataRecord):
         """
         return the message with ansi codes converted to @ color codes
         """
-        newmessage = []
+        newmessage: list[str] = []
         for item in self.data:
             newmessage.append(self.api('plugins.core.colors:ansicode:to:colorcode')(item))
         return newmessage
 
-    def set_send_to_clients(self, flag, actor=None, extra=None):
+    def set_send_to_clients(self, flag, actor='', extra=''):
         """
         set the send to clients flag
         """
@@ -115,7 +115,7 @@ class ToClientRecord(BaseDataRecord):
             self.send_to_clients = flag
             self.addchange('Set Flag', 'send_to_clients', actor=actor, extra=f"set to {flag}, {extra}", savedata=False)
 
-    def add_client(self, client_uuid):
+    def add_client(self, client_uuid: str):
         """
         add a client to the list of clients to send to
         """
@@ -153,7 +153,7 @@ class ToClientRecord(BaseDataRecord):
                     return True
         return False
 
-    def add_preamble(self, actor=None):
+    def add_preamble(self, actor=''):
         """
         add the preamble to the message only if it is from internal and is an IO message
         """
@@ -167,19 +167,19 @@ class ToClientRecord(BaseDataRecord):
                 self.data = new_message
                 self.addchange('Modify', 'preamble', actor, 'add a preamble to all items')
 
-    def clean(self, actor=None):
+    def clean(self, actor=''):
         """
         clean the message
         """
         super().clean(actor)
 
-    def color_lines(self, actor=None):
+    def color_lines(self, actor=''):
         """
         add the color to the beginning of all lines in the message
         """
         super().color_lines(self.color_for_all_lines, actor)
 
-    def add_line_endings(self, actor=None):
+    def add_line_endings(self, actor=''):
         """
         add line endings to the message
         """
@@ -190,7 +190,7 @@ class ToClientRecord(BaseDataRecord):
             self.data = new_message
             self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
 
-    def format(self, actor=None):
+    def format(self, actor=''):
         """
         format the message only if it is an internal message and is an IO message
         """
@@ -200,7 +200,7 @@ class ToClientRecord(BaseDataRecord):
             self.color_lines(actor=actor)
             self.add_line_endings(actor=actor)
 
-    def send(self, actor=None):
+    def send(self, actor=''):
         """
         send the message
         """

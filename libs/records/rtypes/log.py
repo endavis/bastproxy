@@ -10,6 +10,7 @@ Holds the log record type
 """
 # Standard Library
 import logging
+import typing
 
 # 3rd Party
 
@@ -28,14 +29,14 @@ class LogRecord(BaseDataRecord):
         # The type of message
         self.level: str = level
         # The sources of the message for logging purposes, a list
-        self.sources: list = sources if sources else []
+        self.sources: list[str] = sources if sources else []
         self.kwargs = kwargs
         self.wasemitted: dict[str,bool] = {}
         self.wasemitted['console'] = False
         self.wasemitted['file'] = False
         self.wasemitted['client'] = False
 
-    def color_lines(self, actor=None):
+    def color_lines(self, actor: str=''):
         """
         color the message
 
@@ -43,29 +44,28 @@ class LogRecord(BaseDataRecord):
         """
         if not self.api('libs.api:has')('plugins.core.log:get:level:color'):
             return
-        color = self.api('plugins.core.log:get:level:color')(self.level)
+        color: str = self.api('plugins.core.log:get:level:color')(self.level)
         super().color_lines(color, actor)
 
-    def add_source(self, source):
+    def add_source(self, source: str):
         """
         add a source to the message
         """
         if source not in self.sources:
             self.sources.append(source)
 
-    def format(self, actor=None):
+    def format(self, actor: str=''):
         self.clean(actor)
         self.color_lines(actor)
 
-    def send(self, actor=None):
+    def send(self, actor: str=''):
         """
         send the message to the logger
         """
         self.format(actor)
+        add_log_count_func: typing.Callable | None = None
         if self.api('libs.api:has')('plugins.core.log:add:log:count'):
             add_log_count_func = self.api('plugins.core.log:add:log:count')
-        else:
-            add_log_count_func = None
         for i in self.sources:
             if i:
                 if add_log_count_func:

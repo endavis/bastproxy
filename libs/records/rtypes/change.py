@@ -29,7 +29,7 @@ class ChangeRecord(object):
 
     will automatically add the time and last 5 stack frames
     """
-    def __init__(self, flag, action, actor=None, extra=None, data=None):
+    def __init__(self, flag: str, action: str, actor: str = '', extra: str = '', data=None):
         self.uuid = uuid4().hex
         self.time_taken = datetime.datetime.now(datetime.timezone.utc)
         self.flag = flag

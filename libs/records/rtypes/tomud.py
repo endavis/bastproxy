@@ -22,7 +22,7 @@ class ToMudRecord(BaseDataRecord):
     this record will go through execute first
     it may not end up going to the mud depending on if it is a command
     """
-    def __init__(self, message, internal=True):
+    def __init__(self, message: list[str] | str, internal: bool = True):
         """
         initialize the class
         """

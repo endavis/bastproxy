@@ -36,7 +36,7 @@ class BaseRecord:
         RMANAGER.add(self)
         #self.addchange('Create', 'init', None)
 
-    def addchange(self, flag, action, actor, extra=None):
+    def addchange(self, flag: str, action: str, actor:str , extra: str = ''):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -59,7 +59,7 @@ class BaseRecord:
 
         self.changes.add(change)
 
-    def check_for_change(self, flag, action):
+    def check_for_change(self, flag: str, action: str):
         """
         check if there is a change with the given flag and action
         """
@@ -90,7 +90,7 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = data
             self.addchange('Modify', 'replace', actor, extra=extra)
 
-    def color_lines(self, color, actor=None):
+    def color_lines(self, color: str, actor=None):
         """
         color the message and convert all colors to ansicodes
 
@@ -98,7 +98,7 @@ class BaseDataRecord(BaseRecord, UserList):
 
         actor is the item that ran the color function
         """
-        new_message = []
+        new_message: list[str] = []
         if not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
             return
         for line in self.data:
@@ -119,7 +119,7 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = new_message
             self.addchange('Modify', 'color_lines', actor, 'convert color codes to ansi codes on each item')
 
-    def clean(self, actor=None):
+    def clean(self, actor: str = ''):
         """
         clean the message
 
@@ -129,7 +129,7 @@ class BaseDataRecord(BaseRecord, UserList):
         splits it on a newline
         removes newlines and carriage returns from the end of the line
         """
-        new_message = []
+        new_message: list[str] = []
         for line in self.data:
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
@@ -148,7 +148,7 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = new_message
             self.addchange('Modify', 'clean', actor)
 
-    def addchange(self, flag, action, actor, extra=None, savedata=True):
+    def addchange(self, flag: str, action: str, actor: str, extra: str = '', savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'

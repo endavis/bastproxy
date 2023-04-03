@@ -34,9 +34,9 @@ from datetime import datetime
 
 # Project
 
-def stackdump(id='', msg='HERE'):
+def stackdump(id='', msg='HERE') -> None:
     raw_tb = traceback.extract_stack()
-    entries = traceback.format_list(raw_tb)
+    entries: list[str] = traceback.format_list(raw_tb)
 
     # Remove the last two entries for the call to extract_stack() and to
     # the one before that, this function. Each entry consists of single
@@ -78,7 +78,7 @@ def get_args(api_function: typing.Callable) -> str:
             continue
         argn.append(f"@Y{str(i)}@w")
 
-    args = ', '.join(argn)
+    args: str = ', '.join(argn)
 
     return args
 
@@ -138,8 +138,8 @@ class APIStatItem:
                 module, and name of the function.
         """
         self.full_api_name: str = full_api_name
-        self.calls_by_caller: dict = {}
-        self.detailed_calls: dict = {}
+        self.calls_by_caller: dict[str, int] = {}
+        self.detailed_calls: dict[str, int] = {}
         self.count: int = 0  # Total number of calls to this API
 
     def add_call(self, caller_id: str) -> None:
@@ -349,7 +349,7 @@ class API():
     shutdown: bool = False
 
     # a dictionary of managers that could not be made into plugins
-    MANAGERS = {}
+    MANAGERS: dict[str, typing.Any] = {}
     MANAGERS['api_stats'] = STATS_MANAGER
 
     # the proxy start time, will be dynamically set in bastproxy.py
@@ -459,7 +459,7 @@ class API():
         if the api already exists, it is added to the overloaded
 
         this function returns no values"""
-        full_api_name = top_level_api + ':' + name
+        full_api_name: str = top_level_api + ':' + name
 
         api_item = APIItem(full_api_name, tfunction, self.owner_id)
 
@@ -514,7 +514,7 @@ class API():
         return True
 
     # find the caller of this api
-    def _api_caller_owner(self, ignore_owner_list: list[str] | None=None):
+    def _api_caller_owner(self, ignore_owner_list: list[str] | None=None) -> str:
         """  get the plugin on the top of the frame stack
         @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
 
@@ -761,8 +761,7 @@ class API():
 
             if api_data:
                 comments = inspect.getcomments(api_data.tfunction)
-                if comments:
-                    comments = comments.strip()
+                comments = comments.strip() if comments else ''
                 added_by = ''
                 if api_data.owner_id:
                     added_by = f"- added in {api_data.owner_id} "
