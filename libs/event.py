@@ -155,7 +155,7 @@ class Event:
 
         return message
 
-    def raise_event(self, data, calledfrom) -> EventArgsRecord | None:
+    def raise_event(self, data: dict | EventArgsRecord, calledfrom: str) -> EventArgsRecord | None:
         """
         raise this event
         """
