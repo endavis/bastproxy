@@ -80,7 +80,7 @@ class BaseDataRecord(BaseRecord, UserList):
         BaseRecord.__init__(self, owner_id)
         self.internal = internal
 
-    def replace(self, data, actor=None, extra=None):
+    def replace(self, data, actor='', extra=''):
         """
         replace the data in the message
         """
@@ -90,7 +90,7 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = data
             self.addchange('Modify', 'replace', actor, extra=extra)
 
-    def color_lines(self, color: str, actor=None):
+    def color_lines(self, color: str, actor=''):
         """
         color the message and convert all colors to ansicodes
 
