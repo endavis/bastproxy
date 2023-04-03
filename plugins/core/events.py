@@ -43,12 +43,12 @@ class Plugin(BasePlugin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.can_reload_f = False
+        self.can_reload_f: bool = False
 
-        self.global_raised_count = 0
+        self.global_raised_count: int = 0
         #self.event_stats = {}
 
-        self.events = {}
+        self.events: dict[str, Event] = {}
 
         # new api that's easier to read
         self.api('libs.api:add')('register:to:event', self._api_register_to_event)
@@ -63,7 +63,7 @@ class Plugin(BasePlugin):
         self.api('setting:add')('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
 
-        self.dependencies = ['core.errors', 'core.managers']
+        self.dependencies: list[str] = ['core.errors', 'core.managers']
 
     def initialize(self):
         """
@@ -124,14 +124,14 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:remove:events:for:plugin")(args['plugin_id'])
 
     # add an event for this plugin to track
-    def _api_add_event(self, event_name, created_by, description=None, arg_descriptions=None):
+    def _api_add_event(self, event_name: str, created_by: str, description: str = '', arg_descriptions: dict[str, str] | None = None):
         """
         add an event for this plugin to track
         """
         event = self._api_get_event(event_name)
         event.created_by = created_by
         event.description = description
-        event.arg_descriptions = arg_descriptions
+        event.arg_descriptions = arg_descriptions or {}
 
     # return the event, will have registered functions
     def _api_get_event(self, event_name):

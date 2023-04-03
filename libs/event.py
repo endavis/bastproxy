@@ -13,6 +13,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
     or when the event is raised and a calledfrom argument is passed and created_by is not already been set
 """
 # Standard Library
+import typing
 
 # 3rd Party
 
@@ -25,28 +26,25 @@ class Event:
     """
     a base class for an event and it's arguments
     """
-    def __init__(self, name, created_by=None, description=None, arg_descriptions=None):
-        self.name = name
-        self.owner_id = f"{__name__}:{self.name}"
+    def __init__(self, name: str, created_by: str ='', description: str = '', arg_descriptions: dict[str, str] | None = None):
+        self.name: str = name
+        self.owner_id: str = f"{__name__}:{self.name}"
         self.api = API(owner_id=self.owner_id)
         # this is the plugin or module that created the event
         # it should be the __name__ of the module or plugin
-        self.created_by = created_by
+        self.created_by: str = created_by
         self.priority_dictionary = {}
         self.raised_count = 0
-        self.description = description
-        if not arg_descriptions:
-            self.arg_descriptions = {}
-        else:
-            self.arg_descriptions = arg_descriptions
+        self.description: str = description
+        self.arg_descriptions = arg_descriptions or {}
 
-    def count(self):
+    def count(self) -> int:
         """
         return the number of functions registered to this event
         """
         return sum([len(v) for v in self.priority_dictionary.values()])
 
-    def isregistered(self, func):
+    def isregistered(self, func) -> bool:
         """
         check if a function is registered to this event
         """
@@ -56,7 +54,7 @@ class Event:
 
         return False
 
-    def isempty(self):
+    def isempty(self) -> bool:
         """
         check if an event has no functions registered
         """
@@ -66,7 +64,7 @@ class Event:
 
         return True
 
-    def register(self, func, func_owner_id, prio=50):
+    def register(self, func: typing.Callable, func_owner_id: str, prio: int = 50) -> bool:
         """
         register a function to this event container
         """
@@ -88,7 +86,7 @@ class Event:
 
         return False
 
-    def unregister(self, func):
+    def unregister(self, func) -> bool:
         """
         unregister a function from this event container
         """
@@ -104,24 +102,24 @@ class Event:
                   level='error', sources=[self.created_by]).send()
         return False
 
-    def removeplugin(self, plugin_id):
+    def removeowner(self, owner_id):
         """
-        remove all functions related to a plugin
+        remove all functions related to a owner
         """
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
             for event_function in self.priority_dictionary[priority]:
-                if event_function.owner_id == plugin_id:
+                if event_function.owner_id == owner_id:
                     plugins_to_unregister.append(event_function)
 
         for event_function in plugins_to_unregister:
             self.api('plugins.core.events:unregister:from:event')(self.name, event_function.func)
 
-    def detail(self):
+    def detail(self) -> list[str]:
         """
         format a detail of the event
         """
-        message = []
+        message: list[str] = []
         message.append(f"{'Event':<13} : {self.name}")
         message.append(f"{'Description':<13} : {self.description}")
         message.append(f"{'Created by':<13} : {self.created_by}")
@@ -130,7 +128,7 @@ class Event:
         message.append(self.api('plugins.core.utils:center:colored:string')('@x86Registrations@w', '-', 60, filler_color='@B'))
         message.append(f"{'priority':<13} : {'plugin':<25} - {'function name'}")
         message.append('-' * 60)
-        function_message = []
+        function_message: list[str] = []
         key_list = self.priority_dictionary.keys()
         key_list = sorted(key_list)
         for priority in key_list:
@@ -157,7 +155,7 @@ class Event:
 
         return message
 
-    def raise_event(self, data, calledfrom):
+    def raise_event(self, data, calledfrom) -> EventArgsRecord | None:
         """
         raise this event
         """
@@ -176,7 +174,7 @@ class Event:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} did not pass a dict or EventArgsRecord object",
                         level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
             LogRecord(f"The event will not be processed", level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
-            return
+            return None
 
         # convert a dict to an EventArgsRecord object
         if not isinstance(data, EventArgsRecord):
@@ -184,7 +182,7 @@ class Event:
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
-        log = True if log_savestate else True if not self.name.endswith('_savestate') else False
+        log: bool = True if log_savestate else True if not self.name.endswith('_savestate') else False
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by]).send()
