@@ -126,7 +126,7 @@ class Event:
         message.append(f"{'Raised':<13} : {self.raised_count}")
         message.append('')
         message.append(self.api('plugins.core.utils:center:colored:string')('@x86Registrations@w', '-', 60, filler_color='@B'))
-        message.append(f"{'priority':<13} : {'plugin':<25} - {'function name'}")
+        message.append(f"{'priority':<13} : {'owner':<25} - {'function name'}")
         message.append('-' * 60)
         function_message: list[str] = []
         key_list = self.priority_dictionary.keys()
@@ -143,7 +143,7 @@ class Event:
 
         message.append('')
 
-        message.append(self.api('plugins.core.utils:center:colored:string')('@x86Arguments@w', '-', 60, filler_color='@B'))
+        message.append(self.api('plugins.core.utils:center:colored:string')('@x86Data Keys@w', '-', 60, filler_color='@B'))
         if self.arg_descriptions and 'None' not in self.arg_descriptions:
             for arg in self.arg_descriptions:
                 message.append(f"@C{arg:<13}@w : {self.arg_descriptions[arg]}")
