@@ -98,6 +98,11 @@ class Plugin(BasePlugin):
                             help="show events that have no description or args",
                             action='store_true',
                             default=False)
+        parser.add_argument('-ra',
+                            '--show-raised-only',
+                            help="show events that have no description or args",
+                            action='store_true',
+                            default=False)
         self.api('plugins.core.commands:command:add')('list',
                                               self._command_list,
                                               parser=parser)
@@ -291,6 +296,7 @@ class Plugin(BasePlugin):
         match = args['match']
         show_registered_only = args['show_registered_only']
         show_no_description_or_args = args['show_no_description_or_args']
+        show_raised_only = args['show_raised_only']
         eventnames = self.events.keys()
         eventnames = sorted(eventnames)
         eventlist = []
@@ -302,6 +308,10 @@ class Plugin(BasePlugin):
         elif show_no_description_or_args:
             for name in eventnames:
                 if not self.events[name].description or not self.events[name].arg_descriptions:
+                    eventlist.append(name)
+        elif show_raised_only:
+            for name in eventnames:
+                if self.events[name].raised_count > 0:
                     eventlist.append(name)
         else:
             eventlist = eventnames
