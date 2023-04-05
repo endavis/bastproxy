@@ -564,7 +564,7 @@ class API():
         """
         run an api as another plugin
         """
-        plugin_instance = self('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         if plugin_instance:
             return plugin_instance.api(api_location)

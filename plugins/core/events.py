@@ -117,7 +117,7 @@ class Plugin(BasePlugin):
                                               self._command_raise,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                   self.plugin_uninitialized, priority=10)
 
     def plugin_uninitialized(self, args):

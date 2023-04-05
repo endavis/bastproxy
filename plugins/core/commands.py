@@ -206,7 +206,7 @@ class Plugin(BasePlugin):
 
         # register events
         self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized', self._event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self._event_plugin_uninitialized)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
     def _event_plugin_uninitialized(self, args):
@@ -226,7 +226,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         # get the plugin instance
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         if plugin_instance:
             # remove commands from command_list that start with plugin_instance.plugin_id
@@ -273,7 +273,7 @@ class Plugin(BasePlugin):
 
         returns True if successful, False if not"""
         # get the command data for the plugin
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
         command_data = self.get_command(plugin_instance.plugin_id, command_name)
 
         # didn't find the command
@@ -306,7 +306,7 @@ class Plugin(BasePlugin):
 
         returns the help message as a string"""
         # get the command data for the plugin
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
         command_data = self.get_command(plugin_instance.plugin_id, command_name)
 
         if command_data:
@@ -321,7 +321,7 @@ class Plugin(BasePlugin):
 
         returns a list of strings formatted for the commands in the plugin
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         if plugin_instance:
             return self.list_commands(plugin_instance.plugin_id)
@@ -335,7 +335,7 @@ class Plugin(BasePlugin):
 
         returns a dictionary of commands
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         if plugin_instance:
             data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
@@ -535,7 +535,7 @@ class Plugin(BasePlugin):
           None if not found, the command data dict if found
         """
         # find the instance
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         # retrieve the commands data
         data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
@@ -562,7 +562,7 @@ class Plugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
         all_command_data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
 
@@ -702,8 +702,8 @@ class Plugin(BasePlugin):
             command_data_dict['flag'] = 'Bad Command'
             command_data_dict['cmddata'] = f"Command name too long: {command}"
         else:
-            short_names = self.api('plugins.core.plugins:get:all:short:names')()
-            loaded_plugin_ids = self.api('plugins.core.plugins:get:loaded:plugins:list')()
+            short_names = self.api('plugins.core.pluginm:get:all:short:names')()
+            loaded_plugin_ids = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
 
             plugin_package = None
             plugin_name = None
@@ -744,7 +744,7 @@ class Plugin(BasePlugin):
 
             # find package
             if plugin_package and not found_package:
-                packages = self.api('plugins.core.plugins:get:packages:list')()
+                packages = self.api('plugins.core.pluginm:get:packages:list')()
                 found_package = self.api('plugins.core.fuzzy:get:best:match')(plugin_package, packages)
 
             # find plugin_id
@@ -757,7 +757,7 @@ class Plugin(BasePlugin):
                     found_plugin_id = found_package + '.' + found_short_name
 
             if not found_plugin_id and plugin_name:
-                found_plugin_id = self.api('plugins.core.plugins:short:name:convert:plugin:id')(plugin_name)
+                found_plugin_id = self.api('plugins.core.pluginm:short:name:convert:plugin:id')(plugin_name)
                 if found_plugin_id:
                     found_package = found_plugin_id.split('.')[0]
 
@@ -885,7 +885,7 @@ class Plugin(BasePlugin):
         else:
             plugin_id = self.api('libs.api:get:function:owner:plugin')(func)
 
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
         if not plugin_instance:
             plugin_id = called_from
             plugin_instance = self.api('libs.api:get:plugin:instance')(called_from)
@@ -947,7 +947,7 @@ class Plugin(BasePlugin):
         @Ycommand_name@w  = the name of the command
 
         this function returns no values"""
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
         removed = False
         if plugin_instance:
             data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
@@ -990,7 +990,7 @@ class Plugin(BasePlugin):
 
         returns the a list of stings for the list of commands
         """
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin)
 
         message = []
         if plugin_instance:
@@ -1025,7 +1025,7 @@ class Plugin(BasePlugin):
             @Yplugin@w    = The plugin to list commands for (optional)
         """
         message = []
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(args['plugin'])
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(args['plugin'])
         command = args['command']
         if plugin_instance:
             plugin_commands = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
@@ -1039,7 +1039,7 @@ class Plugin(BasePlugin):
                 message.append('There are no commands in plugin %s' % plugin_instance.plugin_id)
         else:
             message.append('Plugins')
-            plugin_id_list = self.api('plugins.core.plugins:get:loaded:plugins:list')()
+            plugin_id_list = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
             plugin_id_list = sorted(plugin_id_list)
             message.append(self.api('plugins.core.utils:format:list:into:columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
         return True, message

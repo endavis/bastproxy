@@ -103,7 +103,7 @@ class PluginMgr(BasePlugin):
                       Path('_rmanager.py'), #plugin_path
                       API.BASEPLUGINPATH, # base_plugin_dir
                       'plugins.__init__', # full_import_location
-                      'plugins.core.plugins' # plugin_id
+                      'plugins.core.pluginm' # plugin_id
             )
 
         self.author = 'Bast'
@@ -208,7 +208,7 @@ class PluginMgr(BasePlugin):
         returns:
           if found, returns a plugin object, else returns None
         """
-        return self.api('plugins.core.plugins:get:plugin:instance')(plugin)
+        return self.api(f"{self.plugin_id}:get:plugin:instance")(plugin)
 
     # get a plugin instance
     def _api_get_plugin_module(self, pluginname):
@@ -217,7 +217,7 @@ class PluginMgr(BasePlugin):
 
         returns:
           the module for a plugin"""
-        plugin = self.api('plugins.core.plugins:get:plugin:instance')(pluginname)
+        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
 
         if plugin:
             return self.loaded_plugins_info[plugin.plugin_id].module
@@ -1146,7 +1146,7 @@ class PluginMgr(BasePlugin):
                     plugin_found_f = True
 
         if plugin_found_f:
-            if self.api('plugins.core.plugins:is:plugin:loaded')(plugin):
+            if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
             else:
                 success = self.load_single_plugin(plugin, exit_on_error=False)
@@ -1208,7 +1208,7 @@ class PluginMgr(BasePlugin):
                 tmsg.append(f"Plugin {plugin} could not be unloaded")
                 return True, tmsg
 
-            if self.api('plugins.core.plugins:is:plugin:loaded')(plugin):
+            if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
             else:
                 success = self.load_single_plugin(plugin, exit_on_error=False)
@@ -1244,7 +1244,7 @@ class PluginMgr(BasePlugin):
         loaded_plugin_info.isinitialized = True
         loaded_plugin_info.plugininstance = self
         loaded_plugin_info.importedtime = self.loaded_time
-        loaded_plugin_info.short_name = 'plugins'
+        loaded_plugin_info.short_name = 'pluginm'
         self.loaded_plugins_info[self.plugin_id] = loaded_plugin_info
 
 

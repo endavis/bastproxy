@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
                                               self.cmd_list,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.event_plugin_uninitialized)
 
         self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',

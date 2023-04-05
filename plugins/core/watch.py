@@ -75,7 +75,7 @@ class Plugin(BasePlugin):
                                               self.cmd_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.event_plugin_uninitialized)
 
     def event_plugin_uninitialized(self, args):

@@ -61,7 +61,7 @@ class SSC(object):
         else:
             self.desc = 'setting'
 
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.plugin_id)
         plugin_instance.api('libs.api:add')(f"ssc:{self.name}", self.getss)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -82,7 +82,7 @@ class SSC(object):
         read the secret from a file
         """
         first_line = ''
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.plugin_id)
         file_name = os.path.join(plugin_instance.save_directory, self.name)
         try:
             with open(file_name, 'r') as fileo:
@@ -101,7 +101,7 @@ class SSC(object):
         set the secret
         """
         if args['value']:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(self.plugin_id)
+            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.plugin_id)
             file_name = os.path.join(plugin_instance.save_directory, self.name)
             data_file = open(file_name, 'w')
             data_file.write(args['value'])

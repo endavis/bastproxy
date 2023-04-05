@@ -178,7 +178,7 @@ class Plugin(BasePlugin):
                                               self.command_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.plugins_plugin_uninitialized',
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.event_plugin_uninitialized)
 
         # setup the task to check for timers to fire
@@ -312,10 +312,10 @@ class Plugin(BasePlugin):
         plugin_id: str = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
 
         if 'plugin_id' in kwargs:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(kwargs['plugin'])
+            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(kwargs['plugin'])
             plugin_id = plugin_instance.plugin_id
 
-        if not plugin_id or not self.api('plugins.core.plugins:is:plugin:id')(plugin_id):
+        if not plugin_id or not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
                       'error', sources=[self.plugin_id]).send()
             return
@@ -347,7 +347,7 @@ class Plugin(BasePlugin):
         @Yname@w   = the name of the plugin
 
         this function returns no values"""
-        plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(name)
+        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(name)
         timers_to_remove: list[str] = []
         LogRecord(f"removing timers for {name}",
                   level='debug', sources=[self.plugin_id, name]).send()

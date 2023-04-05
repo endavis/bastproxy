@@ -315,7 +315,7 @@ class Plugin(BasePlugin):
         """
         a function to restart the proxy after a timer
         """
-        self.api('plugins.core.plugins:save:state')()
+        self.api('plugins.core.pluginm:save:state')()
 
         self.api(f"{self.plugin_id}:proxy:shutdown")()
 

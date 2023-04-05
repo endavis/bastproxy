@@ -141,7 +141,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 pass
 
         else:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin)
+            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin)
             if plugin_instance:
                 return plugin_instance.api('setting:get')(setting)
 
@@ -160,7 +160,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 return self.data[datatype]
 
         else:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
             if plugin_instance:
                 return plugin_instance.api('data:get')(datatype)
 
@@ -179,7 +179,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             return True
 
         else:
-            plugin_instance = self.api('plugins.core.plugins:get:plugin:instance')(plugin_id)
+            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
             if plugin_instance:
                 return plugin_instance.api('data:update')(datatype, newdata)
 
@@ -203,7 +203,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if value == 'default':
             value = self.settings[setting]['default']
         if setting in self.settings:
-            if self.api('plugins.core.plugins:is:plugin:loaded')('utils'):
+            if self.api('plugins.core.pluginm:is:plugin:loaded')('utils'):
                 value = self.api('plugins.core.utils:verify:value')(
                     value,
                     self.settings[setting]['stype'])
@@ -722,8 +722,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.setting_values['_version'] != self.version:
             self._update_version(self.setting_values['_version'], self.version)
 
-        if self.plugin_id != 'plugins.core.plugins': # don't initialize the plugins plugin
-            #self.api('plugins.core.msg:add:datatype')(self.plugin_id)
+        if self.plugin_id != 'plugins.core.pluginm': # don't initialize the plugins plugin
 
             self._add_commands()
 
