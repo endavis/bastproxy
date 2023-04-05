@@ -93,6 +93,11 @@ class Plugin(BasePlugin):
                             help="show only events that have registered functions",
                             action='store_true',
                             default=False)
+        parser.add_argument('-snr',
+                            '--show-not-registered-only',
+                            help="show only events that have not registered functions",
+                            action='store_true',
+                            default=False)
         parser.add_argument('-snda',
                             '--show-no-description-or-args',
                             help="show events that have no description or args",
@@ -297,6 +302,7 @@ class Plugin(BasePlugin):
         show_registered_only = args['show_registered_only']
         show_no_description_or_args = args['show_no_description_or_args']
         show_raised_only = args['show_raised_only']
+        show_not_registered_only = args['show_not_registered_only']
         eventnames = self.events.keys()
         eventnames = sorted(eventnames)
         eventlist = []
@@ -305,6 +311,8 @@ class Plugin(BasePlugin):
             for name in eventnames:
                 if self.events[name].count() > 0:
                     eventlist.append(name)
+        elif show_not_registered_only:
+            eventlist = [name for name in eventnames if self.events[name].count() == 0]
         elif show_no_description_or_args:
             for name in eventnames:
                 if not self.events[name].description or not self.events[name].arg_descriptions:
