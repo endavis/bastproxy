@@ -308,19 +308,13 @@ class Plugin(BasePlugin):
         eventlist = []
 
         if show_registered_only:
-            for name in eventnames:
-                if self.events[name].count() > 0:
-                    eventlist.append(name)
+            eventlist = [name for name in eventnames if self.events[name].count() > 0]
         elif show_not_registered_only:
             eventlist = [name for name in eventnames if self.events[name].count() == 0]
         elif show_no_description_or_args:
-            for name in eventnames:
-                if not self.events[name].description or not self.events[name].arg_descriptions:
-                    eventlist.append(name)
+            eventlist = [name for name in eventnames if not self.events[name].description or not self.events[name].arg_descriptions]
         elif show_raised_only:
-            for name in eventnames:
-                if self.events[name].raised_count > 0:
-                    eventlist.append(name)
+            eventlist = [name for name in eventnames if self.events[name].raised_count > 0]
         else:
             eventlist = eventnames
 
