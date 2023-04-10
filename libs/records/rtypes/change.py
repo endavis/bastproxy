@@ -29,13 +29,15 @@ class ChangeRecord(object):
 
     will automatically add the time and last 5 stack frames
     """
-    def __init__(self, flag: str, action: str, actor: str = '', extra: str = '', data=None):
+    def __init__(self, flag: str, action: str, actor: str = '', extra: dict | None = None, data=None):
         self.uuid = uuid4().hex
         self.time_taken = datetime.datetime.now(datetime.timezone.utc)
         self.flag = flag
         self.action = action
         self.actor = actor
-        self.extra = extra
+        self.extra = {}
+        if extra:
+            self.extra.update(extra)
         self.data = data
         # Extract the last 7 stack frames
         self.stack = traceback.extract_stack(limit=7)

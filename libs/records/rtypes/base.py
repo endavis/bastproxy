@@ -36,7 +36,7 @@ class BaseRecord:
         RMANAGER.add(self)
         #self.addchange('Create', 'init', None)
 
-    def addchange(self, flag: str, action: str, actor:str , extra: str = ''):
+    def addchange(self, flag: str, action: str, actor:str , extra: dict | None = None):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -147,7 +147,7 @@ class BaseDataRecord(BaseRecord, UserList):
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
-            extra: any extra info about this change
+            extra:  a dict of any extra info about this change
         a message should create a change event at the following times:
             when it is created
             after modification
