@@ -161,26 +161,26 @@ class Command:
                     ToClientRecord(self.format_return_message(message)).send(actor)
                 return False, message, f'Could not parse: {exc.args[0]}'
 
-            # parse the arguments and deal with errors
-            try:
-                args, _ = self.arg_parser.parse_known_args(split_args_list)
-            except argp.ArgumentError as exc:
-                actor = f"{self.plugin_id}:run_command:argparse_error"
-                message = [f"Error: {exc.message}"]
-                message.extend(self.arg_parser.format_help().split('\n'))
-                LogRecord(f"Error parsing args for command {command_ran} - {exc.message}",
-                        level='error', sources=[self.plugin_id, __name__]).send()
-                if toclient:
-                    ToClientRecord(self.format_return_message(message)).send(actor)
-                return False, message, 'argparse error'
+        # parse the arguments and deal with errors
+        try:
+            args, _ = self.arg_parser.parse_known_args(split_args_list)
+        except argp.ArgumentError as exc:
+            actor = f"{self.plugin_id}:run_command:argparse_error"
+            message = [f"Error: {exc.message}"]
+            message.extend(self.arg_parser.format_help().split('\n'))
+            LogRecord(f"Error parsing args for command {command_ran} - {exc.message}",
+                    level='error', sources=[self.plugin_id, __name__]).send()
+            if toclient:
+                ToClientRecord(self.format_return_message(message)).send(actor)
+            return False, message, 'argparse error'
 
-            args = vars(args)
-            if args['help']:
-                actor = f"{self.plugin_id}:run_command:help"
-                message = self.arg_parser.format_help().split('\n')
-                if toclient:
-                    ToClientRecord(self.format_return_message(message)).send(actor)
-                return True, message, 'help'
+        args = vars(args)
+        if args['help']:
+            actor = f"{self.plugin_id}:run_command:help"
+            message = self.arg_parser.format_help().split('\n')
+            if toclient:
+                ToClientRecord(self.format_return_message(message)).send(actor)
+            return True, message, 'help'
 
         # run the command
         try:
