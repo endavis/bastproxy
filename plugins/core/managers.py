@@ -32,8 +32,8 @@ class Plugin(BasePlugin):
         """
         super().__init__(*args, **kwargs)
 
-        self.api('libs.api:add')('add', self._api_manager_add)
-        self.api('libs.api:add')('get', self._api_manager_get)
+        self.api('libs.api:add')(self.plugin_id, 'add', self._api_manager_add)
+        self.api('libs.api:add')(self.plugin_id, 'get', self._api_manager_get)
 
         self.dependencies = []
 

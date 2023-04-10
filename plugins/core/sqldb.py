@@ -108,10 +108,10 @@ class Sqldb(object):
         self.tables = {}
 
         # new api format
-        self.api('libs.api:add')(f"{self.database_name}:select", self._api_select)
-        self.api('libs.api:add')(f"{self.database_name}:modify", self._api_modify)
-        self.api('libs.api:add')(f"{self.database_name}:modify:many", self._api_modify_many)
-        self.api('libs.api:add')(f"{self.database_name}:get:single:row", self._api_get_single_row)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:select", self._api_select)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:modify", self._api_modify)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:modify:many", self._api_modify_many)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:get:single:row", self._api_get_single_row)
 
     # execute a select statement against the database
     def _api_select(self, sql_statement):
@@ -769,7 +769,7 @@ class Plugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-        self.api('libs.api:add')('baseclass', self.api_baseclass)
+        self.api('libs.api:add')(self.plugin_id, 'baseclass', self.api_baseclass)
 
     def initialize(self):
         """

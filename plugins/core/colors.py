@@ -124,14 +124,14 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         # convert to easier to read api
-        self.api('libs.api:add')('colorcode:is:valid', self._api_is_color)
-        self.api('libs.api:add')('colorcode:to:ansicode', self._api_convert_colors)
-        self.api('libs.api:add')('colorcode:to:html', self._api_colorcodes_to_html)
-        self.api('libs.api:add')('colorcode:strip', self._api_strip_color)
-        self.api('libs.api:add')('ansicode:to:colorcode', self._api_convert_ansi)
-        self.api('libs.api:add')('ansicode:to:string', self._api_ansicode)
-        self.api('libs.api:add')('ansicode:strip', self._api_strip_ansi)
-        self.api('libs.api:add')('color:length:difference', self._api_length_difference)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode:is:valid', self._api_is_color)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode:to:ansicode', self._api_convert_colors)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode:to:html', self._api_colorcodes_to_html)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode:strip', self._api_strip_color)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode:to:colorcode', self._api_convert_ansi)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode:to:string', self._api_ansicode)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode:strip', self._api_strip_ansi)
+        self.api('libs.api:add')(self.plugin_id, 'color:length:difference', self._api_length_difference)
 
         self.dependencies = ['core.commands']
 

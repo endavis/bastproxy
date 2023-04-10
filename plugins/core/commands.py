@@ -286,13 +286,13 @@ class Plugin(BasePlugin):
 
         # add apis
         #self.api('libs.api:add')('default', self.api_setdefault)
-        self.api('libs.api:add')('command:add', self._api_add_command)
-        self.api('libs.api:add')('command:run', self._api_run)
-        self.api('libs.api:add')('command:help:format', self._api_get_plugin_command_help)
-        self.api('libs.api:add')('get:command:prefix', self._api_get_prefix)
-        self.api('libs.api:add')('remove:data:for:plugin', self._api_remove_plugin_data)
-        self.api('libs.api:add')('get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
-        self.api('libs.api:add')('get:commands:for:plugin:data', self._api_get_plugin_command_data)
+        self.api('libs.api:add')(self.plugin_id, 'command:add', self._api_add_command)
+        self.api('libs.api:add')(self.plugin_id, 'command:run', self._api_run)
+        self.api('libs.api:add')(self.plugin_id, 'command:help:format', self._api_get_plugin_command_help)
+        self.api('libs.api:add')(self.plugin_id, 'get:command:prefix', self._api_get_prefix)
+        self.api('libs.api:add')(self.plugin_id, 'remove:data:for:plugin', self._api_remove_plugin_data)
+        self.api('libs.api:add')(self.plugin_id, 'get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
+        self.api('libs.api:add')(self.plugin_id, 'get:commands:for:plugin:data', self._api_get_plugin_command_data)
 
         # initialize settings
         self.api('setting:add')('cmdprefix', '#bp', str,

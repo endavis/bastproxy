@@ -43,9 +43,9 @@ class Plugin(BasePlugin):
         self.watch_data = {}
 
         # new api format
-        self.api('libs.api:add')('watch:add', self._api_watch_add)
-        self.api('libs.api:add')('watch:remove', self._api_watch_remove)
-        self.api('libs.api:add')('remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'watch:add', self._api_watch_add)
+        self.api('libs.api:add')(self.plugin_id, 'watch:remove', self._api_watch_remove)
+        self.api('libs.api:add')(self.plugin_id, 'remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
 
     def initialize(self):
         """

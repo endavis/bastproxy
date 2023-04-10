@@ -80,14 +80,14 @@ class Plugin(BasePlugin):
                                 'the color for critical messages')
 
         # new api format
-        self.api('libs.api:add')('set:log:to:console', self.api_set_log_to_console)
-        self.api('libs.api:add')('set:log:to:file', self.api_set_log_to_file)
-        self.api('libs.api:add')('set:log:to:client', self.api_set_log_to_client)
-        self.api('libs.api:add')('can:log:to:console', self._api_can_log_to_console)
-        self.api('libs.api:add')('can:log:to:file', self._api_can_log_to_file)
-        self.api('libs.api:add')('can:log:to:client', self._api_can_log_to_client)
-        self.api('libs.api:add')('get:level:color', self._api_get_level_color)
-        self.api('libs.api:add')('add:log:count', self._api_add_log_count)
+        self.api('libs.api:add')(self.plugin_id, 'set:log:to:console', self.api_set_log_to_console)
+        self.api('libs.api:add')(self.plugin_id, 'set:log:to:file', self.api_set_log_to_file)
+        self.api('libs.api:add')(self.plugin_id, 'set:log:to:client', self.api_set_log_to_client)
+        self.api('libs.api:add')(self.plugin_id, 'can:log:to:console', self._api_can_log_to_console)
+        self.api('libs.api:add')(self.plugin_id, 'can:log:to:file', self._api_can_log_to_file)
+        self.api('libs.api:add')(self.plugin_id, 'can:log:to:client', self._api_can_log_to_client)
+        self.api('libs.api:add')(self.plugin_id, 'get:level:color', self._api_get_level_color)
+        self.api('libs.api:add')(self.plugin_id, 'add:log:count', self._api_add_log_count)
 
     def _api_add_log_count(self, logtype, level):
         """

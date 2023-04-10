@@ -99,24 +99,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self._dump_shallow_attrs = ['api']
 
-        # overload the api so we can add the plugin_id as the top level api
-        self.api('libs.api:add')('libs.api', 'add', self._api_add, overload=True, force=True)
-        # anything added after this will have the plugin_id as the top level api
-        self.api('libs.api:add')('dependency:add', self._api_dependency_add)
-        self.api('libs.api:add')('setting:add', self._api_setting_add)
-        self.api('libs.api:add')('setting:get', self._api_setting_gets)
-        self.api('libs.api:add')('setting:change', self._api_setting_change)
-        self.api('libs.api:add')('data:get', self._api_get_data)
-        self.api('libs.api:add')('data:update', self._api_update_data)
-        self.api('libs.api:add')('save:state', self._api_savestate)
-
-    # add a function to the api
-    def _api_add(self, name, func, overload=False, force=False):
-        """  add a command to the api
-        @Yname@w = the name of the api
-        @Yfunc@w = the function tied to the api"""
-        # we call the non overloaded versions
-        self.api.add(self.plugin_id, name, func, overload, force)
+        self.api('libs.api:add')(self.plugin_id, 'dependency:add', self._api_dependency_add)
+        self.api('libs.api:add')(self.plugin_id, 'setting:add', self._api_setting_add)
+        self.api('libs.api:add')(self.plugin_id, 'setting:get', self._api_setting_gets)
+        self.api('libs.api:add')(self.plugin_id, 'setting:change', self._api_setting_change)
+        self.api('libs.api:add')(self.plugin_id, 'data:get', self._api_get_data)
+        self.api('libs.api:add')(self.plugin_id, 'data:update', self._api_update_data)
+        self.api('libs.api:add')(self.plugin_id, 'save:state', self._api_savestate)
 
     # get the value of a setting
     def _api_setting_gets(self, setting, plugin=None):

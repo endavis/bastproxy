@@ -42,17 +42,17 @@ class Plugin(BasePlugin):
         self.banned = {}
 
         # new api format
-        self.api('libs.api:add')('get:client', self._api_get_client)
-        self.api('libs.api:add')('get:all:clients', self._api_get_all_clients)
-        self.api('libs.api:add')('client:banned:add', self.api_addbanned)
-        self.api('libs.api:add')('client:banned:check', self.api_checkbanned)
-        self.api('libs.api:add')('client:count', self.api_numconnected)
-        self.api('libs.api:add')('client:add', self._api_addclient)
-        self.api('libs.api:add')('client:remove', self._api_removeclient)
-        self.api('libs.api:add')('client:is:logged:in', self._api_is_client_logged_in)
-        self.api('libs.api:add')('client:is:view:client', self._api_is_client_view_client)
-        self.api('libs.api:add')('client:logged:in', self._api_client_logged_in)
-        self.api('libs.api:add')('client:logged:in:view:only', self._api_client_logged_in_view_only)
+        self.api('libs.api:add')(self.plugin_id, 'get:client', self._api_get_client)
+        self.api('libs.api:add')(self.plugin_id, 'get:all:clients', self._api_get_all_clients)
+        self.api('libs.api:add')(self.plugin_id, 'client:banned:add', self.api_addbanned)
+        self.api('libs.api:add')(self.plugin_id, 'client:banned:check', self.api_checkbanned)
+        self.api('libs.api:add')(self.plugin_id, 'client:count', self.api_numconnected)
+        self.api('libs.api:add')(self.plugin_id, 'client:add', self._api_addclient)
+        self.api('libs.api:add')(self.plugin_id, 'client:remove', self._api_removeclient)
+        self.api('libs.api:add')(self.plugin_id, 'client:is:logged:in', self._api_is_client_logged_in)
+        self.api('libs.api:add')(self.plugin_id, 'client:is:view:client', self._api_is_client_view_client)
+        self.api('libs.api:add')(self.plugin_id, 'client:logged:in', self._api_client_logged_in)
+        self.api('libs.api:add')(self.plugin_id, 'client:logged:in:view:only', self._api_client_logged_in_view_only)
 
     def initialize(self):
         """

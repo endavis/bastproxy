@@ -52,11 +52,11 @@ class Plugin(BasePlugin):
         self.mud_connection = None
 
         # new api format
-        self.api('libs.api:add')('proxy:restart', self.api_restart)
-        self.api('libs.api:add')('proxy:shutdown', self.api_shutdown)
-        self.api('libs.api:add')('preamble:get', self.api_preamble)
-        self.api('libs.api:add')('preamble:color:get', self.api_preamble_color)
-        self.api('libs.api:add')('get:mud:connection', self.api_get_mud_connection)
+        self.api('libs.api:add')(self.plugin_id, 'proxy:restart', self.api_restart)
+        self.api('libs.api:add')(self.plugin_id, 'proxy:shutdown', self.api_shutdown)
+        self.api('libs.api:add')(self.plugin_id, 'preamble:get', self.api_preamble)
+        self.api('libs.api:add')(self.plugin_id, 'preamble:color:get', self.api_preamble_color)
+        self.api('libs.api:add')(self.plugin_id, 'get:mud:connection', self.api_get_mud_connection)
 
         self.api('setting:add')('mudhost', '', str,
                                 'the hostname/ip of the mud')

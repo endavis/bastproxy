@@ -52,16 +52,16 @@ class Plugin(BasePlugin):
         self.events: dict[str, Event] = {}
 
         # new api that's easier to read
-        self.api('libs.api:add')('register:to:event', self._api_register_to_event)
-        self.api('libs.api:add')('unregister:from:event', self._api_unregister_from_event)
-        self.api('libs.api:add')('raise:event', self._api_raise_event)
-        self.api('libs.api:add')('is:registered:to:event', self._api_is_registered_to_event)
-        self.api('libs.api:add')('remove:events:for:owner', self._api_remove_events_from_owner)
-        self.api('libs.api:add')('get:event', self._api_get_event)
-        self.api('libs.api:add')('add:event', self._api_add_event)
-        self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
-        self.api('libs.api:add')('get:current:event:name', self._get_current_event_name)
-        self.api('libs.api:add')('get:current:event:record', self._get_current_event_record)
+        self.api('libs.api:add')(self.plugin_id, 'register:to:event', self._api_register_to_event)
+        self.api('libs.api:add')(self.plugin_id, 'unregister:from:event', self._api_unregister_from_event)
+        self.api('libs.api:add')(self.plugin_id, 'raise:event', self._api_raise_event)
+        self.api('libs.api:add')(self.plugin_id, 'is:registered:to:event', self._api_is_registered_to_event)
+        self.api('libs.api:add')(self.plugin_id, 'remove:events:for:owner', self._api_remove_events_from_owner)
+        self.api('libs.api:add')(self.plugin_id, 'get:event', self._api_get_event)
+        self.api('libs.api:add')(self.plugin_id, 'add:event', self._api_add_event)
+        self.api('libs.api:add')(self.plugin_id, 'get:event:detail', self._api_get_event_detail)
+        self.api('libs.api:add')(self.plugin_id, 'get:current:event:name', self._get_current_event_name)
+        self.api('libs.api:add')(self.plugin_id, 'get:current:event:record', self._get_current_event_record)
 
         self.api('setting:add')('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')

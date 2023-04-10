@@ -44,15 +44,15 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         # new api format
-        self.api('libs.api:add')('convert:timedelta:to:string', self._api_convert_timedelta_to_string)
-        self.api('libs.api:add')('convert:to:readable:number', self._api_convert_to_readable_number)
-        self.api('libs.api:add')('convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
-        self.api('libs.api:add')('format:time', self._api_format_time)
-        self.api('libs.api:add')('center:colored:string', self._api_center_colored_string)
-        self.api('libs.api:add')('check:list:for:match', self._api_check_list_for_match)
-        self.api('libs.api:add')('convert:timelength:to:secs', self._api_convert_timelength_to_secs)
-        self.api('libs.api:add')('verify:value', self._api_verify_value)
-        self.api('libs.api:add')('format:list:into:columns', self._api_format_list_into_columns)
+        self.api('libs.api:add')(self.plugin_id, 'convert:timedelta:to:string', self._api_convert_timedelta_to_string)
+        self.api('libs.api:add')(self.plugin_id, 'convert:to:readable:number', self._api_convert_to_readable_number)
+        self.api('libs.api:add')(self.plugin_id, 'convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
+        self.api('libs.api:add')(self.plugin_id, 'format:time', self._api_format_time)
+        self.api('libs.api:add')(self.plugin_id, 'center:colored:string', self._api_center_colored_string)
+        self.api('libs.api:add')(self.plugin_id, 'check:list:for:match', self._api_check_list_for_match)
+        self.api('libs.api:add')(self.plugin_id, 'convert:timelength:to:secs', self._api_convert_timelength_to_secs)
+        self.api('libs.api:add')(self.plugin_id, 'verify:value', self._api_verify_value)
+        self.api('libs.api:add')(self.plugin_id, 'format:list:into:columns', self._api_format_list_into_columns)
 
         self.dependencies = ['core.colors']
 

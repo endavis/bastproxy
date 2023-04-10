@@ -43,12 +43,12 @@ class Plugin(BasePlugin):
 
         # new api methods
         # self.api('libs.api:add')('baseclass', self.api_baseclass)
-        self.api('libs.api:add')('queue:add:command', self._api_queue_add_command)
-        self.api('libs.api:add')('command:start', self._api_command_start)
-        self.api('libs.api:add')('command:finish', self._api_command_finish)
-        self.api('libs.api:add')('commandtype:add', self._api_command_type_add)
-        self.api('libs.api:add')('commandtype:remove', self._api_command_type_remove)
-        self.api('libs.api:add')('remove:commands:for:plugin', self._api_remove_commands_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'queue:add:command', self._api_queue_add_command)
+        self.api('libs.api:add')(self.plugin_id, 'command:start', self._api_command_start)
+        self.api('libs.api:add')(self.plugin_id, 'command:finish', self._api_command_finish)
+        self.api('libs.api:add')(self.plugin_id, 'commandtype:add', self._api_command_type_add)
+        self.api('libs.api:add')(self.plugin_id, 'commandtype:remove', self._api_command_type_remove)
+        self.api('libs.api:add')(self.plugin_id, 'remove:commands:for:plugin', self._api_remove_commands_for_plugin)
 
     def initialize(self):
         """

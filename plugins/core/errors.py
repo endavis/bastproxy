@@ -37,9 +37,9 @@ class Plugin(BasePlugin):
         self.errors = []
 
         # new api format
-        self.api('libs.api:add')('add:error', self._api_add_error)
-        self.api('libs.api:add')('get:errors', self._api_get_errors)
-        self.api('libs.api:add')('clear:all:errors', self._api_clear_all_errors)
+        self.api('libs.api:add')(self.plugin_id, 'add:error', self._api_add_error)
+        self.api('libs.api:add')(self.plugin_id, 'get:errors', self._api_get_errors)
+        self.api('libs.api:add')(self.plugin_id, 'clear:all:errors', self._api_clear_all_errors)
 
         self.dependencies = []
 

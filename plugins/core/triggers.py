@@ -117,16 +117,16 @@ class Plugin(BasePlugin):
         self.created_regex['created_regex_compiled'] = ''
 
         # new api format
-        self.api('libs.api:add')('trigger:add', self._api_trigger_add)
-        self.api('libs.api:add')('trigger:remove', self._api_trigger_remove)
-        self.api('libs.api:add')('trigger:toggle:enable', self._api_trigger_toggle_enable)
-        self.api('libs.api:add')('trigger:toggle:omit', self._api_trigger_toggle_omit)
-        self.api('libs.api:add')('trigger:update', self._api_trigger_update)
-        self.api('libs.api:add')('trigger:get', self._api_trigger_get)
-        self.api('libs.api:add')('trigger:register', self._api_trigger_register)
-        self.api('libs.api:add')('trigger:unregister', self._api_trigger_unregister)
-        self.api('libs.api:add')('group:toggle:enable', self._api_group_toggle_enable)
-        self.api('libs.api:add')('remove:data:for:owner', self._api_remove_triggers_for_owner)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:add', self._api_trigger_add)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:remove', self._api_trigger_remove)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:toggle:enable', self._api_trigger_toggle_enable)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:toggle:omit', self._api_trigger_toggle_omit)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:update', self._api_trigger_update)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:get', self._api_trigger_get)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:register', self._api_trigger_register)
+        self.api('libs.api:add')(self.plugin_id, 'trigger:unregister', self._api_trigger_unregister)
+        self.api('libs.api:add')(self.plugin_id, 'group:toggle:enable', self._api_group_toggle_enable)
+        self.api('libs.api:add')(self.plugin_id, 'remove:data:for:owner', self._api_remove_triggers_for_owner)
 
         self.api('setting:add')('enabled', 'True', bool,
                                 'enable triggers')
