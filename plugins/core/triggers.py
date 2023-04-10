@@ -137,8 +137,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_enabled_modified", self.enablechange)
-
         parser = argp.ArgumentParser(add_help=False,
                                      description='get details of a trigger')
         parser.add_argument('trigger',
@@ -160,32 +158,39 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.event_plugin_uninitialized)
-
-        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
-                                                  self.check_trigger, prio=1)
+                                                          self.evc_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_to_client_data_modify',
+                                                  self.evc_check_trigger, prio=1)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_enabled_modified", self.evc_enabled_modify)
 
         self.api('plugins.core.triggers:trigger:add')('beall', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger:add')('all', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger:add')('emptyline', None, self.plugin_id, enabled=False)
 
-    def enablechange(self, args):
+
+    def evc_enabled_modify(self):
         """
         setup the plugin on setting change
         """
-        change = args['newvalue']
-        if change:
-            self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
-                                                      self.check_trigger, prio=1)
-        else:
-            self.api('plugins.core.events:unregister:from:event')('ev_libs.net.mud_from_mud_event',
-                                                          self.check_trigger)
+        if event_record := self.api(
+            'plugins.core.events:get:current:event:record'
+        )():
+            change = event_record['newvalue']
+            if change:
+                self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
+                                                        self.evc_check_trigger, prio=1)
+            else:
+                self.api('plugins.core.events:unregister:from:event')('ev_libs.net.mud_from_mud_event',
+                                                            self.evc_check_trigger)
 
-    def event_plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        self.api('%s:remove:data:for:plugin' % self.plugin_id)(args['plugin_id'])
+        if event_record := self.api(
+            'plugins.core.events:get:current:event:record'
+        )():
+            self.api(f'{self.plugin_id}:remove:data:for:plugin')(event_record['plugin_id'])
 
     def rebuild_regexes(self):
         """
@@ -533,25 +538,27 @@ class Plugin(BasePlugin):
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger:toggle:enable")(i, flag)
 
-    def check_trigger(self, args): # pylint: disable=too-many-branches
+    def evc_check_trigger(self): # pylint: disable=too-many-branches
         """
         check a line of text from the mud to see if it matches any triggers
-        called whenever the ev_libs.net.mud_from_mud_event is raised
         """
-        toclientrecord = args['ToClientRecord']
+        if not (event_record := self.api('plugins.core.events:get:current:event:record')()):
+            return
+
+        toclientrecord = event_record['ToClientRecord']
 
         # don't check internal data
         if toclientrecord.internal:
-            return args
+            return
 
         data = toclientrecord.noansi
         colored_data = toclientrecord.color
 
-        self.triggers[self.beall_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.beall_id].trigger_name}, args)
+        self.triggers[self.beall_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.beall_id].trigger_name}, event_record)
 
 
         if data == '': # pylint: disable=too-many-nested-blocks
-            self.triggers[self.emptyline_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.emptyline_id].trigger_name}, args)
+            self.triggers[self.emptyline_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.emptyline_id].trigger_name}, event_record)
         else:
             if self.created_regex['created_regex_compiled']:
                 match_data = self.created_regex['created_regex_compiled'].match(data)
@@ -567,12 +574,12 @@ class Plugin(BasePlugin):
             regex_match_data = match_groups.keys()
 
             if regex_match_data:
-                LogRecord(f"check_trigger - line {data} matched the following regexes {regex_match_data}",
+                LogRecord(f"evc_check_trigger - line {data} matched the following regexes {regex_match_data}",
                           level='debug', sources=[self.plugin_id]).send()
                 for regex_id in regex_match_data:
                     match = None
                     if regex_id not in self.regexes:
-                        LogRecord(f"check_trigger - regex_id {regex_id} not found in check_trigger",
+                        LogRecord(f"evc_check_trigger - regex_id {regex_id} not found in evc_check_trigger",
                                   level='error', sources=[self.plugin_id]).send()
                         continue
 
@@ -594,16 +601,15 @@ class Plugin(BasePlugin):
                             group_dict['colorline'] = colored_data
                             group_dict['trigger_name'] = self.triggers[trigger_id]['trigger_name']
                             group_dict['trigger_id'] = self.triggers[trigger_id]['trigger_id']
-                            args = self.triggers[trigger_id].raiseevent(group_dict, args)
+                            args = self.triggers[trigger_id].raiseevent(group_dict, event_record)
                             if self.triggers[trigger_id].stopevaluating:
                                 break
 
             else:
-                LogRecord(f"check_trigger - line {data} did not match any regexes",
+                LogRecord(f"evc_check_trigger - line {data} did not match any regexes",
                           level='debug', sources=[self.plugin_id]).send()
 
-        self.raisetrigger(self.all_id, {'line':data, 'trigger_name':self.triggers[self.all_id]['trigger_name']}, args)
-        return args
+        self.raisetrigger(self.all_id, {'line':data, 'trigger_name':self.triggers[self.all_id]['trigger_name']}, event_record)
 
     def raisetrigger(self, trigger_id, args, origargs):
         """

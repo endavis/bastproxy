@@ -179,18 +179,21 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.event_plugin_uninitialized)
+                                                          self.evc_plugin_uninitialized)
 
         # setup the task to check for timers to fire
         self.api('libs.asynch:task:add')(self.check_for_timers_to_fire, 'Timer thread')
 
-    def event_plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        LogRecord(f"event_plugin_uninitialized - removing timers for plugin {args['plugin_id']}",
-                  'debug', sources=[self.plugin_id, args['plugin_id']]).send()
-        self.api(f"{self.plugin_id}:remove:all:timers:for:plugin")(args['plugin_id'])
+        if event_record := self.api(
+            'plugins.core.events:get:current:event:record'
+        )():
+            LogRecord(f"evc_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
+                    'debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
+            self.api(f"{self.plugin_id}:remove:all:timers:for:plugin")(event_record['plugin_id'])
 
     def command_log(self, args: dict | None = None) -> tuple[bool, list[str]]:
         """

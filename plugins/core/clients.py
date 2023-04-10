@@ -77,8 +77,8 @@ class Plugin(BasePlugin):
                                               self.cmd_show,
                                               shelp='list clients that are connected')
 
-        self.api('plugins.core.events:register:to:event')('ev_net.proxy_proxy_shutdown',
-                                                  self.shutdown)
+        self.api('plugins.core.events:register:to:event')('ev_plugin.core.proxy_proxy_shutdown',
+                                                  self.evc_shutdown)
 
     def api_numconnected(self):
         """
@@ -189,7 +189,7 @@ class Plugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id]).send()
 
-    def shutdown(self, args=None): # pylint: disable=unused-argument
+    def evc_shutdown(self):
         """
         close all clients
 

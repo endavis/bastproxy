@@ -65,10 +65,10 @@ class Plugin(BasePlugin):
                                               self.cmd_clear,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_bastproxy_proxy_ready', self.proxy_ready)
+        self.api('plugins.core.events:register:to:event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
 
     # show all errors that happened during startup
-    def proxy_ready(self, _=None):
+    def evc_proxy_ready(self):
         """
         show all errors that happened during startup
         """

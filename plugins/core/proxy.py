@@ -21,7 +21,7 @@ import signal
 # Project
 from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin
-from libs.records import ToClientRecord, LogRecord, ToMudRecord
+from libs.records import ToClientRecord, LogRecord, ToMudRecord, EventArgsRecord
 import libs.argp as argp
 
 #these 5 are required
@@ -83,7 +83,7 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:add:event')('ev_net.proxy_proxy_shutdown', self.plugin_id,
+        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_shutdown", self.plugin_id,
                                                   description='event when the proxy is shutting down',
                                                   arg_descriptions={'None': None})
 
@@ -116,15 +116,15 @@ class Plugin(BasePlugin):
                                               self.cmd_shutdown,
                                               shelp='shutdown the proxy')
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.clients_client_logged_in', self.client_logged_in)
-        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.sendusernameandpw)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.clients_client_logged_in', self.evc_client_logged_in)
+        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_mudconnect', self.evc_sendusernameandpw)
         self.api('plugins.core.events:register:to:event')(
             f"ev_{self.plugin_id}_var_listenport_modified",
-            self.listen_port_change
+            self.evc_listen_port_change
         )
         self.api('plugins.core.events:register:to:event')(
             f"ev_{self.plugin_id}_var_cmdseperator_modified",
-            self.command_seperator_change,
+            self.evc_command_seperator_change,
         )
 
         ssc = self.api('plugins.core.ssc:baseclass:get')()
@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
         else:
             return self.api('setting:get')('preamblecolor')
 
-    def sendusernameandpw(self, args): # pylint: disable=unused-argument
+    def evc_sendusernameandpw(self):
         """
         if username and password are set, then send them when the proxy
         connects to the mud
@@ -277,7 +277,7 @@ class Plugin(BasePlugin):
         self.api.__class__.shutdown = True
         LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown']).send()
         ToClientRecord('Shutting down proxy').send(f'{self.plugin_id}:api_shutdown')
-        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_proxy_shutdown")
+        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown']).send()
 
     def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use
@@ -293,10 +293,16 @@ class Plugin(BasePlugin):
         seconds = args['seconds'] or None
         self.api(f"{self.plugin_id}:proxy:restart")(seconds)
 
-    def client_logged_in(self, event_args):    # pylint: disable=unused-argument
+    def evc_client_logged_in(self):
         """
         check for mud settings
         """
+        if not (
+            event_record := self.api(
+                'plugins.core.events:get:current:event:record'
+            )()
+        ):
+            return
         cmdprefix = self.api('plugins.core.commands:get:command:prefix')()
         tmsg = []
         divider = '@R------------------------------------------------@w'
@@ -355,11 +361,9 @@ class Plugin(BasePlugin):
 
 
         if tmsg:
-            ToClientRecord(tmsg, clients=[event_args['client_uuid']]).send(
+            ToClientRecord(tmsg, clients=[event_record['client_uuid']]).send(
                 f'{__name__}:client_connected'
             )
-
-        return event_args
 
     # restart the proxy
     def api_restart(self, restart_in=None):
@@ -388,17 +392,19 @@ class Plugin(BasePlugin):
 
         os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
-    def listen_port_change(self, args): # pylint: disable=unused-argument
+    def evc_listen_port_change(self):
         """
         restart when the listen port changes
         """
         if not self.api.startup and not self.initializing_f:
-            self.api('proxy:restart')()
+            self.api(f"{self.plugin_id}:proxy:restart")()
 
-    def command_seperator_change(self, args): # pylint: disable=unused-argument
+    def evc_command_seperator_change(self):
         """
         update the command regex
-        """
-        newsep = args['newvalue']
 
-        self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % ('\\' + newsep, '\\' + newsep, '\\' + newsep)
+        """
+        if event_record := self.api('plugins.core.events:get:current:event:record')():
+            newsep = event_record['newvalue']
+
+            self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % ('\\' + newsep, '\\' + newsep, '\\' + newsep)

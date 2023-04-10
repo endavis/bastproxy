@@ -53,8 +53,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.checkcmd)
-
         parser = argp.ArgumentParser(add_help=False,
                                      description='list watches')
         parser.add_argument('match',
@@ -75,16 +73,18 @@ class Plugin(BasePlugin):
                                               self.cmd_detail,
                                               parser=parser)
 
+        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.evc_check_command)
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.event_plugin_uninitialized)
+                                                          self.evc_plugin_uninitialized)
 
-    def event_plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        LogRecord(f"event_plugin_unitialized - removing watches for plugin {args['plugin_id']}",
-                  level='debug', sources=[self.plugin_id, args['plugin_id']]).send()
-        self.api(f"{self.plugin_id}:remove:all:data:for:plugin")(args['plugin_id'])
+        event_record = self.api('plugins.core.events:get:current:event:record')()
+        LogRecord(f"event_plugin_unitialized - removing watches for plugin {event_record['plugin_id']}",
+                  level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
+        self.api(f"{self.plugin_id}:remove:all:data:for:plugin")(event_record['plugin_id'])
 
     def cmd_list(self, args):
         """
@@ -211,22 +211,21 @@ class Plugin(BasePlugin):
             if self.watch_data[i]['owner'] == plugin:
                 self.api('%s:watch:remove' % self.plugin_id)(i)
 
-    def checkcmd(self, data: EventArgsRecord):
+    def evc_check_command(self):
         """
         check input from the client and see if we are watching for it
         """
-        client_data = data['line']
-        for watch_name in self.watch_data:
-            cmdre = self.watch_data[watch_name]['compiled']
-            match_data = cmdre.match(client_data)
-            if match_data:
-                self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
-                match_args = {}
-                match_args['matched'] = match_data.groupdict()
-                match_args['cmdname'] = 'cmd_' + watch_name
-                match_args['data'] = client_data
-                LogRecord(f"checkcmd: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
-                          level='debug', sources=[self.plugin_id]).send()
-                event_data: EventArgsRecord = self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)
-
-        return data
+        if event_record := self.api('plugins.core.events:get:current:event:record')():
+            client_data = event_record['line']
+            for watch_name in self.watch_data:
+                cmdre = self.watch_data[watch_name]['compiled']
+                match_data = cmdre.match(client_data)
+                if match_data:
+                    self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
+                    match_args = {}
+                    match_args['matched'] = match_data.groupdict()
+                    match_args['cmdname'] = 'cmd_' + watch_name
+                    match_args['data'] = client_data
+                    LogRecord(f"evc_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
+                            level='debug', sources=[self.plugin_id]).send()
+                    self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)

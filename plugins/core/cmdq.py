@@ -62,13 +62,16 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self._event_plugin_uninitialized)
+                                                          self.evc_plugin_uninitialized)
 
-    def _event_plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        self.api(f"{self.plugin_id}:remove:commands:for:plugin")(args['plugin_id'])
+        if event_record := self.api(
+            'plugins.core.events:get:current:event:record'
+        )():
+            self.api(f"{self.plugin_id}:remove:commands:for:plugin")(event_record['plugin_id'])
 
     # remove all triggers related to a plugin
     def _api_remove_commands_for_plugin(self, plugin_id):

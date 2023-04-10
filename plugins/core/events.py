@@ -26,7 +26,7 @@ This plugin handles events.
 # Project
 import libs.argp as argp
 from plugins._baseplugin import BasePlugin
-from libs.records import LogRecord
+from libs.records import LogRecord, EventArgsRecord
 from libs.event import Event
 
 NAME = 'Event Handler'
@@ -60,7 +60,8 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('get:event', self._api_get_event)
         self.api('libs.api:add')('add:event', self._api_add_event)
         self.api('libs.api:add')('get:event:detail', self._api_get_event_detail)
-        self.api('libs.api:add')('get:current:event', self._get_current_event)
+        self.api('libs.api:add')('get:current:event:name', self._get_current_event_name)
+        self.api('libs.api:add')('get:current:event:record', self._get_current_event_record)
 
         self.api('setting:add')('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
@@ -125,24 +126,28 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                  self.plugin_uninitialized, priority=10)
+                                                  self.evc_plugin_uninitialized, priority=10)
 
-    def plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        LogRecord(f"plugin_uninitialized - removing events for {args['plugin_id']}",
-                  level='debug', sources=[self.plugin_id, args['plugin_id']]).send()
-        self.api(f"{self.plugin_id}:remove:events:for:plugin")(args['plugin_id'])
+        if event_record := self.api('plugins.core.events:get:current:event:record')():
+            LogRecord(f"evc_plugin_uninitialized - removing events for {event_record['plugin_id']}",
+                    level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
+            self.api(f"{self.plugin_id}:remove:events:for:plugin")(event_record['plugin_id'])
 
-    def _get_current_event(self):
+    def _get_current_event_name(self):
         """
-        return the current event name and the args
+        return the current event name
         """
-        if self.current_event:
-            return self.current_event.name, self.current_event.current_args
+        return self.current_event.name if self.current_event else None
 
-        return None, None
+    def _get_current_event_record(self):
+        """
+        return the current event record
+        """
+        return self.current_event.current_record if self.current_event else None
 
     # add an event for this plugin to track
     def _api_add_event(self, event_name: str, created_by: str, description: str = '', arg_descriptions: dict[str, str] | None = None):
@@ -247,9 +252,15 @@ class Plugin(BasePlugin):
         event = self._api_get_event(event_name)
 
         self.global_raised_count += 1
+
+        old_event = None
+        if self.current_event:
+            old_event = self.current_event
+
         self.current_event = event
         success = event.raise_event(args, calledfrom)
-        self.current_event = None
+
+        self.current_event = old_event
         return success
 
     # get the details of an event

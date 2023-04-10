@@ -364,18 +364,21 @@ class Plugin(BasePlugin):
                                               show_in_history=False)
 
         # register events
-        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self._event_to_mud_data_modify_check_command, prio=5)
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self._event_plugin_uninitialized)
+        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.evc_check_for_command, prio=5)
+        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self.evc_plugin_uninitialized)
 
-    def _event_plugin_uninitialized(self, args):
+    def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
 
         registered to the plugin_uninitialized event
         """
-        LogRecord(f"removing commands for plugin {args['plugin_id']}",
-                  level='debug', sources=[self.plugin_id, args['plugin_id']])
-        self.api(f"{self.plugin_id}:remove:data:for:plugin")(args['plugin_id'])
+        if event_record := self.api(
+            'plugins.core.events:get:current:event:record'
+        )():
+            LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
+                    level='debug', sources=[self.plugin_id, event_record['plugin_id']])
+            self.api(f"{self.plugin_id}:remove:data:for:plugin")(event_record['plugin_id'])
 
     # remove all commands for a plugin
     def _api_remove_plugin_data(self, plugin_id):
@@ -460,7 +463,7 @@ class Plugin(BasePlugin):
 
         return None, []
 
-    def add_command_to_history(self, event_data):
+    def add_command_to_history(self, command: str):
         """
         add to the command history
 
@@ -475,14 +478,12 @@ class Plugin(BasePlugin):
           True if succcessful, False if not successful
         """
 
-        tdat = event_data['line']
-
         # remove existing
-        if tdat in self.command_history_data:
-            self.command_history_data.remove(tdat)
+        if command in self.command_history_data:
+            self.command_history_data.remove(command)
 
         # append the command
-        self.command_history_data.append(tdat)
+        self.command_history_data.append(command)
 
         # if the size is greater than historysize, pop the first item
         if len(self.command_history_data) >= self.api('setting:get')('historysize'):
@@ -553,7 +554,7 @@ class Plugin(BasePlugin):
 
         return self.api(f"{plugin_id}:data:update")('commands', all_command_data)
 
-    def pass_through_command(self, event_data) -> EventArgsRecord:
+    def pass_through_command(self) -> None:
         """
         pass through data to the mud
 
@@ -565,41 +566,48 @@ class Plugin(BasePlugin):
 
         returns the updated event
         """
-        original_command = event_data['line']
+        if not (
+            event_record := self.api(
+                'plugins.core.events:get:current:event:record'
+            )()
+        ):
+            return
+
+        original_command = event_record['line']
 
         # if the command is the same as the last command, do antispam checks
         if original_command == self.api('setting:get')('lastcmd'):
             self.api('setting:change')('cmdcount',
-                                       self.api('setting:get')('cmdcount') + 1)
+                                    self.api('setting:get')('cmdcount') + 1)
 
             # if the command has been sent spamcount times, then we send an antispam
             # command in between
             if self.api('setting:get')('cmdcount') == \
-                                  self.api('setting:get')('spamcount'):
+                                    self.api('setting:get')('spamcount'):
 
-                event_data.addupdate('Modify', "Antispam Command sent",
+                event_record.addupdate('Modify', "Antispam Command sent",
                                         f"{self.plugin_id}:pass_through_command", saveargs = False)
-                LogRecord(f"sending antspam command: {self.api('setting:get')('antispamcommand')}", level='debug', sources=[self.plugin_id]).send()
-                ToMudRecord(self.api('setting:get')('antispamcommand'), show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
+                LogRecord(f"sending antspam command: {self.api('setting:get')('antispamcommand')}",
+                          level='debug', sources=[self.plugin_id]).send()
+                ToMudRecord(self.api('setting:get')('antispamcommand'),
+                            show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
 
                 self.api('setting:change')('cmdcount', 0)
-                return event_data
+                return
 
             # if the command is seen multiple times in a row and it has been flagged to only be sent once,
             # swallow it
             if original_command in self.no_multiple_commands:
-                event_data.addupdate('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
+                event_record.addupdate('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
                                         f"{self.plugin_id}:pass_through_command", saveargs = False)
 
-                event_data['sendtomud'] = False
-                return event_data
+                event_record['sendtomud'] = False
+                return
         else:
             # the command does not match the last command
             self.api('setting:change')('cmdcount', 0)
             LogRecord(f"resetting command to {original_command}", level='debug', sources=[self.plugin_id]).send()
             self.api('setting:change')('lastcmd', original_command)
-
-        return event_data
 
     def proxy_help(self, header, header2, data):
         """
@@ -648,19 +656,16 @@ class Plugin(BasePlugin):
         return self.api('plugins.core.fuzzy:get:best:match')(item, item_list,
                                                                 scorer='token_set_ratio')
 
-    def find_command(self, event_data: EventArgsRecord) -> tuple[Command | None, str, bool, str]:
+    def find_command(self, command_line: str) -> tuple[Command | None, str, bool, str]:
         """
         find a command from the client
         """
-        LogRecord(f"find_command: {event_data['line']}",
+        LogRecord(f"find_command: {command_line}",
                   level='debug',
                   sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
-        # don't send it to the mud
-        event_data['sendtomud'] = False
-
         # copy the command
-        command = event_data['line']
+        command = command_line
 
         commandprefix = self.api('setting:get')('cmdprefix')
         command_str = command
@@ -800,7 +805,7 @@ class Plugin(BasePlugin):
 
             return command_item, command_args, True, f'found {new_command}'
 
-    def _event_to_mud_data_modify_check_command(self, event_data: EventArgsRecord) -> EventArgsRecord:
+    def evc_check_for_command(self) -> None:
         """
         Check if the line is a command from the client
         if it is, the command is parsed and executed
@@ -808,22 +813,25 @@ class Plugin(BasePlugin):
         """
         commandprefix = self.api('setting:get')('cmdprefix')
 
-        if event_data['line'].startswith(commandprefix):
+        if not (event_record := self.api('plugins.core.events:get:current:event:record')()):
+            return
 
-                command_item, command_args, show_in_history, notes = self.find_command(event_data)
+        if event_record['line'].startswith(commandprefix):
 
-                if event_data['showinhistory'] != show_in_history:
-                    event_data['showinhistory'] = show_in_history
-                    event_data.addupdate('Modify', "show_in_history set to {show_in_history}",
+                command_item, command_args, show_in_history, notes = self.find_command(event_record['line'])
+
+                if event_record['showinhistory'] != show_in_history:
+                    event_record['showinhistory'] = show_in_history
+                    event_record.addupdate('Modify', "show_in_history set to {show_in_history}",
                                         f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
 
-                event_data.addupdate('Info', f"find_command returned {notes}",
-                                     f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command",
-                                     saveargs = False)
+                event_record.addupdate('Info', f"find_command returned {notes}",
+                                    f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command",
+                                    saveargs = False)
 
                 if command_item:
                     LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
-                            level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:_event_to_mud_data_modify_check_command")
+                            level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:evc_check_for_command")
                     ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
 
                     success, _, error = command_item.run(command_args)
@@ -832,12 +840,10 @@ class Plugin(BasePlugin):
                         ToClientRecord(f"Error running command: {error}").send()
 
         else:
-            self.pass_through_command(event_data)
+            self.pass_through_command()
 
-        if event_data['showinhistory'] and not event_data['internal']:
-            self.add_command_to_history(event_data)
-
-        return event_data
+        if event_record['showinhistory'] and not event_record['internal']:
+            self.add_command_to_history(event_record['line'])
 
     # add a command
     def _api_add_command(self, command_name, func, **kwargs):

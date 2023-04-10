@@ -102,10 +102,9 @@ class Plugin(BasePlugin):
         self.command_traces = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
         self.changed_mud_data = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
 
-        self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.savechanged_mud_data, prio=99)
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.onfunctionschange)
+        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.evc_functions_change)
 
-    def onfunctionschange(self, _=None):
+    def evc_functions_change(self):
         """
         toggle the function profiling
         """
@@ -314,11 +313,3 @@ class Plugin(BasePlugin):
         if echocommands:
             ToClientRecord(self.formatcommandstack()).send(__name__ + ':savecommand')
 
-    def savechanged_mud_data(self, args):
-        """
-        save mud data that was changed
-        """
-        if args:
-            args['id'] = self.last_changed_mud_data_id + 1
-            self.last_changed_mud_data_id = self.last_changed_mud_data_id + 1
-            self.changed_mud_data.enqueue(args)
