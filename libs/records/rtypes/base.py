@@ -136,9 +136,8 @@ class BaseDataRecord(BaseRecord, UserList):
                 if line:
                     line = f"{color}{line}@w"
             new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
-        if new_message != self.data:
-            self.data = new_message
-            self.addchange('Modify', 'color_lines', actor, 'convert color codes to ansi codes on each item')
+
+        self.replace(new_message, f"{actor}:color_lines", extra={'msg':'convert color codes to ansi codes on each item'})
 
     def clean(self, actor: str = ''):
         """
@@ -165,9 +164,8 @@ class BaseDataRecord(BaseRecord, UserList):
                 from libs.records.rtypes.log import LogRecord
                 LogRecord(f"clean - {self.uuid} Message.clean: line is not a string: {line}",
                           level='error', sources=[__name__])
-        if new_message != self.data:
-            self.data = new_message
-            self.addchange('Modify', 'clean', actor)
+
+        self.replace(new_message, f"{actor}:clean", extra={'msg':'clean each item'})
 
     def addchange(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
         """
