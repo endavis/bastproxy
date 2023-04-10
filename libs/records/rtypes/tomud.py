@@ -10,7 +10,6 @@ Holds the tomud record type
 """
 # Standard Library
 import re
-import pprint
 
 # 3rd Party
 
@@ -147,7 +146,6 @@ class ToMudRecord(BaseDataRecord):
                     self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
                                     f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'event_args':event_args},
                                     savedata=False)
-                    pprint.pprint(event_args)
                     continue
 
                 if event_args['line'] != line:
@@ -157,7 +155,6 @@ class ToMudRecord(BaseDataRecord):
                 self.addupdate('Info', f"event:{self.modify_data_event_name} returned", f"{actor}:send:{self.modify_data_event_name}",
                                 extra={'event_args':event_args}, savedata=False)
                 new_message.append(event_args['line'])
-                pprint.pprint(event_args)
 
             self.replace(new_message, f"{actor}:{self.modify_data_event_name}")
             self.addupdate('Info', f'After event {self.modify_data_event_name}', f"{actor}:send")
