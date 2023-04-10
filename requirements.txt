@@ -1,5 +1,4 @@
 dumper
 rapidfuzz
-deepdiff
 telnetlib3
 regex

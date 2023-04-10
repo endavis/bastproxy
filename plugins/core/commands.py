@@ -25,12 +25,6 @@ import textwrap as _textwrap
 from functools import lru_cache
 
 # 3rd Party
-try:
-    from deepdiff import DeepDiff
-except ImportError:
-    print('Please install required libraries. deepdiff is missing.')
-    print('From the root of the project: pip(3) install -r requirements.txt')
-    sys.exit(1)
 
 # Project
 from libs.api import API
