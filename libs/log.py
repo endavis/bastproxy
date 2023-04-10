@@ -41,7 +41,7 @@ class CustomColorFormatter(logging.Formatter):
     critical = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@r']}m"
     reset = '\x1b[0m'
 
-    def __init__(self, fmt):
+    def __init__(self, fmt: str):
         super().__init__()
         self.fmt = fmt
         self.api = API(owner_id=f"{__name__}:CustomColorFormatter")
@@ -53,7 +53,7 @@ class CustomColorFormatter(logging.Formatter):
             logging.CRITICAL: self.critical + self.fmt + self.reset
         }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord):
         if 'exc_info' in record.__dict__:
             if record.exc_info:
                 formatted_exc = traceback.format_exception(record.exc_info[1])
@@ -146,7 +146,7 @@ class CustomClientHandler(logging.Handler):
             else:
                 ToClientRecord(formatted_message).send('logging client handler')
 
-def setup_loggers(log_level):
+def setup_loggers(log_level: int):
 
     from libs.api import API
 
