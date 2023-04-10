@@ -37,6 +37,7 @@ class Event:
         self.raised_count = 0
         self.description: str = description
         self.arg_descriptions = arg_descriptions or {}
+        self.current_args: EventArgsRecord | None = None
 
     def count(self) -> int:
         """
@@ -189,17 +190,18 @@ class Event:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by]).send()
 
+        self.current_args = data
         if keys := self.priority_dictionary.keys():
             keys = sorted(keys)
             for priority in keys:
                 for event_function in self.priority_dictionary[priority][:]:
                     try:
-                        # data is a record that acts like a dictionary and can be updated.
-                        # If the registered event changes the args, it should snapshot it with addupdate
-                        event_function.execute(data)
+                        # A callback should call the api 'plugins.core.events:get:current:event'
+                        # which returns event_name, EventArgsRecord
+                        # If the registered event changes the data, it should snapshot it with addupdate
                     except Exception:  # pylint: disable=broad-except
                         LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
                                     level='error', sources=[event_function.owner_id, self.created_by], exc_info=True).send()
-
+        self.current_args = None
         return data
 
