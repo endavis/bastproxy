@@ -9,12 +9,10 @@
 Holds the client record type
 """
 # Standard Library
-import asyncio
 
 # 3rd Party
 
 # Project
-from libs.net.networkdata import NetworkData
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.base import BaseDataRecord
 
@@ -56,20 +54,21 @@ class ToClientRecord(BaseDataRecord):
         # clients to exclude, a list of client uuids
         self.exclude_clients: list[str] = exclude_clients if exclude_clients else []
         # This will set the color for all lines to the specified @ color
-        self.color_for_all_lines: str = color_for_all_lines if color_for_all_lines else ''
         self.message_type: str = message_type
-        # This is a flag to prevent the message from being sent to the client more than once
-        self.sending: bool = False
+        self.color_for_all_lines: str = color_for_all_lines or ''
+        self.modify_data_event_name = 'ev_to_client_data_modify'
+        self.read_data_event_name = 'ev_to_client_data_read'
         self.setup_events()
 
     def setup_events(self):
         global SETUPEVENTS
         if not SETUPEVENTS:
             SETUPEVENTS = True
-            self.api('plugins.core.events:add:event')('ev_client_data_modify', __name__,
+            self.api('plugins.core.events:add:event')(self.modify_data_event_name, __name__,
                                                 description='An event to modify data before it is sent to the client',
-                                                arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
-            self.api('plugins.core.events:add:event')('ev_client_data_read', __name__,
+                                                arg_descriptions={'line': 'The line to modify',
+                                                                  'sendtoclient': 'A flag to determine if this line should be sent to the client'})
+            self.api('plugins.core.events:add:event')(self.read_data_event_name, __name__,
                                                 description='An event to see data that was sent to the client',
                                                 arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
 
@@ -113,7 +112,7 @@ class ToClientRecord(BaseDataRecord):
         """
         if flag != self.send_to_clients:
             self.send_to_clients = flag
-            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra=f"set to {flag}, {extra}", savedata=False)
+            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra={'msg':f"set to {flag}, {extra}"}, savedata=False)
 
     def add_client(self, client_uuid: str):
         """
@@ -161,17 +160,8 @@ class ToClientRecord(BaseDataRecord):
             preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=self.error)
             preambletext = self.api('plugins.core.proxy:preamble:get')()
             new_message = []
-            for item in self.data:
-                    new_message.append(f"{preamblecolor}{preambletext}@w: {item}")
-            if new_message != self.data:
-                self.data = new_message
-                self.addchange('Modify', 'preamble', actor, 'add a preamble to all items')
-
-    def clean(self, actor=''):
-        """
-        clean the message
-        """
-        super().clean(actor)
+            new_message = [f"{preamblecolor}{preambletext}@w: {item}" for item in self.data]
+            self.replace(new_message, f"{actor}:add_preamble", extra={'msg':'add a preamble to all items'})
 
     def color_lines(self, actor=''):
         """
@@ -209,10 +199,36 @@ class ToClientRecord(BaseDataRecord):
                                 level='debug', stack_info=True, sources=[__name__]).send()
             return
         self.sending = True
-        self.addchange('Info', 'Starting Send', actor)
-        if not self.internal:
-            self.api('plugins.core.events:raise:event')('ev_client_data_modify', args={'ToClientRecord': self})
-            self.addchange('Info', 'After event ev_modify_client_data', actor)
+        self.addchange('Info', 'Starting Send', actor, savedata=False)
+
+        # If it came from the mud, pass each line through the event system to allow plugins to modify it
+        if not self.internal and self.is_io:
+            self.clean(actor=actor)
+            tmessage = []
+            for line in self.data:
+                event_args = self.api('plugins.core.events:raise:event')(self.modify_data_event_name, args={'line': line,
+                                                                                                        'internal': self.internal,
+                                                                                                        'sendtoclient': True})
+                if not event_args['sendtoclient']:
+                    self.addchange('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
+                                    f"{actor}:send:{self.modify_data_event_name}",
+                                    extra={'line':line, 'event_args':event_args},
+                                    savedata=False)
+                    continue
+
+                if event_args['line'] != line:
+                    self.addchange('Modify', f"line modified by {self.modify_data_event_name}",
+                                    f"{actor}:send:{self.modify_data_event_name}",
+                                    extra={'line':line, 'event_args':event_args},
+                                    savedata=False)
+
+                self.addchange('Info', f"event {self.modify_data_event_name}", f"{actor}:send", extra={'event_args':event_args}, savedata=False)
+                pprint.pprint(event_args)
+                tmessage.append(event_args['line'])
+
+            self.replace(tmessage, f"{actor}:send:{self.modify_data_event_name}")
+            self.addchange('Info', f'After event {self.modify_data_event_name}', actor)
+
         if self.send_to_clients:
             self.format(actor=actor)
             loop = asyncio.get_event_loop()
@@ -223,16 +239,12 @@ class ToClientRecord(BaseDataRecord):
             for client_uuid in clients:
                 if self.can_send_to_client(client_uuid):
                     client = self.api('plugins.core.clients:get:client')(client_uuid)
-                    if self.is_io:
-                        message = NetworkData(self.message_type, message=''.join(self), client_uuid=client_uuid)
-                        loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
-                    else:
-                        for i in self:
-                            message = NetworkData(self.message_type, message=i, client_uuid=client_uuid)
-                            loop.call_soon_threadsafe(client.msg_queue.put_nowait, message)
+                    client.send_to(self)
                 else:
                     LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
                             level='debug', sources=[__name__]).send()
 
-            if not self.internal:
-                self.api('plugins.core.events:raise:event')('ev_client_data_read', args={'ToClientRecord': self})
+        if self.is_io:
+            self.api('plugins.core.events:raise:event')(self.read_data_event_name, args={'ToClientRecord': self})
+
+        self.addchange('Info', 'Completed sending data', f"{actor}:send", savedata=False)

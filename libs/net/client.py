@@ -24,7 +24,7 @@ from uuid import uuid4
 from libs.net import telnet
 from libs.asynch.task_logger import create_task
 from libs.api import API
-from libs.records import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.net.networkdata import NetworkData
 
 log = logging.getLogger(__name__)
@@ -55,12 +55,29 @@ class ClientConnection:
         self.api = API(owner_id=f"{__name__}:{self.uuid}")
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
-        self.state: dict[str, bool] = {'connected': True, 'logged in': False}
+        self.connected: bool = True
+        self.state: dict[str, bool] = {'logged in': False}
         self.view_only = False
-        self.msg_queue = asyncio.Queue()
+        self.send_queue: asyncio.Queue[NetworkData] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
+
+    def send_to(self, data: ToClientRecord) -> None:
+        """
+        add data to the queue
+        """
+        if not self.connected:
+            LogRecord(f"send_to - {self.uuid} [{self.addr}:{self.port}] is not connected. Cannot send", level='debug', sources=[__name__]).send()
+            return
+        loop = asyncio.get_event_loop()
+        if data.is_io:
+            message = NetworkData(data.message_type, message=''.join(data), client_uuid=self.uuid)
+            loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
+        else:
+            for i in data:
+                message = NetworkData(data.message_type, message=i, client_uuid=self.uuid)
+                loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
 
     async def setup_client(self) -> None:
         """
@@ -76,7 +93,7 @@ class ClientConnection:
             except AttributeError:
                 # the connection is already closed
                 pass
-            self.state['connected'] = False
+            self.connected = False
             return
 
         LogRecord(f"setup_client - Sending echo on to {self.uuid}", level='debug', sources=[__name__]).send()
@@ -108,14 +125,14 @@ class ClientConnection:
         """
         LogRecord(f"client_read - Starting coroutine for {self.uuid}", level='debug', sources=[__name__]).send()
 
-        while self.state['connected']:
+        while self.connected:
             inp: bytes = await self.reader.readline()
             LogRecord(f"client_read - Raw received data in client_read : {inp}", level='debug', sources=[__name__]).send()
             LogRecord(f"client_read - inp type = {type(inp)}", level='debug', sources=[__name__]).send()
             logging.getLogger(f"data.{self.uuid}").info(f"{'from_client':<12} : {inp}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
-                self.state['connected'] = False
+                self.connected = False
                 return
 
             if not self.state['logged in']:
@@ -149,7 +166,8 @@ class ClientConnection:
                 if self.view_only:
                     ToClientRecord(['You are logged in as a view only user.'], clients=[self.uuid]).send('libs.net.client:client_read')
                 else:
-                    self.api('libs.io:send:execute')(inp, fromclient=True)
+                    # this is where we start with ToMudRecord
+                    ToMudRecord(inp, internal=False).send('libs.net.client:client_read')
 
         LogRecord(f"client_read - Ending coroutine for {self.uuid}", level='debug', sources=[__name__]).send()
 
@@ -161,8 +179,8 @@ class ClientConnection:
             We await for any messages from the game to this client, then write and drain it.
         """
         LogRecord(f"client_write - Starting coroutine for {self.uuid}", level='debug', sources=[__name__]).send()
-        while self.state['connected']:
-            msg_obj: NetworkData = await self.msg_queue.get()
+        while self.connected:
+            msg_obj: NetworkData = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
                     LogRecord(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}", level='debug', sources=[__name__]).send()
@@ -202,8 +220,8 @@ async def unregister_client(connection) -> None:
     """
     LogRecord(f"unregister_client - Unregistering client {connection.uuid}", level='debug', sources=[__name__]).send()
 
-    if connection.state['connected']:
-        connection.state['connected'] = False
+    if connection.connected:
+        connection.connected = False
     connection.api('plugins.core.clients:client:remove')(connection)
 
     LogRecord(f"unregister_client - Unregistered client {connection.uuid}", level='debug', sources=[__name__]).send()
