@@ -225,31 +225,34 @@ class PluginMgr(BasePlugin):
         return None
 
     # get a plugin instance
-    def _api_get_plugin_instance(self, plugin_name):
+    def _api_get_plugin_instance(self, plugin_name) -> BasePlugin | None:
         """  get a loaded plugin instance
         @Ypluginname@w  = the plugin to get
 
         returns:
           if the plugin exists, returns a plugin instance, otherwise returns None"""
 
-        plugin = None
+        plugin_instance = None
 
         if isinstance(plugin_name, str):
             if plugin_name in self.loaded_plugins_info:
-                plugin = self.loaded_plugins_info[plugin_name].plugininstance
+                plugin_instance = self.loaded_plugins_info[plugin_name].plugininstance
             if plugin_name in self.plugin_lookup_by_id:
-                plugin = self.loaded_plugins_info[self.plugin_lookup_by_id[plugin_name]].plugininstance
+                plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_id[plugin_name]].plugininstance
             if plugin_name in self.plugin_lookup_by_full_import_location:
-                plugin = self.loaded_plugins_info[self.plugin_lookup_by_full_import_location[plugin_name]].plugininstance
+                plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_full_import_location[plugin_name]].plugininstance
             if plugin_name in self.plugin_lookup_by_plugin_filepath:
-                plugin = self.loaded_plugins_info[self.plugin_lookup_by_plugin_filepath[plugin_name]].plugininstance
-            if not plugin:
-                # do some fuzzy matching of the string against plugin_id
-                pass
+                plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_plugin_filepath[plugin_name]].plugininstance
+            # if not plugin_instance:
+            #     # do some fuzzy matching of the string against plugin_id
+            #     pass
         elif isinstance(plugin_name, BasePlugin):
-            plugin = plugin_name
+            plugin_instance = plugin_name
 
-        return plugin
+        if not plugin_instance:
+            LogRecord(f"api_get_plugin_instance - plugin not found: {plugin_name}", level="error", sources=[self.plugin_id], stack_info=True)
+
+        return plugin_instance
 
     # get a plugin instance
     def _api_is_plugin_id(self, plugin_id):
