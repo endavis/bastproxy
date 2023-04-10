@@ -352,7 +352,7 @@ class PluginMgr(BasePlugin):
         create a message of all not loaded plugins
         """
         msg = []
-        if conflicts := self.read_all_plugin_information():
+        if self.read_all_plugin_information():
             LogRecord('conflicts with plugins, see console and correct', level='error', sources=[self.plugin_id]).send()
 
         loaded_plugins = self.loaded_plugins_info.keys()
