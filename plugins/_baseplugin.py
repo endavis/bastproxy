@@ -9,6 +9,8 @@
 This module holds the class BasePlugin, which all plugins should have as
 their base class.
 """
+
+import contextlib
 # Standard Library
 import os
 import sys
@@ -38,7 +40,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     a base class for plugins
     """
     def __init__(self, name, plugin_path: Path, base_plugin_dir: Path,
-                 full_import_location, plugin_id): # pylint: disable=too-many-arguments
+                 full_import_location, plugin_id):    # pylint: disable=too-many-arguments
         """
         initialize the instance
         The only things that should be done are:
@@ -124,20 +126,19 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         returns:
           the value of the setting, None if not found"""
         if not plugin:
-            try:
-                if self.api('libs.api:has')('plugins.core.utils:verify:value'):
-                    return self.api('plugins.core.utils:verify:value')(self.setting_values[setting],
-                                                               self.settings[setting]['stype'])
-
-                return self.setting_values[setting]
-
-            except KeyError:
-                pass
-
-        else:
-            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin)
-            if plugin_instance:
-                return plugin_instance.api('setting:get')(setting)
+            with contextlib.suppress(KeyError):
+                return (
+                    self.api('plugins.core.utils:verify:value')(
+                        self.setting_values[setting],
+                        self.settings[setting]['stype'],
+                    )
+                    if self.api('libs.api:has')('plugins.core.utils:verify:value')
+                    else self.setting_values[setting]
+                )
+        elif plugin_instance := self.api('plugins.core.pluginm:get:plugin:instance')(
+            plugin
+        ):
+            return plugin_instance.api('setting:get')(setting)
 
         return None
 
@@ -149,14 +150,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         returns:
           the data for the specified datatype, None if not found"""
-        if not plugin_id:
-            if datatype in self.data:
-                return self.data[datatype]
+        if plugin_id:
+            if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+                return self.api(f"{plugin_id}:data:get")(datatype)
 
-        else:
-            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-            if plugin_instance:
-                return plugin_instance.api('data:get')(datatype)
+        elif datatype in self.data:
+            return self.data[datatype]
 
         return None
 
@@ -173,9 +172,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             return True
 
         else:
-            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-            if plugin_instance:
-                return plugin_instance.api('data:update')(datatype, newdata)
+            if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+                return self.api(f"{plugin_id}:data:update")(datatype, newdata)
 
         return False
 
@@ -219,14 +217,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           @Ynocolor@w    = if True, don't parse colors when showing value
           @Yreadonly@w   = if True, can't be changed by a client"""
 
-        if 'nocolor' in kwargs:
-            nocolor_f = kwargs['nocolor']
-        else:
-            nocolor_f = False
-        if 'readonly' in kwargs:
-            readonly_f = kwargs['readonly']
-        else:
-            readonly_f = False
+        nocolor_f = kwargs.get('nocolor', False)
+        readonly_f = kwargs.get('readonly', False)
         if name not in self.setting_values:
             self.setting_values[name] = default
         self.settings[name] = {
@@ -345,9 +337,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         tmsg = []
         for header in stats:
             tmsg.append(self.api('plugins.core.utils:center:colored:string')(header, '=', 60))
-            for subtype in stats[header]['showorder']:
-                tmsg.append(f"{subtype:<20} : {stats[header][subtype]}")
-
+            tmsg.extend(
+                f"{subtype:<20} : {stats[header][subtype]}"
+                for subtype in stats[header]['showorder']
+            )
         return True, tmsg
 
     def _cmd_api(self, args):
@@ -355,14 +348,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         list functions in the api for a plugin
         """
         tmsg = []
+
         if args['api']:
             tmsg.extend(self.api('libs.api:detail')(f"{self.plugin_id}:{args['api']}"))
+        elif api_list := self.api('libs.api:list')(self.plugin_id):
+            tmsg.extend(api_list)
         else:
-            api_list = self.api('libs.api:list')(self.plugin_id)
-            if not api_list:
-                tmsg.append('nothing in the api')
-            else:
-                tmsg.extend(api_list)
+            tmsg.append('nothing in the api')
 
         return True, tmsg
 
@@ -381,27 +373,26 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             return True, self._list_vars()
         elif args['name'] and args['value']:
             var = args['name']
-            val = args['value']
             if var in self.settings:
                 if 'readonly' in self.settings[var] \
-                      and self.settings[var]['readonly']:
+                          and self.settings[var]['readonly']:
                     return True, [f"{var} is a readonly setting"]
-                else:
-                    try:
-                        self.api('setting:change')(var, val)
-                        tvar = self.setting_values[var]
-                        if self.settings[var]['nocolor']:
-                            tvar = tvar.replace('@', '@@')
-                        elif self.settings[var]['stype'] == 'color':
-                            tvar = f"{tvar}{tvar.replace('@', '@@')}@w"
-                        elif self.settings[var]['stype'] == 'timelength':
-                            tvar = self.api('plugins.core.utils:format:time')(
-                                self.api('plugins.core.utils:verify:value')(tvar, 'timelength'))
-                        return True, [f"{var} is now set to {tvar}"]
-                    except ValueError:
-                        msg = [f"Cannot convert {val} to {self.settings[var]['stype']}"]
-                        return True, msg
-                return True, self._list_vars()
+                val = args['value']
+                try:
+                    self.api('setting:change')(var, val)
+                    tvar = self.setting_values[var]
+                    if self.settings[var]['nocolor']:
+                        tvar = tvar.replace('@', '@@')
+                    elif self.settings[var]['stype'] == 'color':
+                        tvar = f"{tvar}{tvar.replace('@', '@@')}@w"
+                    elif self.settings[var]['stype'] == 'timelength':
+                        tvar = self.api('plugins.core.utils:format:time')(
+                            self.api('plugins.core.utils:verify:value')(tvar, 'timelength'))
+                    return True, [f"{var} is now set to {tvar}"]
+                except ValueError:
+                    msg = [f"Cannot convert {val} to {self.settings[var]['stype']}"]
+                    return True, msg
+
             else:
                 msg = [f"plugin setting {var} does not exist"]
         return False, msg
@@ -433,17 +424,18 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         show the help for this plugin
         @CUsage@w: help
         """
-        msg = []
         width = 25
 
-        msg.append(f"{'Plugin ID':<{width}} : {self.plugin_id}")
-        msg.append(f"{'Plugin Command Prefix':<{width}} : {self.plugin_id}")
-        msg.append(f"{'Purpose':<{width}} : {self.purpose}")
-        msg.append(f"{'Author':<{width}} : {self.author}")
-        msg.append(f"{'Version':<{width}} : {self.version}")
-        msg.append(f"{'Plugin Path':<{width}} : {self.plugin_path}")
-        msg.append(f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}")
-        msg.append(f"{'Modified Time':<{width}} : {datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc).strftime(self.api.time_format)}")
+        msg = [
+            f"{'Plugin ID':<{width}} : {self.plugin_id}",
+            f"{'Plugin Command Prefix':<{width}} : {self.plugin_id}",
+            f"{'Purpose':<{width}} : {self.purpose}",
+            f"{'Author':<{width}} : {self.author}",
+            f"{'Version':<{width}} : {self.version}",
+            f"{'Plugin Path':<{width}} : {self.plugin_path}",
+            f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}",
+            f"{'Modified Time':<{width}} : {datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc).strftime(self.api.time_format)}",
+        ]
         if self.is_changed_on_disk():
             msg.append(f"{' ':<{width}} : @RThe plugin has been modified on disk since it was loaded@w")
 
@@ -452,19 +444,18 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         else:
             import_location = self.full_import_location
 
-        msg.extend(sys.modules[import_location].__doc__.split('\n'))
+        if sys.modules[import_location].__doc__:
+            msg.extend(sys.modules[import_location].__doc__.split('\n'))
         if args['commands']:
-            cmd_list = self.api('plugins.core.commands:get:commands:for:plugin:formatted')(self.plugin_id)
-            if cmd_list:
+            if cmd_list := self.api(
+                'plugins.core.commands:get:commands:for:plugin:formatted'
+            )(self.plugin_id):
                 msg.extend(cmd_list)
-                msg.append('@G' + '-' * 60 + '@w')
-                msg.append('')
+                msg.extend(('@G' + '-' * 60 + '@w', ''))
         if args['api']:
-            api_list = self.api('libs.api:list')(self.plugin_id)
-            if api_list:
-                msg.append(f"API functions in {self.plugin_id}")
-                msg.append('@G' + '-' * 60 + '@w')
-                msg.extend(self.api('libs.api:list')(self.plugin_id))
+            if api_list := self.api('libs.api:list')(self.plugin_id):
+                msg.extend((f"API functions in {self.plugin_id}", '@G' + '-' * 60 + '@w'))
+                msg.extend(api_list)
         return True, msg
 
     def _add_commands(self):
@@ -622,12 +613,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         mud = self.api('plugins.core.managers:get')('mud')
 
-        if mud and mud.connected:
-            if self.api('libs.api:is_character_active')():
-                self.after_character_is_active()
-            else:
-                self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active,
-                                                          prio=self.is_character_active_priority)
+        if mud and mud.connected and self.api('libs.api:is_character_active')():
+            self.after_character_is_active()
         else:
             self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.after_character_is_active,
                                                       prio=self.is_character_active_priority)
@@ -655,8 +642,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         returns:
           a dict of statistics
         """
-        stats = {}
-        stats['Base Sizes'] = {}
+        stats = {'Base Sizes': {}}
         stats['Base Sizes']['showorder'] = ['Class', 'Variables', 'Api']
         stats['Base Sizes']['Variables'] = f"{sys.getsizeof(self.setting_values)} bytes"
         stats['Base Sizes']['Class'] = f"{sys.getsizeof(self)} bytes"
@@ -691,10 +677,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           True if the plugin is changed on disk, False otherwise
         """
         file_modified_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc)
-        if file_modified_time > self.loaded_time:
-            return True
-
-        return False
+        return file_modified_time > self.loaded_time
 
     def reset(self):
         """

@@ -110,8 +110,9 @@ class PluginMgr(BasePlugin):
             short_name_list.append(loaded_plugin_info.short_name)
             plugin_id_list.append(loaded_plugin_info.plugin_id)
 
-        found_short_name = self.api('plugins.core.fuzzy:get:best:match')(short_name, short_name_list)
-        if found_short_name:
+        if found_short_name := self.api('plugins.core.fuzzy:get:best:match')(
+            short_name, short_name_list
+        ):
             short_name_index = short_name_list.index(found_short_name)
             return plugin_id_list[short_name_index]
 
@@ -129,20 +130,17 @@ class PluginMgr(BasePlugin):
         """
         return a list of all short names
         """
-        short_name_list = []
-        for loaded_plugin_info in self.loaded_plugins_info.values():
-            short_name_list.append(loaded_plugin_info.short_name)
-        return short_name_list
+        return [
+            loaded_plugin_info.short_name
+            for loaded_plugin_info in self.loaded_plugins_info.values()
+        ]
 
     # get a list of all packages
     def _api_get_packages_list(self):
         """
         return the list of packages
         """
-        packages = []
-        for i in self.loaded_plugins_info:
-            packages.append(i.rsplit('.', 1)[0])
-
+        packages = [i.rsplit('.', 1)[0] for i in self.loaded_plugins_info]
         packages = list(set(packages))
 
         return packages
@@ -177,10 +175,8 @@ class PluginMgr(BasePlugin):
 
         returns:
           the module for a plugin"""
-        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
-
-        if plugin:
-            return self.loaded_plugins_info[plugin.plugin_id].module
+        if self.api("core.plugins.pluginm:is:plugin:id")(pluginname):
+            return self.loaded_plugins_info[pluginname].module
 
         return None
 
@@ -221,13 +217,9 @@ class PluginMgr(BasePlugin):
 
         returns:
           if the plugin exists, returns a plugin instance, otherwise returns None"""
-
-        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(plugin_id)
-
-        if not plugin:
-            return False
-
-        return True
+        return bool(
+            self.api(f"{self.plugin_id}:get:plugin:instance")(plugin_id)
+        )
 
     # check if a plugin is loaded
     def _api_is_plugin_loaded(self, pluginname):
@@ -236,12 +228,9 @@ class PluginMgr(BasePlugin):
 
         returns:
           True if the plugin is loaded, False if not"""
-        plugin = self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
-
-        if plugin:
-            return True
-
-        return False
+        return bool(
+            self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
+        )
 
     # get a message of plugins in a package
     def _get_package_plugins(self, package):
@@ -262,30 +251,33 @@ class PluginMgr(BasePlugin):
             else:
                 package = f"plugins.{package}"
 
-        plist = []
-        for plugin_instance in [i.plugininstance for i in self.loaded_plugins_info.values()]:
-            if plugin_instance:
-                if plugin_instance.package == package:
-                    plist.append(plugin_instance)
-
-        if plist:
+        if plist := [
+            plugin_instance
+            for plugin_instance in [
+                i.plugininstance for i in self.loaded_plugins_info.values()
+            ]
+            if plugin_instance and plugin_instance.package == package
+        ]:
             plugins = sorted(plist, key=operator.attrgetter('plugin_id'))
             mod = __import__(package)
             try:
                 desc = getattr(mod, package).DESCRIPTION
             except AttributeError:
                 desc = ''
-            msg.append(f"@GPackage: {package}{' - ' + desc if desc else ''}@w")
-            msg.append('@G' + '-' * 75 + '@w')
-            msg.append(self.plugin_format_string % \
-                                ('Id', 'Name',
-                                 'Author', 'Vers', 'Purpose'))
-            msg.append('-' * 75)
-
-            for tpl in plugins:
-                msg.append(self.plugin_format_string % \
-                          (tpl.plugin_id, tpl.name,
-                           tpl.author, tpl.version, tpl.purpose))
+            msg.extend(
+                (
+                    f"@GPackage: {package}{f' - {desc}' if desc else ''}@w",
+                    '@G' + '-' * 75 + '@w',
+                    self.plugin_format_string
+                    % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
+                    '-' * 75,
+                )
+            )
+            msg.extend(
+                self.plugin_format_string
+                % (tpl.plugin_id, tpl.name, tpl.author, tpl.version, tpl.purpose)
+                for tpl in plugins
+            )
         else:
             msg.append('That is not a valid package')
 
@@ -299,14 +291,14 @@ class PluginMgr(BasePlugin):
         returns:
           a list of strings
         """
-        msg = []
-
         plugin_instances = sorted([i.plugininstance for i in self.loaded_plugins_info.values()],
                          key=operator.attrgetter('package'))
         package_header = []
-        msg.append(self.plugin_format_string % \
-                            ('Id', 'Name', 'Author', 'Vers', 'Purpose'))
-        msg.append('-' * 75)
+        msg = [
+            self.plugin_format_string
+            % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
+            '-' * 75,
+        ]
         for tpl in plugin_instances:
             if tpl:
                 if tpl.package not in package_header:
@@ -319,10 +311,14 @@ class PluginMgr(BasePlugin):
                         desc = getattr(mod, tpl.package).DESCRIPTION
                     except AttributeError:
                         desc = ''
-                    msg.append(f"@GPackage: {tpl.package}{' - ' + desc if desc else ''}@w")
-                    msg.append('@G' + '-' * 75 + '@w')
+                    msg.extend(
+                        (
+                            f"@GPackage: {tpl.package}{f' - {desc}' if desc else ''}@w",
+                            '@G' + '-' * 75 + '@w',
+                        )
+                    )
                 msg.append(self.plugin_format_string % \
-                            (tpl.plugin_id, tpl.name,
+                                (tpl.plugin_id, tpl.name,
                             tpl.author, tpl.version, tpl.purpose))
         return msg
 
@@ -331,29 +327,25 @@ class PluginMgr(BasePlugin):
         """
         create a message of plugins that are changed on disk
         """
-        msg = []
-
         plugin_instances = [i.plugininstance for i in self.loaded_plugins_info.values()]
 
-        msg.append(self.api('plugins.core.utils:center:colored:string')('@x86Changed Plugins@w', '-',
-                                                                        80, filler_color='@B'))
-        msg.append(self.plugin_format_string % \
-                            ('Id', 'Name', 'Author', 'Vers', 'Purpose'))
-        msg.append('-' * 75)
-
+        msg = [
+            self.api('plugins.core.utils:center:colored:string')(
+                '@x86Changed Plugins@w', '-', 80, filler_color='@B'
+            ),
+            self.plugin_format_string
+            % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
+            '-' * 75,
+        ]
         found = False
         for tpl in plugin_instances:
-            if tpl:
-                if tpl.is_changed_on_disk():
-                    found = True
-                    msg.append(self.plugin_format_string % \
+            if tpl and tpl.is_changed_on_disk():
+                found = True
+                msg.append(self.plugin_format_string % \
                             (tpl.plugin_id, tpl.name,
-                            tpl.author, tpl.version, tpl.purpose))
+                        tpl.author, tpl.version, tpl.purpose))
 
-        if found:
-            return msg
-
-        return ['No plugins are changed on disk.']
+        return msg if found else ['No plugins are changed on disk.']
 
     # get all not loaded plugins
     def _get_not_loaded_plugins(self):
@@ -361,43 +353,45 @@ class PluginMgr(BasePlugin):
         create a message of all not loaded plugins
         """
         msg = []
-        conflicts = self.read_all_plugin_information()
-        if conflicts:
+        if conflicts := self.read_all_plugin_information():
             LogRecord('conflicts with plugins, see console and correct', level='error', sources=[self.plugin_id]).send()
 
         loaded_plugins = self.loaded_plugins_info.keys()
         all_plugins = self.all_plugin_file_info.keys()
         bad_plugins = [plugin_id for plugin_id in self.all_plugin_file_info \
-                          if self.all_plugin_file_info[plugin_id].isvalidpythoncode is False]
+                              if self.all_plugin_file_info[plugin_id].isvalidpythoncode is False]
 
-        pdiff = set(all_plugins) - set(loaded_plugins)
-
-        if pdiff:
+        if pdiff := set(all_plugins) - set(loaded_plugins):
             msg.insert(0, self.api('plugins.core.utils:center:colored:string')('@x86Not Loaded Plugins@w', '-',
                                                                                80, filler_color='@B'))
             msg.insert(0, '-' * 75)
             msg.insert(0, self.plugin_format_string % \
-                                ('Location', 'Name', 'Author', 'Vers', 'Purpose'))
+                                    ('Location', 'Name', 'Author', 'Vers', 'Purpose'))
             msg.insert(0, 'The following plugins are not loaded')
 
             for plugin_id in sorted(pdiff):
                 plugin_info = self.all_plugin_file_info[plugin_id]
                 msg.append(self.plugin_format_string % \
-                            (plugin_id,
+                                (plugin_id,
                              plugin_info.name,
                              plugin_info.author,
                              plugin_info.version,
                              plugin_info.purpose))
 
         if bad_plugins:
-            msg.append('')
-            msg.append(self.api('plugins.core.utils:center:colored:string')('@x86Bad Plugins@w', '-',
-                                                                        80, filler_color='@B'))
-            msg.append('The following files are not valid python code')
+            msg.extend(
+                (
+                    '',
+                    self.api('plugins.core.utils:center:colored:string')(
+                        '@x86Bad Plugins@w', '-', 80, filler_color='@B'
+                    ),
+                    'The following files are not valid python code',
+                )
+            )
             for plugin_id in sorted(bad_plugins):
                 plugin_info = self.all_plugin_file_info[plugin_id]
                 msg.append(self.plugin_format_string % \
-                            (plugin_id,
+                                (plugin_id,
                              plugin_info.name,
                              plugin_info.author,
                              plugin_info.version,
@@ -445,10 +439,7 @@ class PluginMgr(BasePlugin):
           a dict with the keys: required, isplugin, sname, isvalidpythoncode
         """
         info = PluginFileInfo()
-        tfile = open(path)
-        contents = tfile.read()
-        tfile.close()
-
+        contents = Path(path).read_text()
         try:
             ast.parse(contents)
             info.isvalidpythoncode = True
@@ -457,36 +448,31 @@ class PluginMgr(BasePlugin):
                       level='warning', sources=[self.plugin_id]).send()
 
         for tline in contents.split('\n'):
-            if not info.name:
-                name_match = NAMERE.match(tline)
-                if name_match:
+            if name_match := NAMERE.match(tline):
+                if not info.name:
                     gdict = name_match.groupdict()
                     info.name = gdict['value']
                     continue
 
-            if not info.purpose:
-                purpose_match = PURPOSERE.match(tline)
-                if purpose_match:
+            if purpose_match := PURPOSERE.match(tline):
+                if not info.purpose:
                     gdict = purpose_match.groupdict()
                     info.purpose = gdict['value']
                     continue
 
-            if not info.author:
-                author_match = AUTHORRE.match(tline)
-                if author_match:
+            if author_match := AUTHORRE.match(tline):
+                if not info.author:
                     gdict = author_match.groupdict()
                     info.author = gdict['value']
                     continue
 
-            if not info.version:
-                version_match = VERSIONRE.match(tline)
-                if version_match:
+            if version_match := VERSIONRE.match(tline):
+                if not info.version:
                     gdict = version_match.groupdict()
                     info.version = int(gdict['value'])
                     continue
 
-            required_match = REQUIREDRE.match(tline)
-            if required_match:
+            if required_match := REQUIREDRE.match(tline):
                 gdict = required_match.groupdict()
                 if gdict['value'].lower() == 'true':
                     info.isrequired = True
@@ -498,7 +484,7 @@ class PluginMgr(BasePlugin):
                 continue
 
             if info.isrequired and info.isplugin and \
-               info.name and info.author and info.purpose and info.version > -1:
+                   info.name and info.author and info.purpose and info.version > -1:
                 break
 
         return info
@@ -514,8 +500,6 @@ class PluginMgr(BasePlugin):
         self.all_plugin_file_info = {}
 
         _module_list = imputils.find_modules(self.base_plugin_dir, prefix='plugins.')
-
-        conflicts = False
 
         # go through the plugins and read information from them
         for module in _module_list:
@@ -535,8 +519,6 @@ class PluginMgr(BasePlugin):
                 info.filename = filename
 
                 self.all_plugin_file_info[plugin_id] = info
-
-        return conflicts
 
     def load_single_plugin(self, plugin_id, exit_on_error=False, run_initialize=True, check_dependencies=True):
         """
@@ -575,20 +557,18 @@ class PluginMgr(BasePlugin):
                 sys.exit(1)
             return False
 
-        plugin_classes = []
-
         # build dependencies
         new_dependencies = set(dependencies)
-        for tplugin_id in new_dependencies:
-            plugin_classes.append(self.loaded_plugins_info[tplugin_id])
-
+        plugin_classes = [
+            self.loaded_plugins_info[tplugin_id] for tplugin_id in new_dependencies
+        ]
         plugin_classes.append(self.loaded_plugins_info[plugin_id])
 
         # get broken plugins that didn't import
         broken_modules = [tplugin_id for tplugin_id in new_dependencies \
-                              if tplugin_id in self.loaded_plugins_info \
-                                and not self.loaded_plugins_info[tplugin_id].isimported and \
-                                not self.loaded_plugins_info[tplugin_id].dev]
+                                  if tplugin_id in self.loaded_plugins_info \
+                                    and not self.loaded_plugins_info[tplugin_id].isimported and \
+                                    not self.loaded_plugins_info[tplugin_id].dev]
 
         # find the order the dependencies should be loaded
         if check_dependencies:
@@ -609,9 +589,9 @@ class PluginMgr(BasePlugin):
 
         # initiallize all plugins
         if run_initialize:
-            success = self.initialize_multiple_plugins(plugin_load_order, exit_on_error=exit_on_error)
-            return success
-
+            return self.initialize_multiple_plugins(
+                plugin_load_order, exit_on_error=exit_on_error
+            )
         return True
 
     def preinitialize_plugin(self, plugin_id, exit_on_error=False, check_dependencies=True):
@@ -633,8 +613,9 @@ class PluginMgr(BasePlugin):
           2) a list of other plugins that the plugin depends on
         """
         if plugin_id in self.loaded_plugins_info:
-            plugin_instance = self.loaded_plugins_info[plugin_id].plugininstance
-            if plugin_instance:
+            if plugin_instance := self.loaded_plugins_info[
+                plugin_id
+            ].plugininstance:
                 return True, plugin_instance.dependencies
             else:
                 return False, []
@@ -652,31 +633,33 @@ class PluginMgr(BasePlugin):
         except KeyError:
             plugin_dict = None
 
-        if not plugin_dict:
-            # import the plugin
-            if self._import_single_plugin(plugin_disk_info.fullpath, exit_on_error):
-                # instantiate the plugin
-                if self._instantiate_plugin(plugin_id, exit_on_error):
-                    plugin_dict = self.loaded_plugins_info[plugin_id]
+        if (
+            not plugin_dict
+            and self._import_single_plugin(
+                plugin_disk_info.fullpath, exit_on_error
+            )
+            and self._instantiate_plugin(plugin_id, exit_on_error)
+        ):
+            plugin_dict = self.loaded_plugins_info[plugin_id]
 
-                    all_dependencies = []
+            all_dependencies = []
 
-                    if check_dependencies:
-                        # get dependencies
-                        plugin_instance = self.loaded_plugins_info[plugin_id].plugininstance
-                        if plugin_instance:
-                            dependencies = plugin_instance.dependencies
-                        else:
-                            dependencies = []
+            if check_dependencies:
+                if plugin_instance := self.loaded_plugins_info[
+                    plugin_id
+                ].plugininstance:
+                    dependencies = plugin_instance.dependencies
+                else:
+                    dependencies = []
 
-                        for dependency in dependencies:
-                            # import and instantiate dependencies and add their dependencies to list
-                            return_value, new_dependencies = self.preinitialize_plugin(dependency)
-                            if return_value:
-                                all_dependencies.append(dependency)
-                                all_dependencies.extend(new_dependencies)
+                for dependency in dependencies:
+                    # import and instantiate dependencies and add their dependencies to list
+                    return_value, new_dependencies = self.preinitialize_plugin(dependency)
+                    if return_value:
+                        all_dependencies.append(dependency)
+                        all_dependencies.extend(new_dependencies)
 
-                    return True, all_dependencies
+            return True, all_dependencies
 
         return False, []
 
@@ -702,7 +685,7 @@ class PluginMgr(BasePlugin):
 
         # import the plugin
         success, msg, module, full_import_location = \
-          imputils.importmodule(plugin_path,
+              imputils.importmodule(plugin_path,
                                 self, 'plugins')
         if not success:
             return False
@@ -732,7 +715,7 @@ class PluginMgr(BasePlugin):
 
         if success:
             loaded_plugin_info.isimported = True
-        elif not success:
+        else:
             loaded_plugin_info.isimported = False
             if msg == 'error':
                 LogRecord(f"Could not import plugin {plugin_id}", level='error', sources=[self.plugin_id]).send()
@@ -809,16 +792,18 @@ class PluginMgr(BasePlugin):
         start with plugins that have REQUIRED=True, then move
         to plugins that were loaded in the config
         """
-        conflicts = self.read_all_plugin_information()
-        found = False
-        if conflicts:
-            LogRecord(f"conflicts with plugins, see console and correct", level='error', sources=[self.plugin_id]).send()
+        if self.read_all_plugin_information():
+            LogRecord(
+                "conflicts with plugins, see console and correct",
+                level='error',
+                sources=[self.plugin_id],
+            ).send(actor = f"{self.plugin_id}.read_all_plugin_information")
             sys.exit(1)
 
         plugins_to_load_setting = self.api('setting:get')('pluginstoload')
 
         required_plugins = [plugin.plugin_id for plugin in self.all_plugin_file_info.values() \
-                               if plugin.isrequired]
+                                           if plugin.isrequired]
 
         ## load all required plugins first
 
@@ -832,9 +817,11 @@ class PluginMgr(BasePlugin):
         # add all required plugins
         plugins_to_load = set(plugins_to_load_setting) - set(required_plugins)
 
-        # check to make sure all plugins exist on disk
-        plugins_not_found = [plugin for plugin in plugins_to_load if plugin not in self.all_plugin_file_info]
-        if plugins_not_found:
+        if plugins_not_found := [
+            plugin
+            for plugin in plugins_to_load
+            if plugin not in self.all_plugin_file_info
+        ]:
             for plugin in plugins_not_found:
                 LogRecord(f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
                           level='error', sources=[self.plugin_id]).send()
@@ -846,6 +833,7 @@ class PluginMgr(BasePlugin):
         # print(pprint.pformat(plugins_to_load))
         self.load_multiple_plugins(plugins_to_load)
 
+        found = False
         # clean up plugins that were not imported, initialized, or instantiated
         for loaded_plugin_info in self.loaded_plugins_info.values():
             if not loaded_plugin_info.isinitialized or not loaded_plugin_info.isimported or not loaded_plugin_info.plugininstance:
@@ -981,63 +969,64 @@ class PluginMgr(BasePlugin):
         """
         loaded_plugin_info = self.loaded_plugins_info[plugin_id]
 
-        if loaded_plugin_info:
-            if loaded_plugin_info.plugininstance and not loaded_plugin_info.plugininstance.can_reload_f:
-                LogRecord(f"{loaded_plugin_info.plugin_id:<30} : this plugin cannot be unloaded ({loaded_plugin_info.name})",
-                          level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
-                return False
+        if not loaded_plugin_info:
+            return False
+
+        if loaded_plugin_info.plugininstance and not loaded_plugin_info.plugininstance.can_reload_f:
+            LogRecord(f"{loaded_plugin_info.plugin_id:<30} : this plugin cannot be unloaded ({loaded_plugin_info.name})",
+                        level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+            return False
+
+        try:
+            # run the uninitialize function if it exists
+            if loaded_plugin_info.plugininstance:
+                if loaded_plugin_info.isinitialized:
+                        loaded_plugin_info.plugininstance.uninitialize()
+                self.api('plugins.core.events:raise:event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_uninitialized", {})
+                self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_uninitialized",
+                                                    {'plugin':loaded_plugin_info.name,
+                                                    'plugin_id':loaded_plugin_info.plugin_id})
+                LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully unitialized ({loaded_plugin_info.name})", level='info',
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
             else:
-                try:
-                    # run the uninitialize function if it exists
-                    if loaded_plugin_info.plugininstance:
-                        if loaded_plugin_info.isinitialized:
-                                loaded_plugin_info.plugininstance.uninitialize()
-                        self.api('plugins.core.events:raise:event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_uninitialized", {})
-                        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_uninitialized",
-                                                            {'plugin':loaded_plugin_info.name,
-                                                            'plugin_id':loaded_plugin_info.plugin_id})
-                        LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully unitialized ({loaded_plugin_info.name})", level='info',
-                                sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
-                    else:
-                        LogRecord(f"{loaded_plugin_info.plugin_id:<30} : plugin instance not found ({loaded_plugin_info.name})", level='info',
-                                sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                LogRecord(f"{loaded_plugin_info.plugin_id:<30} : plugin instance not found ({loaded_plugin_info.name})", level='info',
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
 
-                except Exception: # pylint: disable=broad-except
-                    LogRecord(f"unload: error running the uninitialize method for {loaded_plugin_info.plugin_id}", level='error',
-                              sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True).send()
-                    return False
+        except Exception: # pylint: disable=broad-except
+            LogRecord(f"unload: error running the uninitialize method for {loaded_plugin_info.plugin_id}", level='error',
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True).send()
+            return False
 
-                # remove from pluginstoload so it doesn't load at startup
-                plugins_to_load = self.api('setting:get')('pluginstoload')
-                if loaded_plugin_info.plugin_id in plugins_to_load:
-                    plugins_to_load.remove(loaded_plugin_info.plugin_id)
-                    self.api('setting:change')('pluginstoload', plugins_to_load)
+        # remove from pluginstoload so it doesn't load at startup
+        plugins_to_load = self.api('setting:get')('pluginstoload')
+        if loaded_plugin_info.plugin_id in plugins_to_load:
+            plugins_to_load.remove(loaded_plugin_info.plugin_id)
+            self.api('setting:change')('pluginstoload', plugins_to_load)
 
-                # clean up lookup dictionaries
-                # del self.plugin_lookup_by_short_name[plugin['short_name']]
-                del self.plugin_lookup_by_full_import_location[loaded_plugin_info.full_import_location]
-                del self.plugin_lookup_by_plugin_filepath[loaded_plugin_info.plugin_path]
-                del self.plugin_lookup_by_id[plugin_id]
+        # clean up lookup dictionaries
+        # del self.plugin_lookup_by_short_name[plugin['short_name']]
+        del self.plugin_lookup_by_full_import_location[loaded_plugin_info.full_import_location]
+        del self.plugin_lookup_by_plugin_filepath[loaded_plugin_info.plugin_path]
+        del self.plugin_lookup_by_id[plugin_id]
 
-                if loaded_plugin_info.plugininstance:
-                    # delete the instance
-                    del loaded_plugin_info.plugininstance
+        if loaded_plugin_info.plugininstance:
+            # delete the instance
+            del loaded_plugin_info.plugininstance
 
-                if loaded_plugin_info.isimported:
-                    # delete the module
-                    success = imputils.deletemodule(loaded_plugin_info.full_import_location)
-                    if success:
-                        LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module was successful ({loaded_plugin_info.name})",
-                                  level='info', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
-                    else:
-                        LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module failed ({loaded_plugin_info.name})",
-                                  level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+        if loaded_plugin_info.isimported:
+            if imputils.deletemodule(
+                loaded_plugin_info.full_import_location
+            ):
+                LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module was successful ({loaded_plugin_info.name})",
+                            level='info', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+            else:
+                LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module failed ({loaded_plugin_info.name})",
+                            level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
 
-                # remove from loaded_plugins
-                plugin = None
-                del self.loaded_plugins_info[plugin_id]
+        # remove from loaded_plugins
+        del self.loaded_plugins_info[plugin_id]
 
-                return True
+        return True
 
     # get stats for this plugin
     def get_stats(self):
@@ -1047,9 +1036,7 @@ class PluginMgr(BasePlugin):
         returns:
           a dict of statistics
         """
-        stats = {}
-        stats['Base Sizes'] = {}
-
+        stats = {'Base Sizes': {}}
         stats['Base Sizes']['showorder'] = ['Class', 'Api', 'loaded_plugins',
                                             'all_plugin_info_from_disk']
         stats['Base Sizes']['loaded_plugins'] = f"{sys.getsizeof(self.loaded_plugins_info)} bytes"
@@ -1058,11 +1045,11 @@ class PluginMgr(BasePlugin):
         stats['Base Sizes']['Class'] = f"{sys.getsizeof(self)} bytes"
         stats['Base Sizes']['Api'] = f"{sys.getsizeof(self.api)} bytes"
 
-        stats['Plugins'] = {}
-        stats['Plugins']['showorder'] = ['Total', 'Loaded']
-        stats['Plugins']['Total'] = len(self.all_plugin_file_info)
-        stats['Plugins']['Loaded'] = len(self.loaded_plugins_info)
-
+        stats['Plugins'] = {
+            'showorder': ['Total', 'Loaded'],
+            'Total': len(self.all_plugin_file_info),
+            'Loaded': len(self.loaded_plugins_info),
+        }
         return stats
 
     def shutdown(self, _=None):
@@ -1094,10 +1081,12 @@ class PluginMgr(BasePlugin):
                             example: example.timerex
         """
         tmsg = []
-        conflicts = self.read_all_plugin_information()
-        if conflicts:
-            LogRecord(f"conflicts between plugins, see errors and correct before attempting to load another plugin",
-                      level='error', sources=[self.plugin_id]).send()
+        if self.read_all_plugin_information():
+            LogRecord(
+                "conflicts between plugins, see errors and correct before attempting to load another plugin",
+                level='error',
+                sources=[self.plugin_id],
+            ).send()
             tmsg.append('conflicts between plugins, see errors and correct before attempting to load another plugin')
             return True, tmsg
 
@@ -1115,12 +1104,10 @@ class PluginMgr(BasePlugin):
         if plugin_found_f:
             if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
+            elif self.load_single_plugin(plugin, exit_on_error=False):
+                tmsg.append(f"Plugin {plugin} was loaded")
             else:
-                success = self.load_single_plugin(plugin, exit_on_error=False)
-                if success:
-                    tmsg.append(f"Plugin {plugin} was loaded")
-                else:
-                    tmsg.append(f"Plugin {plugin} would not load")
+                tmsg.append(f"Plugin {plugin} would not load")
         else:
             tmsg.append(f"plugin {plugin} not found")
 
@@ -1136,14 +1123,9 @@ class PluginMgr(BasePlugin):
         """
         tmsg = []
         plugin = args['plugin']
-        plugin_found_f = False
-        if plugin:
-            if plugin in self.all_plugin_file_info.keys():
-                plugin_found_f = True
-
+        plugin_found_f = bool(plugin and plugin in self.all_plugin_file_info.keys())
         if plugin_found_f:
-            success = self.unload_single_plugin(plugin)
-            if success:
+            if self.unload_single_plugin(plugin):
                 tmsg.append(f"Plugin {plugin} successfully unloaded")
             else:
                 tmsg.append(f"Plugin {plugin} could not be unloaded")
@@ -1162,14 +1144,9 @@ class PluginMgr(BasePlugin):
         """
         tmsg = []
         plugin = args['plugin']
-        plugin_found_f = False
-        if plugin:
-            if plugin in self.all_plugin_file_info.keys():
-                plugin_found_f = True
-
+        plugin_found_f = bool(plugin and plugin in self.all_plugin_file_info.keys())
         if plugin_found_f:
-            success = self.unload_single_plugin(plugin)
-            if success:
+            if self.unload_single_plugin(plugin):
                 tmsg.append(f"Plugin {plugin} successfully unloaded")
             else:
                 tmsg.append(f"Plugin {plugin} could not be unloaded")
@@ -1177,12 +1154,10 @@ class PluginMgr(BasePlugin):
 
             if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
+            elif self.load_single_plugin(plugin, exit_on_error=False):
+                tmsg.append(f"Plugin {plugin} was loaded")
             else:
-                success = self.load_single_plugin(plugin, exit_on_error=False)
-                if success:
-                    tmsg.append(f"Plugin {plugin} was loaded")
-                else:
-                    tmsg.append(f"Plugin {plugin} would not load")
+                tmsg.append(f"Plugin {plugin} would not load")
         else:
             tmsg.append(f"plugin {plugin} not found")
 
@@ -1278,14 +1253,24 @@ class PluginMgr(BasePlugin):
 
         self.api('plugins.core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
 
-        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_plugin_initialized", self.plugin_id,
-                                                    description=f"Raised when any plugin is initialized",
-                                                    arg_descriptions={'plugin': 'The plugin name',
-                                                                          'plugin_id': 'The plugin id'})
-        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_plugin_uninitialized", self.plugin_id,
-                                                    description=f"Raised when any plugin is initialized",
-                                                    arg_descriptions={'plugin': 'The plugin name',
-                                                                        'plugin_id': 'The plugin id'})
+        self.api('plugins.core.events:add:event')(
+            f"ev_{self.plugin_id}_plugin_initialized",
+            self.plugin_id,
+            description="Raised when any plugin is initialized",
+            arg_descriptions={
+                'plugin': 'The plugin name',
+                'plugin_id': 'The plugin id',
+            },
+        )
+        self.api('plugins.core.events:add:event')(
+            f"ev_{self.plugin_id}_plugin_uninitialized",
+            self.plugin_id,
+            description="Raised when any plugin is initialized",
+            arg_descriptions={
+                'plugin': 'The plugin name',
+                'plugin_id': 'The plugin id',
+            },
+        )
 
         self.initializing_f = False
 
