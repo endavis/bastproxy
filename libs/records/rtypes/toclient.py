@@ -31,15 +31,14 @@ class ToClientRecord(BaseDataRecord):
     Valid message_types:
         'IO' - a regular string to send to the client
         'TELNET-COMMAND' - a telnet command to the client
-
     when it goes on the client queue, it will be converted to a NetworkData object
     """
-    def __init__(self, message: list[str] | str, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
+    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
                  internal: bool=True, prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
         initialize the class
         """
-        super().__init__(message, internal)
+        super().__init__(message, message_type, internal)
         # flag to include preamble when sending to client
         self.preamble: bool = preamble
         # flag to send to client before login
@@ -54,7 +53,6 @@ class ToClientRecord(BaseDataRecord):
         # clients to exclude, a list of client uuids
         self.exclude_clients: list[str] = exclude_clients if exclude_clients else []
         # This will set the color for all lines to the specified @ color
-        self.message_type: str = message_type
         self.color_for_all_lines: str = color_for_all_lines or ''
         self.modify_data_event_name = 'ev_to_client_data_modify'
         self.read_data_event_name = 'ev_to_client_data_read'
@@ -71,20 +69,6 @@ class ToClientRecord(BaseDataRecord):
             self.api('plugins.core.events:add:event')(self.read_data_event_name, __name__,
                                                 description='An event to see data that was sent to the client',
                                                 arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
-
-    @property
-    def is_command_telnet(self):
-        """
-        A shortcut property to determine if this message is a Telnet Opcode.
-        """
-        return self.message_type == "COMMAND-TELNET"
-
-    @property
-    def is_io(self):
-        """
-        A shortcut property to determine if this message is normal I/O.
-        """
-        return self.message_type == "IO"
 
     @property
     def noansi(self):
@@ -168,17 +152,6 @@ class ToClientRecord(BaseDataRecord):
         add the color to the beginning of all lines in the message
         """
         super().color_lines(self.color_for_all_lines, actor)
-
-    def add_line_endings(self, actor=''):
-        """
-        add line endings to the message
-        """
-        new_message = []
-        for item in self.data:
-            new_message.append(f"{item}\n\r")
-        if new_message != self.data:
-            self.data = new_message
-            self.addchange('Modify', 'add_line_endings', actor, 'add line endings to each item')
 
     def format(self, actor=''):
         """

@@ -63,7 +63,7 @@ class BaseRecord:
         return False
 
 class BaseDataRecord(BaseRecord, UserList):
-    def __init__(self, message: list[str] | str, internal: bool=True, owner_id: str=''):
+    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool=True, owner_id: str=''):
         """
         initialize the class
         """
@@ -71,9 +71,37 @@ class BaseDataRecord(BaseRecord, UserList):
             message = [message]
         UserList.__init__(self, message)
         BaseRecord.__init__(self, owner_id)
+        # This is a flag to determine if this message is internal or not
         self.internal = internal
+        # This is the message id, see the derived classes for more info
+        self.message_type: str = message_type
+        # This is a flag to prevent the message from being sent to the client more than once
+        self.sending = False
 
-    def replace(self, data, actor='', extra=''):
+    @property
+    def is_command_telnet(self):
+        """
+        A shortcut property to determine if this message is a Telnet Opcode.
+        """
+        return self.message_type == "COMMAND-TELNET"
+
+    @property
+    def is_io(self):
+        """
+        A shortcut property to determine if this message is normal I/O.
+        """
+        return self.message_type == "IO"
+
+    def add_line_endings(self, actor=''):
+        """
+        add line endings to the message
+        """
+        new_message = []
+        for item in self.data:
+            new_message.append(f"{item}\n\r")
+        self.replace(new_message, f"{actor}:add_line_endings", extra={'msg':'add line endings to each item'})
+
+    def replace(self, data, actor='', extra: dict | None = None):
         """
         replace the data in the message
         """
@@ -141,7 +169,7 @@ class BaseDataRecord(BaseRecord, UserList):
             self.data = new_message
             self.addchange('Modify', 'clean', actor)
 
-    def addchange(self, flag: str, action: str, actor: str, extra: str = '', savedata: bool = True):
+    def addchange(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'

@@ -28,11 +28,13 @@ class EventArgsRecord(BaseRecord, UserDict):
                 raise TypeError(f"data must be a dict not {type(data)}")
         else:
             data = {}
+        if 'notes' not in data:
+             data['notes'] = {}
         UserDict.__init__(self, data)
         BaseRecord.__init__(self, owner_id)
         self.event_name = event_name
 
-    def addchange(self, flag: str, action: str, actor: str, extra: str='', saveargs: bool = True):
+    def addchange(self, flag: str, action: str, actor: str, extra: dict | None = None, saveargs: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
