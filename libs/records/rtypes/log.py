@@ -29,12 +29,13 @@ class LogRecord(BaseDataRecord):
         # The type of message
         self.level: str = level
         # The sources of the message for logging purposes, a list
-        self.sources: list[str] = sources if sources else []
+        self.sources: list[str] = sources or []
         self.kwargs = kwargs
-        self.wasemitted: dict[str,bool] = {}
-        self.wasemitted['console'] = False
-        self.wasemitted['file'] = False
-        self.wasemitted['client'] = False
+        self.wasemitted: dict[str, bool] = {
+            'console': False,
+            'file': False,
+            'client': False,
+        }
 
     def color_lines(self, actor: str=''):
         """
