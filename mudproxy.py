@@ -13,6 +13,7 @@
 
     It will support multiple MUD protocols, such as GMCP, MCCP2, etc.
 """
+
 # Standard Library
 import logging
 import datetime
@@ -38,15 +39,15 @@ BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
 # set the startup flag
 BASEAPI.startup = True
 
-# set the timezone
-tzinfo = BASEAPI.proxy_start_time.tzinfo
-if tzinfo:
+if tzinfo := BASEAPI.proxy_start_time.tzinfo:
     BASEAPI.TIMEZONE = tzinfo.tzname(BASEAPI.proxy_start_time) or ''
 
 # set the logging format (this is overwritten when libs.log.setup_loggers is called)
-logging.basicConfig(stream=sys.stdout,
-                    level='INFO',
-                    format="%(asctime)s " + BASEAPI.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
+logging.basicConfig(
+    stream=sys.stdout,
+    level='INFO',
+    format=f"%(asctime)s {BASEAPI.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s",
+)
 
 # set the base path from the parent of the current file
 npath = Path(__file__).resolve()

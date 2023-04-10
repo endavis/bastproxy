@@ -696,7 +696,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         initialize the plugin, do most things here
         """
         if '_version' in self.setting_values and \
-            self.setting_values['_version'] != self.version:
+                self.setting_values['_version'] != self.version:
             self._update_version(self.setting_values['_version'], self.version)
 
         if self.auto_initialize_f: # don't initialize when auto_initialize_f is False

@@ -79,12 +79,18 @@ class MudConnection:
         ask for password
         """
 
-        # Advertise to the client that we will do features we are capable of.
-        features = telnet.advertise_features()
-        if features:
-            LogRecord(f"setup_mud - Sending telnet features", level='debug', sources=[__name__]).send()
-            ToMudRecord([telnet.advertise_features()], message_type='COMMAND-TELNET').send('libs.net.client:setup_client')
-            LogRecord(f"setup_mud - telnet features sent", level='debug', sources=[__name__]).send()
+        if features := telnet.advertise_features():
+            LogRecord(
+                "setup_mud - Sending telnet features",
+                level='debug',
+                sources=[__name__],
+            ).send()
+            ToMudRecord([features], message_type='COMMAND-TELNET').send('libs.net.client:setup_client')
+            LogRecord(
+                "setup_mud - telnet features sent",
+                level='debug',
+                sources=[__name__],
+            ).send()
 
         await self.writer.drain()
 
@@ -94,13 +100,17 @@ class MudConnection:
 
             We want this coroutine to run while the mud is connected, so we begin with a while loop
         """
-        LogRecord(f"mud_read - Starting coroutine for mud", level='debug', sources=[__name__]).send()
+        LogRecord(
+            "mud_read - Starting coroutine for mud",
+            level='debug',
+            sources=[__name__],
+        ).send()
 
         while self.connected:
             inp: bytes = await self.reader.readline()
             LogRecord(f"client_read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__]).send()
             LogRecord(f"client_read - inp type = {type(inp)}", level='debug', sources=[__name__]).send()
-            logging.getLogger(f"data.mud").info(f"{'from_mud':<12} : {inp}")
+            logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
                 self.connected = False
@@ -109,7 +119,11 @@ class MudConnection:
             # this is where we start with ToMudRecord
             ToClientRecord(inp, internal=False).send('libs.net.mud:mud_read')
 
-        LogRecord(f"mud_read - Ending coroutine", level='debug', sources=[__name__]).send()
+        LogRecord(
+            "mud_read - Ending coroutine",
+            level='debug',
+            sources=[__name__]
+        ).send()
 
     async def mud_write(self) -> None:
         """
@@ -118,7 +132,11 @@ class MudConnection:
             We want this coroutine to run while the client is connected, so we begin with a while loop
             We await for any messages from the game to this client, then write and drain it.
         """
-        LogRecord(f"client_write - Starting coroutine for mud_write", level='debug', sources=[__name__]).send()
+        LogRecord(
+            "client_write - Starting coroutine for mud_write",
+            level='debug',
+            sources=[__name__],
+        ).send()
         while self.connected:
             msg_obj: NetworkData = await self.send_queue.get()
             if msg_obj.is_io:
@@ -126,22 +144,30 @@ class MudConnection:
                     LogRecord(f"client_write - Writing message to mud: {msg_obj.msg}", level='debug', sources=[__name__]).send()
                     LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug', sources=[__name__]).send()
                     self.writer.write(msg_obj.msg)  # type: ignore
-                    logging.getLogger(f"data.mud").info(f"{'to_mud':<12} : {msg_obj.msg}")
+                    logging.getLogger("data.mud").info(f"{'to_mud':<12} : {msg_obj.msg}")
                     if msg_obj.is_prompt:
                         self.writer.write(telnet.go_ahead())
                         logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.goahead()}")  # type: ignore
                 else:
-                    LogRecord(f"client_write - No message to write to client.", level='debug', sources=[__name__]).send()
+                    LogRecord(
+                        "client_write - No message to write to client.",
+                        level='debug',
+                        sources=[__name__],
+                    ).send()
 
             elif msg_obj.is_command_telnet:
                 LogRecord(f"client_write - Writing telnet option to mud: {msg_obj.msg}", level='debug', sources=[__name__]).send()
                 LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug', sources=[__name__]).send()
                 self.writer.send_iac(msg_obj.msg)  # type: ignore
-                logging.getLogger(f"data.mud").info(f"{'to_client':<12} : {msg_obj.msg}")
+                logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            self.api('libs.asynch:task:add')(self.writer.drain, name=f"mud.write.drain")
+            self.api('libs.asynch:task:add')(self.writer.drain, name="mud.write.drain")
 
-        LogRecord(f"client_write - Ending coroutine", level='debug', sources=[__name__]).send()
+        LogRecord(
+            "client_write - Ending coroutine",
+            level='debug',
+            sources=[__name__]
+        ).send()
 
 
 async def mud_telnet_handler(reader, writer) -> None:

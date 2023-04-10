@@ -24,7 +24,7 @@ messages_to_game = asyncio.Queue()
 
 class NetworkData:
     """
-    A Message is specifically a message meant for a connected client.
+    A Message is specifically a message meant to be sent over the network.
 
     message should be a byte string
 
@@ -36,7 +36,7 @@ class NetworkData:
     def __init__(self, msg_type, **kwargs):
         self.msg = kwargs.get('message', '')
         self.prompt = kwargs.get('is_prompt', 'false')
-        self.client_uuid = kwargs.get('client_uuid', None)
+        self.client_uuid = kwargs.get('client_uuid', '')
         self.uuid = uuid4().hex
         self.msg_type = None
         if msg_type in ['IO', 'COMMAND-TELNET']:
