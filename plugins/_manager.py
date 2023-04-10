@@ -41,6 +41,8 @@ from libs.api import API
 import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
+from libs.info.loadedplugin import LoadedPluginInfo
+from libs.info.pluginfile import PluginFileInfo
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
 NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')
@@ -48,48 +50,6 @@ AUTHORRE = re.compile(r'^AUTHOR = \'(?P<value>.*)\'$')
 VERSIONRE = re.compile(r'^VERSION = (?P<value>.*)$')
 PURPOSERE = re.compile(r'^PURPOSE = \'(?P<value>.*)\'$')
 ISPLUGINRE = re.compile(r'^class Plugin\(.*\):$')
-
-class LoadedPluginInfo():
-    """
-    a class to hold information about a plugin
-    """
-    def __init__(self):
-        """
-        initialize the instance
-        """
-        self.author: str = ''
-        self.base_plugin_dir: Path = Path()
-        self.dev: bool = False
-        self.full_import_location = None
-        self.importedtime: datetime.datetime = datetime.datetime(1970, 1, 1)
-        self.isimported: bool = False
-        self.isinitialized: bool = False
-        self.isrequired: bool = False
-        self.module: types.ModuleType | None = None
-        self.name: str = ''
-        self.plugin_id: str = ''
-        self.plugin_path: Path = Path()
-        self.plugininstance: BasePlugin | None = None
-        self.purpose: str = ''
-        self.version: int = 1
-        self.short_name: str = ''
-
-class PluginFileInfo():
-    """
-    a class to hold information about a plugin file
-    """
-    def __init__(self):
-        self.author: str = ''
-        self.isplugin: bool = False
-        self.fullpath: Path = Path('')
-        self.isrequired: bool = False
-        self.isvalidpythoncode: bool = True
-        self.name: str = ''
-        self.plugin_id: str = ''
-        self.plugin_path: Path = Path('')
-        self.purpose: str = ''
-        self.version: int = -1
-        self.filename = ''
 
 class PluginMgr(BasePlugin):
     """

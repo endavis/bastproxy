@@ -16,12 +16,13 @@ import typing
 
 # Project
 from libs.records import LogRecord
+from libs.info.loadedplugin import LoadedPluginInfo
 
 class PluginDependencyResolver(object):
     """
     a class to resolve dependencies in order to load plugins
     """
-    def __init__(self, plugin_list: list[dict[str, typing.Any]], resolved=None, broken_modules=None):
+    def __init__(self, plugin_list: list[LoadedPluginInfo], resolved=None, broken_modules=None):
         """
         init the class
         """
@@ -31,7 +32,7 @@ class PluginDependencyResolver(object):
         self.broken_modules: list[str] = []
         self.plugin_lookup: dict[str, typing.Any] = {}
         for plugin in plugin_list:
-            self.plugin_lookup[plugin['plugin_id']] = plugin
+            self.plugin_lookup[plugin.plugin_id] = plugin
         if resolved:
             self.resolved.extend(resolved)
         if broken_modules:
