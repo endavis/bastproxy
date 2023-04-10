@@ -28,7 +28,7 @@ class BaseRecord:
         """
         # create a unique id for this message
         self.uuid = uuid4().hex
-        self.owner_id = owner_id if owner_id else f"{self.__class__.__name__}:{self.uuid}"
+        self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
         # Add an API
         self.api = API(owner_id=self.owner_id)
         self.created =  datetime.datetime.now(datetime.timezone.utc)
@@ -94,9 +94,7 @@ class BaseDataRecord(BaseRecord, UserList):
         """
         add line endings to the message
         """
-        new_message = []
-        for item in self.data:
-            new_message.append(f"{item}\n\r")
+        new_message = [f"{item}\n\r" for item in self.data]
         self.replace(new_message, f"{actor}:add_line_endings", extra={'msg':'add line endings to each item'})
 
     def replace(self, data, actor='', extra: dict | None = None):
@@ -154,8 +152,7 @@ class BaseDataRecord(BaseRecord, UserList):
             if isinstance(line, str):
                 if '\n' in line:
                     tlist = line.split('\n')
-                    for tline in tlist:
-                        new_message.append(tline.rstrip('\r').rstrip('\n'))
+                    new_message.extend(tline.rstrip('\r').rstrip('\n') for tline in tlist)
                 else:
                     new_message.append(line.rstrip('\r').rstrip('\n'))
             else:

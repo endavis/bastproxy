@@ -9,7 +9,6 @@
 Holds the log record type
 """
 # Standard Library
-import datetime
 from collections import UserDict
 
 # 3rd Party

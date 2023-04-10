@@ -10,7 +10,6 @@ Holds the change record type
 """
 # Standard Library
 from uuid import uuid4
-import time
 import datetime
 import traceback
 
@@ -37,7 +36,7 @@ class UpdateRecord(object):
         self.actor = actor
         self.extra = {}
         if extra:
-            self.extra.update(extra)
+            self.extra |= extra
         self.data = data
         # Extract the last 7 stack frames
         self.stack = traceback.extract_stack(limit=7)
