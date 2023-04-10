@@ -451,6 +451,6 @@ class Plugin(BasePlugin):
 
                 self.time_last_checked = now
 
-            await asyncio.sleep(.5)
+            await asyncio.sleep(.2)
 
 
