@@ -72,7 +72,7 @@ class SSC(object):
                             nargs='?')
         plugin_instance.api('plugins.core.commands:command:add')(self.name,
                                                      self.cmd_setssc,
-                                                     showinhistory=False,
+                                                     show_in_history=False,
                                                      parser=parser)
 
 

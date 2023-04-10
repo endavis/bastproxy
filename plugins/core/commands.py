@@ -14,12 +14,15 @@ Commands are stored in a dictionary in the source plugin, use #bp.<plugin>.inspe
     to find what's in the dictionary
 $cmd{'#bp.client.actions.inspect -o data.commands -s'}
 """
+
 # Standard Library
 from __future__ import print_function
+import contextlib
 import shlex
 import sys
-import copy
+import typing
 import textwrap as _textwrap
+from functools import lru_cache
 
 # 3rd Party
 try:
@@ -30,10 +33,12 @@ except ImportError:
     sys.exit(1)
 
 # Project
+from libs.api import API
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
-from libs.records import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
+from libs.records import EventArgsRecord
 
 NAME = 'Commands'
 SNAME = 'commands'
@@ -41,6 +46,23 @@ PURPOSE = 'Parse and handle commands'
 AUTHOR = 'Bast'
 VERSION = 1
 REQUIRED = True
+
+@lru_cache(maxsize=10)
+def get_plugin_permutations(plugin_list):
+    # create a list of all possible combinations of the plugin name
+    package_list : list[str] = []
+    new_plugin_list: list[str] = []
+    for plugin in plugin_list:
+        # a plugin is of the form 'plugins'.package.name
+        new_plugin_list.append(plugin)
+        parts_list = plugin.split('.')
+        # add the 'plugins' + package
+        package_list.append('.'.join([parts_list[0], parts_list[1]]))
+    # remove duplicates
+    new_plugin_list = list(set(new_plugin_list))
+    package_list = list(set(package_list))
+
+    return new_plugin_list, package_list
 
 # this class creates a custom formatter for help text to wrap at 73 characters
 # and it adds what the default value for an argument is if set
@@ -82,15 +104,156 @@ class CustomFormatter(argp.HelpFormatter):
         returns:
           returns a formatted help string
         """
-        temp_help: str = action.help
-        # we add the default value to the argument help
-        if '%(default)' not in action.help:
-            if action.default is not argp.SUPPRESS:
-                defaulting_nargs = [argp.OPTIONAL, argp.ZERO_OR_MORE]
-                if action.option_strings or action.nargs in defaulting_nargs:
-                    if action.default != '':
-                        temp_help += ' (default: %(default)s)'
+        temp_help: str | None = action.help
+        # add the default value to the argument help
+        if (
+            action.help
+            and temp_help
+            and '%(default)' not in action.help
+            and action.default is not argp.SUPPRESS
+        ):
+            defaulting_nargs = [argp.OPTIONAL, argp.ZERO_OR_MORE]
+            if (
+                action.option_strings or action.nargs in defaulting_nargs
+            ) and action.default != '':
+                temp_help += ' (default: %(default)s)'
+
         return temp_help
+
+class Command:
+    def __init__(self, plugin_id: str, name: str, function: typing.Callable,
+                 arg_parser: argp.ArgumentParser, format: bool = True,
+                 group: str | None = None, preamble: bool = True,
+                 show_in_history: bool = True, shelp: str = ''):
+        self.name = name
+        self.function = function
+        self.plugin_id = plugin_id
+        self.api = API(owner_id=f"{self.plugin_id}:{self.name}")
+        self.arg_parser = arg_parser
+        self.format = format
+        self.group = group or ''
+        self.preamble = preamble
+        self.show_in_history = show_in_history
+        self.full_cmd = f"{plugin_id.replace('.plugins', '')}.{name}"
+        self.short_help = shelp
+        self.count = 0
+
+    def run(self, arg_string: str = '', toclient=True) -> tuple[bool | None, list[str], str]:
+        """
+        run the command
+        """
+        cmd_prefix = self.api(f"{__name__}:setting:get")('cmdprefix')
+        command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
+        print(f"running {command_ran}")
+
+        split_args_list = []
+        args = {}
+        # split it with shlex
+        if arg_string:
+            try:
+                split_args_list = shlex.split(arg_string)
+            except ValueError as exc:
+                actor = f"{self.plugin_id}:run_command:shell_parse_error"
+                message = ['Error: Could not parse arguments', exc.args[0]]
+                LogRecord(f"Error parsing args for command {command_ran} - {exc.args[0]}",
+                        level='error', sources=[self.plugin_id, __name__]).send(actor)
+                if toclient:
+                    ToClientRecord(self.format_return_message(message)).send(actor)
+                return False, message, f'Could not parse: {exc.args[0]}'
+
+            # parse the arguments and deal with errors
+            try:
+                args, _ = self.arg_parser.parse_known_args(split_args_list)
+            except argp.ArgumentError as exc:
+                actor = f"{self.plugin_id}:run_command:argparse_error"
+                message = [f"Error: {exc.message}"]
+                message.extend(self.arg_parser.format_help().split('\n'))
+                LogRecord(f"Error parsing args for command {command_ran} - {exc.message}",
+                        level='error', sources=[self.plugin_id, __name__]).send()
+                if toclient:
+                    ToClientRecord(self.format_return_message(message)).send(actor)
+                return False, message, 'argparse error'
+
+            args = vars(args)
+            if args['help']:
+                actor = f"{self.plugin_id}:run_command:help"
+                message = self.arg_parser.format_help().split('\n')
+                if toclient:
+                    ToClientRecord(self.format_return_message(message)).send(actor)
+                return True, message, 'help'
+
+        # run the command
+        try:
+            return_value = self(args)
+        except Exception as exc:
+            actor = f"{self.plugin_id}:run_command:command_exception"
+            message = [f"Error running command: {command_ran}"]
+            if toclient:
+                ToClientRecord(self.format_return_message(message)).send(actor)
+            LogRecord(f"Error running command: {command_ran}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send(actor)
+            return False, message, 'Command exception'
+
+        if isinstance(return_value, tuple):
+            retval = return_value[0]
+            message = return_value[1]
+        else:
+            retval = return_value
+            message = []
+
+        # did not succeed
+        if retval is False:
+            actor = f"{self.plugin_id}:run_command:returned_False"
+            message.append('')
+            message.extend(self.arg_parser.format_help().split('\n'))
+            if toclient:
+                ToClientRecord(self.format_return_message(message)).send(actor)
+
+            return False, message, 'function returned False'
+
+        if (not self.format) and message:
+            actor = f"{self.plugin_id}:run_command:success_format_False"
+            ToClientRecord(message, preamble=self.preamble).send(actor)
+        # if the format flag is set, then format the data to the client
+        elif message:
+            actor = f"{self.plugin_id}:run_command:success_format_True"
+            if toclient:
+                ToClientRecord(self.format_return_message(message)).send(actor)
+
+        return True, message, 'command ran successfully'
+
+    def format_return_message(self, message):
+        """
+        format a return message
+
+        arguments:
+          required:
+            message     - the message
+            plugin_id   - the id of the plugin
+            command     - the command from the plugin
+
+        returns:
+          the updated message
+        """
+        #line_length = self.api('net.proxy:setting:get')('linelen')
+        line_length = 80
+
+        cmdprefix = self.api(f"{__name__}:setting:get")('cmdprefix')
+
+        message.insert(0, '')
+        message.insert(1, f"{cmdprefix}.{self.plugin_id}.{self.name}")
+        message.insert(2, '@G' + '-' * line_length + '@w')
+        message.append('@G' + '-' * line_length + '@w')
+        message.append('')
+        return message
+
+    def __call__(self, *args, **kwargs):
+        self.count += 1
+        return self.function(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        return f"Command({self.name}, {self.plugin_id}, {self.function})"
+    __str__ = __repr__
 
 class Plugin(BasePlugin):
     """
@@ -103,10 +266,14 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         # a list of commands, such as 'core.msg.set' or 'clients.ssub.list'
-        self.commands_list = []
+        self.commands_list: list[str] = []
 
         # a list of commands that should not be run again if already in the queue
         self.no_multiple_commands = {}
+
+        # the default command to run if no command is specified
+        self.default_help_command = {'plugin_id': 'plugins.core.pluginm',
+                                     'command': 'list'}
 
         # load the history
         self.history_save_file = self.save_directory / 'history.txt'
@@ -116,18 +283,8 @@ class Plugin(BasePlugin):
         self.command_history_data = self.command_history_dict['history']
 
         # add apis
-        self.api('libs.api:add')('add', self._api_add_command)
-        self.api('libs.api:add')('change', self._api_change_command)
-        self.api('libs.api:add')('run', self._api_run)
-        self.api('libs.api:add')('prefix', self._api_get_prefix)
         #self.api('libs.api:add')('default', self.api_setdefault)
-        self.api('libs.api:add')('remove:plugin:data', self._api_remove_plugin_data)
-        self.api('libs.api:add')('get:plugin:command:format', self._api_get_plugin_command_format)
-        self.api('libs.api:add')('get:plugin:command:help', self._api_get_plugin_command_help)
-        self.api('libs.api:add')('get:plugin:command:data', self._api_get_plugin_command_data)
-
         self.api('libs.api:add')('command:add', self._api_add_command)
-        self.api('libs.api:add')('command:change', self._api_change_command)
         self.api('libs.api:add')('command:run', self._api_run)
         self.api('libs.api:add')('command:help:format', self._api_get_plugin_command_help)
         self.api('libs.api:add')('get:command:prefix', self._api_get_prefix)
@@ -160,6 +317,8 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
+        self.api("plugins.core.log:set:log:to:console")('plugins.core.fuzzy', level='debug')
+
         # add commands
         parser = argp.ArgumentParser(add_help=False,
                                      description='list commands in a plugin')
@@ -175,7 +334,7 @@ class Plugin(BasePlugin):
                                               self.command_list,
                                               shelp='list commands',
                                               parser=parser,
-                                              showinhistory=False)
+                                              show_in_history=False)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='list the command history')
@@ -187,7 +346,7 @@ class Plugin(BasePlugin):
                                               self.command_history,
                                               shelp='list or run a command in history',
                                               parser=parser,
-                                              showinhistory=False)
+                                              show_in_history=False)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='run a command in history')
@@ -202,10 +361,12 @@ class Plugin(BasePlugin):
                                               parser=parser,
                                               preamble=False,
                                               format=False,
-                                              showinhistory=False)
+                                              show_in_history=False)
 
         # register events
-        self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
+        #self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
+
+        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self._event_to_mud_data_modify_check_command, prio=5)
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self._event_plugin_uninitialized)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
@@ -225,36 +386,11 @@ class Plugin(BasePlugin):
         @Yplugin@w    = the plugin to remove commands for
 
         this function returns no values"""
-        # get the plugin instance
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
 
-        if plugin_instance:
+        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
             # remove commands from command_list that start with plugin_instance.plugin_id
-            new_commands = [command for command in self.commands_list if not command.startswith(plugin_instance.plugin_id)]
+            new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
             self.commands_list = new_commands
-
-    def format_return_message(self, message, plugin_id, command):
-        """
-        format a return message
-
-        arguments:
-          required:
-            message     - the message
-            plugin_id   - the id of the plugin
-            command     - the command from the plugin
-
-        returns:
-          the updated message
-        """
-        #line_length = self.api('net.proxy:setting:get')('linelen')
-        line_length = 80
-
-        message.insert(0, '')
-        message.insert(1, f"{self.api('setting:get')('cmdprefix')}.{plugin_id}.{command}")
-        message.insert(2, '@G' + '-' * line_length + '@w')
-        message.append('@G' + '-' * line_length + '@w')
-        message.append('')
-        return message
 
     # return the command prefix setting
     def _api_get_prefix(self):
@@ -262,41 +398,6 @@ class Plugin(BasePlugin):
 
         returns the current command prefix as a string"""
         return self.api('setting:get')('cmdprefix')
-
-    # change an attribute for a command
-    def _api_change_command(self, plugin_id, command_name, flag_name, flag_value):
-        """  change an attribute for a command
-        @Yplugin@w        = the plugin the command is in
-        @Ycommand_name@w  = the command name
-        @Yflag_name@w     = the flag to change
-        @Yflag_value@w    = the new value of the flag
-
-        returns True if successful, False if not"""
-        # get the command data for the plugin
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-        command_data = self.get_command(plugin_instance.plugin_id, command_name)
-
-        # didn't find the command
-        if not command_data:
-            LogRecord(f"_api_change_command: command {command_name} does not exist in plugin {plugin_id} ({plugin_instance.plugin_id})",
-                      level='error', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
-            return False
-
-        # flag isn't in the command
-        if flag_name not in command_data:
-            LogRecord(f"_api_change_command: flag {flag_name} does not exist in command {command_name} in plugin {plugin_id} ({plugin_instance.plugin_id})",
-                      level='error', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
-            return False
-
-        # change the flag and update the command data for the plugin
-        data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-        if not data:
-            data = {}
-        data[command_name][flag_name] = flag_value
-
-        self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
-
-        return True
 
     # return the help for a command
     def _api_get_plugin_command_help(self, plugin_id, command_name):
@@ -306,11 +407,12 @@ class Plugin(BasePlugin):
 
         returns the help message as a string"""
         # get the command data for the plugin
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-        command_data = self.get_command(plugin_instance.plugin_id, command_name)
 
-        if command_data:
-            return command_data['parser'].format_help()
+        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            if command_data := self.get_command_data_from_plugin(
+                plugin_id, command_name
+            ):
+                return command_data.arg_parser.format_help()
 
         return ''
 
@@ -321,10 +423,8 @@ class Plugin(BasePlugin):
 
         returns a list of strings formatted for the commands in the plugin
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-
-        if plugin_instance:
-            return self.list_commands(plugin_instance.plugin_id)
+        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            return self.list_commands(plugin_id)
 
         return None
 
@@ -335,16 +435,13 @@ class Plugin(BasePlugin):
 
         returns a dictionary of commands
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-
-        if plugin_instance:
-            data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-            return data
+        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            return self.api(f"{plugin_id}:data:get")('commands')
 
         return {}
 
     # run a command and return the output
-    def _api_run(self, plugin, command_name, argument_string):
+    def _api_run(self, plugin: str, command_name: str, argument_string: str = '') -> tuple[bool | None, list[str]]:
         """  run a command and return the output
         @Yplugin@w          = the plugin the command is in
         @Ycommand_name@w    = the command name
@@ -358,121 +455,14 @@ class Plugin(BasePlugin):
           second item:
             a list of strings for the output of the command
         """
-        command = self.get_command(plugin, command_name)
-
-        if command:
-            args, dummy = command['parser'].parse_known_args(argument_string)
-
-            args = vars(args)
-
-            if args['help']:
-                return command['parser'].format_help().split('\n')
-
-            return command['func'](args)
+        print(f"running command {command_name} from plugin {plugin} with arguments {argument_string}")
+        if command := self.get_command_data_from_plugin(plugin, command_name):
+            success, message, _ = command.run(argument_string, toclient=False)
+            return success, message
 
         return None, []
 
-    def run_command(self, command, targs, full_arguments, data):
-        """
-        run a command that has an ArgParser
-
-        arguments:
-          required:
-            command         - the command data dictionary
-            targs           - the argument string
-            full_arguments  - the full argument string
-            data            - the data in the input stack
-
-        This function runs the command and sends the returned
-          data to the client
-
-        returns:
-          True if succcessful, False if not successful
-        """
-        retval = False
-        command_ran = f"{self.api('setting:get')('cmdprefix')}.{command['plugin_id']}.{command['commandname']} {full_arguments}"
-
-        self.api('libs.io:trace:add:execute')(self.plugin_id, 'Running Command',
-                                              info=f"Command: '{command_ran}'")
-
-        # parse the arguments and deal with errors
-        try:
-            args, dummy = command['parser'].parse_known_args(targs)
-        except argp.ArgumentError as exc:
-            message = []
-            message.append(f"Error: {exc.errormsg}") # pylint: disable=no-member
-            message.extend(command['parser'].format_help().split('\n'))
-            LogRecord(f"Error parsing args for command {command_ran} - {exc.errormsg}",
-                      level='error', sources=[self.plugin_id, command['plugin_id']]).send()
-            ToClientRecord(self.format_return_message(message,
-                                                      command['plugin_id'],
-                                                      command['commandname'])).send(__name__ + ':run_command_1')
-            self.api('libs.io:trace:add:execute')(
-                self.plugin_id, 'Command Error',
-                info=f"{command_ran} - error parsing args",
-                data=f"{exc.errormsg}")
-            return retval
-
-        args = vars(args)
-        args['fullargs'] = full_arguments
-
-        # return help if flagged
-        if args['help']:
-            message = command['parser'].format_help().split('\n')
-            ToClientRecord(self.format_return_message(message,
-                                                      command['plugin_id'],
-                                                      command['commandname'])).send(__name__ + ':run_command_2')
-
-        # deal with output and success from running the command
-        else:
-            args['data'] = data
-            try:
-                return_value = command['func'](args)
-            except:
-                message = ['']
-                message.append(f"Error running command: {command_ran}")
-                ToClientRecord(self.format_return_message(message,
-                                                          command['plugin_id'],
-                                                          command['commandname'])).send(__name__ + ':run_command_exception')
-                LogRecord(f"Error running command: {command_ran}",
-                          level='error', sources=[self.plugin_id, command['plugin_id']], exc_info=True).send()
-                return
-
-            if isinstance(return_value, tuple):
-                retval = return_value[0]
-                message = return_value[1]
-            else:
-                retval = return_value
-                message = []
-
-            # did not succeed
-            if retval is False:
-                message.append('')
-                message.extend(command['parser'].format_help().split('\n'))
-                ToClientRecord(self.format_return_message(message,
-                                                          command['plugin_id'],
-                                                          command['commandname'])).send(__name__ + ':run_command_3')
-
-            # succeeded
-            else:
-                self.add_command_to_history(data, command)
-                # if the format flag is not set then the data is returned
-                if (not command['format']) and message:
-                    ToClientRecord(message, preamble=command['preamble']).send(__name__ + ':run_command_4')
-                # if the format flag is set, then format the data to the client
-                elif message:
-                    ToClientRecord(self.format_return_message(message,
-                                           command['plugin_id'],
-                                           command['commandname']),
-                                   preamble=command['preamble']).send(__name__ + ':run_command_5')
-
-        self.api('libs.io:trace:add:execute')(
-            self.plugin_id, 'Running Command',
-            info=f"Command: '{command_ran}' was {'Successful' if retval else 'Unsuccessful'}")
-
-        return retval
-
-    def add_command_to_history(self, data, command=None):
+    def add_command_to_history(self, event_data):
         """
         add to the command history
 
@@ -486,31 +476,22 @@ class Plugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-        # if showinhistory is false in either data or command, don't add
-        if 'showinhistory' in data and not data['showinhistory']:
-            return False
-        if command and not command['showinhistory']:
-            return False
 
-        tdat = data['fromdata']
-        # only add to history if it came from the client
-        if data['fromclient']:
-            # remove existing
-            if tdat in self.command_history_data:
-                self.command_history_data.remove(tdat)
+        tdat = event_data['line']
 
-            # append the command
-            self.command_history_data.append(tdat)
+        # remove existing
+        if tdat in self.command_history_data:
+            self.command_history_data.remove(tdat)
 
-            # if the size is greater than historysize, pop the first item
-            if len(self.command_history_data) >= self.api('setting:get')('historysize'):
-                self.command_history_data.pop(0)
+        # append the command
+        self.command_history_data.append(tdat)
 
-            # sync command history
-            self.command_history_dict.sync()
-            return True
+        # if the size is greater than historysize, pop the first item
+        if len(self.command_history_data) >= self.api('setting:get')('historysize'):
+            self.command_history_data.pop(0)
 
-        return False
+        # sync command history
+        self.command_history_dict.sync()
 
     # return a list of all commands known
     def api_get_all_commands_list(self):
@@ -522,7 +503,7 @@ class Plugin(BasePlugin):
         return self.commands_list
 
     # retrieve a command from a plugin
-    def get_command(self, plugin_id, command):
+    def get_command_data_from_plugin(self, plugin_id, command) -> Command | None:
         """
         get the command from the plugin data
 
@@ -535,21 +516,15 @@ class Plugin(BasePlugin):
           None if not found, the command data dict if found
         """
         # find the instance
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-
-        # retrieve the commands data
-        data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-        if not data:
-            return None
-
-        # return the command
-        if command in data:
-            return data[command]
+        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            if data := self.api(f"{plugin_id}:data:get")('commands'):
+                # return the command
+                return data[command] if command in data else None
 
         return None
 
     # update a command
-    def update_command(self, plugin_id, command_name, data):
+    def update_command(self, plugin_id, command_name, command: Command):
         """
         update a command
 
@@ -562,40 +537,40 @@ class Plugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            LogRecord(f"commands - update_command: plugin {plugin_id} does not exist",
+                      level='debug', sources=[plugin_id, self.plugin_id]).send(f"{self.plugin_id}:update_command")
+            return False
 
-        all_command_data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
+        all_command_data = self.api(f"{plugin_id}:data:get")('commands')
 
         if not all_command_data:
             all_command_data = {}
 
-        if command_name not in all_command_data:
-            if not self.api.startup:
-                LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
-                          level='debug', sources=[plugin_instance.plugin_id, self.plugin_id]).send()
+        if command_name not in all_command_data and not self.api.startup:
+            LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
+                      level='debug', sources=[plugin_id, self.plugin_id]).send()
 
-        all_command_data[command_name] = data
+        all_command_data[command_name] = command
 
-        return self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', all_command_data)
+        return self.api(f"{plugin_id}:data:update")('commands', all_command_data)
 
-    def pass_through_command(self, data, command_data_dict):
+    def pass_through_command(self, event_data) -> EventArgsRecord:
         """
         pass through data to the mud
-        if it isn't a command we add it to history and check antispam
+
+        this assumes the command is not a #bp command
 
         arguments:
           required:
-            data               - the io data stack
-            command_data_dict  - the command data dict
+            event_data - the data from the to_mud event
 
-        returns the updated data stack
+        returns the updated event
         """
-        # if it isn't a #bp command, we add it to history and do some checks
-        # before sending it to the mud
-        addedtohistory = self.add_command_to_history(data)
+        original_command = event_data['line']
 
         # if the command is the same as the last command, do antispam checks
-        if command_data_dict['orig'].strip() == self.api('setting:get')('lastcmd'):
+        if original_command == self.api('setting:get')('lastcmd'):
             self.api('setting:change')('cmdcount',
                                        self.api('setting:get')('cmdcount') + 1)
 
@@ -603,247 +578,255 @@ class Plugin(BasePlugin):
             # command in between
             if self.api('setting:get')('cmdcount') == \
                                   self.api('setting:get')('spamcount'):
-                data['fromdata'] = self.api('setting:get')('antispamcommand') \
-                                            + '|' + command_data_dict['orig']
-                self.api('libs.io:trace:add:execute')(
-                    self.plugin_id, 'Command Antispam',
-                    info=f"command was sent {self.api('setting:get')('spamcount')} times, sending {self.api('setting:get')('antispamcommand')} for antispam")
 
-                data['addedtohistory'] = addedtohistory
+                event_data.addchange('Modify', "Antispam Command sent",
+                                        f"{self.plugin_id}:pass_through_command", saveargs = False)
+                LogRecord(f"sending antspam command: {self.api('setting:get')('antispamcommand')}", level='debug', sources=[self.plugin_id]).send()
+                ToMudRecord(self.api('setting:get')('antispamcommand'), show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
 
-                LogRecord('adding look for 20 commands', level='debug', sources=[self.plugin_id]).send()
                 self.api('setting:change')('cmdcount', 0)
-                return data
+                return event_data
 
             # if the command is seen multiple times in a row and it has been flagged to only be sent once,
             # swallow it
-            if command_data_dict['orig'] in self.no_multiple_commands:
-                self.api('libs.io:trace:add:execute')(
-                    self.plugin_id, 'Command Nomultiple',
-                    data='This command has been flagged not to be sent multiple times in a row')
-                data['fromdata'] = ''
-                return data
+            if original_command in self.no_multiple_commands:
+                event_data.addchange('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
+                                        f"{self.plugin_id}:pass_through_command", saveargs = False)
+
+                event_data['sendtomud'] = False
+                return event_data
         else:
             # the command does not match the last command
             self.api('setting:change')('cmdcount', 0)
-            LogRecord(f"resetting command to {command_data_dict['orig'].strip()}", level='debug', sources=[self.plugin_id]).send()
-            self.api('setting:change')('lastcmd', command_data_dict['orig'].strip())
+            LogRecord(f"resetting command to {original_command}", level='debug', sources=[self.plugin_id]).send()
+            self.api('setting:change')('lastcmd', original_command)
 
-        # add a trace if it is unknown how the command was changed
-        if data['fromdata'] != command_data_dict['orig']:
-            self.api('libs.io:trace:add:execute')(
-                self.plugin_id, 'Command Unknown',
-                info='Unknown why it got here',
-                data=data['fromdata'])
-        return data
+        return event_data
 
-    def _event_io_execute_check_command(self, data):
+    def proxy_help(self, header, header2, data):
         """
-        check a line from a client for a command
+        print the proxy help
 
         arguments:
           required:
-            data               - the io data stack
+            header  - the header to print
+            data    - the data to print
 
-        returns:
-          None if no data
-          Otherwise it returns the update data stack
+        returns the data
         """
-        # strip single ctrl chars that mess up unicode encoding
-        # this keeps the command history data clean for encoding
-        # like ctrl-c from a linux terminal client
-        if len(data['fromdata']) == 1:
-            try:
-                temps = data['fromdata']
-                temps.encode('utf-8')
-            except UnicodeDecodeError:
-                return None
+        newoutput = [
+            f"{header}",
+            "".join(["@B", '-' * 79]),
+            "To send a command to the proxy, prefix it with a #bp",
+            "commands are not required to start with 'plugins'",
+            "however, they must include the package",
+            "The proxy will do its best to find the correct command",
+            "Valid:     #bp.core.proxy.info -h",
+            "           #bp.core.proxy",
+            "           #bp.core",
+            "Not Valid: #bp.proxy.info -h",
+            "           #bp.proxy",
+            "".join(["@B", '-' * 79]),
+        ]
+        if header2:
+            newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", '-' * 79])))
+        newoutput.extend(data)
 
-        command_data_dict = {}
-        command_data_dict['orig'] = data['fromdata']
-        command_data_dict['commandran'] = data['fromdata']
-        command_data_dict['flag'] = 'Unknown'
-        command_data_dict['cmd'] = None
-        command_data_dict['data'] = data
+        ToClientRecord(newoutput).send()
 
-        # if no data, skip this
-        if command_data_dict['orig'] == '':
-            return None
+    def match_item(self, item: str, item_list: list[str]) -> str:
+        """
+        match an item to a list of items
+        """
+        # see if the item explicity matches an item in the list
+        if f"{item}" in item_list:
+            # found the item
+            print(f"found {item}")
+            return item
+
+        # see if the item fuzzy matches an item in the list
+        return self.api('plugins.core.fuzzy:get:best:match')(item, item_list,
+                                                                scorer='token_set_ratio')
+
+    def find_command(self, event_data: EventArgsRecord) -> tuple[Command | None, str, bool, str]:
+        """
+        find a command from the client
+        """
+        print(f"find_command: {event_data['line']}")
+
+        # don't send it to the mud
+        event_data['sendtomud'] = False
+
+        # copy the command
+        command = event_data['line']
 
         commandprefix = self.api('setting:get')('cmdprefix')
-        # if it isn't a command, pass it through
-        if command_data_dict['orig'][0:len(commandprefix)].lower() != commandprefix:
-            return self.pass_through_command(data, command_data_dict)
+        command_str = command
 
-        LogRecord(f"got command: {command_data_dict['orig']}", level='debug', sources=[self.plugin_id]).send()
+        if command_str in [commandprefix, f"{commandprefix}.",
+                            f"{commandprefix}.plugins", f"{commandprefix}.plugins."]:
 
-        # split it with shlex
-        try:
-            split_args = shlex.split(command_data_dict['orig'].strip())
-        except ValueError:
-            LogRecord('could not parse command', level='error', sources=['self.plugin_id'], exc_info=True).send()
-            data['fromdata'] = ''
-            return data
+            # found just the command prefix
+            # get the list of plugins
+            success, output = self.api(f"{self.plugin_id}:command:run")(self.default_help_command['plugin_id'],
+                                                    self.default_help_command['command'])
 
-        # split out the full argument string
-        try:
-            first_space = command_data_dict['orig'].index(' ')
-            full_args_string = command_data_dict['orig'][first_space+1:]
-        except ValueError:
-            full_args_string = ''
+            if not success:
+                output = ["Error: unable to get plugin list"]
 
-        # find which command we are
-        command = split_args.pop(0)
+            self.proxy_help("Proxy Help", "Available Plugins:", output)
 
-        # split the command at .
-        split_command_list = command.split('.')
+            return None, '', False, 'Proxy Help'
 
-        if len(split_command_list) > 4:
-            command_data_dict['flag'] = 'Bad Command'
-            command_data_dict['cmddata'] = f"Command name too long: {command}"
         else:
-            short_names = self.api('plugins.core.pluginm:get:all:short:names')()
-            loaded_plugin_ids = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
+            # split the string into the command and the command_args
+            cmd_args_split = command_str.rsplit(' ', 1)
+            command_str = cmd_args_split[0]
+            command_args = ''
+            if len(cmd_args_split) > 1:
+                command_args = cmd_args_split[1]
 
-            plugin_package = None
-            plugin_name = None
-            plugin_command = None
+            print('looking for command', command_str, command_args)
 
-            found_short_name = None
-            found_package = None
-            found_command = None
-            found_plugin_id = None
+            # split the command by the '.'
+            command_split = command_str.split('.')
+            print(f"{command_split=}")
 
-            # parse the command to get what to search for
-            if len(split_command_list) == 1: # this would be cmdprefix by iself, ex. #bp
-                # run #bp.commands.list
-                pass
-            elif len(split_command_list) == 2: # this would be cmdprefix + plugin_name, ex. #bp.ali
-                plugin_name = split_command_list[1]
-            elif len(split_command_list) == 3: # this would be cmdprefix + plugin_name + command, ex. #bp.alias.list
-                                               # also could be cmdprefix + package + plugin_name
-                # first check if the last part is a plugin
-                shortname_check = self.api('plugins.core.fuzzy:get:best:match')(split_command_list[-1], short_names)
-                if shortname_check:
-                    plugin_name = split_command_list[-1]
-                    plugin_package = split_command_list[1]
-                # if not, then set plugin_name and plugin_command for later lookup
-                else:
-                    plugin_name = split_command_list[1]
-                    plugin_command = split_command_list[-1]
-            else: # len(split_command_list) == 4 would be cmdprefix + package + plugin_name + command,
-                        # ex. #bp.client.alias.list
-                plugin_package = split_command_list[1]
-                plugin_name = split_command_list[2]
-                plugin_command = split_command_list[-1]
+            # remove the command prefix
+            if commandprefix in command_split:
+                del command_split[command_split.index(commandprefix)]
 
-            # print 'fullcommand: %s' % command
-            # print 'plugin_package: %s' % plugin_package
-            # print 'plugin: %s' % plugin_name
-            # print 'command: %s' % plugin_command
+            # remove the literal 'plugins' string
+            if 'plugins' in command_split:
+                del command_split[command_split.index('plugins')]
 
-            # find package
-            if plugin_package and not found_package:
-                packages = self.api('plugins.core.pluginm:get:packages:list')()
-                found_package = self.api('plugins.core.fuzzy:get:best:match')(plugin_package, packages)
+            # get all the pieces of the command
+            temp_package = command_split[0]
+            print(f"{temp_package=}")
+            temp_plugin = ''
+            temp_command = ''
 
-            # find plugin_id
-            if found_package and plugin_name and not found_plugin_id:
-                plugin_list = [i.split('.')[-1] for i in loaded_plugin_ids if i.startswith(f"{found_package}.")]
-                found_short_name = self.api('plugins.core.fuzzy:get:best:match')(plugin_name, plugin_list)
-                if not found_short_name:
-                    found_plugin_id = self.api('plugins.core.fuzzy:get:best:match')(found_package + '.' + plugin_name, loaded_plugin_ids)
-                else:
-                    found_plugin_id = found_package + '.' + found_short_name
+            if len(command_split) > 1:
+                temp_plugin = command_split[1]
+            if len(command_split) > 2:
+                temp_command = command_split[2]
 
-            if not found_plugin_id and plugin_name:
-                found_plugin_id = self.api('plugins.core.pluginm:short:name:convert:plugin:id')(plugin_name)
-                if found_plugin_id:
-                    found_package = found_plugin_id.split('.')[0]
+            plugins_list = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
 
-            # if a plugin was found but we don't have a package, find the package
-            if found_plugin_id and plugin_name and not found_package:
-                packages = []
-                for plugin_name in loaded_plugin_ids:
-                    if found_plugin_id in plugin_name:
-                        packages.append(plugin_name.split('.')[0])
-                if len(packages) == 1:
-                    found_package = packages[0]
+            # the tuple is so that the function works with the lru_cache decorator
+            all_plugin_list, package_list = get_plugin_permutations(tuple(plugins_list))
 
-            # couldn't find a plugin
-            if not found_plugin_id:
+            # try and find the package
+            new_package = self.match_item(f"plugins.{temp_package}", package_list)
+            if not new_package:
+                # did not get a package, so output the list of packages
+                output = [
+                            "Could not find a matching package",
+                            "".join(["@B", '-' * 79]),
+                            "Available Packages",
+                            "".join(["@B", '-' * 79])
+                        ]
+                for match in package_list:
+                    output.append(match.replace('plugins.', ''))
+                output.append("".join(["@B", '-' * 79]))
 
-                command_data_dict['flag'] = 'Bad Command'
-                command_data_dict['cmddata'] = f"could not find command {command}"
+                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
 
-            # at least have a plugin
-            else:
-                if '.' not in found_plugin_id:
-                    LogRecord(f"{found_plugin_id} is not a plugin_id",
-                              level='error', sources=[self.plugin_id]).send()
-                if plugin_command:
-                    commands = self.api('plugins.core.commands:get:commands:for:plugin:data')(found_plugin_id).keys()
-                    found_command = self.api('plugins.core.fuzzy:get:best:match')(plugin_command, commands)
+                return None, '', False, 'Could not find package'
 
-                # have a plugin but no command
-                if found_plugin_id and not found_command:
+            # try and find the plugin
+            new_plugin = self.match_item(f"{new_package}.{temp_plugin}", all_plugin_list)
+            print(f"{new_plugin=}")
 
-                    if plugin_command:
-                        command_data_dict['flag'] = 'Bad Command'
-                        command_data_dict['cmddata'] = f"command {plugin_command} does not exist in plugin {found_plugin_id}"
-                    else:
-                        command_data_dict['cmd'] = self.get_command(self.plugin_id, 'list')
-                        command_data_dict['flag'] = 'Help'
-                        command_data_dict['commandran'] = f"{self.api('setting:get')('cmdprefix')}.{self.plugin_id}.{'list'} {found_plugin_id}"
-                        command_data_dict['targs'] = [found_plugin_id]
-                        command_data_dict['fullargs'] = full_args_string
+            if not new_plugin:
+                # did not get a plugin, so output the list of plugins in the package
+                success, cmd_output = self.api(f"{self.plugin_id}:command:run")('plugins.core.commands',
+                                                                            'list', new_package)
 
-                # have a plugin and a command
-                else:
-                    command = self.get_command(found_plugin_id, found_command)
-                    command_data_dict['cmd'] = command
-                    command_data_dict['commandran'] = f"{self.api('setting:get')('cmdprefix')}.{found_plugin_id}.{command['commandname']} {' '.join(split_args)}"
-                    command_data_dict['flag'] = 'Found Command'
-                    command_data_dict['targs'] = split_args
-                    command_data_dict['fullargs'] = full_args_string
+                output = [
+                            "Could not find a matching plugin",
+                            "".join(["@B", '-' * 79]),
+                            f"Available Plugins in {new_package}",
+                            "".join(["@B", '-' * 79])
+                        ]
+                if success:
+                    for match in cmd_output:
+                        output.append(match.replace('plugins.', ''))
+                output.append("".join(["@B", '-' * 79]))
 
-            # print 'fullcommand: %s' % command
-            # print 'found_package: %s' % found_package
-            # print 'found_plugin_id: %s' % found_plugin_id
-            # print 'found_command: %s' % found_command
+                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
 
-            command_data_dict['plugin_id'] = found_plugin_id
-            command_data_dict['scmd'] = found_command
+                return None, '', False, 'Could not find plugin'
 
-            # run the command here
-            if command_data_dict['flag'] == 'Bad Command':
-                self.api('libs.io:trace:add:execute')(self.plugin_id, 'Bad Command',
-                                                      data=copy.copy(command_data_dict))
-                ToClientRecord(f"@R{command}@W is not a command").send(__name__ + ':_event_io_execute_check_command')
-            else:
-                command_data_dict_copy = copy.copy(command_data_dict)
-                self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
-                                                      data=command_data_dict_copy,
-                                                      info='Pre Run Command Data')
 
-                try:
-                    command_data_dict['success'] = self.run_command(command_data_dict['cmd'],
-                                                                    command_data_dict['targs'],
-                                                                    command_data_dict['fullargs'],
-                                                                    command_data_dict['data'])
-                except Exception:  # pylint: disable=broad-except
-                    command_data_dict['success'] = 'Error'
-                    LogRecord(f"Error when calling command {command_data_dict['plugin_id']}.{command_data_dict['scmd']}", level='error',
-                              sources=[self.plugin_id, command_data_dict['plugin_id']], exc_info=True).send()
-                self.api('libs.io:trace:add:execute')(self.plugin_id, command_data_dict['flag'],
-                                                      data=DeepDiff(command_data_dict_copy, command_data_dict,
-                                                                    exclude_paths=["root['parser']"],
-                                                                    verbose_level=2),
-                                                      info="Post Run Command Data Difference")
+            # try and find the command
+            command_data = self._api_get_plugin_command_data(new_plugin)
+            command_list = list(command_data.keys())
+            print(f"{command_list=}")
+            print(f"{temp_command=}")
 
-                command_data_dict['cmddata'] = f"'{command_data_dict['commandran']}' - Outcome: {command_data_dict['success']}"
+            new_command = self.match_item(temp_command, command_list)
 
-            return {'fromdata':''}
+            if not new_command:
+                # did not get a command, so output the list of commands in the plugin
+                success, cmd_output = self.api(f"{self.plugin_id}:command:run")('plugins.core.commands',
+                                                                            'list', new_plugin)
+
+                output = [
+                            "Could not find a matching command",
+                            "".join(["@B", '-' * 79]),
+                            f"Available Commands in {new_plugin}",
+                            "".join(["@B", '-' * 79])
+                        ]
+                if success:
+                    for match in cmd_output:
+                        output.append(match.replace('plugins.', ''))
+                output.append("".join(["@B", '-' * 79]))
+
+                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
+
+                return None, '', False, 'Could not find command'
+
+            # got it all
+            command_item = command_data[new_command]
+
+            return command_item, command_args, True, f'found {new_command}'
+
+    def _event_to_mud_data_modify_check_command(self, event_data: EventArgsRecord) -> EventArgsRecord:
+        """
+        Check if the line is a command from the client
+        if it is, the command is parsed and executed
+        and the output sent to the client
+        """
+        commandprefix = self.api('setting:get')('cmdprefix')
+
+        if event_data['line'].startswith(commandprefix):
+
+                command_item, command_args, show_in_history, notes = self.find_command(event_data)
+
+                if event_data['showinhistory'] != show_in_history:
+                    event_data['showinhistory'] = show_in_history
+                    event_data.addchange('Modify', "show_in_history set to {show_in_history}",
+                                        f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
+
+                event_data.addchange('Info', f"find_command returned {notes}", f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
+
+                if command_item:
+                    print(f"found command {command_item.plugin_id}.{command_item.name}")
+                    ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
+
+                    success, _, error = command_item.run(command_args)
+
+                    if not success:
+                        ToClientRecord(f"Error running command: {error}").send()
+
+        else:
+            self.pass_through_command(event_data)
+
+        if event_data['showinhistory'] and not event_data['internal']:
+            self.add_command_to_history(event_data)
+
+        return event_data
 
     # add a command
     def _api_add_command(self, command_name, func, **kwargs):
@@ -882,14 +865,15 @@ class Plugin(BasePlugin):
         # find the plugin_id
         if 'plugin_id' in args:
             plugin_id = args['plugin_id']
+            del args['plugin_id']
         else:
             plugin_id = self.api('libs.api:get:function:owner:plugin')(func)
 
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-        if not plugin_instance:
+
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
             plugin_id = called_from
-            plugin_instance = self.api('libs.api:get:plugin:instance')(called_from)
-        if not plugin_id or not plugin_instance:
+
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
             LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
                         level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
             return
@@ -909,12 +893,9 @@ class Plugin(BasePlugin):
                                              description=args['shelp'])
             args['parser'] = new_parser
 
-        try:
+        with contextlib.suppress(argp.ArgumentError):
             new_parser.add_argument('-h', '--help', help='show help',
                                     action='store_true')
-        except argp.ArgumentError:
-            pass
-
         new_parser.prog = f"@B{self.api('setting:get')('cmdprefix')}.{plugin_id}.{command_name}@w"
 
         # if no group, add the group as the plugin_name
@@ -922,23 +903,30 @@ class Plugin(BasePlugin):
             args['group'] = plugin_id
 
         # build the command dict
-        args['func'] = func
-        args['plugin_id'] = plugin_id
-        args['commandname'] = command_name
         if 'preamble' not in args:
             args['preamble'] = True
         if 'format' not in args:
             args['format'] = True
-        if 'showinhistory' not in args:
-            args['showinhistory'] = True
+        if 'show_in_history' not in args:
+            args['show_in_history'] = True
 
+        parser = args['parser']
+
+        del args['parser']
+
+        command = Command(plugin_id,
+                            command_name,
+                            func,
+                            parser,
+                            **args)
+        #pprint.pprint(args)
         # update the command
-        self.update_command(plugin_instance.plugin_id, command_name, args)
+        self.update_command(plugin_id, command_name, command)
 
-        self.commands_list.append(f"{plugin_instance.plugin_id}.{command_name}")
+        self.commands_list.append(f"{plugin_id}.{command_name}")
 
         LogRecord(f"added command {plugin_id}.{command_name}",
-                  level='debug', sources=[self.plugin_id, plugin_instance.plugin_id]).send()
+                  level='debug', sources=[self.plugin_id, plugin_id]).send()
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
@@ -947,20 +935,22 @@ class Plugin(BasePlugin):
         @Ycommand_name@w  = the name of the command
 
         this function returns no values"""
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin_id)
-        removed = False
-        if plugin_instance:
-            data = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-            if data and command_name in data:
-                del data[command_name]
-                self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:update')('commands', data)
-                LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
-                removed = True
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            LogRecord(f"remove command: plugin {plugin_id} does not exist",
+                      level='warning', sources=[self.plugin_id, plugin_id]).send(f"{self.plugin_id}:_api_remove_command")
+            return False
 
-        if not removed:
-            LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id]).send()
+        data = self.api(f"{plugin_id}:data:get")('commands')
+        if data and command_name in data:
+            del data[command_name]
+            self.api(f"{plugin_id}:data:update")('commands', data)
+            LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
+            return True
 
-    def format_command_list(self, command_list):
+        LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id]).send()
+        return False
+
+    def format_command_list(self, command_list: list[Command]):
         """
         format a list of commands by a category
 
@@ -972,15 +962,15 @@ class Plugin(BasePlugin):
         """
         message = []
         for i in command_list:
-            if i != 'default':
-                tlist = i['parser'].description.split('\n')
-                if not tlist[0]:
-                    tlist.pop(0)
-                message.append(f"  @B{i['commandname']:<10}@w : {tlist[0]}")
+            if i != 'default' and i.arg_parser.description:
+                    tlist = i.arg_parser.description.split('\n')
+                    if not tlist[0]:
+                        tlist.pop(0)
+                    message.append(f"  @B{i.name:<10}@w : {tlist[0]}")
 
         return message
 
-    def list_commands(self, plugin):
+    def list_commands(self, plugin_id):
         """
         build a table of commands for a plugin
 
@@ -990,30 +980,30 @@ class Plugin(BasePlugin):
 
         returns the a list of stings for the list of commands
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(plugin)
 
-        message = []
-        if plugin_instance:
-            commands = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-            message.append('Commands in %s:' % plugin_instance.plugin_id)
-            message.append('@G' + '-' * 60 + '@w')
-            groups = {}
-            for i in sorted(commands.keys()):
-                if i != 'default':
-                    if commands[i]['group'] not in groups:
-                        groups[commands[i]['group']] = []
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+            return []
 
-                    groups[commands[i]['group']].append(commands[i])
+        commands: dict[str, Command] = self.api(f"{plugin_id}:data:get")('commands')
+        message = [f"Commands in {plugin_id}:", '@G' + '-' * 60 + '@w']
+        groups = {}
+        for i in sorted(commands.keys()):
+            if i != 'default':
+                if commands[i].group not in groups:
+                    groups[commands[i].group] = []
 
-            for group in sorted(groups.keys()):
-                if group != 'Base':
-                    message.append('@M' + '-' * 5 + ' ' +  group + ' ' + '-' * 5)
-                    message.extend(self.format_command_list(groups[group]))
-                    message.append('')
+                groups[commands[i].group].append(commands[i])
 
-            message.append('@M' + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5)
-            message.extend(self.format_command_list(groups['Base']))
-            #message.append('@G' + '-' * 60 + '@w')
+        for group in sorted(groups.keys()):
+            if group != 'Base':
+                message.append('@M' + '-' * 5 + ' ' +  group + ' ' + '-' * 5)
+                message.extend(self.format_command_list(groups[group]))
+                message.append('')
+
+        message.append('@M' + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5)
+        message.extend(self.format_command_list(groups['Base']))
+        #message.append('@G' + '-' * 60 + '@w')
+
         return message
 
     def command_list(self, args):
@@ -1025,23 +1015,24 @@ class Plugin(BasePlugin):
             @Yplugin@w    = The plugin to list commands for (optional)
         """
         message = []
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(args['plugin'])
         command = args['command']
-        if plugin_instance:
-            plugin_commands = self.api('libs.api:run:as:plugin')(plugin_instance.plugin_id, 'data:get')('commands')
-            if plugin_commands:
-                if command and command in plugin_commands:
-                    help_message = plugin_commands[command]['parser'].format_help().split('\n')
-                    message.extend(help_message)
-                else:
-                    message.extend(self.list_commands(plugin_instance.plugin_id))
-            else:
-                message.append('There are no commands in plugin %s' % plugin_instance.plugin_id)
-        else:
+        plugin_id = args['plugin']
+        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
             message.append('Plugins')
             plugin_id_list = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
             plugin_id_list = sorted(plugin_id_list)
             message.append(self.api('plugins.core.utils:format:list:into:columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
+            return True, message
+
+        if plugin_commands := self.api(f"{plugin_id}:data:get")('commands'):
+            if command and command in plugin_commands:
+                help_message = plugin_commands[command]['parser'].format_help().split('\n')
+                message.extend(help_message)
+            else:
+                message.extend(self.list_commands(plugin_id))
+        else:
+            message.append(f'There are no commands in plugin {plugin_id}')
+
         return True, message
 
     def command_runhistory(self, args):
@@ -1060,8 +1051,10 @@ class Plugin(BasePlugin):
         else:
             command = self.command_history_data[args['number']]
 
-        ToClientRecord(f"Commands: rerunning command {command}").send(__name__ + ':command_runhistory')
-        self.api('libs.io:send:execute')(command)
+        ToClientRecord(f"Commands: rerunning command {command}").send(
+            f'{self.plugin_id}:command_runhistory'
+        )
+        ToClientRecord(command)
 
         return True, []
 
@@ -1079,9 +1072,10 @@ class Plugin(BasePlugin):
             self.command_history_dict.sync()
             message.append('Command history cleared')
         else:
-            for i in self.command_history_data:
-                message.append('%s : %s' % (self.command_history_data.index(i), i))
-
+            message.extend(
+                f'{self.command_history_data.index(i)} : {i}'
+                for i in self.command_history_data
+            )
         return True, message
 
     def _savestate(self, _=None):

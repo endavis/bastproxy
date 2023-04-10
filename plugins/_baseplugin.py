@@ -497,7 +497,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                                               self._cmd_set,
                                               parser=parser,
                                               group='Base',
-                                              showinhistory=False)
+                                              show_in_history=False)
 
         if self.can_reset_f:
             parser = argp.ArgumentParser(add_help=False,

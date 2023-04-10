@@ -162,7 +162,7 @@ class PluginMgr(BasePlugin):
         """
         get the list of loaded plugins
         """
-        return self.loaded_plugins_info.keys()
+        return list(self.loaded_plugins_info.keys())
 
     # return all short names
     def _api_get_all_short_names(self):
