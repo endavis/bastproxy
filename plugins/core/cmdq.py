@@ -17,7 +17,7 @@ import re
 
 # Project
 import libs.argp as argp
-from libs.records import LogRecord
+from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Command Queue'
@@ -154,7 +154,7 @@ class Plugin(BasePlugin):
 
         self.current_command = cmdt
         self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_send")
-        self.api('libs.io:send:execute')(cmd)
+        ToMudRecord(cmd, internal=True, show_in_history=False)
 
     def checkinqueue(self, cmd):
         """
