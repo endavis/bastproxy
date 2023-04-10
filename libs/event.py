@@ -42,37 +42,31 @@ class Event:
         """
         return the number of functions registered to this event
         """
-        return sum([len(v) for v in self.priority_dictionary.values()])
+        return sum(len(v) for v in self.priority_dictionary.values())
 
     def isregistered(self, func) -> bool:
         """
         check if a function is registered to this event
         """
-        for priority in self.priority_dictionary:
-            if func in self.priority_dictionary[priority]:
-                return True
-
-        return False
+        return any(
+            func in self.priority_dictionary[priority]
+            for priority in self.priority_dictionary
+        )
 
     def isempty(self) -> bool:
         """
         check if an event has no functions registered
         """
-        for priority in self.priority_dictionary:
-            if self.priority_dictionary[priority]:
-                return False
-
-        return True
+        return not any(
+            self.priority_dictionary[priority]
+            for priority in self.priority_dictionary
+        )
 
     def register(self, func: typing.Callable, func_owner_id: str, prio: int = 50) -> bool:
         """
         register a function to this event container
         """
-        if not prio:
-            priority = 50
-        else:
-            priority = prio
-
+        priority = prio or 50
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = []
 
@@ -108,10 +102,11 @@ class Event:
         """
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
-            for event_function in self.priority_dictionary[priority]:
-                if event_function.owner_id == owner_id:
-                    plugins_to_unregister.append(event_function)
-
+            plugins_to_unregister.extend(
+                event_function
+                for event_function in self.priority_dictionary[priority]
+                if event_function.owner_id == owner_id
+            )
         for event_function in plugins_to_unregister:
             self.api('plugins.core.events:unregister:from:event')(self.name, event_function.func)
 
@@ -119,34 +114,37 @@ class Event:
         """
         format a detail of the event
         """
-        message: list[str] = []
-        message.append(f"{'Event':<13} : {self.name}")
-        message.append(f"{'Description':<13} : {self.description}")
-        message.append(f"{'Created by':<13} : {self.created_by}")
-        message.append(f"{'Raised':<13} : {self.raised_count}")
-        message.append('')
-        message.append(self.api('plugins.core.utils:center:colored:string')('@x86Registrations@w', '-', 60, filler_color='@B'))
-        message.append(f"{'priority':<13} : {'owner':<25} - {'function name'}")
-        message.append('-' * 60)
+        message: list[str] = [
+            f"{'Event':<13} : {self.name}",
+            f"{'Description':<13} : {self.description}",
+            f"{'Created by':<13} : {self.created_by}",
+            f"{'Raised':<13} : {self.raised_count}",
+            '',
+            self.api('plugins.core.utils:center:colored:string')(
+                '@x86Registrations@w', '-', 60, filler_color='@B'
+            ),
+            f"{'priority':<13} : {'owner':<25} - function name",
+            '-' * 60,
+        ]
         function_message: list[str] = []
         key_list = self.priority_dictionary.keys()
         key_list = sorted(key_list)
         for priority in key_list:
-            for event_function in self.priority_dictionary[priority]:
-                function_message.append(f"{priority:<13} : {event_function.owner_id:<25} - {event_function.name}")
-
+            function_message.extend(
+                f"{priority:<13} : {event_function.owner_id:<25} - {event_function.name}"
+                for event_function in self.priority_dictionary[priority]
+            )
         if not function_message:
             message.append('None')
         else:
             message.extend(function_message)
-        message.append('@B' + '-' * 60)
-
-        message.append('')
-
+        message.extend(('@B' + '-' * 60, ''))
         message.append(self.api('plugins.core.utils:center:colored:string')('@x86Data Keys@w', '-', 60, filler_color='@B'))
         if self.arg_descriptions and 'None' not in self.arg_descriptions:
-            for arg in self.arg_descriptions:
-                message.append(f"@C{arg:<13}@w : {self.arg_descriptions[arg]}")
+            message.extend(
+                f"@C{arg:<13}@w : {self.arg_descriptions[arg]}"
+                for arg in self.arg_descriptions
+            )
         elif 'None' in self.arg_descriptions:
             message.append('None')
         else:
@@ -173,7 +171,11 @@ class Event:
         if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} did not pass a dict or EventArgsRecord object",
                         level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
-            LogRecord(f"The event will not be processed", level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
+            LogRecord(
+                "The event will not be processed",
+                level='error',
+                sources=[calledfrom, self.created_by, 'plugins.core.events'],
+            ).send()
             return None
 
         # convert a dict to an EventArgsRecord object
@@ -182,14 +184,12 @@ class Event:
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
-        log: bool = True if log_savestate else True if not self.name.endswith('_savestate') else False
+        log: bool = True if log_savestate else not self.name.endswith('_savestate')
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by]).send()
 
-        # execute the event functions in priority order
-        keys = self.priority_dictionary.keys()
-        if keys:
+        if keys := self.priority_dictionary.keys():
             keys = sorted(keys)
             for priority in keys:
                 for event_function in self.priority_dictionary[priority][:]:
