@@ -10,6 +10,8 @@ This module handles changing logging settings
 
 see info/logging_notes.txt for more information about logging
 """
+
+import contextlib
 # Standard Library
 import logging
 import os
@@ -47,10 +49,8 @@ class Plugin(BasePlugin):
 
         self.type_counts = {}
 
-        try:
+        with contextlib.suppress(OSError):
             os.makedirs(self.save_directory)
-        except OSError:
-            pass
         self.handlers = {}
         self.handlers['client'] = PersistentDict(self.plugin_id,
             self.save_directory /'logtypes_to_client.txt',
@@ -88,12 +88,13 @@ class Plugin(BasePlugin):
         add a log count
         """
         if logtype not in self.type_counts:
-            self.type_counts[logtype] = {}
-            self.type_counts[logtype]['debug'] = 0
-            self.type_counts[logtype]['info'] = 0
-            self.type_counts[logtype]['warning'] = 0
-            self.type_counts[logtype]['error'] = 0
-            self.type_counts[logtype]['critical'] = 0
+            self.type_counts[logtype] = {
+                'debug': 0,
+                'info': 0,
+                'warning': 0,
+                'error': 0,
+                'critical': 0,
+            }
         if level not in self.type_counts[logtype]:
             self.type_counts[logtype][level] = 0
         self.type_counts[logtype][level] += 1
@@ -129,10 +130,7 @@ class Plugin(BasePlugin):
             self.handlers['console'].sync()
 
         convlevel = getattr(logging, self.handlers['console'][logger].upper(), None)
-        if level >= convlevel:
-            return True
-
-        return False
+        return level >= convlevel
 
     def _api_can_log_to_file(self, logger, level):
         """
@@ -145,10 +143,7 @@ class Plugin(BasePlugin):
             self.handlers['file'].sync()
 
         convlevel = getattr(logging, self.handlers['file'][logger].upper(), None)
-        if level >= convlevel:
-            return True
-
-        return False
+        return level >= convlevel
 
     def _api_can_log_to_client(self, logger, level):
         """
@@ -178,7 +173,7 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id, logtype]).send()
             return
 
-        if flag and not logtype in self.handlers['client']:
+        if flag and logtype not in self.handlers['client']:
             self.handlers['client'][logtype] = level
             LogRecord(f"setting {logtype} to log to client at level {level}",
                       level='debug', sources=[self.plugin_id, logtype]).send()
@@ -196,8 +191,8 @@ class Plugin(BasePlugin):
         """
         tmsg = []
         level = args['level']
-        remove = not args['remove']
         if args['logtype']:
+            remove = not args['remove']
             for i in args['logtype']:
                 self.api(f"{self.plugin_id}:set:log:to:client")(i, level=level, flag=remove)
                 if i in self.handlers['client']:
@@ -208,11 +203,17 @@ class Plugin(BasePlugin):
             self.handlers['client'].sync()
             return True, tmsg
 
-        tmsg.append('Current types going to client')
-        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
-        for i in self.handlers['client']:
-            if self.handlers['client'][i]:
-                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['client'][i]:<}")
+        tmsg.extend(
+            (
+                'Current types going to client',
+                f"{'logtype':<{self.logtype_col_length}}{'level':<}",
+            )
+        )
+        tmsg.extend(
+            f"{i:<{self.logtype_col_length}}{self.handlers['client'][i]:<}"
+            for i in self.handlers['client']
+            if self.handlers['client'][i]
+        )
         return True, tmsg
 
     # toggle logging a logtype to the console
@@ -255,11 +256,17 @@ class Plugin(BasePlugin):
             self.handlers['console'].sync()
             return True, tmsg
 
-        tmsg.append('Current types going to console')
-        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
-        for i in self.handlers['console']:
-            if self.handlers['console'][i]:
-                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['console'][i]:<}")
+        tmsg.extend(
+            (
+                'Current types going to console',
+                f"{'logtype':<{self.logtype_col_length}}{'level':<}",
+            )
+        )
+        tmsg.extend(
+            f"{i:<{self.logtype_col_length}}{self.handlers['console'][i]:<}"
+            for i in self.handlers['console']
+            if self.handlers['console'][i]
+        )
         return True, tmsg
 
     # toggle logging a logtype to a file
@@ -303,11 +310,17 @@ class Plugin(BasePlugin):
             self.handlers['file'].sync()
             return True, tmsg
 
-        tmsg.append('Current types going to file')
-        tmsg.append(f"{'logtype':<{self.logtype_col_length}}{'level':<}")
-        for i in self.handlers['file']:
-            if self.handlers['file'][i]:
-                tmsg.append(f"{i:<{self.logtype_col_length}}{self.handlers['file'][i]:<}")
+        tmsg.extend(
+            (
+                'Current types going to file',
+                f"{'logtype':<{self.logtype_col_length}}{'level':<}",
+            )
+        )
+        tmsg.extend(
+            f"{i:<{self.logtype_col_length}}{self.handlers['file'][i]:<}"
+            for i in self.handlers['file']
+            if self.handlers['file'][i]
+        )
         return True, tmsg
 
     # show all types
@@ -320,18 +333,23 @@ class Plugin(BasePlugin):
         types.extend(self.handlers['console'].keys())
         types.extend(self.handlers['file'].keys())
         types = sorted(set(types))
-        tmsg = []
-        tmsg.append('Statistics are only tracked after the log plugin is loaded')
-        tmsg.append('so they will not be accurate for all log types.')
-        tmsg.append('-' *  79)
+        tmsg = [
+            'Statistics are only tracked after the log plugin is loaded',
+            'so they will not be accurate for all log types.',
+            '-' * 79,
+        ]
         match = args['match']
 
         if match:
             types = [i for i in types if match in i]
 
         if types:
-            tmsg.append(f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} {'warning':<7} {'error':<5} {'critical':<8}")
-            tmsg.append('-' *  79)
+            tmsg.extend(
+                (
+                    f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} {'warning':<7} {'error':<5} {'critical':<8}",
+                    '-' * 79,
+                )
+            )
             for i in types:
                 if i in self.type_counts:
                     tmsg.append(f"{i:<{self.logtype_col_length}} : {self.type_counts[i]['debug']:<5} {self.type_counts[i]['info']:<5} {self.type_counts[i]['warning']:<7} {self.type_counts[i]['error']:<5} {self.type_counts[i]['critical']:<8}")
@@ -356,16 +374,19 @@ class Plugin(BasePlugin):
         lr = LogRecord(message, level=level, sources=[logtype])
         lr.send()
 
-        tmsg.append(f"Console: {lr.wasemitted['console']}")
-        tmsg.append(f"File: {lr.wasemitted['file']}")
-        tmsg.append(f"Client: {lr.wasemitted['client']}")
+        tmsg.extend(
+            (
+                f"Console: {lr.wasemitted['console']}",
+                f"File: {lr.wasemitted['file']}",
+                f"Client: {lr.wasemitted['client']}",
+            )
+        )
         return True, tmsg
 
     def cmd_clean(self, args):
         """
         remove log types that have not been used
         """
-        tmsg = []
         types = []
         types.extend(self.handlers['client'].keys())
         types.extend(self.handlers['console'].keys())
@@ -377,11 +398,10 @@ class Plugin(BasePlugin):
         for i in types:
             if i not in self.type_counts:
                 remove.append(i)
-            else:
-                if not max(self.type_counts[i].values()) > 0:
-                    remove.append(i)
+            elif max(self.type_counts[i].values()) <= 0:
+                remove.append(i)
 
-        tmsg.append('Removed the following types:')
+        tmsg = ['Removed the following types:']
         for i in remove:
             tmsg.append(i)
             if i in self.handlers['client']:
