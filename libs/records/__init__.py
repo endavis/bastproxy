@@ -11,11 +11,12 @@ The public record types ones are:
     ToClientRecord - data to send to the client
     LogRecord - data to log
     ToMudRecord - data to send to the mud
+    EventArgsRecord - data to send to event callbacks
 
 The public manager is RMANAGER, which manages records or all types
 
 There are also some private classes that are used to manage records
-    BaseRecrod - the base class for all records
+    BaseRecord - the base class for all records
     ChangeRecord - a record that holds a change to a record
     ChangeManager - a manager that manages changes to records
 """
@@ -28,7 +29,6 @@ from libs.records.rtypes.tomud import ToMudRecord
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.eventargs import EventArgsRecord
 from libs.records.managers.records import RMANAGER
-
 
 
 
