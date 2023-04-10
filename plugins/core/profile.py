@@ -102,7 +102,6 @@ class Plugin(BasePlugin):
         self.command_traces = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
         self.changed_mud_data = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
 
-        self.api('plugins.core.events:register:to:event')('ev_libs.io_execute_trace_finished', self.savecommand, prio=99)
         self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event', self.savechanged_mud_data, prio=99)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.onfunctionschange)
 

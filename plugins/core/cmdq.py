@@ -170,7 +170,9 @@ class Plugin(BasePlugin):
         """
         tell the queue that a command has finished
         """
-        self.api('libs.io:msg')(f"running cmddone: {cmdtype}")
+        LogRecord(f"_api_command_finish - got command finish for {cmdtype}",
+                  level='debug',
+                  sources=[self.plugin_id]).send(actor=f"{self.plugin_id}:_api_command_finish")
         if not self.current_command:
             return
         if cmdtype == self.current_command['ctype']:

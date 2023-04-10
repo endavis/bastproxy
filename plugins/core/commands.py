@@ -364,8 +364,6 @@ class Plugin(BasePlugin):
                                               show_in_history=False)
 
         # register events
-        #self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self._event_io_execute_check_command, prio=5)
-
         self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self._event_to_mud_data_modify_check_command, prio=5)
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self._event_plugin_uninitialized)
         self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)

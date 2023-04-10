@@ -21,7 +21,7 @@ import signal
 # Project
 from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin
-from libs.records import ToClientRecord, LogRecord
+from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
 
 #these 5 are required
@@ -161,11 +161,10 @@ class Plugin(BasePlugin):
         connects to the mud
         """
         if self.api('setting:get')('username') != '':
-            self.api('libs.io:send:mud')(self.api('setting:get')('username'))
+            ToMudRecord(self.api('setting:get')('username'), internal=True, show_in_history=False)
             pasw = self.api(f"{self.plugin_id}:ssc:mudpw")()
             if pasw != '':
-                self.api('libs.io:send:mud')(pasw)
-                self.api('libs.io:send:mud')('\n')
+                ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)
 
     def cmd_info(self, _):
         """

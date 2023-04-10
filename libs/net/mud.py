@@ -108,7 +108,6 @@ class MudConnection:
 
             # this is where we start with ToMudRecord
             ToClientRecord(inp, internal=False).send('libs.net.mud:mud_read')
-            #self.api('libs.io:send:execute')(inp, fromclient=True)
 
         LogRecord(f"mud_read - Ending coroutine", level='debug', sources=[__name__]).send()
 

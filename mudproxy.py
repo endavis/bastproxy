@@ -30,7 +30,6 @@ from libs.net import server
 from libs.asynch import run_asynch
 
 # The modules below are imported to add their functions to the API
-from libs import io
 from libs import timing
 
 # set the start time
@@ -130,9 +129,7 @@ class MudProxy:
         """
         do any actions that are post plugin init here
         """
-        # add the IO manager
-        from libs.io import IO
-        self.api('plugins.core.managers:add')('libs.io', IO)
+        pass
 
 if __name__ == "__main__":
     import libs.argp

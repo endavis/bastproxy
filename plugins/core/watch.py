@@ -53,7 +53,7 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')('ev_libs.io_execute', self.checkcmd)
+        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.checkcmd)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='list watches')
