@@ -189,7 +189,7 @@ class ClientConnection:
                     logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
                     if msg_obj.is_prompt:
                         self.writer.write(telnet.go_ahead())
-                        logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.goahead()}")
+                        logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.go_ahead()}")
                 else:
                     LogRecord(f"client_write - No message to write to client.", level='debug', sources=[__name__]).send()
 
