@@ -89,11 +89,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         os.makedirs(self.save_directory, exist_ok=True)
 
-        # log.debug(f"plugin_path: {self.plugin_path}")
-        # log.debug(f"base_plugin_dir: {self.base_plugin_dir}")
-        # log.debug(f"plugin_file: {self.plugin_file}")
-        # log.debug(f"plugin_directory: {self.plugin_directory}")
-
         self.package = self.plugin_id.rsplit('.', 1)[0]
 
         self.settings = {}
