@@ -18,13 +18,13 @@ import traceback
 
 # Project
 
-class ChangeRecord(object):
+class UpdateRecord(object):
     """
-    a change event for a record
+    a update event for a record
     flag: one of 'Modify', 'Set Flag', 'Info'
-    action: a description of what was changed
-    actor: the item that changed the message (likely a plugin)
-    extra: any extra info about this change
+    action: a description of what was updated
+    actor: the item that send the update (likely a plugin)
+    extra: any extra info about this update
     data: the new data
 
     will automatically add the time and last 5 stack frames
@@ -47,6 +47,8 @@ class ChangeRecord(object):
         format the change record
         """
         if self.flag == 'Modify':
-            return f"{self.actor} changed {self.action}"
+            return f"{self.actor} updated {self.action}"
         if self.flag == 'Set Flag':
             return f"{self.actor} set {self.action} to {self.data}"
+        if self.flag == 'Info':
+            return f"{self.actor} {self.action}"

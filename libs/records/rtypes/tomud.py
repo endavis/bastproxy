@@ -66,7 +66,7 @@ class ToMudRecord(BaseDataRecord):
 
         this will split the data along the command seperator and along newlines
         """
-        self.addchange('Info', f"{'Start':<8}: Prepare", f"{actor}:prepare", savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: Prepare", f"{actor}:prepare", savedata=False)
 
         new_message = []
         for item in self:
@@ -75,7 +75,7 @@ class ToMudRecord(BaseDataRecord):
             # split the line along newlines
             lines = line.split('\r\n')
             if len(lines) > 1:
-                self.addchange('Info', "split (CRLF)", f"{actor}:prepare", extra={'line':line, 'newlines':lines}, savedata=False)
+                self.addupdate('Info', "split (CRLF)", f"{actor}:prepare", extra={'line':line, 'newlines':lines}, savedata=False)
 
             for line in lines:
                 # split the line if it has the command seperator in it
@@ -84,7 +84,7 @@ class ToMudRecord(BaseDataRecord):
                 else:
                     split_data = [line]
                 if len(split_data) > 1:
-                    self.addchange('Info', "split (Split_Char)", f"{actor}:prepare", extra={'line':line, 'newlines':split_data},
+                    self.addupdate('Info', "split (Split_Char)", f"{actor}:prepare", extra={'line':line, 'newlines':split_data},
                                     savedata=False)
                     new_message.extend(split_data)
                 else:
@@ -92,7 +92,7 @@ class ToMudRecord(BaseDataRecord):
 
         self.replace(new_message, f"{actor}:prepare")
 
-        self.addchange('Info', f"{'Complete':<8}: Prepare", f"{actor}:prepare", savedata=False)
+        self.addupdate('Info', f"{'Complete':<8}: Prepare", f"{actor}:prepare", savedata=False)
 
     def fix_double_command_seperator(self, actor):
         """
@@ -101,7 +101,7 @@ class ToMudRecord(BaseDataRecord):
         take out double command seperators and replaces them with a single one before
         sending the data to the mud
         """
-        self.addchange('Info', f"{'Start':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
         new_message = []
         for line in self:
             current_line = line.replace('||', '|')
@@ -109,18 +109,18 @@ class ToMudRecord(BaseDataRecord):
 
         self.replace(new_message, f"{actor}:fix_double_command_seperator")
 
-        self.addchange('Info', f"{'Complete':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
+        self.addupdate('Info', f"{'Complete':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
 
     def format(self, actor):
         """
         format the record for sending to the mud
         """
         if not self.internal and self.is_io:
-            self.addchange('Info', f"{'Start':<8}: Format", f"{actor}:format", savedata=False)
+            self.addupdate('Info', f"{'Start':<8}: Format", f"{actor}:format", savedata=False)
             self.add_line_endings(f"{actor}:format")
             self.color_lines(f"{actor}:format")
             self.fix_double_command_seperator(f"{actor}:format")
-            self.addchange('Info', f"{'Complete':<8}: Format", f"{actor}:format", savedata=False)
+            self.addupdate('Info', f"{'Complete':<8}: Format", f"{actor}:format", savedata=False)
 
     def send(self, actor):
         """
@@ -130,7 +130,7 @@ class ToMudRecord(BaseDataRecord):
             LogRecord(f"LogRecord: {self.uuid} is already sending",
                                 level='debug', stack_info=True, sources=[__name__]).send()
             return
-        self.addchange('Info', f"{'Start':<8}: send", actor, savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
 
         # non-io and anything generated internally do not go through the mud_data_modify event
         if not self.internal and self.is_io:
@@ -144,23 +144,23 @@ class ToMudRecord(BaseDataRecord):
                                                             'sendtomud':True})
 
                 if not event_args['sendtomud']:
-                    self.addchange('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
+                    self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
                                     f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'event_args':event_args},
                                     savedata=False)
                     pprint.pprint(event_args)
                     continue
 
                 if event_args['line'] != line:
-                    self.addchange('Modify', f"event:{self.modify_data_event_name} modified line" ,
+                    self.addupdate('Modify', f"event:{self.modify_data_event_name} modified line" ,
                                     f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'newline':event_args['data']}, savedata=False)
 
-                self.addchange('Info', f"event:{self.modify_data_event_name} returned", f"{actor}:send:{self.modify_data_event_name}",
+                self.addupdate('Info', f"event:{self.modify_data_event_name} returned", f"{actor}:send:{self.modify_data_event_name}",
                                 extra={'event_args':event_args}, savedata=False)
                 new_message.append(event_args['line'])
                 pprint.pprint(event_args)
 
             self.replace(new_message, f"{actor}:{self.modify_data_event_name}")
-            self.addchange('Info', f'After event {self.modify_data_event_name}', f"{actor}:send")
+            self.addupdate('Info', f'After event {self.modify_data_event_name}', f"{actor}:send")
 
         if self.send_to_mud:
             self.format(f"{actor}:send")
@@ -170,4 +170,4 @@ class ToMudRecord(BaseDataRecord):
         if self.is_io:
             self.api('plugins.core.events:raise:event')(self.read_data_event_name, args={'ToMudRecord': self})
 
-        self.addchange('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)
+        self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)

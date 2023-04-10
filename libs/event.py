@@ -195,7 +195,7 @@ class Event:
                 for event_function in self.priority_dictionary[priority][:]:
                     try:
                         # data is a record that acts like a dictionary and can be updated.
-                        # If the registered event changes the args, it should snapshot it with addchange
+                        # If the registered event changes the args, it should snapshot it with addupdate
                         event_function.execute(data)
                     except Exception:  # pylint: disable=broad-except
                         LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",

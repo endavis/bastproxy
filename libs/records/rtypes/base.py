@@ -17,8 +17,8 @@ import datetime
 
 # Project
 from libs.api import API
-from libs.records.rtypes.change import ChangeRecord
-from libs.records.managers.changes import ChangeManager
+from libs.records.rtypes.update import UpdateRecord
+from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
 
 class BaseRecord:
@@ -32,11 +32,10 @@ class BaseRecord:
         # Add an API
         self.api = API(owner_id=self.owner_id)
         self.created =  datetime.datetime.now(datetime.timezone.utc)
-        self.changes = ChangeManager()
+        self.updates = UpdateManager()
         RMANAGER.add(self)
-        #self.addchange('Create', 'init', None)
 
-    def addchange(self, flag: str, action: str, actor:str , extra: dict | None = None):
+    def addupdate(self, flag: str, action: str, actor:str , extra: dict | None = None):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -48,19 +47,18 @@ class BaseRecord:
             after modification
             when it ends up at it's destination
         """
-        change = ChangeRecord(flag, action, actor, extra)
+        change = UpdateRecord(flag, action, actor, extra)
 
-        self.changes.add(change)
+        self.updates.add(change)
 
     def check_for_change(self, flag: str, action: str):
         """
         check if there is a change with the given flag and action
         """
-        for change in self.changes:
-            if change['flag'] == flag:
-                if change['action'] == action:
-                    return True
-        return False
+        return any(
+            update['flag'] == flag and update['action'] == action
+            for update in self.updates
+        )
 
 class BaseDataRecord(BaseRecord, UserList):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool=True, owner_id: str=''):
@@ -109,7 +107,7 @@ class BaseDataRecord(BaseRecord, UserList):
             data = [data]
         if data != self.data:
             self.data = data
-            self.addchange('Modify', 'replace', actor, extra=extra)
+            self.addupdate('Modify', 'replace', actor, extra=extra)
 
     def color_lines(self, color: str, actor=''):
         """
@@ -167,7 +165,7 @@ class BaseDataRecord(BaseRecord, UserList):
 
         self.replace(new_message, f"{actor}:clean", extra={'msg':'clean each item'})
 
-    def addchange(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
+    def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -179,10 +177,7 @@ class BaseDataRecord(BaseRecord, UserList):
             after modification
             when it ends up at it's destination
         """
-        data = None
-        if savedata:
-            data = self.data[:]
+        data = self.data[:] if savedata else None
+        change = UpdateRecord(flag, action, actor, extra, data)
 
-        change = ChangeRecord(flag, action, actor, extra, data)
-
-        self.changes.add(change)
+        self.updates.add(change)

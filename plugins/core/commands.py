@@ -579,7 +579,7 @@ class Plugin(BasePlugin):
             if self.api('setting:get')('cmdcount') == \
                                   self.api('setting:get')('spamcount'):
 
-                event_data.addchange('Modify', "Antispam Command sent",
+                event_data.addupdate('Modify', "Antispam Command sent",
                                         f"{self.plugin_id}:pass_through_command", saveargs = False)
                 LogRecord(f"sending antspam command: {self.api('setting:get')('antispamcommand')}", level='debug', sources=[self.plugin_id]).send()
                 ToMudRecord(self.api('setting:get')('antispamcommand'), show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
@@ -590,7 +590,7 @@ class Plugin(BasePlugin):
             # if the command is seen multiple times in a row and it has been flagged to only be sent once,
             # swallow it
             if original_command in self.no_multiple_commands:
-                event_data.addchange('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
+                event_data.addupdate('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
                                         f"{self.plugin_id}:pass_through_command", saveargs = False)
 
                 event_data['sendtomud'] = False
@@ -806,10 +806,10 @@ class Plugin(BasePlugin):
 
                 if event_data['showinhistory'] != show_in_history:
                     event_data['showinhistory'] = show_in_history
-                    event_data.addchange('Modify', "show_in_history set to {show_in_history}",
+                    event_data.addupdate('Modify', "show_in_history set to {show_in_history}",
                                         f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
 
-                event_data.addchange('Info', f"find_command returned {notes}", f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
+                event_data.addupdate('Info', f"find_command returned {notes}", f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
 
                 if command_item:
                     print(f"found command {command_item.plugin_id}.{command_item.name}")

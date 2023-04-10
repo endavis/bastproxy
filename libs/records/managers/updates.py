@@ -16,7 +16,7 @@ from collections import deque
 # Project
 
 
-class ChangeManager(deque):
+class UpdateManager(deque):
     """
     a class to manage changes to records
 
@@ -25,5 +25,5 @@ class ChangeManager(deque):
     def __init__(self):
         super().__init__(maxlen=1000)
 
-    def add(self, change):
-        self.append(change)
+    def add(self, update):
+        self.append(update)

@@ -16,7 +16,7 @@ from collections import UserDict
 
 # Project
 from libs.records.rtypes.base import BaseRecord
-from libs.records.rtypes.change import ChangeRecord
+from libs.records.rtypes.update import UpdateRecord
 
 class EventArgsRecord(BaseRecord, UserDict):
     def __init__(self, owner_id: str = '', event_name: str = 'unknown', data: dict | None = None):
@@ -34,7 +34,7 @@ class EventArgsRecord(BaseRecord, UserDict):
         BaseRecord.__init__(self, owner_id)
         self.event_name = event_name
 
-    def addchange(self, flag: str, action: str, actor: str, extra: dict | None = None, saveargs: bool = True):
+    def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, saveargs: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -46,10 +46,7 @@ class EventArgsRecord(BaseRecord, UserDict):
             after modification
             when it ends up at it's destination
         """
-        data = None
-        if saveargs:
-            data = self.copy()
+        data = self.copy() if saveargs else None
+        change = UpdateRecord(flag, action, actor, extra, data)
 
-        change = ChangeRecord(flag, action, actor, extra, data)
-
-        self.changes.add(change)
+        self.updates.add(change)

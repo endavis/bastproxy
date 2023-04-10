@@ -97,7 +97,7 @@ class ToClientRecord(BaseDataRecord):
         """
         if flag != self.send_to_clients:
             self.send_to_clients = flag
-            self.addchange('Set Flag', 'send_to_clients', actor=actor, extra={'msg':f"set to {flag}, {extra}"}, savedata=False)
+            self.addupdate('Set Flag', 'send_to_clients', actor=actor, extra={'msg':f"set to {flag}, {extra}"}, savedata=False)
 
     def add_client(self, client_uuid: str):
         """
@@ -175,7 +175,7 @@ class ToClientRecord(BaseDataRecord):
                                 level='debug', stack_info=True, sources=[__name__]).send()
             return
         self.sending = True
-        self.addchange('Info', 'Starting Send', actor, savedata=False)
+        self.addupdate('Info', 'Starting Send', actor, savedata=False)
 
         # If it came from the mud, pass each line through the event system to allow plugins to modify it
         if not self.internal and self.is_io:
@@ -186,24 +186,24 @@ class ToClientRecord(BaseDataRecord):
                                                                                                         'internal': self.internal,
                                                                                                         'sendtoclient': True})
                 if not event_args['sendtoclient']:
-                    self.addchange('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
+                    self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args},
                                     savedata=False)
                     continue
 
                 if event_args['line'] != line:
-                    self.addchange('Modify', f"line modified by {self.modify_data_event_name}",
+                    self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args},
                                     savedata=False)
 
-                self.addchange('Info', f"event {self.modify_data_event_name}", f"{actor}:send", extra={'event_args':event_args}, savedata=False)
-                pprint.pprint(event_args)
+                self.addupdate('Info', f"event {self.modify_data_event_name}", f"{actor}:send", extra={'event_args':event_args}, savedata=False)
+
                 tmessage.append(event_args['line'])
 
             self.replace(tmessage, f"{actor}:send:{self.modify_data_event_name}")
-            self.addchange('Info', f'After event {self.modify_data_event_name}', actor)
+            self.addupdate('Info', f'After event {self.modify_data_event_name}', actor)
 
         if self.send_to_clients:
             self.format(f"{actor}:send")
@@ -222,4 +222,4 @@ class ToClientRecord(BaseDataRecord):
         if self.is_io:
             self.api('plugins.core.events:raise:event')(self.read_data_event_name, args={'ToClientRecord': self})
 
-        self.addchange('Info', 'Completed sending data', f"{actor}:send", savedata=False)
+        self.addupdate('Info', 'Completed sending data', f"{actor}:send", savedata=False)
