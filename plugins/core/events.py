@@ -177,10 +177,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
 
-        if 'prio' not in kwargs:
-            priority = 50
-        else:
-            priority = kwargs['prio']
+        priority = 50 if 'prio' not in kwargs else kwargs['prio']
         func_owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
         if not func_owner_id:
             LogRecord(f"_api_register_to_event - could not find owner for {func}",
@@ -239,9 +236,7 @@ class Plugin(BasePlugin):
         event = self._api_get_event(event_name)
 
         self.global_raised_count += 1
-        new_args = event.raise_event(args, calledfrom)
-
-        return new_args
+        return event.raise_event(args, calledfrom)
 
     # get the details of an event
     def _api_get_event_detail(self, event_name):
@@ -265,8 +260,7 @@ class Plugin(BasePlugin):
             @Yevent_name@w  = the event_name to raise
         """
         message = []
-        event = self.api(f"{self.plugin_id}:get:event")(args['event'])
-        if event:
+        if self.api(f"{self.plugin_id}:get:event")(args['event']):
             self.api(f"{self.plugin_id}:raise:event")(args['event'])
             message.append(f"raised event: {args['event']}")
         else:
@@ -297,7 +291,6 @@ class Plugin(BasePlugin):
           list events and the owner_ids registered with them
           @CUsage@w: list
         """
-        message = []
         match = args['match']
         show_registered_only = args['show_registered_only']
         show_no_description_or_args = args['show_no_description_or_args']
@@ -318,11 +311,11 @@ class Plugin(BasePlugin):
         else:
             eventlist = eventnames
 
-        for name in eventlist:
-            if not match or match in name:
-                if self.events[name]:
-                    message.append(f"{self.events[name].count():<3} - {name:<30}")
-
+        message = [
+            f"{self.events[name].count():<3} - {name:<30}"
+            for name in eventlist
+            if (not match or match in name) and self.events[name]
+        ]
         if not message:
             message = ['No events found']
 
