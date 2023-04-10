@@ -673,13 +673,10 @@ class Plugin(BasePlugin):
 
             # found just the command prefix
             # get the list of plugins
-            success, output = self.api(f"{self.plugin_id}:command:run")(self.default_help_command['plugin_id'],
-                                                    self.default_help_command['command'])
+            packages_list = [package.replace('plugins.', '')
+                             for package in self.api('plugins.core.pluginm:get:packages:list')()]
 
-            if not success:
-                output = ["Error: unable to get plugin list"]
-
-            self.proxy_help("Proxy Help", "Available Plugins:", output)
+            self.proxy_help("Proxy Help", "Available Packages:", packages_list)
 
             return None, '', False, 'Proxy Help'
 
