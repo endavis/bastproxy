@@ -48,13 +48,6 @@ class BaseRecord:
             after modification
             when it ends up at it's destination
         """
-        change = {}
-        change['flag'] = flag
-        change['action'] = action
-        change['actor'] = actor
-        change['extra'] = extra
-        change['time'] =  datetime.datetime.now(datetime.timezone.utc)
-
         change = ChangeRecord(flag, action, actor, extra)
 
         self.changes.add(change)
@@ -160,13 +153,6 @@ class BaseDataRecord(BaseRecord, UserList):
             after modification
             when it ends up at it's destination
         """
-        change = {}
-        change['flag'] = flag
-        change['action'] = action
-        change['actor'] = actor
-        change['extra'] = extra
-        change['time'] =  datetime.datetime.now(datetime.timezone.utc)
-
         data = None
         if savedata:
             data = self.data[:]

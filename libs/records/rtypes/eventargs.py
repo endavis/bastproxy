@@ -44,13 +44,6 @@ class EventArgsRecord(BaseRecord, UserDict):
             after modification
             when it ends up at it's destination
         """
-        change = {}
-        change['flag'] = flag
-        change['action'] = action
-        change['actor'] = actor
-        change['extra'] = extra
-        change['time'] =  datetime.datetime.now(datetime.timezone.utc)
-
         data = None
         if saveargs:
             data = self.copy()
