@@ -366,7 +366,6 @@ class Plugin(BasePlugin):
         # register events
         self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self._event_to_mud_data_modify_check_command, prio=5)
         self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self._event_plugin_uninitialized)
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
 
     def _event_plugin_uninitialized(self, args):
         """
@@ -1090,8 +1089,9 @@ class Plugin(BasePlugin):
             )
         return True, message
 
-    def _savestate(self, _=None):
+    def savestate(self):
         """
         save states
         """
+        super().savestate()
         self.command_history_dict.sync()

@@ -88,7 +88,7 @@ class PluginMgr(BasePlugin):
         self.api('libs.api:add')('get:plugin:instance', self._api_get_plugin_instance)
         self.api('libs.api:add')('get:plugin:module', self._api_get_plugin_module)
         self.api('libs.api:add')('get:all:plugin:info', self._api_get_all_plugin_info)
-        self.api('libs.api:add')('save:state', self.api_save_state)
+        self.api('libs.api:add')('save::all:plugins:state', self.api_save_all_plugins_state)
         self.api('libs.api:add')('get:loaded:plugins:list', self._api_get_loaded_plugins_list)
         self.api('libs.api:add')('get:packages:list', self._api_get_packages_list)
         self.api('libs.api:add')('get:all:short:names', self._api_get_all_short_names)
@@ -1055,20 +1055,15 @@ class PluginMgr(BasePlugin):
         """
         do tasks on shutdown
         """
-        self.api_save_state()
+        self.api_save_all_plugins_state()
 
     # save all plugins
-    def api_save_state(self, _=None):
+    def api_save_all_plugins_state(self, _=None):
         """
         save all plugins
         """
-        BasePlugin.savestate(self)
-
-        for i in self.loaded_plugins_info.values():
-            if i.plugin_id == self.plugin_id:
-                continue
-            if i.plugininstance:
-                i.plugininstance.savestate()
+        for i in self.loaded_plugins_info:
+            self.api(f"{i}:save:state")()
 
     # command to load plugins
     def _command_load(self, args):
@@ -1250,7 +1245,7 @@ class PluginMgr(BasePlugin):
                                               self._command_reload,
                                               parser=parser)
 
-        self.api('plugins.core.timers:add:timer')('global_save', self.api_save_state, 60, unique=True, log=False)
+        self.api('plugins.core.timers:add:timer')('global_save', self.api_save_all_plugins_state, 60, unique=True, log=False)
 
         self.api('plugins.core.events:add:event')(
             f"ev_{self.plugin_id}_plugin_initialized",

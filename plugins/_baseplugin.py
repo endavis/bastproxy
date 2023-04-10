@@ -108,6 +108,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add')('setting:change', self._api_setting_change)
         self.api('libs.api:add')('data:get', self._api_get_data)
         self.api('libs.api:add')('data:update', self._api_update_data)
+        self.api('libs.api:add')('save:state', self._api_savestate)
 
     # add a function to the api
     def _api_add(self, name, func, overload=False, force=False):
@@ -409,15 +410,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, ['This plugin cannot be reset']
 
-    def _cmd_save(self, _=None):
-        """
-        @G%(name)s@w - @B%(cmdname)s@w
-        save plugin state
-        @CUsage@w: save
-        """
-        self.savestate()
-        return True, ['Plugin settings saved']
-
     def _cmd_help(self, args):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -598,11 +590,25 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self.setting_values.sync()
 
-    def __baseplugin_savestate(self, _=None):
+    def _cmd_save(self, _=None):
         """
-        save the settings state
+        @G%(name)s@w - @B%(cmdname)s@w
+        save plugin state
+        @CUsage@w: save
+        """
+        self.savestate()
+        return True, ['Plugin settings saved']
+
+    def savestate(self):
+        """
+        save all settings for the plugin
+        make sure to call this in any methods
+        of a subclass that overrides this
         """
         self.setting_values.sync()
+
+    _api_savestate = savestate
+    evc_savestate = savestate
 
     def __after_initialize(self, _=None):
         """
@@ -660,15 +666,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         #save the state
         self.savestate()
 
-    def savestate(self, _=None):
-        """
-        save all settings for the plugin
-        do not overload!
-
-        attach to the ev_<plugin_id>_savestate event
-        """
-        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_savestate")
-
     def is_changed_on_disk(self):
         """
         check to see if the file this plugin is based on has changed on disk
@@ -706,7 +703,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_initialized",
                                                       self.__after_initialize, prio=1)
             self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate",
-                                                      self.__baseplugin_savestate)
+                                                      self.evc_savestate)
 
             self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.__disconnect)
 

@@ -442,8 +442,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_savestate", self._savestate)
-
         parser = argp.ArgumentParser(add_help=False,
                                      description="""toggle logtypes to clients
 
@@ -534,10 +532,11 @@ class Plugin(BasePlugin):
                                               self.cmd_clean,
                                               parser=parser)
 
-    def _savestate(self, _=None):
+    def savestate(self):
         """
         save items not covered by baseplugin class
         """
+        super().savestate()
         self.handlers['client'].sync()
         self.handlers['file'].sync()
         self.handlers['console'].sync()
