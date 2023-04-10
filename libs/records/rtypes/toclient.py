@@ -49,9 +49,9 @@ class ToClientRecord(BaseDataRecord):
         self.send_to_clients: bool = True
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
-        self.clients: list[str] = clients if clients else []
+        self.clients: list[str] = clients or []
         # clients to exclude, a list of client uuids
-        self.exclude_clients: list[str] = exclude_clients if exclude_clients else []
+        self.exclude_clients: list[str] = exclude_clients or []
         # This will set the color for all lines to the specified @ color
         self.color_for_all_lines: str = color_for_all_lines or ''
         self.modify_data_event_name = 'ev_to_client_data_modify'
@@ -75,9 +75,9 @@ class ToClientRecord(BaseDataRecord):
         """
         return the message without ansi codes
         """
-        newmessage: list[str] = []
-        for item in self.data:
-            newmessage.append(self.api('plugins.core.colors:strip:ansi')(item))
+        newmessage: list[str] = [
+            self.api('plugins.core.colors:strip:ansi')(item) for item in self.data
+        ]
         return newmessage
 
     @property
@@ -85,9 +85,10 @@ class ToClientRecord(BaseDataRecord):
         """
         return the message with ansi codes converted to @ color codes
         """
-        newmessage: list[str] = []
-        for item in self.data:
-            newmessage.append(self.api('plugins.core.colors:ansicode:to:colorcode')(item))
+        newmessage: list[str] = [
+            self.api('plugins.core.colors:ansicode:to:colorcode')(item)
+            for item in self.data
+        ]
         return newmessage
 
     def set_send_to_clients(self, flag, actor='', extra=''):
@@ -130,10 +131,12 @@ class ToClientRecord(BaseDataRecord):
                 return False
             # If the client is in the list of clients or self.clients is empty,
             # then we can check to make sure the client is logged in or the prelogin flag is set
-            if not self.clients or client_uuid in self.clients:
-                if self.api('plugins.core.clients:client:is:logged:in')(client_uuid) or self.prelogin:
-                    # All checks passed, we can send to this client
-                    return True
+            if (not self.clients or client_uuid in self.clients) and (
+                self.api('plugins.core.clients:client:is:logged:in')(client_uuid)
+                or self.prelogin
+            ):
+                # All checks passed, we can send to this client
+                return True
         return False
 
     def add_preamble(self, actor=''):
@@ -203,12 +206,11 @@ class ToClientRecord(BaseDataRecord):
             self.addchange('Info', f'After event {self.modify_data_event_name}', actor)
 
         if self.send_to_clients:
-            self.format(actor=actor)
-            loop = asyncio.get_event_loop()
-            if self.clients:
-                clients = self.clients
-            else:
-                clients = self.api('plugins.core.clients:get:all:clients')(uuid_only=True)
+            self.format(f"{actor}:send")
+
+            clients = self.clients or self.api(
+                'plugins.core.clients:get:all:clients'
+            )(uuid_only=True)
             for client_uuid in clients:
                 if self.can_send_to_client(client_uuid):
                     client = self.api('plugins.core.clients:get:client')(client_uuid)
