@@ -19,7 +19,6 @@ $cmd{'#bp.client.actions.inspect -o data.commands -s'}
 from __future__ import print_function
 import contextlib
 import shlex
-import sys
 import typing
 import textwrap as _textwrap
 from functools import lru_cache
@@ -138,7 +137,8 @@ class Command:
         """
         cmd_prefix = self.api(f"{__name__}:setting:get")('cmdprefix')
         command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
-        print(f"running {command_ran}")
+        LogRecord(f"running {command_ran}",
+                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
 
         success, args, fail_message = self.parse_args(arg_string)
 
@@ -443,9 +443,9 @@ class Plugin(BasePlugin):
         return {}
 
     # run a command and return the output
-    def _api_run(self, plugin: str, command_name: str, argument_string: str = '') -> tuple[bool | None, list[str]]:
+    def _api_run(self, plugin_id: str, command_name: str, argument_string: str = '') -> tuple[bool | None, list[str]]:
         """  run a command and return the output
-        @Yplugin@w          = the plugin the command is in
+        @Yplugin_id@w          = the plugin_id the command is in
         @Ycommand_name@w    = the command name
         @Yargument_string@w = the string of parameters for the command
 
@@ -457,8 +457,9 @@ class Plugin(BasePlugin):
           second item:
             a list of strings for the output of the command
         """
-        print(f"running command {command_name} from plugin {plugin} with arguments {argument_string}")
-        if command := self.get_command_data_from_plugin(plugin, command_name):
+        LogRecord(f"running command {command_name} from plugin {plugin_id} with arguments {argument_string}",
+                  level='debug', sources=[self.plugin_id, plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
+        if command := self.get_command_data_from_plugin(plugin_id, command_name):
             success, message, _ = command.run(argument_string, toclient=False)
             return success, message
 
@@ -643,7 +644,9 @@ class Plugin(BasePlugin):
         # see if the item explicity matches an item in the list
         if f"{item}" in item_list:
             # found the item
-            print(f"found {item}")
+            LogRecord(f"match_item: found {item}",
+                  level='debug',
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
             return item
 
         # see if the item fuzzy matches an item in the list
@@ -654,7 +657,9 @@ class Plugin(BasePlugin):
         """
         find a command from the client
         """
-        print(f"find_command: {event_data['line']}")
+        LogRecord(f"find_command: {event_data['line']}",
+                  level='debug',
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
         # don't send it to the mud
         event_data['sendtomud'] = False
@@ -688,11 +693,16 @@ class Plugin(BasePlugin):
             if len(cmd_args_split) > 1:
                 command_args = cmd_args_split[1]
 
-            print('looking for command', command_str, command_args)
+
+            LogRecord(f"looking for {command}, {command_str}, {command_args}",
+                  level='debug',
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
             # split the command by the '.'
             command_split = command_str.split('.')
-            print(f"{command_split=}")
+            LogRecord(f"{command_split=}",
+                  level='debug',
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
             # remove the command prefix
             if commandprefix in command_split:
@@ -704,7 +714,8 @@ class Plugin(BasePlugin):
 
             # get all the pieces of the command
             temp_package = command_split[0]
-            print(f"{temp_package=}")
+            LogRecord(f"{temp_package=}",
+                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
             temp_plugin = ''
             temp_command = ''
 
@@ -738,7 +749,8 @@ class Plugin(BasePlugin):
 
             # try and find the plugin
             new_plugin = self.match_item(f"{new_package}.{temp_plugin}", all_plugin_list)
-            print(f"{new_plugin=}")
+            LogRecord(f"{new_plugin=}",
+                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
             if not new_plugin:
                 # did not get a plugin, so output the list of plugins in the package
@@ -764,8 +776,10 @@ class Plugin(BasePlugin):
             # try and find the command
             command_data = self._api_get_plugin_command_data(new_plugin)
             command_list = list(command_data.keys())
-            print(f"{command_list=}")
-            print(f"{temp_command=}")
+            LogRecord(f"{command_list=}",
+                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+            LogRecord(f"{temp_command=}",
+                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
 
             new_command = self.match_item(temp_command, command_list)
 
@@ -811,10 +825,13 @@ class Plugin(BasePlugin):
                     event_data.addupdate('Modify', "show_in_history set to {show_in_history}",
                                         f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
 
-                event_data.addupdate('Info', f"find_command returned {notes}", f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
+                event_data.addupdate('Info', f"find_command returned {notes}",
+                                     f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command",
+                                     saveargs = False)
 
                 if command_item:
-                    print(f"found command {command_item.plugin_id}.{command_item.name}")
+                    LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
+                            level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:_event_to_mud_data_modify_check_command")
                     ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
 
                     success, _, error = command_item.run(command_args)
