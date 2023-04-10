@@ -181,7 +181,7 @@ class PluginMgr(BasePlugin):
         """
         packages = []
         for i in self.loaded_plugins_info:
-            packages.append(i.split('.')[0])
+            packages.append(i.rsplit('.', 1)[0])
 
         packages = list(set(packages))
 
@@ -293,6 +293,11 @@ class PluginMgr(BasePlugin):
           a list of strings of plugins in the specified package
         """
         msg = []
+        if 'plugins' not in package:
+            if package.startswith('.'):
+                package = f"plugins{package}"
+            else:
+                package = f"plugins.{package}"
 
         plist = []
         for plugin_instance in [i.plugininstance for i in self.loaded_plugins_info.values()]:
@@ -302,8 +307,7 @@ class PluginMgr(BasePlugin):
 
         if plist:
             plugins = sorted(plist, key=operator.attrgetter('plugin_id'))
-            limp = f"plugins.{package}"
-            mod = __import__(limp)
+            mod = __import__(package)
             try:
                 desc = getattr(mod, package).DESCRIPTION
             except AttributeError:

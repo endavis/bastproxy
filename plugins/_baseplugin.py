@@ -94,7 +94,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         # log.debug(f"plugin_file: {self.plugin_file}")
         # log.debug(f"plugin_directory: {self.plugin_directory}")
 
-        self.package = self.plugin_id.split('.')[0]
+        self.package = self.plugin_id.rsplit('.', 1)[0]
 
         self.settings = {}
         self.data = {}
