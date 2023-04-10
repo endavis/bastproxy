@@ -15,7 +15,7 @@ import re
 
 # Project
 import libs.argp as argp
-from libs.records import LogRecord
+from libs.records import LogRecord, EventArgsRecord
 from plugins._baseplugin import BasePlugin
 
 #these 5 are required
@@ -211,11 +211,11 @@ class Plugin(BasePlugin):
             if self.watch_data[i]['owner'] == plugin:
                 self.api('%s:watch:remove' % self.plugin_id)(i)
 
-    def checkcmd(self, data):
+    def checkcmd(self, data: EventArgsRecord):
         """
         check input from the client and see if we are watching for it
         """
-        client_data = data['fromdata'].strip()
+        client_data = data['line']
         for watch_name in self.watch_data:
             cmdre = self.watch_data[watch_name]['compiled']
             match_data = cmdre.match(client_data)
@@ -227,14 +227,6 @@ class Plugin(BasePlugin):
                 match_args['data'] = client_data
                 LogRecord(f"checkcmd: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
                           level='debug', sources=[self.plugin_id]).send()
-                event_data = self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)
-                # Since this is an EventArgRecord, we can check to see if it was changed
-                if 'changed' in event_data:
-                    self.api('libs.io:trace:add:execute')(self.plugin_id, 'Modify',
-                                                          original_data=client_data,
-                                                          new_data=event_data['changed'])
-                    data['nfromdata'] = event_data['changed']
+                event_data: EventArgsRecord = self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)
 
-        if 'nfromdata' in data:
-            data['fromdata'] = data['nfromdata']
         return data
