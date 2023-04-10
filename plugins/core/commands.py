@@ -319,8 +319,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api("plugins.core.log:set:log:to:console")('plugins.core.fuzzy', level='debug')
-
         # add commands
         parser = argp.ArgumentParser(add_help=False,
                                      description='list commands in a plugin')
