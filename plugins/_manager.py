@@ -1260,6 +1260,7 @@ class PluginMgr(BasePlugin):
         self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
 
         self.can_reload_f = False
+        self.auto_initialize_f = False
         LogRecord('Loading plugins', level='info', sources=[self.plugin_id]).send()
         self._load_plugins_on_startup()
 

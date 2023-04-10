@@ -73,16 +73,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.settings_file: Path = self.save_directory / 'settingvalues.txt'
         self.dependencies = ['core.commands', 'core.errors', 'core.msg', 'core.utils',
                              'core.colors', 'core.events']
-        try:
+        with contextlib.suppress(ValueError):
             self.dependencies.remove(self.plugin_id)
-        except ValueError:
-            pass
         self.version_functions = {}
         self.reload_dependents_f = False
         self.summary_template = "%20s : %s"
         self.can_reload_f = True
         self.can_reset_f = True
         self.reset_f = True
+        self.auto_initialize_f = True
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
 
@@ -717,7 +716,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.setting_values['_version'] != self.version:
             self._update_version(self.setting_values['_version'], self.version)
 
-        if self.plugin_id != 'plugins.core.pluginm': # don't initialize the plugins plugin
+        if self.auto_initialize_f: # don't initialize when auto_initialize_f is False
 
             self._add_commands()
 
