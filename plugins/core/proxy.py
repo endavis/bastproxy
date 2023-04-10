@@ -195,7 +195,7 @@ class Plugin(BasePlugin):
                 '@B-------------------   Mud  ------------------@w',
             ),
         ]
-        if mud:
+        if mud and mud.connected:
             if mud.connected_time:
                 tmsg.extend(
                     (
@@ -221,8 +221,8 @@ class Plugin(BasePlugin):
                 )
                 options = mud.options_info()
                 tmsg.extend(f"     {i}" for i in options)
-            else:
-                tmsg.append(template % ('Mud', 'disconnected'))
+        else:
+            tmsg.append(template % ('Mud', 'disconnected'))
 
         clients = self.api('plugins.core.clients:get:all:clients')()
 
