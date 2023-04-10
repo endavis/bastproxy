@@ -1,6 +1,5 @@
 dumper
-fuzzywuzzy
-python-Levenshtein
+rapidfuzz
 deepdiff
 telnetlib3
 regex
