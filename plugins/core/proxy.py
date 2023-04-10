@@ -19,6 +19,7 @@ import signal
 # 3rd Party
 
 # Project
+from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin
 from libs.records import ToClientRecord, LogRecord
 import libs.argp as argp
@@ -55,6 +56,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')('proxy:shutdown', self.api_shutdown)
         self.api('libs.api:add')('preamble:get', self.api_preamble)
         self.api('libs.api:add')('preamble:color:get', self.api_preamble_color)
+        self.api('libs.api:add')('get:mud:connection', self.api_get_mud_connection)
 
         self.api('setting:add')('mudhost', '', str,
                                 'the hostname/ip of the mud')
@@ -127,6 +129,16 @@ class Plugin(BasePlugin):
         self.proxyvpw = ssc('proxypwview', self.plugin_id, desc='Proxy View Password',
                             default='defaultviewpass')
         self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud Password')
+
+    def api_get_mud_connection(self) -> MudConnection:
+        """
+        get the mud connection
+        """
+        if not self.mud_connection:
+            self.mud_connection = MudConnection(self.api('setting:get')('mudhost'),
+                                                self.api('setting:get')('mudport'))
+
+        return self.mud_connection
 
     def api_preamble(self):
         """
