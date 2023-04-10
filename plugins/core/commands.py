@@ -140,33 +140,10 @@ class Command:
         command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
         print(f"running {command_ran}")
 
-        split_args_list = []
-        args = {}
-        # split it with shlex
-        if arg_string:
-            try:
-                split_args_list = shlex.split(arg_string)
-            except ValueError as exc:
-                actor = f"{self.plugin_id}:run_command:shell_parse_error"
-                message = ['Error: Could not parse arguments', exc.args[0]]
-                LogRecord(f"Error parsing args for command {command_ran} - {exc.args[0]}",
-                        level='error', sources=[self.plugin_id, __name__]).send(actor)
-                if toclient:
-                    ToClientRecord(self.format_return_message(message)).send(actor)
-                return False, message, f'Could not parse: {exc.args[0]}'
+        success, args, fail_message = self.parse_args(arg_string)
 
-        # parse the arguments and deal with errors
-        try:
-            args, _ = self.arg_parser.parse_known_args(split_args_list)
-        except argp.ArgumentError as exc:
-            actor = f"{self.plugin_id}:run_command:argparse_error"
-            message = [f"Error: {exc.message}"]
-            message.extend(self.arg_parser.format_help().split('\n'))
-            LogRecord(f"Error parsing args for command {command_ran} - {exc.message}",
-                    level='error', sources=[self.plugin_id, __name__]).send()
-            if toclient:
-                ToClientRecord(self.format_return_message(message)).send(actor)
-            return False, message, 'argparse error'
+        if not success and toclient:
+            ToClientRecord(self.format_return_message(fail_message)).send(actor = f"{self.plugin_id}:run:parse_args")
 
         args = vars(args)
         if args['help']:
@@ -215,6 +192,37 @@ class Command:
                 ToClientRecord(self.format_return_message(message)).send(actor)
 
         return True, message, 'command ran successfully'
+
+    def parse_args(self, arg_string):
+        """
+        parse an argument string for this command
+        """
+        # split it with shlex
+        split_args_list = []
+        args = {}
+        fail_message = []
+        if arg_string:
+            try:
+                split_args_list = shlex.split(arg_string)
+            except ValueError as exc:
+                actor = f"{self.plugin_id}:run_command:shell_parse_error"
+                fail_message = ['Error: Could not parse arguments', exc.args[0]]
+                LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.args[0]}",
+                        level='error', sources=[self.plugin_id, __name__]).send(actor)
+                return False, args, fail_message
+
+        # parse the arguments and deal with errors
+        try:
+            args, _ = self.arg_parser.parse_known_args(split_args_list)
+        except argp.ArgumentError as exc:
+            actor = f"{self.plugin_id}:{self.name}:run_command:argparse_error"
+            fail_message = [f"Error: {exc.message}"]
+            fail_message.extend(self.arg_parser.format_help().split('\n'))
+            LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.message}",
+                    level='error', sources=[self.plugin_id, __name__]).send()
+            return False, args, fail_message
+
+        return True, args, ''
 
     def format_return_message(self, message):
         """
