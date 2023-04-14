@@ -211,7 +211,8 @@ class ClientConnection:
             else:
                 # this is where we start with ToMudRecord
                 ToMudRecord(inp,
-                            internal=False).send('libs.net.client:client_read')
+                            internal=False,
+                            client_id=self.uuid).send('libs.net.client:client_read')
 
         LogRecord(f"client_read - Ending coroutine for {self.uuid}",
                   level='debug',

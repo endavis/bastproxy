@@ -22,6 +22,7 @@ import shlex
 import typing
 import textwrap as _textwrap
 from functools import lru_cache
+import pprint
 
 # 3rd Party
 
@@ -131,10 +132,11 @@ class Command:
         self.short_help = shelp
         self.count = 0
 
-    def run(self, arg_string: str = '', toclient=True) -> tuple[bool | None, list[str], str]:
+    def run(self, arg_string: str = '') -> tuple[bool | None, list[str], str]:
         """
         run the command
         """
+        message: list[str] = []
         cmd_prefix = self.api(f"{__name__}:setting:get")('cmdprefix')
         command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
         LogRecord(f"running {command_ran}",
@@ -142,25 +144,21 @@ class Command:
 
         success, args, fail_message = self.parse_args(arg_string)
 
-        if not success and toclient:
-            ToClientRecord(self.format_return_message(fail_message)).send(actor = f"{self.plugin_id}:run:parse_args")
+        if not success:
+            message.extend(fail_message)
+            return False, message, 'could not parse args'
 
         args = vars(args)
         if args['help']:
-            actor = f"{self.plugin_id}:run_command:help"
-            message = self.arg_parser.format_help().split('\n')
-            if toclient:
-                ToClientRecord(self.format_return_message(message)).send(actor)
+            message.extend(self.arg_parser.format_help().split('\n'))
             return True, message, 'help'
 
         # run the command
         try:
             return_value = self(args)
-        except Exception as exc:
+        except Exception:
             actor = f"{self.plugin_id}:run_command:command_exception"
-            message = [f"Error running command: {command_ran}"]
-            if toclient:
-                ToClientRecord(self.format_return_message(message)).send(actor)
+            message.extend([f"Error running command: {command_ran}"])
             LogRecord(f"Error running command: {command_ran}",
                         level='error', sources=[self.plugin_id, __name__], exc_info=True).send(actor)
             return False, message, 'Command exception'
@@ -177,19 +175,8 @@ class Command:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append('')
             message.extend(self.arg_parser.format_help().split('\n'))
-            if toclient:
-                ToClientRecord(self.format_return_message(message)).send(actor)
 
             return False, message, 'function returned False'
-
-        if (not self.format) and message:
-            actor = f"{self.plugin_id}:run_command:success_format_False"
-            ToClientRecord(message, preamble=self.preamble).send(actor)
-        # if the format flag is set, then format the data to the client
-        elif message:
-            actor = f"{self.plugin_id}:run_command:success_format_True"
-            if toclient:
-                ToClientRecord(self.format_return_message(message)).send(actor)
 
         return True, message, 'command ran successfully'
 
@@ -206,9 +193,10 @@ class Command:
                 split_args_list = shlex.split(arg_string)
             except ValueError as exc:
                 actor = f"{self.plugin_id}:run_command:shell_parse_error"
-                fail_message = ['Error: Could not parse arguments', exc.args[0]]
+                fail_message = [f"@RError: Could not parse arguments: {exc.args[0]}@w", '']
+                fail_message.extend(self.arg_parser.format_help().split('\n'))
                 LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.args[0]}",
-                        level='error', sources=[self.plugin_id, __name__]).send(actor)
+                        level='info', sources=[self.plugin_id, __name__]).send(actor)
                 return False, args, fail_message
 
         # parse the arguments and deal with errors
@@ -216,10 +204,10 @@ class Command:
             args, _ = self.arg_parser.parse_known_args(split_args_list)
         except argp.ArgumentError as exc:
             actor = f"{self.plugin_id}:{self.name}:run_command:argparse_error"
-            fail_message = [f"Error: {exc.message}"]
+            fail_message = [f"@RError: {exc.message}@w", '']
             fail_message.extend(self.arg_parser.format_help().split('\n'))
             LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.message}",
-                    level='error', sources=[self.plugin_id, __name__]).send()
+                    level='info', sources=[self.plugin_id, __name__]).send()
             return False, args, fail_message
 
         return True, args, ''
@@ -458,7 +446,7 @@ class Plugin(BasePlugin):
         LogRecord(f"running command {command_name} from plugin {plugin_id} with arguments {argument_string}",
                   level='debug', sources=[self.plugin_id, plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
-            success, message, _ = command.run(argument_string, toclient=False)
+            success, message, _ = command.run(argument_string)
             return success, message
 
         return None, []
@@ -638,7 +626,7 @@ class Plugin(BasePlugin):
             newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", '-' * 79])))
         newoutput.extend(data)
 
-        ToClientRecord(newoutput).send()
+        return newoutput
 
     def match_item(self, item: str, item_list: list[str]) -> str:
         """
@@ -656,10 +644,11 @@ class Plugin(BasePlugin):
         return self.api('plugins.core.fuzzy:get:best:match')(item, item_list,
                                                                 scorer='token_set_ratio')
 
-    def find_command(self, command_line: str) -> tuple[Command | None, str, bool, str]:
+    def find_command(self, command_line: str) -> tuple[Command | None, str, bool, str, list[str]]:
         """
         find a command from the client
         """
+        message: list[str] = []
         LogRecord(f"find_command: {command_line}",
                   level='debug',
                   sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
@@ -678,9 +667,9 @@ class Plugin(BasePlugin):
             packages_list = [package.replace('plugins.', '')
                              for package in self.api('plugins.core.pluginm:get:packages:list')()]
 
-            self.proxy_help("Proxy Help", "Available Packages:", packages_list)
+            message.extend(self.proxy_help("Proxy Help", "Available Packages:", packages_list))
 
-            return None, '', False, 'Proxy Help'
+            return None, '', False, 'Proxy Help', message
 
         else:
             # split the string into the command and the command_args
@@ -740,9 +729,9 @@ class Plugin(BasePlugin):
                     output.append(match.replace('plugins.', ''))
                 output.append("".join(["@B", '-' * 79]))
 
-                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
+                message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
 
-                return None, '', False, 'Could not find package'
+                return None, '', False, 'Could not find package', message
 
             # try and find the plugin
             new_plugin = self.match_item(f"{new_package}.{temp_plugin}", all_plugin_list)
@@ -765,9 +754,9 @@ class Plugin(BasePlugin):
                         output.append(match.replace('plugins.', ''))
                 output.append("".join(["@B", '-' * 79]))
 
-                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
+                message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
 
-                return None, '', False, 'Could not find plugin'
+                return None, '', False, 'Could not find plugin', message
 
 
             # try and find the command
@@ -796,14 +785,14 @@ class Plugin(BasePlugin):
                         output.append(match.replace('plugins.', ''))
                 output.append("".join(["@B", '-' * 79]))
 
-                self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output)
+                message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
 
-                return None, '', False, 'Could not find command'
+                return None, '', False, 'Could not find command', message
 
             # got it all
             command_item = command_data[new_command]
 
-            return command_item, command_args, True, f'found {new_command}'
+            return command_item, command_args, True, f'found {new_command}', message
 
     def evc_check_for_command(self) -> None:
         """
@@ -818,7 +807,12 @@ class Plugin(BasePlugin):
 
         if event_record['line'].startswith(commandprefix):
 
-                command_item, command_args, show_in_history, notes = self.find_command(event_record['line'])
+                clients = [event_record['client_id']] if event_record['client_id'] else None
+
+                command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
+
+                if message:
+                    ToClientRecord(message, clients=clients).send()
 
                 if event_record['showinhistory'] != show_in_history:
                     event_record['showinhistory'] = show_in_history
@@ -832,12 +826,22 @@ class Plugin(BasePlugin):
                 if command_item:
                     LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
                             level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:evc_check_for_command")
-                    ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
+                    #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
 
-                    success, _, error = command_item.run(command_args)
+                    success, message, error = command_item.run(command_args)
 
-                    if not success:
-                        ToClientRecord(f"Error running command: {error}").send()
+                    if success:
+                        event_record.addupdate('Info', f"run_command returned success",
+                                            f"{self.plugin_id}:_event_mud_data_modify_check_command:run_command",
+                                            saveargs = False)
+                    else:
+                        event_record.addupdate('Info', f"run_command returned error: {error}",
+                                            f"{self.plugin_id}:_event_mud_data_modify_check_command:run_command",
+                                            saveargs = False)
+
+                    if message:
+                        message = command_item.format_return_message(message)
+                        ToClientRecord(message, clients=clients).send()
 
         else:
             self.pass_through_command()

@@ -41,6 +41,9 @@ class UpdateRecord(object):
         # Extract the last 7 stack frames
         self.stack = traceback.extract_stack(limit=7)
 
+    def __str__(self):
+        return f"{self.actor} {self.flag} {self.action} {self.data} {self.extra})"
+
     def format(self):
         """
         format the change record

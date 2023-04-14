@@ -36,13 +36,14 @@ class ToMudRecord(BaseDataRecord):
     when it goes on the client queue, it will be converted to a NetworkData object
     """
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool = False,
-                 show_in_history: bool = True):
+                 show_in_history: bool = True, client_id = None):
         """
         initialize the class
         """
         super().__init__(message, message_type, internal)
         self.show_in_history = show_in_history
         self.send_to_mud = True
+        self.client_id = client_id
         self.modify_data_event_name = 'ev_to_mud_data_modify'
         self.read_data_event_name = 'ev_to_mud_data_read'
         self.setup_events()
@@ -140,7 +141,8 @@ class ToMudRecord(BaseDataRecord):
                                                             {'line':line,
                                                             'internal':self.internal,
                                                             'showinhistory':self.show_in_history,
-                                                            'sendtomud':True})
+                                                            'sendtomud':True,
+                                                            'client_id':self.client_id,})
 
                 if not event_args['sendtomud']:
                     self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
