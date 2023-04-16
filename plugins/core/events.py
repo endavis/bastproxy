@@ -254,13 +254,15 @@ class Plugin(BasePlugin):
 
         self.global_raised_count += 1
 
-        old_event = None
-        if self.current_event:
-            old_event = self.current_event
+        # Save the current event if there is one
+        # the event is saved so that get.current.event.record works
+        old_event = self.current_event or None
 
+        # Set the current event
         self.current_event = event
         success = event.raise_event(args, calledfrom)
 
+        # Restore the old event
         self.current_event = old_event
         return success
 
