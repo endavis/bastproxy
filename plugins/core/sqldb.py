@@ -108,10 +108,10 @@ class Sqldb(object):
         self.tables = {}
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:select", self._api_select)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:modify", self._api_modify)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:modify:many", self._api_modify_many)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}:get:single:row", self._api_get_single_row)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.select", self._api_select)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.modify", self._api_modify)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.modify.many", self._api_modify_many)
+        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.get.single.row", self._api_get_single_row)
 
     # execute a select statement against the database
     def _api_select(self, sql_statement):
@@ -206,21 +206,21 @@ class Sqldb(object):
                             help='the name to backup to',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('dbbackup',
+        self.api('plugins.core.commands:command.add')('dbbackup',
                                               self.cmd_backup,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='close the database')
-        self.api('plugins.core.commands:command:add')('dbclose',
+        self.api('plugins.core.commands:command.add')('dbclose',
                                               self.cmd_close,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='vacuum the database')
-        self.api('plugins.core.commands:command:add')('dbvac',
+        self.api('plugins.core.commands:command.add')('dbvac',
                                               self.cmd_vac,
                                               parser=parser,
                                               group='DB')
@@ -232,7 +232,7 @@ class Sqldb(object):
                             help='the sql statement',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('dbselect',
+        self.api('plugins.core.commands:command.add')('dbselect',
                                               self.cmd_select,
                                               parser=parser,
                                               group='DB')
@@ -244,7 +244,7 @@ class Sqldb(object):
                             help='the sql statement',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('dbmodify',
+        self.api('plugins.core.commands:command.add')('dbmodify',
                                               self.cmd_modify,
                                               parser=parser,
                                               group='DB')
@@ -260,7 +260,7 @@ class Sqldb(object):
                             help='the row number to remove',
                             default=-1,
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('dbremove',
+        self.api('plugins.core.commands:command.add')('dbremove',
                                               self.cmd_remove,
                                               parser=parser,
                                               group='DB')
@@ -273,7 +273,7 @@ class Sqldb(object):
         if args:
             sqlstmt = args['stmt']
             if sqlstmt:
-                results = self.api('%s:%s:select' % (self.plugin_id, self.database_name))(sqlstmt)
+                results = self.api('%s:%s.select' % (self.plugin_id, self.database_name))(sqlstmt)
                 for i in results:
                     message.append('%s' % i)
             else:
@@ -288,7 +288,7 @@ class Sqldb(object):
         if args:
             sqlstmt = args['stmt']
             if sqlstmt:
-                self.api('%s:%s:modify' % (self.plugin_id, self.database_name))(sqlstmt)
+                self.api('%s:%s.modify' % (self.plugin_id, self.database_name))(sqlstmt)
             else:
                 message.append('Please enter an update statement')
         return True, message
@@ -401,7 +401,7 @@ class Sqldb(object):
         if table in self.tables:
             key_field = self.tables[table]['keyfield']
             sql = f"DELETE FROM {table} where {key_field}={rownumber};" % (table, key_field, rownumber)
-            self.api(f"{self.plugin_id}:{self.database_name}:modify")(sql)
+            self.api(f"{self.plugin_id}:{self.database_name}.modify")(sql)
             return True, f"{rownumber} was removed from table {table}"
 
         return False, f"{table} is not a table"
@@ -675,7 +675,7 @@ class Sqldb(object):
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        results = self.api(f"{self.plugin_id}:{self.database_name}:select")(sql_string)
+        results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
         return results
 
@@ -692,7 +692,7 @@ class Sqldb(object):
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        results = self.api(f"{self.plugin_id}:{self.database_name}:select")(sql_string)
+        results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
         return results
 
@@ -702,7 +702,7 @@ class Sqldb(object):
         """
         last = -1
         column_id_name = self.tables[table_name]['keyfield']
-        rows = self.api(f"{self.plugin_id}:{self.database_name}:select")(
+        rows = self.api(f"{self.plugin_id}:{self.database_name}.select")(
             f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}")
         if rows:
             last = rows[0]['MAX']

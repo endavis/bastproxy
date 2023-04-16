@@ -134,10 +134,10 @@ class Plugin(BasePlugin):
         self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'add:timer', self._api_add_timer)
-        self.api('libs.api:add')(self.plugin_id, 'remove:timer', self._api_remove_timer)
-        self.api('libs.api:add')(self.plugin_id, 'toggle:timer', self._api_toggle_timer)
-        self.api('libs.api:add')(self.plugin_id, 'remove:all:timers:for:plugin', self._api_remove_all_timers_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'add.timer', self._api_add_timer)
+        self.api('libs.api:add')(self.plugin_id, 'remove.timer', self._api_remove_timer)
+        self.api('libs.api:add')(self.plugin_id, 'toggle.timer', self._api_toggle_timer)
+        self.api('libs.api:add')(self.plugin_id, 'remove.all.timers.for.plugin', self._api_remove_all_timers_for_plugin)
 
     def initialize(self):
         """
@@ -154,7 +154,7 @@ class Plugin(BasePlugin):
                             help='list only events that have this argument in their name',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self.command_list,
                                               parser=parser)
 
@@ -164,7 +164,7 @@ class Plugin(BasePlugin):
                             help='the timer name',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('log',
+        self.api('plugins.core.commands:command.add')('log',
                                               self.command_log,
                                               parser=parser)
 
@@ -174,26 +174,26 @@ class Plugin(BasePlugin):
                             help='a list of timers to get details',
                             default=None,
                             nargs='*')
-        self.api('plugins.core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command.add')('detail',
                                               self.command_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
 
         # setup the task to check for timers to fire
-        self.api('libs.asynch:task:add')(self.check_for_timers_to_fire, 'Timer thread')
+        self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer thread')
 
     def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
         if event_record := self.api(
-            'plugins.core.events:get:current:event:record'
+            'plugins.core.events:get.current.event.record'
         )():
             LogRecord(f"evc_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
                     'debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
-            self.api(f"{self.plugin_id}:remove:all:timers:for:plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
 
     def command_log(self, args: dict | None = None) -> tuple[bool, list[str]]:
         """
@@ -312,13 +312,13 @@ class Plugin(BasePlugin):
           @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM
 
         returns an Event instance"""
-        plugin_id: str = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        plugin_id: str = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if 'plugin_id' in kwargs:
-            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(kwargs['plugin'])
+            plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(kwargs['plugin'])
             plugin_id = plugin_instance.plugin_id
 
-        if not plugin_id or not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not plugin_id or not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
                       'error', sources=[self.plugin_id]).send()
             return
@@ -350,7 +350,7 @@ class Plugin(BasePlugin):
         @Yname@w   = the name of the plugin
 
         this function returns no values"""
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(name)
+        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(name)
         timers_to_remove: list[str] = []
         LogRecord(f"removing timers for {name}",
                   level='debug', sources=[self.plugin_id, name]).send()
@@ -359,7 +359,7 @@ class Plugin(BasePlugin):
                 timers_to_remove.append(i)
 
         for i in timers_to_remove:
-            self.api(f"{self.plugin_id}:remove:timer")(i)
+            self.api(f"{self.plugin_id}:remove.timer")(i)
 
     # remove a timer
     def _api_remove_timer(self, name: str):
@@ -448,7 +448,7 @@ class Plugin(BasePlugin):
                                             level='debug', sources=[self.plugin_id, timer.owner_id]).send()
                                 self._add_timer_internal(timer)
                             else:
-                                self.api(f"{self.plugin_id}:remove:timer")(timer.name)
+                                self.api(f"{self.plugin_id}:remove.timer")(timer.name)
                             if not self.timer_events[i]:
                                 del self.timer_events[i]
 

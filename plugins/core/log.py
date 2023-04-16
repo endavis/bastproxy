@@ -68,26 +68,26 @@ class Plugin(BasePlugin):
             self.save_directory / 'logtypes_to_file.txt',
             'c')
 
-        self.api('setting:add')('color_error', '@x136', 'color',
+        self.api(f"{self.plugin_id}:setting.add")('color_error', '@x136', 'color',
                                 'the color for error messages')
-        self.api('setting:add')('color_warning', '@y', 'color',
+        self.api(f"{self.plugin_id}:setting.add")('color_warning', '@y', 'color',
                                 'the color for warning messages')
-        self.api('setting:add')('color_info', '@w', 'color',
+        self.api(f"{self.plugin_id}:setting.add")('color_info', '@w', 'color',
                                 'the color for info messages')
-        self.api('setting:add')('color_debug', '@x246', 'color',
+        self.api(f"{self.plugin_id}:setting.add")('color_debug', '@x246', 'color',
                                 'the color for debug messages')
-        self.api('setting:add')('color_critical', '@r', 'color',
+        self.api(f"{self.plugin_id}:setting.add")('color_critical', '@r', 'color',
                                 'the color for critical messages')
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'set:log:to:console', self.api_set_log_to_console)
-        self.api('libs.api:add')(self.plugin_id, 'set:log:to:file', self.api_set_log_to_file)
-        self.api('libs.api:add')(self.plugin_id, 'set:log:to:client', self.api_set_log_to_client)
-        self.api('libs.api:add')(self.plugin_id, 'can:log:to:console', self._api_can_log_to_console)
-        self.api('libs.api:add')(self.plugin_id, 'can:log:to:file', self._api_can_log_to_file)
-        self.api('libs.api:add')(self.plugin_id, 'can:log:to:client', self._api_can_log_to_client)
-        self.api('libs.api:add')(self.plugin_id, 'get:level:color', self._api_get_level_color)
-        self.api('libs.api:add')(self.plugin_id, 'add:log:count', self._api_add_log_count)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.console', self.api_set_log_to_console)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.file', self.api_set_log_to_file)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.client', self.api_set_log_to_client)
+        self.api('libs.api:add')(self.plugin_id, 'can.log.to.console', self._api_can_log_to_console)
+        self.api('libs.api:add')(self.plugin_id, 'can.log.to.file', self._api_can_log_to_file)
+        self.api('libs.api:add')(self.plugin_id, 'can.log.to.client', self._api_can_log_to_client)
+        self.api('libs.api:add')(self.plugin_id, 'get.level.color', self._api_get_level_color)
+        self.api('libs.api:add')(self.plugin_id, 'add.log.count', self._api_add_log_count)
 
     def _api_add_log_count(self, logtype, level):
         """
@@ -205,7 +205,7 @@ class Plugin(BasePlugin):
             remove = not args['remove']
             for i in args['logtype']:
                 logger_name = get_toplevel(i)
-                self.api(f"{self.plugin_id}:set:log:to:client")(logger_name, level=level, flag=remove)
+                self.api(f"{self.plugin_id}:set.log.to.client")(logger_name, level=level, flag=remove)
                 if logger_name in self.handlers['client']:
                     tmsg.append(f"setting {logger_name} to log to client at level {level}")
                 else:
@@ -263,10 +263,10 @@ class Plugin(BasePlugin):
                 if logger_name not in self.handlers['console']:
                     self.handlers['console'][logger_name] = 'info'
                 if self.handlers['console'][logger_name] == 'info':
-                    self.api(f"{self.plugin_id}:set:log:to:console")(logger_name, level='debug')
+                    self.api(f"{self.plugin_id}:set.log.to.console")(logger_name, level='debug')
                     tmsg.append(f"setting {logger_name} to log to console at level 'debug'")
                 else:
-                    self.api(f"{self.plugin_id}:set:log:to:console")(logger_name, level='info')
+                    self.api(f"{self.plugin_id}:set.log.to.console")(logger_name, level='info')
                     tmsg.append(f"setting {logger_name} to log to console at default level 'info'")
 
             self.handlers['console'].sync()
@@ -318,10 +318,10 @@ class Plugin(BasePlugin):
                 if logger_name not in self.handlers['file']:
                     self.handlers['file'][logger_name] = 'info'
                 if self.handlers['file'][logger_name] == 'info':
-                    self.api(f"{self.plugin_id}:set:log:to:file")(logger_name, level='debug')
+                    self.api(f"{self.plugin_id}:set.log.to.file")(logger_name, level='debug')
                     tmsg.append(f"setting {logger_name} to log to file at level 'debug'")
                 else:
-                    self.api(f"{self.plugin_id}:set:log:to:file")(logger_name, level='info')
+                    self.api(f"{self.plugin_id}:set.log.to.file")(logger_name, level='info')
                     tmsg.append(f"setting {logger_name} to log to file at default level 'info'")
 
             self.handlers['file'].sync()
@@ -461,7 +461,7 @@ class Plugin(BasePlugin):
                             action='store_true',
                             default=False)
 
-        self.api('plugins.core.commands:command:add')('client',
+        self.api('plugins.core.commands:command.add')('client',
                                               self.cmd_client,
                                               parser=parser)
 
@@ -479,7 +479,7 @@ class Plugin(BasePlugin):
                             '--notimestamp',
                             help='do not log to file with a timestamp',
                             action='store_false')
-        self.api('plugins.core.commands:command:add')('file',
+        self.api('plugins.core.commands:command.add')('file',
                                               self.cmd_file,
                                               parser=parser)
 
@@ -492,7 +492,7 @@ class Plugin(BasePlugin):
                             help='a list of logtypes to toggle',
                             default=[],
                             nargs='*')
-        self.api('plugins.core.commands:command:add')('console',
+        self.api('plugins.core.commands:command.add')('console',
                                               self.cmd_console,
                                               parser=parser)
 
@@ -502,7 +502,7 @@ class Plugin(BasePlugin):
                             help='only list logtypes that have this argument in their name',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('types',
+        self.api('plugins.core.commands:command.add')('types',
                                               self.cmd_types,
                                               parser=parser)
 
@@ -520,7 +520,7 @@ class Plugin(BasePlugin):
                             default='info',
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
                             required=True)
-        self.api('plugins.core.commands:command:add')('test',
+        self.api('plugins.core.commands:command.add')('test',
                                               self.cmd_test,
                                               parser=parser)
 
@@ -528,7 +528,7 @@ class Plugin(BasePlugin):
                                      description="""clean up log types
 
           will remove any log types that have not been used""")
-        self.api('plugins.core.commands:command:add')('clean',
+        self.api('plugins.core.commands:command.add')('clean',
                                               self.cmd_clean,
                                               parser=parser)
 

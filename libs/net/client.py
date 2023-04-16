@@ -93,7 +93,7 @@ class ClientConnection:
         send welcome message to client
         ask for password
         """
-        if self.api('plugins.core.clients:client:banned:check')(self.addr):
+        if self.api('plugins.core.clients:client.banned.check')(self.addr):
             LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.",
                       level='warning',
                       sources=[__name__]).send()
@@ -167,8 +167,8 @@ class ClientConnection:
                 return
 
             if not self.state['logged in']:
-                dpw = self.api('plugins.core.proxy:ssc:proxypw')()
-                vpw = self.api('plugins.core.proxy:ssc:proxypwview')()
+                dpw = self.api('plugins.core.proxy:ssc.proxypw')()
+                vpw = self.api('plugins.core.proxy:ssc.proxypwview')()
                 if inp.strip() == dpw:
                     ToClientRecord([telnet.echo_off()],
                                    message_type='COMMAND-TELNET' ,
@@ -177,7 +177,7 @@ class ClientConnection:
                     ToClientRecord(['You are now logged in.'],
                                    clients=[self.uuid],
                                    prelogin=True).send('libs.net.client:client_read')
-                    self.api('plugins.core.clients:client:logged:in')(self.uuid)
+                    self.api('plugins.core.clients:client.logged.in')(self.uuid)
                 elif inp.strip() == vpw:
                     ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' ,
                                    clients=[self.uuid],
@@ -185,7 +185,7 @@ class ClientConnection:
                     ToClientRecord(['You are now logged in as view only user.'],
                                    clients=[self.uuid],
                                    prelogin=True).send('libs.net.client:client_read')
-                    self.api('plugins.core.clients:client:logged:in:view:only')(self.uuid)
+                    self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
                     continue
 
                 elif self.login_attempts < 3:
@@ -202,7 +202,7 @@ class ClientConnection:
                     LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.",
                               level='warning',
                               sources=[__name__]).send()
-                    self.api('plugins.core.clients:client:banned:add')(self.uuid)
+                    self.api('plugins.core.clients:client.banned.add')(self.uuid)
                     continue
 
             elif self.view_only:
@@ -260,7 +260,7 @@ class ClientConnection:
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            self.api('libs.asynch:task:add')(self.writer.drain, name=f"{self.uuid}.write.drain")
+            self.api('libs.asynch:task.add')(self.writer.drain, name=f"{self.uuid}.write.drain")
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
@@ -274,7 +274,7 @@ async def register_client(connection) -> None:
               level='debug',
               sources=[__name__]).send()
 
-    connection.api('plugins.core.clients:client:add')(connection)
+    connection.api('plugins.core.clients:client.add')(connection)
 
     LogRecord(f"register_client - Registered client {connection.uuid}",
               level='debug',
@@ -291,7 +291,7 @@ async def unregister_client(connection) -> None:
 
     if connection.connected:
         connection.connected = False
-    connection.api('plugins.core.clients:client:remove')(connection)
+    connection.api('plugins.core.clients:client.remove')(connection)
 
     LogRecord(f"unregister_client - Unregistered client {connection.uuid}",
               level='debug',

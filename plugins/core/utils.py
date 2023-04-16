@@ -44,15 +44,15 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'convert:timedelta:to:string', self._api_convert_timedelta_to_string)
-        self.api('libs.api:add')(self.plugin_id, 'convert:to:readable:number', self._api_convert_to_readable_number)
-        self.api('libs.api:add')(self.plugin_id, 'convert:seconds:to:dhms', self._api_convert_seconds_to_dhms)
-        self.api('libs.api:add')(self.plugin_id, 'format:time', self._api_format_time)
-        self.api('libs.api:add')(self.plugin_id, 'center:colored:string', self._api_center_colored_string)
-        self.api('libs.api:add')(self.plugin_id, 'check:list:for:match', self._api_check_list_for_match)
-        self.api('libs.api:add')(self.plugin_id, 'convert:timelength:to:secs', self._api_convert_timelength_to_secs)
-        self.api('libs.api:add')(self.plugin_id, 'verify:value', self._api_verify_value)
-        self.api('libs.api:add')(self.plugin_id, 'format:list:into:columns', self._api_format_list_into_columns)
+        self.api('libs.api:add')(self.plugin_id, 'convert.timedelta.to.string', self._api_convert_timedelta_to_string)
+        self.api('libs.api:add')(self.plugin_id, 'convert.to.readable.number', self._api_convert_to_readable_number)
+        self.api('libs.api:add')(self.plugin_id, 'convert.seconds.to.dhms', self._api_convert_seconds_to_dhms)
+        self.api('libs.api:add')(self.plugin_id, 'format.time', self._api_format_time)
+        self.api('libs.api:add')(self.plugin_id, 'center.colored.string', self._api_center_colored_string)
+        self.api('libs.api:add')(self.plugin_id, 'check.list.for.match', self._api_check_list_for_match)
+        self.api('libs.api:add')(self.plugin_id, 'convert.timelength.to.secs', self._api_convert_timelength_to_secs)
+        self.api('libs.api:add')(self.plugin_id, 'verify.value', self._api_verify_value)
+        self.api('libs.api:add')(self.plugin_id, 'format.list.into.columns', self._api_format_list_into_columns)
 
         self.dependencies = ['core.colors']
 
@@ -194,7 +194,7 @@ class Plugin(BasePlugin):
         format a length of time into a string
         """
         message = []
-        converted_time = self.api('plugins.core.utils:convert:seconds:to:dhms')(length)
+        converted_time = self.api(f"{self.plugin_id}:convert.seconds.to.dhms")(length)
         years = False
         days = False
         hours = False
@@ -247,7 +247,7 @@ class Plugin(BasePlugin):
         """
         verify an @ color
         """
-        if self.api('plugins.core.colors:colorcode:is:valid')(value):
+        if self.api('plugins.core.colors:colorcode.is.valid')(value):
             return value
 
         raise ValueError
@@ -274,7 +274,7 @@ class Plugin(BasePlugin):
         try:
             ttime = int(usertime)
         except ValueError:
-            ttime = self.api('plugins.core.utils:convert:timelength:to:secs')(usertime)
+            ttime = self.api(f"{self.plugin_id}:convert.timelength.to.secs")(usertime)
 
         if ttime != 0 and not ttime:
             raise ValueError
@@ -302,8 +302,8 @@ class Plugin(BasePlugin):
         """
         center a string with color codes
         """
-        converted_colors_string = self.api('plugins.core.colors:colorcode:to:ansicode')(string_to_center)
-        noncolored_string = self.api('plugins.core.colors:ansicode:strip')(converted_colors_string)
+        converted_colors_string = self.api('plugins.core.colors:colorcode.to.ansicode')(string_to_center)
+        noncolored_string = self.api('plugins.core.colors:ansicode.strip')(converted_colors_string)
 
         noncolored_string_length = len(noncolored_string) + 4
         length_difference = length - noncolored_string_length

@@ -83,18 +83,18 @@ class PluginMgr(BasePlugin):
 
         self.plugin_format_string = "%-22s : %-25s %-10s %-5s %s@w"
 
-        self.api('libs.api:add')(self.plugin_id, 'is:plugin:loaded', self._api_is_plugin_loaded)
-        self.api('libs.api:add')(self.plugin_id, 'is:plugin:id', self._api_is_plugin_id)
-        self.api('libs.api:add')(self.plugin_id, 'get:plugin:instance', self._api_get_plugin_instance)
-        self.api('libs.api:add')(self.plugin_id, 'get:plugin:module', self._api_get_plugin_module)
-        self.api('libs.api:add')(self.plugin_id, 'get:all:plugin:info', self._api_get_all_plugin_info)
-        self.api('libs.api:add')(self.plugin_id, 'save:all:plugins:state', self.api_save_all_plugins_state)
-        self.api('libs.api:add')(self.plugin_id, 'get:loaded:plugins:list', self._api_get_loaded_plugins_list)
-        self.api('libs.api:add')(self.plugin_id, 'get:packages:list', self._api_get_packages_list)
-        self.api('libs.api:add')(self.plugin_id, 'get:all:short:names', self._api_get_all_short_names)
-        self.api('libs.api:add')(self.plugin_id, 'short:name:convert:plugin:id', self._api_short_name_convert_plugin_id)
+        self.api('libs.api:add')(self.plugin_id, 'is.plugin.loaded', self._api_is_plugin_loaded)
+        self.api('libs.api:add')(self.plugin_id, 'is.plugin.id', self._api_is_plugin_id)
+        self.api('libs.api:add')(self.plugin_id, 'get.plugin.instance', self._api_get_plugin_instance)
+        self.api('libs.api:add')(self.plugin_id, 'get.plugin.module', self._api_get_plugin_module)
+        self.api('libs.api:add')(self.plugin_id, 'get.all.plugin.info', self._api_get_all_plugin_info)
+        self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self.api_save_all_plugins_state)
+        self.api('libs.api:add')(self.plugin_id, 'get.loaded.plugins.list', self._api_get_loaded_plugins_list)
+        self.api('libs.api:add')(self.plugin_id, 'get.packages.list', self._api_get_packages_list)
+        self.api('libs.api:add')(self.plugin_id, 'get.all.short.names', self._api_get_all_short_names)
+        self.api('libs.api:add')(self.plugin_id, 'short.name.convert.plugin:id', self._api_short_name_convert_plugin_id)
 
-        self.api('setting:add')('pluginstoload', [], list,
+        self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
                                 'plugins to load on startup',
                                 readonly=True)
 
@@ -109,7 +109,7 @@ class PluginMgr(BasePlugin):
             short_name_list.append(loaded_plugin_info.short_name)
             plugin_id_list.append(loaded_plugin_info.plugin_id)
 
-        if found_short_name := self.api('plugins.core.fuzzy:get:best:match')(
+        if found_short_name := self.api('plugins.core.fuzzy:get.best.match')(
             short_name, short_name_list
         ):
             short_name_index = short_name_list.index(found_short_name)
@@ -165,7 +165,7 @@ class PluginMgr(BasePlugin):
         returns:
           if found, returns a plugin object, else returns None
         """
-        return self.api(f"{self.plugin_id}:get:plugin:instance")(plugin)
+        return self.api(f"{self.plugin_id}:get.plugin.instance")(plugin)
 
     # get a plugin instance
     def _api_get_plugin_module(self, pluginname):
@@ -174,7 +174,7 @@ class PluginMgr(BasePlugin):
 
         returns:
           the module for a plugin"""
-        if self.api("core.plugins.pluginm:is:plugin:id")(pluginname):
+        if self.api(f"{self.plugin_id}:is.plugin.id")(pluginname):
             return self.loaded_plugins_info[pluginname].module
 
         return None
@@ -217,7 +217,7 @@ class PluginMgr(BasePlugin):
         returns:
           if the plugin exists, returns a plugin instance, otherwise returns None"""
         return bool(
-            self.api(f"{self.plugin_id}:get:plugin:instance")(plugin_id)
+            self.api(f"{self.plugin_id}:get.plugin.instance")(plugin_id)
         )
 
     # check if a plugin is loaded
@@ -228,7 +228,7 @@ class PluginMgr(BasePlugin):
         returns:
           True if the plugin is loaded, False if not"""
         return bool(
-            self.api(f"{self.plugin_id}:get:plugin:instance")(pluginname)
+            self.api(f"{self.plugin_id}:get.plugin.instance")(pluginname)
         )
 
     # get a message of plugins in a package
@@ -329,7 +329,7 @@ class PluginMgr(BasePlugin):
         plugin_instances = [i.plugininstance for i in self.loaded_plugins_info.values()]
 
         msg = [
-            self.api('plugins.core.utils:center:colored:string')(
+            self.api('plugins.core.utils:center.colored.string')(
                 '@x86Changed Plugins@w', '-', 80, filler_color='@B'
             ),
             self.plugin_format_string
@@ -361,7 +361,7 @@ class PluginMgr(BasePlugin):
                               if self.all_plugin_file_info[plugin_id].isvalidpythoncode is False]
 
         if pdiff := set(all_plugins) - set(loaded_plugins):
-            msg.insert(0, self.api('plugins.core.utils:center:colored:string')('@x86Not Loaded Plugins@w', '-',
+            msg.insert(0, self.api('plugins.core.utils:center.colored.string')('@x86Not Loaded Plugins@w', '-',
                                                                                80, filler_color='@B'))
             msg.insert(0, '-' * 75)
             msg.insert(0, self.plugin_format_string % \
@@ -381,7 +381,7 @@ class PluginMgr(BasePlugin):
             msg.extend(
                 (
                     '',
-                    self.api('plugins.core.utils:center:colored:string')(
+                    self.api('plugins.core.utils:center.colored.string')(
                         '@x86Bad Plugins@w', '-', 80, filler_color='@B'
                     ),
                     'The following files are not valid python code',
@@ -776,10 +776,10 @@ class PluginMgr(BasePlugin):
         self.plugin_lookup_by_id[plugin_id] = plugin_id
 
         # update plugins to load at startup
-        plugins_to_load = self.api('setting:get')('pluginstoload')
+        plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
         if plugin_id not in plugins_to_load and not self.loaded_plugins_info[plugin_id].dev:
             plugins_to_load.append(plugin_id)
-            self.api('setting:change')('pluginstoload', plugins_to_load)
+            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load)
 
         LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[self.plugin_id]).send()
 
@@ -799,7 +799,7 @@ class PluginMgr(BasePlugin):
             ).send(actor = f"{self.plugin_id}.read_all_plugin_information")
             sys.exit(1)
 
-        plugins_to_load_setting = self.api('setting:get')('pluginstoload')
+        plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
 
         required_plugins = [plugin.plugin_id for plugin in self.all_plugin_file_info.values() \
                                            if plugin.isrequired]
@@ -826,7 +826,7 @@ class PluginMgr(BasePlugin):
                           level='error', sources=[self.plugin_id]).send()
                 plugins_to_load_setting.remove(plugin)
                 plugins_to_load.remove(plugin)
-            self.api('setting:change')('pluginstoload', plugins_to_load_setting)
+            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
 
         # print('Loading the following plugins')
         # print(pprint.pformat(plugins_to_load))
@@ -927,21 +927,21 @@ class PluginMgr(BasePlugin):
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully initialized ({loaded_plugin_info.name})", level='info',
                     sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
 
-        self.api('plugins.core.events:add:event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", self.plugin_id,
+        self.api('plugins.core.events:add.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", self.plugin_id,
                                                     description=f"Raised when {loaded_plugin_info.plugininstance.plugin_id} is initialized",
                                                     arg_descriptions={'None': None})
 
 
 
-        self.api('plugins.core.events:raise:event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", {})
-        self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_initialized",
+        self.api('plugins.core.events:raise.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", {})
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
                                             {'plugin':loaded_plugin_info.name,
                                                 'plugin_id':loaded_plugin_info.plugin_id})
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully loaded", level='info',
                   sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
 
         # update plugins_to_load
-        plugins_to_load = self.api('setting:get')('pluginstoload')
+        plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
         if loaded_plugin_info.plugin_id not in plugins_to_load:
             plugins_to_load.append(loaded_plugin_info.plugin_id)
 
@@ -981,8 +981,8 @@ class PluginMgr(BasePlugin):
             if loaded_plugin_info.plugininstance:
                 if loaded_plugin_info.isinitialized:
                         loaded_plugin_info.plugininstance.uninitialize()
-                self.api('plugins.core.events:raise:event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_uninitialized", {})
-                self.api('plugins.core.events:raise:event')(f"ev_{self.plugin_id}_plugin_uninitialized",
+                self.api('plugins.core.events:raise.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_uninitialized", {})
+                self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_uninitialized",
                                                     {'plugin':loaded_plugin_info.name,
                                                     'plugin_id':loaded_plugin_info.plugin_id})
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully unitialized ({loaded_plugin_info.name})", level='info',
@@ -997,10 +997,10 @@ class PluginMgr(BasePlugin):
             return False
 
         # remove from pluginstoload so it doesn't load at startup
-        plugins_to_load = self.api('setting:get')('pluginstoload')
+        plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
         if loaded_plugin_info.plugin_id in plugins_to_load:
             plugins_to_load.remove(loaded_plugin_info.plugin_id)
-            self.api('setting:change')('pluginstoload', plugins_to_load)
+            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load)
 
         # clean up lookup dictionaries
         # del self.plugin_lookup_by_short_name[plugin['short_name']]
@@ -1063,7 +1063,7 @@ class PluginMgr(BasePlugin):
         save all plugins
         """
         for i in self.loaded_plugins_info:
-            self.api(f"{i}:save:state")()
+            self.api(f"{i}:save.state")()
 
     # command to load plugins
     def _command_load(self, args):
@@ -1096,7 +1096,7 @@ class PluginMgr(BasePlugin):
                     plugin_found_f = True
 
         if plugin_found_f:
-            if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
+            if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
             elif self.load_single_plugin(plugin, exit_on_error=False):
                 tmsg.append(f"Plugin {plugin} was loaded")
@@ -1146,7 +1146,7 @@ class PluginMgr(BasePlugin):
                 tmsg.append(f"Plugin {plugin} could not be unloaded")
                 return True, tmsg
 
-            if self.api(f"{self.plugin_id}:is:plugin:loaded")(plugin):
+            if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
                 tmsg.append(f"{plugin} is already loaded")
             elif self.load_single_plugin(plugin, exit_on_error=False):
                 tmsg.append(f"Plugin {plugin} was loaded")
@@ -1211,7 +1211,7 @@ class PluginMgr(BasePlugin):
                             help='the to list',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self._command_list,
                                               parser=parser)
 
@@ -1221,7 +1221,7 @@ class PluginMgr(BasePlugin):
                             help='the plugin to load, don\'t include the .py',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('load',
+        self.api('plugins.core.commands:command.add')('load',
                                               self._command_load,
                                               parser=parser)
 
@@ -1231,7 +1231,7 @@ class PluginMgr(BasePlugin):
                             help='the plugin to unload',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('unload',
+        self.api('plugins.core.commands:command.add')('unload',
                                               self._command_unload,
                                               parser=parser)
 
@@ -1241,13 +1241,13 @@ class PluginMgr(BasePlugin):
                             help='the plugin to reload',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('reload',
+        self.api('plugins.core.commands:command.add')('reload',
                                               self._command_reload,
                                               parser=parser)
 
-        self.api('plugins.core.timers:add:timer')('global_save', self.api_save_all_plugins_state, 60, unique=True, log=False)
+        self.api('plugins.core.timers:add.timer')('global_save', self.api_save_all_plugins_state, 60, unique=True, log=False)
 
-        self.api('plugins.core.events:add:event')(
+        self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_initialized",
             self.plugin_id,
             description="Raised when any plugin is initialized",
@@ -1256,7 +1256,7 @@ class PluginMgr(BasePlugin):
                 'plugin_id': 'The plugin id',
             },
         )
-        self.api('plugins.core.events:add:event')(
+        self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_uninitialized",
             self.plugin_id,
             description="Raised when any plugin is initialized",
@@ -1268,14 +1268,14 @@ class PluginMgr(BasePlugin):
 
         self.initializing_f = False
 
-        self.api('plugins.core.pluginm:save:all:plugins:state')()
+        self.api('plugins.core.pluginm:save.all.plugins.state')()
 
         for loaded_plugin_info in self.loaded_plugins_info.values():
             plugin_id = loaded_plugin_info.plugin_id
-            self.api('plugins.core.events:add:event')(f"ev_{plugin_id}_initialized", self.plugin_id,
+            self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_initialized", self.plugin_id,
                                                         description=f"Raised when {plugin_id} is initialized",
                                                         arg_descriptions={'None': None})
-            self.api('plugins.core.events:add:event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
+            self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
                                                         description=f"Raised when {plugin_id} is initialized",
                                                         arg_descriptions={'None': None})
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.proxy_shutdown', self.evc_shutdown)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown', self.evc_shutdown)

@@ -382,33 +382,33 @@ class API():
         self.add('libs.api', 'has', self._api_has, overload=True)
         if not self('libs.api:has')('libs.api:remove'):
             self.add('libs.api', 'remove', self._api_remove, overload=True)
-        if not self('libs.api:has')('libs.api:get:children'):
-            self.add('libs.api', 'get:children', self._api_get_children, overload=True)
-        if not self('libs.api:has')('libs.api:run:as:plugin'):
-            self.add('libs.api', 'run:as:plugin', self._api_run_as_plugin, overload=True)
+        if not self('libs.api:has')('libs.api:get.children'):
+            self.add('libs.api', 'get.children', self._api_get_children, overload=True)
+        if not self('libs.api:has')('libs.api:run.as.plugin'):
+            self.add('libs.api', 'run.as.plugin', self._api_run_as_plugin, overload=True)
         if not self('libs.api:has')('libs.api:detail'):
             self.add('libs.api', 'detail', self._api_detail, overload=True)
         if not self('libs.api:has')('libs.api:list'):
             self.add('libs.api', 'list', self._api_list, overload=True)
-        if not self('libs.api:has')('libs.api:data:get'):
-            self.add('libs.api', 'api:data:get', self._api_data_get, overload=True)
-        if not self('libs.api:has')('libs.api:get:function:owner:plugin'):
-            self.add('libs.api', 'get:function:owner:plugin', self._api_get_function_plugin_owner, overload=True)
-        if not self('libs.api:has')('libs.api:get:caller:owner'):
-            self.add('libs.api', 'get:caller:owner', self._api_caller_owner, overload=True)
-        if not self('libs.api:has')('libs.api:is_character_active'):
-            self.add('libs.api', 'is_character_active', self._api_is_character_active_get, overload=True)
-        if not self('libs.api:has')('libs.api:is_character_active:set'):
-            self.add('libs.api', 'is_character_active:set', self._api_is_character_active_set, overload=True)
+        if not self('libs.api:has')('libs.api:data.get'):
+            self.add('libs.api', 'data.get', self._api_data_get, overload=True)
+        if not self('libs.api:has')('libs.api:get.function.owner.plugin'):
+            self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_plugin_owner, overload=True)
+        if not self('libs.api:has')('libs.api:get.caller.owner'):
+            self.add('libs.api', 'get.caller.owner', self._api_caller_owner, overload=True)
+        if not self('libs.api:has')('libs.api:is.character.active'):
+            self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
+        if not self('libs.api:has')('libs.api:is.character.active.set'):
+            self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
 
     def add_events(self) -> None:
         """
         add events for the api
         """
-        self('plugins.core.events:add:event')('ev_libs.api_character_active', __name__,
+        self('plugins.core.events:add.event')('ev_libs.api_character_active', __name__,
                                             description='An event for when the character is active and ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
-        self('plugins.core.events:add:event')('ev_libs.api_character_inactive', __name__,
+        self('plugins.core.events:add.event')('ev_libs.api_character_inactive', __name__,
                                             description='An event for when the character is inactive and not ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
@@ -426,11 +426,11 @@ class API():
         self.__class__.is_character_active = flag
 
         if flag:
-            self('plugins.core.events:raise:event')('ev_libs.api_character_active',
+            self('plugins.core.events:raise.event')('ev_libs.api_character_active',
                                             args={'is_character_active':self.is_character_active},
                                             calledfrom='libs.api')
         else:
-            self('plugins.core.events:raise:event')('ev_libs.api_character_inactive',
+            self('plugins.core.events:raise.event')('ev_libs.api_character_inactive',
                                             args={'is_character_active':self.is_character_active},
                                             calledfrom='libs.api')
 
@@ -564,7 +564,7 @@ class API():
         """
         run an api as another plugin
         """
-        plugin_instance = self('plugins.core.pluginm:get:plugin:instance')(plugin_id)
+        plugin_instance = self('plugins.core.pluginm:get.plugin.instance')(plugin_id)
 
         if plugin_instance:
             return plugin_instance.api(api_location)
@@ -686,7 +686,7 @@ class API():
                 if api_data and api_data.stats:
                     if stats_by_plugin:
                         tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center:colored:string')('Stats', '-', 70, '@B'))
+                        tmsg.append(self('plugins.core.utils:center.colored.string')('Stats', '-', 70, '@B'))
                         tmsg.append('Total Calls: %s' % api_data.stats.count)
                         tmsg.append('@B' + '-' * 50)
                         tmsg.append('Stats by caller')
@@ -698,7 +698,7 @@ class API():
 
                     if stats_by_caller:
                         tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center:colored:string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
+                        tmsg.append(self('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
                         stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
                         tmsg.append(f"Unique Callers: {len(stats_keys)}")
                         stats_keys = sorted(stats_keys)
@@ -796,29 +796,29 @@ def test():
 
     print('-' * 80)
     api = API()
-    print('adding test:api')
+    print('adding a.test:api')
     api('libs.api:add')('a.test', 'api', testapi)
-    print('adding test:over')
+    print('adding a.test:over')
     api('libs.api:add')('a.test', 'over', testapi)
-    print('adding test:some:api')
+    print('adding a.test:some:api')
     api('libs.api:add')('a.test', 'some:api', testapi)
     print('called api a.test:api', api('a.test:api')('success'))
     print('called api a.test:over', api('a.test:over')('success'))
-    print('called api a.test:some:api', api('a.test:some:api')('success'))
+    print('called api a.test:some.api', api('a.test:some.api')('success'))
     print('dict api._class_api:\n', pprint.pformat(api._class_api))
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
-    print('overloading over.api')
+    print('overloading a.over.api')
     api('libs.api:add')('a.over', 'api', overloadtestapi, overload=True)
-    print('overloading test.over')
+    print('overloading a.test.over')
     api('libs.api:add')('a.test', 'over', overloadtestapi, overload=True)
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
-    print('called api over:api', api('a.over:api')('success'))
-    print('called api test:over', api('a.test:over')('success'))
-    print('called api test:api', api('a.test:api')('success'))
-    print('api.has test:over', api('libs.api:has')('a.test:over'))
-    print('api.has test:over2', api('libs.api:has')('a.test:over2'))
-    print('api.has over:api', api('libs.api:has')('a.over:api'))
-    print('api.has test:some:api', api('libs.api:has')('a.test:some.api'))
+    print('called api a.over:api', api('a.over:api')('success'))
+    print('called api a.test:over', api('a.test:over')('success'))
+    print('called api a.test:api', api('a.test:api')('success'))
+    print('api.has a.test:over', api('libs.api:has')('a.test:over'))
+    print('api.has a.test:over2', api('libs.api:has')('a.test:over2'))
+    print('api.has a.over:api', api('libs.api:has')('a.over:api'))
+    print('api.has a.test:some.api', api('libs.api:has')('a.test:some.api'))
     print('dict api._class_api:\n', pprint.pformat(api._class_api))
     print('dict api.overloadapi:\n', pprint.pformat(api._instance_api))
     print('\n'.join(api('libs.api:list')(top_level_api="test")))
@@ -837,21 +837,21 @@ def test():
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
     print('api2 dict api2.api:\n', pprint.pformat(api2._class_api))
     print('api2 dict api2._instance_api:\n', pprint.pformat(api2._instance_api))
-    print('api2 api_has over:api', api2('libs.api:has')('a.over:api'))
-    print('api2 api_has over:api', api2('libs.api:has')('a.test:over'))
-    print('api2 called test:api', api2('a.test:api')('success'))
-    print('api2 called test:over', api2('a.test:over')('success'))
-    print('api2 overloading over.api')
+    print('api2 api_has a.over:api', api2('libs.api:has')('a.over:api'))
+    print('api2 api_has a.over:api', api2('libs.api:has')('a.test:over'))
+    print('api2 called a.test:api', api2('a.test:api')('success'))
+    print('api2 called a.test:over', api2('a.test:over')('success'))
+    print('api2 overloading a.over.api')
     api2('libs.api:add')('a.over', 'api', overloadtestapi2, overload=True)
     print('api2 dict api._instance_api:\n', pprint.pformat(api2._instance_api))
-    print('api2 called over:api', api2('a.over:api')('success'))
-    print('api2 overloading test.over')
+    print('api2 called a.over:api', api2('a.over:api')('success'))
+    print('api2 overloading a.test.over')
     api2('libs.api:add')('a.test', 'over', overloadtestapi2, overload=True)
     print('api2 dict api2:api:\n', pprint.pformat(api2._class_api))
     print('api2 dict api2:overloadapi:\n', pprint.pformat(api2._instance_api))
     print('api2 called a.test:over', api2('a.test:over')('success'))
     print('api2 called a.test:api', api2('a.test:api')('success'))
-    print('api2 api_has a.test:three', api2('libs.api:has')('a.test.three'))
+    print('api2 api_has a.test:three', api2('libs.api:has')('a.test:three'))
     try:
         print('api2 called a.test:three', api2('a.test:three')('success'))
     except AttributeError:

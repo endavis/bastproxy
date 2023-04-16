@@ -116,7 +116,7 @@ class BaseDataRecord(BaseRecord, UserList):
         actor is the item that ran the color function
         """
         new_message: list[str] = []
-        if not self.api('libs.api:has')('plugins.core.colors:colorcode:to:ansicode'):
+        if not self.api('libs.api:has')('plugins.core.colors:colorcode.to.ansicode'):
             return
         for line in self.data:
             if color:
@@ -131,7 +131,7 @@ class BaseDataRecord(BaseRecord, UserList):
                     line = f"@w{color}".join(new_line_list)
                 if line:
                     line = f"{color}{line}@w"
-            new_message.append(self.api('plugins.core.colors:colorcode:to:ansicode')(line))
+            new_message.append(self.api('plugins.core.colors:colorcode.to.ansicode')(line))
 
         self.replace(new_message, f"{actor}:color_lines", extra={'msg':'convert color codes to ansi codes on each item'})
 

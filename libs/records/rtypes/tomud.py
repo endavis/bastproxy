@@ -52,11 +52,11 @@ class ToMudRecord(BaseDataRecord):
         global SETUPEVENTS
         if not SETUPEVENTS:
             SETUPEVENTS = True
-            self.api('plugins.core.events:add:event')(self.modify_data_event_name, __name__,
+            self.api('plugins.core.events:add.event')(self.modify_data_event_name, __name__,
                                                 description='An event to modify data before it is sent to the mud',
                                                 arg_descriptions={'line': 'The line to modify',
                                                                   'sendtoclient': 'A flag to determine if this line should be sent to the mud'})
-            self.api('plugins.core.events:add:event')(self.read_data_event_name, __name__,
+            self.api('plugins.core.events:add.event')(self.read_data_event_name, __name__,
                                                 description='An event to see data that was sent to the mud',
                                                 arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
 
@@ -137,7 +137,7 @@ class ToMudRecord(BaseDataRecord):
             self.prepare(f"{actor}:send")
             new_message = []
             for line in self:
-                event_args = self.api('plugins.core.events:raise:event')(self.modify_data_event_name,
+                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name,
                                                             {'line':line,
                                                             'internal':self.internal,
                                                             'showinhistory':self.show_in_history,
@@ -163,10 +163,10 @@ class ToMudRecord(BaseDataRecord):
 
         if self.send_to_mud:
             self.format(f"{actor}:send")
-            mud_connection = self.api('plugins.core.proxy:get:mud:connection')()
+            mud_connection = self.api('plugins.core.proxy:get.mud.connection')()
             mud_connection.send_to(self)
 
         if self.is_io:
-            self.api('plugins.core.events:raise:event')(self.read_data_event_name, args={'ToMudRecord': self})
+            self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToMudRecord': self})
 
         self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)

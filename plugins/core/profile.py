@@ -44,13 +44,13 @@ class Plugin(BasePlugin):
         self.last_command_trace_id = 0
         self.last_changed_mud_data_id = 0
 
-        self.api('setting:add')('commands', False, bool,
+        self.api(f"{self.plugin_id}:setting.add")('commands', False, bool,
                                 'flag to echo commands')
-        self.api('setting:add')('functions', False, bool,
+        self.api(f"{self.plugin_id}:setting.add")('functions', False, bool,
                                 'flag to profile functions')
-        self.api('setting:add')('stacklen', 20, int,
+        self.api(f"{self.plugin_id}:setting.add")('stacklen', 20, int,
                                 '# of traces kept')
-        self.api('setting:add')('cmdfuncstack', False, bool,
+        self.api(f"{self.plugin_id}:setting.add")('cmdfuncstack', False, bool,
                                 'print the function stack in an echo')
 
     def initialize(self):
@@ -71,7 +71,7 @@ class Plugin(BasePlugin):
             help='print callstack if available',
             action='store_true',
             default=False)
-        self.api('plugins.core.commands:command:add')('commands', self.cmd_commands,
+        self.api('plugins.core.commands:command.add')('commands', self.cmd_commands,
                                               parser=parser)
 
         parser = argp.ArgumentParser(
@@ -86,29 +86,29 @@ class Plugin(BasePlugin):
         #     help='print callstack if available',
         #     action='store_true',
         #     default=False)
-        self.api('plugins.core.commands:command:add')('muddata', self.cmd_muddata,
+        self.api('plugins.core.commands:command.add')('muddata', self.cmd_muddata,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='show tasks in the scheduler')
-        self.api('plugins.core.commands:command:add')('tasks', self.cmd_tasks,
+        self.api('plugins.core.commands:command.add')('tasks', self.cmd_tasks,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='reset command stack')
-        self.api('plugins.core.commands:command:add')('rstack', self.cmd_rstack,
+        self.api('plugins.core.commands:command.add')('rstack', self.cmd_rstack,
                                               parser=parser)
 
-        self.command_traces = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
-        self.changed_mud_data = SimpleQueue(self.api('setting:get')('stacklen'), id_key='id')
+        self.command_traces = SimpleQueue(self.api(f"{self.plugin_id}:setting.get")('stacklen'), id_key='id')
+        self.changed_mud_data = SimpleQueue(self.api(f"{self.plugin_id}:setting.get")('stacklen'), id_key='id')
 
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_functions_modified", self.evc_functions_change)
+        self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_functions_modified", self.evc_functions_change)
 
     def evc_functions_change(self):
         """
         toggle the function profiling
         """
-        functions = self.api('setting:get')('functions')
+        functions = self.api(f"{self.plugin_id}:setting.get")('functions')
         self.api('libs.timing:toggle')(functions)
 
     def listcommands(self):
@@ -308,7 +308,7 @@ class Plugin(BasePlugin):
         self.last_command_trace_id = self.last_command_trace_id + 1
         self.command_traces.enqueue(args)
 
-        echocommands = self.api('setting:get')('commands')
+        echocommands = self.api(f"{self.plugin_id}:setting.get")('commands')
 
         if echocommands:
             ToClientRecord(self.formatcommandstack()).send(__name__ + ':savecommand')

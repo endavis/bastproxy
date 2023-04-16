@@ -66,8 +66,8 @@ class CustomColorFormatter(logging.Formatter):
                     record.msg += '\n'.join(formatted_exc_no_newline)
                 record.exc_info = None
                 record.exc_text = None
-        if self.api('libs.api:has')('plugins.core.log:get:level:color'):
-            color = self.api('plugins.core.log:get:level:color')(record.levelno)
+        if self.api('libs.api:has')('plugins.core.log:get.level.color'):
+            color = self.api('plugins.core.log:get.level.color')(record.levelno)
             log_fmt = f"\x1b[{libs.colors.ALLCONVERTCOLORS[color]}m" + self.fmt + self.reset
         else:
             log_fmt = self.FORMATS.get(record.levelno)
@@ -84,8 +84,8 @@ class CustomConsoleHandler(logging.StreamHandler):
     def emit(self, record):
         canlog = True
         # can we log to the console for this logger
-        if self.api('libs.api:has')('plugins.core.log:can:log:to:console'):
-            if not self.api('plugins.core.log:can:log:to:console')(record.name, record.levelno):
+        if self.api('libs.api:has')('plugins.core.log:can.log.to.console'):
+            if not self.api('plugins.core.log:can.log.to.console')(record.name, record.levelno):
                 canlog = False
 
         if type(record.msg) == LogRecord:
@@ -104,8 +104,8 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
     def emit(self, record):
         # can we log to the file for this logger
         canlog = True
-        if self.api('libs.api:has')('plugins.core.log:can:log:to:file'):
-            if not self.api('plugins.core.log:can:log:to:file')(record.name, record.levelno):
+        if self.api('libs.api:has')('plugins.core.log:can.log.to.file'):
+            if not self.api('plugins.core.log:can.log.to.file')(record.name, record.levelno):
                 canlog = False
 
         if canlog:
@@ -129,15 +129,15 @@ class CustomClientHandler(logging.Handler):
 
         # can we log to the client for this logger
         canlog = True
-        if self.api('libs.api:has')('plugins.core.log:can:log:to:client'):
-            if not self.api('plugins.core.log:can:log:to:client')(record.name, record.levelno):
+        if self.api('libs.api:has')('plugins.core.log:can.log.to.client'):
+            if not self.api('plugins.core.log:can.log.to.client')(record.name, record.levelno):
                 canlog = False
 
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if type(record.msg) == LogRecord:
-                if self.api('libs.api:has')('plugins.core.log:get:level:color'):
-                    color = self.api('plugins.core.log:get:level:color')(record.levelno)
+                if self.api('libs.api:has')('plugins.core.log:get.level.color'):
+                    color = self.api('plugins.core.log:get.level.color')(record.levelno)
                 else:
                     color = None
                 if not record.msg.wasemitted['client']:

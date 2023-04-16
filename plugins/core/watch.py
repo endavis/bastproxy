@@ -43,9 +43,9 @@ class Plugin(BasePlugin):
         self.watch_data = {}
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'watch:add', self._api_watch_add)
-        self.api('libs.api:add')(self.plugin_id, 'watch:remove', self._api_watch_remove)
-        self.api('libs.api:add')(self.plugin_id, 'remove:all:data:for:plugin', self._api_remove_all_data_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'watch.add', self._api_watch_add)
+        self.api('libs.api:add')(self.plugin_id, 'watch.remove', self._api_watch_remove)
+        self.api('libs.api:add')(self.plugin_id, 'remove.all.data.for.plugin', self._api_remove_all_data_for_plugin)
 
     def initialize(self):
         """
@@ -59,7 +59,7 @@ class Plugin(BasePlugin):
                             help='list only watches that have this argument in them',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self.cmd_list,
                                               parser=parser)
 
@@ -69,22 +69,22 @@ class Plugin(BasePlugin):
                             help='the trigger to detail',
                             default=[],
                             nargs='*')
-        self.api('plugins.core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command.add')('detail',
                                               self.cmd_detail,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.evc_check_command)
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
+        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_command)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
 
     def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        event_record = self.api('plugins.core.events:get:current:event:record')()
+        event_record = self.api('plugins.core.events:get.current.event.record')()
         LogRecord(f"event_plugin_unitialized - removing watches for plugin {event_record['plugin_id']}",
                   level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
-        self.api(f"{self.plugin_id}:remove:all:data:for:plugin")(event_record['plugin_id'])
+        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
 
     def cmd_list(self, args):
         """
@@ -118,7 +118,7 @@ class Plugin(BasePlugin):
             for watch in args['watch']:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]['event_name']
-                    watch_event = self.api('plugins.core.events:get:event:detail')(event_name)
+                    watch_event = self.api('plugins.core.events:get.event.detail')(event_name)
                     message.append(f"{'Name':<{columnwidth}} : {watch}")
                     message.append(f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['owner']}")
                     message.append(f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}")
@@ -142,7 +142,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if not owner:
-            owner = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if not owner:
             LogRecord(f"_api_watch_add: no plugin could be found to add {watch_name}",
@@ -169,7 +169,7 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id, owner], exc_info=True).send()
 
         # add the event so it can be tracked
-        self.api('plugins.core.events:add:event')(watch_args['eventname'], watch_args['owner'],
+        self.api('plugins.core.events:add.event')(watch_args['eventname'], watch_args['owner'],
                                                   description = f"event for {watch_name} for {watch_args['regex']}",
                                                   arg_descriptions = { 'matched' : 'The matched arguments from the regex',
                                                                        'cmdname' : 'The command name that was matched',
@@ -183,7 +183,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if watch_name in self.watch_data:
-            event = self.api('plugins.core.events:get:event')(self.watch_data[watch_name]['eventname'])
+            event = self.api('plugins.core.events:get.event')(self.watch_data[watch_name]['eventname'])
             plugin = self.watch_data[watch_name]['owner']
             if event:
                 if not event.isempty() and not force:
@@ -209,13 +209,13 @@ class Plugin(BasePlugin):
         watches = self.watch_data.keys()
         for i in watches:
             if self.watch_data[i]['owner'] == plugin:
-                self.api('%s:watch:remove' % self.plugin_id)(i)
+                self.api('%s:watch.remove' % self.plugin_id)(i)
 
     def evc_check_command(self):
         """
         check input from the client and see if we are watching for it
         """
-        if event_record := self.api('plugins.core.events:get:current:event:record')():
+        if event_record := self.api('plugins.core.events:get.current.event.record')():
             client_data = event_record['line']
             for watch_name in self.watch_data:
                 cmdre = self.watch_data[watch_name]['compiled']
@@ -228,4 +228,4 @@ class Plugin(BasePlugin):
                     match_args['data'] = client_data
                     LogRecord(f"evc_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
                             level='debug', sources=[self.plugin_id]).send()
-                    self.api('plugins.core.events:raise:event')(self.watch_data[watch_name]['eventname'], match_args)
+                    self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], match_args)

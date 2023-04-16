@@ -37,9 +37,9 @@ class Plugin(BasePlugin):
         self.errors = []
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'add:error', self._api_add_error)
-        self.api('libs.api:add')(self.plugin_id, 'get:errors', self._api_get_errors)
-        self.api('libs.api:add')(self.plugin_id, 'clear:all:errors', self._api_clear_all_errors)
+        self.api('libs.api:add')(self.plugin_id, 'add.error', self._api_add_error)
+        self.api('libs.api:add')(self.plugin_id, 'get.errors', self._api_get_errors)
+        self.api('libs.api:add')(self.plugin_id, 'clear.all.errors', self._api_clear_all_errors)
 
         self.dependencies = []
 
@@ -55,24 +55,24 @@ class Plugin(BasePlugin):
                             help='list the last <number> errors',
                             default='-1',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('show',
+        self.api('plugins.core.commands:command.add')('show',
                                               self.cmd_show,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='clear errors')
-        self.api('plugins.core.commands:command:add')('clear',
+        self.api('plugins.core.commands:command.add')('clear',
                                               self.cmd_clear,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
+        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
 
     # show all errors that happened during startup
     def evc_proxy_ready(self):
         """
         show all errors that happened during startup
         """
-        errors = self.api('plugins.core.errors:get:errors')()
+        errors = self.api('plugins.core.errors:get.errors')()
 
         msg = ['The following errors happened during startup:']
         if errors:
@@ -128,7 +128,7 @@ class Plugin(BasePlugin):
             msg.append('Please specify a number')
             return False, msg
 
-        errors = self.api('plugins.core.errors:get:errors')()
+        errors = self.api('plugins.core.errors:get.errors')()
 
         if not errors:
             msg.append('There are no errors')

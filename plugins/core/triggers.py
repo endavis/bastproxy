@@ -69,7 +69,7 @@ class TriggerItem:
         if self.omit:
             args['ToClientRecord'].set_send_to_clients(False, f"Trigger {self.trigger_id}, plugin {self.owner_id}")
 
-        args = self.api('plugins.core.events:raise:event')(self.event_name, args)
+        args = self.api('plugins.core.events:raise.event')(self.event_name, args)
         LogRecord(f"raisetrigger - trigger {self.trigger_id} raised event {self.event_name} with args {args} and returned {args['ToClientRecord'].data}",
                   level='debug', sources=[self.owner_id, __name__]).send()
 
@@ -117,18 +117,18 @@ class Plugin(BasePlugin):
         self.created_regex['created_regex_compiled'] = ''
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'trigger:add', self._api_trigger_add)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:remove', self._api_trigger_remove)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:toggle:enable', self._api_trigger_toggle_enable)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:toggle:omit', self._api_trigger_toggle_omit)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:update', self._api_trigger_update)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:get', self._api_trigger_get)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:register', self._api_trigger_register)
-        self.api('libs.api:add')(self.plugin_id, 'trigger:unregister', self._api_trigger_unregister)
-        self.api('libs.api:add')(self.plugin_id, 'group:toggle:enable', self._api_group_toggle_enable)
-        self.api('libs.api:add')(self.plugin_id, 'remove:data:for:owner', self._api_remove_triggers_for_owner)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.add', self._api_trigger_add)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.remove', self._api_trigger_remove)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.toggle.enable', self._api_trigger_toggle_enable)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.toggle.omit', self._api_trigger_toggle_omit)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.update', self._api_trigger_update)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.get', self._api_trigger_get)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.register', self._api_trigger_register)
+        self.api('libs.api:add')(self.plugin_id, 'trigger.unregister', self._api_trigger_unregister)
+        self.api('libs.api:add')(self.plugin_id, 'group.toggle.enable', self._api_group_toggle_enable)
+        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.owner', self._api_remove_triggers_for_owner)
 
-        self.api('setting:add')('enabled', 'True', bool,
+        self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
                                 'enable triggers')
 
     def initialize(self):
@@ -143,7 +143,7 @@ class Plugin(BasePlugin):
                             help='the trigger to detail',
                             default=[],
                             nargs='*')
-        self.api('plugins.core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command.add')('detail',
                                               self.cmd_detail,
                                               parser=parser)
 
@@ -153,19 +153,19 @@ class Plugin(BasePlugin):
                             help='list only triggers that have this argument in them',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self.cmd_list,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
-        self.api('plugins.core.events:register:to:event')('ev_to_client_data_modify',
+        self.api('plugins.core.events:register.to.event')('ev_to_client_data_modify',
                                                   self.evc_check_trigger, prio=1)
-        self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_var_enabled_modified", self.evc_enabled_modify)
+        self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_enabled_modified", self.evc_enabled_modify)
 
-        self.api('plugins.core.triggers:trigger:add')('beall', None, self.plugin_id, enabled=False)
-        self.api('plugins.core.triggers:trigger:add')('all', None, self.plugin_id, enabled=False)
-        self.api('plugins.core.triggers:trigger:add')('emptyline', None, self.plugin_id, enabled=False)
+        self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)
+        self.api('plugins.core.triggers:trigger.add')('all', None, self.plugin_id, enabled=False)
+        self.api('plugins.core.triggers:trigger.add')('emptyline', None, self.plugin_id, enabled=False)
 
 
     def evc_enabled_modify(self):
@@ -173,14 +173,14 @@ class Plugin(BasePlugin):
         setup the plugin on setting change
         """
         if event_record := self.api(
-            'plugins.core.events:get:current:event:record'
+            'plugins.core.events:get.current.event.record'
         )():
             change = event_record['newvalue']
             if change:
-                self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_from_mud_event',
+                self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_from_mud_event',
                                                         self.evc_check_trigger, prio=1)
             else:
-                self.api('plugins.core.events:unregister:from:event')('ev_libs.net.mud_from_mud_event',
+                self.api('plugins.core.events:unregister.from.event')('ev_libs.net.mud_from_mud_event',
                                                             self.evc_check_trigger)
 
     def evc_plugin_uninitialized(self):
@@ -188,9 +188,9 @@ class Plugin(BasePlugin):
         a plugin was uninitialized
         """
         if event_record := self.api(
-            'plugins.core.events:get:current:event:record'
+            'plugins.core.events:get.current.event.record'
         )():
-            self.api(f'{self.plugin_id}:remove:data:for:plugin')(event_record['plugin_id'])
+            self.api(f'{self.plugin_id}:remove.data.for.plugin')(event_record['plugin_id'])
 
     def rebuild_regexes(self):
         """
@@ -233,9 +233,9 @@ class Plugin(BasePlugin):
         register a function to a trigger
         """
         if trigger_name not in self.triggers:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api('plugins.core.events:register:to:event')(self.triggers[trigger_name].eventname,
+        return self.api('plugins.core.events:register.to.event')(self.triggers[trigger_name].eventname,
                                                          function, *kwargs)
 
     def _api_trigger_unregister(self, trigger_name, function):
@@ -243,16 +243,16 @@ class Plugin(BasePlugin):
         unregister a function from a trigger
         """
         if trigger_name not in self.triggers:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api('plugins.core.events:unregister:from:event')(self.triggers[trigger_name].eventname,
+        return self.api('plugins.core.events:unregister.from.event')(self.triggers[trigger_name].eventname,
                                                              function)
 
     def _api_trigger_update(self, trigger_name, trigger_data):
         """
         update a trigger without deleting it
         """
-        owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
         if trigger_id not in self.triggers:
@@ -340,7 +340,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if not owner_id:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             print('could not add a owner for trigger name', trigger_name)
@@ -426,7 +426,7 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id, owner_id]).send()
             return False
 
-        event = self.api('plugins.core.events:get:event')(self.triggers[trigger_id].eventname)
+        event = self.api('plugins.core.events:get.event')(self.triggers[trigger_id].eventname)
         if event:
             if not event.isempty() and not force:
                 LogRecord(f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
@@ -459,7 +459,7 @@ class Plugin(BasePlugin):
         @Ytrigger_name@w   = The trigger name
         """
         if not owner_id:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -477,7 +477,7 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, owner_id]).send()
         for trigger in self.triggers.values():
             if trigger.owner_id == owner_id:
-                self.api('plugins.core.triggers:trigger:remove')(trigger['trigger_name'], owner_id=owner_id)
+                self.api('plugins.core.triggers:trigger.remove')(trigger['trigger_name'], owner_id=owner_id)
 
     # toggle a trigger
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):
@@ -487,7 +487,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if not owner_id:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -516,7 +516,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         if not owner_id:
-            owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -536,13 +536,13 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id]).send()
         if trigger_group in self.trigger_groups:
             for i in self.trigger_groups[trigger_group]:
-                self.api(f"{self.plugin_id}:trigger:toggle:enable")(i, flag)
+                self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
 
     def evc_check_trigger(self): # pylint: disable=too-many-branches
         """
         check a line of text from the mud to see if it matches any triggers
         """
-        if not (event_record := self.api('plugins.core.events:get:current:event:record')()):
+        if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
         toclientrecord = event_record['ToClientRecord']
@@ -619,13 +619,13 @@ class Plugin(BasePlugin):
         if trigger_id in self.triggers and self.triggers[trigger_id]['omit']:
             origargs['omit'] = True
 
-        data_returned = self.api('plugins.core.events:raise:event')(event_name, args)
+        data_returned = self.api('plugins.core.events:raise.event')(event_name, args)
         LogRecord(f"raisetrigger - trigger {trigger_id} raised event {event_name} with args {args} and returned {data_returned}",
                   level='debug', sources=[self.plugin_id, self.triggers[trigger_id]['owner_id']]).send()
         if data_returned and 'newline' in data_returned:
             LogRecord(f"raisetrigger - trigger {trigger_id} returned a modified line {data_returned['newline']}",
                       level='debug', sources=[self.plugin_id, self.triggers[trigger_id]['owner_id']]).send()
-            new_data = self.api('plugins.core.colors:colorcode:to:ansicode')(data_returned['newline'])
+            new_data = self.api('plugins.core.colors:colorcode.to.ansicode')(data_returned['newline'])
             origargs['trace']['changes'].append({'flag':'Modify',
                                                  'info':f"trigger '{trigger_id}' added by plugin {self.triggers[trigger_id]['owner_id']}",
                                                  'original_data':origargs['original'],
@@ -717,7 +717,7 @@ class Plugin(BasePlugin):
             for trigger in args['trigger']:
                 if trigger in self.triggers:
                     event_name = self.triggers[trigger].eventname
-                    event_details = self.api('plugins.core.events:get:event:detail')(event_name)
+                    event_details = self.api('plugins.core.events:get.event.detail')(event_name)
                     message.append(f"{'Name':<{columnwidth}} : {self.triggers[trigger]['trigger_name']}")
                     message.append(f"{'Internal Id':<{columnwidth}} : {self.triggers[trigger]['trigger_id']}")
                     message.append(f"{'Defined in':<{columnwidth}} : {self.triggers[trigger]['owner_id']}")

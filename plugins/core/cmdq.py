@@ -43,12 +43,12 @@ class Plugin(BasePlugin):
 
         # new api methods
         # self.api('libs.api:add')('baseclass', self.api_baseclass)
-        self.api('libs.api:add')(self.plugin_id, 'queue:add:command', self._api_queue_add_command)
-        self.api('libs.api:add')(self.plugin_id, 'command:start', self._api_command_start)
-        self.api('libs.api:add')(self.plugin_id, 'command:finish', self._api_command_finish)
-        self.api('libs.api:add')(self.plugin_id, 'commandtype:add', self._api_command_type_add)
-        self.api('libs.api:add')(self.plugin_id, 'commandtype:remove', self._api_command_type_remove)
-        self.api('libs.api:add')(self.plugin_id, 'remove:commands:for:plugin', self._api_remove_commands_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'queue.add.command', self._api_queue_add_command)
+        self.api('libs.api:add')(self.plugin_id, 'command.start', self._api_command_start)
+        self.api('libs.api:add')(self.plugin_id, 'command.finish', self._api_command_finish)
+        self.api('libs.api:add')(self.plugin_id, 'commandtype.add', self._api_command_type_add)
+        self.api('libs.api:add')(self.plugin_id, 'commandtype.remove', self._api_command_type_remove)
+        self.api('libs.api:add')(self.plugin_id, 'remove.commands.for.plugin', self._api_remove_commands_for_plugin)
 
     def initialize(self):
         """
@@ -58,10 +58,10 @@ class Plugin(BasePlugin):
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='drop the last command')
-        self.api('plugins.core.commands:command:add')('fixqueue', self.cmd_fixqueue,
+        self.api('plugins.core.commands:command.add')('fixqueue', self.cmd_fixqueue,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
 
     def evc_plugin_uninitialized(self):
@@ -69,9 +69,9 @@ class Plugin(BasePlugin):
         a plugin was uninitialized
         """
         if event_record := self.api(
-            'plugins.core.events:get:current:event:record'
+            'plugins.core.events:get.current.event.record'
         )():
-            self.api(f"{self.plugin_id}:remove:commands:for:plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.commands.for.plugin")(event_record['plugin_id'])
 
     # remove all triggers related to a plugin
     def _api_remove_commands_for_plugin(self, plugin_id):
@@ -84,7 +84,7 @@ class Plugin(BasePlugin):
         tkeys = self.cmds.keys()
         for i in tkeys: # iterate keys since we are deleting things
             if self.cmds[i]['owner'] == plugin_id:
-                self.api(f"{self.plugin_id}:remove:command:type")(i)
+                self.api(f"{self.plugin_id}:remove.command.type")(i)
 
     def _api_command_type_remove(self, cmdtype):
         """
@@ -105,7 +105,7 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_command_start - got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}",
                       level='error', sources=[self.plugin_id]).send()
             return
-        self.api('libs.timing:timing:start')(f"cmd_{cmdtype}")
+        self.api('libs.timing:timing.start')(f"cmd_{cmdtype}")
 
     def _api_command_type_add(self, cmdtype, cmd, regex, **kwargs):
         """
@@ -113,7 +113,7 @@ class Plugin(BasePlugin):
         """
         beforef = None
         afterf = None
-        owner = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        owner = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         if 'beforef' in kwargs:
             beforef = kwargs['beforef']
         if 'afterf' in kwargs:
@@ -130,10 +130,10 @@ class Plugin(BasePlugin):
             self.cmds[cmdtype]['ctype'] = cmdtype
             self.cmds[cmdtype]['owner'] = owner
 
-            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['owner'],
+            self.api('plugins.core.events:add.event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['owner'],
                                                         description=f"event for the command {self.cmds[cmdtype]['ctype']} being sent",
                                                         arg_descriptions={'None': None})
-            self.api('plugins.core.events:add:event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['owner'],
+            self.api('plugins.core.events:add.event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['owner'],
                                                         description=f"event for the command {self.cmds[cmdtype]['ctype']} completing",
                                                         arg_descriptions={'None': None})
 
@@ -156,7 +156,7 @@ class Plugin(BasePlugin):
             self.cmds[cmdtype]['beforef']()
 
         self.current_command = cmdt
-        self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_send")
+        self.api('plugins.core.events:raise.event')(f"cmd_{self.current_command['ctype']}_send")
         ToMudRecord(cmd, internal=True, show_in_history=False)
 
     def checkinqueue(self, cmd):
@@ -184,8 +184,8 @@ class Plugin(BasePlugin):
                           level='debug', sources=[self.plugin_id]).send()
                 self.cmds[cmdtype]['afterf']()
 
-            self.api('libs.timing:timing:finish')(f"cmd_{self.current_command['ctype']}")
-            self.api('plugins.core.events:raise:event')(f"cmd_{self.current_command['ctype']}_completed")
+            self.api('libs.timing:timing.finish')(f"cmd_{self.current_command['ctype']}")
+            self.api('plugins.core.events:raise.event')(f"cmd_{self.current_command['ctype']}_completed")
             self.current_command = {}
             self.sendnext()
 
@@ -193,7 +193,7 @@ class Plugin(BasePlugin):
         """
         add a command to the queue
         """
-        plugin = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        plugin = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]['cmd']
         if arguments:
             cmd = cmd + ' ' + str(arguments)
@@ -218,7 +218,7 @@ class Plugin(BasePlugin):
         finish the last command
         """
         if self.current_command:
-            self.api('libs.timing:timing:finish')(f"cmd_{self.current_command['ctype']}")
+            self.api('libs.timing:timing.finish')(f"cmd_{self.current_command['ctype']}")
             self.current_command = {}
             self.sendnext()
 

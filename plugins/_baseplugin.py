@@ -45,7 +45,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use api:add, api:overload, dependency:add, setting:add
+              only use api:add, api:overload, dependency:add, setting.add
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
@@ -99,13 +99,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self._dump_shallow_attrs = ['api']
 
-        self.api('libs.api:add')(self.plugin_id, 'dependency:add', self._api_dependency_add)
-        self.api('libs.api:add')(self.plugin_id, 'setting:add', self._api_setting_add)
-        self.api('libs.api:add')(self.plugin_id, 'setting:get', self._api_setting_gets)
-        self.api('libs.api:add')(self.plugin_id, 'setting:change', self._api_setting_change)
-        self.api('libs.api:add')(self.plugin_id, 'data:get', self._api_get_data)
-        self.api('libs.api:add')(self.plugin_id, 'data:update', self._api_update_data)
-        self.api('libs.api:add')(self.plugin_id, 'save:state', self._api_savestate)
+        self.api('libs.api:add')(self.plugin_id, 'dependency.add', self._api_dependency_add)
+        self.api('libs.api:add')(self.plugin_id, 'setting.add', self._api_setting_add)
+        self.api('libs.api:add')(self.plugin_id, 'setting.get', self._api_setting_gets)
+        self.api('libs.api:add')(self.plugin_id, 'setting.change', self._api_setting_change)
+        self.api('libs.api:add')(self.plugin_id, 'data.get', self._api_get_data)
+        self.api('libs.api:add')(self.plugin_id, 'data.update', self._api_update_data)
+        self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
 
     # get the value of a setting
     def _api_setting_gets(self, setting, plugin=None):
@@ -118,17 +118,17 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if not plugin:
             with contextlib.suppress(KeyError):
                 return (
-                    self.api('plugins.core.utils:verify:value')(
+                    self.api('plugins.core.utils:verify.value')(
                         self.setting_values[setting],
                         self.settings[setting]['stype'],
                     )
-                    if self.api('libs.api:has')('plugins.core.utils:verify:value')
+                    if self.api('libs.api:has')('plugins.core.utils:verify.value')
                     else self.setting_values[setting]
                 )
-        elif plugin_instance := self.api('plugins.core.pluginm:get:plugin:instance')(
+        elif plugin_instance := self.api('plugins.core.pluginm:get.plugin.instance')(
             plugin
         ):
-            return plugin_instance.api('setting:get')(setting)
+            return self.api(f"{plugin_instance.plugin_id}:setting.get")(setting)
 
         return None
 
@@ -141,8 +141,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         returns:
           the data for the specified datatype, None if not found"""
         if plugin_id:
-            if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
-                return self.api(f"{plugin_id}:data:get")(datatype)
+            if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+                return self.api(f"{plugin_id}:data.get")(datatype)
 
         elif datatype in self.data:
             return self.data[datatype]
@@ -162,8 +162,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             return True
 
         else:
-            if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
-                return self.api(f"{plugin_id}:data:update")(datatype, newdata)
+            if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+                return self.api(f"{plugin_id}:data.update")(datatype, newdata)
 
         return False
 
@@ -185,8 +185,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if value == 'default':
             value = self.settings[setting]['default']
         if setting in self.settings:
-            if self.api('plugins.core.pluginm:is:plugin:loaded')('utils'):
-                value = self.api('plugins.core.utils:verify:value')(
+            if self.api('plugins.core.pluginm:is.plugin.loaded')('utils'):
+                value = self.api('plugins.core.utils:verify.value')(
                     value,
                     self.settings[setting]['stype'])
 
@@ -326,7 +326,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         stats = self.get_stats()
         tmsg = []
         for header in stats:
-            tmsg.append(self.api('plugins.core.utils:center:colored:string')(header, '=', 60))
+            tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))
             tmsg.extend(
                 f"{subtype:<20} : {stats[header][subtype]}"
                 for subtype in stats[header]['showorder']
@@ -369,15 +369,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                     return True, [f"{var} is a readonly setting"]
                 val = args['value']
                 try:
-                    self.api('setting:change')(var, val)
+                    self.api(f"{self.plugin_id}:setting.change")(var, val)
                     tvar = self.setting_values[var]
                     if self.settings[var]['nocolor']:
                         tvar = tvar.replace('@', '@@')
                     elif self.settings[var]['stype'] == 'color':
                         tvar = f"{tvar}{tvar.replace('@', '@@')}@w"
                     elif self.settings[var]['stype'] == 'timelength':
-                        tvar = self.api('plugins.core.utils:format:time')(
-                            self.api('plugins.core.utils:verify:value')(tvar, 'timelength'))
+                        tvar = self.api('plugins.core.utils:format.time')(
+                            self.api('plugins.core.utils:verify.value')(tvar, 'timelength'))
                     return True, [f"{var} is now set to {tvar}"]
                 except ValueError:
                     msg = [f"Cannot convert {val} to {self.settings[var]['stype']}"]
@@ -429,7 +429,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             msg.extend(sys.modules[import_location].__doc__.split('\n'))
         if args['commands']:
             if cmd_list := self.api(
-                'plugins.core.commands:get:commands:for:plugin:formatted'
+                'plugins.core.commands:get.commands.for.plugin.formatted'
             )(self.plugin_id):
                 msg.extend(cmd_list)
                 msg.extend(('@G' + '-' * 60 + '@w', ''))
@@ -459,7 +459,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             help='the new value of the setting',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('set',
+        self.api('plugins.core.commands:command.add')('set',
                                               self._cmd_set,
                                               parser=parser,
                                               group='Base',
@@ -468,21 +468,21 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if self.can_reset_f:
             parser = argp.ArgumentParser(add_help=False,
                                          description='reset the plugin')
-            self.api('plugins.core.commands:command:add')('reset',
+            self.api('plugins.core.commands:command.add')('reset',
                                                   self._cmd_reset,
                                                   parser=parser,
                                                   group='Base')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='save the plugin state')
-        self.api('plugins.core.commands:command:add')('save',
+        self.api('plugins.core.commands:command.add')('save',
                                               self._cmd_save,
                                               parser=parser,
                                               group='Base')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='show plugin stats')
-        self.api('plugins.core.commands:command:add')('stats',
+        self.api('plugins.core.commands:command.add')('stats',
                                               self._cmd_stats,
                                               parser=parser,
                                               group='Base')
@@ -501,7 +501,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             '--simple',
                             help='show a simple output',
                             action='store_true')
-        self.api('plugins.core.commands:command:add')('inspect',
+        self.api('plugins.core.commands:command.add')('inspect',
                                               self._cmd_inspect,
                                               parser=parser,
                                               group='Base')
@@ -516,7 +516,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             '--commands',
                             help='show commands in this plugin',
                             action='store_true')
-        self.api('plugins.core.commands:command:add')('help',
+        self.api('plugins.core.commands:command.add')('help',
                                               self._cmd_help,
                                               parser=parser,
                                               group='Base')
@@ -527,7 +527,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             help='api to get details of',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('api',
+        self.api('plugins.core.commands:command.add')('api',
                                               self._cmd_api,
                                               parser=parser,
                                               group='Base')
@@ -551,8 +551,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                     columnwidth = 18 + tlen
                     val = f"{val}{val.replace('@', '@@')}@w"
                 elif self.settings[i]['stype'] == 'timelength':
-                    val = self.api('plugins.core.utils:format:time')(
-                        self.api('plugins.core.utils:verify:value')(val, 'timelength'))
+                    val = self.api('plugins.core.utils:format.time')(
+                        self.api('plugins.core.utils:verify.value')(val, 'timelength'))
                 tmsg.append(f"{i:<20} : {val:<{columnwidth}} - {self.settings[i]['help']}")
         return tmsg
 
@@ -608,10 +608,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         mud = self.api('plugins.core.managers:get')('mud')
 
-        if mud and mud.connected and self.api('libs.api:is_character_active')():
+        if mud and mud.connected and self.api('libs.api:is.character.active')():
             self.evc_after_character_is_active()
         else:
-            self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.evc_after_character_is_active,
+            self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active,
                                                       prio=self.is_character_active_priority)
         self.initializing_f = False
 
@@ -620,15 +620,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         re-register to character active event on disconnect
         """
         LogRecord(f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
-        self.api('plugins.core.events:register:to:event')('ev_libs.api_character_active', self.evc_after_character_is_active)
+        self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
 
     def evc_after_character_is_active(self):
         """
         tasks to do after character is active
         """
         LogRecord(f"ev_after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
-        if self.api('plugins.core.events:is:registered:to:event')('ev_libs.api_character_active', self.evc_after_character_is_active):
-            self.api('plugins.core.events:unregister:from:event')('ev_libs.api_character_active', self.evc_after_character_is_active)
+        if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active):
+            self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
 
     def get_stats(self):
         """
@@ -689,21 +689,21 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
             self._add_commands()
 
-            self.api('plugins.core.events:register:to:event')(f"ev_{self.plugin_id}_initialized",
+            self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_initialized",
                                                       self.evc_baseplugin_plugin_initialized, prio=1)
 
-            self.api('plugins.core.events:register:to:event')('ev_libs.net.mud_muddisconnect', self.evc_baseplugin_disconnect)
+            self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self.evc_baseplugin_disconnect)
 
             self.reset_f = False
             self.setting_values.raiseall()
 
         for i in self.settings:
-            self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_var_{i}_modified", self.plugin_id,
+            self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_var_{i}_modified", self.plugin_id,
                                 description=f"An event to modify the setting {i}",
                                 arg_descriptions={'var':'the variable that was modified',
                                                     'newvalue':'the new value',
                                                     'oldvalue':'the old value'})
 
-        self.api('plugins.core.events:add:event')(f"ev_{self.plugin_id}_savestate", self.plugin_id,
+        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_savestate", self.plugin_id,
                                     description='An event to save the state of the plugin',
                                     arg_descriptions={'None': None})

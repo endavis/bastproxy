@@ -62,11 +62,11 @@ class ToClientRecord(BaseDataRecord):
         global SETUPEVENTS
         if not SETUPEVENTS:
             SETUPEVENTS = True
-            self.api('plugins.core.events:add:event')(self.modify_data_event_name, __name__,
+            self.api('plugins.core.events:add.event')(self.modify_data_event_name, __name__,
                                                 description='An event to modify data before it is sent to the client',
                                                 arg_descriptions={'line': 'The line to modify',
                                                                   'sendtoclient': 'A flag to determine if this line should be sent to the client'})
-            self.api('plugins.core.events:add:event')(self.read_data_event_name, __name__,
+            self.api('plugins.core.events:add.event')(self.read_data_event_name, __name__,
                                                 description='An event to see data that was sent to the client',
                                                 arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
 
@@ -76,7 +76,7 @@ class ToClientRecord(BaseDataRecord):
         return the message without ansi codes
         """
         newmessage: list[str] = [
-            self.api('plugins.core.colors:strip:ansi')(item) for item in self.data
+            self.api('plugins.core.colors:strip.ansi')(item) for item in self.data
         ]
         return newmessage
 
@@ -86,7 +86,7 @@ class ToClientRecord(BaseDataRecord):
         return the message with ansi codes converted to @ color codes
         """
         newmessage: list[str] = [
-            self.api('plugins.core.colors:ansicode:to:colorcode')(item)
+            self.api('plugins.core.colors:ansicode.to.colorcode')(item)
             for item in self.data
         ]
         return newmessage
@@ -127,12 +127,12 @@ class ToClientRecord(BaseDataRecord):
                 return False
             # If the client is a view client and this is an internal message, we don't send it
             # This way view clients don't see the output of commands entered by other clients
-            if self.api('plugins.core.clients:client:is:view:client')(client_uuid) and self.internal:
+            if self.api('plugins.core.clients:client.is.view.client')(client_uuid) and self.internal:
                 return False
             # If the client is in the list of clients or self.clients is empty,
             # then we can check to make sure the client is logged in or the prelogin flag is set
             if (not self.clients or client_uuid in self.clients) and (
-                self.api('plugins.core.clients:client:is:logged:in')(client_uuid)
+                self.api('plugins.core.clients:client.is.logged.in')(client_uuid)
                 or self.prelogin
             ):
                 # All checks passed, we can send to this client
@@ -144,8 +144,8 @@ class ToClientRecord(BaseDataRecord):
         add the preamble to the message only if it is from internal and is an IO message
         """
         if self.preamble:
-            preamblecolor = self.api('plugins.core.proxy:preamble:color:get')(error=self.error)
-            preambletext = self.api('plugins.core.proxy:preamble:get')()
+            preamblecolor = self.api('plugins.core.proxy:preamble.color.get')(error=self.error)
+            preambletext = self.api('plugins.core.proxy:preamble.get')()
             new_message = []
             new_message = [f"{preamblecolor}{preambletext}@w: {item}" for item in self.data]
             self.replace(new_message, f"{actor}:add_preamble", extra={'msg':'add a preamble to all items'})
@@ -182,7 +182,7 @@ class ToClientRecord(BaseDataRecord):
             self.clean(actor=actor)
             tmessage = []
             for line in self.data:
-                event_args = self.api('plugins.core.events:raise:event')(self.modify_data_event_name, args={'line': line,
+                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'line': line,
                                                                                                         'internal': self.internal,
                                                                                                         'sendtoclient': True})
                 if not event_args['sendtoclient']:
@@ -209,17 +209,17 @@ class ToClientRecord(BaseDataRecord):
             self.format(f"{actor}:send")
 
             clients = self.clients or self.api(
-                'plugins.core.clients:get:all:clients'
+                'plugins.core.clients:get.all.clients'
             )(uuid_only=True)
             for client_uuid in clients:
                 if self.can_send_to_client(client_uuid):
-                    client = self.api('plugins.core.clients:get:client')(client_uuid)
+                    client = self.api('plugins.core.clients:get.client')(client_uuid)
                     client.send_to(self)
                 else:
                     LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
                             level='debug', sources=[__name__]).send()
 
         if self.is_io:
-            self.api('plugins.core.events:raise:event')(self.read_data_event_name, args={'ToClientRecord': self})
+            self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToClientRecord': self})
 
         self.addupdate('Info', 'Completed sending data', f"{actor}:send", savedata=False)

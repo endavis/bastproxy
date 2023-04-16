@@ -11,13 +11,13 @@ This plugin handles events.
 
 ## Using
 ### Registering an event from a plugin
- * ```self.api('plugins.core.events:register:to:event')(event_name, function, prio=50)```
+ * ```self.api('plugins.core.events:register.to.event')(event_name, function, prio=50)```
 
 ### Unregistering an event
- * ```self.api('plugins.core.events:unregister:from:event')(event_name, function)```
+ * ```self.api('plugins.core.events:unregister.from.event')(event_name, function)```
 
 ### Raising an event
- * ```self.api('plugins.core.events:raise:event')(event_name, eventdictionary)```
+ * ```self.api('plugins.core.events:raise.event')(event_name, eventdictionary)```
 """
 # Standard Library
 
@@ -52,18 +52,18 @@ class Plugin(BasePlugin):
         self.events: dict[str, Event] = {}
 
         # new api that's easier to read
-        self.api('libs.api:add')(self.plugin_id, 'register:to:event', self._api_register_to_event)
-        self.api('libs.api:add')(self.plugin_id, 'unregister:from:event', self._api_unregister_from_event)
-        self.api('libs.api:add')(self.plugin_id, 'raise:event', self._api_raise_event)
-        self.api('libs.api:add')(self.plugin_id, 'is:registered:to:event', self._api_is_registered_to_event)
-        self.api('libs.api:add')(self.plugin_id, 'remove:events:for:owner', self._api_remove_events_from_owner)
-        self.api('libs.api:add')(self.plugin_id, 'get:event', self._api_get_event)
-        self.api('libs.api:add')(self.plugin_id, 'add:event', self._api_add_event)
-        self.api('libs.api:add')(self.plugin_id, 'get:event:detail', self._api_get_event_detail)
-        self.api('libs.api:add')(self.plugin_id, 'get:current:event:name', self._get_current_event_name)
-        self.api('libs.api:add')(self.plugin_id, 'get:current:event:record', self._get_current_event_record)
+        self.api('libs.api:add')(self.plugin_id, 'register.to.event', self._api_register_to_event)
+        self.api('libs.api:add')(self.plugin_id, 'unregister.from.event', self._api_unregister_from_event)
+        self.api('libs.api:add')(self.plugin_id, 'raise.event', self._api_raise_event)
+        self.api('libs.api:add')(self.plugin_id, 'is.registered.to.event', self._api_is_registered_to_event)
+        self.api('libs.api:add')(self.plugin_id, 'remove.events.for.owner', self._api_remove_events_from_owner)
+        self.api('libs.api:add')(self.plugin_id, 'get.event', self._api_get_event)
+        self.api('libs.api:add')(self.plugin_id, 'add.event', self._api_add_event)
+        self.api('libs.api:add')(self.plugin_id, 'get.event.detail', self._api_get_event_detail)
+        self.api('libs.api:add')(self.plugin_id, 'get.current.event.name', self._get_current_event_name)
+        self.api('libs.api:add')(self.plugin_id, 'get.current.event.record', self._get_current_event_record)
 
-        self.api('setting:add')('log_savestate', False, bool,
+        self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
 
         self.dependencies: list[str] = ['core.errors', 'core.managers']
@@ -80,7 +80,7 @@ class Plugin(BasePlugin):
                             help='the event name to get details for',
                             default=[],
                             nargs='*')
-        self.api('plugins.core.commands:command:add')('detail',
+        self.api('plugins.core.commands:command.add')('detail',
                                               self._command_detail,
                                               parser=parser)
 
@@ -111,7 +111,7 @@ class Plugin(BasePlugin):
                             help="show events that have no description or args",
                             action='store_true',
                             default=False)
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self._command_list,
                                               parser=parser)
 
@@ -121,21 +121,21 @@ class Plugin(BasePlugin):
                             help='the event to raise',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('raise',
+        self.api('plugins.core.commands:command.add')('raise',
                                               self._command_raise,
                                               parser=parser)
 
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized',
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                   self.evc_plugin_uninitialized, priority=10)
 
     def evc_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
-        if event_record := self.api('plugins.core.events:get:current:event:record')():
+        if event_record := self.api('plugins.core.events:get.current.event.record')():
             LogRecord(f"evc_plugin_uninitialized - removing events for {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
-            self.api(f"{self.plugin_id}:remove:events:for:plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.events.for.plugin")(event_record['plugin_id'])
 
     def _get_current_event_name(self):
         """
@@ -150,7 +150,8 @@ class Plugin(BasePlugin):
         return self.current_event.current_record if self.current_event else None
 
     # add an event for this plugin to track
-    def _api_add_event(self, event_name: str, created_by: str, description: str = '', arg_descriptions: dict[str, str] | None = None):
+    def _api_add_event(self, event_name: str, created_by: str, description: str = '',
+                       arg_descriptions: dict[str, str] | None = None):
         """
         add an event for this plugin to track
         """
@@ -194,7 +195,7 @@ class Plugin(BasePlugin):
         this function returns no values"""
 
         priority = 50 if 'prio' not in kwargs else kwargs['prio']
-        func_owner_id = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+        func_owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         if not func_owner_id:
             LogRecord(f"_api_register_to_event - could not find owner for {func}",
                       level='error', sources=[self.plugin_id]).send()
@@ -240,7 +241,7 @@ class Plugin(BasePlugin):
             args = {}
 
         if not calledfrom:
-            calledfrom = self.api('libs.api:get:caller:owner')(ignore_owner_list=[self.plugin_id])
+            calledfrom = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if not calledfrom:
             LogRecord(f"event {event_name} raised with unknown caller",
@@ -285,8 +286,8 @@ class Plugin(BasePlugin):
             @Yevent_name@w  = the event_name to raise
         """
         message = []
-        if self.api(f"{self.plugin_id}:get:event")(args['event']):
-            self.api(f"{self.plugin_id}:raise:event")(args['event'])
+        if self.api(f"{self.plugin_id}:get.event")(args['event']):
+            self.api(f"{self.plugin_id}:raise.event")(args['event'])
             message.append(f"raised event: {args['event']}")
         else:
             message.append(f"event does not exist: {args['event']}")
@@ -303,7 +304,7 @@ class Plugin(BasePlugin):
         message = []
         if args['event']:
             for event_name in args['event']:
-                message.extend(self.api(f"{self.plugin_id}:get:event:detail")(event_name))
+                message.extend(self.api(f"{self.plugin_id}:get.event.detail")(event_name))
                 message.append('')
         else:
             message.append('Please provide an event name')

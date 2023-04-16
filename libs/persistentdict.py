@@ -215,11 +215,11 @@ class PersistentDictEvent(PersistentDict):
         """
         global EVENTSSETUP
         if not EVENTSSETUP:
-            if self.api('libs.api:has')('plugins.core.events:add:event'):
+            if self.api('libs.api:has')('plugins.core.events:add.event'):
                 EVENTSSETUP = True
                 for i in self:
                     event_name = f"ev_{self.owner_id}_var_{i}_modified"
-                    self.api('plugins.core.events:add:event')(event_name, self.owner_id,
+                    self.api('plugins.core.events:add.event')(event_name, self.owner_id,
                                             description=f"An event raised when {i} is modified in {self.owner_id}",
                                             arg_descriptions={'var':'The variable that was modified',
                                             'newvalue':'the new value of the variable',
@@ -233,11 +233,11 @@ class PersistentDictEvent(PersistentDict):
         val = convert(val)
         old_value = None
         try:
-            plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.owner_id)
+            plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
         except AttributeError:
             plugin_instance = None
         if key in self and plugin_instance:
-            old_value = plugin_instance.api('setting:get')(key)
+            old_value =  self.api(f"{plugin_instance.plugin_id}:setting.get")(key)
         if old_value != val:
             dict.__setitem__(self, key, val)
 
@@ -247,15 +247,15 @@ class PersistentDictEvent(PersistentDict):
                 return
 
             if plugin_instance:
-                new_value = plugin_instance.api('setting:get')(key)
+                new_value =  self.api(f"{plugin_instance.plugin_id}:setting.get")(key)
             else:
                 new_value = val
 
             event_name = f"ev_{self.owner_id}_var_{key}_modified"
             old_value = old_value
 
-            if self.api('libs.api:has')('plugins.core.events:raise:event'):
-                self.api('plugins.core.events:raise:event')(
+            if self.api('libs.api:has')('plugins.core.events:raise.event'):
+                self.api('plugins.core.events:raise.event')(
                     event_name,
                     {'var':key,
                     'newvalue':new_value,
@@ -265,21 +265,21 @@ class PersistentDictEvent(PersistentDict):
         """
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.owner_id)
+        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
         old_value = '__init__'
         for i in self:
             if plugin_instance:
                 if i == '_version':
                     return
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
-                new_value = plugin_instance.api('setting:get')(i)
+                new_value = self.api(f"{plugin_instance.plugin_id}:setting.get")(i)
                 old_value = old_value
             else:
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self[i]
                 old_value = old_value
 
-            self.api('plugins.core.events:raise:event')(
+            self.api('plugins.core.events:raise.event')(
                 event_name,
                 {'var':i,
                 'newvalue':new_value,
@@ -289,7 +289,7 @@ class PersistentDictEvent(PersistentDict):
         """
         always put plugin version in here
         """
-        plugin_instance = self.api('plugins.core.pluginm:get:plugin:instance')(self.owner_id)
+        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
         try:
             self['_version'] = plugin_instance.version
         except AttributeError:

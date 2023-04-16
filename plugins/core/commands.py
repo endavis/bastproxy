@@ -137,7 +137,7 @@ class Command:
         run the command
         """
         message: list[str] = []
-        cmd_prefix = self.api(f"{__name__}:setting:get")('cmdprefix')
+        cmd_prefix = self.api(f"{__name__}:setting.get")('cmdprefix')
         command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
         LogRecord(f"running {command_ran}",
                   level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
@@ -225,10 +225,10 @@ class Command:
         returns:
           the updated message
         """
-        #line_length = self.api('net.proxy:setting:get')('linelen')
+        #line_length = self.api('net.proxy:setting.get')('linelen')
         line_length = 80
 
-        cmdprefix = self.api(f"{__name__}:setting:get")('cmdprefix')
+        cmdprefix = self.api(f"{__name__}:setting.get")('cmdprefix')
 
         message.insert(0, '')
         message.insert(1, f"{cmdprefix}.{self.plugin_id}.{self.name}")
@@ -274,29 +274,29 @@ class Plugin(BasePlugin):
 
         # add apis
         #self.api('libs.api:add')('default', self.api_setdefault)
-        self.api('libs.api:add')(self.plugin_id, 'command:add', self._api_add_command)
-        self.api('libs.api:add')(self.plugin_id, 'command:run', self._api_run)
-        self.api('libs.api:add')(self.plugin_id, 'command:help:format', self._api_get_plugin_command_help)
-        self.api('libs.api:add')(self.plugin_id, 'get:command:prefix', self._api_get_prefix)
-        self.api('libs.api:add')(self.plugin_id, 'remove:data:for:plugin', self._api_remove_plugin_data)
-        self.api('libs.api:add')(self.plugin_id, 'get:commands:for:plugin:formatted', self._api_get_plugin_command_format)
-        self.api('libs.api:add')(self.plugin_id, 'get:commands:for:plugin:data', self._api_get_plugin_command_data)
+        self.api('libs.api:add')(self.plugin_id, 'command.add', self._api_add_command)
+        self.api('libs.api:add')(self.plugin_id, 'command.run', self._api_run)
+        self.api('libs.api:add')(self.plugin_id, 'command.help.format', self._api_get_plugin_command_help)
+        self.api('libs.api:add')(self.plugin_id, 'get.command.prefix', self._api_get_prefix)
+        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_plugin_data)
+        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_plugin_command_format)
+        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_plugin_command_data)
 
         # initialize settings
-        self.api('setting:add')('cmdprefix', '#bp', str,
+        self.api(f"{self.plugin_id}:setting.add")('cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
-        self.api('setting:add')('spamcount', 20, int,
+        self.api(f"{self.plugin_id}:setting.add")('spamcount', 20, int,
                                 'the # of times a command can ' \
                                  'be run before an antispam command')
-        self.api('setting:add')('antispamcommand', 'look', str,
+        self.api(f"{self.plugin_id}:setting.add")('antispamcommand', 'look', str,
                                 'the antispam command to send')
-        self.api('setting:add')('cmdcount', 0, int,
+        self.api(f"{self.plugin_id}:setting.add")('cmdcount', 0, int,
                                 'the # of times the current command has been run',
                                 readonly=True)
-        self.api('setting:add')('lastcmd', '', str,
+        self.api(f"{self.plugin_id}:setting.add")('lastcmd', '', str,
                                 'the last command that was sent to the mud',
                                 readonly=True)
-        self.api('setting:add')('historysize', 50, int,
+        self.api(f"{self.plugin_id}:setting.add")('historysize', 50, int,
                                 'the size of the history to keep')
 
         self.dependencies = ['core.events', 'core.msg', 'core.errors', 'core.fuzzy']
@@ -318,7 +318,7 @@ class Plugin(BasePlugin):
                             help='the command in the plugin (can be left out)',
                             default='',
                             nargs='?')
-        self.api('plugins.core.commands:command:add')('list',
+        self.api('plugins.core.commands:command.add')('list',
                                               self.command_list,
                                               shelp='list commands',
                                               parser=parser,
@@ -330,7 +330,7 @@ class Plugin(BasePlugin):
                             '--clear',
                             help="clear the history",
                             action='store_true')
-        self.api('plugins.core.commands:command:add')('history',
+        self.api('plugins.core.commands:command.add')('history',
                                               self.command_history,
                                               shelp='list or run a command in history',
                                               parser=parser,
@@ -343,7 +343,7 @@ class Plugin(BasePlugin):
                             default=-1,
                             nargs='?',
                             type=int)
-        self.api('plugins.core.commands:command:add')('!',
+        self.api('plugins.core.commands:command.add')('!',
                                               self.command_runhistory,
                                               shelp='run a command in history',
                                               parser=parser,
@@ -352,8 +352,8 @@ class Plugin(BasePlugin):
                                               show_in_history=False)
 
         # register events
-        self.api('plugins.core.events:register:to:event')('ev_to_mud_data_modify', self.evc_check_for_command, prio=5)
-        self.api('plugins.core.events:register:to:event')('ev_plugins.core.pluginm_plugin_uninitialized', self.evc_plugin_uninitialized)
+        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_for_command, prio=5)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized', self.evc_plugin_uninitialized)
 
     def evc_plugin_uninitialized(self):
         """
@@ -362,11 +362,11 @@ class Plugin(BasePlugin):
         registered to the plugin_uninitialized event
         """
         if event_record := self.api(
-            'plugins.core.events:get:current:event:record'
+            'plugins.core.events:get.current.event.record'
         )():
             LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])
-            self.api(f"{self.plugin_id}:remove:data:for:plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
 
     # remove all commands for a plugin
     def _api_remove_plugin_data(self, plugin_id):
@@ -375,7 +375,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
 
-        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             # remove commands from command_list that start with plugin_instance.plugin_id
             new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
             self.commands_list = new_commands
@@ -385,7 +385,7 @@ class Plugin(BasePlugin):
         """  get the current command prefix
 
         returns the current command prefix as a string"""
-        return self.api('setting:get')('cmdprefix')
+        return self.api(f"{self.plugin_id}:setting.get")('cmdprefix')
 
     # return the help for a command
     def _api_get_plugin_command_help(self, plugin_id, command_name):
@@ -396,7 +396,7 @@ class Plugin(BasePlugin):
         returns the help message as a string"""
         # get the command data for the plugin
 
-        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             if command_data := self.get_command_data_from_plugin(
                 plugin_id, command_name
             ):
@@ -411,7 +411,7 @@ class Plugin(BasePlugin):
 
         returns a list of strings formatted for the commands in the plugin
         """
-        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             return self.list_commands(plugin_id)
 
         return None
@@ -423,8 +423,8 @@ class Plugin(BasePlugin):
 
         returns a dictionary of commands
         """
-        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
-            return self.api(f"{plugin_id}:data:get")('commands')
+        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+            return self.api(f"{plugin_id}:data.get")('commands')
 
         return {}
 
@@ -474,7 +474,7 @@ class Plugin(BasePlugin):
         self.command_history_data.append(command)
 
         # if the size is greater than historysize, pop the first item
-        if len(self.command_history_data) >= self.api('setting:get')('historysize'):
+        if len(self.command_history_data) >= self.api(f"{self.plugin_id}:setting.get")('historysize'):
             self.command_history_data.pop(0)
 
         # sync command history
@@ -503,8 +503,8 @@ class Plugin(BasePlugin):
           None if not found, the command data dict if found
         """
         # find the instance
-        if self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
-            if data := self.api(f"{plugin_id}:data:get")('commands'):
+        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+            if data := self.api(f"{plugin_id}:data.get")('commands'):
                 # return the command
                 return data[command] if command in data else None
 
@@ -524,12 +524,12 @@ class Plugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"commands - update_command: plugin {plugin_id} does not exist",
                       level='debug', sources=[plugin_id, self.plugin_id]).send(f"{self.plugin_id}:update_command")
             return False
 
-        all_command_data = self.api(f"{plugin_id}:data:get")('commands')
+        all_command_data = self.api(f"{plugin_id}:data.get")('commands')
 
         if not all_command_data:
             all_command_data = {}
@@ -540,7 +540,7 @@ class Plugin(BasePlugin):
 
         all_command_data[command_name] = command
 
-        return self.api(f"{plugin_id}:data:update")('commands', all_command_data)
+        return self.api(f"{plugin_id}:data.update")('commands', all_command_data)
 
     def pass_through_command(self) -> None:
         """
@@ -556,7 +556,7 @@ class Plugin(BasePlugin):
         """
         if not (
             event_record := self.api(
-                'plugins.core.events:get:current:event:record'
+                'plugins.core.events:get.current.event.record'
             )()
         ):
             return
@@ -564,23 +564,23 @@ class Plugin(BasePlugin):
         original_command = event_record['line']
 
         # if the command is the same as the last command, do antispam checks
-        if original_command == self.api('setting:get')('lastcmd'):
-            self.api('setting:change')('cmdcount',
-                                    self.api('setting:get')('cmdcount') + 1)
+        if original_command == self.api(f"{self.plugin_id}:setting.get")('lastcmd'):
+            self.api(f"{self.plugin_id}:setting.change")('cmdcount',
+                                    self.api(f"{self.plugin_id}:setting.get")('cmdcount') + 1)
 
             # if the command has been sent spamcount times, then we send an antispam
             # command in between
-            if self.api('setting:get')('cmdcount') == \
-                                    self.api('setting:get')('spamcount'):
+            if self.api(f"{self.plugin_id}:setting.get")('cmdcount') == \
+                                    self.api(f"{self.plugin_id}:setting.get")('spamcount'):
 
                 event_record.addupdate('Modify', "Antispam Command sent",
                                         f"{self.plugin_id}:pass_through_command", saveargs = False)
-                LogRecord(f"sending antspam command: {self.api('setting:get')('antispamcommand')}",
+                LogRecord(f"sending antspam command: {self.api('{self.plugin_id}:setting.get')('antispamcommand')}",
                           level='debug', sources=[self.plugin_id]).send()
-                ToMudRecord(self.api('setting:get')('antispamcommand'),
+                ToMudRecord(self.api(f"{self.plugin_id}:setting.get")('antispamcommand'),
                             show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
 
-                self.api('setting:change')('cmdcount', 0)
+                self.api(f"{self.plugin_id}:setting.change")('cmdcount', 0)
                 return
 
             # if the command is seen multiple times in a row and it has been flagged to only be sent once,
@@ -593,9 +593,9 @@ class Plugin(BasePlugin):
                 return
         else:
             # the command does not match the last command
-            self.api('setting:change')('cmdcount', 0)
+            self.api(f"{self.plugin_id}:setting.change")('cmdcount', 0)
             LogRecord(f"resetting command to {original_command}", level='debug', sources=[self.plugin_id]).send()
-            self.api('setting:change')('lastcmd', original_command)
+            self.api(f"{self.plugin_id}:setting.change")('lastcmd', original_command)
 
     def proxy_help(self, header, header2, data):
         """
@@ -637,11 +637,11 @@ class Plugin(BasePlugin):
             # found the item
             LogRecord(f"match_item: found {item}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command.command_ran")
             return item
 
         # see if the item fuzzy matches an item in the list
-        return self.api('plugins.core.fuzzy:get:best:match')(item, item_list,
+        return self.api('plugins.core.fuzzy:get.best.match')(item, item_list,
                                                                 scorer='token_set_ratio')
 
     def find_command(self, command_line: str) -> tuple[Command | None, str, bool, str, list[str]]:
@@ -651,12 +651,12 @@ class Plugin(BasePlugin):
         message: list[str] = []
         LogRecord(f"find_command: {command_line}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}find_command")
 
         # copy the command
         command = command_line
 
-        commandprefix = self.api('setting:get')('cmdprefix')
+        commandprefix = self.api(f"{self.plugin_id}:setting.get")('cmdprefix')
         command_str = command
 
         if command_str in [commandprefix, f"{commandprefix}.",
@@ -665,7 +665,7 @@ class Plugin(BasePlugin):
             # found just the command prefix
             # get the list of plugins
             packages_list = [package.replace('plugins.', '')
-                             for package in self.api('plugins.core.pluginm:get:packages:list')()]
+                             for package in self.api('plugins.core.pluginm:get.packages.list')()]
 
             message.extend(self.proxy_help("Proxy Help", "Available Packages:", packages_list))
 
@@ -710,7 +710,7 @@ class Plugin(BasePlugin):
             if len(command_split) > 2:
                 temp_command = command_split[2]
 
-            plugins_list = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
+            plugins_list = self.api('plugins.core.pluginm:get.loaded.plugins.list')()
 
             # the tuple is so that the function works with the lru_cache decorator
             all_plugin_list, package_list = get_plugin_permutations(tuple(plugins_list))
@@ -740,7 +740,7 @@ class Plugin(BasePlugin):
 
             if not new_plugin:
                 # did not get a plugin, so output the list of plugins in the package
-                success, cmd_output = self.api(f"{self.plugin_id}:command:run")('plugins.core.commands',
+                success, cmd_output = self.api(f"{self.plugin_id}:command.run")('plugins.core.commands',
                                                                             'list', new_package)
 
                 output = [
@@ -771,7 +771,7 @@ class Plugin(BasePlugin):
 
             if not new_command:
                 # did not get a command, so output the list of commands in the plugin
-                success, cmd_output = self.api(f"{self.plugin_id}:command:run")('plugins.core.commands',
+                success, cmd_output = self.api(f"{self.plugin_id}:command.run")('plugins.core.commands',
                                                                             'list', new_plugin)
 
                 output = [
@@ -800,9 +800,9 @@ class Plugin(BasePlugin):
         if it is, the command is parsed and executed
         and the output sent to the client
         """
-        commandprefix = self.api('setting:get')('cmdprefix')
+        commandprefix = self.api(f"{self.plugin_id}:setting.get")('cmdprefix')
 
-        if not (event_record := self.api('plugins.core.events:get:current:event:record')()):
+        if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
         if event_record['line'].startswith(commandprefix):
@@ -875,7 +875,7 @@ class Plugin(BasePlugin):
 
         args = kwargs.copy()
 
-        called_from = self.api('libs.api:get:caller:owner')()
+        called_from = self.api('libs.api:get.caller.owner')()
 
         # passed an empty function
         if not func:
@@ -888,13 +888,13 @@ class Plugin(BasePlugin):
             plugin_id = args['plugin_id']
             del args['plugin_id']
         else:
-            plugin_id = self.api('libs.api:get:function:owner:plugin')(func)
+            plugin_id = self.api('libs.api:get.function.owner.plugin')(func)
 
 
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             plugin_id = called_from
 
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
                         level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
             return
@@ -917,7 +917,8 @@ class Plugin(BasePlugin):
         with contextlib.suppress(argp.ArgumentError):
             new_parser.add_argument('-h', '--help', help='show help',
                                     action='store_true')
-        new_parser.prog = f"@B{self.api('setting:get')('cmdprefix')}.{plugin_id}.{command_name}@w"
+        cmdprefix = self.api(f'{self.plugin_id}:setting.get')('cmdprefix')
+        new_parser.prog = f"@B{cmdprefix}.{plugin_id}.{command_name}@w"
 
         # if no group, add the group as the plugin_name
         if 'group' not in args:
@@ -956,15 +957,15 @@ class Plugin(BasePlugin):
         @Ycommand_name@w  = the name of the command
 
         this function returns no values"""
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"remove command: plugin {plugin_id} does not exist",
                       level='warning', sources=[self.plugin_id, plugin_id]).send(f"{self.plugin_id}:_api_remove_command")
             return False
 
-        data = self.api(f"{plugin_id}:data:get")('commands')
+        data = self.api(f"{plugin_id}:data.get")('commands')
         if data and command_name in data:
             del data[command_name]
-            self.api(f"{plugin_id}:data:update")('commands', data)
+            self.api(f"{plugin_id}:data.update")('commands', data)
             LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
             return True
 
@@ -1002,10 +1003,10 @@ class Plugin(BasePlugin):
         returns the a list of stings for the list of commands
         """
 
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             return []
 
-        commands: dict[str, Command] = self.api(f"{plugin_id}:data:get")('commands')
+        commands: dict[str, Command] = self.api(f"{plugin_id}:data.get")('commands')
         message = [f"Commands in {plugin_id}:", '@G' + '-' * 60 + '@w']
         groups = {}
         for i in sorted(commands.keys()):
@@ -1038,14 +1039,14 @@ class Plugin(BasePlugin):
         message = []
         command = args['command']
         plugin_id = args['plugin']
-        if not self.api('plugins.core.pluginm:is:plugin:id')(plugin_id):
+        if not self.api('plugins.core.pluginm.is.plugin.id')(plugin_id):
             message.append('Plugins')
-            plugin_id_list = self.api('plugins.core.pluginm:get:loaded:plugins:list')()
+            plugin_id_list = self.api('plugins.core.pluginm:get.loaded.plugins.list')()
             plugin_id_list = sorted(plugin_id_list)
-            message.append(self.api('plugins.core.utils:format:list:into:columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
+            message.append(self.api('plugins.core.utils:format.list.into.columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
             return True, message
 
-        if plugin_commands := self.api(f"{plugin_id}:data:get")('commands'):
+        if plugin_commands := self.api(f"{plugin_id}:data.get")('commands'):
             if command and command in plugin_commands:
                 help_message = plugin_commands[command]['parser'].format_help().split('\n')
                 message.extend(help_message)
@@ -1067,7 +1068,7 @@ class Plugin(BasePlugin):
         if len(self.command_history_data) < abs(args['number']):
             return True, ['# is outside of history length']
 
-        if len(self.command_history_data) >= self.api('setting:get')('historysize'):
+        if len(self.command_history_data) >= self.api(f"{self.plugin_id}:setting.get")('historysize'):
             command = self.command_history_data[args['number'] - 1]
         else:
             command = self.command_history_data[args['number']]

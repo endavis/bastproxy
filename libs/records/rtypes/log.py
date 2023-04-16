@@ -43,9 +43,9 @@ class LogRecord(BaseDataRecord):
 
         actor is the item that ran the color function
         """
-        if not self.api('libs.api:has')('plugins.core.log:get:level:color'):
+        if not self.api('libs.api:has')('plugins.core.log:get.level.color'):
             return
-        color: str = self.api('plugins.core.log:get:level:color')(self.level)
+        color: str = self.api('plugins.core.log:get.level.color')(self.level)
         super().color_lines(color, actor)
 
     def add_source(self, source: str):
@@ -65,8 +65,8 @@ class LogRecord(BaseDataRecord):
         """
         self.format(actor)
         add_log_count_func: typing.Callable | None = None
-        if self.api('libs.api:has')('plugins.core.log:add:log:count'):
-            add_log_count_func = self.api('plugins.core.log:add:log:count')
+        if self.api('libs.api:has')('plugins.core.log:add.log.count'):
+            add_log_count_func = self.api('plugins.core.log:add.log.count')
         for i in self.sources:
             if i:
                 if add_log_count_func:

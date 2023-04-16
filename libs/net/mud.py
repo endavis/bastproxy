@@ -161,7 +161,7 @@ class MudConnection:
                 self.writer.send_iac(msg_obj.msg)  # type: ignore
                 logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            self.api('libs.asynch:task:add')(self.writer.drain, name="mud.write.drain")
+            self.api('libs.asynch:task.add')(self.writer.drain, name="mud.write.drain")
 
         LogRecord(
             "client_write - Ending coroutine",

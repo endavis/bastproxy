@@ -51,8 +51,8 @@ class Plugin(BasePlugin):
         """
         super().__init__(*args, **kwargs)
 
-        self.api('libs.api:add')(self.plugin_id, 'get:best:match', self.get_best_match)
-        self.api('libs.api:add')(self.plugin_id, 'get:top:matches', self.get_top_matches)
+        self.api('libs.api:add')(self.plugin_id, 'get.best.match', self.get_best_match)
+        self.api('libs.api:add')(self.plugin_id, 'get.top.matches', self.get_top_matches)
 
         self.dependencies = []
         #self.dependencies = ['core.errors', 'core.msg']

@@ -109,7 +109,7 @@ class Event:
                 if event_function.owner_id == owner_id
             )
         for event_function in plugins_to_unregister:
-            self.api('plugins.core.events:unregister:from:event')(self.name, event_function.func)
+            self.api('plugins.core.events:unregister.from.event')(self.name, event_function.func)
 
     def detail(self) -> list[str]:
         """
@@ -121,7 +121,7 @@ class Event:
             f"{'Created by':<13} : {self.created_by}",
             f"{'Raised':<13} : {self.raised_count}",
             '',
-            self.api('plugins.core.utils:center:colored:string')(
+            self.api('plugins.core.utils:center.colored.string')(
                 '@x86Registrations@w', '-', 60, filler_color='@B'
             ),
             f"{'priority':<13} : {'owner':<25} - function name",
@@ -140,7 +140,7 @@ class Event:
         else:
             message.extend(function_message)
         message.extend(('@B' + '-' * 60, ''))
-        message.append(self.api('plugins.core.utils:center:colored:string')('@x86Data Keys@w', '-', 60, filler_color='@B'))
+        message.append(self.api('plugins.core.utils:center.colored.string')('@x86Data Keys@w', '-', 60, filler_color='@B'))
         if self.arg_descriptions and 'None' not in self.arg_descriptions:
             message.extend(
                 f"@C{arg:<13}@w : {self.arg_descriptions[arg]}"
@@ -184,7 +184,7 @@ class Event:
             data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
-        log_savestate = self.api('libs.api:run:as:plugin')('plugins.core.events', 'setting:get')('log_savestate')
+        log_savestate = self.api('plugins.core.events:setting.get')('log_savestate')
         log: bool = True if log_savestate else not self.name.endswith('_savestate')
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
