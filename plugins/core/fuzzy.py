@@ -108,7 +108,7 @@ class Plugin(BasePlugin):
         """
         scorer_inst = rapidfuzz.fuzz.__dict__[scorer]
         found = []
-        print(f"get_top_matches - {item_to_match =} {score_cutoff =}")
+
         LogRecord(f"get_top_matches - {item_to_match =} {items =} {score_cutoff =}",
                   level='debug', sources=[self.plugin_id]).send()
         LogRecord(f"get_top_matches - list_to_match: {list_to_match}",
@@ -116,7 +116,7 @@ class Plugin(BasePlugin):
 
         extract = rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst, limit=items)
         sorted_extract = sort_fuzzy_result(extract)
-        pprint.pprint(f"{extract =}")
+
         LogRecord(f"get_best_match - extract for {item_to_match} - {sorted_extract}",
                     level='debug', sources=[self.plugin_id]).send()
         for i in sorted(sorted_extract.keys(), reverse=True):
@@ -128,5 +128,4 @@ class Plugin(BasePlugin):
         LogRecord(f"get_top_matches - (score) matched {item_to_match} to {found}",
                     level='debug', sources=[self.plugin_id])
 
-        print(f"get_top_matches - (score) matched {item_to_match} to {found}")
         return found
