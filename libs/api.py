@@ -582,19 +582,6 @@ class API():
 
         do_not_overload = get the non overloaded api
         """
-        # all apis should have a . in the first part
-        # if not, we add the parent plugin id to the api
-        if '.' not in api_location:
-            if self.owner_id.lower() != 'unknown':
-                api_location = self.owner_id + ':' + api_location
-            else:
-                try:
-                    from libs.records import LogRecord
-                    LogRecord(f"api lookup: {api_location} : did not contain a .",
-                              level='error', sources=[__name__]).send()
-                except ImportError:
-                    print(f"api lookup: {api_location} : did not contain a .")
-
         # check overloaded api
         if not do_not_overload:
             if api_location in self._instance_api and self._instance_api[api_location]:
