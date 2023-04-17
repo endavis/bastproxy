@@ -111,24 +111,19 @@ class Plugin(BasePlugin):
         """
         add a command type
         """
-        beforef = None
-        afterf = None
         owner = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
-        if 'beforef' in kwargs:
-            beforef = kwargs['beforef']
-        if 'afterf' in kwargs:
-            afterf = kwargs['afterf']
+        beforef = kwargs.get('beforef', None)
+        afterf = kwargs.get('afterf', None)
         if 'plugin' in kwargs:
             owner = kwargs['owner']
         if cmdtype not in self.cmds:
-            self.cmds[cmdtype] = {}
-            self.cmds[cmdtype]['cmd'] = cmd
-            self.cmds[cmdtype]['regex'] = regex
-            self.cmds[cmdtype]['cregex'] = re.compile(regex)
-            self.cmds[cmdtype]['beforef'] = beforef
-            self.cmds[cmdtype]['afterf'] = afterf
-            self.cmds[cmdtype]['ctype'] = cmdtype
-            self.cmds[cmdtype]['owner'] = owner
+            self.cmds[cmdtype] = {'cmd': cmd,
+                                  'regex': regex,
+                                  'cregex': re.compile(regex),
+                                  'beforef': beforef,
+                                  'afterf': afterf,
+                                  'ctype': cmdtype,
+                                  'owner': owner}
 
             self.api('plugins.core.events:add.event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['owner'],
                                                         description=f"event for the command {self.cmds[cmdtype]['ctype']} being sent",
@@ -141,8 +136,9 @@ class Plugin(BasePlugin):
         """
         send the next command
         """
-        LogRecord(f"sendnext - checking queue",
-                  level='debug', sources=[self.plugin_id]).send()
+        LogRecord(
+            "sendnext - checking queue", level='debug', sources=[self.plugin_id]
+        ).send()
         if not self.queue or self.current_command:
             return
 
@@ -163,11 +159,7 @@ class Plugin(BasePlugin):
         """
         check for a command in the queue
         """
-        for i in self.queue:
-            if i['cmd'] == cmd:
-                return True
-
-        return False
+        return any(i['cmd'] == cmd for i in self.queue)
 
     def _api_command_finish(self, cmdtype):
         """
@@ -196,16 +188,15 @@ class Plugin(BasePlugin):
         plugin = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]['cmd']
         if arguments:
-            cmd = cmd + ' ' + str(arguments)
+            cmd = f'{cmd} {str(arguments)}'
         if self.checkinqueue(cmd) or \
-                ('cmd' in self.current_command and self.current_command['cmd'] == cmd):
+                        ('cmd' in self.current_command and self.current_command['cmd'] == cmd):
             return
-        else:
-            LogRecord(f"_api_queue_add_command - adding {cmd} to queue",
-                      level='debug', sources=[self.plugin_id]).send()
-            self.queue.append({'cmd':cmd, 'ctype':cmdtype, 'plugin':plugin})
-            if not self.current_command:
-                self.sendnext()
+        LogRecord(f"_api_queue_add_command - adding {cmd} to queue",
+                  level='debug', sources=[self.plugin_id]).send()
+        self.queue.append({'cmd':cmd, 'ctype':cmdtype, 'plugin':plugin})
+        if not self.current_command:
+            self.sendnext()
 
     def resetqueue(self, _=None):
         """

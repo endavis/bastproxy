@@ -349,7 +349,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def summarystats(self, args=None):
+    def summarystats(self, _=None):
         # pylint: disable=unused-argument
         """
         return a one line stats summary
@@ -361,9 +361,10 @@ class Plugin(BasePlugin):
         return stats for events
         """
         stats = BasePlugin.get_stats(self)
-        stats['Events'] = {}
-        stats['Events']['showorder'] = ['Total', 'Raised']
-        stats['Events']['Total'] = len(self.events)
-        stats['Events']['Raised'] = self.global_raised_count
+        stats['Events'] = {
+                            'showorder': ['Total', 'Raised'],
+                            'Total' : len(self.events),
+                            'Raised' : self.global_raised_count
+                          }
 
         return stats

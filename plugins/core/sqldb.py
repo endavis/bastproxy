@@ -51,6 +51,7 @@ import shutil
 import zipfile
 import copy
 import datetime
+import contextlib
 
 # 3rd Party
 
@@ -72,10 +73,10 @@ def dict_factory(cursor, row):
     """
     create a dictionary for a sql row
     """
-    temp_dict = {}
-    for index, column in enumerate(cursor.description):
-        temp_dict[column[0]] = row[index]
-    return temp_dict
+    return {
+        column[0]: row[index]
+        for index, column in enumerate(cursor.description)
+    }
 
 
 class Sqldb(object):
@@ -89,10 +90,7 @@ class Sqldb(object):
         """
         self.db_connection = None
         self.plugin_id = plugin_id
-        if 'dbname' in kwargs:
-            self.database_name = kwargs['dbname'] or 'db'
-        else:
-            self.database_name = 'db'
+        self.database_name = kwargs['dbname'] or 'db' if 'dbname' in kwargs else 'db'
         self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
         self.backup_template = f"{self.database_name}_%%s.sqlite"
         self.database_save_directory = self.api.BASEPATH / 'data' / 'db'
@@ -147,10 +145,9 @@ class Sqldb(object):
         """
         import inspect
         LogRecord(f"close: called by - {inspect.stack()[1][3]}", level='debug', sources=[__name__, self.plugin_id]).send()
-        try:
-            self.db_connection.close()
-        except Exception: # pylint: disable=broad-except
-            pass
+        if self.db_connection:
+            with contextlib.suppress(Exception):
+                self.db_connection.close()
         self.db_connection = None
 
     def open(self):
@@ -176,10 +173,13 @@ class Sqldb(object):
         import inspect
         bad_functions = ['open']
         attr = object.__getattribute__(self, name)
-        if inspect.ismethod(attr) and name[0] != '_' and \
-            name not in bad_functions:
-            if not self.db_connection:
-                self.open()
+        if (
+            inspect.ismethod(attr)
+            and name[0] != '_'
+            and name not in bad_functions
+            and not self.db_connection
+        ):
+            self.open()
         return attr
 
     def fixsql(self, temp_string, like=False):
@@ -187,8 +187,7 @@ class Sqldb(object):
         """
         Fix quotes in a item that will be passed into a sql statement
         """
-        temp_string = str(temp_string)
-        if temp_string:
+        if temp_string := str(temp_string):
             if like:
                 return "'%" + temp_string.replace("'", "''") + "%'"
 
@@ -271,11 +270,9 @@ class Sqldb(object):
         """
         message = []
         if args:
-            sqlstmt = args['stmt']
-            if sqlstmt:
-                results = self.api('%s:%s.select' % (self.plugin_id, self.database_name))(sqlstmt)
-                for i in results:
-                    message.append('%s' % i)
+            if sqlstmt := args['stmt']:
+                results = self.api(f'{self.plugin_id}:{self.database_name}.select')(sqlstmt)
+                message.extend(f'{i}' for i in results)
             else:
                 message.append('Please enter a select statement')
         return True, message
@@ -286,9 +283,8 @@ class Sqldb(object):
         """
         message = []
         if args:
-            sqlstmt = args['stmt']
-            if sqlstmt:
-                self.api('%s:%s.modify' % (self.plugin_id, self.database_name))(sqlstmt)
+            if sqlstmt := args['stmt']:
+                self.api(f'{self.plugin_id}:{self.database_name}.modify')(sqlstmt)
             else:
                 message.append('Please enter an update statement')
         return True, message
@@ -297,20 +293,17 @@ class Sqldb(object):
         """
         vacuum the database
         """
-        message = []
-        self.db_connection.execute('VACUUM')
-        message.append('Database Vacuumed')
-        return True, message
+        if self.db_connection:
+            self.db_connection.execute('VACUUM')
+
+        return True, ['Database Vacuumed']
 
     def cmd_close(self, _):
         """
         close the database
         """
-        message = []
         self.close()
-        message.append('Database %s was closed' % (self.database_name))
-
-        return True, message
+        return True, [f'Database {self.database_name} was closed']
 
     def cmd_remove(self, args):
         """
@@ -339,11 +332,11 @@ class Sqldb(object):
 
         backup_file_name = self.backup_template % name + '.zip'
         if self.backupdb(name):
-            message.append('backed up %s with name %s' % \
-                            (self.database_name, backup_file_name))
+            message.append(f'backed up {self.database_name} with name {backup_file_name}')
         else:
-            message.append('could not back up %s with name %s' % \
-                            (self.database_name, backup_file_name))
+            message.append(
+                f'could not back up {self.database_name} with name {backup_file_name}'
+            )
 
         return True, message
 
@@ -373,12 +366,7 @@ class Sqldb(object):
             keyfield
 
         """
-        if not kwargs:
-            args = {}
-        else:
-            args = copy.copy(kwargs)
-
-
+        args = copy.copy(kwargs) if kwargs else {}
         if 'precreate' not in args:
             args['precreate'] = None
         if 'postcreate' not in args:
@@ -417,16 +405,20 @@ class Sqldb(object):
             sql_statement_list = self.tables[tablename]['createsql'].split('\n')
             for sql_line in sql_statement_list:
                 sql_line = sql_line.strip()
-                if sql_line and sql_line[0:2] != '--':
-                    if 'CREATE' not in sql_line and ')' not in sql_line:
-                        sql_line_split_list = sql_line.split(' ')
-                        column = sql_line_split_list[0]
-                        columnumns.append(column)
-                        columnumnsbykeys[column] = True
-                        if 'default' in sql_line_split_list or 'Default' in sql_line_split_list:
-                            columnumn_defaults[column] = sql_line_split_list[-1].strip(',')
-                        else:
-                            columnumn_defaults[column] = None
+                if (
+                    sql_line
+                    and sql_line[:2] != '--'
+                    and 'CREATE' not in sql_line
+                    and ')' not in sql_line
+                ):
+                    sql_line_split_list = sql_line.split(' ')
+                    column = sql_line_split_list[0]
+                    columnumns.append(column)
+                    columnumnsbykeys[column] = True
+                    if 'default' in sql_line_split_list or 'Default' in sql_line_split_list:
+                        columnumn_defaults[column] = sql_line_split_list[-1].strip(',')
+                    else:
+                        columnumn_defaults[column] = None
 
 
         return columnumns, columnumnsbykeys, columnumn_defaults
@@ -453,7 +445,7 @@ class Sqldb(object):
         sql_string = ''
         if self.tables[tablename]:
             columns = self.tables[tablename]['columnumns']
-            temp_list = [':%s' % i for i in columns]
+            temp_list = [f':{i}' for i in columns]
             columnstring = ', '.join(temp_list)
             if replace:
                 sql_string = f"INSERT OR REPLACE INTO {tablename} VALUES ({columnstring})"
@@ -469,11 +461,10 @@ class Sqldb(object):
         """
         check if a columnumn exists
         """
-        if table in self.tables:
-            if columnumnname in self.tables[table]['columnumnsbykeys']:
-                return True
-
-        return False
+        return (
+            table in self.tables
+            and columnumnname in self.tables[table]['columnumnsbykeys']
+        )
 
     def converttoupdate(self, tablename, wherekey='', nokey=None):
         """
@@ -484,12 +475,11 @@ class Sqldb(object):
         sql_string = ''
         if self.tables[tablename]:
             columns = self.tables[tablename]['columnumns']
-            sql_string_list = []
-            for column in columns:
-                if column == wherekey or (nokey and column in nokey):
-                    pass
-                else:
-                    sql_string_list.append(column + ' = :' + column)
+            sql_string_list = [
+                f'{column} = :{column}'
+                for column in columns
+                if column != wherekey and (not nokey or column not in nokey)
+            ]
             columnstring = ','.join(sql_string_list)
             sql_string = f"UPDATE {tablename} SET {columnstring} WHERE {wherekey} = :{wherekey};"
         return sql_string
@@ -499,24 +489,24 @@ class Sqldb(object):
         get the version of the database
         """
         version = 1
-        cursor = self.db_connection.cursor()
-        cursor.execute('PRAGMA user_version;')
-        row = cursor.fetchone()
-        version = row['user_version']
-        cursor.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            cursor.execute('PRAGMA user_version;')
+            row = cursor.fetchone()
+            version = row['user_version']
+            cursor.close()
         return version
 
     def checktable(self, tablename):
         """
         check to see if a table exists, if not create it
         """
-        if self.tables[tablename]:
-            if not self.checktableexists(tablename):
-                if self.tables[tablename]['precreate']:
-                    self.tables[tablename]['precreate']()
-                self.modifyscript(self.tables[tablename]['createsql'])
-                if self.tables[tablename]['postcreate']:
-                    self.tables[tablename]['postcreate']()
+        if self.tables[tablename] and not self.checktableexists(tablename):
+            if self.tables[tablename]['precreate']:
+                self.tables[tablename]['precreate']()
+            self.modifyscript(self.tables[tablename]['createsql'])
+            if self.tables[tablename]['postcreate']:
+                self.tables[tablename]['postcreate']()
         return True
 
     def checktableexists(self, tablename):
@@ -524,12 +514,15 @@ class Sqldb(object):
         query the database master table to see if a table exists
         """
         retv = False
-        cursor = self.db_connection.cursor()
-        for row in cursor.execute(
-                f"SELECT * FROM sqlite_master WHERE name = \"{tablename}\" AND type = \"table\";"):
-            if row['name'] == tablename:
-                retv = True
-        cursor.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            retv = any(
+                row['name'] == tablename
+                for row in cursor.execute(
+                    f'SELECT * FROM sqlite_master WHERE name = \"{tablename}\" AND type = \"table\";'
+                )
+            )
+            cursor.close()
         return retv
 
     def checkversion(self):
@@ -546,10 +539,11 @@ class Sqldb(object):
         """
         set the version of the database
         """
-        cursor = self.db_connection.cursor()
-        cursor.execute(f"PRAGMA user_version={version};")
-        self.db_connection.commit()
-        cursor.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            cursor.execute(f"PRAGMA user_version={version};")
+            self.db_connection.commit()
+            cursor.close()
 
     def updateversion(self, old_version, new_version):
         """
@@ -576,14 +570,14 @@ class Sqldb(object):
         run a select statement against the database, returns a list
         """
         result = []
-        cursor = self.db_connection.cursor()
-        try:
-            for row in cursor.execute(sql_statement):
-                result.append(row)
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"select - could not run sql statement : {sql_statement}",
-                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
-        cursor.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            try:
+                result.extend(iter(cursor.execute(sql_statement)))
+            except Exception: # pylint: disable=broad-except
+                LogRecord(f"select - could not run sql statement : {sql_statement}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+            cursor.close()
         return result
 
     def modify(self, sql_statement, data=None):
@@ -592,17 +586,19 @@ class Sqldb(object):
         """
         result = []
         row_id = -1
-        cursor = self.db_connection.cursor()
-        try:
-            if data:
-                cursor.execute(sql_statement, data)
-            else:
-                cursor.execute(sql_statement)
-            row_id = cursor.lastrowid
-            result = self.db_connection.commit()
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"modify - could not run sql statement : {sql_statement}",
-                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            try:
+                if data:
+                    cursor.execute(sql_statement, data)
+                else:
+                    cursor.execute(sql_statement)
+                row_id = cursor.lastrowid
+                result = self.db_connection.commit()
+            except Exception: # pylint: disable=broad-except
+                LogRecord(f"modify - could not run sql statement : {sql_statement}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+            cursor.close()
 
         return row_id, result
 
@@ -612,15 +608,16 @@ class Sqldb(object):
         """
         result = []
         row_id = -1
-        cursor = self.db_connection.cursor()
-        try:
-            cursor.executemany(sql_statement, data)
-            row_id = cursor.lastrowid
-            result = self.db_connection.commit()
-            cursor.close()
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"modifymany - could not run sql statement : {sql_statement}",
-                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+        if self.db_connection and data:
+            cursor = self.db_connection.cursor()
+            try:
+                cursor.executemany(sql_statement, data)
+                row_id = cursor.lastrowid
+                result = self.db_connection.commit()
+                cursor.close()
+            except Exception: # pylint: disable=broad-except
+                LogRecord(f"modifymany - could not run sql statement : {sql_statement}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
 
         return row_id, result
 
@@ -630,15 +627,16 @@ class Sqldb(object):
         """
         result = []
         row_id = -1
-        cursor = self.db_connection.cursor()
-        try:
-            cursor.executescript(sql_statement)
-            row_id = cursor.lastrowid
-            result = self.db_connection.commit()
-            cursor.close()
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"modifyscript - could not run sql statement : {sql_statement}",
-                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            try:
+                cursor.executescript(sql_statement)
+                row_id = cursor.lastrowid
+                result = self.db_connection.commit()
+                cursor.close()
+            except Exception: # pylint: disable=broad-except
+                LogRecord(f"modifyscript - could not run sql statement : {sql_statement}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
 
         return row_id, result
 
@@ -648,14 +646,15 @@ class Sqldb(object):
         where the keys are the keyword specified
         """
         result = {}
-        cursor = self.db_connection.cursor()
-        try:
-            for row in cursor.execute(selectstmt):
-                result[row[keyword]] = row
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"selectbykeyword - could not run sql statement : {selectstmt}",
-                      level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
-        cursor.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            try:
+                for row in cursor.execute(selectstmt):
+                    result[row[keyword]] = row
+            except Exception: # pylint: disable=broad-except
+                LogRecord(f"selectbykeyword - could not run sql statement : {selectstmt}",
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send()
+            cursor.close()
         return result
 
     def getlast(self, table_name, num, where=''):
@@ -675,9 +674,7 @@ class Sqldb(object):
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
-
-        return results
+        return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
     def getrow(self, row_id, table_name):
         """
@@ -692,22 +689,22 @@ class Sqldb(object):
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
-
-        return results
+        return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
     def getlastrowid(self, table_name):
         """
         return the id of the last row in a table
         """
-        last = -1
         column_id_name = self.tables[table_name]['keyfield']
-        rows = self.api(f"{self.plugin_id}:{self.database_name}.select")(
-            f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}")
-        if rows:
-            last = rows[0]['MAX']
-
-        return last
+        return (
+            rows[0]['MAX']
+            if (
+                rows := self.api(f"{self.plugin_id}:{self.database_name}.select")(
+                    f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}"
+                )
+            )
+            else -1
+        )
 
     def backupdb(self, postname):
         """
@@ -717,19 +714,20 @@ class Sqldb(object):
         #self.cmd_vac()
         LogRecord(f"backupdb - backing up database {self.database_name}",
                   level='debug', sources=[self.plugin_id, __name__]).send()
-        integrity = True
-        cursor = self.db_connection.cursor()
-        cursor.execute('PRAGMA integrity_check')
-        ret = cursor.fetchone()
-        cursor.close()
-        if ret['integrity_check'] != 'ok':
-            integrity = False
-
-        if not integrity:
-            LogRecord(f"backupdb - integrity check failed, aborting backup",
-                      level='error', sources=[self.plugin_id, __name__]).send()
-            return success
-        self.close()
+        if self.db_connection:
+            cursor = self.db_connection.cursor()
+            cursor.execute('PRAGMA integrity_check')
+            ret = cursor.fetchone()
+            cursor.close()
+            integrity = ret['integrity_check'] == 'ok'
+            if not integrity:
+                LogRecord(
+                    "backupdb - integrity check failed, aborting backup",
+                    level='error',
+                    sources=[self.plugin_id, __name__],
+                ).send()
+                return success
+            self.close()
 
         archivedir = self.database_save_directory / 'archive'
         os.makedirs(archivedir, exist_ok=True)

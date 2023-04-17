@@ -43,10 +43,7 @@ class Plugin(BasePlugin):
         @Yname@w  = the name of the manager to get
 
         this function returns the manager instance"""
-        if name in self.api.MANAGERS:
-            return self.api.MANAGERS[name]
-
-        return None
+        return self.api.MANAGERS[name] if name in self.api.MANAGERS else None
 
     # add a manager
     def _api_manager_add(self, name, manager):

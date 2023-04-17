@@ -51,16 +51,8 @@ class SSC(object):
         self.api = API(owner_id=f"{plugin_id}:{name}")
         self.plugin_id = plugin_id
 
-        if 'default' in kwargs:
-            self.default = kwargs['default']
-        else:
-            self.default = ''
-
-        if 'desc' in kwargs:
-            self.desc = kwargs['desc']
-        else:
-            self.desc = 'setting'
-
+        self.default = kwargs.get('default', '')
+        self.desc = kwargs.get('desc', 'setting')
         plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
         plugin_instance.api('libs.api:add')(self.plugin_id, f"ssc.{self.name}", self.getss)
 

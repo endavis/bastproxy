@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import stat
+import contextlib
 
 # Third Party
 
@@ -47,10 +48,8 @@ def convert_keys_to_int(tdict):
     new = {}
     for i in tdict:
         nkey = i
-        try:
+        with contextlib.suppress(ValueError):
             nkey = int(i)
-        except ValueError:
-            pass
         ndata = tdict[i]
         if isinstance(tdict[i], dict):
             ndata = convert_keys_to_int(tdict[i])
@@ -121,7 +120,7 @@ class PersistentDict(dict):
         """
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, _):
         """
         close the file
         """
@@ -138,16 +137,19 @@ class PersistentDict(dict):
             with file_object.open(mode='wb') as f:
                 pickle.dump(dict(self), f, 2)
         else:
-            raise NotImplementedError('Unknown format: ' + repr(self.format))
+            raise NotImplementedError(f'Unknown format: {repr(self.format)}')
 
     def pload(self):
         """
         load from file
         """
         # try formats from most restrictive to least restrictive
-        if self.file_name.exists():
-            if self.flag != 'n' and os.access(self.file_name, os.R_OK):
-                self.load()
+        if (
+            self.file_name.exists()
+            and self.flag != 'n'
+            and os.access(self.file_name, os.R_OK)
+        ):
+            self.load()
 
     def load(self):
         """
@@ -195,7 +197,7 @@ class PersistentDict(dict):
         for k, val in dict(*args, **kwargs).items():
             self[k] = val
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, _):
         return self
 
 class PersistentDictEvent(PersistentDict):
@@ -214,16 +216,17 @@ class PersistentDictEvent(PersistentDict):
         add events for each setting
         """
         global EVENTSSETUP
-        if not EVENTSSETUP:
-            if self.api('libs.api:has')('plugins.core.events:add.event'):
-                EVENTSSETUP = True
-                for i in self:
-                    event_name = f"ev_{self.owner_id}_var_{i}_modified"
-                    self.api('plugins.core.events:add.event')(event_name, self.owner_id,
-                                            description=f"An event raised when {i} is modified in {self.owner_id}",
-                                            arg_descriptions={'var':'The variable that was modified',
-                                            'newvalue':'the new value of the variable',
-                                            'oldvalue':'the old value of the variable, will be "__init__" if the variable was not set before'})
+        if not EVENTSSETUP and self.api('libs.api:has')(
+            'plugins.core.events:add.event'
+        ):
+            EVENTSSETUP = True
+            for i in self:
+                event_name = f"ev_{self.owner_id}_var_{i}_modified"
+                self.api('plugins.core.events:add.event')(event_name, self.owner_id,
+                                        description=f"An event raised when {i} is modified in {self.owner_id}",
+                                        arg_descriptions={'var':'The variable that was modified',
+                                        'newvalue':'the new value of the variable',
+                                        'oldvalue':'the old value of the variable, will be "__init__" if the variable was not set before'})
 
     def __setitem__(self, key, val):
         """
@@ -273,12 +276,11 @@ class PersistentDictEvent(PersistentDict):
                     return
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self.api(f"{plugin_instance.plugin_id}:setting.get")(i)
-                old_value = old_value
             else:
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self[i]
-                old_value = old_value
 
+            old_value = old_value
             self.api('plugins.core.events:raise.event')(
                 event_name,
                 {'var':i,
@@ -290,9 +292,6 @@ class PersistentDictEvent(PersistentDict):
         always put plugin version in here
         """
         plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
-        try:
+        with contextlib.suppress(AttributeError):
             self['_version'] = plugin_instance.version
-        except AttributeError:
-            pass
-
         super().sync()

@@ -162,12 +162,9 @@ class Plugin(BasePlugin):
         tinput = sinput.split('\n')
 
         olist = []
+        lastchar = ''
         for line in tinput:
-            if line and line[-1] == '\n':
-                lastchar = '\n'
-            else:
-                lastchar = ''
-
+            lastchar = '\n' if line and line[-1] == '\n' else ''
             line = line.rstrip()
             #line = fixstring(line)
             if '@@' in line:
@@ -179,7 +176,7 @@ class Plugin(BasePlugin):
             tstart = 0
             tend = 0
 
-            for i in range(0, len(tlist)):
+            for i in range(len(tlist)):
                 #print 'checking %s, i = %s' % (tlist[i], i)
                 if tlist[i]:
                     if tlist[i][0] == '@' and tlist[i][1] in 'xzcmyrgbwCMYRGBWD':
@@ -191,10 +188,7 @@ class Plugin(BasePlugin):
                         else:
                             #print 'would just add %s' % words
                             nlist.append(''.join(words))
-                        if tlist[i][1] in ['x', 'z']:
-                            color = tlist[i]
-                        else:
-                            color = tlist[i]
+                        color = tlist[i][1] if tlist[i][1] in ['x', 'z'] else tlist[i]
                         tstart = i + 1
                         tend = i + 1
                     else:
@@ -234,12 +228,10 @@ class Plugin(BasePlugin):
         """
         if re.match(r"^@[cmyrgbwCMYRGBWD]$", color):
             return True
-        else:
-            mat = XTERM_COLOR_REGEX.match(color)
-            if mat:
-                num = int(mat.groupdict()['num'])
-                if num >= 0 and num < 257:
-                    return True
+        if mat := XTERM_COLOR_REGEX.match(color):
+            num = int(mat.groupdict()['num'])
+            if num >= 0 and num < 257:
+                return True
 
         return False
 
@@ -250,31 +242,25 @@ class Plugin(BasePlugin):
         """
         if '@' in tstr:
             if tstr[-2:] != '@w':
-                tstr = tstr + '@w'
+                tstr = f'{tstr}@w'
             tstr = fixstring(tstr)
-            #if test:
-                #print 'After fixstring', tstr
-            tstr2 = ''
             tmat = re.search(r"@(\w)([^@]+)", tstr)
-            if tmat and tmat.start() != 0:
-                tstr2 = tstr[0:tmat.start()]
+            tstr2 = tstr[:tmat.start()] if tmat and tmat.start() != 0 else ''
             for tmatch in re.finditer(r"@(\w)([^@]+)", tstr):
                 color, text = tmatch.groups()
                 if color == 'x':
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
-                    color = '38;5;%s' % tcolor
+                    color = f'38;5;{tcolor}'
                     tstr2 = tstr2 + self._api_ansicode(color, newtext)
                 elif color == 'z':
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
-                    color = '48;5;%s' % tcolor
+                    color = f'48;5;{tcolor}'
                     tstr2 = tstr2 + self._api_ansicode(color, newtext)
                 else:
                     tstr2 = tstr2 + self._api_ansicode(libs.colors.CONVERTCOLORS[color], text)
 
             if tstr2:
                 tstr = tstr2 + '%c[0m' % chr(27)
-        else:
-            pass
         tstr = re.sub('\0', '@', tstr)    # put @ back in
         return tstr
 
@@ -290,7 +276,7 @@ class Plugin(BasePlugin):
             """
             argsdict = match.groupdict()
             tstr = ''
-            tstr = tstr + argsdict['arg_1']
+            tstr += argsdict['arg_1']
             if argsdict['arg_2']:
                 tstr = tstr + ';%d' % int(argsdict['arg_2'])
 
@@ -298,7 +284,7 @@ class Plugin(BasePlugin):
                 tstr = tstr + ';%d' % int(argsdict['arg_3'])
 
             try:
-                return '@%s' % libs.colors.CONVERTANSI[tstr]
+                return f'@{libs.colors.CONVERTANSI[tstr]}'
             except KeyError:
                 LogRecord(f"could not lookup color {tstr} for text {repr(text)}",
                           level='error', plugin=self.plugin_id).send()
@@ -346,7 +332,7 @@ class Plugin(BasePlugin):
             joinc = ''
         else:
             colors = '@B%-3s : @z%s    @w'
-        for i in range(0, 16):
+        for i in range(16):
             if i % 8 == 0 and i != 0:
                 message.append(joinc.join(row_message))
                 row_message = []
@@ -362,10 +348,10 @@ class Plugin(BasePlugin):
         row_message = []
 
         for i in range(16, 256):
-            if (i - 16) % 36 == 0 and ((i - 16) != 0 and not i > 233):
+            if (i - 16) % 36 == 0 and i != 16 and i <= 233:
                 row_message.append('\n')
 
-            if (i - 16) % 6 == 0 and (i - 16) != 0:
+            if (i - 16) % 6 == 0 and i != 16:
                 message.append(joinc.join(row_message))
                 row_message = []
 
@@ -389,14 +375,16 @@ class Plugin(BasePlugin):
           Show examples of how to use colors
           @CUsage@w: example
         """
-        message = ['']
-        message.append('Examples')
-        message.append('Raw   : @@z165Regular text with color 165 Background@@w')
-        message.append('Color : @z165Regular text with color 165 Background@w')
-        message.append('Raw   : @@x165@zcolor 165 text with regular Background@@w')
-        message.append('Color : @x165color 165 text with regular Background@w')
-        message.append('Raw   : @@z255@@x0color 0 text with color 255 Background@@w')
-        message.append('Color : @z255@x0color 0 text with color 255 Background@w')
-        message.append('Note: see the show command to show the table of colors')
-        message.append('')
+        message = [
+            '',
+            'Examples',
+            'Raw   : @@z165Regular text with color 165 Background@@w',
+            'Color : @z165Regular text with color 165 Background@w',
+            'Raw   : @@x165@zcolor 165 text with regular Background@@w',
+            'Color : @x165color 165 text with regular Background@w',
+            'Raw   : @@z255@@x0color 0 text with color 255 Background@@w',
+            'Color : @z255@x0color 0 text with color 255 Background@w',
+            'Note: see the show command to show the table of colors',
+            '',
+        ]
         return True, message

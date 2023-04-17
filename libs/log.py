@@ -54,21 +54,20 @@ class CustomColorFormatter(logging.Formatter):
         }
 
     def format(self, record: logging.LogRecord):
-        if 'exc_info' in record.__dict__:
-            if record.exc_info:
-                formatted_exc = traceback.format_exception(record.exc_info[1])
-                formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
-                if isinstance(record.msg, LogRecord):
-                    record.msg.extend(formatted_exc_no_newline)
-                    record.msg.addupdate('Modify', 'add traceback', 'CustomColorFormatter')
-                    record.msg.format()
-                elif isinstance(record.msg, str):
-                    record.msg += '\n'.join(formatted_exc_no_newline)
-                record.exc_info = None
-                record.exc_text = None
+        if 'exc_info' in record.__dict__ and record.exc_info:
+            formatted_exc = traceback.format_exception(record.exc_info[1])
+            formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
+            if isinstance(record.msg, LogRecord):
+                record.msg.extend(formatted_exc_no_newline)
+                record.msg.addupdate('Modify', 'add traceback', 'CustomColorFormatter')
+                record.msg.format()
+            elif isinstance(record.msg, str):
+                record.msg += '\n'.join(formatted_exc_no_newline)
+            record.exc_info = None
+            record.exc_text = None
         if self.api('libs.api:has')('plugins.core.log:get.level.color'):
             color = self.api('plugins.core.log:get.level.color')(record.levelno)
-            log_fmt = f"\x1b[{libs.colors.ALLCONVERTCOLORS[color]}m" + self.fmt + self.reset
+            log_fmt = f"\x1b[{libs.colors.ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
         else:
             log_fmt = self.FORMATS.get(record.levelno)
 
@@ -82,12 +81,12 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
-        canlog = True
-        # can we log to the console for this logger
-        if self.api('libs.api:has')('plugins.core.log:can.log.to.console'):
-            if not self.api('plugins.core.log:can.log.to.console')(record.name, record.levelno):
-                canlog = False
-
+        canlog = bool(
+            not self.api('libs.api:has')('plugins.core.log:can.log.to.console')
+            or self.api('plugins.core.log:can.log.to.console')(
+                record.name, record.levelno
+            )
+        )
         if type(record.msg) == LogRecord:
             if canlog and not record.msg.wasemitted['console']:
                 record.msg.wasemitted['console'] = True
@@ -102,19 +101,18 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
-        # can we log to the file for this logger
-        canlog = True
-        if self.api('libs.api:has')('plugins.core.log:can.log.to.file'):
-            if not self.api('plugins.core.log:can.log.to.file')(record.name, record.levelno):
-                canlog = False
-
-        if canlog:
-            if type(record.msg) == LogRecord:
-                if not record.msg.wasemitted['file']:  # pyright:ignore[reportGeneralTypeIssues]
-                    record.msg.wasemitted['file'] = True  # pyright:ignore[reportGeneralTypeIssues]
-                    super().emit(record)
-                else:
-                    super().emit(record)
+        canlog = bool(
+            not self.api('libs.api:has')('plugins.core.log:can.log.to.file')
+            or self.api('plugins.core.log:can.log.to.file')(
+                record.name, record.levelno
+            )
+        )
+        if type(record.msg) == LogRecord:
+            if canlog and not record.msg.wasemitted['file']:
+                record.msg.wasemitted['file'] = True
+                super().emit(record)
+        elif canlog:
+            super().emit(record)
 
 
 class CustomClientHandler(logging.Handler):
@@ -127,12 +125,12 @@ class CustomClientHandler(logging.Handler):
         if self.api.startup:
             return
 
-        # can we log to the client for this logger
-        canlog = True
-        if self.api('libs.api:has')('plugins.core.log:can.log.to.client'):
-            if not self.api('plugins.core.log:can.log.to.client')(record.name, record.levelno):
-                canlog = False
-
+        canlog = bool(
+            not self.api('libs.api:has')('plugins.core.log:can.log.to.client')
+            or self.api('plugins.core.log:can.log.to.client')(
+                record.name, record.levelno
+            )
+        )
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if type(record.msg) == LogRecord:
@@ -161,13 +159,19 @@ def setup_loggers(log_level: int):
 
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path,
                                                     when='midnight')
-    file_handler.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
+    file_handler.formatter = logging.Formatter(
+        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+    )
 
     console_handler = CustomConsoleHandler()
-    console_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
+    console_handler.formatter = CustomColorFormatter(
+        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+    )
 
     client_handler = CustomClientHandler()
-    client_handler.formatter = CustomColorFormatter("%(asctime)s " + API.TIMEZONE + " : %(levelname)-9s - %(name)-22s - %(message)s")
+    client_handler.formatter = CustomColorFormatter(
+        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+    )
 
     # add the handler to the root logger
     logging.getLogger().addHandler(file_handler)
@@ -182,6 +186,8 @@ def setup_loggers(log_level: int):
     data_logger = logging.getLogger("data")
     data_logger.setLevel(logging.INFO)
     data_logger_file_handler = logging.handlers.TimedRotatingFileHandler(data_logger_log_file_path, when='midnight')
-    data_logger_file_handler.formatter = logging.Formatter("%(asctime)s " + API.TIMEZONE + " : %(name)-11s - %(message)s")
+    data_logger_file_handler.formatter = logging.Formatter(
+        f"%(asctime)s {API.TIMEZONE} : %(name)-11s - %(message)s"
+    )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False

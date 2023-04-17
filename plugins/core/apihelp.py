@@ -104,10 +104,9 @@ class Plugin(BasePlugin):
         api = self.api
         if args['noplugin']:
             api = API(owner_id=f"{self.plugin_id}:cmd_list")
-        apilist = api('libs.api:list')(args['toplevel'])
-        if not apilist:
-            tmsg.append('%s does not exist in the api' % args['toplevel'])
-        else:
+        if apilist := api('libs.api:list')(args['toplevel']):
             tmsg.extend(apilist)
 
+        else:
+            tmsg.append(f"{args['toplevel']} does not exist in the api")
         return True, tmsg

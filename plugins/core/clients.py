@@ -90,9 +90,7 @@ class Plugin(BasePlugin):
         """
         get a connection
         """
-        if client_uuid in self.clients:
-            return self.clients[client_uuid]
-        return None
+        return self.clients[client_uuid] if client_uuid in self.clients else None
 
     def api_addbanned(self, client_uuid):
         """
@@ -118,10 +116,10 @@ class Plugin(BasePlugin):
         """
         check if a client is logged in
         """
-        if client_uuid in self.clients and self.clients[client_uuid].state['logged in']:
-            return True
-
-        return False
+        return bool(
+            client_uuid in self.clients
+            and self.clients[client_uuid].state['logged in']
+        )
 
     def _api_client_logged_in(self, client_uuid):
         """
@@ -181,7 +179,6 @@ class Plugin(BasePlugin):
         """
         remove a connected client
         """
-        removed = False
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_disconnected",
@@ -202,22 +199,21 @@ class Plugin(BasePlugin):
         return a dictionary of clients
         two keys: view, active
         """
-        clients = []
-        if uuid_only:
-            clients = self.clients.keys()
-        else:
-            clients = self.clients.values()
-        return clients
+        return self.clients.keys() if uuid_only else self.clients.values()
 
-    def cmd_show(self, args): # pylint: disable=unused-argument
+    def cmd_show(self, args):    # pylint: disable=unused-argument
         """
         show all clients
         """
         clientformat = '%-6s %-17s %-7s %-17s %-12s %-s'
-        tmsg = ['']
-        tmsg.append(clientformat % ('Type', 'Host', 'Port',
-                                    'Client', 'Connected', 'View Only'))
-        tmsg.append('@B' + 70 * '-')
+        tmsg = [
+            '',
+            (
+                clientformat
+                % ('Type', 'Host', 'Port', 'Client', 'Connected', 'View Only')
+            ),
+            '@B' + 70 * '-',
+        ]
         for i in self.clients:
             client = self.clients[i]
             ttime = self.api('plugins.core.utils:convert.timedelta.to.string')(

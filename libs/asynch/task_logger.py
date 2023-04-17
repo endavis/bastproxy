@@ -8,7 +8,7 @@
 #
 # By: Vita/Bast
 # Standard Library
-from typing import Any, Coroutine, Optional, TypeVar, Tuple
+from typing import Any, Coroutine, Optional, TypeVar
 
 import asyncio
 import functools

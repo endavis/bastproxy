@@ -26,7 +26,7 @@ class LoadedPluginInfo():
         self.author: str = ''
         self.base_plugin_dir: Path = Path()
         self.dev: bool = False
-        self.full_import_location = None
+        self.full_import_location: str | None = None
         self.importedtime: datetime.datetime = datetime.datetime(1970, 1, 1)
         self.isimported: bool = False
         self.isinitialized: bool = False

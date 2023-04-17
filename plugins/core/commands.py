@@ -883,16 +883,13 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id, called_from]).send()
             return
 
+
         # find the plugin_id
         if 'plugin_id' in args:
             plugin_id = args['plugin_id']
             del args['plugin_id']
         else:
-            plugin_id = self.api('libs.api:get.function.owner.plugin')(func)
-
-
-        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
-            plugin_id = called_from
+            plugin_id = self.api('libs.api:get.function.owner.plugin')(func) or called_from
 
         if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",

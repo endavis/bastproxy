@@ -72,16 +72,12 @@ class Plugin(BasePlugin):
         """
         show all errors that happened during startup
         """
-        errors = self.api('plugins.core.errors:get.errors')()
-
-        msg = ['The following errors happened during startup:']
-        if errors:
-            msg.append('Proxy Errors')
+        if errors := self.api('plugins.core.errors:get.errors')():
+            msg = ['The following errors happened during startup:', 'Proxy Errors']
             for i in errors:
-                msg.append('')
-                msg.append(f"Time: {i['timestamp']}")
-                msg.append(f"Error: {i['msg']}")
-
+                msg.extend(('',
+                            f"Time  : {i['timestamp']}",
+                            f"Error : {i['msg']}"))
             LogRecord(msg, level='error', sources=[self.plugin_id, 'mudproxy']).send()
 
 
@@ -121,34 +117,27 @@ class Plugin(BasePlugin):
           @CUsage@w: show
         """
         msg = []
-        args = args if args else {}
+        args = args or {}
         try:
             number = int(args['number'])
         except ValueError:
             msg.append('Please specify a number')
             return False, msg
 
-        errors = self.api('plugins.core.errors:get.errors')()
-
-        if not errors:
-            msg.append('There are no errors')
-        else:
+        if errors := self.api('plugins.core.errors:get.errors')():
             if args and number > 0:
-                for i in errors[-int(number):]:
-                    msg.append('')
-                    msg.append(f"Time: {i['timestamp']}")
-                    msg.append(f"Error: {i['msg']}")
-
+                for i in errors[-number:]:
+                    msg.extend(('', f"Time  : {i['timestamp']}",
+                                    f"Error : {i['msg']}"))
             else:
                 for i in errors:
-                    msg.append('')
-                    msg.append(f"Time: {i['timestamp']}")
-                    msg.append(f"Error: {i['msg']}")
-
+                    msg.extend(('', f"Time   : {i['timestamp']}",
+                                    f"Error  : {i['msg']}"))
+        else:
+            msg.append('There are no errors')
         return True, msg
 
-    def cmd_clear(self, args=None):
-        # pylint: disable=unused-argument
+    def cmd_clear(self, _=None):
         """
         clear errors
         """
