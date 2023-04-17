@@ -29,6 +29,8 @@ from itertools import chain
 import traceback
 from pathlib import Path
 from datetime import datetime
+from functools import lru_cache
+import logging
 
 # Third Party
 
@@ -57,6 +59,7 @@ def stackdump(id='', msg='HERE') -> None:
         print('\n'.join(lines))
         print()
 
+@lru_cache(maxsize=128)
 def get_args(api_function: typing.Callable) -> str:
     """
     Get the arguments of a given function from a it's function declaration.
@@ -96,28 +99,33 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
     Returns:
         str: The owner ID of the plugin on the stack.
     """
-    ignore_owner_list = ignore_owner_list if ignore_owner_list else []
+    ignore_list = ignore_owner_list or []
 
     caller_id = 'unknown'
-    try:
-        stack = inspect.stack()
-    except IndexError:
-        return caller_id
 
-    for ifr in stack[1:]:
-        parent_frame = ifr[0]
-        if 'self' in parent_frame.f_locals and not isinstance(parent_frame.f_locals['self'], APIItem):
-            tcs = parent_frame.f_locals['self']
-            if hasattr(tcs, 'owner_id') and tcs.owner_id and tcs.owner_id not in ignore_owner_list:
-                caller_id = tcs.owner_id
-                break
-            if hasattr(tcs, 'api'):
-                if isinstance(tcs.api, API):
-                    if tcs.api.owner_id and tcs.api.owner_id not in ignore_owner_list:
-                        caller_id = tcs.api.owner_id
-                        break
+    if frame := inspect.currentframe():
+        while frame := frame.f_back:
+            if 'self' in frame.f_locals and not isinstance(frame.f_locals['self'], APIItem):
+                tcs = frame.f_locals['self']
+                if (
+                    hasattr(tcs, 'owner_id')
+                    and tcs.owner_id
+                    and tcs.owner_id not in ignore_list
+                ):
+                    caller_id = tcs.owner_id
+                    break
+                if (
+                    hasattr(tcs, 'api')
+                    and isinstance(tcs.api, API)
+                    and tcs.api.owner_id
+                    and tcs.api.owner_id not in ignore_list
+                ):
+                    caller_id = tcs.api.owner_id
+                    break
 
-    del stack
+    if caller_id == 'unknown':
+        logger = logging.getLogger(__name__)
+        logger.warn(f"Unknown caller_id for API call: {inspect.stack()[1][3]}")
 
     return caller_id
 
@@ -529,6 +537,7 @@ class API():
         returns the plugin_id of the plugin on the stack"""
         return get_caller_owner_id(ignore_owner_list)
 
+    @lru_cache(maxsize=128)
     def _api_get_function_plugin_owner(self, function: typing.Callable) -> str:
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
