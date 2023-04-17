@@ -1039,7 +1039,7 @@ class Plugin(BasePlugin):
         message = []
         command = args['command']
         plugin_id = args['plugin']
-        if not self.api('plugins.core.pluginm.is.plugin.id')(plugin_id):
+        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             message.append('Plugins')
             plugin_id_list = self.api('plugins.core.pluginm:get.loaded.plugins.list')()
             plugin_id_list = sorted(plugin_id_list)
