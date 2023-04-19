@@ -28,6 +28,7 @@ import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord, EventArgsRecord
 from libs.event import Event
+from libs.stack import SimpleStack
 
 NAME = 'Event Handler'
 SNAME = 'events'
@@ -47,7 +48,7 @@ class Plugin(BasePlugin):
 
         self.global_raised_count: int = 0
         self.current_event: Event | None = None
-        #self.event_stats = {}
+        self.event_stack = SimpleStack(100)
 
         self.events: dict[str, Event] = {}
 
@@ -62,6 +63,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get.event.detail', self._api_get_event_detail)
         self.api('libs.api:add')(self.plugin_id, 'get.current.event.name', self._get_current_event_name)
         self.api('libs.api:add')(self.plugin_id, 'get.current.event.record', self._get_current_event_record)
+        self.api('libs.api:add')(self.plugin_id, 'get.event.stack', self._get_event_stack)
 
         self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
@@ -141,13 +143,22 @@ class Plugin(BasePlugin):
         """
         return the current event name
         """
-        return self.current_event.name if self.current_event else None
+        return self.event_stack.peek()
 
     def _get_current_event_record(self):
         """
         return the current event record
         """
-        return self.current_event.current_record if self.current_event else None
+        if last_event := self.event_stack.peek():
+            event = self.api(f"{self.plugin_id}:get.event")(last_event)
+            return event.current_record
+        return None
+
+    def _get_event_stack(self):
+        """
+        return the current event stack
+        """
+        return self.event_stack.getstack()
 
     # add an event for this plugin to track
     def _api_add_event(self, event_name: str, created_by: str, description: str = '',
@@ -254,16 +265,14 @@ class Plugin(BasePlugin):
 
         self.global_raised_count += 1
 
-        # Save the current event if there is one
-        # the event is saved so that get.current.event.record works
-        old_event = self.current_event or None
+        # push the evnet onto the stack
+        self.event_stack.push(event.name)
 
-        # Set the current event
-        self.current_event = event
         success = event.raise_event(args, calledfrom)
 
-        # Restore the old event
-        self.current_event = old_event
+        # pop it back off
+        self.event_stack.pop()
+
         return success
 
     # get the details of an event
