@@ -56,7 +56,7 @@ class MudConnection:
         # rows = self.writer.protocol._extra['rows']
         # term = self.writer.protocol._extra['TERM']
 
-    def send_to(self, data: ToClientRecord) -> None:
+    def send_to(self, data: ToMudRecord) -> None:
         """
         add data to the queue
         """
