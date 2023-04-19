@@ -190,7 +190,7 @@ class Plugin(BasePlugin):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            self.api(f'{self.plugin_id}:remove.data.for.plugin')(event_record['plugin_id'])
+            self.api(f'{self.plugin_id}:remove.data.for.owner')(event_record['plugin_id'])
 
     def rebuild_regexes(self):
         """

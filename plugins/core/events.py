@@ -137,7 +137,7 @@ class Plugin(BasePlugin):
         if event_record := self.api('plugins.core.events:get.current.event.record')():
             LogRecord(f"evc_plugin_uninitialized - removing events for {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
-            self.api(f"{self.plugin_id}:remove.events.for.plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 
     def _get_current_event_name(self):
         """
