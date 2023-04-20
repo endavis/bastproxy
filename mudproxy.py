@@ -144,8 +144,19 @@ if __name__ == "__main__":
         '--port',
         help='the port for the proxy to listen on',
         default=9000)
+    parser.add_argument(
+        '-pf',
+        '--profile',
+        help='profile code',
+        action='store_true',
+        default=False)
 
     args = vars(parser.parse_args())
 
     MP = MudProxy()
-    MP.run(args)
+
+    if args['profile']:
+        import cProfile
+        cProfile.run('MP.run(args)', filename='proxy.profile')
+    else:
+        MP.run(args)
