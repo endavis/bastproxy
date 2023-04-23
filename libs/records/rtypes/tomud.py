@@ -66,7 +66,8 @@ class ToMudRecord(BaseDataRecord):
 
         this will split the data along the command seperator and along newlines
         """
-        self.addupdate('Info', f"{'Start':<8}: Prepare", f"{actor}:prepare", savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: Prepare", f"{actor}:prepare", savedata=False,
+                       extra={'msg': 'split the data along the command seperator and along newlines'})
 
         new_message = []
         for item in self:
@@ -75,7 +76,10 @@ class ToMudRecord(BaseDataRecord):
             # split the line along newlines
             lines = line.split('\r\n')
             if len(lines) > 1:
-                self.addupdate('Info', "split (CRLF)", f"{actor}:prepare", extra={'line':line, 'newlines':lines}, savedata=False)
+                self.addupdate('Info', "split (CRLF)", f"{actor}:prepare",
+                               extra={'line':line, 'newlines':lines,
+                                      'msg': 'split the data along newlines'},
+                               savedata=False)
 
             for line in lines:
                 # split the line if it has the command seperator in it
@@ -84,13 +88,15 @@ class ToMudRecord(BaseDataRecord):
                 else:
                     split_data = [line]
                 if len(split_data) > 1:
-                    self.addupdate('Info', "split (Split_Char)", f"{actor}:prepare", extra={'line':line, 'newlines':split_data},
+                    self.addupdate('Info', "split (Split_Char)", f"{actor}:prepare",
+                                   extra={'line':line, 'newlines':split_data,
+                                          'msg': 'split the data along the command seperator'},
                                     savedata=False)
                     new_message.extend(split_data)
                 else:
                     new_message.append(line)
 
-        self.replace(new_message, f"{actor}:prepare")
+        self.replace(new_message, actor=f"{actor}:prepare")
 
         self.addupdate('Info', f"{'Complete':<8}: Prepare", f"{actor}:prepare", savedata=False)
 
@@ -101,13 +107,14 @@ class ToMudRecord(BaseDataRecord):
         take out double command seperators and replaces them with a single one before
         sending the data to the mud
         """
-        self.addupdate('Info', f"{'Start':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False,
+                       extra={'msg': 'take out double command seperators and replaces them with a single one'})
         new_message = []
         for line in self:
             current_line = line.replace('||', '|')
             new_message.append(current_line)
 
-        self.replace(new_message, f"{actor}:fix_double_command_seperator")
+        self.replace(new_message, actor=f"{actor}:fix_double_command_seperator")
 
         self.addupdate('Info', f"{'Complete':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
 
@@ -118,7 +125,7 @@ class ToMudRecord(BaseDataRecord):
         if not self.internal and self.is_io:
             self.addupdate('Info', f"{'Start':<8}: Format", f"{actor}:format", savedata=False)
             self.add_line_endings(f"{actor}:format")
-            self.color_lines(f"{actor}:format")
+            self.color_lines('', f"{actor}:format")
             self.fix_double_command_seperator(f"{actor}:format")
             self.addupdate('Info', f"{'Complete':<8}: Format", f"{actor}:format", savedata=False)
 
@@ -159,7 +166,7 @@ class ToMudRecord(BaseDataRecord):
                 new_message.append(event_args['line'])
 
             self.replace(new_message, f"{actor}:{self.modify_data_event_name}")
-            self.addupdate('Info', f'After event {self.modify_data_event_name}', f"{actor}:send")
+            self.addupdate('Info', f'Data after event {self.modify_data_event_name}', f"{actor}:send")
 
         if self.send_to_mud:
             self.format(f"{actor}:send")

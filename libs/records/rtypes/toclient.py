@@ -175,7 +175,7 @@ class ToClientRecord(BaseDataRecord):
                                 level='debug', stack_info=True, sources=[__name__]).send()
             return
         self.sending = True
-        self.addupdate('Info', 'Starting Send', actor, savedata=False)
+        self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
 
         # If it came from the mud, pass each line through the event system to allow plugins to modify it
         if not self.internal and self.is_io:
@@ -222,4 +222,4 @@ class ToClientRecord(BaseDataRecord):
         if self.is_io:
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToClientRecord': self})
 
-        self.addupdate('Info', 'Completed sending data', f"{actor}:send", savedata=False)
+        self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)
