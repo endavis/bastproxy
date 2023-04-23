@@ -59,9 +59,9 @@ class PluginMgr(BasePlugin):
         initialize the instance
         """
         super().__init__('Plugin Manager', #name,
-                      Path('_rmanager.py'), #plugin_path
+                      Path('_manager.py'), #plugin_path
                       API.BASEPLUGINPATH, # base_plugin_dir
-                      'plugins.__init__', # full_import_location
+                      'plugins._manager', # full_import_location
                       'plugins.core.pluginm' # plugin_id
             )
 
