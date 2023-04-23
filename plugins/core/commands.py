@@ -792,7 +792,7 @@ class Plugin(BasePlugin):
             # got it all
             command_item = command_data[new_command]
 
-            return command_item, command_args, True, f'found {new_command}', message
+            return command_item, command_args, True, f'found {command_item.full_cmd}', message
 
     def evc_check_for_command(self) -> None:
         """
