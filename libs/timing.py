@@ -11,6 +11,7 @@ this module is for timing functions
 # Standard Library
 from functools import wraps
 from timeit import default_timer
+from uuid import uuid4
 
 # 3rd Party
 
@@ -30,10 +31,11 @@ def duration(func):
     """
     the wrapper to find the duration of a function
     """
+    uid = uuid4().hex
     tname = f"{func.func_name}"
-    TIMING.starttimer(tname, arg)
+    TIMING.starttimer(uid, tname, arg)
     res = func(*arg)
-    TIMING.finishtimer(tname, arg)
+    TIMING.finishtimer(uid, tname, arg)
     return res
   return wrapper
 
@@ -58,36 +60,32 @@ class Timing(object):
     """
     toggle the timing flag
     """
-    if tbool is None:
-      self.enabled = not self.enabled
-    else:
-      self.enabled = bool(tbool)
+    self.enabled = not self.enabled if tbool is None else bool(tbool)
 
-  def starttimer(self, timername, args=None):
+  def starttimer(self, uid, timername, args=None):
     """
     start a timer
     """
     if self.enabled:
       owner_id = self.api('libs.api:get.caller.owner')()
-      self.timing[timername] = {}
-      self.timing[timername]['start'] = default_timer()
-      self.timing[timername]['owner_id'] = owner_id
-      LogRecord(f"starttimer - {timername:<20} : started - from {owner_id} with args {args}",
+      self.timing[uid] = {'name': timername, 'start': default_timer(),
+                          'owner_id': owner_id}
+      LogRecord(f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
                 level='debug', sources=[__name__, owner_id]).send()
 
-  def finishtimer(self, timername, args=None):
+  def finishtimer(self, uid, timername, args=None):
     """
     finish a timer
     """
     if self.enabled:
       timerfinish = default_timer()
-      if timername in self.timing:
-        LogRecord(f"finishtimer - {timername:<20} : finished in {(timerfinish - self.timing[timername]['start']) * 1000.0} ms - with args {args}",
-                    level='debug', sources=[__name__, self.timing[timername]['owner_id']]).send()
+      if uid in self.timing:
+        LogRecord(f"finishtimer - {uid} {timername:<20} : finished in {(timerfinish - self.timing[uid]['start']) * 1000.0} ms - with args {args}",
+                    level='debug', sources=[__name__, self.timing[uid]['owner_id']]).send()
         del self.timing[timername]
       else:
         owner_id = self.api('libs.api:get.caller.owner')()
-        LogRecord(f"finishtimer - {timername:<20} : not found - called from {owner_id}",
+        LogRecord(f"finishtimer - {uid} {timername:<20} : not found - called from {owner_id}",
                     level='error', sources=[__name__, owner_id]).send()
 
 TIMING = Timing()
