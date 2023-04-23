@@ -98,19 +98,19 @@ for colorc in CONVERTCOLORS:
     CONVERTANSI[CONVERTCOLORS[colorc]] = colorc
 
 #xterm colors
-for xtn in range(0, 256):
+for xtn in range(256):
     CONVERTANSI['38;5;%d' % xtn] = 'x%d' % xtn
     CONVERTANSI['48;5;%d' % xtn] = 'z%d' % xtn
 
 #backgrounds
 for acn in range(40, 48):
-    CONVERTANSI['%s' % acn] = CONVERTANSI['48;5;%d' % (acn - 40)]
+    CONVERTANSI[f'{acn}'] = CONVERTANSI['48;5;%d' % (acn - 40)]
 
 #foregrounds
 for abn in range(30, 38):
-    CONVERTANSI['%s' % abn] = CONVERTANSI['0;%d' % abn]
+    CONVERTANSI[f'{abn}'] = CONVERTANSI['0;%d' % abn]
 
 ALLCONVERTCOLORS = CONVERTCOLORS.copy()
 for item in CONVERTANSI:
     ALLCONVERTCOLORS[CONVERTANSI[item]] = item
-    ALLCONVERTCOLORS['@' + CONVERTANSI[item]] = item
+    ALLCONVERTCOLORS[f'@{CONVERTANSI[item]}'] = item
