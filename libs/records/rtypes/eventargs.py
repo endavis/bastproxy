@@ -46,6 +46,6 @@ class EventArgsRecord(BaseRecord, UserDict):
             when it ends up at it's destination
         """
         data = self.copy() if saveargs else None
-        change = UpdateRecord(flag, action, actor, extra, data)
+        change = UpdateRecord(self, flag, action, actor, extra, data)
 
         self.updates.add(change)

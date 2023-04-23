@@ -809,6 +809,8 @@ class Plugin(BasePlugin):
 
                 clients = [event_record['client_id']] if event_record['client_id'] else None
 
+                event_record['sendtomud'] = False
+
                 command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
 
                 if message:

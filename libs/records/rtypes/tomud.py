@@ -46,6 +46,8 @@ class ToMudRecord(BaseDataRecord):
         self.client_id = client_id
         self.modify_data_event_name = 'ev_to_mud_data_modify'
         self.read_data_event_name = 'ev_to_mud_data_read'
+        if event_record := self.api('plugins.core.events:get.current.event.record')():
+            event_record.add_related_record(self)
         self.setup_events()
 
     def setup_events(self):
@@ -151,24 +153,23 @@ class ToMudRecord(BaseDataRecord):
                                                             'sendtomud':True,
                                                             'client_id':self.client_id,})
 
-                if not event_args['sendtomud']:
-                    self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
-                                    f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'event_args':event_args},
-                                    savedata=False)
-                    continue
-
                 if event_args['line'] != line:
                     self.addupdate('Modify', f"event:{self.modify_data_event_name} modified line" ,
                                     f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'newline':event_args['data']}, savedata=False)
+                    self.add_related_record(event_args)
 
-                self.addupdate('Info', f"event:{self.modify_data_event_name} returned", f"{actor}:send:{self.modify_data_event_name}",
-                                extra={'event_args':event_args}, savedata=False)
-                new_message.append(event_args['line'])
+                if event_args['sendtomud']:
+                    new_message.append(event_args['line'])
+                else:
+                    self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
+                                    f"{actor}:send:{self.modify_data_event_name}", extra={'line':line},
+                                    savedata=False)
+                    self.add_related_record(event_args)
 
             self.replace(new_message, f"{actor}:{self.modify_data_event_name}")
             self.addupdate('Info', f'Data after event {self.modify_data_event_name}', f"{actor}:send")
 
-        if self.send_to_mud:
+        if self.send_to_mud and self:
             self.format(f"{actor}:send")
             mud_connection = self.api('plugins.core.proxy:get.mud.connection')()
             mud_connection.send_to(self)

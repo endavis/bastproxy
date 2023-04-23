@@ -56,6 +56,9 @@ class ToClientRecord(BaseDataRecord):
         self.color_for_all_lines: str = color_for_all_lines or ''
         self.modify_data_event_name = 'ev_to_client_data_modify'
         self.read_data_event_name = 'ev_to_client_data_read'
+        if event_record:= self.api('plugins.core.events:get.current.event.record')():
+            event_record.add_related_record(self)
+
         self.setup_events()
 
     def setup_events(self):
@@ -185,22 +188,22 @@ class ToClientRecord(BaseDataRecord):
                 event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'line': line,
                                                                                                         'internal': self.internal,
                                                                                                         'sendtoclient': True})
-                if not event_args['sendtoclient']:
-                    self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
-                                    f"{actor}:send:{self.modify_data_event_name}",
-                                    extra={'line':line, 'event_args':event_args},
-                                    savedata=False)
-                    continue
 
                 if event_args['line'] != line:
                     self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args},
                                     savedata=False)
+                    self.add_related_record(event_args)
 
-                self.addupdate('Info', f"event {self.modify_data_event_name}", f"{actor}:send", extra={'event_args':event_args}, savedata=False)
-
-                tmessage.append(event_args['line'])
+                if event_args['sendtoclient']:
+                    tmessage.append(event_args['line'])
+                else:
+                    self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
+                                    f"{actor}:send:{self.modify_data_event_name}",
+                                    extra={'line':line},
+                                    savedata=False)
+                    self.add_related_record(event_args)
 
             self.replace(tmessage, f"{actor}:send:{self.modify_data_event_name}")
             self.addupdate('Info', f'After event {self.modify_data_event_name}', actor)

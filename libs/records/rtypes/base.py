@@ -33,7 +33,25 @@ class BaseRecord:
         self.api = API(owner_id=self.owner_id)
         self.created =  datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
+        self.related_records: list[BaseRecord] = []
         RMANAGER.add(self)
+
+    def get_all_related_records(self) -> list:
+        """
+        get all related records
+        """
+        records = []
+        for record in self.related_records:
+            records.append(record)
+            records.extend(record.get_all_related_records())
+        return  [i for n, i in enumerate(records) if i not in records[:n]]
+
+    def add_related_record(self, record):
+        """
+        add a related record
+        """
+        if record not in self.related_records:
+            self.related_records.append(record)
 
     def addupdate(self, flag: str, action: str, actor:str , extra: dict | None = None):
         """
@@ -47,9 +65,44 @@ class BaseRecord:
             after modification
             when it ends up at it's destination
         """
-        change = UpdateRecord(flag, action, actor, extra)
+        change = UpdateRecord(self, flag, action, actor, extra)
 
         self.updates.add(change)
+
+    def get_all_updates(self) -> list[UpdateRecord]:
+        """
+        get all updates for this record
+        """
+        updates = []
+        for record in self.get_all_related_records():
+            updates.extend(record.updates)
+        updates.extend(self.updates)
+
+        updates.sort(key=lambda x: x.time_taken)
+        return updates
+
+    def get_formatted_details(self) -> list[str]:
+        """
+        get a formatted detail string
+        """
+        column_width = 15
+        msg = [
+                f"{'Type':<{column_width}} : {self.__class__.__name__}",
+                f"{'UUID':<{column_width}} : {self.uuid}",
+                f"{'Creation time':<{column_width}} : {self.created}",
+                f"{'Owner ID':<{column_width}} : {self.owner_id}",
+                f"{'Related Records':<{column_width}} :",
+                *[
+                f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
+                for record in self.get_all_related_records()
+                ],
+                f"{'Updates':<{column_width}} :",
+                '-------------------------'
+            ]
+        for update in self.get_all_updates():
+            msg.extend([f"   {line}" for line in update.format_detailed()])
+            msg.append('-------------------------')
+        return msg
 
     def check_for_change(self, flag: str, action: str):
         """
@@ -59,6 +112,9 @@ class BaseRecord:
             update['flag'] == flag and update['action'] == action
             for update in self.updates
         )
+
+    def __str__(self):
+        return f"{self.__class__.__name__}:{self.uuid})"
 
 class BaseDataRecord(BaseRecord, UserList):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool=True, owner_id: str=''):
@@ -75,6 +131,9 @@ class BaseDataRecord(BaseRecord, UserList):
         self.message_type: str = message_type
         # This is a flag to prevent the message from being sent to the client more than once
         self.sending = False
+        # copy the original data
+        self.original_data = message[:]
+        self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
 
     @property
     def is_command_telnet(self):
@@ -174,6 +233,6 @@ class BaseDataRecord(BaseRecord, UserList):
             when it ends up at it's destination
         """
         data = self.data[:] if savedata else None
-        change = UpdateRecord(flag, action, actor, extra, data)
+        change = UpdateRecord(self, flag, action, actor, extra, data)
 
         self.updates.add(change)
