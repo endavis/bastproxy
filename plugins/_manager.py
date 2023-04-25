@@ -79,7 +79,6 @@ class PluginMgr(BasePlugin):
         # lookups by different types
         self.plugin_lookup_by_full_import_location = {}
         self.plugin_lookup_by_plugin_filepath = {}
-        self.plugin_lookup_by_id = {}
 
         self.plugin_format_string = "%-22s : %-25s %-10s %-5s %s@w"
 
@@ -192,15 +191,10 @@ class PluginMgr(BasePlugin):
         if isinstance(plugin_name, str):
             if plugin_name in self.loaded_plugins_info:
                 plugin_instance = self.loaded_plugins_info[plugin_name].plugininstance
-            if plugin_name in self.plugin_lookup_by_id:
-                plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_id[plugin_name]].plugininstance
             if plugin_name in self.plugin_lookup_by_full_import_location:
                 plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_full_import_location[plugin_name]].plugininstance
             if plugin_name in self.plugin_lookup_by_plugin_filepath:
                 plugin_instance = self.loaded_plugins_info[self.plugin_lookup_by_plugin_filepath[plugin_name]].plugininstance
-            # if not plugin_instance:
-            #     # do some fuzzy matching of the string against plugin_id
-            #     pass
         elif isinstance(plugin_name, BasePlugin):
             plugin_instance = plugin_name
 
@@ -789,7 +783,6 @@ class PluginMgr(BasePlugin):
         # add plugin to lookups
         self.plugin_lookup_by_full_import_location[plugin_instance.full_import_location] = plugin_id
         self.plugin_lookup_by_plugin_filepath[plugin_instance.plugin_path] = plugin_id
-        self.plugin_lookup_by_id[plugin_id] = plugin_id
 
         # update plugins to load at startup
         plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
@@ -1022,7 +1015,6 @@ class PluginMgr(BasePlugin):
         # del self.plugin_lookup_by_short_name[plugin['short_name']]
         del self.plugin_lookup_by_full_import_location[loaded_plugin_info.full_import_location]
         del self.plugin_lookup_by_plugin_filepath[loaded_plugin_info.plugin_path]
-        del self.plugin_lookup_by_id[plugin_id]
 
         if loaded_plugin_info.plugininstance:
             # delete the instance
@@ -1202,7 +1194,6 @@ class PluginMgr(BasePlugin):
 
         self.plugin_lookup_by_full_import_location[self.full_import_location] = self.plugin_id
         self.plugin_lookup_by_plugin_filepath[self.plugin_path] = self.plugin_id
-        self.plugin_lookup_by_id[self.plugin_id] = self.plugin_id
 
         self.can_reload_f = False
         self.auto_initialize_f = False
