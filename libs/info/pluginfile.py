@@ -7,6 +7,7 @@
 # By: Bast
 # Standard Library
 from pathlib import Path
+import datetime
 
 # 3rd Party
 
@@ -28,3 +29,4 @@ class PluginFileInfo():
         self.purpose: str = ''
         self.version: int = -1
         self.filename = ''
+        self.lastchecked =  datetime.datetime.now(datetime.timezone.utc)

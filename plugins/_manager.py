@@ -29,7 +29,7 @@ import operator
 import re
 import ast
 import datetime
-import types
+import os
 from pathlib import Path
 
 # 3rd Party
@@ -496,10 +496,10 @@ class PluginMgr(BasePlugin):
           a bool, True if conflicts with short name were found, False if not
         """
         LogRecord('Read all plugin information', level='info', sources=[self.plugin_id]).send()
-        self.all_plugin_file_info = {}
 
         _module_list = imputils.find_modules(self.base_plugin_dir, prefix='plugins.')
 
+        found_plugins = []
         # go through the plugins and read information from them
         for module in _module_list:
             full_path = module['fullpath']
@@ -508,6 +508,17 @@ class PluginMgr(BasePlugin):
 
             if filename.startswith('_'):
                 continue
+
+            found_plugins.append(plugin_id)
+
+            if plugin_id in self.all_plugin_file_info:
+                mtime = os.path.getmtime(full_path)
+                mtimedt = datetime.datetime.now(datetime.timezone.utc).fromtimestamp(mtime, tz=datetime.timezone.utc)
+                if mtimedt < self.all_plugin_file_info[plugin_id].lastchecked:
+                    continue
+                del self.all_plugin_file_info[plugin_id]
+
+            LogRecord(f'Reading plugin information for {plugin_id}', level='info', sources=[self.plugin_id]).send()
 
             info = self.scan_plugin_for_info(full_path)
 
@@ -518,6 +529,11 @@ class PluginMgr(BasePlugin):
                 info.filename = filename
 
                 self.all_plugin_file_info[plugin_id] = info
+
+        # remove plugins that are no longer found
+        for plugin_id in list(self.all_plugin_file_info.keys()):
+            if plugin_id not in found_plugins:
+                del self.all_plugin_file_info[plugin_id]
 
     def load_single_plugin(self, plugin_id, exit_on_error=False, run_initialize=True, check_dependencies=True):
         """
