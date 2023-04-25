@@ -22,7 +22,7 @@ class PluginFileInfo():
         self.isplugin: bool = False
         self.fullpath: Path = Path('')
         self.isrequired: bool = False
-        self.isvalidpythoncode: bool = True
+        self.isvalidpythoncode: bool = False
         self.name: str = ''
         self.plugin_id: str = ''
         self.plugin_path: Path = Path('')
