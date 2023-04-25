@@ -68,8 +68,6 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
 
-        self.dependencies: list[str] = ['core.errors', 'core.managers']
-
     def initialize(self):
         """
         initialize the plugin

@@ -35,8 +35,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'add', self._api_manager_add)
         self.api('libs.api:add')(self.plugin_id, 'get', self._api_manager_get)
 
-        self.dependencies = []
-
     # get a manager
     def _api_manager_get(self, name):
         """  get a manager

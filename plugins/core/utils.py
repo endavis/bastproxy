@@ -54,8 +54,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'verify.value', self._api_verify_value)
         self.api('libs.api:add')(self.plugin_id, 'format.list.into.columns', self._api_format_list_into_columns)
 
-        self.dependencies = ['core.colors']
-
     def initialize(self):
         """
         initialize the plugin

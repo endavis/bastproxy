@@ -299,8 +299,6 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('historysize', 50, int,
                                 'the size of the history to keep')
 
-        self.dependencies = ['core.events', 'core.msg', 'core.errors', 'core.fuzzy']
-
     def initialize(self):
         """
         initialize the plugin

@@ -72,8 +72,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.plugin_directory: Path  = self.full_plugin_path.parent
         self.save_directory: Path = self.api.BASEDATAPLUGINPATH / self.plugin_id
         self.settings_file: Path = self.save_directory / 'settingvalues.txt'
-        self.dependencies = ['core.commands', 'core.errors', 'core.msg', 'core.utils',
-                             'core.colors', 'core.events']
+        # add any dependencies that are not REQUIRED plugins to this list
+        self.dependencies = []
         with contextlib.suppress(ValueError):
             self.dependencies.remove(self.plugin_id)
         self.version_functions = {}

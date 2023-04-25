@@ -41,8 +41,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get.errors', self._api_get_errors)
         self.api('libs.api:add')(self.plugin_id, 'clear.all.errors', self._api_clear_all_errors)
 
-        self.dependencies = []
-
     def initialize(self):
         """
         initialize the plugin

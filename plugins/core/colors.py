@@ -133,8 +133,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'ansicode.strip', self._api_strip_ansi)
         self.api('libs.api:add')(self.plugin_id, 'color.length.difference', self._api_length_difference)
 
-        self.dependencies = ['core.commands']
-
     def initialize(self):
         """
         initialize the plugin
