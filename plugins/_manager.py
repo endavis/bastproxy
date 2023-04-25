@@ -8,20 +8,6 @@
 # By: Bast
 """
 manages all plugins
-
-#TODO: make all functions that add things use kwargs instead of a dict
-
-How plugin loading works on startup:
-1. Plugin directories are scanned for basic plugin information
-    see readpluginforinformation and scan_plugin_for_info
-2. All plugins with REQUIRED=True are loaded and initialized
-3. the pluginstoload variable is used to load all other plugins
-
-When loading a plugin:
-  1. Import if it isn't already imported (goes in imported_plugins dictionary)
-  2. Instantiate it (goes in loaded_plugins dictionary)
-  3. Import and instantiate all dependencies
-  4. Run initialize function of all instantiated plugins in dependency order
 """
 # Standard Library
 import sys
