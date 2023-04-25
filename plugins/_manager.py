@@ -80,7 +80,7 @@ class PluginMgr(BasePlugin):
         self.plugin_lookup_by_full_import_location = {}
         self.plugin_lookup_by_plugin_filepath = {}
 
-        self.plugin_format_string = "%-22s : %-25s %-10s %-5s %s@w"
+        self.plugin_format_string = "%s%-22s : %-25s %-10s %-5s %s@w"
 
         self.api('libs.api:add')(self.plugin_id, 'is.plugin.loaded', self._api_is_plugin_loaded)
         self.api('libs.api:add')(self.plugin_id, 'is.plugin.id', self._api_is_plugin_id)
@@ -142,6 +142,12 @@ class PluginMgr(BasePlugin):
         packages = list(set(packages))
 
         return packages
+
+    def _api_get_plugins_in_package(self, package):
+        """
+        get the list of plugins in a package
+        """
+        return [self.loaded_plugins_info[plugin_id] for plugin_id in self.loaded_plugins_info if plugin_id.startswith(package)]
 
     # return the dictionary of all plugins
     def _api_get_all_plugin_info(self):
@@ -225,6 +231,41 @@ class PluginMgr(BasePlugin):
             self.api(f"{self.plugin_id}:get.plugin.instance")(pluginname)
         )
 
+    def _command_helper_format_plugin_list(self, plugins, header='') -> list[str]:
+        """
+        format a list of plugins to return to client
+        """
+        changed_color = '@x75'
+        msg = [
+            self.api('plugins.core.utils:center.colored.string')(
+                f'@x86{header}@w', '-', 80, filler_color='@B'
+            ),
+            self.plugin_format_string
+            % ('', 'Id/Location', 'Name', 'Author', 'Vers', 'Purpose'),
+            '-' * 75,
+        ]
+        foundrequired = False
+        for plugin in plugins:
+            plugin_color = changed_color if (plugin['id'] in self.loaded_plugins_info
+                and self.loaded_plugins_info[plugin['id']].isrequired) else ''
+            if plugin_color:
+                foundrequired = True
+            msg.append(
+                self.plugin_format_string
+                % (
+                    plugin_color,
+                    plugin['id'],
+                    plugin['name'],
+                    plugin['author'],
+                    plugin['version'],
+                    plugin['purpose'],
+                )
+        )
+
+        if foundrequired:
+            msg.extend(('', f'* {changed_color}Required plugins appear in this color@w'))
+        return msg
+
     # get a message of plugins in a package
     def _get_package_plugins(self, package):
         """
@@ -257,20 +298,18 @@ class PluginMgr(BasePlugin):
                 desc = getattr(mod, package).DESCRIPTION
             except AttributeError:
                 desc = ''
-            msg.extend(
-                (
-                    f"@GPackage: {package}{f' - {desc}' if desc else ''}@w",
-                    '@G' + '-' * 75 + '@w',
-                    self.plugin_format_string
-                    % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
-                    '-' * 75,
-                )
-            )
-            msg.extend(
-                self.plugin_format_string
-                % (tpl.plugin_id, tpl.name, tpl.author, tpl.version, tpl.purpose)
+            list_to_format = [
+                {
+                    'id': tpl.plugin_id,
+                    'name': tpl.name,
+                    'author': tpl.author,
+                    'version': tpl.version,
+                    'purpose': tpl.purpose,
+                }
                 for tpl in plugins
-            )
+            ]
+            msg.extend(self._command_helper_format_plugin_list(list_to_format,
+                                                    f"Plugins in {package}{f' - {desc}' if desc else ''}"))
         else:
             msg.append('That is not a valid package')
 
@@ -284,35 +323,26 @@ class PluginMgr(BasePlugin):
         returns:
           a list of strings
         """
-        plugin_instances = sorted([i.plugininstance for i in self.loaded_plugins_info.values()],
-                         key=operator.attrgetter('package'))
-        package_header = []
-        msg = [
-            self.plugin_format_string
-            % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
-            '-' * 75,
-        ]
-        for tpl in plugin_instances:
-            if tpl:
-                if tpl.package not in package_header:
-                    if package_header:
-                        msg.append('')
-                    package_header.append(tpl.package)
-                    limp = tpl.package
-                    mod = __import__(limp)
-                    try:
-                        desc = getattr(mod, tpl.package).DESCRIPTION
-                    except AttributeError:
-                        desc = ''
-                    msg.extend(
-                        (
-                            f"@GPackage: {tpl.package}{f' - {desc}' if desc else ''}@w",
-                            '@G' + '-' * 75 + '@w',
-                        )
-                    )
-                msg.append(self.plugin_format_string % \
-                                (tpl.plugin_id, tpl.name,
-                            tpl.author, tpl.version, tpl.purpose))
+        msg = []
+        packages_list = self._api_get_packages_list()
+        packages = {
+            package: self._api_get_plugins_in_package(package)
+            for package in packages_list
+        }
+        for package in packages:
+            if packages[package]:
+                list_to_format = [
+                    {
+                        'id': tpl.plugin_id,
+                        'name': tpl.name,
+                        'author': tpl.author,
+                        'version': tpl.version,
+                        'purpose': tpl.purpose,
+                    }
+                    for tpl in packages[package]
+                ]
+                msg.extend(self._command_helper_format_plugin_list(list_to_format))
+
         return msg
 
     # get plugins that are change on disk
@@ -322,23 +352,26 @@ class PluginMgr(BasePlugin):
         """
         plugin_instances = [i.plugininstance for i in self.loaded_plugins_info.values()]
 
-        msg = [
-            self.api('plugins.core.utils:center.colored.string')(
-                '@x86Changed Plugins@w', '-', 80, filler_color='@B'
-            ),
-            self.plugin_format_string
-            % ('Id', 'Name', 'Author', 'Vers', 'Purpose'),
-            '-' * 75,
-        ]
+        msg = []
         found = False
+        list_to_format = []
         for tpl in plugin_instances:
             if tpl and tpl.is_changed_on_disk():
+                list_to_format.append(
+                    {
+                        'id': tpl.plugin_id,
+                        'name': tpl.name,
+                        'author': tpl.author,
+                        'version': tpl.version,
+                        'purpose': tpl.purpose,
+                    }
+                )
                 found = True
-                msg.append(self.plugin_format_string % \
-                            (tpl.plugin_id, tpl.name,
-                        tpl.author, tpl.version, tpl.purpose))
 
-        return msg if found else ['No plugins are changed on disk.']
+        if found:
+            msg = self._command_helper_format_plugin_list(list_to_format, "Changed Plugins")
+
+        return msg or ['No plugins are changed on disk.']
 
     # get all not loaded plugins
     def _get_not_loaded_plugins(self):
@@ -355,45 +388,38 @@ class PluginMgr(BasePlugin):
                               if self.all_plugin_file_info[plugin_id].isvalidpythoncode is False]
 
         if pdiff := set(all_plugins) - set(loaded_plugins):
-            msg.insert(0, self.api('plugins.core.utils:center.colored.string')('@x86Not Loaded Plugins@w', '-',
-                                                                               80, filler_color='@B'))
-            msg.insert(0, '-' * 75)
-            msg.insert(0, self.plugin_format_string % \
-                                    ('Location', 'Name', 'Author', 'Vers', 'Purpose'))
-            msg.insert(0, 'The following plugins are not loaded')
-
+            list_to_format = []
             for plugin_id in sorted(pdiff):
+                if plugin_id in bad_plugins:
+                    continue
                 plugin_info = self.all_plugin_file_info[plugin_id]
-                msg.append(self.plugin_format_string % \
-                                (plugin_id,
-                             plugin_info.name,
-                             plugin_info.author,
-                             plugin_info.version,
-                             plugin_info.purpose))
+                list_to_format.append(
+                    {
+                        'id': plugin_info.plugin_id,
+                        'name': plugin_info.name,
+                        'author': plugin_info.author,
+                        'version': plugin_info.version,
+                        'purpose': plugin_info.purpose,
+                    }
+                )
+                msg = self._command_helper_format_plugin_list(list_to_format, "Not Loaded Plugins")
 
         if bad_plugins:
-            msg.extend(
-                (
-                    '',
-                    self.api('plugins.core.utils:center.colored.string')(
-                        '@x86Bad Plugins@w', '-', 80, filler_color='@B'
-                    ),
-                    'The following files are not valid python code',
-                )
-            )
+            list_to_format = []
             for plugin_id in sorted(bad_plugins):
                 plugin_info = self.all_plugin_file_info[plugin_id]
-                msg.append(self.plugin_format_string % \
-                                (plugin_id,
-                             plugin_info.name,
-                             plugin_info.author,
-                             plugin_info.version,
-                             plugin_info.purpose))
+                list_to_format.append(
+                    {
+                        'id': plugin_id,
+                        'name': plugin_info.name,
+                        'author': plugin_info.author,
+                        'version': plugin_info.version,
+                        'purpose': plugin_info.purpose,
+                    }
+                )
+            msg.extend(self._command_helper_format_plugin_list(list_to_format, "Plugins with invalid python code"))
 
-        if not msg:
-            msg.append('There are no plugins that are not loaded')
-
-        return msg
+        return msg or ['There are no plugins that are not loaded']
 
     # command to list plugins
     def _command_list(self, args):
@@ -1216,7 +1242,7 @@ class PluginMgr(BasePlugin):
                             help='list plugins that are load but are changed on disk',
                             action='store_true')
         parser.add_argument('package',
-                            help='the to list',
+                            help='the package of the plugins to list',
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('list',
