@@ -312,7 +312,6 @@ class Plugin(BasePlugin):
         """
         return self._api_strip_ansi(self._api_convert_colors(text))
 
-        # pylint: disable=no-self-use
     def cmd_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
