@@ -195,10 +195,11 @@ class Plugin(BasePlugin):
         self.handlers['client'].sync()
 
     # toggle logging logtypes to the clients
-    def cmd_client(self, args):
+    def cmd_client(self):
         """
         toggle logtypes shown to client
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         level = args['level']
         if args['logtype']:
@@ -252,10 +253,11 @@ class Plugin(BasePlugin):
         self.handlers['console'].sync()
 
     # toggle logging logtypes to the console
-    def cmd_console(self, args):
+    def cmd_console(self):
         """
         toggle logtypes to the console
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         if args['logtype']:
             for i in args['logtype']:
@@ -307,10 +309,11 @@ class Plugin(BasePlugin):
         self.handlers['file'].sync()
 
     # toggle a logtype to log to a file
-    def cmd_file(self, args):
+    def cmd_file(self):
         """
         toggle a logtype to log to a file
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         if args['logtype']:
             for i in args['logtype']:
@@ -341,10 +344,11 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # show all types
-    def cmd_types(self, args):
+    def cmd_types(self):
         """
         list log types
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         types = []
         types.extend(self.handlers['client'].keys())
         types.extend(self.handlers['console'].keys())
@@ -378,10 +382,11 @@ class Plugin(BasePlugin):
         return True, tmsg
 
 
-    def cmd_test(self, args):
+    def cmd_test(self):
         """
         send test records to logging facilities
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         logtype = args['logtype']
         message = args['message']
         level = args['loglevel']
@@ -400,7 +405,7 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    def cmd_clean(self, args):
+    def cmd_clean(self):
         """
         remove log types that have not been used
         """

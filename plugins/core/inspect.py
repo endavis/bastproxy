@@ -68,7 +68,7 @@ class Plugin(BasePlugin):
         self.api('plugins.core.commands:command.add')('detail', self.cmd_detail,
                                               parser=parser)
 
-    def cmd_types(self, _):
+    def cmd_types(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
@@ -79,13 +79,14 @@ class Plugin(BasePlugin):
         tmsg.extend(iter(RMANAGER.get_types()))
         return True, tmsg
 
-    def cmd_list(self, args):
+    def cmd_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
           @CUsage@w: list @Y<apiname>@w
           @Yapiname@w = (optional) the toplevel api to show
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = [f"Last {args['number']} records of type {args['recordtype']}:"]
 
         if records := RMANAGER.get_records(args['recordtype'], count=args['number']):
@@ -96,13 +97,14 @@ class Plugin(BasePlugin):
         return True, tmsg
 
 
-    def cmd_detail(self, args):
+    def cmd_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         detail a function in the api
           @CUsage@w: detail @Y<api>@w
           @Yapi@w = (optional) the api to detail
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
 
         if not args['uid']:

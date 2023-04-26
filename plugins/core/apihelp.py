@@ -74,13 +74,14 @@ class Plugin(BasePlugin):
                                               parser=parser)
 
 
-    def cmd_detail(self, args):
+    def cmd_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         detail a function in the api
           @CUsage@w: detail @Y<api>@w
           @Yapi@w = (optional) the api to detail
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         api = self.api
         if args['noplugin']:
@@ -93,13 +94,14 @@ class Plugin(BasePlugin):
 
         return True, tmsg
 
-    def cmd_list(self, args):
+    def cmd_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
           @CUsage@w: list @Y<apiname>@w
           @Yapiname@w = (optional) the toplevel api to show
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         api = self.api
         if args['noplugin']:

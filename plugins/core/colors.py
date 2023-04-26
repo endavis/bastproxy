@@ -312,14 +312,15 @@ class Plugin(BasePlugin):
         """
         return self._api_strip_ansi(self._api_convert_colors(text))
 
-    def cmd_show(self, args):
         # pylint: disable=no-self-use
+    def cmd_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           Show xterm colors
           @CUsage@w: show @Y"compact"@w
             @Y"compact"@w    = The original string to be replaced
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = ['']
         row_message = []
         compact = False
@@ -366,7 +367,7 @@ class Plugin(BasePlugin):
         return True, message
 
 
-    def cmd_example(self, _=None):
+    def cmd_example(self):
         # pylint: disable=no-self-use
         """
         @G%(name)s@w - @B%(cmdname)s@w

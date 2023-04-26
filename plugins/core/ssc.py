@@ -88,10 +88,11 @@ class SSC(object):
 
         return self.default
 
-    def cmd_setssc(self, args):
+    def cmd_setssc(self):
         """
         set the secret
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         if args['value']:
             plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
             file_name = os.path.join(plugin_instance.save_directory, self.name)

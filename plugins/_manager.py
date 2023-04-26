@@ -408,12 +408,13 @@ class PluginMgr(BasePlugin):
         return msg or ['There are no plugins that are not loaded']
 
     # command to list plugins
-    def _command_list(self, args):
+    def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           List plugins
           @CUsage@w: list
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         msg = []
 
         if args['notloaded']:
@@ -1087,7 +1088,7 @@ class PluginMgr(BasePlugin):
             self.api(f"{i}:save.state")()
 
     # command to load plugins
-    def _command_load(self, args):
+    def _command_load(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           Load a plugin
@@ -1095,6 +1096,7 @@ class PluginMgr(BasePlugin):
             @Yplugin@w    = the id of the plugin to load,
                             example: example.timerex
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         if self.read_all_plugin_information():
             LogRecord(
@@ -1128,7 +1130,7 @@ class PluginMgr(BasePlugin):
 
         return True, tmsg
 
-    def _command_unload(self, args):
+    def _command_unload(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           unload a plugin
@@ -1136,6 +1138,7 @@ class PluginMgr(BasePlugin):
             @Yplugin@w    = the id of the plugin to unload,
                             example: example.timerex
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         plugin = args['plugin']
         plugin_found_f = bool(plugin and plugin in self.all_plugin_file_info.keys())
@@ -1149,7 +1152,7 @@ class PluginMgr(BasePlugin):
 
         return True, tmsg
 
-    def _command_reload(self, args):
+    def _command_reload(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reload a plugin
@@ -1157,6 +1160,7 @@ class PluginMgr(BasePlugin):
             @Yplugin@w    = the id of the plugin to reload,
                             example: example.timerex
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
         plugin = args['plugin']
         plugin_found_f = bool(plugin and plugin in self.all_plugin_file_info.keys())

@@ -201,7 +201,7 @@ class Plugin(BasePlugin):
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
-    def cmd_show(self, args):    # pylint: disable=unused-argument
+    def cmd_show(self):
         """
         show all clients
         """

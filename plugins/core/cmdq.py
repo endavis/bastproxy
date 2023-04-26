@@ -204,7 +204,7 @@ class Plugin(BasePlugin):
         """
         self.queue = []
 
-    def cmd_fixqueue(self, args): # pylint: disable=unused-argument
+    def cmd_fixqueue(self):
         """
         finish the last command
         """

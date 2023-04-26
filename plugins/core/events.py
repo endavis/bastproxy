@@ -287,13 +287,14 @@ class Plugin(BasePlugin):
             message.append(f"event {event_name} does not exist")
         return message
 
-    def _command_raise(self, args):
+    def _command_raise(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           raise an event - only works for events with no arguments
           @CUsage@w: raise @Y<event_name>@w
             @Yevent_name@w  = the event_name to raise
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if self.api(f"{self.plugin_id}:get.event")(args['event']):
             self.api(f"{self.plugin_id}:raise.event")(args['event'])
@@ -303,13 +304,14 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def _command_detail(self, args):
+    def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list events and the owner ids registered with them
           @CUsage@w: detail show @Y<event_name>@w
             @Yevent_name@w  = the event_name to get info for
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if args['event']:
             for event_name in args['event']:
@@ -320,12 +322,13 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def _command_list(self, args):
+    def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list events and the owner_ids registered with them
           @CUsage@w: list
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         match = args['match']
         show_registered_only = args['show_registered_only']
         show_no_description_or_args = args['show_no_description_or_args']

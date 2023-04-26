@@ -86,10 +86,11 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
         self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
 
-    def cmd_list(self, args):
+    def cmd_list(self):
         """
         list watches
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         watches = self.watch_data.keys()
         watches = sorted(watches)
@@ -108,10 +109,11 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def cmd_detail(self, args):
+    def cmd_detail(self):
         """
         list the details of a watch
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         columnwidth = 13
         if args['watch']:

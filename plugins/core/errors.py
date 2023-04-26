@@ -108,14 +108,14 @@ class Plugin(BasePlugin):
         """
         self.errors = []
 
-    def cmd_show(self, args: dict | None=None):
+    def cmd_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           show the error queue
           @CUsage@w: show
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         msg = []
-        args = args or {}
         try:
             number = int(args['number'])
         except ValueError:
@@ -135,7 +135,7 @@ class Plugin(BasePlugin):
             msg.append('There are no errors')
         return True, msg
 
-    def cmd_clear(self, _=None):
+    def cmd_clear(self):
         """
         clear errors
         """

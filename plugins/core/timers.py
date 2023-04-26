@@ -195,12 +195,12 @@ class Plugin(BasePlugin):
                     'debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
             self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
 
-    def command_log(self, args: dict | None = None) -> tuple[bool, list[str]]:
+    def command_log(self) -> tuple[bool, list[str]]:
         """
         change the log flag for a timer
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message: list[str] = []
-        args = args if args else {}
         if args['timername'] in self.timer_lookup:
             self.timer_lookup[args['timername']].log = \
                 not self.timer_lookup[args['timername']].log
@@ -237,12 +237,13 @@ class Plugin(BasePlugin):
         stats['Timers']['Memory Usage'] = sys.getsizeof(self.timer_events)
         return stats
 
-    def command_list(self, args) -> tuple[bool, list[str]]:
+    def command_list(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list timers and the plugins they are defined in
           @CUsage@w: list
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message: list[str] = []
 
         match: str = args['match']
@@ -264,12 +265,13 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def command_detail(self, args) -> tuple[bool, list[str]]:
+    def command_detail(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the details of a timer
           @CUsage@w: detail
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message: list[str] = []
         columnwidth: int = 13
         if args['timers']:

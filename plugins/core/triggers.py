@@ -647,12 +647,13 @@ class Plugin(BasePlugin):
 
         return origargs
 
-    def cmd_list(self, args):
+    def cmd_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list triggers and the plugins they are defined in
           @CUsage@w: list
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         trigger_ids = self.triggers.keys()
         trigger_ids = sorted(trigger_ids)
@@ -704,12 +705,13 @@ class Plugin(BasePlugin):
         stats['Triggers']['Regexes Memory Usage'] = sys.getsizeof(self.regexes)
         return stats
 
-    def cmd_detail(self, args):
+    def cmd_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the details of a trigger
           @CUsage@w: detail
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         columnwidth = 24
 

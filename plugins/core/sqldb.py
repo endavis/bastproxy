@@ -264,10 +264,11 @@ class Sqldb(object):
                                               parser=parser,
                                               group='DB')
 
-    def cmd_select(self, args=None):
+    def cmd_select(self):
         """
         run a cmd against the database
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if args:
             if sqlstmt := args['stmt']:
@@ -277,10 +278,11 @@ class Sqldb(object):
                 message.append('Please enter a select statement')
         return True, message
 
-    def cmd_modify(self, args=None):
+    def cmd_modify(self):
         """
         run a cmd against the database
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if args:
             if sqlstmt := args['stmt']:
@@ -289,7 +291,7 @@ class Sqldb(object):
                 message.append('Please enter an update statement')
         return True, message
 
-    def cmd_vac(self, _=None):
+    def cmd_vac(self):
         """
         vacuum the database
         """
@@ -298,17 +300,18 @@ class Sqldb(object):
 
         return True, ['Database Vacuumed']
 
-    def cmd_close(self, _):
+    def cmd_close(self):
         """
         close the database
         """
         self.close()
         return True, [f'Database {self.database_name} was closed']
 
-    def cmd_remove(self, args):
+    def cmd_remove(self):
         """
         remove a table from the database
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if not args['table'] or args['table'] not in self.tables:
             message.append('Please include a valid table')
@@ -320,10 +323,11 @@ class Sqldb(object):
 
         return True, message
 
-    def cmd_backup(self, args):
+    def cmd_backup(self):
         """
         backup the database
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         if args['name']:
             name = args['name']

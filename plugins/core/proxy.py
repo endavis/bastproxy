@@ -170,7 +170,7 @@ class Plugin(BasePlugin):
             if pasw != '':
                 ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)
 
-    def cmd_info(self, _):
+    def cmd_info(self):
         """
         show info about the proxy
         """
@@ -245,7 +245,7 @@ class Plugin(BasePlugin):
         tmsg.extend(nmsg)
         return True, tmsg
 
-    def cmd_disconnect(self, args=None): # pylint: disable=unused-argument
+    def cmd_disconnect(self):
         """
         disconnect from the mud
         """
@@ -257,7 +257,7 @@ class Plugin(BasePlugin):
         else:
             return True, ['The proxy is not connected to the mud']
 
-    def cmd_connect(self, args=None): # pylint: disable=unused-argument
+    def cmd_connect(self):
         """
         disconnect from the mud
         """
@@ -280,16 +280,17 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown']).send()
 
-    def cmd_shutdown(self, args=None): # pylint: disable=unused-argument,no-self-use
+    def cmd_shutdown(self):
         """
         shutdown the proxy
         """
         signal.raise_signal( signal.SIGINT )
 
-    def cmd_restart(self, args): # pylint: disable=unused-argument
+    def cmd_restart(self):
         """
         restart the proxy
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         seconds = args['seconds'] or None
         self.api(f"{self.plugin_id}:proxy.restart")(seconds)
 

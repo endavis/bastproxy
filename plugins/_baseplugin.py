@@ -218,7 +218,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             'readonly':readonly_f
         }
 
-    def _cmd_inspect(self, args): # pylint: disable=too-many-branches
+    def _cmd_inspect(self): # pylint: disable=too-many-branches
         """
         show the plugin as it currently is in memory
 
@@ -230,7 +230,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
           simple - only dump topllevel attributes
         """
-
+        args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
         found_list = []
         if args['method']:
@@ -316,7 +316,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, message
 
-    def _cmd_stats(self, _=None):
+    def _cmd_stats(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
@@ -332,10 +332,11 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             )
         return True, tmsg
 
-    def _cmd_api(self, args):
+    def _cmd_api(self):
         """
         list functions in the api for a plugin
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
 
         if args['api']:
@@ -347,7 +348,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, tmsg
 
-    def _cmd_set(self, args):
+    def _cmd_set(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List or set vars
@@ -357,6 +358,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           if there are no arguments or 'list' is the first argument then
           it will list the settings for the plugin
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         msg = []
         if args['name'] == 'list':
             return True, self._list_vars()
@@ -386,7 +388,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 msg = [f"plugin setting {var} does not exist"]
         return False, msg
 
-    def _cmd_reset(self, _=None):
+    def _cmd_reset(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reset the plugin
@@ -398,12 +400,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, ['This plugin cannot be reset']
 
-    def _cmd_help(self, args):
+    def _cmd_help(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
         @CUsage@w: help
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         width = 25
 
         msg = [

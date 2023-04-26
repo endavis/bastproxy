@@ -131,6 +131,7 @@ class Command:
         self.full_cmd = f"{plugin_id.replace('.plugins', '')}.{name}"
         self.short_help = shelp
         self.count = 0
+        self.current_args: dict = {}
 
     def run(self, arg_string: str = '') -> tuple[bool | None, list[str], str]:
         """
@@ -153,14 +154,19 @@ class Command:
             message.extend(self.arg_parser.format_help().split('\n'))
             return True, message, 'help'
 
+        self.current_args = args
+        self.api(f"{__name__}:set.current.command")(self)
+
         # run the command
         try:
-            return_value = self(args)
+            return_value = self()
         except Exception:
             actor = f"{self.plugin_id}:run_command:command_exception"
             message.extend([f"Error running command: {command_ran}"])
             LogRecord(f"Error running command: {command_ran}",
                         level='error', sources=[self.plugin_id, __name__], exc_info=True).send(actor)
+            self.current_args = {}
+            self.api(f"{__name__}:set.current.command")(None)
             return False, message, 'Command exception'
 
         if isinstance(return_value, tuple):
@@ -175,9 +181,13 @@ class Command:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append('')
             message.extend(self.arg_parser.format_help().split('\n'))
+            self.current_args = {}
+            self.api(f"{__name__}:set.current.command")(None)
 
             return False, message, 'function returned False'
 
+        self.current_args = {}
+        self.api(f"{__name__}:set.current.command")(None)
         return True, message, 'command ran successfully'
 
     def parse_args(self, arg_string):
@@ -272,12 +282,16 @@ class Plugin(BasePlugin):
             self.command_history_dict['history'] = []
         self.command_history_data = self.command_history_dict['history']
 
+        self.current_command: Command | None = None
+
         # add apis
         #self.api('libs.api:add')('default', self.api_setdefault)
         self.api('libs.api:add')(self.plugin_id, 'command.add', self._api_add_command)
         self.api('libs.api:add')(self.plugin_id, 'command.run', self._api_run)
         self.api('libs.api:add')(self.plugin_id, 'command.help.format', self._api_get_plugin_command_help)
         self.api('libs.api:add')(self.plugin_id, 'get.command.prefix', self._api_get_prefix)
+        self.api('libs.api:add')(self.plugin_id, 'get.current.command.args', self._api_get_current_command_args)
+        self.api('libs.api:add')(self.plugin_id, 'set.current.command', self._api_set_current_command)
         self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_plugin_data)
         self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_plugin_command_format)
         self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_plugin_command_data)
@@ -365,6 +379,18 @@ class Plugin(BasePlugin):
             LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])
             self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
+
+    def _api_get_current_command_args(self):
+        """
+        get the current command args
+        """
+        return self.current_command.current_args if self.current_command else {}
+
+    def _api_set_current_command(self, command):
+        """
+        set the current command
+        """
+        self.current_command = command
 
     # remove all commands for a plugin
     def _api_remove_plugin_data(self, plugin_id):
@@ -1025,7 +1051,7 @@ class Plugin(BasePlugin):
 
         return message
 
-    def command_list(self, args):
+    def command_list(self, _=None):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list commands
@@ -1033,6 +1059,8 @@ class Plugin(BasePlugin):
           @CUsage@w: @B%(cmdname)s@w @Yplugin@w
             @Yplugin@w    = The plugin to list commands for (optional)
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
         message = []
         command = args['command']
         plugin_id = args['plugin']
@@ -1054,7 +1082,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def command_runhistory(self, args):
+    def command_runhistory(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           act on the command history
@@ -1062,6 +1090,7 @@ class Plugin(BasePlugin):
           @CUsage@w: @B%(cmdname)s@w @Ynumber@w
             @Ynumber@w    = The number of the command to rerun
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
         if len(self.command_history_data) < abs(args['number']):
             return True, ['# is outside of history length']
 
@@ -1077,15 +1106,16 @@ class Plugin(BasePlugin):
 
         return True, []
 
-    def command_history(self, args):
+    def command_history(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the command history
 
           @CUsage@w: @B%(cmdname)s@w
         """
-        message = []
+        args = self.api('plugins.core.commands:get.current.command.args')()
 
+        message = []
         if args['clear']:
             del self.command_history_dict['history'][:]
             self.command_history_dict.sync()
