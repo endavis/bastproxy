@@ -2,7 +2,7 @@
 # Project: bastproxy
 # Filename: libs/collors.py
 #
-# File Description: class to resolve plugin dependencies
+# File Description: module to handle colors
 #
 # By: Bast
 """
