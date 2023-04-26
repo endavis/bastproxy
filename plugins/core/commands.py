@@ -697,7 +697,7 @@ class Plugin(BasePlugin):
 
         else:
             # split the string into the command and the command_args
-            cmd_args_split = command_str.rsplit(' ', 1)
+            cmd_args_split = command_str.split(' ', 1)
             command_str = cmd_args_split[0]
             command_args = ''
             if len(cmd_args_split) > 1:
