@@ -131,7 +131,7 @@ class BaseRecord:
                 msg.append(f"{item_string:<{column_width}} : ")
                 msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).split('\n'))
             else:
-                f"{item_string:<{column_width}} : {attr}"
+                msg.append(f"{item_string:<{column_width}} : {attr}")
 
         msg.extend(["Stack at Creation :",
                 *[
