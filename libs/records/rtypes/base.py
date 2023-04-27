@@ -12,6 +12,7 @@ Holds the base record type
 from collections import UserList
 from uuid import uuid4
 import datetime
+import traceback
 
 # 3rd Party
 
@@ -35,6 +36,8 @@ class BaseRecord:
         self.updates = UpdateManager()
         self.related_records: list[BaseRecord] = []
         self.items_to_format_in_details = [('UUID', 'uuid'), ('Owner ID', 'owner_id'), ('Creation Time', 'created')]
+        stack = traceback.format_stack(limit=10)
+        self.stack_at_creation = self.fix_stack(stack)
 
         RMANAGER.add(self)
 
@@ -99,6 +102,13 @@ class BaseRecord:
             if record := related_record.updates.get_update(uuid):
                 return record
 
+    def fix_stack(self, stack):
+        new_stack = []
+        # don't need the last 2 lines
+        for line in stack:
+            new_stack.extend([nline for nline in line.split('\n') if nline])
+        return new_stack
+
     def get_formatted_details(self) -> list[str]:
         """
         get a formatted detail string
@@ -110,7 +120,11 @@ class BaseRecord:
                 f"{item_string:<{column_width}} : {getattr(self, item_attr)}"
                 for item_string, item_attr in self.items_to_format_in_details
                 ],
-                "'Related Records' :",
+                "Stack at Creation :",
+                *[
+                f"    {line}" for line in self.stack_at_creation if line
+                ],
+                "Related Records :",
                 *[
                 f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
                 for record in self.get_all_related_records()
