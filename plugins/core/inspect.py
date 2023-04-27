@@ -149,7 +149,6 @@ class Plugin(BasePlugin):
         else:
             showlogrecords = self.api(f"{self.plugin_id}:setting.get")('showLogRecords')
             update_filter = [] if showlogrecords else ['LogRecord']
-            print(f"update_filter: {update_filter}")
             tmsg.extend(record.get_formatted_details(update_filter))
 
         return True, tmsg
