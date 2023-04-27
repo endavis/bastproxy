@@ -42,7 +42,7 @@ class UpdateRecord(object):
         if extra:
             self.extra |= extra
         self.data = data
-        # Extract the last 7 stack frames
+        # Extract the last 10 stack frames
         self.stack = self.fix_stack(traceback.format_stack(limit=10))
         self.event_stack = []
         if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
