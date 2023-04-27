@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/records/managers/changes.py
+# Filename: libs/records/managers/updates.py
 #
-# File Description: a manager to manage changes to records
+# File Description: a manager to manage updates to records
 #
 # By: Bast
 """
-This module holds a manager to manage changes to records
+This module holds a manager to manage updates to records
 """
 # Standard Library
 from collections import deque
