@@ -30,9 +30,8 @@ import pprint
 from libs.api import API
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
-from libs.records import ToClientRecord, LogRecord, ToMudRecord
+from libs.records import ToClientRecord, LogRecord, ToMudRecord, CmdArgsRecord
 import libs.argp as argp
-from libs.records import EventArgsRecord
 
 NAME = 'Commands'
 SNAME = 'commands'
@@ -131,7 +130,7 @@ class Command:
         self.full_cmd = f"{plugin_id.replace('.plugins', '')}.{name}"
         self.short_help = shelp
         self.count = 0
-        self.current_args: dict = {}
+        self.current_args: CmdArgsRecord | dict = {}
 
     def run(self, arg_string: str = '') -> tuple[bool | None, list[str], str]:
         """
@@ -143,13 +142,14 @@ class Command:
         LogRecord(f"running {command_ran}",
                   level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
 
-        success, args, fail_message = self.parse_args(arg_string)
+        success, parsed_args, fail_message = self.parse_args(arg_string)
 
         if not success:
             message.extend(fail_message)
             return False, message, 'could not parse args'
 
-        args = vars(args)
+        args = CmdArgsRecord(f"{self.plugin_id}:{self.name}", vars(parsed_args), arg_string=arg_string)
+
         if args['help']:
             message.extend(self.arg_parser.format_help().split('\n'))
             return True, message, 'help'
@@ -165,9 +165,7 @@ class Command:
             message.extend([f"Error running command: {command_ran}"])
             LogRecord(f"Error running command: {command_ran}",
                         level='error', sources=[self.plugin_id, __name__], exc_info=True).send(actor)
-            self.current_args = {}
-            self.api(f"{__name__}:set.current.command")(None)
-            return False, message, 'Command exception'
+            return self.run_finish(False, message, 'function returned False')
 
         if isinstance(return_value, tuple):
             retval = return_value[0]
@@ -181,14 +179,17 @@ class Command:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append('')
             message.extend(self.arg_parser.format_help().split('\n'))
-            self.current_args = {}
-            self.api(f"{__name__}:set.current.command")(None)
+            return self.run_finish(False, message, 'function returned False')
 
-            return False, message, 'function returned False'
+        return self.run_finish(True, message, 'command ran successfully')
 
+    def run_finish(self, success: bool, message: list[str], return_value: str) -> tuple[bool, list[str], str]:
+        """
+        run the command finisher
+        """
         self.current_args = {}
         self.api(f"{__name__}:set.current.command")(None)
-        return True, message, 'command ran successfully'
+        return success, message, return_value
 
     def parse_args(self, arg_string):
         """
@@ -845,7 +846,7 @@ class Plugin(BasePlugin):
                     event_record.addupdate('Modify', "show_in_history set to {show_in_history}",
                                         f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", saveargs = False)
 
-                event_record.addupdate('Info', f"find_command returned {notes}",
+                event_record.addupdate('Info', f"find_command returned {notes}, arg string: '{command_args}'",
                                     f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command",
                                     saveargs = False)
 
