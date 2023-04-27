@@ -41,19 +41,19 @@ class BaseRecord:
 
         RMANAGER.add(self)
 
-    def get_all_related_records(self, record_filter=None) -> list:
+    def get_all_related_records(self, update_filter=None) -> list:
         """
         get all related records
 
         filter should be a list of record types to filter out
         filter out "LogRecord"s by default
         """
-        record_filter = record_filter or ['LogRecord']
+        update_filter = update_filter or []
         records = []
         for record in self.related_records:
-            if record.__class__.__name__ not in record_filter:
+            if record.__class__.__name__ not in update_filter:
                 records.append(record)
-            records.extend(record.get_all_related_records(record_filter))
+            records.extend(record.get_all_related_records(update_filter))
         return  [i for n, i in enumerate(records) if i not in records[:n]]
 
     def add_related_record(self, record):
@@ -79,13 +79,13 @@ class BaseRecord:
 
         self.updates.add(change)
 
-    def get_all_updates(self) -> list[UpdateRecord]:
+    def get_all_updates(self, update_filter=None) -> list[UpdateRecord]:
         """
         get all updates for this record
         """
         updates = []
         for record in self.get_all_related_records():
-            updates.extend(record.updates)
+            updates.extend(record for record in record.updates if record.parent['type'] not in update_filter)
         updates.extend(self.updates)
 
         updates.sort(key=lambda x: x.time_taken)
@@ -109,7 +109,7 @@ class BaseRecord:
             new_stack.extend([nline for nline in line.split('\n') if nline])
         return new_stack
 
-    def get_formatted_details(self) -> list[str]:
+    def get_formatted_details(self, update_filter=None) -> list[str]:
         """
         get a formatted detail string
         """
@@ -127,12 +127,12 @@ class BaseRecord:
                 "Related Records :",
                 *[
                 f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
-                for record in self.get_all_related_records()
+                for record in self.get_all_related_records(update_filter)
                 ],
-                "'Updates' :",
+                "Updates :",
                 '-------------------------'
             ]
-        for update in self.get_all_updates():
+        for update in self.get_all_updates(update_filter):
             msg.extend([f"   {line}" for line in update.format_detailed()])
             msg.append('-------------------------')
         return msg

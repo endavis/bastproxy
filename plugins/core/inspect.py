@@ -35,6 +35,9 @@ class Plugin(BasePlugin):
         """
         BasePlugin.__init__(self, *args, **kwargs)
 
+        self.api(f"{self.plugin_id}:setting.add")('showLogRecords', False, bool,
+                                '1 to show LogRecords in detail command')
+
     def initialize(self):
         """
         initialize the plugin
@@ -144,5 +147,9 @@ class Plugin(BasePlugin):
                 tmsg.append(f"update {args['update']} in record {args['uid']} not found")
 
         else:
-            tmsg.extend(record.get_formatted_details())
+            showlogrecords = self.api(f"{self.plugin_id}:setting.get")('showLogRecords')
+            update_filter = [] if showlogrecords else ['LogRecord']
+            print(f"update_filter: {update_filter}")
+            tmsg.extend(record.get_formatted_details(update_filter))
+
         return True, tmsg

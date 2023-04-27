@@ -33,7 +33,7 @@ class UpdateRecord(object):
     def __init__(self, parent, flag: str, action: str, actor: str = '', extra: dict | None = None, data=None):
         self.uuid = uuid4().hex
         self.time_taken = datetime.datetime.now(datetime.timezone.utc)
-        self.parent = f"{parent.__class__.__name__}:{parent.uuid}"
+        self.parent = {'type' : parent.__class__.__name__, 'uuid' : parent.uuid}
         self.flag = flag
         self.api = API(owner_id=f"UpdateRecord:{self.uuid}")
         self.action = action
@@ -86,7 +86,7 @@ class UpdateRecord(object):
 
         tmsg =  [
             f"{'UUID':<15} : {self.uuid}",
-            f"{'Parent':<15} : {self.parent}",
+            f"{'Parent':<15} : {self.parent['type']}:{self.parent['uuid']}",
             f"{'Actor':<15} : {self.actor}",
             f"{'Flag':<15} : {self.flag}",
             f"{'Action':<15} : {self.action}",
