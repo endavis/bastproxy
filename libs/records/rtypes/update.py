@@ -71,11 +71,21 @@ class UpdateRecord(object):
         if self.flag == 'Info':
             return f"{self.actor} {self.action}"
 
-    def format_detailed(self):
+    def format_detailed(self, show_data: bool = False, show_stack: bool = False,
+                        data_lines_to_show: int = 10):
         """
         format the change record
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        if 'show_data' in args:
+            show_data = args['show_data']
+        if 'show_stack' in args:
+            show_stack = args['show_stack']
+        if 'data_lines_to_show' in args:
+            data_lines_to_show = int(args['data_lines_to_show'])
+
         tmsg =  [
+            f"{'UUID':<15} : {self.uuid}",
             f"{'Parent':<15} : {self.parent}",
             f"{'Actor':<15} : {self.actor}",
             f"{'Flag':<15} : {self.flag}",
@@ -83,14 +93,18 @@ class UpdateRecord(object):
             f"{'Time Taken':<15} : {self.time_taken}"]
         if self.extra:
             tmsg.append(f"{'Extra':<15} : {self.extra}")
-        if self.data is not None:
-            tmsg.append(f"{'Data':<15} :")
-            tmsg.extend(f"{'':<15} : {line}" for line in pprint.pformat(self.data, width=120).split('\n'))
-        if self.stack:
-            tmsg.append(f"{'Stack':<15} :")
-            tmsg.extend([f"{'':<15} {line}" for line in self.stack if line.strip()])
         if self.event_stack:
             tmsg.append(f"{'Event Stack':<15} :",)
             tmsg.extend([f"{'':<15} : {event}" for event in self.event_stack])
+        if show_data and self.data is not None:
+            if isinstance(self.data, list) and data_lines_to_show != -1:
+                data = self.data[:data_lines_to_show]
+            else:
+                data = self.data
+            tmsg.append(f"{'Data':<15} :")
+            tmsg.extend(f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).split('\n'))
+        if show_stack and self.stack:
+            tmsg.append(f"{'Stack':<15} :")
+            tmsg.extend([f"{'':<15} {line}" for line in self.stack if line.strip()])
 
         return tmsg

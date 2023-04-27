@@ -65,6 +65,26 @@ class Plugin(BasePlugin):
                                      description='details a specific record')
         parser.add_argument('uid', help='the uid of the record',
                             default='', nargs='?')
+        parser.add_argument('-u',
+                            '--update',
+                            help='the update uuid',
+                            default='')
+        parser.add_argument('-dls',
+                            '--data_lines_to_show',
+                            help='the # of lines of data to show, -1 for all data',
+                            default=10,
+                            type=int)
+        parser.add_argument('-sd',
+                            '--show_data',
+                            help='don\'t show data in updates',
+                            action='store_false',
+                            default=True)
+        parser.add_argument('-ss',
+                            '--show_stack',
+                            help='don\'t show stack in updates',
+                            action='store_false',
+                            default=True)
+
         self.api('plugins.core.commands:command.add')('detail', self.cmd_detail,
                                               parser=parser)
 
@@ -114,9 +134,15 @@ class Plugin(BasePlugin):
         record = RMANAGER.get_record(args['uid'])
 
         # Records are list and can be empty, so check is None
-        if record is not None:
-            tmsg.extend(record.get_formatted_details())
-        else:
+        if record is None:
             tmsg.append(f"record {args['uid']} not found")
 
+        elif args['update']:
+            if update := record.get_update(args['update']):
+                tmsg.extend(update.format_detailed())
+            else:
+                tmsg.append(f"update {args['update']} in record {args['uid']} not found")
+
+        else:
+            tmsg.extend(record.get_formatted_details())
         return True, tmsg

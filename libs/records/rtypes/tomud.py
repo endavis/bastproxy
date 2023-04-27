@@ -48,6 +48,9 @@ class ToMudRecord(BaseDataRecord):
         self.read_data_event_name = 'ev_to_mud_data_read'
         if event_record := self.api('plugins.core.events:get.current.event.record')():
             event_record.add_related_record(self)
+        self.items_to_format_in_details.extend([('Show in History', 'show_in_history'),
+                                                ('Send to Mud', 'send_to_mud'),
+                                                ('Client ID', 'client_id')])
         self.setup_events()
 
     def setup_events(self):

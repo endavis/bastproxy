@@ -59,6 +59,14 @@ class ToClientRecord(BaseDataRecord):
         if event_record:= self.api('plugins.core.events:get.current.event.record')():
             event_record.add_related_record(self)
 
+        self.items_to_format_in_details.extend([('Preamble', 'preamble'),
+                                                ('Prelogin', 'prelogin'),
+                                                ('Error', 'error'),
+                                                ('Send To Clients', 'send_to_clients'),
+                                                ('Clients', 'clients'),
+                                                ('Exclude Clients', 'exclude_clients'),
+                                                ('Color For All Lines', 'color_for_all_lines')])
+
         self.setup_events()
 
     def setup_events(self):

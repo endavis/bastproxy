@@ -34,16 +34,23 @@ class BaseRecord:
         self.created =  datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
         self.related_records: list[BaseRecord] = []
+        self.items_to_format_in_details = [('UUID', 'uuid'), ('Owner ID', 'owner_id'), ('Creation Time', 'created')]
+
         RMANAGER.add(self)
 
-    def get_all_related_records(self) -> list:
+    def get_all_related_records(self, record_filter=None) -> list:
         """
         get all related records
+
+        filter should be a list of record types to filter out
+        filter out "LogRecord"s by default
         """
+        record_filter = record_filter or ['LogRecord']
         records = []
         for record in self.related_records:
-            records.append(record)
-            records.extend(record.get_all_related_records())
+            if record.__class__.__name__ not in record_filter:
+                records.append(record)
+            records.extend(record.get_all_related_records(record_filter))
         return  [i for n, i in enumerate(records) if i not in records[:n]]
 
     def add_related_record(self, record):
@@ -81,6 +88,17 @@ class BaseRecord:
         updates.sort(key=lambda x: x.time_taken)
         return updates
 
+    def get_update(self, uuid):
+        """
+        get the last update for this record
+        """
+        if record := self.updates.get_update(uuid):
+            return record
+
+        for related_record in self.get_all_related_records():
+            if record := related_record.updates.get_update(uuid):
+                return record
+
     def get_formatted_details(self) -> list[str]:
         """
         get a formatted detail string
@@ -88,15 +106,16 @@ class BaseRecord:
         column_width = 15
         msg = [
                 f"{'Type':<{column_width}} : {self.__class__.__name__}",
-                f"{'UUID':<{column_width}} : {self.uuid}",
-                f"{'Creation time':<{column_width}} : {self.created}",
-                f"{'Owner ID':<{column_width}} : {self.owner_id}",
-                f"{'Related Records':<{column_width}} :",
+                *[
+                f"{item_string:<{column_width}} : {getattr(self, item_attr)}"
+                for item_string, item_attr in self.items_to_format_in_details
+                ],
+                "'Related Records' :",
                 *[
                 f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
                 for record in self.get_all_related_records()
                 ],
-                f"{'Updates':<{column_width}} :",
+                "'Updates' :",
                 '-------------------------'
             ]
         for update in self.get_all_updates():
@@ -133,6 +152,7 @@ class BaseDataRecord(BaseRecord, UserList):
         self.sending = False
         # copy the original data
         self.original_data = message[:]
+        self.items_to_format_in_details.extend([('Internal', 'internal'), ('Message Type', 'message_type')])
         self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
 
     @property

@@ -24,6 +24,11 @@ class UpdateManager(deque):
     """
     def __init__(self):
         super().__init__(maxlen=1000)
+        self.uid_mapping = {}
 
     def add(self, update):
         self.append(update)
+        self.uid_mapping[update.uuid] = update
+
+    def get_update(self, uuid):
+        return self.uid_mapping.get(uuid, None)

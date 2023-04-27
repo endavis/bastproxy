@@ -32,6 +32,7 @@ class EventArgsRecord(BaseRecord, UserDict):
         UserDict.__init__(self, data)
         BaseRecord.__init__(self, owner_id)
         self.event_name = event_name
+        self.items_to_format_in_details.extend([('Event Name', 'event_name')])
 
     def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, saveargs: bool = True):
         """
