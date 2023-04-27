@@ -30,7 +30,7 @@ class EventArgsRecord(BaseRecord, UserDict):
         if 'notes' not in data:
              data['notes'] = {}
         UserDict.__init__(self, data)
-        BaseRecord.__init__(self, owner_id)
+        BaseRecord.__init__(self, owner_id, add_related_event_record=False)
         self.event_name = event_name
         self.items_to_format_in_details.extend([('Event Name', 'event_name')])
 

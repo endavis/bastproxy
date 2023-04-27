@@ -23,7 +23,7 @@ from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
 
 class BaseRecord:
-    def __init__(self, owner_id: str = ''):
+    def __init__(self, owner_id: str = '', add_related_event_record=True):
         """
         initialize the class
         """
@@ -40,6 +40,9 @@ class BaseRecord:
         self.stack_at_creation = self.fix_stack(stack)
 
         RMANAGER.add(self)
+        if add_related_event_record and self.api('libs.api:has')('plugins.core.events:get.current.event.record'):
+            if event_record := self.api('plugins.core.events:get.current.event.record')():
+                event_record.add_related_record(self)
 
     def get_all_related_records(self, update_filter=None) -> list:
         """

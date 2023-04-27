@@ -56,8 +56,6 @@ class ToClientRecord(BaseDataRecord):
         self.color_for_all_lines: str = color_for_all_lines or ''
         self.modify_data_event_name = 'ev_to_client_data_modify'
         self.read_data_event_name = 'ev_to_client_data_read'
-        if event_record:= self.api('plugins.core.events:get.current.event.record')():
-            event_record.add_related_record(self)
 
         self.items_to_format_in_details.extend([('Preamble', 'preamble'),
                                                 ('Prelogin', 'prelogin'),
