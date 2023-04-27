@@ -88,6 +88,7 @@ class BaseRecord:
         get all updates for this record
         """
         updates = []
+        update_filter = update_filter or []
         for record in self.get_all_related_records():
             updates.extend(record for record in record.updates if record.parent['type'] not in update_filter)
         updates.extend(self.updates)
@@ -113,32 +114,55 @@ class BaseRecord:
             new_stack.extend([nline for nline in line.split('\n') if nline])
         return new_stack
 
-    def get_formatted_details(self, update_filter=None) -> list[str]:
+    def get_formatted_details(self, full_related_records=False,
+                              include_updates=True, update_filter=None,
+                              include_related_records=True) -> list[str]:
         """
         get a formatted detail string
         """
         column_width = 15
         msg = [
                 f"{'Type':<{column_width}} : {self.__class__.__name__}",
-                *[
-                f"{item_string:<{column_width}} : {getattr(self, item_attr)}"
-                for item_string, item_attr in self.items_to_format_in_details
-                ],
-                "Stack at Creation :",
+              ]
+
+        for item_string, item_attr in self.items_to_format_in_details:
+            attr = getattr(self, item_attr)
+            if isinstance(attr, (list, dict)):
+                msg.append(f"{item_string:<{column_width}} : ")
+                msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).split('\n'))
+            else:
+                f"{item_string:<{column_width}} : {attr}"
+
+        msg.extend(["Stack at Creation :",
                 *[
                 f"    {line}" for line in self.stack_at_creation if line
                 ],
-                "Related Records :",
-                *[
-                f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
-                for record in self.get_all_related_records(update_filter)
-                ],
-                "Updates :",
-                '-------------------------'
-            ]
-        for update in self.get_all_updates(update_filter):
-            msg.extend([f"   {line}" for line in update.format_detailed()])
-            msg.append('-------------------------')
+        ])
+        if include_related_records:
+            if full_related_records:
+                related_records = self.get_all_related_records(update_filter)
+                msg.extend(["Related Records :",
+                            '---------------------------------------'])
+                for record in related_records:
+                    msg.extend(f"     {line}" for line in record.get_formatted_details(full_related_records=False,
+                                                            include_updates=False,
+                                                            update_filter=update_filter,
+                                                            include_related_records=False))
+                    msg.append('---------------------------------------')
+            else:
+                msg.extend(["Related Records :",
+                    *[
+                    f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
+                    for record in self.get_all_related_records(update_filter)
+                    ],
+                ])
+        if include_updates:
+            msg.extend(["Updates :",
+                        '-------------------------',
+            ])
+            for update in self.get_all_updates(update_filter):
+                msg.extend([f"   {line}" for line in update.format_detailed()])
+                msg.append('-------------------------')
         return msg
 
     def check_for_change(self, flag: str, action: str):
@@ -172,7 +196,9 @@ class BaseListRecord(UserList, BaseRecord):
         self.sending = False
         # copy the original data
         self.original_data = message[:]
-        self.items_to_format_in_details.extend([('Internal', 'internal'), ('Message Type', 'message_type')])
+        self.items_to_format_in_details.extend([('Internal', 'internal'),
+                                                ('Message Type', 'message_type'),
+                                                ('Original Data', 'original_data')])
         self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
 
     @property

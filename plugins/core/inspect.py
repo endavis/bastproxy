@@ -79,12 +79,22 @@ class Plugin(BasePlugin):
                             type=int)
         parser.add_argument('-sd',
                             '--show_data',
-                            help='don\'t show data in updates',
+                            help='show data in updates',
                             action='store_false',
                             default=True)
         parser.add_argument('-ss',
                             '--show_stack',
-                            help='don\'t show stack in updates',
+                            help='show stack in updates',
+                            action='store_false',
+                            default=True)
+        parser.add_argument('-sfr',
+                            '--full_related_records',
+                            help='show the full related record (without updates)',
+                            action='store_true',
+                            default=False)
+        parser.add_argument('-iu',
+                            '--include_updates',
+                            help='include_updates in the detail',
                             action='store_false',
                             default=True)
 
@@ -149,6 +159,8 @@ class Plugin(BasePlugin):
         else:
             showlogrecords = self.api(f"{self.plugin_id}:setting.get")('showLogRecords')
             update_filter = [] if showlogrecords else ['LogRecord']
-            tmsg.extend(record.get_formatted_details(update_filter))
+            tmsg.extend(record.get_formatted_details(update_filter=update_filter,
+                                                     full_related_records=args['full_related_records'],
+                                                     include_updates=args['include_updates']))
 
         return True, tmsg
