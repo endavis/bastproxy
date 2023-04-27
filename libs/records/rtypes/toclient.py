@@ -14,11 +14,11 @@ Holds the client record type
 
 # Project
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.base import BaseDataRecord
+from libs.records.rtypes.base import BaseListRecord
 
 SETUPEVENTS = False
 
-class ToClientRecord(BaseDataRecord):
+class ToClientRecord(BaseListRecord):
     """
     a record to a client, this can originate with the mud or internally
     data from the mud will immediately be transformed into this type of record

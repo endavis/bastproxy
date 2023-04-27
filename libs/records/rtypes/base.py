@@ -9,10 +9,11 @@
 Holds the base record type
 """
 # Standard Library
-from collections import UserList
+from collections import UserList, UserDict
 from uuid import uuid4
 import datetime
 import traceback
+import pprint
 
 # 3rd Party
 
@@ -32,7 +33,7 @@ class BaseRecord:
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
         # Add an API
         self.api = API(owner_id=self.owner_id)
-        self.created =  datetime.datetime.now(datetime.timezone.utc)
+        self.created = datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
         self.related_records: list[BaseRecord] = []
         self.items_to_format_in_details = [('UUID', 'uuid'), ('Owner ID', 'owner_id'), ('Creation Time', 'created')]
@@ -152,15 +153,17 @@ class BaseRecord:
     def __str__(self):
         return f"{self.__class__.__name__}:{self.uuid})"
 
-class BaseDataRecord(BaseRecord, UserList):
-    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool=True, owner_id: str=''):
+class BaseListRecord(UserList, BaseRecord):
+    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
+                 message_type: str = 'IO', internal: bool=True, owner_id: str='',
+                 add_related_event_record=True):
         """
         initialize the class
         """
         if not isinstance(message, list):
             message = [message]
         UserList.__init__(self, message)
-        BaseRecord.__init__(self, owner_id)
+        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record)
         # This is a flag to determine if this message is internal or not
         self.internal = internal
         # This is the message id, see the derived classes for more info
@@ -270,6 +273,42 @@ class BaseDataRecord(BaseRecord, UserList):
             when it ends up at it's destination
         """
         data = self.data[:] if savedata else None
+        change = UpdateRecord(self, flag, action, actor, extra, data)
+
+        self.updates.add(change)
+
+class BaseDictRecord(UserDict, BaseRecord):
+    def __init__(self, owner_id: str = '', data: dict | None = None,
+                 add_related_event_record=True):
+        """
+        initialize the class
+        """
+        if data:
+            if not isinstance(data, dict):
+                raise TypeError(f"data must be a dict not {type(data)}")
+        else:
+            data = {}
+        UserDict.__init__(self, data)
+        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record)
+        self.original_data = data.copy()
+        self.items_to_format_in_details.extend([('Data', 'data'),
+                                                ('Original data', 'original_data')])
+        self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
+
+
+    def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
+        """
+        add a change event for this record
+            flag: one of 'Modify', 'Set Flag', 'Info'
+            action: a description of what was changed
+            actor: the item that changed the message (likely a plugin)
+            extra: any extra info about this change
+        a message should create a change event at the following times:
+            when it is created
+            after modification
+            when it ends up at it's destination
+        """
+        data = self.copy() if savedata else None
         change = UpdateRecord(self, flag, action, actor, extra, data)
 
         self.updates.add(change)

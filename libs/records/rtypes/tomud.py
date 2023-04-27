@@ -14,12 +14,12 @@ import re
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseDataRecord
+from libs.records.rtypes.base import BaseListRecord
 from libs.records.rtypes.log import LogRecord
 
 SETUPEVENTS = False
 
-class ToMudRecord(BaseDataRecord):
+class ToMudRecord(BaseListRecord):
     """
     a record to the mud, all client data will start as this type of record
     data from a client will be immediately transformed into this type of record
