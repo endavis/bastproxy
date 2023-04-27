@@ -22,7 +22,6 @@ import shlex
 import typing
 import textwrap as _textwrap
 from functools import lru_cache
-import pprint
 
 # 3rd Party
 
