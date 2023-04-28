@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/records/rtypes/eventargs.py
+# Filename: libs/records/rtypes/cmdargs.py
 #
-# File Description: Holds the record type for event arguments
+# File Description: Holds the record type for command arguments
 #
 # By: Bast
 """
