@@ -19,7 +19,7 @@ class SimpleStack(object):
     """
     a simple queue class
     """
-    def __init__(self, length=10, id_key=None):
+    def __init__(self, length=20, id_key=None):
         """
         initialize the class
 
@@ -40,7 +40,7 @@ class SimpleStack(object):
 
     def push(self, item):
         """
-        push an item
+        push an item onto the stack
         """
         self.items.append(item)
         while len(self.items) > self.len:
@@ -48,7 +48,7 @@ class SimpleStack(object):
 
     def pop(self):
         """
-        pop an item
+        pop the last item off the stack
         """
         return self.items.pop()
 
