@@ -30,7 +30,7 @@ class PluginDependencyResolver(object):
         self.unresolved: list[str] = []
         self.resolved: list[str] = []
         self.broken_modules: list[str] = []
-        self.plugin_lookup: dict[str, typing.Any] = {}
+        self.plugin_lookup: dict[str, LoadedPluginInfo] = {}
         for plugin in plugin_list:
             self.plugin_lookup[plugin.plugin_id] = plugin
         if resolved:
@@ -51,11 +51,11 @@ class PluginDependencyResolver(object):
         """
         resolve helper
         """
-        if plugin['plugin_id'] in self.resolved:
+        if plugin.plugin_id in self.resolved:
             return
-        self.unresolved.append(plugin['plugin_id'])
-        for edge in plugin['plugininstance'].dependencies:
-            edge_plugin: dict[str, typing.Any] | None = None
+        self.unresolved.append(plugin.plugin_id)
+        for edge in plugin.plugininstance.dependencies:
+            edge_plugin: LoadedPluginInfo | None = None
             try:
                 edge_plugin = self.plugin_lookup[edge]
             except KeyError:
@@ -66,10 +66,10 @@ class PluginDependencyResolver(object):
                     sys.exit(1)
 
             if edge_plugin:
-                if plugin['plugin_id'] != edge_plugin['plugin_id']:
-                    if edge_plugin['plugin_id'] not in self.resolved:
-                        if edge_plugin['plugin_id'] in self.unresolved:
-                            raise Exception(f"Circular reference detected: {plugin['plugin_id']} -> {plugin['plugin_id']}")
+                if plugin.plugin_id != edge_plugin.plugin_id:
+                    if edge_plugin.plugin_id not in self.resolved:
+                        if edge_plugin.plugin_id in self.unresolved:
+                            raise Exception(f"Circular reference detected: {plugin.plugin_id} -> {plugin.plugin_id}")
                         self.resolve_helper(edge_plugin)
-        self.resolved.append(plugin['plugin_id'])
-        self.unresolved.remove(plugin['plugin_id'])
+        self.resolved.append(plugin.plugin_id)
+        self.unresolved.remove(plugin.plugin_id)
