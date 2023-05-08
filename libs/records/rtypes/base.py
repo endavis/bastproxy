@@ -59,7 +59,7 @@ class BaseRecord:
             if record.__class__.__name__ not in update_filter:
                 records.append(record)
             records.extend(record.get_all_related_records(update_filter))
-        return  [i for n, i in enumerate(records) if i not in records[:n]]
+        return [i for n, i in enumerate(records) if i not in records[:n]]
 
     def add_related_record(self, record):
         """
