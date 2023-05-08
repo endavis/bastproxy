@@ -304,7 +304,6 @@ class Plugin(BasePlugin):
             )()
         ):
             return
-        cmdprefix = self.api('plugins.core.commands:get.command.prefix')()
         tmsg = []
         divider = '@R------------------------------------------------@w'
         if not self.mud_connection or not self.mud_connection.connected:
@@ -313,7 +312,7 @@ class Plugin(BasePlugin):
                     (
                         divider,
                         'Please set the mudhost.',
-                        f"{cmdprefix}.{self.plugin_id}.set mudhost 'host'",
+                        f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'set')} mudhost 'host'",
                     )
                 )
             if self.api(f"{self.plugin_id}:setting.get")('mudport') == 0:
@@ -321,13 +320,13 @@ class Plugin(BasePlugin):
                     (
                         divider,
                         'Please set the mudport.',
-                        f"{cmdprefix}.{self.plugin_id}.set mudport 'port'",
+                        f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'set')} mudport 'port'",
                     )
                 )
             tmsg.extend(
                 (
                     divider,
-                    f"Conect to the mud with {cmdprefix}.{self.plugin_id}.connect",
+                    f"Conect to the mud with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'connect')}",
                 )
             )
         else:
@@ -343,7 +342,7 @@ class Plugin(BasePlugin):
                     divider,
                     'The proxy password is still the default password.',
                     'Please set the proxy password!',
-                    f"{cmdprefix}.{self.plugin_id}.proxypw 'This is a password'",
+                    f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
                 )
             )
         if self.api(f"{self.plugin_id}:ssc.proxypwview")(quiet=True) == 'defaultviewpass':
@@ -352,7 +351,7 @@ class Plugin(BasePlugin):
                     divider,
                     'The proxy view password is still the default password.',
                     'Please set the proxy view password!',
-                    f"{cmdprefix}.{self.plugin_id}.proxypwview 'This is a view password'",
+                    f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'proxypwview')} 'This is a view password'",
                 )
             )
         if tmsg[-1] != divider:

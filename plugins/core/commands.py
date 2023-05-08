@@ -241,7 +241,7 @@ class Command:
         cmdprefix = self.api(f"{__name__}:setting.get")('cmdprefix')
 
         message.insert(0, '')
-        message.insert(1, f"{cmdprefix}.{self.plugin_id}.{self.name}")
+        message.insert(1, self.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name))
         message.insert(2, '@G' + '-' * line_length + '@w')
         message.append('@G' + '-' * line_length + '@w')
         message.append('')
@@ -295,6 +295,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_plugin_data)
         self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_plugin_command_format)
         self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_plugin_command_data)
+        self.api('libs.api:add')(self.plugin_id, 'get.command.format', self._api_get_command_format)
 
         # initialize settings
         self.api(f"{self.plugin_id}:setting.add")('cmdprefix', '#bp', str,
@@ -379,6 +380,17 @@ class Plugin(BasePlugin):
             LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])
             self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
+
+    def  _api_get_command_format(self, plugin_id, command):
+        """
+        return a command string formatted for the plugin
+
+        EX: plugin_id: plugins.core.proxy
+            command: info
+            returns:
+               #bp.core.proxy.info
+        """
+        return f"{self.api('plugins.core.commands:get.command.prefix')()}.{plugin_id.replace('plugins.','')}.{command}"
 
     def _api_get_current_command_args(self):
         """
