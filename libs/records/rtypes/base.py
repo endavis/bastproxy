@@ -24,7 +24,7 @@ from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
 
 class BaseRecord:
-    def __init__(self, owner_id: str = '', add_related_event_record=True, track_record=True):
+    def __init__(self, owner_id: str = '', track_record=True):
         """
         initialize the class
         """
@@ -205,8 +205,7 @@ class BaseListRecord(UserList, BaseRecord):
         if not isinstance(message, list):
             message = [message]
         UserList.__init__(self, message)
-        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record,
-                            track_record=track_record)
+        BaseRecord.__init__(self, owner_id, track_record=track_record)
         # This is a flag to determine if this message is internal or not
         self.internal = internal
         # This is the message id, see the derived classes for more info
@@ -334,8 +333,7 @@ class BaseDictRecord(UserDict, BaseRecord):
         else:
             data = {}
         UserDict.__init__(self, data)
-        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record,
-                            track_record=track_record)
+        BaseRecord.__init__(self, owner_id, track_record=track_record)
         self.original_data = data.copy()
         self.items_to_format_in_details.extend([('Data', 'data'),
                                                 ('Original data', 'original_data')])
