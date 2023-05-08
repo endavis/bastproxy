@@ -70,18 +70,18 @@ def importmodule(module_path, plugin, import_base, silent=False):
                     sys.modules[full_import_location], full_import_location)
 
         if not silent:
-            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[plugin.plugin_id]).send()
+            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[plugin.plugin_id])()
         _module = import_module(full_import_location)
 
         if not silent:
-            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[plugin.plugin_id]).send()
+            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[plugin.plugin_id])()
         return True, 'import', _module, full_import_location
 
     except Exception: # pylint: disable=broad-except
         if full_import_location in sys.modules:
             del sys.modules[full_import_location]
 
-        LogRecord(f"Module '{full_import_location}' failed to import/load.", level='error', sources=[plugin.plugin_id], exc_info=True).send()
+        LogRecord(f"Module '{full_import_location}' failed to import/load.", level='error', sources=[plugin.plugin_id], exc_info=True)()
         return False, 'error', _module, full_import_location
 
 def deletemodule(full_import_location, modules_to_keep=None):

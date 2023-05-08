@@ -24,7 +24,7 @@ from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
 
 class BaseRecord:
-    def __init__(self, owner_id: str = '', add_related_event_record=True):
+    def __init__(self, owner_id: str = '', add_related_event_record=True, track_record=True):
         """
         initialize the class
         """
@@ -36,14 +36,15 @@ class BaseRecord:
         self.created = datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
         self.related_records: list[BaseRecord] = []
+        self.track_record = track_record
         self.items_to_format_in_details = [('UUID', 'uuid'), ('Owner ID', 'owner_id'), ('Creation Time', 'created')]
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
 
+        current_active_record = RMANAGER.get_latest_record()
+        if current_active_record is not None:
+            current_active_record.add_related_record(self)
         RMANAGER.add(self)
-        if add_related_event_record and self.api('libs.api:has')('plugins.core.events:get.current.event.record'):
-            if event_record := self.api('plugins.core.events:get.current.event.record')():
-                event_record.add_related_record(self)
 
     def get_all_related_records(self, update_filter=None) -> list:
         """
@@ -177,17 +178,35 @@ class BaseRecord:
     def __str__(self):
         return f"{self.__class__.__name__}:{self.uuid})"
 
+    def _exec_(self, actor):
+        """
+        override this in the derived classes if needed
+        """
+        raise NotImplementedError
+
+    def __call__(self, actor='Unknown'):
+        """
+        Enable tracking of the class execution
+        """
+        if self.track_record:
+            RMANAGER.start(self)
+            self._exec_(actor)
+            RMANAGER.end(self)
+        else:
+            self._exec_(actor)
+
 class BaseListRecord(UserList, BaseRecord):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
                  message_type: str = 'IO', internal: bool=True, owner_id: str='',
-                 add_related_event_record=True):
+                 add_related_event_record=True, track_record=True):
         """
         initialize the class
         """
         if not isinstance(message, list):
             message = [message]
         UserList.__init__(self, message)
-        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record)
+        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record,
+                            track_record=track_record)
         # This is a flag to determine if this message is internal or not
         self.internal = internal
         # This is the message id, see the derived classes for more info
@@ -305,7 +324,7 @@ class BaseListRecord(UserList, BaseRecord):
 
 class BaseDictRecord(UserDict, BaseRecord):
     def __init__(self, owner_id: str = '', data: dict | None = None,
-                 add_related_event_record=True):
+                 add_related_event_record=True, track_record=True):
         """
         initialize the class
         """
@@ -315,7 +334,8 @@ class BaseDictRecord(UserDict, BaseRecord):
         else:
             data = {}
         UserDict.__init__(self, data)
-        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record)
+        BaseRecord.__init__(self, owner_id, add_related_event_record=add_related_event_record,
+                            track_record=track_record)
         self.original_data = data.copy()
         self.items_to_format_in_details.extend([('Data', 'data'),
                                                 ('Original data', 'original_data')])

@@ -132,13 +132,13 @@ class ToMudRecord(BaseListRecord):
             self.fix_double_command_seperator(f"{actor}:format")
             self.addupdate('Info', f"{'Complete':<8}: Format", f"{actor}:format", savedata=False)
 
-    def send(self, actor):
+    def _exec_(self, actor):
         """
         send the record to the mud
         """
         if self.sending:
             LogRecord(f"LogRecord: {self.uuid} is already sending",
-                                level='debug', stack_info=True, sources=[__name__]).send()
+                                level='debug', stack_info=True, sources=[__name__])()
             return
         self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
 

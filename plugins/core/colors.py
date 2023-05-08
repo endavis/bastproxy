@@ -285,7 +285,7 @@ class Plugin(BasePlugin):
                 return f'@{libs.colors.CONVERTANSI[tstr]}'
             except KeyError:
                 LogRecord(f"could not lookup color {tstr} for text {repr(text)}",
-                          level='error', plugin=self.plugin_id).send()
+                          level='error', plugin=self.plugin_id)()
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 

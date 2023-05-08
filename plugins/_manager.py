@@ -190,8 +190,8 @@ class PluginMgr(BasePlugin):
         elif isinstance(plugin_name, BasePlugin):
             plugin_instance = plugin_name
 
-        if not plugin_instance:
-            LogRecord(f"api_get_plugin_instance - plugin not found: {plugin_name}", level="error", sources=[self.plugin_id], stack_info=True)
+        if not plugin_instance and not self.api.startup:
+            LogRecord(f"api_get_plugin_instance - plugin not found: {plugin_name}", level="debug", sources=[self.plugin_id], stack_info=True)()
 
         return plugin_instance
 
@@ -366,7 +366,7 @@ class PluginMgr(BasePlugin):
         """
         msg = []
         if self.read_all_plugin_information():
-            LogRecord('conflicts with plugins, see console and correct', level='error', sources=[self.plugin_id]).send()
+            LogRecord('conflicts with plugins, see console and correct', level='error', sources=[self.plugin_id])()
 
         loaded_plugins = self.loaded_plugins_info.keys()
         all_plugins = self.all_plugin_file_info.keys()
@@ -451,7 +451,7 @@ class PluginMgr(BasePlugin):
             info.isvalidpythoncode = True
         except SyntaxError:
             LogRecord(f"isvalidpythoncode set to false for {path}",
-                      level='warning', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id])()
 
         for tline in contents.split('\n'):
             if name_match := NAMERE.match(tline):
@@ -502,7 +502,7 @@ class PluginMgr(BasePlugin):
         returns:
           a bool, True if conflicts with short name were found, False if not
         """
-        LogRecord('Read all plugin information', level='info', sources=[self.plugin_id]).send()
+        LogRecord('Read all plugin information', level='info', sources=[self.plugin_id])()
 
         _module_list = imputils.find_modules(self.base_plugin_dir, prefix='plugins.')
 
@@ -525,7 +525,7 @@ class PluginMgr(BasePlugin):
                     continue
                 del self.all_plugin_file_info[plugin_id]
 
-            LogRecord(f'Reading plugin information for {plugin_id}', level='info', sources=[self.plugin_id]).send()
+            LogRecord(f'Reading plugin information for {plugin_id}', level='info', sources=[self.plugin_id])()
 
             info = self.scan_plugin_for_info(full_path)
 
@@ -574,7 +574,7 @@ class PluginMgr(BasePlugin):
                                                                check_dependencies=check_dependencies)
         if not return_value:
             LogRecord(f"Could not preinitialize plugin {plugin_id}",
-                      level='error', sources=[self.plugin_id, plugin_id]).send()
+                      level='error', sources=[self.plugin_id, plugin_id])()
             if exit_on_error:
                 sys.exit(1)
             return False
@@ -600,9 +600,9 @@ class PluginMgr(BasePlugin):
             # print(pprint.pformat(plugin_load_order))
             if unresolved_dependencies:
                 LogRecord(f"The following dependencies could not be loaded for plugin {plugin_id}:",
-                          level='error', sources=[self.plugin_id]).send()
+                          level='error', sources=[self.plugin_id])()
                 for dep in unresolved_dependencies:
-                    LogRecord(f"  {dep}", level='error', sources=[self.plugin_id]).send()
+                    LogRecord(f"  {dep}", level='error', sources=[self.plugin_id])()
                 if exit_on_error:
                     sys.exit(1)
                 return False
@@ -642,12 +642,12 @@ class PluginMgr(BasePlugin):
             else:
                 return False, []
 
-        LogRecord(f"{plugin_id:<30} : attempting to load", level='info', sources=[self.plugin_id]).send()
+        LogRecord(f"{plugin_id:<30} : attempting to load", level='info', sources=[self.plugin_id])()
 
         try:
             plugin_disk_info = self.all_plugin_file_info[plugin_id]
         except KeyError:
-            LogRecord('Could not find plugin {plugin_id}', level='error', sources=[self.plugin_id]).send()
+            LogRecord('Could not find plugin {plugin_id}', level='error', sources=[self.plugin_id])()
             return False, []
 
         try:
@@ -741,7 +741,7 @@ class PluginMgr(BasePlugin):
         else:
             loaded_plugin_info.isimported = False
             if msg == 'error':
-                LogRecord(f"Could not import plugin {plugin_id}", level='error', sources=[self.plugin_id]).send()
+                LogRecord(f"Could not import plugin {plugin_id}", level='error', sources=[self.plugin_id])()
                 if exit_on_error:
                     sys.exit(1)
                 return False
@@ -766,7 +766,7 @@ class PluginMgr(BasePlugin):
 
         if not loaded_plugin_info.module:
             LogRecord(f"Could not find module for {plugin_id}", level='error',
-                      sources=[self.plugin_id]).send()
+                      sources=[self.plugin_id])()
             if exit_on_error:
                 sys.exit(1)
             else:
@@ -780,7 +780,7 @@ class PluginMgr(BasePlugin):
                                                 loaded_plugin_info.plugin_id)
         except Exception: # pylint: disable=broad-except
             LogRecord(f"Could not instantiate plugin {plugin_id}", level='error',
-                      sources=[self.plugin_id], exc_info=True).send()
+                      sources=[self.plugin_id], exc_info=True)()
             if exit_on_error:
                 sys.exit(1)
             else:
@@ -804,7 +804,7 @@ class PluginMgr(BasePlugin):
             plugins_to_load.append(plugin_id)
             self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load)
 
-        LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[self.plugin_id]).send()
+        LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[self.plugin_id])()
 
         return True
 
@@ -819,7 +819,7 @@ class PluginMgr(BasePlugin):
                 "conflicts with plugins, see console and correct",
                 level='error',
                 sources=[self.plugin_id],
-            ).send(actor = f"{self.plugin_id}.read_all_plugin_information")
+            )(actor = f"{self.plugin_id}.read_all_plugin_information")
             sys.exit(1)
 
         plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
@@ -846,7 +846,7 @@ class PluginMgr(BasePlugin):
         ]:
             for plugin in plugins_not_found:
                 LogRecord(f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
-                          level='error', sources=[self.plugin_id]).send()
+                          level='error', sources=[self.plugin_id])()
                 plugins_to_load_setting.remove(plugin)
                 plugins_to_load.remove(plugin)
             self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
@@ -861,7 +861,7 @@ class PluginMgr(BasePlugin):
             if not loaded_plugin_info.isinitialized or not loaded_plugin_info.isimported or not loaded_plugin_info.plugininstance:
                 found = True
                 LogRecord(f"Plugin {loaded_plugin_info.plugin_id} has not been correctly loaded", level='error',
-                          sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                          sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
                 self.unload_single_plugin(loaded_plugin_info.plugin_id)
 
         if found:
@@ -926,11 +926,11 @@ class PluginMgr(BasePlugin):
         if loaded_plugin_info.isinitialized:
             return True
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : attempting to initialize ({loaded_plugin_info.name})", level='info',
-                  sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                  sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
         if not loaded_plugin_info.plugininstance:
             LogRecord(f"{loaded_plugin_info.plugin_id:<30} : plugin instance is None, not initializing", level='error',
-                        sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
             return False
 
         # run the initialize function
@@ -940,15 +940,15 @@ class PluginMgr(BasePlugin):
 
         except Exception: # pylint: disable=broad-except
             LogRecord(f"could not run the initialize function for {loaded_plugin_info.plugin_id}", level='error',
-                      sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True).send()
+                      sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True)()
             if exit_on_error:
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : DID NOT INITIALIZE", level='error',
-                          sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                          sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
                 sys.exit(1)
             return False
 
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully initialized ({loaded_plugin_info.name})", level='info',
-                    sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                    sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
         self.api('plugins.core.events:add.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", self.plugin_id,
                                                     description=f"Raised when {loaded_plugin_info.plugininstance.plugin_id} is initialized",
@@ -961,7 +961,7 @@ class PluginMgr(BasePlugin):
                                             {'plugin':loaded_plugin_info.name,
                                                 'plugin_id':loaded_plugin_info.plugin_id})
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully loaded", level='info',
-                  sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                  sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
         # update plugins_to_load
         plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
@@ -996,7 +996,7 @@ class PluginMgr(BasePlugin):
 
         if loaded_plugin_info.plugininstance and not loaded_plugin_info.plugininstance.can_reload_f:
             LogRecord(f"{loaded_plugin_info.plugin_id:<30} : this plugin cannot be unloaded ({loaded_plugin_info.name})",
-                        level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                        level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
             return False
 
         try:
@@ -1009,14 +1009,14 @@ class PluginMgr(BasePlugin):
                                                     {'plugin':loaded_plugin_info.name,
                                                     'plugin_id':loaded_plugin_info.plugin_id})
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully unitialized ({loaded_plugin_info.name})", level='info',
-                        sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
             else:
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : plugin instance not found ({loaded_plugin_info.name})", level='info',
-                        sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
         except Exception: # pylint: disable=broad-except
             LogRecord(f"unload: error running the uninitialize method for {loaded_plugin_info.plugin_id}", level='error',
-                        sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True).send()
+                        sources=[self.plugin_id, loaded_plugin_info.plugin_id], exc_info=True)()
             return False
 
         # remove from pluginstoload so it doesn't load at startup
@@ -1039,10 +1039,10 @@ class PluginMgr(BasePlugin):
                 loaded_plugin_info.full_import_location
             ):
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module was successful ({loaded_plugin_info.name})",
-                            level='info', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                            level='info', sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
             else:
                 LogRecord(f"{loaded_plugin_info.plugin_id:<30} : deleting imported module failed ({loaded_plugin_info.name})",
-                            level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id]).send()
+                            level='error', sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
         # remove from loaded_plugins
         del self.loaded_plugins_info[plugin_id]
@@ -1103,7 +1103,7 @@ class PluginMgr(BasePlugin):
                 "conflicts between plugins, see errors and correct before attempting to load another plugin",
                 level='error',
                 sources=[self.plugin_id],
-            ).send()
+            )()
             tmsg.append('conflicts between plugins, see errors and correct before attempting to load another plugin')
             return True, tmsg
 
@@ -1214,7 +1214,7 @@ class PluginMgr(BasePlugin):
 
         self.can_reload_f = False
         self.auto_initialize_f = False
-        LogRecord('Loading plugins', level='info', sources=[self.plugin_id]).send()
+        LogRecord('Loading plugins', level='info', sources=[self.plugin_id])()
         self._load_plugins_on_startup()
 
         super().initialize()

@@ -20,6 +20,6 @@ class CmdArgsRecord(BaseDictRecord):
         """
         initialize the class
         """
-        BaseDictRecord.__init__(self, owner_id, data)
+        BaseDictRecord.__init__(self, owner_id, data, track_record=False)
         self.arg_string: str = arg_string
         self.items_to_format_in_details.extend([('Arg String', 'arg_string')])

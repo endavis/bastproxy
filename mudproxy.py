@@ -79,10 +79,10 @@ class MudProxy:
         setup_loggers(logging.DEBUG)
 
         LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
-                level='info', sources=['mudproxy']).send()
+                level='info', sources=['mudproxy'])()
 
         # initialize all plugins
-        LogRecord('Plugin Manager - loading', level='info', sources=['mudproxy']).send()
+        LogRecord('Plugin Manager - loading', level='info', sources=['mudproxy'])()
 
         # instantiate the plugin manager
         from plugins._manager import PluginMgr
@@ -90,7 +90,7 @@ class MudProxy:
 
         # initialize the plugin manager which will load plugins
         plugin_manager.initialize()
-        LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy']).send()
+        LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy'])()
 
         # do any post plugin init actions
         self.post_plugins_init()
@@ -106,7 +106,7 @@ class MudProxy:
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='bastproxy')
 
         telnet_port: int = args['port']
-        LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy']).send()
+        LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy'])()
 
         # import the client handler here so that the server can be created
         import libs.net.client
@@ -120,11 +120,11 @@ class MudProxy:
                 timeout=3600,
             ), 'Proxy Telnet Listener')
 
-        LogRecord('__main__ - Launching proxy loop', level='info', sources=['mudproxy']).send()
+        LogRecord('__main__ - Launching proxy loop', level='info', sources=['mudproxy'])()
 
         run_asynch()
 
-        LogRecord('__main__ - exiting', level='info', sources=['mudproxy']).send()
+        LogRecord('__main__ - exiting', level='info', sources=['mudproxy'])()
 
     def post_plugins_init(self):
         """

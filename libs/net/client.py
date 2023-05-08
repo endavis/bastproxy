@@ -72,7 +72,7 @@ class ClientConnection:
         if not self.connected:
             LogRecord(f"send_to - {self.uuid} [{self.addr}:{self.port}] is not connected. Cannot send",
                       level='debug',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
             return
         loop = asyncio.get_event_loop()
         if data.is_io:
@@ -96,7 +96,7 @@ class ClientConnection:
         if self.api('plugins.core.clients:client.banned.check')(self.addr):
             LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.",
                       level='warning',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
             self.writer.write('You are banned from this proxy. Goodbye.\n\r')
             with contextlib.suppress(AttributeError):
                 await self.writer.drain()
@@ -105,40 +105,40 @@ class ClientConnection:
 
         LogRecord(f"setup_client - Sending echo on to {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
         # We send an IAC+WILL+ECHO to the client so that it won't locally echo the password.
         ToClientRecord([telnet.echo_on()],
                        message_type='COMMAND-TELNET' ,
                        clients=[self.uuid],
-                       prelogin=True).send('libs.net.client:setup_client')
+                       prelogin=True)('libs.net.client:setup_client')
 
         if features := telnet.advertise_features():
             LogRecord(f"setup_client - Sending telnet features to {self.uuid}",
                       level='debug',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
             ToClientRecord([features],
                            message_type='COMMAND-TELNET' ,
                            clients=[self.uuid],
-                           prelogin=True).send('libs.net.client:setup_client')
+                           prelogin=True)('libs.net.client:setup_client')
             LogRecord(f"setup_client - telnet features sent to {self.uuid}",
                       level='debug',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
 
         await self.writer.drain()
 
         LogRecord(f"setup_client - Sending welcome message to {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
         ToClientRecord('Welcome to Bastproxy.',
                        clients=[self.uuid],
-                       prelogin=True).send('libs.net.client:setup_client')
+                       prelogin=True)('libs.net.client:setup_client')
         ToClientRecord('Please enter your password.',
                        clients=[self.uuid],
-                       prelogin=True).send('libs.net.client:setup_client')
+                       prelogin=True)('libs.net.client:setup_client')
         self.login_attempts += 1
         LogRecord(f"setup_client - welcome message sent to {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
 
         await self.writer.drain()
 
@@ -150,16 +150,16 @@ class ClientConnection:
         """
         LogRecord(f"client_read - Starting coroutine for {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
 
         while self.connected:
             inp: bytes = await self.reader.readline()
             LogRecord(f"client_read - Raw received data in client_read : {inp}",
                       level='debug',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
             LogRecord(f"client_read - inp type = {type(inp)}",
                       level='debug',
-                      sources=[__name__]).send()
+                      sources=[__name__])()
             logging.getLogger(f"data.{self.uuid}").info(f"{'from_client':<12} : {inp}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
@@ -173,18 +173,18 @@ class ClientConnection:
                     ToClientRecord([telnet.echo_off()],
                                    message_type='COMMAND-TELNET' ,
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     ToClientRecord(['You are now logged in.'],
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     self.api('plugins.core.clients:client.logged.in')(self.uuid)
                 elif inp.strip() == vpw:
                     ToClientRecord([telnet.echo_off()], message_type='COMMAND-TELNET' ,
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     ToClientRecord(['You are now logged in as view only user.'],
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
                     continue
 
@@ -192,31 +192,31 @@ class ClientConnection:
                     self.login_attempts = self.login_attempts + 1
                     ToClientRecord(['Invalid password. Please try again.'],
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     continue
 
                 else:
                     ToClientRecord(['Too many login attempts. Goodbye.'],
                                    clients=[self.uuid],
-                                   prelogin=True).send('libs.net.client:client_read')
+                                   prelogin=True)('libs.net.client:client_read')
                     LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.",
                               level='warning',
-                              sources=[__name__]).send()
+                              sources=[__name__])()
                     self.api('plugins.core.clients:client.banned.add')(self.uuid)
                     continue
 
             elif self.view_only:
                 ToClientRecord(['You are logged in as a view only user.'],
-                                clients=[self.uuid]).send('libs.net.client:client_read')
+                                clients=[self.uuid])('libs.net.client:client_read')
             else:
                 # this is where we start with ToMudRecord
                 ToMudRecord(inp,
                             internal=False,
-                            client_id=self.uuid).send('libs.net.client:client_read')
+                            client_id=self.uuid)('libs.net.client:client_read')
 
         LogRecord(f"client_read - Ending coroutine for {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
 
     async def client_write(self) -> None:
         """
@@ -227,17 +227,17 @@ class ClientConnection:
         """
         LogRecord(f"client_write - Starting coroutine for {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
         while self.connected:
             msg_obj: NetworkData = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
                     LogRecord(f"client_write - Writing message to client {self.uuid}: {msg_obj.msg}",
                               level='debug',
-                              sources=[__name__]).send()
+                              sources=[__name__])()
                     LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}",
                               level='debug',
-                              sources=[__name__]).send()
+                              sources=[__name__])()
                     self.writer.write(msg_obj.msg)
                     logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
                     if msg_obj.is_prompt:
@@ -248,15 +248,15 @@ class ClientConnection:
                         "client_write - No message to write to client.",
                         level='debug',
                         sources=[__name__],
-                    ).send()
+                    )()
 
             elif msg_obj.is_command_telnet:
                 LogRecord(f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.msg}",
                           level='debug',
-                          sources=[__name__]).send()
+                          sources=[__name__])()
                 LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}",
                           level='debug',
-                          sources=[__name__]).send()
+                          sources=[__name__])()
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
@@ -264,7 +264,7 @@ class ClientConnection:
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
-                  sources=[__name__]).send()
+                  sources=[__name__])()
 
 async def register_client(connection) -> None:
     """
@@ -272,13 +272,13 @@ async def register_client(connection) -> None:
     """
     LogRecord(f"register_client - Registering client {connection.uuid}",
               level='debug',
-              sources=[__name__]).send()
+              sources=[__name__])()
 
     connection.api('plugins.core.clients:client.add')(connection)
 
     LogRecord(f"register_client - Registered client {connection.uuid}",
               level='debug',
-              sources=[__name__]).send()
+              sources=[__name__])()
 
 
 async def unregister_client(connection) -> None:
@@ -287,7 +287,7 @@ async def unregister_client(connection) -> None:
     """
     LogRecord(f"unregister_client - Unregistering client {connection.uuid}",
               level='debug',
-              sources=[__name__]).send()
+              sources=[__name__])()
 
     if connection.connected:
         connection.connected = False
@@ -295,7 +295,7 @@ async def unregister_client(connection) -> None:
 
     LogRecord(f"unregister_client - Unregistered client {connection.uuid}",
               level='debug',
-              sources=[__name__]).send()
+              sources=[__name__])()
 
 
 async def client_telnet_handler(reader, writer) -> None:
@@ -309,7 +309,7 @@ async def client_telnet_handler(reader, writer) -> None:
     connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
     LogRecord(f"Connection established with {addr} : {port} : {rest} : uuid - {connection.uuid}",
               level='warning',
-              sources=[__name__]).send()
+              sources=[__name__])()
 
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....

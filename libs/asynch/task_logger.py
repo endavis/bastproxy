@@ -60,4 +60,4 @@ def _handle_task_result(
     # is properly logged. There is no point re-raising the exception in this callback.
     except Exception as e:  # pylint: disable=broad-except
         LogRecord(f"exception in task {task.get_name()} {e} {e.args} {message}",
-                  level='error', sources=['asyncio'], exc_info=True).send()
+                  level='error', sources=['asyncio'], exc_info=True)()

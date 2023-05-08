@@ -570,12 +570,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
                 LogRecord(f"_update_version: upgrading to version {version}", level='info',
-                          sources=[self.plugin_id, 'plugin_upgrade']).send()
+                          sources=[self.plugin_id, 'plugin_upgrade'])()
                 if version in self.version_functions:
                     self.version_functions[version]()
                 else:
                     LogRecord(f"_update_version: no function to upgrade to version {version}",
-                              level='error', sources=[self.plugin_id, 'plugin_upgrade']).send()
+                              level='error', sources=[self.plugin_id, 'plugin_upgrade'])()
 
         self.setting_values['_version'] = self.version
 
@@ -621,14 +621,14 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         re-register to character active event on disconnect
         """
-        LogRecord(f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
+        LogRecord(f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
         self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
 
     def evc_after_character_is_active(self):
         """
         tasks to do after character is active
         """
-        LogRecord(f"ev_after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id]).send()
+        LogRecord(f"ev_after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
         if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active):
             self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
 

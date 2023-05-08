@@ -140,9 +140,9 @@ class CustomClientHandler(logging.Handler):
                     color = None
                 if not record.msg.wasemitted['client']:
                     record.msg.wasemitted['client'] = True
-                    ToClientRecord(formatted_message, color_for_all_lines=color).send('logging client handler')
+                    ToClientRecord(formatted_message, color_for_all_lines=color)('logging client handler')
             else:
-                ToClientRecord(formatted_message).send('logging client handler')
+                ToClientRecord(formatted_message)('logging client handler')
 
 def setup_loggers(log_level: int):
 

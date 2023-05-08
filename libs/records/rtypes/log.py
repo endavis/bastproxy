@@ -25,7 +25,7 @@ class LogRecord(BaseListRecord):
         """
         initialize the class
         """
-        super().__init__(message, internal=True)
+        super().__init__(message, internal=True, track_record=False)
         # The type of message
         self.level: str = level
         # The sources of the message for logging purposes, a list
@@ -59,7 +59,7 @@ class LogRecord(BaseListRecord):
         self.clean(actor)
         self.color_lines(actor)
 
-    def send(self, actor: str=''):
+    def _exec_(self, actor: str=''):
         """
         send the message to the logger
         """
@@ -77,7 +77,7 @@ class LogRecord(BaseListRecord):
                     loggingfunc(self, **self.kwargs)
                 except TypeError:
                     LogRecord(f"LogRecord.send: logger name is not a string, {i}",
-                              level='error', sources=[__name__], exc_info=True).send()
+                              level='error', sources=[__name__], exc_info=True)()
 
     def __str__(self):
         """

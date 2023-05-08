@@ -175,13 +175,13 @@ class ToClientRecord(BaseListRecord):
             self.color_lines(actor=actor)
             self.add_line_endings(actor=actor)
 
-    def send(self, actor=''):
+    def _exec_(self, actor=''):
         """
         send the message
         """
         if self.sending:
             LogRecord(f"LogRecord: {self.uuid} is already sending",
-                                level='debug', stack_info=True, sources=[__name__]).send()
+                                level='debug', stack_info=True, sources=[__name__])()
             return
         self.sending = True
         self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
@@ -226,7 +226,7 @@ class ToClientRecord(BaseListRecord):
                     client.send_to(self)
                 else:
                     LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
-                            level='debug', sources=[__name__]).send()
+                            level='debug', sources=[__name__])()
 
         if self.is_io:
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToClientRecord': self})

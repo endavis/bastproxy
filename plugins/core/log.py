@@ -173,24 +173,24 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         LogRecord(f"api_set_log_to_client: {logtype} {level} {flag}",
-                    level='debug', sources=[self.plugin_id]).send()
+                    level='debug', sources=[self.plugin_id])()
 
         logger_name = get_toplevel(logtype)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
             LogRecord(f"api_toggletoclient: invalid log level {level}",
-                      level='error', sources=[self.plugin_id, logger_name]).send()
+                      level='error', sources=[self.plugin_id, logger_name])()
             return
 
         if flag and logger_name not in self.handlers['client']:
             self.handlers['client'][logger_name] = level
             LogRecord(f"setting {logger_name} to log to client at level {level}",
-                      level='debug', sources=[self.plugin_id, logger_name]).send()
+                      level='debug', sources=[self.plugin_id, logger_name])()
         elif not flag and logger_name in self.handlers['client']:
             del(self.handlers['client'][logger_name])
             LogRecord(f"removing {logger_name} logging to client {level}",
-                      level='debug', sources=[self.plugin_id, logger_name]).send()
+                      level='debug', sources=[self.plugin_id, logger_name])()
 
         self.handlers['client'].sync()
 
@@ -236,19 +236,19 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         LogRecord(f"api_set_log_to_console: {logtype} {level}",
-                    level='debug', sources=[self.plugin_id]).send()
+                    level='debug', sources=[self.plugin_id])()
 
         logger_name = get_toplevel(logtype)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
             LogRecord(f"api_set_log_to_console: invalid log level {level}",
-                      level='error', sources=[self.plugin_id, logger_name]).send()
+                      level='error', sources=[self.plugin_id, logger_name])()
             return
 
         self.handlers['console'][logger_name] = level
         LogRecord(f"setting {logger_name} to log to console at level {level}",
-                  level='debug', sources=[self.plugin_id, logger_name]).send()
+                  level='debug', sources=[self.plugin_id, logger_name])()
 
         self.handlers['console'].sync()
 
@@ -298,13 +298,13 @@ class Plugin(BasePlugin):
             level = logging.getLevelName(level).lower()
         if not level:
             LogRecord(f"api_set_log_to_file: invalid log level {level}",
-                      level='error', sources=[self.plugin_id, logtype]).send()
+                      level='error', sources=[self.plugin_id, logtype])()
             return
 
         logger_name = get_toplevel(logtype)
         self.handlers['file'][logger_name] = level
         LogRecord(f"setting {logger_name} to log to file at level {level}",
-                  level='debug', sources=[self.plugin_id, logger_name]).send()
+                  level='debug', sources=[self.plugin_id, logger_name])()
 
         self.handlers['file'].sync()
 
@@ -394,7 +394,7 @@ class Plugin(BasePlugin):
         tmsg = [f"'{message}' sent to '{logtype}' as level '{level}'"]
 
         lr = LogRecord(message, level=level, sources=[logtype])
-        lr.send()
+        lr()
 
         tmsg.extend(
             (

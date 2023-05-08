@@ -76,7 +76,7 @@ class Event:
         if event_function not in self.priority_dictionary[priority]:
             self.priority_dictionary[priority].append(event_function)
             LogRecord(f"{self.name} - register function {event_function} with priority {priority}",
-                      level='debug', sources=[event_function.owner_id, self.created_by]).send()
+                      level='debug', sources=[event_function.owner_id, self.created_by])()
             return True
 
         return False
@@ -89,12 +89,12 @@ class Event:
             if func in self.priority_dictionary[priority]:
                 event_function = self.priority_dictionary[priority][self.priority_dictionary[priority].index(func)]
                 LogRecord(f"unregister - {self.name} - unregister function {event_function} with priority {priority}",
-                          level='debug', sources=[event_function.owner_id, self.created_by]).send()
+                          level='debug', sources=[event_function.owner_id, self.created_by])()
                 self.priority_dictionary[priority].remove(event_function)
                 return True
 
         LogRecord(f"unregister - {self.name} - could not find function {func.__name__}",
-                  level='error', sources=[self.created_by]).send()
+                  level='error', sources=[self.created_by])()
         return False
 
     def removeowner(self, owner_id):
@@ -171,12 +171,12 @@ class Event:
         # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
         if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} did not pass a dict or EventArgsRecord object",
-                        level='error', sources=[calledfrom, self.created_by, 'plugins.core.events']).send()
+                        level='error', sources=[calledfrom, self.created_by, 'plugins.core.events'])()
             LogRecord(
                 "The event will not be processed",
                 level='error',
                 sources=[calledfrom, self.created_by, 'plugins.core.events'],
-            ).send()
+            )()
             return None
 
         # convert a dict to an EventArgsRecord object
@@ -188,7 +188,7 @@ class Event:
         log: bool = True if log_savestate else not self.name.endswith('_savestate')
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
-                      level='debug', sources=[calledfrom, self.created_by]).send()
+                      level='debug', sources=[calledfrom, self.created_by])()
 
         self.current_record = data
         if keys := self.priority_dictionary.keys():
@@ -202,7 +202,7 @@ class Event:
                         event_function.execute()
                     except Exception:  # pylint: disable=broad-except
                         LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
-                                    level='error', sources=[event_function.owner_id, self.created_by], exc_info=True).send()
+                                    level='error', sources=[event_function.owner_id, self.created_by], exc_info=True)()
         self.current_record = None
         return data
 

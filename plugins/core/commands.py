@@ -139,7 +139,7 @@ class Command:
         cmd_prefix = self.api(f"{__name__}:setting.get")('cmdprefix')
         command_ran = f"{cmd_prefix}.{self.plugin_id}.{self.name} {arg_string}"
         LogRecord(f"running {command_ran}",
-                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
+                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:run_command:command_ran")
 
         success, parsed_args, fail_message = self.parse_args(arg_string)
 
@@ -163,7 +163,7 @@ class Command:
             actor = f"{self.plugin_id}:run_command:command_exception"
             message.extend([f"Error running command: {command_ran}"])
             LogRecord(f"Error running command: {command_ran}",
-                        level='error', sources=[self.plugin_id, __name__], exc_info=True).send(actor)
+                        level='error', sources=[self.plugin_id, __name__], exc_info=True)(actor)
             return self.run_finish(False, message, 'function returned False')
 
         if isinstance(return_value, tuple):
@@ -206,7 +206,7 @@ class Command:
                 fail_message = [f"@RError: Could not parse arguments: {exc.args[0]}@w", '']
                 fail_message.extend(self.arg_parser.format_help().split('\n'))
                 LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.args[0]}",
-                        level='info', sources=[self.plugin_id, __name__]).send(actor)
+                        level='info', sources=[self.plugin_id, __name__])(actor)
                 return False, args, fail_message
 
         # parse the arguments and deal with errors
@@ -217,7 +217,7 @@ class Command:
             fail_message = [f"@RError: {exc.message}@w", '']
             fail_message.extend(self.arg_parser.format_help().split('\n'))
             LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.message}",
-                    level='info', sources=[self.plugin_id, __name__]).send()
+                    level='info', sources=[self.plugin_id, __name__])()
             return False, args, fail_message
 
         return True, args, ''
@@ -468,7 +468,7 @@ class Plugin(BasePlugin):
             a list of strings for the output of the command
         """
         LogRecord(f"running command {command_name} from plugin {plugin_id} with arguments {argument_string}",
-                  level='debug', sources=[self.plugin_id, plugin_id]).send(actor = f"{self.plugin_id}:run_command:command_ran")
+                  level='debug', sources=[self.plugin_id, plugin_id])(actor = f"{self.plugin_id}:run_command:command_ran")
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
             success, message, _ = command.run(argument_string)
             return success, message
@@ -550,7 +550,7 @@ class Plugin(BasePlugin):
         """
         if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"commands - update_command: plugin {plugin_id} does not exist",
-                      level='debug', sources=[plugin_id, self.plugin_id]).send(f"{self.plugin_id}:update_command")
+                      level='debug', sources=[plugin_id, self.plugin_id])(f"{self.plugin_id}:update_command")
             return False
 
         all_command_data = self.api(f"{plugin_id}:data.get")('commands')
@@ -560,7 +560,7 @@ class Plugin(BasePlugin):
 
         if command_name not in all_command_data and not self.api.startup:
             LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
-                      level='debug', sources=[plugin_id, self.plugin_id]).send()
+                      level='debug', sources=[plugin_id, self.plugin_id])()
 
         all_command_data[command_name] = command
 
@@ -600,9 +600,9 @@ class Plugin(BasePlugin):
                 event_record.addupdate('Modify', "Antispam Command sent",
                                         f"{self.plugin_id}:pass_through_command", savedata = False)
                 LogRecord(f"sending antspam command: {self.api('{self.plugin_id}:setting.get')('antispamcommand')}",
-                          level='debug', sources=[self.plugin_id]).send()
+                          level='debug', sources=[self.plugin_id])()
                 ToMudRecord(self.api(f"{self.plugin_id}:setting.get")('antispamcommand'),
-                            show_in_history=False).send(f"{self.plugin_id}:pass_through_command")
+                            show_in_history=False)(f"{self.plugin_id}:pass_through_command")
 
                 self.api(f"{self.plugin_id}:setting.change")('cmdcount', 0)
                 return
@@ -618,7 +618,7 @@ class Plugin(BasePlugin):
         else:
             # the command does not match the last command
             self.api(f"{self.plugin_id}:setting.change")('cmdcount', 0)
-            LogRecord(f"resetting command to {original_command}", level='debug', sources=[self.plugin_id]).send()
+            LogRecord(f"resetting command to {original_command}", level='debug', sources=[self.plugin_id])()
             self.api(f"{self.plugin_id}:setting.change")('lastcmd', original_command)
 
     def proxy_help(self, header, header2, data):
@@ -661,7 +661,7 @@ class Plugin(BasePlugin):
             # found the item
             LogRecord(f"match_item: found {item}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:run_command.command_ran")
+                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:run_command.command_ran")
             return item
 
         # see if the item fuzzy matches an item in the list
@@ -675,7 +675,7 @@ class Plugin(BasePlugin):
         message: list[str] = []
         LogRecord(f"find_command: {command_line}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}find_command")
+                  sources=[self.plugin_id])(actor = f"{self.plugin_id}find_command")
 
         # copy the command
         command = command_line
@@ -706,13 +706,13 @@ class Plugin(BasePlugin):
 
             LogRecord(f"looking for {command}, {command_str}, {command_args}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
             # split the command by the '.'
             command_split = command_str.split('.')
             LogRecord(f"{command_split=}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
             # remove the command prefix
             if commandprefix in command_split:
@@ -725,7 +725,7 @@ class Plugin(BasePlugin):
             # get all the pieces of the command
             temp_package = command_split[0]
             LogRecord(f"{temp_package=}",
-                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
             temp_plugin = ''
             temp_command = ''
 
@@ -760,7 +760,7 @@ class Plugin(BasePlugin):
             # try and find the plugin
             new_plugin = self.match_item(f"{new_package}.{temp_plugin}", all_plugin_list)
             LogRecord(f"{new_plugin=}",
-                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
             if not new_plugin:
                 # did not get a plugin, so output the list of plugins in the package
@@ -787,9 +787,9 @@ class Plugin(BasePlugin):
             command_data = self._api_get_plugin_command_data(new_plugin)
             command_list = list(command_data.keys())
             LogRecord(f"{command_list=}",
-                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
             LogRecord(f"{temp_command=}",
-                  level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:find_command")
+                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
             new_command = self.match_item(temp_command, command_list)
 
@@ -838,7 +838,7 @@ class Plugin(BasePlugin):
                 command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
 
                 if message:
-                    ToClientRecord(message, clients=clients).send()
+                    ToClientRecord(message, clients=clients)()
 
                 if event_record['showinhistory'] != show_in_history:
                     event_record['showinhistory'] = show_in_history
@@ -851,8 +851,8 @@ class Plugin(BasePlugin):
 
                 if command_item:
                     LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
-                            level='debug', sources=[self.plugin_id]).send(actor = f"{self.plugin_id}:evc_check_for_command")
-                    #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}").send()
+                            level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:evc_check_for_command")
+                    #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}")()
 
                     success, message, error = command_item.run(command_args)
 
@@ -867,7 +867,7 @@ class Plugin(BasePlugin):
 
                     if message:
                         message = command_item.format_return_message(message)
-                        ToClientRecord(message, clients=clients).send()
+                        ToClientRecord(message, clients=clients)()
 
         else:
             self.pass_through_command()
@@ -906,7 +906,7 @@ class Plugin(BasePlugin):
         # passed an empty function
         if not func:
             LogRecord(f"_api_add_command: add command for command {command_name} was passed a null function from {called_from}, not adding",
-                      level='error', sources=[self.plugin_id, called_from]).send()
+                      level='error', sources=[self.plugin_id, called_from])()
             return
 
 
@@ -919,7 +919,7 @@ class Plugin(BasePlugin):
 
         if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"Function is not part of a plugin class: command {command_name} from plugin {called_from}",
-                        level='error', sources=[self.plugin_id, called_from], stack_info=True).send()
+                        level='error', sources=[self.plugin_id, called_from], stack_info=True)()
             return
 
         # add custom formatter to the parser passed in
@@ -930,7 +930,7 @@ class Plugin(BasePlugin):
         # use default parser if none passed in
         else:
             LogRecord(f"adding default parser to command {plugin_id}.{command_name}",
-                      level='debug', sources=[self.plugin_id, plugin_id]).send()
+                      level='debug', sources=[self.plugin_id, plugin_id])()
             if 'shelp' not in args:
                 args['shelp'] = 'there is no help for this command'
             new_parser = argp.ArgumentParser(add_help=False,
@@ -971,7 +971,7 @@ class Plugin(BasePlugin):
         self.commands_list.append(f"{plugin_id}.{command_name}")
 
         LogRecord(f"added command {plugin_id}.{command_name}",
-                  level='debug', sources=[self.plugin_id, plugin_id]).send()
+                  level='debug', sources=[self.plugin_id, plugin_id])()
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
@@ -982,17 +982,17 @@ class Plugin(BasePlugin):
         this function returns no values"""
         if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
             LogRecord(f"remove command: plugin {plugin_id} does not exist",
-                      level='warning', sources=[self.plugin_id, plugin_id]).send(f"{self.plugin_id}:_api_remove_command")
+                      level='warning', sources=[self.plugin_id, plugin_id])(f"{self.plugin_id}:_api_remove_command")
             return False
 
         data = self.api(f"{plugin_id}:data.get")('commands')
         if data and command_name in data:
             del data[command_name]
             self.api(f"{plugin_id}:data.update")('commands', data)
-            LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id]).send()
+            LogRecord(f"removed command {plugin_id}.{command_name}", level='debug', sources=[self.plugin_id, plugin_id])()
             return True
 
-        LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id]).send()
+        LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id])()
         return False
 
     def format_command_list(self, command_list: list[Command]):
@@ -1099,10 +1099,10 @@ class Plugin(BasePlugin):
         else:
             command = self.command_history_data[args['number']]
 
-        ToClientRecord(f"Commands: rerunning command {command}").send(
+        ToClientRecord(f"Commands: rerunning command {command}")(
             f'{self.plugin_id}:command_runhistory'
         )
-        ToClientRecord(command)
+        ToClientRecord(command)()
 
         return True, []
 

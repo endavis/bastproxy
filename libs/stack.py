@@ -52,6 +52,12 @@ class SimpleStack(object):
         """
         return self.items.pop()
 
+    def remove(self, item):
+        """
+        remove an item
+        """
+        self.items.remove(item)
+
     def peek(self):
         """
         peek at the top of the stack

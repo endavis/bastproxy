@@ -99,7 +99,7 @@ class Plugin(BasePlugin):
         if client_uuid in self.clients:
             addr = self.clients[client_uuid].addr
             LogRecord(f"{addr} has been banned for 10 minutes",
-                      level='error', sources=[self.plugin_id]).send()
+                      level='error', sources=[self.plugin_id])()
             self.banned[addr] =  datetime.datetime.now(datetime.timezone.utc)
             self.clients[client_uuid].state['connected'] = False
 
@@ -129,7 +129,7 @@ class Plugin(BasePlugin):
             client_connection = self.clients[client_uuid]
             client_connection.state['logged in'] = True
             LogRecord(f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                      level='warning', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id])()
 
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in",
                                         {'client_uuid':client_connection.uuid})
@@ -144,7 +144,7 @@ class Plugin(BasePlugin):
             client_connection.view_only = True
 
             LogRecord(f"View Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                      level='warning', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id])()
 
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
                                         {'client_uuid':client_connection.uuid})
@@ -170,7 +170,7 @@ class Plugin(BasePlugin):
         add a connected client
         """
         if client_connection.uuid in self.clients:
-            LogRecord(f"Client {client_connection.uuid} already exists", level='warning', sources=[self.plugin_id]).send()
+            LogRecord(f"Client {client_connection.uuid} already exists", level='warning', sources=[self.plugin_id])()
         self.clients[client_connection.uuid] = client_connection
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_connected",
                                                     {'client_uuid' : client_connection.uuid})
@@ -184,7 +184,7 @@ class Plugin(BasePlugin):
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_disconnected",
                                                         {'client_uuid' : client_connection.uuid})
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
-                      level='warning', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id])()
 
     def evc_shutdown(self):
         """

@@ -171,11 +171,11 @@ class PersistentDict(dict):
             return self.update(nstuff)
 
         except Exception:  # pylint: disable=broad-except
-            record = LogRecord(f"Error when loading {self.format} from {self.file_name}",
-                               level='error', sources=[__name__], exc_info=True)
+            sources = [__name__]
             if getattr(self, 'owner_id'):
-                record.add_source(self.owner_id)
-            record.send()
+                sources.append(self.owner_id)
+            LogRecord(f"Error when loading {self.format} from {self.file_name}",
+                               level='error', sources=sources, exc_info=True)()
 
         raise ValueError('File not in a supported format')
 

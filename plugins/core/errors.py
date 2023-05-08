@@ -76,7 +76,7 @@ class Plugin(BasePlugin):
                 msg.extend(('',
                             f"Time  : {i['timestamp']}",
                             f"Error : {i['msg']}"))
-            LogRecord(msg, level='error', sources=[self.plugin_id, 'mudproxy']).send()
+            LogRecord(msg, level='error', sources=[self.plugin_id, 'mudproxy'])()
 
 
     # add an error to the list

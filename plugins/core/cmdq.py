@@ -80,7 +80,7 @@ class Plugin(BasePlugin):
 
         this function returns no values"""
         LogRecord(f"_api_remove_commands_for_plugin - removing cmdq data for plugin {plugin_id}",
-                  level='debug', sources=[self.plugin_id, plugin_id]).send()
+                  level='debug', sources=[self.plugin_id, plugin_id])()
         tkeys = self.cmds.keys()
         for i in tkeys: # iterate keys since we are deleting things
             if self.cmds[i]['owner'] == plugin_id:
@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
             del self.cmds[cmdtype]
         else:
             LogRecord(f"_api_command_type_remove - {cmdtype} not found",
-                      level='debug', sources=[self.plugin_id]).send()
+                      level='debug', sources=[self.plugin_id])()
 
     # start a command
     def _api_command_start(self, cmdtype):
@@ -103,7 +103,7 @@ class Plugin(BasePlugin):
         """
         if self.current_command and cmdtype != self.current_command['ctype']:
             LogRecord(f"_api_command_start - got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}",
-                      level='error', sources=[self.plugin_id]).send()
+                      level='error', sources=[self.plugin_id])()
             return
         self.api('libs.timing:timing.start')(f"cmd_{cmdtype}")
 
@@ -138,7 +138,7 @@ class Plugin(BasePlugin):
         """
         LogRecord(
             "sendnext - checking queue", level='debug', sources=[self.plugin_id]
-        ).send()
+        )()
         if not self.queue or self.current_command:
             return
 
@@ -146,14 +146,14 @@ class Plugin(BasePlugin):
         cmd = cmdt['cmd']
         cmdtype = cmdt['ctype']
         LogRecord(f"sendnext - sending cmd: {cmd} ({cmdtype})",
-                  level='debug', sources=[self.plugin_id]).send()
+                  level='debug', sources=[self.plugin_id])()
 
         if cmdtype in self.cmds and self.cmds[cmdtype]['beforef']:
             self.cmds[cmdtype]['beforef']()
 
         self.current_command = cmdt
         self.api('plugins.core.events:raise.event')(f"cmd_{self.current_command['ctype']}_send")
-        ToMudRecord(cmd, internal=True, show_in_history=False)
+        ToMudRecord(cmd, internal=True, show_in_history=False)()
 
     def checkinqueue(self, cmd):
         """
@@ -167,13 +167,13 @@ class Plugin(BasePlugin):
         """
         LogRecord(f"_api_command_finish - got command finish for {cmdtype}",
                   level='debug',
-                  sources=[self.plugin_id]).send(actor=f"{self.plugin_id}:_api_command_finish")
+                  sources=[self.plugin_id])(actor=f"{self.plugin_id}:_api_command_finish")
         if not self.current_command:
             return
         if cmdtype == self.current_command['ctype']:
             if cmdtype in self.cmds and self.cmds[cmdtype]['afterf']:
                 LogRecord(f"_api_command_finish - running afterf for {cmdtype}",
-                          level='debug', sources=[self.plugin_id]).send()
+                          level='debug', sources=[self.plugin_id])()
                 self.cmds[cmdtype]['afterf']()
 
             self.api('libs.timing:timing.finish')(f"cmd_{self.current_command['ctype']}")
@@ -193,7 +193,7 @@ class Plugin(BasePlugin):
                         ('cmd' in self.current_command and self.current_command['cmd'] == cmd):
             return
         LogRecord(f"_api_queue_add_command - adding {cmd} to queue",
-                  level='debug', sources=[self.plugin_id]).send()
+                  level='debug', sources=[self.plugin_id])()
         self.queue.append({'cmd':cmd, 'ctype':cmdtype, 'plugin':plugin})
         if not self.current_command:
             self.sendnext()

@@ -59,10 +59,10 @@ class PluginDependencyResolver(object):
             try:
                 edge_plugin = self.plugin_lookup[edge]
             except KeyError:
-                if 'REQUIRED' in plugin['module'].__dict__ \
-                       and plugin['module'].REQUIRED:
-                    LogRecord(f"Required plugin {plugin['plugin_id']} could not be loaded, dependency {edge} would not load",
-                              level='error', sources=[plugin['plugin_id'], __name__]).send()
+                if 'REQUIRED' in plugin.module.__dict__ \
+                       and plugin.module.REQUIRED:
+                    LogRecord(f"Required plugin {plugin.plugin_id} could not be loaded, dependency {edge} would not load",
+                              level='error', sources=[plugin.plugin_id, __name__])()
                     sys.exit(1)
 
             if edge_plugin:

@@ -55,7 +55,7 @@ def stackdump(id='', msg='HERE') -> None:
         lines.append(f'LEAVING STACK_DUMP: {id}' if id else '')
     try:
         from libs.records import LogRecord
-        LogRecord(lines, level='warning', sources=[__name__]).send()
+        LogRecord(lines, level='warning', sources=[__name__])()
     except ImportError:
         print('\n'.join(lines))
         print()
@@ -473,7 +473,7 @@ class API():
                     from libs.records import LogRecord
                     added_in = self._class_api[full_api_name].owner_id
                     LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {added_in}",
-                                level='error', sources=[__name__, self.owner_id]).send()
+                                level='error', sources=[__name__, self.owner_id])()
                 except ImportError:
                     print(f"libs.api:add - {full_api_name} already exists")
                     return False
@@ -499,7 +499,7 @@ class API():
                 try:
                     from libs.records import LogRecord
                     LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists from plugin: {api_item.owner_id}",
-                            level='error', sources=[__name__, api_item.owner_id]).send()
+                            level='error', sources=[__name__, api_item.owner_id])()
                 except ImportError:
                     print(f"libs.api:overload - {api_item.full_api_name} already exists")
 
@@ -566,7 +566,7 @@ class API():
         try:
             from libs.records import LogRecord
             LogRecord(f"_api_run_as_plugin: {plugin_id} plugin does not exist",
-                      level='error', sources=[__name__]).send()
+                      level='error', sources=[__name__])()
         except ImportError:
             print(f"_api_run_as_plugin: {plugin_id} plugin does not exist")
 

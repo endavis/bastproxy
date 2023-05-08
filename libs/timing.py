@@ -71,7 +71,7 @@ class Timing(object):
       self.timing[uid] = {'name': timername, 'start': default_timer(),
                           'owner_id': owner_id}
       LogRecord(f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
-                level='debug', sources=[__name__, owner_id]).send()
+                level='debug', sources=[__name__, owner_id])()
 
   def finishtimer(self, uid, timername, args=None):
     """
@@ -81,11 +81,11 @@ class Timing(object):
       timerfinish = default_timer()
       if uid in self.timing:
         LogRecord(f"finishtimer - {uid} {timername:<20} : finished in {(timerfinish - self.timing[uid]['start']) * 1000.0} ms - with args {args}",
-                    level='debug', sources=[__name__, self.timing[uid]['owner_id']]).send()
+                    level='debug', sources=[__name__, self.timing[uid]['owner_id']])()
         del self.timing[timername]
       else:
         owner_id = self.api('libs.api:get.caller.owner')()
         LogRecord(f"finishtimer - {uid} {timername:<20} : not found - called from {owner_id}",
-                    level='error', sources=[__name__, owner_id]).send()
+                    level='error', sources=[__name__, owner_id])()
 
 TIMING = Timing()

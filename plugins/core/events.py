@@ -134,7 +134,7 @@ class Plugin(BasePlugin):
         """
         if event_record := self.api('plugins.core.events:get.current.event.record')():
             LogRecord(f"evc_plugin_uninitialized - removing events for {event_record['plugin_id']}",
-                    level='debug', sources=[self.plugin_id, event_record['plugin_id']]).send()
+                    level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 
     def _get_current_event_name(self):
@@ -207,7 +207,7 @@ class Plugin(BasePlugin):
         func_owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
         if not func_owner_id:
             LogRecord(f"_api_register_to_event - could not find owner for {func}",
-                      level='error', sources=[self.plugin_id]).send()
+                      level='error', sources=[self.plugin_id])()
             return
 
         event = self._api_get_event(event_name)
@@ -226,7 +226,7 @@ class Plugin(BasePlugin):
             self.events[event_name].unregister(func)
         else:
             LogRecord(f"_api_unregister_from_event - could not find event {event_name}",
-                      level='error', sources=[self.plugin_id]).send()
+                      level='error', sources=[self.plugin_id])()
 
     # remove all registered functions that are specific to an owner_id
     def _api_remove_events_from_owner(self, owner_id):
@@ -234,7 +234,7 @@ class Plugin(BasePlugin):
         @Yowner_id@w   = The owner to remove events for
         this function returns no values"""
         LogRecord(f"_api_remove_events_from_owner - removing events for {owner_id}",
-                  level='debug', sources=[self.plugin_id, owner_id]).send()
+                  level='debug', sources=[self.plugin_id, owner_id])()
 
         for event in self.events:
             self.events[event].removeowner(owner_id)
@@ -254,7 +254,7 @@ class Plugin(BasePlugin):
 
         if not calledfrom:
             LogRecord(f"event {event_name} raised with unknown caller",
-                      level='warning', sources=[self.plugin_id]).send()
+                      level='warning', sources=[self.plugin_id])()
 
         if not args:
             args = {}

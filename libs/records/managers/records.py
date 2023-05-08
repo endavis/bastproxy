@@ -14,17 +14,34 @@ This module holds a manager that handles records of all types
 
 # Project
 from libs.api import API as BASEAPI
+from libs.stack import SimpleStack
 
 class RecordManager(object):
     def __init__(self):
         """
         Keep the last 1000 records of each type
+        track the active record
         """
         self.max_records: int = 1000
         self.records: dict[str, list] = {}
         self.api = BASEAPI(owner_id=__name__)
         self.api.MANAGERS['records'] = self
         self.record_instances = {}
+        self.active_record_stack = SimpleStack()
+
+    def start(self, record):
+        self.active_record_stack.push(record)
+
+    def end(self, record):
+        if record != self.active_record_stack.peek():
+            from libs.records import LogRecord
+            LogRecord(f"RecordManger end: Record {record} is not the same as the active record {self.active_record_stack.peek()}", level='warning')
+            self.active_record_stack.remove(record)
+        else:
+            self.active_record_stack.pop()
+
+    def get_latest_record(self):
+        return self.active_record_stack.peek()
 
     def add(self, record):
         queuename = record.__class__.__name__
@@ -32,7 +49,7 @@ class RecordManager(object):
             self.records[queuename] = []
         if record.uuid in self.record_instances:
             from libs.records import LogRecord
-            LogRecord(f"Record UUID collision {record.uuid} already exists in the record manager", level='error')
+            LogRecord(f"Record UUID collision {record.uuid} already exists in the record manager", level='error')()
         self.records[queuename].append(record)
         self.record_instances[record.uuid] = record
 

@@ -165,10 +165,10 @@ class Plugin(BasePlugin):
         connects to the mud
         """
         if self.api(f"{self.plugin_id}:setting.get")('username') != '':
-            ToMudRecord(self.api(f"{self.plugin_id}:setting.get")('username'), internal=True, show_in_history=False)
+            ToMudRecord(self.api(f"{self.plugin_id}:setting.get")('username'), internal=True, show_in_history=False)()
             pasw = self.api(f"{self.plugin_id}:ssc.mudpw")()
             if pasw != '':
-                ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)
+                ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)()
 
     def cmd_info(self):
         """
@@ -275,10 +275,10 @@ class Plugin(BasePlugin):
         shutdown the proxy
         """
         self.api.__class__.shutdown = True
-        LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown']).send()
-        ToClientRecord('Shutting down proxy').send(f'{self.plugin_id}:api_shutdown')
+        LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown'])()
+        ToClientRecord('Shutting down proxy')(f'{self.plugin_id}:api_shutdown')
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
-        LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown']).send()
+        LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown'])()
 
     def cmd_shutdown(self):
         """
@@ -362,7 +362,7 @@ class Plugin(BasePlugin):
 
 
         if tmsg:
-            ToClientRecord(tmsg, clients=[event_record['client_uuid']]).send(
+            ToClientRecord(tmsg, clients=[event_record['client_uuid']])(
                 f'{__name__}:client_connected'
             )
 
@@ -376,8 +376,8 @@ class Plugin(BasePlugin):
 
         ToClientRecord(
             f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"
-        ).send(f'{self.plugin_id}:api_restart')
-        LogRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds", level='warning', sources=[self.plugin_id]).send()
+        )(f'{self.plugin_id}:api_restart')
+        LogRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds", level='warning', sources=[self.plugin_id])()
 
         self.api('plugins.core.timers:add.timer')('restart', self.timer_restart, restart_in, onetime=True)
 
