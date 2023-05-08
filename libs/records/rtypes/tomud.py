@@ -140,6 +140,8 @@ class ToMudRecord(BaseListRecord):
             LogRecord(f"LogRecord: {self.uuid} is already sending",
                                 level='debug', stack_info=True, sources=[__name__])()
             return
+
+        self.sending = True
         self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
 
         # non-io and anything generated internally do not go through the mud_data_modify event
@@ -179,3 +181,4 @@ class ToMudRecord(BaseListRecord):
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToMudRecord': self})
 
         self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)
+        self.sending = False

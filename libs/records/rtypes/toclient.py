@@ -183,6 +183,7 @@ class ToClientRecord(BaseListRecord):
             LogRecord(f"LogRecord: {self.uuid} is already sending",
                                 level='debug', stack_info=True, sources=[__name__])()
             return
+
         self.sending = True
         self.addupdate('Info', f"{'Start':<8}: send", actor, savedata=False)
 
@@ -232,3 +233,4 @@ class ToClientRecord(BaseListRecord):
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToClientRecord': self})
 
         self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send", savedata=False)
+        self.sending = False
