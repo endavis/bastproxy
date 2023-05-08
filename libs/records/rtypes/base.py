@@ -218,7 +218,7 @@ class BaseListRecord(UserList, BaseRecord):
         self.items_to_format_in_details.extend([('Internal', 'internal'),
                                                 ('Message Type', 'message_type'),
                                                 ('Original Data', 'original_data')])
-        self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
+        self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
 
     @property
     def is_command_telnet(self):
@@ -339,7 +339,7 @@ class BaseDictRecord(UserDict, BaseRecord):
         self.original_data = data.copy()
         self.items_to_format_in_details.extend([('Data', 'data'),
                                                 ('Original data', 'original_data')])
-        self.addupdate('Info', 'Init', self.__class__.__name__, savedata=True)
+        self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
 
 
     def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
