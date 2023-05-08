@@ -302,7 +302,7 @@ class BaseListRecord(UserList, BaseRecord):
             else:
                 from libs.records.rtypes.log import LogRecord
                 LogRecord(f"clean - {self.uuid} Message.clean: line is not a string: {line}",
-                          level='error', sources=[__name__])
+                          level='error', sources=[__name__])()
         self.replace(new_message, actor=f"{actor}:clean", extra={'msg':'clean each item'})
 
     def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
