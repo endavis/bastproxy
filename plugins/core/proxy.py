@@ -88,15 +88,15 @@ class Plugin(BasePlugin):
                                                   arg_descriptions={'None': None})
 
         self.api('plugins.core.commands:command.add')('info',
-                                              self.cmd_info,
+                                              self._command_info,
                                               shelp='list proxy info')
 
         self.api('plugins.core.commands:command.add')('disconnect',
-                                              self.cmd_disconnect,
+                                              self._command_disconnect,
                                               shelp='disconnect from the mud')
 
         self.api('plugins.core.commands:command.add')('connect',
-                                              self.cmd_connect,
+                                              self._command_connect,
                                               shelp='connect to the mud')
 
         parser = argp.ArgumentParser(add_help=False,
@@ -107,13 +107,13 @@ class Plugin(BasePlugin):
                             default=10,
                             help='# of seconds to wait before restart')
         self.api('plugins.core.commands:command.add')('restart',
-                                              self.cmd_restart,
+                                              self._command_restart,
                                               shelp='restart the proxy',
                                               format=False,
                                               parser=parser)
 
         self.api('plugins.core.commands:command.add')('shutdown',
-                                              self.cmd_shutdown,
+                                              self._command_shutdown,
                                               shelp='shutdown the proxy')
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.clients_client_logged_in', self.evc_client_logged_in)
@@ -170,7 +170,7 @@ class Plugin(BasePlugin):
             if pasw != '':
                 ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)()
 
-    def cmd_info(self):
+    def _command_info(self):
         """
         show info about the proxy
         """
@@ -245,7 +245,7 @@ class Plugin(BasePlugin):
         tmsg.extend(nmsg)
         return True, tmsg
 
-    def cmd_disconnect(self):
+    def _command_disconnect(self):
         """
         disconnect from the mud
         """
@@ -257,7 +257,7 @@ class Plugin(BasePlugin):
         else:
             return True, ['The proxy is not connected to the mud']
 
-    def cmd_connect(self):
+    def _command_connect(self):
         """
         disconnect from the mud
         """
@@ -280,13 +280,13 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown'])()
 
-    def cmd_shutdown(self):
+    def _command_shutdown(self):
         """
         shutdown the proxy
         """
         signal.raise_signal( signal.SIGINT )
 
-    def cmd_restart(self):
+    def _command_restart(self):
         """
         restart the proxy
         """

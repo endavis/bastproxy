@@ -54,13 +54,13 @@ class Plugin(BasePlugin):
                             default='-1',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('show',
-                                              self.cmd_show,
+                                              self._command_show,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='clear errors')
         self.api('plugins.core.commands:command.add')('clear',
-                                              self.cmd_clear,
+                                              self._command_clear,
                                               parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
@@ -108,7 +108,7 @@ class Plugin(BasePlugin):
         """
         self.errors = []
 
-    def cmd_show(self):
+    def _command_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           show the error queue
@@ -135,7 +135,7 @@ class Plugin(BasePlugin):
             msg.append('There are no errors')
         return True, msg
 
-    def cmd_clear(self):
+    def _command_clear(self):
         """
         clear errors
         """

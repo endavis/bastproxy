@@ -144,7 +144,7 @@ class Plugin(BasePlugin):
                             default=[],
                             nargs='*')
         self.api('plugins.core.commands:command.add')('detail',
-                                              self.cmd_detail,
+                                              self._command_detail,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -154,7 +154,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('list',
-                                              self.cmd_list,
+                                              self._command_list,
                                               parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
@@ -647,7 +647,7 @@ class Plugin(BasePlugin):
 
         return origargs
 
-    def cmd_list(self):
+    def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list triggers and the plugins they are defined in
@@ -705,7 +705,7 @@ class Plugin(BasePlugin):
         stats['Triggers']['Regexes Memory Usage'] = sys.getsizeof(self.regexes)
         return stats
 
-    def cmd_detail(self):
+    def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the details of a trigger

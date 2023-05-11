@@ -74,7 +74,7 @@ class Plugin(BasePlugin):
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
         self.api('plugins.core.commands:command.add')('show',
-                                              self.cmd_show,
+                                              self._command_show,
                                               shelp='list clients that are connected')
 
         self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_proxy_shutdown',
@@ -201,7 +201,7 @@ class Plugin(BasePlugin):
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
-    def cmd_show(self):
+    def _command_show(self):
         """
         show all clients
         """

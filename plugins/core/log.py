@@ -195,7 +195,7 @@ class Plugin(BasePlugin):
         self.handlers['client'].sync()
 
     # toggle logging logtypes to the clients
-    def cmd_client(self):
+    def _command_client(self):
         """
         toggle logtypes shown to client
         """
@@ -253,7 +253,7 @@ class Plugin(BasePlugin):
         self.handlers['console'].sync()
 
     # toggle logging logtypes to the console
-    def cmd_console(self):
+    def _command_console(self):
         """
         toggle logtypes to the console
         """
@@ -309,7 +309,7 @@ class Plugin(BasePlugin):
         self.handlers['file'].sync()
 
     # toggle a logtype to log to a file
-    def cmd_file(self):
+    def _command_file(self):
         """
         toggle a logtype to log to a file
         """
@@ -344,7 +344,7 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # show all types
-    def cmd_types(self):
+    def _command_types(self):
         """
         list log types
         """
@@ -382,7 +382,7 @@ class Plugin(BasePlugin):
         return True, tmsg
 
 
-    def cmd_test(self):
+    def _command_test(self):
         """
         send test records to logging facilities
         """
@@ -405,7 +405,7 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    def cmd_clean(self):
+    def _command_clean(self):
         """
         remove log types that have not been used
         """
@@ -467,7 +467,7 @@ class Plugin(BasePlugin):
                             default=False)
 
         self.api('plugins.core.commands:command.add')('client',
-                                              self.cmd_client,
+                                              self._command_client,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -485,7 +485,7 @@ class Plugin(BasePlugin):
                             help='do not log to file with a timestamp',
                             action='store_false')
         self.api('plugins.core.commands:command.add')('file',
-                                              self.cmd_file,
+                                              self._command_file,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -498,7 +498,7 @@ class Plugin(BasePlugin):
                             default=[],
                             nargs='*')
         self.api('plugins.core.commands:command.add')('console',
-                                              self.cmd_console,
+                                              self._command_console,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -508,7 +508,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('types',
-                                              self.cmd_types,
+                                              self._command_types,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -526,7 +526,7 @@ class Plugin(BasePlugin):
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
                             required=True)
         self.api('plugins.core.commands:command.add')('test',
-                                              self.cmd_test,
+                                              self._command_test,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -534,7 +534,7 @@ class Plugin(BasePlugin):
 
           will remove any log types that have not been used""")
         self.api('plugins.core.commands:command.add')('clean',
-                                              self.cmd_clean,
+                                              self._command_clean,
                                               parser=parser)
 
     def savestate(self):

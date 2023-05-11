@@ -46,7 +46,7 @@ class Plugin(BasePlugin):
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='return the list of record types')
-        self.api('plugins.core.commands:command.add')('types', self.cmd_types,
+        self.api('plugins.core.commands:command.add')('types', self._command_types,
                                               parser=parser)
 
 
@@ -61,7 +61,7 @@ class Plugin(BasePlugin):
                             default=10,
                             nargs='?',
                             type=int)
-        self.api('plugins.core.commands:command.add')('list', self.cmd_list,
+        self.api('plugins.core.commands:command.add')('list', self._command_list,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -98,10 +98,10 @@ class Plugin(BasePlugin):
                             action='store_false',
                             default=True)
 
-        self.api('plugins.core.commands:command.add')('detail', self.cmd_detail,
+        self.api('plugins.core.commands:command.add')('detail', self._command_detail,
                                               parser=parser)
 
-    def cmd_types(self):
+    def _command_types(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
@@ -112,7 +112,7 @@ class Plugin(BasePlugin):
         tmsg.extend(iter(RMANAGER.get_types()))
         return True, tmsg
 
-    def cmd_list(self):
+    def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
@@ -130,7 +130,7 @@ class Plugin(BasePlugin):
         return True, tmsg
 
 
-    def cmd_detail(self):
+    def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         detail a function in the api

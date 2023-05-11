@@ -63,7 +63,7 @@ class SSC(object):
                             default='',
                             nargs='?')
         plugin_instance.api('plugins.core.commands:command.add')(self.name,
-                                                     self.cmd_setssc,
+                                                     self._command_setssc,
                                                      show_in_history=False,
                                                      parser=parser)
 
@@ -88,7 +88,7 @@ class SSC(object):
 
         return self.default
 
-    def cmd_setssc(self):
+    def _command_setssc(self):
         """
         set the secret
         """

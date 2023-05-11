@@ -142,13 +142,13 @@ class Plugin(BasePlugin):
         parser = argp.ArgumentParser(add_help=False,
                                      description='show colors')
         self.api('plugins.core.commands:command.add')('show',
-                                              self.cmd_show,
+                                              self._command_show,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='show color examples')
         self.api('plugins.core.commands:command.add')('example',
-                                              self.cmd_example,
+                                              self._command_example,
                                               parser=parser)
 
     # convert color codes to html
@@ -312,7 +312,7 @@ class Plugin(BasePlugin):
         """
         return self._api_strip_ansi(self._api_convert_colors(text))
 
-    def cmd_show(self):
+    def _command_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           Show xterm colors
@@ -366,7 +366,7 @@ class Plugin(BasePlugin):
         return True, message
 
 
-    def cmd_example(self):
+    def _command_example(self):
         # pylint: disable=no-self-use
         """
         @G%(name)s@w - @B%(cmdname)s@w

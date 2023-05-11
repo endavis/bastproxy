@@ -206,21 +206,21 @@ class Sqldb(object):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('dbbackup',
-                                              self.cmd_backup,
+                                              self._command_backup,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='close the database')
         self.api('plugins.core.commands:command.add')('dbclose',
-                                              self.cmd_close,
+                                              self._command_close,
                                               parser=parser,
                                               group='DB')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='vacuum the database')
         self.api('plugins.core.commands:command.add')('dbvac',
-                                              self.cmd_vac,
+                                              self._command_dbvac,
                                               parser=parser,
                                               group='DB')
 
@@ -232,7 +232,7 @@ class Sqldb(object):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('dbselect',
-                                              self.cmd_select,
+                                              self._command_dbselect,
                                               parser=parser,
                                               group='DB')
 
@@ -244,7 +244,7 @@ class Sqldb(object):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('dbmodify',
-                                              self.cmd_modify,
+                                              self._command_dbmodify,
                                               parser=parser,
                                               group='DB')
 
@@ -260,11 +260,11 @@ class Sqldb(object):
                             default=-1,
                             nargs='?')
         self.api('plugins.core.commands:command.add')('dbremove',
-                                              self.cmd_remove,
+                                              self._command_dbremove,
                                               parser=parser,
                                               group='DB')
 
-    def cmd_select(self):
+    def _command_dbselect(self):
         """
         run a cmd against the database
         """
@@ -278,7 +278,7 @@ class Sqldb(object):
                 message.append('Please enter a select statement')
         return True, message
 
-    def cmd_modify(self):
+    def _command_dbmodify(self):
         """
         run a cmd against the database
         """
@@ -291,7 +291,7 @@ class Sqldb(object):
                 message.append('Please enter an update statement')
         return True, message
 
-    def cmd_vac(self):
+    def _command_dbvac(self):
         """
         vacuum the database
         """
@@ -300,14 +300,14 @@ class Sqldb(object):
 
         return True, ['Database Vacuumed']
 
-    def cmd_close(self):
+    def _command_close(self):
         """
         close the database
         """
         self.close()
         return True, [f'Database {self.database_name} was closed']
 
-    def cmd_remove(self):
+    def _command_dbremove(self):
         """
         remove a table from the database
         """
@@ -323,7 +323,7 @@ class Sqldb(object):
 
         return True, message
 
-    def cmd_backup(self):
+    def _command_backup(self):
         """
         backup the database
         """
@@ -715,7 +715,7 @@ class Sqldb(object):
         backup the database
         """
         success = False
-        #self.cmd_vac()
+        #self._command_dbvac()
         LogRecord(f"backupdb - backing up database {self.database_name}",
                   level='debug', sources=[self.plugin_id, __name__])()
         if self.db_connection:

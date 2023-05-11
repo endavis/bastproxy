@@ -218,7 +218,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             'readonly':readonly_f
         }
 
-    def _cmd_inspect(self): # pylint: disable=too-many-branches
+    def _command_inspect(self): # pylint: disable=too-many-branches
         """
         show the plugin as it currently is in memory
 
@@ -316,7 +316,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, message
 
-    def _cmd_stats(self):
+    def _command_stats(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
@@ -332,7 +332,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             )
         return True, tmsg
 
-    def _cmd_api(self):
+    def _command_api(self):
         """
         list functions in the api for a plugin
         """
@@ -348,7 +348,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, tmsg
 
-    def _cmd_set(self):
+    def _command_set(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List or set vars
@@ -388,7 +388,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 msg = [f"plugin setting {var} does not exist"]
         return False, msg
 
-    def _cmd_reset(self):
+    def _command_reset(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reset the plugin
@@ -400,7 +400,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, ['This plugin cannot be reset']
 
-    def _cmd_help(self):
+    def _command_help(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
@@ -462,7 +462,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('set',
-                                              self._cmd_set,
+                                              self._command_set,
                                               parser=parser,
                                               group='Base',
                                               show_in_history=False)
@@ -471,21 +471,21 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             parser = argp.ArgumentParser(add_help=False,
                                          description='reset the plugin')
             self.api('plugins.core.commands:command.add')('reset',
-                                                  self._cmd_reset,
+                                                  self._command_reset,
                                                   parser=parser,
                                                   group='Base')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='save the plugin state')
         self.api('plugins.core.commands:command.add')('save',
-                                              self._cmd_save,
+                                              self._command_save,
                                               parser=parser,
                                               group='Base')
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='show plugin stats')
         self.api('plugins.core.commands:command.add')('stats',
-                                              self._cmd_stats,
+                                              self._command_stats,
                                               parser=parser,
                                               group='Base')
 
@@ -504,7 +504,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             help='show a simple output',
                             action='store_true')
         self.api('plugins.core.commands:command.add')('inspect',
-                                              self._cmd_inspect,
+                                              self._command_inspect,
                                               parser=parser,
                                               group='Base')
 
@@ -519,7 +519,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             help='show commands in this plugin',
                             action='store_true')
         self.api('plugins.core.commands:command.add')('help',
-                                              self._cmd_help,
+                                              self._command_help,
                                               parser=parser,
                                               group='Base')
 
@@ -530,7 +530,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('api',
-                                              self._cmd_api,
+                                              self._command_api,
                                               parser=parser,
                                               group='Base')
 
@@ -581,7 +581,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self.setting_values.sync()
 
-    def _cmd_save(self, _=None):
+    def _command_save(self, _=None):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         save plugin state

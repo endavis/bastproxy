@@ -58,7 +58,7 @@ class Plugin(BasePlugin):
 
         parser = argp.ArgumentParser(add_help=False,
                                      description='drop the last command')
-        self.api('plugins.core.commands:command.add')('fixqueue', self.cmd_fixqueue,
+        self.api('plugins.core.commands:command.add')('fixqueue', self._command_fix_queue,
                                               parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
@@ -204,7 +204,7 @@ class Plugin(BasePlugin):
         """
         self.queue = []
 
-    def cmd_fixqueue(self):
+    def _command_fix_queue(self):
         """
         finish the last command
         """

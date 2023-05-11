@@ -51,7 +51,7 @@ class Plugin(BasePlugin):
                             '--noplugin',
                             help="use an API that is not from a plugin",
                             action='store_true')
-        self.api('plugins.core.commands:command.add')('list', self.cmd_list,
+        self.api('plugins.core.commands:command.add')('list', self._command_list,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -70,11 +70,11 @@ class Plugin(BasePlugin):
                             '--noplugin',
                             help="use an API that is not from a plugin",
                             action='store_true')
-        self.api('plugins.core.commands:command.add')('detail', self.cmd_detail,
+        self.api('plugins.core.commands:command.add')('detail', self._command_detail,
                                               parser=parser)
 
 
-    def cmd_detail(self):
+    def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         detail a function in the api
@@ -85,7 +85,7 @@ class Plugin(BasePlugin):
         tmsg = []
         api = self.api
         if args['noplugin']:
-            api = API(owner_id=f"{self.plugin_id}:cmd_detail")
+            api = API(owner_id=f"{self.plugin_id}:_command_detail")
         if args['api']:
             tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats'], stats_by_caller=args['statsdetail']))
 
@@ -94,7 +94,7 @@ class Plugin(BasePlugin):
 
         return True, tmsg
 
-    def cmd_list(self):
+    def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
@@ -105,7 +105,7 @@ class Plugin(BasePlugin):
         tmsg = []
         api = self.api
         if args['noplugin']:
-            api = API(owner_id=f"{self.plugin_id}:cmd_list")
+            api = API(owner_id=f"{self.plugin_id}:_command_list")
         if apilist := api('libs.api:list')(args['toplevel']):
             tmsg.extend(apilist)
 

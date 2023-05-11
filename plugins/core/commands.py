@@ -332,7 +332,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('list',
-                                              self.command_list,
+                                              self._command_list,
                                               shelp='list commands',
                                               parser=parser,
                                               show_in_history=False)
@@ -344,7 +344,7 @@ class Plugin(BasePlugin):
                             help="clear the history",
                             action='store_true')
         self.api('plugins.core.commands:command.add')('history',
-                                              self.command_history,
+                                              self._command_history,
                                               shelp='list or run a command in history',
                                               parser=parser,
                                               show_in_history=False)
@@ -357,7 +357,7 @@ class Plugin(BasePlugin):
                             nargs='?',
                             type=int)
         self.api('plugins.core.commands:command.add')('!',
-                                              self.command_runhistory,
+                                              self._command_run_history,
                                               shelp='run a command in history',
                                               parser=parser,
                                               preamble=False,
@@ -412,7 +412,7 @@ class Plugin(BasePlugin):
         this function returns no values"""
 
         if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
-            # remove commands from command_list that start with plugin_instance.plugin_id
+            # remove commands from _command_list that start with plugin_instance.plugin_id
             new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
             self.commands_list = new_commands
 
@@ -1063,7 +1063,7 @@ class Plugin(BasePlugin):
 
         return message
 
-    def command_list(self, _=None):
+    def _command_list(self, _=None):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list commands
@@ -1094,7 +1094,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def command_runhistory(self):
+    def _command_run_history(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           act on the command history
@@ -1112,13 +1112,13 @@ class Plugin(BasePlugin):
             command = self.command_history_data[args['number']]
 
         ToClientRecord(f"Commands: rerunning command {command}")(
-            f'{self.plugin_id}:command_runhistory'
+            f'{self.plugin_id}:_command_run_history'
         )
         ToClientRecord(command)()
 
         return True, []
 
-    def command_history(self):
+    def _command_history(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the command history

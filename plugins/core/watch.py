@@ -60,7 +60,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('list',
-                                              self.cmd_list,
+                                              self._command_list,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -70,7 +70,7 @@ class Plugin(BasePlugin):
                             default=[],
                             nargs='*')
         self.api('plugins.core.commands:command.add')('detail',
-                                              self.cmd_detail,
+                                              self._command_detail,
                                               parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_command)
@@ -86,7 +86,7 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
         self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
 
-    def cmd_list(self):
+    def _command_list(self):
         """
         list watches
         """
@@ -109,7 +109,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def cmd_detail(self):
+    def _command_detail(self):
         """
         list the details of a watch
         """

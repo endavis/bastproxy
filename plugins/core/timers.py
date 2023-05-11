@@ -155,7 +155,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('list',
-                                              self.command_list,
+                                              self._command_list,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -165,7 +165,7 @@ class Plugin(BasePlugin):
                             default='',
                             nargs='?')
         self.api('plugins.core.commands:command.add')('log',
-                                              self.command_log,
+                                              self._command_log,
                                               parser=parser)
 
         parser = argp.ArgumentParser(add_help=False,
@@ -175,7 +175,7 @@ class Plugin(BasePlugin):
                             default=None,
                             nargs='*')
         self.api('plugins.core.commands:command.add')('detail',
-                                              self.command_detail,
+                                              self._command_detail,
                                               parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
@@ -195,7 +195,7 @@ class Plugin(BasePlugin):
                     'debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
 
-    def command_log(self) -> tuple[bool, list[str]]:
+    def _command_log(self) -> tuple[bool, list[str]]:
         """
         change the log flag for a timer
         """
@@ -237,7 +237,7 @@ class Plugin(BasePlugin):
         stats['Timers']['Memory Usage'] = sys.getsizeof(self.timer_events)
         return stats
 
-    def command_list(self) -> tuple[bool, list[str]]:
+    def _command_list(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list timers and the plugins they are defined in
@@ -265,7 +265,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    def command_detail(self) -> tuple[bool, list[str]]:
+    def _command_detail(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
           list the details of a timer
