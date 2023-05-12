@@ -724,14 +724,7 @@ class PluginMgr(BasePlugin):
             loaded_plugin_info.dev = True
 
         if module:
-            loaded_plugin_info.module = module
-            loaded_plugin_info.name = module.NAME
-            loaded_plugin_info.purpose = module.PURPOSE
-            loaded_plugin_info.author = module.AUTHOR
-            loaded_plugin_info.version = module.VERSION
-            loaded_plugin_info.isrequired = module.REQUIRED
-            loaded_plugin_info.short_name = loaded_plugin_info.plugin_path.stem
-            loaded_plugin_info.importedtime = datetime.datetime.now(datetime.timezone.utc)
+            loaded_plugin_info.copy_from_module(module)
 
         # add dictionary to loaded_plugins
         self.loaded_plugins_info[plugin_id] = loaded_plugin_info

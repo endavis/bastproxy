@@ -39,3 +39,17 @@ class LoadedPluginInfo():
         self.purpose: str = ''
         self.version: int = 1
         self.short_name: str = ''
+
+    def copy_from_module(self, module):
+        """
+        copy the relevant info from a module
+        """
+        self.module = module
+        self.name = module.NAME
+        self.purpose = module.PURPOSE
+        self.author = module.AUTHOR
+        self.version = module.VERSION
+        if hasattr(module, 'REQUIRED'):
+            self.isrequired = module.REQUIRED
+        self.short_name = self.plugin_path.stem
+        self.importedtime = datetime.datetime.now(datetime.timezone.utc)
