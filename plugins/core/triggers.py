@@ -20,10 +20,10 @@ except ImportError:
     sys.exit(1)
 
 # Project
-import libs.argp as argp
 from libs.api import API
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddParser, AddArgument
 
 #these 5 are required
 NAME = 'triggers'
@@ -136,26 +136,6 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='get details of a trigger')
-        parser.add_argument('trigger',
-                            help='the trigger to detail',
-                            default=[],
-                            nargs='*')
-        self.api('plugins.core.commands:command.add')('detail',
-                                              self._command_detail,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list triggers')
-        parser.add_argument('match',
-                            help='list only triggers that have this argument in them',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('list',
-                                              self._command_list,
-                                              parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
@@ -647,6 +627,11 @@ class Plugin(BasePlugin):
 
         return origargs
 
+    @AddParser(description='list triggers')
+    @AddArgument('match',
+                    help='list only triggers that contain this string in them',
+                    default='',
+                    nargs='?')
     def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -705,6 +690,11 @@ class Plugin(BasePlugin):
         stats['Triggers']['Regexes Memory Usage'] = sys.getsizeof(self.regexes)
         return stats
 
+    @AddParser(description='get details for triggers')
+    @AddArgument('trigger',
+                    help='the trigger to detail',
+                    default=[],
+                    nargs='*')
     def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w

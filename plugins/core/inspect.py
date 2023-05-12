@@ -13,9 +13,9 @@ This plugin will show api functions and details
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 from libs.records import RMANAGER
+from libs.commands import AddParser, AddArgument
 
 #these 5 are required
 NAME = 'Inspect Proxy Internals'
@@ -38,69 +38,7 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('showLogRecords', False, bool,
                                 '1 to show LogRecords in detail command')
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='return the list of record types')
-        self.api('plugins.core.commands:command.add')('types', self._command_types,
-                                              parser=parser)
-
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='get a list of a specific type of record')
-        parser.add_argument('recordtype',
-                            help='the type of record to list',
-                            default='')
-        parser.add_argument('-n',
-                            '--number',
-                            help='the # of items to return (default 10)',
-                            default=10,
-                            nargs='?',
-                            type=int)
-        self.api('plugins.core.commands:command.add')('list', self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='details a specific record')
-        parser.add_argument('uid', help='the uid of the record',
-                            default='', nargs='?')
-        parser.add_argument('-u',
-                            '--update',
-                            help='the update uuid',
-                            default='')
-        parser.add_argument('-dls',
-                            '--data_lines_to_show',
-                            help='the # of lines of data to show, -1 for all data',
-                            default=10,
-                            type=int)
-        parser.add_argument('-sd',
-                            '--show_data',
-                            help='show data in updates',
-                            action='store_false',
-                            default=True)
-        parser.add_argument('-ss',
-                            '--show_stack',
-                            help='show stack in updates',
-                            action='store_false',
-                            default=True)
-        parser.add_argument('-sfr',
-                            '--full_related_records',
-                            help='show the full related record (without updates)',
-                            action='store_true',
-                            default=False)
-        parser.add_argument('-iu',
-                            '--include_updates',
-                            help='include_updates in the detail',
-                            action='store_false',
-                            default=True)
-
-        self.api('plugins.core.commands:command.add')('detail', self._command_detail,
-                                              parser=parser)
-
+    @AddParser(description='return the list of record types')
     def _command_types(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -112,6 +50,16 @@ class Plugin(BasePlugin):
         tmsg.extend(iter(RMANAGER.get_types()))
         return True, tmsg
 
+    @AddParser(description='get a list of a specific type of record')
+    @AddArgument('recordtype',
+                    help='the type of record to list',
+                    default='')
+    @AddArgument('-n',
+                    '--number',
+                    help='the # of items to return (default 10)',
+                    default=10,
+                    nargs='?',
+                    type=int)
     def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -129,7 +77,38 @@ class Plugin(BasePlugin):
 
         return True, tmsg
 
-
+    @AddParser(description='get details of a specific record')
+    @AddArgument('uid', help='the uid of the record',
+                    default='', nargs='?')
+    @AddArgument('-u',
+                    '--update',
+                    help='the update uuid',
+                    default='')
+    @AddArgument('-dls',
+                    '--data_lines_to_show',
+                    help='the # of lines of data to show, -1 for all data',
+                    default=10,
+                    type=int)
+    @AddArgument('-sd',
+                    '--show_data',
+                    help='show data in updates',
+                    action='store_false',
+                    default=True)
+    @AddArgument('-ss',
+                    '--show_stack',
+                    help='show stack in updates',
+                    action='store_false',
+                    default=True)
+    @AddArgument('-sfr',
+                    '--full_related_records',
+                    help='show the full related record (without updates)',
+                    action='store_true',
+                    default=False)
+    @AddArgument('-iu',
+                    '--include_updates',
+                    help='include_updates in the detail',
+                    action='store_false',
+                    default=True)
     def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w

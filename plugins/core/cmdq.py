@@ -16,9 +16,9 @@ import re
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddParser
 
 NAME = 'Command Queue'
 SNAME = 'cmdq'
@@ -55,11 +55,6 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='drop the last command')
-        self.api('plugins.core.commands:command.add')('fixqueue', self._command_fix_queue,
-                                              parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
@@ -204,7 +199,8 @@ class Plugin(BasePlugin):
         """
         self.queue = []
 
-    def _command_fix_queue(self):
+    @AddParser(description='drop the last command')
+    def _command_fixqueue(self):
         """
         finish the last command
         """

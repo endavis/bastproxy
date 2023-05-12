@@ -21,13 +21,13 @@ from pathlib import Path
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.dependency import PluginDependencyResolver
 from libs.api import API
 import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 from libs.info import LoadedPluginInfo, PluginFileInfo
+from libs.commands import AddParser, AddArgument
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
 NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')
@@ -407,7 +407,19 @@ class PluginMgr(BasePlugin):
 
         return msg or ['There are no plugins that are not loaded']
 
-    # command to list plugins
+    @AddParser(description='list plugins')
+    @AddArgument('-n',
+                    '--notloaded',
+                    help='list plugins that are not loaded',
+                    action='store_true')
+    @AddArgument('-c',
+                    '--changed',
+                    help='list plugins that are load but are changed on disk',
+                    action='store_true')
+    @AddArgument('package',
+                    help='the package of the plugins to list',
+                    default='',
+                    nargs='?')
     def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -1080,7 +1092,11 @@ class PluginMgr(BasePlugin):
         for i in self.loaded_plugins_info:
             self.api(f"{i}:save.state")()
 
-    # command to load plugins
+    @AddParser( description='load a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to load, don\'t include the .py',
+                    default='',
+                    nargs='?')
     def _command_load(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -1123,6 +1139,11 @@ class PluginMgr(BasePlugin):
 
         return True, tmsg
 
+    @AddParser(description='unload a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to unload',
+                    default='',
+                    nargs='?')
     def _command_unload(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -1145,6 +1166,12 @@ class PluginMgr(BasePlugin):
 
         return True, tmsg
 
+
+    @AddParser(description='reload a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to reload',
+                    default='',
+                    nargs='?')
     def _command_reload(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -1213,54 +1240,6 @@ class PluginMgr(BasePlugin):
         super().initialize()
 
         super()._add_commands()
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list plugins')
-        parser.add_argument('-n',
-                            '--notloaded',
-                            help='list plugins that are not loaded',
-                            action='store_true')
-        parser.add_argument('-c',
-                            '--changed',
-                            help='list plugins that are load but are changed on disk',
-                            action='store_true')
-        parser.add_argument('package',
-                            help='the package of the plugins to list',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('list',
-                                              self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='load a plugin')
-        parser.add_argument('plugin',
-                            help='the plugin to load, don\'t include the .py',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('load',
-                                              self._command_load,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='unload a plugin')
-        parser.add_argument('plugin',
-                            help='the plugin to unload',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('unload',
-                                              self._command_unload,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='reload a plugin')
-        parser.add_argument('plugin',
-                            help='the plugin to reload',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('reload',
-                                              self._command_reload,
-                                              parser=parser)
 
         self.api('plugins.core.timers:add.timer')('global_save', self.api_save_all_plugins_state, 60, unique=True, log=False)
 

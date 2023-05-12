@@ -20,9 +20,9 @@ import typing
 
 # Project
 from plugins._baseplugin import BasePlugin
-import libs.argp as argp
 from libs.callback import Callback
 from libs.records import LogRecord
+from libs.commands import AddParser, AddArgument
 
 #these 5 are required
 NAME = 'timers'
@@ -148,36 +148,6 @@ class Plugin(BasePlugin):
         LogRecord(f"initialize - lasttime:  {self.time_last_checked}",
                   'debug', sources=[self.plugin_id])()
 
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list timers')
-        parser.add_argument('match',
-                            help='list only events that have this argument in their name',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('list',
-                                              self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='toggle log flag for a timer')
-        parser.add_argument('timername',
-                            help='the timer name',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('log',
-                                              self._command_log,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='get details for timers')
-        parser.add_argument('timers',
-                            help='a list of timers to get details',
-                            default=None,
-                            nargs='*')
-        self.api('plugins.core.commands:command.add')('detail',
-                                              self._command_detail,
-                                              parser=parser)
-
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
 
@@ -195,6 +165,11 @@ class Plugin(BasePlugin):
                     'debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
 
+    @AddParser(description='toggle log flag for a timer')
+    @AddArgument('timername',
+                    help='the timer name',
+                    default='',
+                    nargs='?')
     def _command_log(self) -> tuple[bool, list[str]]:
         """
         change the log flag for a timer
@@ -237,6 +212,11 @@ class Plugin(BasePlugin):
         stats['Timers']['Memory Usage'] = sys.getsizeof(self.timer_events)
         return stats
 
+    @AddParser(description='list timers')
+    @AddArgument('match',
+                    help='list only events that have this argument in their name',
+                    default='',
+                    nargs='?')
     def _command_list(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -265,6 +245,11 @@ class Plugin(BasePlugin):
 
         return True, message
 
+    @AddParser(description='get details for a timer')
+    @AddArgument('timers',
+                        help='a list of timers to get details',
+                        default=None,
+                        nargs='*')
     def _command_detail(self) -> tuple[bool, list[str]]:
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -457,5 +442,3 @@ class Plugin(BasePlugin):
                 self.time_last_checked = now
 
             await asyncio.sleep(.2)
-
-

@@ -24,11 +24,11 @@ This plugin handles events.
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord, EventArgsRecord
 from libs.event import Event
 from libs.stack import SimpleStack
+from libs.commands import AddParser, AddArgument
 
 NAME = 'Event Handler'
 SNAME = 'events'
@@ -73,57 +73,6 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='get details of an event')
-        parser.add_argument('event',
-                            help='the event name to get details for',
-                            default=[],
-                            nargs='*')
-        self.api('plugins.core.commands:command.add')('detail',
-                                              self._command_detail,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list events and the ' \
-                                                      'owners registered with them')
-        parser.add_argument('match',
-                            help='list only events that have this argument in their name',
-                            default='',
-                            nargs='?')
-        parser.add_argument('-sr',
-                            '--show-registered-only',
-                            help="show only events that have registered functions",
-                            action='store_true',
-                            default=False)
-        parser.add_argument('-snr',
-                            '--show-not-registered-only',
-                            help="show only events that have not registered functions",
-                            action='store_true',
-                            default=False)
-        parser.add_argument('-snda',
-                            '--show-no-description-or-args',
-                            help="show events that have no description or args",
-                            action='store_true',
-                            default=False)
-        parser.add_argument('-ra',
-                            '--show-raised-only',
-                            help="show events that have no description or args",
-                            action='store_true',
-                            default=False)
-        self.api('plugins.core.commands:command.add')('list',
-                                              self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='raise an event')
-        parser.add_argument('event',
-                            help='the event to raise',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('raise',
-                                              self._command_raise,
-                                              parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                   self.evc_plugin_uninitialized, priority=10)
@@ -287,6 +236,11 @@ class Plugin(BasePlugin):
             message.append(f"event {event_name} does not exist")
         return message
 
+    @AddParser(description='raise an event')
+    @AddArgument('event',
+                    help='the event to raise',
+                    default='',
+                    nargs='?')
     def _command_raise(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -304,6 +258,11 @@ class Plugin(BasePlugin):
 
         return True, message
 
+    @AddParser(description='get details of an event')
+    @AddArgument('event',
+                    help='the event name to get details for',
+                    default=[],
+                    nargs='*')
     def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -322,6 +281,32 @@ class Plugin(BasePlugin):
 
         return True, message
 
+    @AddParser(description='list events and the ' \
+                                                      'owners registered with them')
+    @AddArgument('match',
+                    help='list only events that have this argument in their name',
+                    default='',
+                    nargs='?')
+    @AddArgument('-sr',
+                    '--show-registered-only',
+                    help="show only events that have registered functions",
+                    action='store_true',
+                    default=False)
+    @AddArgument('-snr',
+                    '--show-not-registered-only',
+                    help="show only events that have not registered functions",
+                    action='store_true',
+                    default=False)
+    @AddArgument('-snda',
+                    '--show-no-description-or-args',
+                    help="show events that have no description or args",
+                    action='store_true',
+                    default=False)
+    @AddArgument('-ra',
+                    '--show-raised-only',
+                    help="show events that have no description or args",
+                    action='store_true',
+                    default=False)
     def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w

@@ -20,10 +20,10 @@ import numbers
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord, RMANAGER
+from libs.commands import AddParser, AddArgument
 
 NAME = 'Logging'
 SNAME = 'log'
@@ -194,7 +194,23 @@ class Plugin(BasePlugin):
 
         self.handlers['client'].sync()
 
-    # toggle logging logtypes to the clients
+    @AddParser(description="""toggle logtypes to clients
+
+          if no arguments, log types that are currenty sent to clients will be listed""")
+    @AddArgument('logtype',
+                    help='a list of logtypes to toggle',
+                    default=[],
+                    nargs='*')
+    @AddArgument('-l',
+                    '--level',
+                    help='the level to log at',
+                    default='info',
+                    choices=['debug', 'info', 'warning', 'error', 'critical'])
+    @AddArgument('-r',
+                    '--remove',
+                    help='remove the logtype from logging to the client',
+                    action='store_true',
+                    default=False)
     def _command_client(self):
         """
         toggle logtypes shown to client
@@ -252,7 +268,14 @@ class Plugin(BasePlugin):
 
         self.handlers['console'].sync()
 
-    # toggle logging logtypes to the console
+    @AddParser(description="""change the level of logging for a logtype to the console
+          this will toggle the logtype between 'info' and 'debug'
+
+          if no arguments, log types that are currenty sent to the console will be listed""")
+    @AddArgument('logtype',
+                    help='a list of logtypes to toggle',
+                    default=[],
+                    nargs='*')
     def _command_console(self):
         """
         toggle logtypes to the console
@@ -308,7 +331,19 @@ class Plugin(BasePlugin):
 
         self.handlers['file'].sync()
 
-    # toggle a logtype to log to a file
+    @AddParser(description="""toggle logtype to log to a file
+
+          the file will be located in the data/logs/<logtype> directory
+
+          if no arguments, types that are sent to file will be listed""")
+    @AddArgument('logtype',
+                    help='the logtype to toggle',
+                    default='list',
+                    nargs='?')
+    @AddArgument('-n',
+                    '--notimestamp',
+                    help='do not log to file with a timestamp',
+                    action='store_false')
     def _command_file(self):
         """
         toggle a logtype to log to a file
@@ -343,7 +378,11 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    # show all types
+    @AddParser(description='list all logging types')
+    @AddArgument('match',
+                    help='only list logtypes that have this argument in their name',
+                    default='',
+                    nargs='?')
     def _command_types(self):
         """
         list log types
@@ -381,7 +420,19 @@ class Plugin(BasePlugin):
 
         return True, tmsg
 
-
+    @AddParser(description='test logging facilities')
+    @AddArgument('message',
+                            help='the text to log')
+    @AddArgument('-l',
+                    '--logtype',
+                    help='the facility to test',
+                    required=True)
+    @AddArgument('-ll',
+                    '--loglevel',
+                    help='the level for the test',
+                    default='info',
+                    choices=['debug', 'info', 'warning', 'error', 'critical'],
+                    required=True)
     def _command_test(self):
         """
         send test records to logging facilities
@@ -405,6 +456,7 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
+    @AddParser(description='remove log types that have not been used')
     def _command_clean(self):
         """
         remove log types that have not been used
@@ -440,102 +492,6 @@ class Plugin(BasePlugin):
         self.handlers['console'].sync()
 
         return True, tmsg
-
-    def initialize(self):
-        """
-        initialize external stuff
-        """
-        BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description="""toggle logtypes to clients
-
-          if no arguments, log types that are currenty sent to clients will be listed""")
-        parser.add_argument('logtype',
-                            help='a list of logtypes to toggle',
-                            default=[],
-                            nargs='*')
-        parser.add_argument('-l',
-                            '--level',
-                            help='the level to log at',
-                            default='info',
-                            choices=['debug', 'info', 'warning', 'error', 'critical'])
-        parser.add_argument('-r',
-                            '--remove',
-                            help='remove the logtype from logging to the client',
-                            action='store_true',
-                            default=False)
-
-        self.api('plugins.core.commands:command.add')('client',
-                                              self._command_client,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description="""toggle logtype to log to a file
-
-          the file will be located in the data/logs/<logtype> directory
-
-          if no arguments, types that are sent to file will be listed""")
-        parser.add_argument('logtype',
-                            help='the logtype to toggle',
-                            default='list',
-                            nargs='?')
-        parser.add_argument('-n',
-                            '--notimestamp',
-                            help='do not log to file with a timestamp',
-                            action='store_false')
-        self.api('plugins.core.commands:command.add')('file',
-                                              self._command_file,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description="""change the level of logging for a logtype to the console
-          this will toggle the logtype between 'info' and 'debug'
-
-          if no arguments, log types that are currenty sent to the console will be listed""")
-        parser.add_argument('logtype',
-                            help='a list of logtypes to toggle',
-                            default=[],
-                            nargs='*')
-        self.api('plugins.core.commands:command.add')('console',
-                                              self._command_console,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list all logtypes')
-        parser.add_argument('match',
-                            help='only list logtypes that have this argument in their name',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('types',
-                                              self._command_types,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description="""test logging facilities""")
-        parser.add_argument('message',
-                            help='the text to log')
-        parser.add_argument('-l',
-                            '--logtype',
-                            help='the facility to test',
-                            required=True)
-        parser.add_argument('-ll',
-                            '--loglevel',
-                            help='the level for the test',
-                            default='info',
-                            choices=['debug', 'info', 'warning', 'error', 'critical'],
-                            required=True)
-        self.api('plugins.core.commands:command.add')('test',
-                                              self._command_test,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description="""clean up log types
-
-          will remove any log types that have not been used""")
-        self.api('plugins.core.commands:command.add')('clean',
-                                              self._command_clean,
-                                              parser=parser)
 
     def savestate(self):
         """

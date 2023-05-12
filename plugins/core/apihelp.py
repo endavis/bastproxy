@@ -14,8 +14,8 @@ This plugin will show api functions and details
 
 # Project
 from libs.api import API
-import libs.argp as argp
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddParser, AddArgument
 
 #these 5 are required
 NAME = 'API help'
@@ -30,50 +30,21 @@ class Plugin(BasePlugin):
     """
     a plugin to show connection information
     """
-    def __init__(self, *args, **kwargs):
-        """
-        initialize the instance
-        """
-        BasePlugin.__init__(self, *args, **kwargs)
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list functions in the api')
-        parser.add_argument('toplevel',
-                            help='the top level api to show (optional)',
-                            default='', nargs='?')
-        parser.add_argument('-np',
-                            '--noplugin',
-                            help="use an API that is not from a plugin",
-                            action='store_true')
-        self.api('plugins.core.commands:command.add')('list', self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='detail a function in the api')
-        parser.add_argument('api', help='the api to detail (optional)',
-                            default='', nargs='?')
-        parser.add_argument('-s',
-                            '--stats',
-                            help="add stats",
-                            action='store_true')
-        parser.add_argument('-sd',
-                            '--statsdetail',
-                            help='The caller to show detailed stats for the api',
-                            default='', nargs='?')
-        parser.add_argument('-np',
-                            '--noplugin',
-                            help="use an API that is not from a plugin",
-                            action='store_true')
-        self.api('plugins.core.commands:command.add')('detail', self._command_detail,
-                                              parser=parser)
-
-
+    @AddParser(description='detail a function in the API')
+    @AddArgument('api', help='the api to detail (optional)',
+                    default='', nargs='?')
+    @AddArgument('-s',
+                    '--stats',
+                    help="add stats",
+                    action='store_true')
+    @AddArgument('-sd',
+                    '--statsdetail',
+                    help='The caller to show detailed stats for the api',
+                    default='', nargs='?')
+    @AddArgument('-np',
+                    '--noplugin',
+                    help="use an API that is not from a plugin",
+                    action='store_true')
     def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -94,6 +65,14 @@ class Plugin(BasePlugin):
 
         return True, tmsg
 
+    @AddParser(description='list functions in the API')
+    @AddArgument('toplevel',
+                    help='the top level api to show (optional)',
+                    default='', nargs='?')
+    @AddArgument('-np',
+                    '--noplugin',
+                    help="use an API that is not from a plugin",
+                    action='store_true')
     def _command_list(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w

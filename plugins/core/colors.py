@@ -32,8 +32,8 @@ import re
 # 3rd Party
 
 # Project
-import libs.argp as argp
 import libs.colors
+from libs.commands import AddParser, AddArgument
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 
@@ -132,24 +132,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'ansicode.to.string', self._api_ansicode)
         self.api('libs.api:add')(self.plugin_id, 'ansicode.strip', self._api_strip_ansi)
         self.api('libs.api:add')(self.plugin_id, 'color.length.difference', self._api_length_difference)
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='show colors')
-        self.api('plugins.core.commands:command.add')('show',
-                                              self._command_show,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='show color examples')
-        self.api('plugins.core.commands:command.add')('example',
-                                              self._command_example,
-                                              parser=parser)
 
     # convert color codes to html
     def _api_colorcodes_to_html(self, sinput):
@@ -312,6 +294,11 @@ class Plugin(BasePlugin):
         """
         return self._api_strip_ansi(self._api_convert_colors(text))
 
+    @AddParser(description='show colors')
+    @AddArgument('-c',
+                    '--compact',
+                    help="show a compact version",
+                    action='store_true')
     def _command_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -365,7 +352,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-
+    @AddParser(description='show color examples')
     def _command_example(self):
         # pylint: disable=no-self-use
         """

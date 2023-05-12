@@ -13,9 +13,9 @@ This plugin shows and clears errors seen during plugin execution
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddParser, AddArgument
 
 NAME = 'Error Plugin'
 SNAME = 'errors'
@@ -46,22 +46,6 @@ class Plugin(BasePlugin):
         initialize the plugin
         """
         BasePlugin.initialize(self)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='show errors')
-        parser.add_argument('number',
-                            help='list the last <number> errors',
-                            default='-1',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('show',
-                                              self._command_show,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='clear errors')
-        self.api('plugins.core.commands:command.add')('clear',
-                                              self._command_clear,
-                                              parser=parser)
 
         self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
 
@@ -108,6 +92,11 @@ class Plugin(BasePlugin):
         """
         self.errors = []
 
+    @AddParser(description='show errors')
+    @AddArgument('number',
+                            help='list the last <number> errors',
+                            default='-1',
+                            nargs='?')
     def _command_show(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -135,6 +124,7 @@ class Plugin(BasePlugin):
             msg.append('There are no errors')
         return True, msg
 
+    @AddParser(description='clear errors')
     def _command_clear(self):
         """
         clear errors

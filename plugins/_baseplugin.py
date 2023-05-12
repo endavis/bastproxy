@@ -33,6 +33,7 @@ import libs.argp as argp
 from libs.persistentdict import PersistentDictEvent
 from libs.api import API
 from libs.records import LogRecord
+from libs.commands import AddCommand, AddParser, AddArgument
 
 
 class BasePlugin(object): # pylint: disable=too-many-instance-attributes
@@ -45,7 +46,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use api:add, api:overload, dependency:add, setting.add
+              only use api:add, dependency:add, setting.add
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
@@ -218,6 +219,20 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             'readonly':readonly_f
         }
 
+    @AddCommand(group='Base')
+    @AddParser(description='inspect a plugin')
+    @AddArgument('-m',
+                    '--method',
+                    help='get code for a method',
+                    default='')
+    @AddArgument('-o',
+                    '--object',
+                    help='show an object of the plugin, can be method or variable',
+                    default='')
+    @AddArgument('-s',
+                    '--simple',
+                    help='show a simple output',
+                    action='store_true')
     def _command_inspect(self): # pylint: disable=too-many-branches
         """
         show the plugin as it currently is in memory
@@ -316,6 +331,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, message
 
+    @AddCommand(group='Base')
+    @AddParser(description='show plugin stats')
     def _command_stats(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -332,6 +349,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             )
         return True, tmsg
 
+    @AddCommand(group='Base')
+    @AddParser(description='list functions in the api')
+    @AddArgument('api',
+                    help='api to get details of',
+                    default='',
+                    nargs='?')
     def _command_api(self):
         """
         list functions in the api for a plugin
@@ -348,6 +371,21 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, tmsg
 
+    @AddCommand(group='Base', show_in_history=False)
+    @AddParser(formatter_class=argp.RawDescriptionHelpFormatter,
+            description=textwrap.dedent("""
+              change a setting in the plugin
+
+              if there are no arguments or 'list' is the first argument then
+              it will list the settings for the plugin"""))
+    @AddArgument('name',
+                    help='the setting name',
+                    default='list',
+                    nargs='?')
+    @AddArgument('value',
+                    help='the new value of the setting',
+                    default='',
+                    nargs='?')
     def _command_set(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -388,6 +426,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                 msg = [f"plugin setting {var} does not exist"]
         return False, msg
 
+    @AddCommand(group='Base', autoadd=False)
+    @AddParser(description='reset the plugin')
     def _command_reset(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -400,6 +440,16 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         return True, ['This plugin cannot be reset']
 
+    @AddCommand(group='Base')
+    @AddParser(description='show help info for this plugin')
+    @AddArgument('-a',
+                    '--api',
+                    help='show functions this plugin has in the api',
+                    action='store_true')
+    @AddArgument('-c',
+                    '--commands',
+                    help='show commands in this plugin',
+                    action='store_true')
     def _command_help(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
@@ -445,94 +495,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         add base commands
         """
-        parser = argp.ArgumentParser(
-            add_help=False,
-            formatter_class=argp.RawDescriptionHelpFormatter,
-            description=textwrap.dedent("""
-              change a setting in the plugin
-
-              if there are no arguments or 'list' is the first argument then
-              it will list the settings for the plugin"""))
-        parser.add_argument('name',
-                            help='the setting name',
-                            default='list',
-                            nargs='?')
-        parser.add_argument('value',
-                            help='the new value of the setting',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('set',
-                                              self._command_set,
-                                              parser=parser,
-                                              group='Base',
-                                              show_in_history=False)
-
         if self.can_reset_f:
-            parser = argp.ArgumentParser(add_help=False,
-                                         description='reset the plugin')
-            self.api('plugins.core.commands:command.add')('reset',
-                                                  self._command_reset,
-                                                  parser=parser,
-                                                  group='Base')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='save the plugin state')
-        self.api('plugins.core.commands:command.add')('save',
-                                              self._command_save,
-                                              parser=parser,
-                                              group='Base')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='show plugin stats')
-        self.api('plugins.core.commands:command.add')('stats',
-                                              self._command_stats,
-                                              parser=parser,
-                                              group='Base')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='inspect a plugin')
-        parser.add_argument('-m',
-                            '--method',
-                            help='get code for a method',
-                            default='')
-        parser.add_argument('-o',
-                            '--object',
-                            help='show an object of the plugin, can be method or variable',
-                            default='')
-        parser.add_argument('-s',
-                            '--simple',
-                            help='show a simple output',
-                            action='store_true')
-        self.api('plugins.core.commands:command.add')('inspect',
-                                              self._command_inspect,
-                                              parser=parser,
-                                              group='Base')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='show help info for this plugin')
-        parser.add_argument('-a',
-                            '--api',
-                            help='show functions this plugin has in the api',
-                            action='store_true')
-        parser.add_argument('-c',
-                            '--commands',
-                            help='show commands in this plugin',
-                            action='store_true')
-        self.api('plugins.core.commands:command.add')('help',
-                                              self._command_help,
-                                              parser=parser,
-                                              group='Base')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list functions in the api')
-        parser.add_argument('api',
-                            help='api to get details of',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('api',
-                                              self._command_api,
-                                              parser=parser,
-                                              group='Base')
+            self.api('plugins.core.commands:add.command.by.func')(self._command_reset, force=True)
 
     def _list_vars(self):
         """
@@ -581,6 +545,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self.setting_values.sync()
 
+    @AddCommand(group='Base')
+    @AddParser(description='save the plugin state')
     def _command_save(self, _=None):
         """
         @G%(name)s@w - @B%(cmdname)s@w

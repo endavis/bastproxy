@@ -26,9 +26,9 @@ import stat
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.api import API
 from libs.records import LogRecord
+from libs.commands import AddCommand, AddParser, AddArgument
 from plugins._baseplugin import BasePlugin
 
 NAME = 'Secret Setting Class'
@@ -56,18 +56,6 @@ class SSC(object):
         plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
         plugin_instance.api('libs.api:add')(self.plugin_id, f"ssc.{self.name}", self.getss)
 
-        parser = argp.ArgumentParser(add_help=False,
-                                     description=f"set the {self.desc}")
-        parser.add_argument('value',
-                            help=self.desc,
-                            default='',
-                            nargs='?')
-        plugin_instance.api('plugins.core.commands:command.add')(self.name,
-                                                     self._command_setssc,
-                                                     show_in_history=False,
-                                                     parser=parser)
-
-
     # read the secret from a file
     def getss(self, quiet=False):
         """
@@ -88,6 +76,12 @@ class SSC(object):
 
         return self.default
 
+    @AddCommand(dynamic_name="{name}")
+    @AddParser(description="set the {desc}")
+    @AddArgument('value',
+                    help='the new {desc}',
+                    default='',
+                    nargs='?')
     def _command_setssc(self):
         """
         set the secret

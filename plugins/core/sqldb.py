@@ -56,10 +56,10 @@ import contextlib
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.api import API
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddCommand, AddParser, AddArgument
 
 NAME = 'SQL DB base class'
 SNAME = 'sqldb'
@@ -195,75 +195,12 @@ class Sqldb(object):
 
         return 'NULL'
 
-    def addcmds(self):
-        """
-        add commands to the plugin to use the database
-        """
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='backup the database')
-        parser.add_argument('name',
-                            help='the name to backup to',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('dbbackup',
-                                              self._command_backup,
-                                              parser=parser,
-                                              group='DB')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='close the database')
-        self.api('plugins.core.commands:command.add')('dbclose',
-                                              self._command_close,
-                                              parser=parser,
-                                              group='DB')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='vacuum the database')
-        self.api('plugins.core.commands:command.add')('dbvac',
-                                              self._command_dbvac,
-                                              parser=parser,
-                                              group='DB')
-
-        parser = argp.ArgumentParser(
-            add_help=False,
-            description='run a sql statement against the database')
-        parser.add_argument('stmt',
-                            help='the sql statement',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('dbselect',
-                                              self._command_dbselect,
-                                              parser=parser,
-                                              group='DB')
-
-        parser = argp.ArgumentParser(
-            add_help=False,
-            description='run a sql update/insert against the database')
-        parser.add_argument('stmt',
-                            help='the sql statement',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('dbmodify',
-                                              self._command_dbmodify,
-                                              parser=parser,
-                                              group='DB')
-
-        parser = argp.ArgumentParser(
-            add_help=False,
-            description='remove a row from a table')
-        parser.add_argument('table',
-                            help='the table to remove the row from',
-                            default='',
-                            nargs='?')
-        parser.add_argument('rownumber',
-                            help='the row number to remove',
-                            default=-1,
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('dbremove',
-                                              self._command_dbremove,
-                                              parser=parser,
-                                              group='DB')
-
+    @AddCommand(group='DB')
+    @AddParser(description='backup the database')
+    @AddArgument('stmt',
+                    help='the sql statement',
+                    default='',
+                    nargs='?')
     def _command_dbselect(self):
         """
         run a cmd against the database
@@ -278,6 +215,12 @@ class Sqldb(object):
                 message.append('Please enter a select statement')
         return True, message
 
+    @AddCommand(group='DB')
+    @AddParser(description='run a sql update/insert against the database')
+    @AddArgument('stmt',
+                    help='the sql statement',
+                    default='',
+                    nargs='?')
     def _command_dbmodify(self):
         """
         run a cmd against the database
@@ -291,6 +234,8 @@ class Sqldb(object):
                 message.append('Please enter an update statement')
         return True, message
 
+    @AddCommand(group='DB')
+    @AddParser(description='vacuum the database')
     def _command_dbvac(self):
         """
         vacuum the database
@@ -300,13 +245,25 @@ class Sqldb(object):
 
         return True, ['Database Vacuumed']
 
-    def _command_close(self):
+    @AddCommand(group='DB')
+    @AddParser(description='close the database')
+    def _command_dbclose(self):
         """
         close the database
         """
         self.close()
         return True, [f'Database {self.database_name} was closed']
 
+    @AddCommand(group='DB')
+    @AddParser(description='remove a row from a table')
+    @AddArgument('table',
+                    help='the table to remove the row from',
+                    default='',
+                    nargs='?')
+    @AddArgument('rownumber',
+                    help='the row number to remove',
+                    default=-1,
+                    nargs='?')
     def _command_dbremove(self):
         """
         remove a table from the database
@@ -323,7 +280,13 @@ class Sqldb(object):
 
         return True, message
 
-    def _command_backup(self):
+    @AddCommand(group='DB')
+    @AddParser(description='backup the database')
+    @AddArgument('name',
+                    help='the name to backup to',
+                    default='',
+                    nargs='?')
+    def _command_dbbackup(self):
         """
         backup the database
         """
@@ -348,7 +311,6 @@ class Sqldb(object):
         """
         do post init stuff, checks and upgrades the database, creates tables
         """
-        self.addcmds()
         self.checkversion()
 
         for i in self.tables:

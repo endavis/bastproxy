@@ -16,6 +16,7 @@ import datetime
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
+from libs.commands import AddParser
 
 #these 5 are required
 NAME = 'Clients'
@@ -72,10 +73,6 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_disconnected", self.plugin_id,
                                                   description='An event that is raised when a client disconnects',
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
-
-        self.api('plugins.core.commands:command.add')('show',
-                                              self._command_show,
-                                              shelp='list clients that are connected')
 
         self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_proxy_shutdown',
                                                   self.evc_shutdown)
@@ -201,6 +198,7 @@ class Plugin(BasePlugin):
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
+    @AddParser(description='list clients that are connected')
     def _command_show(self):
         """
         show all clients

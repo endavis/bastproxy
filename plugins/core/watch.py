@@ -14,9 +14,9 @@ import re
 # 3rd Party
 
 # Project
-import libs.argp as argp
 from libs.records import LogRecord, EventArgsRecord
 from plugins._baseplugin import BasePlugin
+from libs.commands import AddParser, AddArgument
 
 #these 5 are required
 NAME = 'Command Watch'
@@ -53,26 +53,6 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='list watches')
-        parser.add_argument('match',
-                            help='list only watches that have this argument in them',
-                            default='',
-                            nargs='?')
-        self.api('plugins.core.commands:command.add')('list',
-                                              self._command_list,
-                                              parser=parser)
-
-        parser = argp.ArgumentParser(add_help=False,
-                                     description='get details of a watch')
-        parser.add_argument('watch',
-                            help='the trigger to detail',
-                            default=[],
-                            nargs='*')
-        self.api('plugins.core.commands:command.add')('detail',
-                                              self._command_detail,
-                                              parser=parser)
-
         self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_command)
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
                                                           self.evc_plugin_uninitialized)
@@ -86,6 +66,11 @@ class Plugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
         self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
 
+    @AddParser(description='list watches')
+    @AddArgument('match',
+                        help='list only watches that have this argument in them',
+                        default='',
+                        nargs='?')
     def _command_list(self):
         """
         list watches
@@ -109,6 +94,11 @@ class Plugin(BasePlugin):
 
         return True, message
 
+    @AddParser(description='get details of a watch')
+    @AddArgument('watch',
+                    help='the trigger to detail',
+                    default=[],
+                    nargs='*')
     def _command_detail(self):
         """
         list the details of a watch

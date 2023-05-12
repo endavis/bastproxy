@@ -22,7 +22,7 @@ import signal
 from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, EventArgsRecord
-import libs.argp as argp
+from libs.commands import AddCommand, AddParser, AddArgument
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -87,35 +87,6 @@ class Plugin(BasePlugin):
                                                   description='event when the proxy is shutting down',
                                                   arg_descriptions={'None': None})
 
-        self.api('plugins.core.commands:command.add')('info',
-                                              self._command_info,
-                                              shelp='list proxy info')
-
-        self.api('plugins.core.commands:command.add')('disconnect',
-                                              self._command_disconnect,
-                                              shelp='disconnect from the mud')
-
-        self.api('plugins.core.commands:command.add')('connect',
-                                              self._command_connect,
-                                              shelp='connect to the mud')
-
-        parser = argp.ArgumentParser(add_help=False,
-                                    description='restart the proxy')
-        parser.add_argument('-s',
-                            '--seconds',
-                            type=int,
-                            default=10,
-                            help='# of seconds to wait before restart')
-        self.api('plugins.core.commands:command.add')('restart',
-                                              self._command_restart,
-                                              shelp='restart the proxy',
-                                              format=False,
-                                              parser=parser)
-
-        self.api('plugins.core.commands:command.add')('shutdown',
-                                              self._command_shutdown,
-                                              shelp='shutdown the proxy')
-
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.clients_client_logged_in', self.evc_client_logged_in)
         self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_mudconnect', self.evc_sendusernameandpw)
         self.api('plugins.core.events:register.to.event')(
@@ -128,11 +99,11 @@ class Plugin(BasePlugin):
         )
 
         ssc = self.api('plugins.core.ssc:baseclass.get')()
-        self.proxypw = ssc('proxypw', self.plugin_id, desc='Proxy Password',
+        self.proxypw = ssc('proxypw', self.plugin_id, desc='Proxy password',
                            default='defaultpass')
-        self.proxyvpw = ssc('proxypwview', self.plugin_id, desc='Proxy View Password',
+        self.proxyvpw = ssc('proxypwview', self.plugin_id, desc='Proxy View password',
                             default='defaultviewpass')
-        self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud Password')
+        self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud password')
 
     def api_get_mud_connection(self) -> MudConnection:
         """
@@ -170,6 +141,7 @@ class Plugin(BasePlugin):
             if pasw != '':
                 ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)()
 
+    @AddParser(description='list proxy info')
     def _command_info(self):
         """
         show info about the proxy
@@ -245,6 +217,7 @@ class Plugin(BasePlugin):
         tmsg.extend(nmsg)
         return True, tmsg
 
+    @AddParser(description='disconnect from the mud')
     def _command_disconnect(self):
         """
         disconnect from the mud
@@ -257,6 +230,7 @@ class Plugin(BasePlugin):
         else:
             return True, ['The proxy is not connected to the mud']
 
+    @AddParser(description='connect to the mud')
     def _command_connect(self):
         """
         disconnect from the mud
@@ -280,12 +254,20 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown'])()
 
+    @AddParser(description='shutdown the proxy')
     def _command_shutdown(self):
         """
         shutdown the proxy
         """
         signal.raise_signal( signal.SIGINT )
 
+    @AddCommand(format=False)
+    @AddParser(description='restart the proxy')
+    @AddArgument('-s',
+                    '--seconds',
+                    type=int,
+                    default=10,
+                    help='# of seconds to wait before restart')
     def _command_restart(self):
         """
         restart the proxy
