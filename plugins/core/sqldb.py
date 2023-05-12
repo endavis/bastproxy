@@ -160,7 +160,7 @@ class Sqldb(object):
             function_name = inspect.stack()[2][3]
         LogRecord(f"open: called by - {function_name}", level='debug', sources=[__name__, self.plugin_id])()
         self.db_connection = sqlite3.connect(
-            self.dbfile,
+            self.db_file,
             detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         self.db_connection.row_factory = dict_factory
         # only return byte strings so is easier to send to a client or the mud
