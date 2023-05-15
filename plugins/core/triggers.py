@@ -141,14 +141,14 @@ class Plugin(BasePlugin):
                                                           self._eventcb_plugin_uninitialized)
         self.api('plugins.core.events:register.to.event')('ev_to_client_data_modify',
                                                   self._eventcb_check_trigger, prio=1)
-        self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_enabled_modified", self.evc_enabled_modify)
+        self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_enabled_modified", self._eventcb_enabled_modify)
 
         self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger.add')('all', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger.add')('emptyline', None, self.plugin_id, enabled=False)
 
 
-    def evc_enabled_modify(self):
+    def _eventcb_enabled_modify(self):
         """
         setup the plugin on setting change
         """
