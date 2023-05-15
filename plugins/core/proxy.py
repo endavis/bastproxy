@@ -52,8 +52,8 @@ class Plugin(BasePlugin):
         self.mud_connection = None
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'proxy.restart', self.api_restart)
-        self.api('libs.api:add')(self.plugin_id, 'proxy.shutdown', self.api_shutdown)
+        self.api('libs.api:add')(self.plugin_id, 'restart', self.api_restart)
+        self.api('libs.api:add')(self.plugin_id, 'shutdown', self.api_shutdown)
         self.api('libs.api:add')(self.plugin_id, 'preamble.get', self.api_preamble)
         self.api('libs.api:add')(self.plugin_id, 'preamble.color.get', self.api_preamble_color)
         self.api('libs.api:add')(self.plugin_id, 'get.mud.connection', self.api_get_mud_connection)
@@ -274,7 +274,7 @@ class Plugin(BasePlugin):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         seconds = args['seconds'] or None
-        self.api(f"{self.plugin_id}:proxy.restart")(seconds)
+        self.api(f"{self.plugin_id}:restart")(seconds)
 
     def evc_client_logged_in(self):
         """
@@ -368,7 +368,7 @@ class Plugin(BasePlugin):
         """
         self.api('plugins.core.pluginm:save.all.plugins.state')()
 
-        self.api(f"{self.plugin_id}:proxy.shutdown")()
+        self.api(f"{self.plugin_id}:shutdown")()
 
         time.sleep(5)
 
@@ -379,7 +379,7 @@ class Plugin(BasePlugin):
         restart when the listen port changes
         """
         if not self.api.startup and not self.initializing_f:
-            self.api(f"{self.plugin_id}:proxy.restart")()
+            self.api(f"{self.plugin_id}:restart")()
 
     def evc_command_seperator_change(self):
         """
