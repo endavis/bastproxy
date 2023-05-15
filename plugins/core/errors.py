@@ -37,8 +37,8 @@ class Plugin(BasePlugin):
         self.errors = []
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'add.error', self._api_add_error)
-        self.api('libs.api:add')(self.plugin_id, 'get.errors', self._api_get_errors)
+        self.api('libs.api:add')(self.plugin_id, 'add', self._api_add)
+        self.api('libs.api:add')(self.plugin_id, 'get', self._api_get)
         self.api('libs.api:add')(self.plugin_id, 'clear.all.errors', self._api_clear_all_errors)
 
     def initialize(self):
@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
         """
         show all errors that happened during startup
         """
-        if errors := self.api('plugins.core.errors:get.errors')():
+        if errors := self.api('plugins.core.errors:get')():
             msg = ['The following errors happened during startup:', 'Proxy Errors']
             for i in errors:
                 msg.extend(('',
@@ -64,7 +64,7 @@ class Plugin(BasePlugin):
 
 
     # add an error to the list
-    def _api_add_error(self, timestamp, error):
+    def _api_add(self, timestamp, error):
         """add an error
 
         this function adds an error to the list
@@ -73,7 +73,7 @@ class Plugin(BasePlugin):
                             'msg':error})
 
     # get the errors that have been seen
-    def _api_get_errors(self):
+    def _api_get(self):
         """ get errors
 
         this function has no arguments
@@ -111,7 +111,7 @@ class Plugin(BasePlugin):
             msg.append('Please specify a number')
             return False, msg
 
-        if errors := self.api('plugins.core.errors:get.errors')():
+        if errors := self.api('plugins.core.errors:get')():
             if args and number > 0:
                 for i in errors[-number:]:
                     msg.extend(('', f"Time  : {i['timestamp']}",

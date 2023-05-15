@@ -126,7 +126,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'trigger.register', self._api_trigger_register)
         self.api('libs.api:add')(self.plugin_id, 'trigger.unregister', self._api_trigger_unregister)
         self.api('libs.api:add')(self.plugin_id, 'group.toggle.enable', self._api_group_toggle_enable)
-        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.owner', self._api_remove_triggers_for_owner)
+        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.owner', self._api_remove_data_for_owner)
 
         self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
                                 'enable triggers')
@@ -448,12 +448,12 @@ class Plugin(BasePlugin):
         return None
 
     # remove all triggers related to a plugin
-    def _api_remove_triggers_for_owner(self, owner_id):
+    def _api_remove_data_for_owner(self, owner_id):
         """  remove all triggers related to a owner
         @Yowner_id@w   = The owner id
 
         this function returns no values"""
-        LogRecord(f"_api_remove_triggers_for_owner - removing triggers for {owner_id}",
+        LogRecord(f"_api_remove_data_for_owner - removing triggers for {owner_id}",
                   level='debug', sources=[self.plugin_id, owner_id])()
         for trigger in self.triggers.values():
             if trigger.owner_id == owner_id:

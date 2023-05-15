@@ -296,14 +296,14 @@ class Plugin(BasePlugin):
         self.current_command: Command | None = None
 
         # add apis
-        self.api('libs.api:add')(self.plugin_id, 'command.run', self._api_run)
+        self.api('libs.api:add')(self.plugin_id, 'run', self._api_run)
         self.api('libs.api:add')(self.plugin_id, 'command.help.format', self._api_get_plugin_command_help)
-        self.api('libs.api:add')(self.plugin_id, 'get.command.prefix', self._api_get_prefix)
+        self.api('libs.api:add')(self.plugin_id, 'get.command.prefix', self._api_get_command_prefix)
         self.api('libs.api:add')(self.plugin_id, 'get.current.command.args', self._api_get_current_command_args)
         self.api('libs.api:add')(self.plugin_id, 'set.current.command', self._api_set_current_command)
-        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_plugin_data)
-        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_plugin_command_format)
-        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_plugin_command_data)
+        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_data_for_plugin)
+        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_commands_for_plugin_formatted)
+        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_commands_for_plugin_data)
         self.api('libs.api:add')(self.plugin_id, 'get.command.format', self._api_get_command_format)
         self.api('libs.api:add')(self.plugin_id, 'add.command.by.func', self._api_add_command_by_func)
 
@@ -509,7 +509,7 @@ class Plugin(BasePlugin):
         self.current_command = command
 
     # remove all commands for a plugin
-    def _api_remove_plugin_data(self, plugin_id):
+    def _api_remove_data_for_plugin(self, plugin_id):
         """  remove all command data for a plugin
         @Yplugin@w    = the plugin to remove commands for
 
@@ -521,7 +521,7 @@ class Plugin(BasePlugin):
             self.commands_list = new_commands
 
     # return the command prefix setting
-    def _api_get_prefix(self):
+    def _api_get_command_prefix(self):
         """  get the current command prefix
 
         returns the current command prefix as a string"""
@@ -545,7 +545,7 @@ class Plugin(BasePlugin):
         return ''
 
     # return a formatted list of commands for a plugin
-    def _api_get_plugin_command_format(self, plugin_id):
+    def _api_get_commands_for_plugin_formatted(self, plugin_id):
         """  get a list of commands for the specified plugin
         @Yplugin@w   = the plugin the command is in
 
@@ -557,7 +557,7 @@ class Plugin(BasePlugin):
         return None
 
     # return the raw command data for a plugin
-    def _api_get_plugin_command_data(self, plugin_id):
+    def _api_get_commands_for_plugin_data(self, plugin_id):
         """  get the data for commands for the specified plugin
         @Yplugin@w   = the plugin the command is in
 
@@ -884,7 +884,7 @@ class Plugin(BasePlugin):
 
             if not new_plugin:
                 # did not get a plugin, so output the list of plugins in the package
-                success, cmd_output = self.api(f"{self.plugin_id}:command.run")('plugins.core.commands',
+                success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
                                                                             'list', new_package)
 
                 output = [
@@ -904,7 +904,7 @@ class Plugin(BasePlugin):
 
 
             # try and find the command
-            command_data = self._api_get_plugin_command_data(new_plugin)
+            command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(new_plugin)
             command_list = list(command_data.keys())
             LogRecord(f"{command_list=}",
                   level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
@@ -915,7 +915,7 @@ class Plugin(BasePlugin):
 
             if not new_command:
                 # did not get a command, so output the list of commands in the plugin
-                success, cmd_output = self.api(f"{self.plugin_id}:command.run")('plugins.core.commands',
+                success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
                                                                             'list', new_plugin)
 
                 output = [

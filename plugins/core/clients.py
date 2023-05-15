@@ -45,9 +45,9 @@ class Plugin(BasePlugin):
         # new api format
         self.api('libs.api:add')(self.plugin_id, 'get.client', self._api_get_client)
         self.api('libs.api:add')(self.plugin_id, 'get.all.clients', self._api_get_all_clients)
-        self.api('libs.api:add')(self.plugin_id, 'client.banned.add', self.api_addbanned)
-        self.api('libs.api:add')(self.plugin_id, 'client.banned.check', self.api_checkbanned)
-        self.api('libs.api:add')(self.plugin_id, 'client.count', self.api_numconnected)
+        self.api('libs.api:add')(self.plugin_id, 'client.banned.add', self._api_addbanned)
+        self.api('libs.api:add')(self.plugin_id, 'client.banned.check', self._api_checkbanned)
+        self.api('libs.api:add')(self.plugin_id, 'client.count', self._api_numconnected)
         self.api('libs.api:add')(self.plugin_id, 'client.add', self._api_addclient)
         self.api('libs.api:add')(self.plugin_id, 'client.remove', self._api_removeclient)
         self.api('libs.api:add')(self.plugin_id, 'client.is.logged.in', self._api_is_client_logged_in)
@@ -77,7 +77,7 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_shutdown',
                                                   self.evc_shutdown)
 
-    def api_numconnected(self):
+    def _api_numconnected(self):
         """
         return the # of clients connected
         """
@@ -89,7 +89,7 @@ class Plugin(BasePlugin):
         """
         return self.clients[client_uuid] if client_uuid in self.clients else None
 
-    def api_addbanned(self, client_uuid):
+    def _api_addbanned(self, client_uuid):
         """
         add a banned ip
         """
@@ -146,7 +146,7 @@ class Plugin(BasePlugin):
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
                                         {'client_uuid':client_connection.uuid})
 
-    def api_checkbanned(self, clientip):
+    def _api_checkbanned(self, clientip):
         """
         check if a client is banned
 

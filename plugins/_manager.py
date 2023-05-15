@@ -74,11 +74,11 @@ class PluginMgr(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get.plugin.instance', self._api_get_plugin_instance)
         self.api('libs.api:add')(self.plugin_id, 'get.plugin.module', self._api_get_plugin_module)
         self.api('libs.api:add')(self.plugin_id, 'get.all.plugin.info', self._api_get_all_plugin_info)
-        self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self.api_save_all_plugins_state)
+        self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self._api_save_all_plugins_state)
         self.api('libs.api:add')(self.plugin_id, 'get.loaded.plugins.list', self._api_get_loaded_plugins_list)
         self.api('libs.api:add')(self.plugin_id, 'get.packages.list', self._api_get_packages_list)
         self.api('libs.api:add')(self.plugin_id, 'get.all.short.names', self._api_get_all_short_names)
-        self.api('libs.api:add')(self.plugin_id, 'short.name.convert.plugin:id', self._api_short_name_convert_plugin_id)
+        self.api('libs.api:add')(self.plugin_id, 'short.name.convert.plugin.id', self._api_short_name_convert_plugin_id)
 
         self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
                                 'plugins to load on startup',
@@ -311,9 +311,9 @@ class PluginMgr(BasePlugin):
           a list of strings
         """
         msg = []
-        packages_list = self._api_get_packages_list()
+        packages_list = self.api(f"{self.plugin_id}:get.packages.list")()
         packages = {
-            package: self._api_get_plugins_in_package(package)
+            package: self.api(f"{self.plugin_id}:get.plugins.in.package")(package)
             for package in packages_list
         }
         for package in packages:
@@ -1082,10 +1082,10 @@ class PluginMgr(BasePlugin):
         """
         do tasks on shutdown
         """
-        self.api_save_all_plugins_state()
+        self.api(f"{self.plugin_id}:save.all.plugins.state")()
 
     # save all plugins
-    def api_save_all_plugins_state(self, _=None):
+    def _api_save_all_plugins_state(self, _=None):
         """
         save all plugins
         """
@@ -1242,7 +1242,7 @@ class PluginMgr(BasePlugin):
 
         super()._add_commands()
 
-        self.api('plugins.core.timers:add.timer')('global_save', self.api_save_all_plugins_state, 60, unique=True, log=False)
+        self.api('plugins.core.timers:add.timer')('global_save', self._api_save_all_plugins_state, 60, unique=True, log=False)
 
         self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_initialized",
@@ -1265,7 +1265,7 @@ class PluginMgr(BasePlugin):
 
         self.initializing_f = False
 
-        self.api('plugins.core.pluginm:save.all.plugins.state')()
+        self.api(f"{self.plugin_id}:save.all.plugins.state")()
 
         for loaded_plugin_info in self.loaded_plugins_info.values():
             plugin_id = loaded_plugin_info.plugin_id

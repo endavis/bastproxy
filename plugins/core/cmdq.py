@@ -42,12 +42,11 @@ class Plugin(BasePlugin):
         self.reload_dependents_f = True
 
         # new api methods
-        # self.api('libs.api:add')('baseclass', self.api_baseclass)
         self.api('libs.api:add')(self.plugin_id, 'queue.add.command', self._api_queue_add_command)
-        self.api('libs.api:add')(self.plugin_id, 'command.start', self._api_command_start)
-        self.api('libs.api:add')(self.plugin_id, 'command.finish', self._api_command_finish)
-        self.api('libs.api:add')(self.plugin_id, 'commandtype.add', self._api_command_type_add)
-        self.api('libs.api:add')(self.plugin_id, 'commandtype.remove', self._api_command_type_remove)
+        self.api('libs.api:add')(self.plugin_id, 'start', self._api_start)
+        self.api('libs.api:add')(self.plugin_id, 'finish', self._api_finish)
+        self.api('libs.api:add')(self.plugin_id, 'type.add', self._api_type_add)
+        self.api('libs.api:add')(self.plugin_id, 'type.remove', self._api_type_remove)
         self.api('libs.api:add')(self.plugin_id, 'remove.commands.for.plugin', self._api_remove_commands_for_plugin)
 
     def initialize(self):
@@ -81,7 +80,7 @@ class Plugin(BasePlugin):
             if self.cmds[i]['owner'] == plugin_id:
                 self.api(f"{self.plugin_id}:remove.command.type")(i)
 
-    def _api_command_type_remove(self, cmdtype):
+    def _api_type_remove(self, cmdtype):
         """
         remove a command
         """
@@ -92,7 +91,7 @@ class Plugin(BasePlugin):
                       level='debug', sources=[self.plugin_id])()
 
     # start a command
-    def _api_command_start(self, cmdtype):
+    def _api_start(self, cmdtype):
         """
         tell the queue a command has started
         """
@@ -102,7 +101,7 @@ class Plugin(BasePlugin):
             return
         self.api('libs.timing:timing.start')(f"cmd_{cmdtype}")
 
-    def _api_command_type_add(self, cmdtype, cmd, regex, **kwargs):
+    def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
         """
         add a command type
         """
@@ -156,7 +155,7 @@ class Plugin(BasePlugin):
         """
         return any(i['cmd'] == cmd for i in self.queue)
 
-    def _api_command_finish(self, cmdtype):
+    def _api_finish(self, cmdtype):
         """
         tell the queue that a command has finished
         """

@@ -33,9 +33,9 @@ def duration(func):
     """
     uid = uuid4().hex
     tname = f"{func.func_name}"
-    TIMING.starttimer(uid, tname, arg)
+    API('libs.timing:start')(uid, tname, arg)
     res = func(*arg)
-    TIMING.finishtimer(uid, tname, arg)
+    API('libs.timing:finish')(uid, tname, arg)
     return res
   return wrapper
 
@@ -52,17 +52,17 @@ class Timing(object):
 
     self.timing = {}
 
-    self.api('libs.api:add')('libs.timing', 'start', self.starttimer)
-    self.api('libs.api:add')('libs.timing', 'finish', self.finishtimer)
-    self.api('libs.api:add')('libs.timing', 'toggle', self.toggletiming)
+    self.api('libs.api:add')('libs.timing', 'start', self._api_start)
+    self.api('libs.api:add')('libs.timing', 'finish', self._api_finish)
+    self.api('libs.api:add')('libs.timing', 'toggle', self._api_toggle)
 
-  def toggletiming(self, tbool=None):
+  def _api_toggle(self, tbool=None):
     """
     toggle the timing flag
     """
     self.enabled = not self.enabled if tbool is None else bool(tbool)
 
-  def starttimer(self, uid, timername, args=None):
+  def _api_start(self, uid, timername, args=None):
     """
     start a timer
     """
@@ -73,7 +73,7 @@ class Timing(object):
       LogRecord(f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
                 level='debug', sources=[__name__, owner_id])()
 
-  def finishtimer(self, uid, timername, args=None):
+  def _api_finish(self, uid, timername, args=None):
     """
     finish a timer
     """

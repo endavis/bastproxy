@@ -52,11 +52,11 @@ class Plugin(BasePlugin):
         self.mud_connection = None
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'restart', self.api_restart)
-        self.api('libs.api:add')(self.plugin_id, 'shutdown', self.api_shutdown)
-        self.api('libs.api:add')(self.plugin_id, 'preamble.get', self.api_preamble)
-        self.api('libs.api:add')(self.plugin_id, 'preamble.color.get', self.api_preamble_color)
-        self.api('libs.api:add')(self.plugin_id, 'get.mud.connection', self.api_get_mud_connection)
+        self.api('libs.api:add')(self.plugin_id, 'restart', self._api_restart)
+        self.api('libs.api:add')(self.plugin_id, 'shutdown', self._api_shutdown)
+        self.api('libs.api:add')(self.plugin_id, 'preamble.get', self._api_preamble)
+        self.api('libs.api:add')(self.plugin_id, 'preamble.color.get', self._api_preamble_color)
+        self.api('libs.api:add')(self.plugin_id, 'get.mud.connection', self._api_get_mud_connection)
 
         self.api(f"{self.plugin_id}:setting.add")('mudhost', '', str,
                                 'the hostname/ip of the mud')
@@ -105,7 +105,7 @@ class Plugin(BasePlugin):
                             default='defaultviewpass')
         self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud password')
 
-    def api_get_mud_connection(self) -> MudConnection:
+    def _api_get_mud_connection(self) -> MudConnection:
         """
         get the mud connection
         """
@@ -115,13 +115,13 @@ class Plugin(BasePlugin):
 
         return self.mud_connection
 
-    def api_preamble(self):
+    def _api_preamble(self):
         """
         get the preamble
         """
         return self.api(f"{self.plugin_id}:setting.get")('preamble')
 
-    def api_preamble_color(self, error=False):
+    def _api_preamble_color(self, error=False):
         """
         get the preamble
         """
@@ -211,7 +211,7 @@ class Plugin(BasePlugin):
                 '@B---------------------------------------------@w',
             )
         )
-        _, nmsg = self.api('plugins.core.commands:command.run')('plugins.core.clients', 'show', '')
+        _, nmsg = self.api('plugins.core.commands:run')('plugins.core.clients', 'show', '')
 
         del nmsg[0]
         tmsg.extend(nmsg)
@@ -244,13 +244,13 @@ class Plugin(BasePlugin):
 
         return True, ['Connecting to the mud']
 
-    def api_shutdown(self):
+    def _api_shutdown(self):
         """
         shutdown the proxy
         """
         self.api.__class__.shutdown = True
         LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown'])()
-        ToClientRecord('Shutting down proxy')(f'{self.plugin_id}:api_shutdown')
+        ToClientRecord('Shutting down proxy')(f'{self.plugin_id}:_api_shutdown')
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown'])()
 
@@ -348,7 +348,7 @@ class Plugin(BasePlugin):
             )
 
     # restart the proxy
-    def api_restart(self, restart_in=None):
+    def _api_restart(self, restart_in=None):
         """
         restart the proxy after 10 seconds
         """
@@ -357,7 +357,7 @@ class Plugin(BasePlugin):
 
         ToClientRecord(
             f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"
-        )(f'{self.plugin_id}:api_restart')
+        )(f'{self.plugin_id}:_api_restart')
         LogRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds", level='warning', sources=[self.plugin_id])()
 
         self.api('plugins.core.timers:add.timer')('restart', self.timer_restart, restart_in, onetime=True)

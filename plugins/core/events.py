@@ -57,13 +57,13 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'unregister.from.event', self._api_unregister_from_event)
         self.api('libs.api:add')(self.plugin_id, 'raise.event', self._api_raise_event)
         self.api('libs.api:add')(self.plugin_id, 'is.registered.to.event', self._api_is_registered_to_event)
-        self.api('libs.api:add')(self.plugin_id, 'remove.events.for.owner', self._api_remove_events_from_owner)
+        self.api('libs.api:add')(self.plugin_id, 'remove.events.for.owner', self._api_remove_events_for_owner)
         self.api('libs.api:add')(self.plugin_id, 'get.event', self._api_get_event)
         self.api('libs.api:add')(self.plugin_id, 'add.event', self._api_add_event)
         self.api('libs.api:add')(self.plugin_id, 'get.event.detail', self._api_get_event_detail)
-        self.api('libs.api:add')(self.plugin_id, 'get.current.event.name', self._get_current_event_name)
-        self.api('libs.api:add')(self.plugin_id, 'get.current.event.record', self._get_current_event_record)
-        self.api('libs.api:add')(self.plugin_id, 'get.event.stack', self._get_event_stack)
+        self.api('libs.api:add')(self.plugin_id, 'get.current.event.name', self._api_get_current_event_name)
+        self.api('libs.api:add')(self.plugin_id, 'get.current.event.record', self._api_get_current_event_record)
+        self.api('libs.api:add')(self.plugin_id, 'get.event.stack', self._api_get_event_stack)
 
         self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
@@ -86,13 +86,13 @@ class Plugin(BasePlugin):
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 
-    def _get_current_event_name(self):
+    def _api_get_current_event_name(self):
         """
         return the current event name
         """
         return self.event_stack.peek()
 
-    def _get_current_event_record(self):
+    def _api_get_current_event_record(self):
         """
         return the current event record
         """
@@ -101,7 +101,7 @@ class Plugin(BasePlugin):
             return event.current_record
         return None
 
-    def _get_event_stack(self):
+    def _api_get_event_stack(self):
         """
         return the current event stack
         """
@@ -113,7 +113,7 @@ class Plugin(BasePlugin):
         """
         add an event for this plugin to track
         """
-        event = self._api_get_event(event_name)
+        event = self.api(f"{self.plugin_id}:get.event")(event_name)
         event.created_by = created_by
         event.description = description
         event.arg_descriptions = arg_descriptions or {}
@@ -159,7 +159,7 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id])()
             return
 
-        event = self._api_get_event(event_name)
+        event = self.api(f"{self.plugin_id}:get.event")(event_name)
 
         event.register(func, func_owner_id, priority)
 
@@ -178,11 +178,11 @@ class Plugin(BasePlugin):
                       level='error', sources=[self.plugin_id])()
 
     # remove all registered functions that are specific to an owner_id
-    def _api_remove_events_from_owner(self, owner_id):
+    def _api_remove_events_for_owner(self, owner_id):
         """  remove all registered functions that are specific to a owner_id
         @Yowner_id@w   = The owner to remove events for
         this function returns no values"""
-        LogRecord(f"_api_remove_events_from_owner - removing events for {owner_id}",
+        LogRecord(f"_api_remove_events_for_owner - removing events for {owner_id}",
                   level='debug', sources=[self.plugin_id, owner_id])()
 
         for event in self.events:
@@ -208,7 +208,7 @@ class Plugin(BasePlugin):
         if not args:
             args = {}
 
-        event = self._api_get_event(event_name)
+        event = self.api(f"{self.plugin_id}:get.event")(event_name)
 
         self.global_raised_count += 1
 

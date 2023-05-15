@@ -776,7 +776,7 @@ class Plugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-        self.api('libs.api:add')(self.plugin_id, 'baseclass', self.api_baseclass)
+        self.api('libs.api:add')(self.plugin_id, 'baseclass', self._api_baseclass)
 
     def initialize(self):
         """
@@ -785,7 +785,7 @@ class Plugin(BasePlugin):
         BasePlugin.initialize(self)
 
     # return the sql baseclass
-    def api_baseclass(self):
+    def _api_baseclass(self):
         # pylint: disable=no-self-use
         """
         return the sql baseclass

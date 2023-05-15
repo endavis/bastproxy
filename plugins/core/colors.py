@@ -124,17 +124,17 @@ class Plugin(BasePlugin):
         super().__init__(*args, **kwargs)
 
         # convert to easier to read api
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.is.valid', self._api_is_color)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.ansicode', self._api_convert_colors)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.html', self._api_colorcodes_to_html)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.strip', self._api_strip_color)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.colorcode', self._api_convert_ansi)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.string', self._api_ansicode)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.strip', self._api_strip_ansi)
-        self.api('libs.api:add')(self.plugin_id, 'color.length.difference', self._api_length_difference)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode.is.valid', self._api_colorcode_is_valid)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.ansicode', self._api_colorcode_to_ansicode)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.html', self._api_colorcode_to_html)
+        self.api('libs.api:add')(self.plugin_id, 'colorcode.strip', self._api_colorcode_strip)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.colorcode', self._api_ansicode_to_colorcode)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.string', self._api_ansicode_to_string)
+        self.api('libs.api:add')(self.plugin_id, 'ansicode.strip', self._api_ansicode_strip)
+        self.api('libs.api:add')(self.plugin_id, 'color.length.difference', self._api_color_length_difference)
 
     # convert color codes to html
-    def _api_colorcodes_to_html(self, sinput):
+    def _api_colorcode_to_html(self, sinput):
         # pylint: disable=no-self-use,too-many-branches
         """
         convert colorcodes to html
@@ -192,7 +192,7 @@ class Plugin(BasePlugin):
         return '\n'.join(olist) + lastchar
 
     # get the length difference of a colored string and its noncolor equivalent
-    def _api_length_difference(self, colorstring):
+    def _api_color_length_difference(self, colorstring):
         """
         get the length difference of a colored string and its noncolor equivalent
         """
@@ -201,7 +201,7 @@ class Plugin(BasePlugin):
         return lencolor - lennocolor
 
     # check if a string is an @@ color, either xterm or ansi
-    def _api_is_color(self, color):
+    def _api_colorcode_is_valid(self, color):
         # pylint: disable=no-self-use
         """
         check if a string is a @ color, either xterm or ansi
@@ -216,7 +216,7 @@ class Plugin(BasePlugin):
         return False
 
     # convert @@ colors in a string
-    def _api_convert_colors(self, tstr):
+    def _api_colorcode_to_ansicode(self, tstr):
         """
         convert @ colors in a string
         """
@@ -231,13 +231,13 @@ class Plugin(BasePlugin):
                 if color == 'x':
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
                     color = f'38;5;{tcolor}'
-                    tstr2 = tstr2 + self._api_ansicode(color, newtext)
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
                 elif color == 'z':
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
                     color = f'48;5;{tcolor}'
-                    tstr2 = tstr2 + self._api_ansicode(color, newtext)
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
                 else:
-                    tstr2 = tstr2 + self._api_ansicode(libs.colors.CONVERTCOLORS[color], text)
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(libs.colors.CONVERTCOLORS[color], text)
 
             if tstr2:
                 tstr = tstr2 + '%c[0m' % chr(27)
@@ -245,7 +245,7 @@ class Plugin(BasePlugin):
         return tstr
 
     # convert ansi color escape sequences to @@ colors
-    def _api_convert_ansi(self, text):
+    def _api_ansicode_to_colorcode(self, text):
         # pylint: disable=no-self-use
         """
         convert ansi color escape sequences to @@ colors
@@ -272,7 +272,7 @@ class Plugin(BasePlugin):
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 
     # return an ansi coded string
-    def _api_ansicode(self, color, data):
+    def _api_ansicode_to_string(self, color, data):
         # pylint: disable=no-self-use
         """
         return an ansi coded string
@@ -280,7 +280,7 @@ class Plugin(BasePlugin):
         return f"{chr(27)}[{color}m{data}"
 
     # strip all ansi from a string
-    def _api_strip_ansi(self, text):
+    def _api_ansicode_strip(self, text):
         # pylint: disable=no-self-use
         """
         strip all ansi from a string
@@ -288,11 +288,11 @@ class Plugin(BasePlugin):
         return ANSI_COLOR_REGEX.sub('', text)
 
     # strip @@ colors from a string
-    def _api_strip_color(self, text):
+    def _api_colorcode_strip(self, text):
         """
         strip @@ colors
         """
-        return self._api_strip_ansi(self._api_convert_colors(text))
+        return self.api(f"{self.plugin_id}:ansicode.strip")(self.api(f"{self.plugin_id}:colorcode.to.ansicode")(text))
 
     @AddParser(description='show colors')
     @AddArgument('-c',

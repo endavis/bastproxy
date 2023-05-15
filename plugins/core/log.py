@@ -80,9 +80,9 @@ class Plugin(BasePlugin):
                                 'the color for critical messages')
 
         # new api format
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.console', self.api_set_log_to_console)
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.file', self.api_set_log_to_file)
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.client', self.api_set_log_to_client)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.console', self._api_set_log_to_console)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.file', self._api_set_log_to_file)
+        self.api('libs.api:add')(self.plugin_id, 'set.log.to.client', self._api_set_log_to_client)
         self.api('libs.api:add')(self.plugin_id, 'can.log.to.console', self._api_can_log_to_console)
         self.api('libs.api:add')(self.plugin_id, 'can.log.to.file', self._api_can_log_to_file)
         self.api('libs.api:add')(self.plugin_id, 'can.log.to.client', self._api_can_log_to_client)
@@ -173,13 +173,13 @@ class Plugin(BasePlugin):
             logging, self.handlers['client'][logger_name].upper(), logging.INFO)
 
     # toggle logging a logtype to the clients
-    def api_set_log_to_client(self, logtype, level: str='info', flag=True):
+    def _api_set_log_to_client(self, logtype, level: str='info', flag=True):
         """  toggle a log type to show to clients
         @Ylogtype@w   = the type to toggle, can be multiple (list)
         @Yflag@w      = True to send to clients, false otherwise (default: True)
 
         this function returns no values"""
-        LogRecord(f"api_set_log_to_client: {logtype} {level} {flag}",
+        LogRecord(f"_api_set_log_to_client: {logtype} {level} {flag}",
                     level='debug', sources=[self.plugin_id])()
 
         logger_name = get_toplevel(logtype)
@@ -252,20 +252,20 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # toggle logging a logtype to the console
-    def api_set_log_to_console(self, logtype, level='info'):
+    def _api_set_log_to_console(self, logtype, level='info'):
         """  toggle a log type to show to console
         @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to console, false otherwise (default: True)
 
         this function returns no values"""
-        LogRecord(f"api_set_log_to_console: {logtype} {level}",
+        LogRecord(f"_api_set_log_to_console: {logtype} {level}",
                     level='debug', sources=[self.plugin_id])()
 
         logger_name = get_toplevel(logtype)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(f"api_set_log_to_console: invalid log level {level}",
+            LogRecord(f"_api_set_log_to_console: invalid log level {level}",
                       level='error', sources=[self.plugin_id, logger_name])()
             return
 
@@ -318,7 +318,7 @@ class Plugin(BasePlugin):
         return True, tmsg
 
     # toggle logging a logtype to a file
-    def api_set_log_to_file(self, logtype, level='info'):
+    def _api_set_log_to_file(self, logtype, level='info'):
         """  toggle a log type to show to file
         @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to file, false otherwise (default: True)
@@ -327,7 +327,7 @@ class Plugin(BasePlugin):
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(f"api_set_log_to_file: invalid log level {level}",
+            LogRecord(f"_api_set_log_to_file: invalid log level {level}",
                       level='error', sources=[self.plugin_id, logtype])()
             return
 
