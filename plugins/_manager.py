@@ -467,29 +467,25 @@ class PluginMgr(BasePlugin):
                       level='warning', sources=[self.plugin_id])()
 
         for tline in contents.split('\n'):
-            if name_match := NAMERE.match(tline):
-                if not info.name:
-                    gdict = name_match.groupdict()
-                    info.name = gdict['value']
-                    continue
+            if not info.name and (name_match := NAMERE.match(tline)):
+                gdict = name_match.groupdict()
+                info.name = gdict['value']
+                continue
 
-            if purpose_match := PURPOSERE.match(tline):
-                if not info.purpose:
-                    gdict = purpose_match.groupdict()
-                    info.purpose = gdict['value']
-                    continue
+            if not info.purpose and  (purpose_match := PURPOSERE.match(tline)):
+                gdict = purpose_match.groupdict()
+                info.purpose = gdict['value']
+                continue
 
-            if author_match := AUTHORRE.match(tline):
-                if not info.author:
-                    gdict = author_match.groupdict()
-                    info.author = gdict['value']
-                    continue
+            if not info.author and (author_match := AUTHORRE.match(tline)):
+                gdict = author_match.groupdict()
+                info.author = gdict['value']
+                continue
 
-            if version_match := VERSIONRE.match(tline):
-                if not info.version:
-                    gdict = version_match.groupdict()
-                    info.version = int(gdict['value'])
-                    continue
+            if not info.version and (version_match := VERSIONRE.match(tline)):
+                gdict = version_match.groupdict()
+                info.version = int(gdict['value'])
+                continue
 
             if required_match := REQUIREDRE.match(tline):
                 gdict = required_match.groupdict()
@@ -497,8 +493,7 @@ class PluginMgr(BasePlugin):
                     info.isrequired = True
                 continue
 
-            plugin_match = ISPLUGINRE.match(tline)
-            if plugin_match:
+            if ISPLUGINRE.match(tline):
                 info.isplugin = True
                 continue
 
