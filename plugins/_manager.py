@@ -1180,21 +1180,22 @@ class PluginMgr(BasePlugin):
         tmsg = []
         plugin = args['plugin']
         plugin_found_f = bool(plugin and plugin in self.all_plugin_file_info.keys())
-        if plugin_found_f:
-            if self.unload_single_plugin(plugin):
-                tmsg.append(f"Plugin {plugin} successfully unloaded")
-            else:
-                tmsg.append(f"Plugin {plugin} could not be unloaded")
-                return True, tmsg
-
-            if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
-                tmsg.append(f"{plugin} is already loaded")
-            elif self.load_single_plugin(plugin, exit_on_error=False):
-                tmsg.append(f"Plugin {plugin} was loaded")
-            else:
-                tmsg.append(f"Plugin {plugin} would not load")
+        if plugin_found_f and plugin not in self.loaded_plugins_info:
+            return True, [f"Plugin {plugin} is not loaded, use load instead"]
+        if not plugin_found_f:
+            return True, [f"Plugin {plugin} not found"]
+        if self.unload_single_plugin(plugin):
+            tmsg.append(f"Plugin {plugin} successfully unloaded")
         else:
-            tmsg.append(f"plugin {plugin} not found")
+            tmsg.append(f"Plugin {plugin} could not be unloaded")
+            return True, tmsg
+
+        if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
+            tmsg.append(f"{plugin} is already loaded")
+        elif self.load_single_plugin(plugin, exit_on_error=False):
+            tmsg.append(f"Plugin {plugin} was loaded")
+        else:
+            tmsg.append(f"Plugin {plugin} would not load")
 
         return True, tmsg
 
