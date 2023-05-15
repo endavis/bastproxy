@@ -66,6 +66,8 @@ class Plugin(BasePlugin):
           @Yapiname@w = (optional) the toplevel api to show
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
+        if not args['recordtype']:
+            return True, [f'Please enter a record type of {", ".join(RMANAGER.get_types())}']
         tmsg = [f"Last {args['number']} records of type {args['recordtype']}:"]
 
         if records := RMANAGER.get_records(args['recordtype'], count=args['number']):
