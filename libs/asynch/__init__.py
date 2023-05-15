@@ -62,7 +62,10 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
         shutdown coroutine utilized for cleanup on receipt of certain signals.
         Created and added as a handler to the loop in main.
     """
+    api = BASEAPI(owner_id=f"{__name__}:shutdown")
     LogRecord(f"shutdown - Received exit signal {signal_.name}", level='warning', sources=['mudproxy'])()
+
+    api('plugins.core.proxy:shutdown')()
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 
