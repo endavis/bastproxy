@@ -71,7 +71,11 @@ def importmodule(module_path, plugin, import_base, silent=False):
 
         if not silent:
             LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[plugin.plugin_id])()
-        _module = import_module(full_import_location)
+        try:
+            _module = import_module(full_import_location)
+        except Exception:
+            LogRecord(f"{full_import_location:<30} : failed import", level='error', sources=[plugin.plugin_id], exc_info=True)()
+            return False, 'failed import', None, None
 
         if not silent:
             LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[plugin.plugin_id])()
