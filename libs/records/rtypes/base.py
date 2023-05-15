@@ -175,8 +175,8 @@ class BaseRecord:
             for update in self.updates
         )
 
-    def __str__(self):
-        return f"{self.__class__.__name__}:{self.uuid})"
+    # def __str__(self):
+    #     return f"{self.__class__.__name__}:{self.uuid})"
 
     def _exec_(self, actor):
         """
