@@ -63,7 +63,7 @@ class SSC(object):
         """
         first_line = ''
         plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
-        file_name = os.path.join(plugin_instance.save_directory, self.name)
+        file_name = os.path.join(plugin_instance.data_directory, self.name)
         try:
             with open(file_name, 'r') as fileo:
                 first_line = fileo.readline()
@@ -89,7 +89,7 @@ class SSC(object):
         args = self.api('plugins.core.commands:get.current.command.args')()
         if args['value']:
             plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
-            file_name = os.path.join(plugin_instance.save_directory, self.name)
+            file_name = os.path.join(plugin_instance.data_directory, self.name)
             data_file = open(file_name, 'w')
             data_file.write(args['value'])
             os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)

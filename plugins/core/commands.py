@@ -287,7 +287,7 @@ class Plugin(BasePlugin):
                                      'command': 'list'}
 
         # load the history
-        self.history_save_file = self.save_directory / 'history.txt'
+        self.history_save_file = self.data_directory / 'history.txt'
         self.command_history_dict = PersistentDict(self.plugin_id, self.history_save_file, 'c')
         if 'history' not in self.command_history_dict:
             self.command_history_dict['history'] = []

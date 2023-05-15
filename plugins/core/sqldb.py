@@ -93,12 +93,12 @@ class Sqldb(object):
         self.database_name = kwargs['dbname'] or 'db' if 'dbname' in kwargs else 'db'
         self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
         self.backup_template = f"{self.database_name}_%%s.sqlite"
-        self.database_save_directory = self.api.BASEPATH / 'data' / 'db'
+        self.database_data_directory = self.api.BASEPATH / 'data' / 'db'
         if 'dbdir' in kwargs:
-            self.database_save_directory = kwargs['dbdir']
-        os.makedirs(self.database_save_directory, exist_ok=True)
+            self.database_data_directory = kwargs['dbdir']
+        os.makedirs(self.database_data_directory, exist_ok=True)
 
-        self.db_file = self.database_save_directory / f"{self.database_name}.sqlite"
+        self.db_file = self.database_data_directory / f"{self.database_name}.sqlite"
         self.turnonpragmas()
         self.connections = 0
         self.version = 1
@@ -695,7 +695,7 @@ class Sqldb(object):
                 return success
             self.close()
 
-        archivedir = self.database_save_directory / 'archive'
+        archivedir = self.database_data_directory / 'archive'
         os.makedirs(archivedir, exist_ok=True)
 
         backupzip_filename = self.backup_template % postname + '.zip'
