@@ -1078,7 +1078,7 @@ class PluginMgr(BasePlugin):
         }
         return stats
 
-    def evc_shutdown(self, _=None):
+    def _eventcb_shutdown(self, _=None):
         """
         do tasks on shutdown
         """
@@ -1275,4 +1275,4 @@ class PluginMgr(BasePlugin):
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
                                                         description=f"Raised when {plugin_id} is initialized",
                                                         arg_descriptions={'None': None})
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown', self.evc_shutdown)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown', self._eventcb_shutdown)

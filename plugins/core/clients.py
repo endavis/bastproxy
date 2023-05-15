@@ -75,7 +75,7 @@ class Plugin(BasePlugin):
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
         self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_shutdown',
-                                                  self.evc_shutdown)
+                                                  self._eventcb_shutdown)
 
     def _api_numconnected(self):
         """
@@ -183,7 +183,7 @@ class Plugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id])()
 
-    def evc_shutdown(self):
+    def _eventcb_shutdown(self):
         """
         close all clients
 

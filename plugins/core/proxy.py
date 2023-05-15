@@ -87,15 +87,15 @@ class Plugin(BasePlugin):
                                                   description='event when the proxy is shutting down',
                                                   arg_descriptions={'None': None})
 
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.clients_client_logged_in', self.evc_client_logged_in)
-        self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_mudconnect', self.evc_sendusernameandpw)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.clients_client_logged_in', self._eventcb_client_logged_in)
+        self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_mudconnect', self._eventcb_sendusernameandpw)
         self.api('plugins.core.events:register.to.event')(
             f"ev_{self.plugin_id}_var_listenport_modified",
-            self.evc_listen_port_change
+            self._eventcb_listen_port_change
         )
         self.api('plugins.core.events:register.to.event')(
             f"ev_{self.plugin_id}_var_cmdseperator_modified",
-            self.evc_command_seperator_change,
+            self._eventcb_command_seperator_change,
         )
 
         ssc = self.api('plugins.core.ssc:baseclass.get')()
@@ -130,7 +130,7 @@ class Plugin(BasePlugin):
         else:
             return self.api(f"{self.plugin_id}:setting.get")('preamblecolor')
 
-    def evc_sendusernameandpw(self):
+    def _eventcb_sendusernameandpw(self):
         """
         if username and password are set, then send them when the proxy
         connects to the mud
@@ -276,7 +276,7 @@ class Plugin(BasePlugin):
         seconds = args['seconds'] or None
         self.api(f"{self.plugin_id}:restart")(seconds)
 
-    def evc_client_logged_in(self):
+    def _eventcb_client_logged_in(self):
         """
         check for mud settings
         """
@@ -374,14 +374,14 @@ class Plugin(BasePlugin):
 
         os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
-    def evc_listen_port_change(self):
+    def _eventcb_listen_port_change(self):
         """
         restart when the listen port changes
         """
         if not self.api.startup and not self.initializing_f:
             self.api(f"{self.plugin_id}:restart")()
 
-    def evc_command_seperator_change(self):
+    def _eventcb_command_seperator_change(self):
         """
         update the command regex
 

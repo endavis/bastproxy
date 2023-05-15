@@ -138,9 +138,9 @@ class Plugin(BasePlugin):
         BasePlugin.initialize(self)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.evc_plugin_uninitialized)
+                                                          self._eventcb_plugin_uninitialized)
         self.api('plugins.core.events:register.to.event')('ev_to_client_data_modify',
-                                                  self.evc_check_trigger, prio=1)
+                                                  self._eventcb_check_trigger, prio=1)
         self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_enabled_modified", self.evc_enabled_modify)
 
         self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)
@@ -158,12 +158,12 @@ class Plugin(BasePlugin):
             change = event_record['newvalue']
             if change:
                 self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_from_mud_event',
-                                                        self.evc_check_trigger, prio=1)
+                                                        self._eventcb_check_trigger, prio=1)
             else:
                 self.api('plugins.core.events:unregister.from.event')('ev_libs.net.mud_from_mud_event',
-                                                            self.evc_check_trigger)
+                                                            self._eventcb_check_trigger)
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
@@ -518,7 +518,7 @@ class Plugin(BasePlugin):
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
 
-    def evc_check_trigger(self): # pylint: disable=too-many-branches
+    def _eventcb_check_trigger(self): # pylint: disable=too-many-branches
         """
         check a line of text from the mud to see if it matches any triggers
         """
@@ -554,12 +554,12 @@ class Plugin(BasePlugin):
             regex_match_data = match_groups.keys()
 
             if regex_match_data:
-                LogRecord(f"evc_check_trigger - line {data} matched the following regexes {regex_match_data}",
+                LogRecord(f"_eventcb_check_trigger - line {data} matched the following regexes {regex_match_data}",
                           level='debug', sources=[self.plugin_id])()
                 for regex_id in regex_match_data:
                     match = None
                     if regex_id not in self.regexes:
-                        LogRecord(f"evc_check_trigger - regex_id {regex_id} not found in evc_check_trigger",
+                        LogRecord(f"_eventcb_check_trigger - regex_id {regex_id} not found in _eventcb_check_trigger",
                                   level='error', sources=[self.plugin_id])()
                         continue
 
@@ -586,7 +586,7 @@ class Plugin(BasePlugin):
                                 break
 
             else:
-                LogRecord(f"evc_check_trigger - line {data} did not match any regexes",
+                LogRecord(f"_eventcb_check_trigger - line {data} did not match any regexes",
                           level='debug', sources=[self.plugin_id])()
 
         self.raisetrigger(self.all_id, {'line':data, 'trigger_name':self.triggers[self.all_id]['trigger_name']}, event_record)

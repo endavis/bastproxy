@@ -56,9 +56,9 @@ class Plugin(BasePlugin):
         BasePlugin.initialize(self)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.evc_plugin_uninitialized)
+                                                          self._eventcb_plugin_uninitialized)
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """

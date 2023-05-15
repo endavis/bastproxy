@@ -47,10 +47,10 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self.evc_proxy_ready)
+        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self._eventcb_proxy_ready)
 
     # show all errors that happened during startup
-    def evc_proxy_ready(self):
+    def _eventcb_proxy_ready(self):
         """
         show all errors that happened during startup
         """

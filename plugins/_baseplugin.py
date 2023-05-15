@@ -567,7 +567,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     _api_savestate = savestate
     evc_savestate = savestate
 
-    def evc_baseplugin_plugin_initialized(self):
+    def _eventcb_baseplugin_plugin_initialized(self):
         """
         do something after the initialize function is run
         """
@@ -577,26 +577,26 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         mud = self.api('plugins.core.managers:get')('mud')
 
         if mud and mud.connected and self.api('libs.api:is.character.active')():
-            self.evc_after_character_is_active()
+            self._eventcb_after_character_is_active()
         else:
-            self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active,
+            self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active,
                                                       prio=self.is_character_active_priority)
         self.initializing_f = False
 
-    def evc_baseplugin_disconnect(self):
+    def _eventcb_baseplugin_disconnect(self):
         """
         re-register to character active event on disconnect
         """
         LogRecord(f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
-        self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
+        self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active)
 
-    def evc_after_character_is_active(self):
+    def _eventcb_after_character_is_active(self):
         """
         tasks to do after character is active
         """
         LogRecord(f"ev_after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
-        if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self.evc_after_character_is_active):
-            self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self.evc_after_character_is_active)
+        if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active):
+            self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active)
 
     def get_stats(self):
         """
@@ -658,9 +658,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self._add_commands()
 
             self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_initialized",
-                                                      self.evc_baseplugin_plugin_initialized, prio=1)
+                                                      self._eventcb_baseplugin_plugin_initialized, prio=1)
 
-            self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self.evc_baseplugin_disconnect)
+            self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 
             self.reset_f = False
             self.setting_values.raiseall()

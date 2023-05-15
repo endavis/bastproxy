@@ -75,14 +75,14 @@ class Plugin(BasePlugin):
         BasePlugin.initialize(self)
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                  self.evc_plugin_uninitialized, priority=10)
+                                                  self._eventcb_plugin_uninitialized, priority=10)
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
         if event_record := self.api('plugins.core.events:get.current.event.record')():
-            LogRecord(f"evc_plugin_uninitialized - removing events for {event_record['plugin_id']}",
+            LogRecord(f"_eventcb_plugin_uninitialized - removing events for {event_record['plugin_id']}",
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 

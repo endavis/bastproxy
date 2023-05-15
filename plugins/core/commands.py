@@ -331,23 +331,23 @@ class Plugin(BasePlugin):
         BasePlugin.initialize(self)
 
         # register events
-        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_for_command, prio=5)
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized', self.evc_plugin_uninitialized)
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_initialized', self.evc_plugin_initialized)
-        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self.add_commands_on_startup)
+        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self._eventcb_check_for_command, prio=5)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized', self._eventcb_plugin_uninitialized)
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_initialized', self._eventcb_plugin_initialized)
+        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self._eventcb_add_commands_on_startup)
 
-    def add_commands_on_startup(self):
+    def _eventcb_add_commands_on_startup(self):
         """
         add commands on startup
         """
         self.adding_all_commands_after_startup = True
         for plugin_id in self.api('plugins.core.pluginm:get.loaded.plugins.list')():
-            LogRecord(f"add_commands_on_startup: {plugin_id}", level='debug',
+            LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(plugin_id)
         self.adding_all_commands_after_startup = False
 
-    def evc_plugin_initialized(self):
+    def _eventcb_plugin_initialized(self):
         """
         handle the plugin initialized event
         """
@@ -472,7 +472,7 @@ class Plugin(BasePlugin):
         LogRecord(f"added command {plugin_id}.{command_name}",
                   level='debug', sources=[self.plugin_id, plugin_id])()
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
 
@@ -968,7 +968,7 @@ class Plugin(BasePlugin):
 
         if command_item:
             LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
-                    level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:evc_check_for_command")
+                    level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:_eventcb_check_for_command")
             #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}")()
 
             success, message, error = command_item.run(command_args)
@@ -989,7 +989,7 @@ class Plugin(BasePlugin):
                 message = command_item.format_return_message(message)
                 ToClientRecord(message, clients=clients)()
 
-    def evc_check_for_command(self) -> None:
+    def _eventcb_check_for_command(self) -> None:
         """
         Check if the line is a command from the client
         if it is, the command is parsed and executed

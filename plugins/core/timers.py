@@ -149,19 +149,19 @@ class Plugin(BasePlugin):
                   'debug', sources=[self.plugin_id])()
 
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.evc_plugin_uninitialized)
+                                                          self._eventcb_plugin_uninitialized)
 
         # setup the task to check for timers to fire
         self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer thread')
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            LogRecord(f"evc_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
+            LogRecord(f"_eventcb_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
                     'debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
 

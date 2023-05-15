@@ -53,11 +53,11 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self.evc_check_command)
+        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self._eventcb_check_command)
         self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self.evc_plugin_uninitialized)
+                                                          self._eventcb_plugin_uninitialized)
 
-    def evc_plugin_uninitialized(self):
+    def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
@@ -203,7 +203,7 @@ class Plugin(BasePlugin):
             if self.watch_data[i]['owner'] == plugin:
                 self.api('%s:watch.remove' % self.plugin_id)(i)
 
-    def evc_check_command(self):
+    def _eventcb_check_command(self):
         """
         check input from the client and see if we are watching for it
         """
@@ -218,6 +218,6 @@ class Plugin(BasePlugin):
                     match_args['matched'] = match_data.groupdict()
                     match_args['cmdname'] = 'cmd_' + watch_name
                     match_args['data'] = client_data
-                    LogRecord(f"evc_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
+                    LogRecord(f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
                             level='debug', sources=[self.plugin_id])()
                     self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], match_args)
