@@ -88,6 +88,13 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'can.log.to.client', self._api_can_log_to_client)
         self.api('libs.api:add')(self.plugin_id, 'get.level.color', self._api_get_level_color)
         self.api('libs.api:add')(self.plugin_id, 'add.log.count', self._api_add_log_count)
+        self.api('libs.api:add')(self.plugin_id, 'clean.types', self._api_clean_types)
+
+    def initialize(self):
+        super().initialize()
+
+        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown',
+                                                          self._eventcb_proxy_shutdown)
 
     def _api_add_log_count(self, logtype, level):
         """
@@ -456,18 +463,17 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    @AddParser(description='remove log types that have not been used')
-    def _command_clean(self):
+    def _api_clean_types(self):
         """
-        remove log types that have not been used
+        clean log types with no counts
         """
+        remove = []
+
         types = []
         types.extend(self.handlers['client'].keys())
         types.extend(self.handlers['console'].keys())
         types.extend(self.handlers['file'].keys())
         types = sorted(set(types))
-
-        remove = []
 
         for i in types:
             if i not in self.type_counts:
@@ -475,9 +481,7 @@ class Plugin(BasePlugin):
             elif max(self.type_counts[i].values()) <= 0:
                 remove.append(i)
 
-        tmsg = ['Removed the following types:']
         for i in remove:
-            tmsg.append(i)
             if i in self.handlers['client']:
                 del(self.handlers['client'][i])
             if i in self.handlers['console']:
@@ -490,6 +494,25 @@ class Plugin(BasePlugin):
         self.handlers['file'].sync()
         self.handlers['client'].sync()
         self.handlers['console'].sync()
+
+        return remove
+
+    def _eventcb_proxy_shutdown(self):
+        """
+        clean up log types
+        """
+        self.api(f"{self.plugin_id}:clean.types")()
+
+    @AddParser(description='remove log types that have not been used')
+    def _command_clean(self):
+        """
+        remove log types that have not been used
+        """
+        remove = self.api(f"{self.plugin_id}:clean.types")()
+
+        tmsg = ['Removed the following types:']
+
+        tmsg.extend(remove)
 
         return True, tmsg
 
