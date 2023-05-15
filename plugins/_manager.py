@@ -16,6 +16,7 @@ import re
 import ast
 import datetime
 import os
+import signal
 from pathlib import Path
 
 # 3rd Party
@@ -588,7 +589,7 @@ class PluginMgr(BasePlugin):
             LogRecord(f"Could not preinitialize plugin {plugin_id}",
                       level='error', sources=[self.plugin_id, plugin_id])()
             if exit_on_error:
-                sys.exit(1)
+                signal.raise_signal( signal.SIGINT )
             return False
 
         # build dependencies
