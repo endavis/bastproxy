@@ -216,6 +216,49 @@ class Sqldb(object):
         return True, message
 
     @AddCommand(group='DB')
+    @AddParser(description='show tables and fields in database')
+    @AddArgument('table',
+                    help='the table (not required)',
+                    default='',
+                    nargs='?')
+    def _command_dbtables(self):
+        """
+        show tables and fields
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        message = []
+        if args:
+            if args['table']:
+                if not self.checktable(args['table']):
+                    return True, [f"Table {args['table']} does not exist"]
+                if self.db_connection:
+                    cursor = self.db_connection.cursor()
+                    cursor.execute(f'PRAGMA table_info({args["table"]})')
+                    desc = cursor.fetchall()
+                    cursor.close()
+                    message.extend((f"Fields in table {args['table']}:", "-" * 40))
+                    message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
+                    return True, message
+            else:
+                tables = []
+                if self.db_connection:
+                    cursor = self.db_connection.cursor()
+                    tables.extend(
+                        row['name']
+                        for row in cursor.execute(
+                            'SELECT * FROM sqlite_master WHERE type = \"table\";'
+                        )
+                    )
+                    cursor.close()
+                if tables:
+                    message.append(f"Tables in database {self.database_name}:")
+                    message.extend(f'{item}' for item in tables if item != 'sqlite_sequence')
+                else:
+                    message.append(f"No tables in database {self.database_name}")
+                return True, message
+        return True, message
+
+    @AddCommand(group='DB')
     @AddParser(description='run a sql update/insert against the database')
     @AddArgument('stmt',
                     help='the sql statement',
