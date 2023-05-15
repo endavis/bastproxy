@@ -74,7 +74,7 @@ class Plugin(BasePlugin):
                                                   description='An event that is raised when a client disconnects',
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
-        self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_proxy_shutdown',
+        self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_shutdown',
                                                   self.evc_shutdown)
 
     def api_numconnected(self):
