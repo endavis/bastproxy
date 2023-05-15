@@ -541,6 +541,7 @@ class PluginMgr(BasePlugin):
                 info.plugin_path = full_path.relative_to(self.base_plugin_dir)
                 info.fullpath = full_path
                 info.plugin_id = plugin_id
+                info.package = plugin_id.rsplit('.', 1)[0]
                 info.filename = filename
 
                 self.all_plugin_file_info[plugin_id] = info
@@ -717,7 +718,7 @@ class PluginMgr(BasePlugin):
         success, msg, module, full_import_location = \
               imputils.importmodule(plugin_path,
                                 self, 'plugins')
-        if not success:
+        if not success or not module or not full_import_location:
             return False
 
         # create the dictionary for the plugin
@@ -825,20 +826,23 @@ class PluginMgr(BasePlugin):
 
         plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
 
-        required_plugins = [plugin.plugin_id for plugin in self.all_plugin_file_info.values() \
-                                           if plugin.isrequired]
+        # load all core plugins first
+        core_plugins = [plugin.plugin_id for plugin in self.all_plugin_file_info.values() \
+                                           if plugin.package == 'plugins.core']
 
-        ## load all required plugins first
+        ## load all core plugins first
+        # print(f"loading core plugins: {core_plugins}")
 
         # load the log plugin first
-        required_plugins.remove('plugins.core.log')
-        required_plugins.insert(0, 'plugins.core.log')
-        #print(f"loading required plugins: {required_plugins}")
-        self.load_multiple_plugins(required_plugins, check_dependencies=False, run_initialize=False)
-        self.initialize_multiple_plugins(required_plugins)
+        core_plugins.remove('plugins.core.log')
+        core_plugins.insert(0, 'plugins.core.log')
 
-        # add all required plugins
-        plugins_to_load = set(plugins_to_load_setting) - set(required_plugins)
+        # print(f"loading core plugins: {core_plugins}")
+        self.load_multiple_plugins(core_plugins, check_dependencies=False, run_initialize=False)
+        self.initialize_multiple_plugins(core_plugins)
+
+        # find plugins that are marked to load at startup but are not core plugins
+        plugins_to_load = set(plugins_to_load_setting) - set(core_plugins)
 
         if plugins_not_found := [
             plugin

@@ -24,7 +24,6 @@ PURPOSE = 'show info about the api'
 AUTHOR = 'Bast'
 VERSION = 1
 
-REQUIRED = True
 
 class Plugin(BasePlugin):
     """

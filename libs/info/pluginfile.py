@@ -26,6 +26,7 @@ class PluginFileInfo():
         self.name: str = ''
         self.plugin_id: str = ''
         self.plugin_path: Path = Path('')
+        self.package: str = ''
         self.purpose: str = ''
         self.version: int = -1
         self.filename = ''

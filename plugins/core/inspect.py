@@ -23,8 +23,6 @@ PURPOSE = 'see info about records and other internal proxy functions'
 AUTHOR = 'Bast'
 VERSION = 1
 
-REQUIRED = True
-
 class Plugin(BasePlugin):
     """
     a plugin to show connection information
