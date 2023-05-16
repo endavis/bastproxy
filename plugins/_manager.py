@@ -960,12 +960,11 @@ class PluginMgr(BasePlugin):
                                                     description=f"Raised when {loaded_plugin_info.plugininstance.plugin_id} is initialized",
                                                     arg_descriptions={'None': None})
 
-
-
-        self.api('plugins.core.events:raise.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", {})
-        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
-                                            {'plugin':loaded_plugin_info.name,
-                                                'plugin_id':loaded_plugin_info.plugin_id})
+        if not self.api.startup:
+            self.api('plugins.core.events:raise.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", {})
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                                                {'plugin':loaded_plugin_info.name,
+                                                    'plugin_id':loaded_plugin_info.plugin_id})
         LogRecord(f"{loaded_plugin_info.plugin_id:<30} : successfully loaded", level='info',
                   sources=[self.plugin_id, loaded_plugin_info.plugin_id])()
 
