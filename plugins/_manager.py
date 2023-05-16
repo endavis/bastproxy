@@ -1286,7 +1286,7 @@ class PluginMgr(BasePlugin):
                                                         description=f"Raised when {plugin_id} is initialized",
                                                         arg_descriptions={'None': None})
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
-                                                        description=f"Raised when {plugin_id} is initialized",
+                                                        description=f"Raised when {plugin_id} is uninitialized",
                                                         arg_descriptions={'None': None})
 
         self.api('plugins.core.events:raise.event')('ev_core.plugins.pluginm_post_plugins_initialize')
