@@ -275,7 +275,7 @@ class Plugin(BasePlugin):
 
         # push the evnet onto the stack
         self.event_stack.push(event.name)
-        self.all_event_stack.append(event.name)
+        self.all_event_stack.push(event.name)
 
         success = event.raise_event(args, calledfrom)
 
