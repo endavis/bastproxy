@@ -404,6 +404,41 @@ class Plugin(BasePlugin):
 
         return True, message
 
+    @AddParser(description='list events for a specific owner')
+    @AddArgument('owner',
+                    help='list only events that have this argument in their name',
+                    default='',
+                    nargs='?')
+    def _command_owner(self):
+        """
+        show all registrations for a specific owner
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        if not args['owner']:
+            return False, ['Please provide an owner']
+
+        owner_name = args['owner']
+
+        owner_events = {}
+        for event in self.events.values():
+            if registrations := event.getownerregistrations(owner_name):
+                owner_events[event.name] = registrations
+
+        if not owner_events:
+            return True, [f"No events found for object: {owner_name}"]
+
+        message = [f"Registrations for owner: {owner_name}",
+                   ''.join(['@B', '-' * 70, '@w']),
+                    f"{'Event Name':<40} : Function",
+                   ''.join(['@B', '-' * 70, '@w'])]
+
+        sorted_keys = sorted(owner_events.keys())
+        for event_name in sorted_keys:
+            message.append(f"{event_name:<40} : {owner_events[event_name][0]}")
+            message.extend(f"{'':<40} : {registration}" for registration in owner_events[event_name][1:])
+
+        return True, message
+
     def summarystats(self, _=None):
         # pylint: disable=unused-argument
         """

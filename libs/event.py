@@ -121,6 +121,16 @@ class Event:
                   level='error', sources=[self.created_by])()
         return False
 
+    def getownerregistrations(self, owner_id):
+        registrations = []
+        for priority in self.priority_dictionary:
+            registrations.extend(
+                event_function.name
+                for event_function in self.priority_dictionary[priority]
+                if event_function.owner_id == owner_id
+            )
+        return registrations
+
     def removeowner(self, owner_id):
         """
         remove all functions related to a owner
