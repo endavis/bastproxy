@@ -52,6 +52,8 @@ class Plugin(BasePlugin):
         self.current_event: Event | None = None
         self.event_stack = SimpleStack(100)
 
+        self.all_event_stack = SimpleStack(300)
+
         self.events: dict[str, Event] = {}
 
         # new api that's easier to read
@@ -274,6 +276,7 @@ class Plugin(BasePlugin):
 
         # push the evnet onto the stack
         self.event_stack.push(event.name)
+        self.all_event_stack.append(event.name)
 
         success = event.raise_event(args, calledfrom)
 
