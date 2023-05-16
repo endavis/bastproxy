@@ -26,7 +26,7 @@ class Event:
     """
     a base class for an event and it's arguments
     """
-    def __init__(self, name: str, created_by: str ='', description: str = '', arg_descriptions: dict[str, str] | None = None):
+    def __init__(self, name: str, created_by: str ='', description: str | list | None = None, arg_descriptions: dict[str, str] | None = None):
         self.name: str = name
         self.owner_id: str = f"{__name__}:{self.name}"
         self.api = API(owner_id=self.owner_id)
@@ -35,7 +35,14 @@ class Event:
         self.created_by: str = created_by
         self.priority_dictionary = {}
         self.raised_count = 0
-        self.description: str = description
+        self.description: list = []
+        if isinstance(description, str):
+            self.description = [description]
+        elif isinstance(description, list):
+            self.description = description
+        else:
+            LogRecord(f"Event {self.name} has no description", level="warning",
+                      sources=[__name__, self.created_by])
         self.arg_descriptions = arg_descriptions or {}
         self.current_record: EventArgsRecord | None = None
 
@@ -115,9 +122,18 @@ class Event:
         """
         format a detail of the event
         """
+        description = []
+        for i, line in enumerate(self.description):
+            if not line:
+                continue
+            if i == 0:
+                description.append(f"{'Description':<13} : {line}")
+            else:
+                description.append(f"{'':<13}   {line}")
+
         message: list[str] = [
             f"{'Event':<13} : {self.name}",
-            f"{'Description':<13} : {self.description}",
+            *description,
             f"{'Created by':<13} : {self.created_by}",
             f"{'Raised':<13} : {self.raised_count}",
             '',
