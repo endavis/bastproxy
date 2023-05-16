@@ -20,6 +20,7 @@ This plugin handles events.
  * ```self.api('plugins.core.events:raise.event')(event_name, eventdictionary)```
 """
 # Standard Library
+import types
 
 # 3rd Party
 
@@ -29,6 +30,7 @@ from libs.records import LogRecord, EventArgsRecord
 from libs.event import Event
 from libs.stack import SimpleStack
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 NAME = 'Event Handler'
 SNAME = 'events'
@@ -64,6 +66,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get.current.event.name', self._api_get_current_event_name)
         self.api('libs.api:add')(self.plugin_id, 'get.current.event.record', self._api_get_current_event_record)
         self.api('libs.api:add')(self.plugin_id, 'get.event.stack', self._api_get_event_stack)
+        self.api('libs.api:add')(self.plugin_id, 'register.event.by.func', self._api_register_event_by_func)
 
         self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
@@ -74,8 +77,64 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                  self._eventcb_plugin_uninitialized, priority=10)
+    #     self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
+    #                                               self._eventcb_plugin_uninitialized, priority=10)
+
+        # Can't use decorator since this is the one that registers all events from decorators
+        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_post_initialize', self._eventcb_register_events_at_startup)
+
+    def _eventcb_register_events_at_startup(self):
+        """
+        add commands on startup
+        """
+        for plugin_id in self.api('plugins.core.pluginm:get.loaded.plugins.list')():
+            LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
+                        sources=[self.plugin_id])()
+            self.register_events_for_plugin(plugin_id)
+
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized', priority=10)
+    def register_events_for_plugin(self, plugin_id):
+        """
+        update all commands for a plugin
+        """
+        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(plugin_id)
+        event_functions = self.get_event_registration_functions_in_object(plugin_instance)
+        LogRecord(f"register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
+                    sources=[self.plugin_id])()
+        if event_functions:
+            names = [item.__name__ for item in event_functions]
+            LogRecord(f"register_events_for_plugin {names = }", level='debug',
+                        sources=[self.plugin_id])()
+            for func in event_functions:
+                self.api(f"{self.plugin_id}:register.event.by.func")(func)
+
+    def get_event_registration_functions_in_object(self, base, recurse=True):
+        """
+        recursively search for functions that are commands in a plugin instance
+        and it's attributes
+        """
+        function_list = []
+        for item in dir(base):
+            if item.startswith('__'):
+                continue
+            try:
+                item = getattr(base, item)
+            except AttributeError:
+                continue
+            if isinstance(item, types.MethodType) and item.__name__.startswith('_eventcb_') and hasattr(item, 'event_registration'):
+                function_list.append(item)
+            elif recurse:
+                function_list.extend(self.get_event_registration_functions_in_object(item, recurse=False))
+
+        return function_list
+
+    def _api_register_event_by_func(self, func):
+        """
+        register a decorated function as an event
+        """
+        event_name = func.event_registration['event_name']
+        prio = func.event_registration['priority']
+        self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
     def _eventcb_plugin_uninitialized(self):
         """
@@ -153,7 +212,8 @@ class Plugin(BasePlugin):
         this function returns no values"""
 
         priority = 50 if 'prio' not in kwargs else kwargs['prio']
-        func_owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
+        func_owner_id = self.api('libs.api:get.function.owner.plugin')(func)
+
         if not func_owner_id:
             LogRecord(f"_api_register_to_event - could not find owner for {func}",
                       level='error', sources=[self.plugin_id])()

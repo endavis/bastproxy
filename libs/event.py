@@ -22,6 +22,23 @@ from libs.api import API
 from libs.records import LogRecord, EventArgsRecord
 from libs.callback import Callback
 
+class RegisterToEvent:
+    """
+    a class to decorate a function with command data
+    """
+    def __init__(self, **kwargs):
+        """
+        kwargs:
+            event_name: the event to register to
+            priority: the priority to register the function with (Default: 50)
+        """
+        self.registration_args = {'event_name':'', 'priority':50} | kwargs
+
+    def __call__(self, func):
+        func.event_registration = self.registration_args
+
+        return func
+
 class Event:
     """
     a base class for an event and it's arguments

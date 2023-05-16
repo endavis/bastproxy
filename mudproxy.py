@@ -101,6 +101,9 @@ class MudProxy:
                                             description='An event to be raised when the proxy is ready to accept connections',
                                             arg_descriptions={'None': None})
 
+
+        self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_post_initialize', calledfrom='mudproxy')
+
         # done starting up, set the flag to False and raise the ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
