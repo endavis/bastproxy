@@ -577,9 +577,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         mud = self.api('plugins.core.managers:get')('mud')
 
         if mud and mud.connected and self.api('libs.api:is.character.active')():
-            self._eventcb_after_character_is_active()
+            self._eventcb_baseplugin_after_character_is_active()
         else:
-            self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active,
+            self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,
                                                       prio=self.is_character_active_priority)
         self.initializing_f = False
 
@@ -588,15 +588,15 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         re-register to character active event on disconnect
         """
         LogRecord(f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
-        self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active)
+        self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active)
 
-    def _eventcb_after_character_is_active(self):
+    def _eventcb_baseplugin_after_character_is_active(self):
         """
         tasks to do after character is active
         """
         LogRecord(f"ev_after_character_is_active: baseplugin.{self.plugin_id}", level='debug', sources=[self.plugin_id])()
-        if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active):
-            self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_after_character_is_active)
+        if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active):
+            self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active)
 
     def get_stats(self):
         """
