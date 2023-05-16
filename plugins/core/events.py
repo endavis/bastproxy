@@ -133,6 +133,7 @@ class Plugin(BasePlugin):
         register a decorated function as an event
         """
         event_name = func.event_registration['event_name']
+        event_name = event_name.format(**func.__self__.__dict__)
         prio = func.event_registration['priority']
         self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
