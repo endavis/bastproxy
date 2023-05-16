@@ -138,6 +138,7 @@ class Plugin(BasePlugin):
             prio = item['priority']
             self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
