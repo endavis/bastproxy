@@ -35,7 +35,9 @@ class RegisterToEvent:
         self.registration_args = {'event_name':'', 'priority':50} | kwargs
 
     def __call__(self, func):
-        func.event_registration = self.registration_args
+        if not hasattr(func, 'event_registration'):
+            func.event_registration = []
+        func.event_registration.append(self.registration_args)
 
         return func
 

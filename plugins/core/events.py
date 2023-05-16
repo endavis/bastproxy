@@ -132,10 +132,11 @@ class Plugin(BasePlugin):
         """
         register a decorated function as an event
         """
-        event_name = func.event_registration['event_name']
-        event_name = event_name.format(**func.__self__.__dict__)
-        prio = func.event_registration['priority']
-        self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
+        for item in func.event_registration:
+            event_name = item['event_name']
+            event_name = event_name.format(**func.__self__.__dict__)
+            prio = item['priority']
+            self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
     def _eventcb_plugin_uninitialized(self):
         """
