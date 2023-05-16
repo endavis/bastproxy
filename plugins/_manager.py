@@ -29,6 +29,7 @@ from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 from libs.info import LoadedPluginInfo, PluginFileInfo
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
 NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')
@@ -1078,6 +1079,7 @@ class PluginMgr(BasePlugin):
         }
         return stats
 
+    @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
     def _eventcb_shutdown(self, _=None):
         """
         do tasks on shutdown
@@ -1203,6 +1205,18 @@ class PluginMgr(BasePlugin):
 
         return True, tmsg
 
+    @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered")
+    def _eventcb_all_events_registered(self):
+        """
+        this resends all the different plugin initialization events
+        """
+        for loaded_plugin_info in self.loaded_plugins_info.values():
+            if loaded_plugin_info.plugininstance:
+                self.api('plugins.core.events:raise.event')(f"ev_{loaded_plugin_info.plugininstance.plugin_id}_initialized", {})
+                self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                                                    {'plugin':loaded_plugin_info.name,
+                                                    'plugin_id':loaded_plugin_info.plugin_id})
+
     # initialize this plugin
     def initialize(self):
         """
@@ -1275,4 +1289,5 @@ class PluginMgr(BasePlugin):
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
                                                         description=f"Raised when {plugin_id} is initialized",
                                                         arg_descriptions={'None': None})
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown', self._eventcb_shutdown)
+
+        self.api('plugins.core.events:raise.event')('ev_core.plugins.pluginm_post_plugins_initialize')

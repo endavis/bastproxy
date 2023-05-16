@@ -79,11 +79,8 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-    #     self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-    #                                               self._eventcb_plugin_uninitialized, priority=10)
-
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_post_initialize', self._eventcb_register_events_at_startup)
+        self.api('plugins.core.events:register.to.event')('ev_core.plugins.pluginm_post_plugins_initialize', self._eventcb_register_events_at_startup)
 
     def _eventcb_register_events_at_startup(self):
         """
@@ -93,6 +90,7 @@ class Plugin(BasePlugin):
             LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.register_events_for_plugin(plugin_id)
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_all_events_registered")
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized', priority=10)
     def register_events_for_plugin(self, plugin_id):
