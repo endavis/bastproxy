@@ -960,7 +960,7 @@ class Plugin(BasePlugin):
 
         if command_item:
             LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
-                    level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:_eventcb_check_for_command")
+                    level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:run_internal_command_from_event")
             #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}")()
 
             success, message, error = command_item.run(command_args)
