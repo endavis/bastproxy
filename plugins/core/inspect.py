@@ -45,7 +45,7 @@ class Plugin(BasePlugin):
           @Yapiname@w = (optional) the toplevel api to show
         """
         tmsg = ['Record Types:']
-        tmsg.extend(iter(RMANAGER.get_types()))
+        tmsg.extend(f"{rtype:<25} - {count}" for rtype, count in RMANAGER.get_types())
         return True, tmsg
 
     @AddParser(description='get a list of a specific type of record')

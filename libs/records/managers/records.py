@@ -59,7 +59,7 @@ class RecordManager(object):
             del self.record_instances[poppeditem.uuid]
 
     def get_types(self):
-        return self.records.keys()
+        return [(key, len(self.records[key])) for key in self.records.keys()]
 
     def get_records(self, recordtype, count=10):
         records = self.records.get(recordtype, [])
