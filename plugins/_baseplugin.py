@@ -663,7 +663,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 
             self.reset_f = False
-            self.setting_values.raiseall()
 
         for i in self.settings:
             self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_var_{i}_modified", self.plugin_id,
