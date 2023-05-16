@@ -16,6 +16,7 @@ This plugin shows and clears errors seen during plugin execution
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 NAME = 'Error Plugin'
 SNAME = 'errors'
@@ -41,15 +42,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get', self._api_get)
         self.api('libs.api:add')(self.plugin_id, 'clear.all.errors', self._api_clear_all_errors)
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self._eventcb_proxy_ready)
-
-    # show all errors that happened during startup
+    @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')
     def _eventcb_proxy_ready(self):
         """
         show all errors that happened during startup

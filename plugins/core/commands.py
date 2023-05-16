@@ -41,6 +41,7 @@ from libs.persistentdict import PersistentDict
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, CmdArgsRecord
 import libs.argp as argp
 from libs.commands import AddCommand, AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 NAME = 'Commands'
 SNAME = 'commands'
@@ -324,18 +325,7 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('historysize', 50, int,
                                 'the size of the history to keep')
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        # register events
-        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self._eventcb_check_for_command, prio=5)
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized', self._eventcb_plugin_uninitialized)
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_initialized', self._eventcb_plugin_initialized)
-        self.api('plugins.core.events:register.to.event')('ev_bastproxy_proxy_ready', self._eventcb_add_commands_on_startup)
-
+    @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')
     def _eventcb_add_commands_on_startup(self):
         """
         add commands on startup
@@ -347,6 +337,7 @@ class Plugin(BasePlugin):
             self.update_commands_for_plugin(plugin_id)
         self.adding_all_commands_after_startup = False
 
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_initialized')
     def _eventcb_plugin_initialized(self):
         """
         handle the plugin initialized event
@@ -472,6 +463,7 @@ class Plugin(BasePlugin):
         LogRecord(f"added command {plugin_id}.{command_name}",
                   level='debug', sources=[self.plugin_id, plugin_id])()
 
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
@@ -989,6 +981,7 @@ class Plugin(BasePlugin):
                 message = command_item.format_return_message(message)
                 ToClientRecord(message, clients=clients)()
 
+    @RegisterToEvent(event_name='ev_to_mud_data_modify')
     def _eventcb_check_for_command(self) -> None:
         """
         Check if the line is a command from the client

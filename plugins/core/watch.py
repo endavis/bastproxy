@@ -17,6 +17,7 @@ import re
 from libs.records import LogRecord, EventArgsRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 #these 5 are required
 NAME = 'Command Watch'
@@ -47,16 +48,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'watch.remove', self._api_watch_remove)
         self.api('libs.api:add')(self.plugin_id, 'remove.all.data.for.plugin', self._api_remove_all_data_for_plugin)
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        self.api('plugins.core.events:register.to.event')('ev_to_mud_data_modify', self._eventcb_check_command)
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self._eventcb_plugin_uninitialized)
-
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
@@ -203,6 +195,7 @@ class Plugin(BasePlugin):
             if self.watch_data[i]['owner'] == plugin:
                 self.api('%s:watch.remove' % self.plugin_id)(i)
 
+    @RegisterToEvent(event_name='ev_to_mud_data_modify')
     def _eventcb_check_command(self):
         """
         check input from the client and see if we are watching for it

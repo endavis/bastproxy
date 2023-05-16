@@ -17,6 +17,7 @@ import datetime
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 from libs.commands import AddParser
+from libs.event import RegisterToEvent
 
 #these 5 are required
 NAME = 'Clients'
@@ -73,9 +74,6 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_disconnected", self.plugin_id,
                                                   description='An event that is raised when a client disconnects',
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
-
-        self.api('plugins.core.events:register.to.event')('ev_plugin.core.proxy_shutdown',
-                                                  self._eventcb_shutdown)
 
     def _api_numconnected(self):
         """
@@ -183,6 +181,7 @@ class Plugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id])()
 
+    @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
     def _eventcb_shutdown(self):
         """
         close all clients

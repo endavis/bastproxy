@@ -23,6 +23,7 @@ from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, EventArgsRecord
 from libs.commands import AddCommand, AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -87,17 +88,6 @@ class Plugin(BasePlugin):
                                                   description='event when the proxy is shutting down',
                                                   arg_descriptions={'None': None})
 
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.clients_client_logged_in', self._eventcb_client_logged_in)
-        self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_mudconnect', self._eventcb_sendusernameandpw)
-        self.api('plugins.core.events:register.to.event')(
-            f"ev_{self.plugin_id}_var_listenport_modified",
-            self._eventcb_listen_port_change
-        )
-        self.api('plugins.core.events:register.to.event')(
-            f"ev_{self.plugin_id}_var_cmdseperator_modified",
-            self._eventcb_command_seperator_change,
-        )
-
         ssc = self.api('plugins.core.ssc:baseclass.get')()
         self.proxypw = ssc('proxypw', self.plugin_id, desc='Proxy password',
                            default='defaultpass')
@@ -130,6 +120,7 @@ class Plugin(BasePlugin):
         else:
             return self.api(f"{self.plugin_id}:setting.get")('preamblecolor')
 
+    @RegisterToEvent(event_name='ev_libs.net.mud_mudconnect')
     def _eventcb_sendusernameandpw(self):
         """
         if username and password are set, then send them when the proxy
@@ -276,6 +267,7 @@ class Plugin(BasePlugin):
         seconds = args['seconds'] or None
         self.api(f"{self.plugin_id}:restart")(seconds)
 
+    @RegisterToEvent(event_name='ev_plugins.core.clients_client_logged_in')
     def _eventcb_client_logged_in(self):
         """
         check for mud settings
@@ -374,6 +366,7 @@ class Plugin(BasePlugin):
 
         os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_listenport_modified")
     def _eventcb_listen_port_change(self):
         """
         restart when the listen port changes
@@ -381,6 +374,7 @@ class Plugin(BasePlugin):
         if not self.api.startup and not self.initializing_f:
             self.api(f"{self.plugin_id}:restart")()
 
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):
         """
         update the command regex

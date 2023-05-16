@@ -19,6 +19,7 @@ import re
 from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser
+from libs.event import RegisterToEvent
 
 NAME = 'Command Queue'
 SNAME = 'cmdq'
@@ -49,15 +50,7 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'type.remove', self._api_type_remove)
         self.api('libs.api:add')(self.plugin_id, 'remove.commands.for.plugin', self._api_remove_commands_for_plugin)
 
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self._eventcb_plugin_uninitialized)
-
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized

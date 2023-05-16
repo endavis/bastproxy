@@ -24,6 +24,7 @@ from libs.api import API
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 #these 5 are required
 NAME = 'triggers'
@@ -137,17 +138,11 @@ class Plugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self._eventcb_plugin_uninitialized)
-        self.api('plugins.core.events:register.to.event')('ev_to_client_data_modify',
-                                                  self._eventcb_check_trigger, prio=1)
-        self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_var_enabled_modified", self._eventcb_enabled_modify)
-
         self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger.add')('all', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger.add')('emptyline', None, self.plugin_id, enabled=False)
 
-
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self):
         """
         setup the plugin on setting change
@@ -163,6 +158,7 @@ class Plugin(BasePlugin):
                 self.api('plugins.core.events:unregister.from.event')('ev_libs.net.mud_from_mud_event',
                                                             self._eventcb_check_trigger)
 
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
@@ -518,6 +514,7 @@ class Plugin(BasePlugin):
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
 
+    @RegisterToEvent(event_name='ev_to_client_data_modify')
     def _eventcb_check_trigger(self): # pylint: disable=too-many-branches
         """
         check a line of text from the mud to see if it matches any triggers

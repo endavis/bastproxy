@@ -24,6 +24,7 @@ from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord, RMANAGER
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 NAME = 'Logging'
 SNAME = 'log'
@@ -89,12 +90,6 @@ class Plugin(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'get.level.color', self._api_get_level_color)
         self.api('libs.api:add')(self.plugin_id, 'add.log.count', self._api_add_log_count)
         self.api('libs.api:add')(self.plugin_id, 'clean.types', self._api_clean_types)
-
-    def initialize(self):
-        super().initialize()
-
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.proxy_shutdown',
-                                                          self._eventcb_proxy_shutdown)
 
     def _api_add_log_count(self, logtype, level):
         """
@@ -497,6 +492,7 @@ class Plugin(BasePlugin):
 
         return remove
 
+    @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
     def _eventcb_proxy_shutdown(self):
         """
         clean up log types

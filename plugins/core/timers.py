@@ -23,6 +23,7 @@ from plugins._baseplugin import BasePlugin
 from libs.callback import Callback
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
 
 #these 5 are required
 NAME = 'timers'
@@ -148,12 +149,10 @@ class Plugin(BasePlugin):
         LogRecord(f"initialize - lasttime:  {self.time_last_checked}",
                   'debug', sources=[self.plugin_id])()
 
-        self.api('plugins.core.events:register.to.event')('ev_plugins.core.pluginm_plugin_uninitialized',
-                                                          self._eventcb_plugin_uninitialized)
-
         # setup the task to check for timers to fire
         self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer thread')
 
+    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
