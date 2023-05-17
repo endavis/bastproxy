@@ -510,16 +510,18 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             for i in self.settings:
                 columnwidth = 15
                 val = self.setting_values[i]
+                help = self.settings[i]['help']
                 if 'nocolor' in self.settings[i] and self.settings[i]['nocolor']:
                     val = val.replace('@', '@@')
                 elif self.settings[i]['stype'] == 'color':
                     tlen = len(val)
                     columnwidth = 18 + tlen
+                    help = f"{val}{help}@w"
                     val = f"{val}{val.replace('@', '@@')}@w"
                 elif self.settings[i]['stype'] == 'timelength':
                     val = self.api('plugins.core.utils:format.time')(
                         self.api('plugins.core.utils:verify.value')(val, 'timelength'))
-                tmsg.append(f"{i:<20} : {val:<{columnwidth}} - {self.settings[i]['help']}")
+                tmsg.append(f"{i:<20} : {val:<{columnwidth}} - {help}")
         return tmsg
 
     def _update_version(self, old_plugin_version, new_plugin_version):
