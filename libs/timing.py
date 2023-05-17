@@ -17,6 +17,7 @@ from uuid import uuid4
 
 # Project
 from libs.api import API as BASEAPI
+from libs.api import AddAPI
 from libs.records import LogRecord
 
 API = BASEAPI(owner_id=__name__)
@@ -52,16 +53,16 @@ class Timing(object):
 
         self.timing = {}
 
-        self.api('libs.api:add')('libs.timing', 'start', self._api_start)
-        self.api('libs.api:add')('libs.timing', 'finish', self._api_finish)
-        self.api('libs.api:add')('libs.timing', 'toggle', self._api_toggle)
+        self.api('libs.api:add.apis.for.object')(__name__, self)
 
+    @AddAPI('toggle', description='toggle the enabled flag')
     def _api_toggle(self, tbool=None):
         """
         toggle the timing flag
         """
         self.enabled = not self.enabled if tbool is None else bool(tbool)
 
+    @AddAPI('start', description='start a timer')
     def _api_start(self, uid, timername, args=None):
         """
         start a timer
@@ -73,6 +74,7 @@ class Timing(object):
             LogRecord(f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
                       level='debug', sources=[__name__, owner_id])()
 
+    @AddAPI('finish', description='finish a timer')
     def _api_finish(self, uid, timername, args=None):
         """
         finish a timer
