@@ -298,7 +298,7 @@ class Plugin(BasePlugin):
             tmsg.extend(
                 (
                     divider,
-                    f"Conect to the mud with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'connect')}",
+                    f"Connect to the mud with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'connect')}",
                 )
             )
         else:
