@@ -43,34 +43,33 @@ class SSC(object):
     """
     a class to manage settings
     """
-    def __init__(self, name, plugin_id, **kwargs):
+    def __init__(self, name, plugin_id, data_directory, **kwargs):
         """
         initialize the class
         """
         self.name = name
         self.api = API(owner_id=f"{plugin_id}:{name}")
         self.plugin_id = plugin_id
+        self.data_directory = data_directory
+        self.file_name = os.path.join(self.data_directory, self.name)
 
         self.default = kwargs.get('default', '')
         self.desc = kwargs.get('desc', 'setting')
 
-    # read the secret from a file
     @AddAPI("ssc.{name}", description="get the {desc} value")
     def _api_getss(self, quiet=False):
         """
         read the secret from a file
         """
         first_line = ''
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
-        file_name = os.path.join(plugin_instance.data_directory, self.name)
         try:
-            with open(file_name, 'r') as fileo:
+            with open(self.file_name, 'r') as fileo:
                 first_line = fileo.readline()
 
             return first_line.strip()
         except IOError:
             if not quiet:
-                LogRecord(f"getss - Please set the {self.desc} with {plugin_instance.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name)}",
+                LogRecord(f"getss - Please set the {self.desc} with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name)}",
                           level='warning', sources=[self.plugin_id])()
 
         return self.default
@@ -87,11 +86,9 @@ class SSC(object):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         if args['value']:
-            plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
-            file_name = os.path.join(plugin_instance.data_directory, self.name)
-            data_file = open(file_name, 'w')
+            data_file = open(self.file_name, 'w')
             data_file.write(args['value'])
-            os.chmod(file_name, stat.S_IRUSR | stat.S_IWUSR)
+            os.chmod(self.file_name, stat.S_IRUSR | stat.S_IWUSR)
             return True, [f"{self.desc} saved"]
 
         return True, [f"Please enter the {self.desc}"]
