@@ -107,11 +107,18 @@ class MudProxy:
                                                         "any decorator events before this event is raised."],
                                             arg_descriptions={'None': None})
 
+        telnet_port: int = args['port']
+        plugin_telnet_port = self.api('plugins.core.proxy:setting.get')('listenport')
+
+        if telnet_port != -1 and plugin_telnet_port != telnet_port:
+            self.api('plugins.core.proxy:setting.change')('listenport', telnet_port)
+        else:
+            telnet_port = plugin_telnet_port
+
         # done starting up, set the flag to False and raise the ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
 
-        telnet_port: int = args['port']
         LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy'])()
 
         # import the client handler here so that the server can be created
@@ -148,8 +155,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '-p',
         '--port',
-        help='the port for the proxy to listen on',
-        default=9000)
+        help='the port for the proxy to listen on, defaults to 9999',
+        default=-1)
     parser.add_argument(
         '-pf',
         '--profile',
