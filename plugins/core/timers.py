@@ -24,6 +24,7 @@ from libs.callback import Callback
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 #these 5 are required
 NAME = 'timers'
@@ -133,12 +134,6 @@ class Plugin(BasePlugin):
         self.timer_lookup: dict[str, Timer] = {}
         self.overall_fire_count: int = 0
         self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
-
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'add.timer', self._api_add_timer)
-        self.api('libs.api:add')(self.plugin_id, 'remove.timer', self._api_remove_timer)
-        self.api('libs.api:add')(self.plugin_id, 'toggle.timer', self._api_toggle_timer)
-        self.api('libs.api:add')(self.plugin_id, 'remove.all.timers.for.plugin', self._api_remove_all_timers_for_plugin)
 
     def initialize(self):
         """
@@ -284,7 +279,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    # add a timer
+    @AddAPI('add.timer', description='add a timer')
     def _api_add_timer(self, name: str, func: typing.Callable, seconds: int, **kwargs) -> Timer | None:
         """  add a timer
         @Yname@w   = The timer name
@@ -330,7 +325,7 @@ class Plugin(BasePlugin):
         self._add_timer_internal(timer)
         return timer
 
-    # remove all the timers associated with a plugin
+    @AddAPI('remove.all.timers.for.plugin', description='remove all timers for a plugin')
     def _api_remove_all_timers_for_plugin(self, name: str):
         """  remove all timers associated with a plugin
         @Yname@w   = the name of the plugin
@@ -347,7 +342,7 @@ class Plugin(BasePlugin):
         for i in timers_to_remove:
             self.api(f"{self.plugin_id}:remove.timer")(i)
 
-    # remove a timer
+    @AddAPI('remove.timer', description='remove a timer')
     def _api_remove_timer(self, name: str):
         """  remove a timer
         @Yname@w   = the name of the timer to remove
@@ -366,7 +361,7 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_remove_timer - timer {name} does not exist",
                       level='error', sources=[self.plugin_id])()
 
-    # toggle a timer
+    @AddAPI('toggle.timer', description='toggle a timer to be enabled/disabled')
     def _api_toggle_timer(self, name: str, flag: bool):
         """  toggle a timer to be enabled/disabled
         @Yname@w   = the name of the timer to toggle

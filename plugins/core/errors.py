@@ -17,6 +17,7 @@ from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 NAME = 'Error Plugin'
 SNAME = 'errors'
@@ -37,11 +38,6 @@ class Plugin(BasePlugin):
 
         self.errors = []
 
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'add', self._api_add)
-        self.api('libs.api:add')(self.plugin_id, 'get', self._api_get)
-        self.api('libs.api:add')(self.plugin_id, 'clear.all.errors', self._api_clear_all_errors)
-
     @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')
     def _eventcb_proxy_ready(self):
         """
@@ -55,8 +51,7 @@ class Plugin(BasePlugin):
                             f"Error : {i['msg']}"))
             LogRecord(msg, level='error', sources=[self.plugin_id, 'mudproxy'])()
 
-
-    # add an error to the list
+    @AddAPI('add', description='add an error')
     def _api_add(self, timestamp, error):
         """add an error
 
@@ -65,7 +60,7 @@ class Plugin(BasePlugin):
         self.errors.append({'timestamp':timestamp,
                             'msg':error})
 
-    # get the errors that have been seen
+    @AddAPI('get', description='get all errors')
     def _api_get(self):
         """ get errors
 
@@ -75,7 +70,7 @@ class Plugin(BasePlugin):
         """
         return self.errors
 
-    # clear errors
+    @AddAPI('clear.all.errors', description='clear all errors')
     def _api_clear_all_errors(self):
         """ clear errors
 

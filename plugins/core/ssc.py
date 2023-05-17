@@ -26,7 +26,7 @@ import stat
 # 3rd Party
 
 # Project
-from libs.api import API
+from libs.api import API, AddAPI
 from libs.records import LogRecord
 from libs.commands import AddCommand, AddParser, AddArgument
 from plugins._baseplugin import BasePlugin
@@ -53,11 +53,10 @@ class SSC(object):
 
         self.default = kwargs.get('default', '')
         self.desc = kwargs.get('desc', 'setting')
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.plugin_id)
-        plugin_instance.api('libs.api:add')(self.plugin_id, f"ssc.{self.name}", self.getss)
 
     # read the secret from a file
-    def getss(self, quiet=False):
+    @AddAPI("ssc.{name}", description="get the {desc} value")
+    def _api_getss(self, quiet=False):
         """
         read the secret from a file
         """
@@ -106,18 +105,10 @@ class Plugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-        self.api('libs.api:add')(self.plugin_id, 'baseclass.get', self._api_baseclass_get)
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
-    # return the secret setting baseclass
+    @AddAPI("baseclass.get", description="return the ssc baseclass")
     def _api_baseclass_get(self):
         # pylint: disable=no-self-use
         """
-        return the sql baseclass
+        return the ssc baseclass
         """
         return SSC

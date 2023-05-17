@@ -20,6 +20,7 @@ from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 NAME = 'Command Queue'
 SNAME = 'cmdq'
@@ -42,14 +43,6 @@ class Plugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-        # new api methods
-        self.api('libs.api:add')(self.plugin_id, 'queue.add.command', self._api_queue_add_command)
-        self.api('libs.api:add')(self.plugin_id, 'start', self._api_start)
-        self.api('libs.api:add')(self.plugin_id, 'finish', self._api_finish)
-        self.api('libs.api:add')(self.plugin_id, 'type.add', self._api_type_add)
-        self.api('libs.api:add')(self.plugin_id, 'type.remove', self._api_type_remove)
-        self.api('libs.api:add')(self.plugin_id, 'remove.commands.for.plugin', self._api_remove_commands_for_plugin)
-
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
@@ -60,8 +53,8 @@ class Plugin(BasePlugin):
         )():
             self.api(f"{self.plugin_id}:remove.commands.for.plugin")(event_record['plugin_id'])
 
-    # remove all triggers related to a plugin
-    def _api_remove_commands_for_plugin(self, plugin_id):
+    @AddAPI('remove.mud.commands.for.plugin', description='remove all mud commands related to a plugin')
+    def _api_remove_mud_commands_for_plugin(self, plugin_id):
         """  remove all commands related to a plugin
         @Yplugin_id@w   = The plugin name
 
@@ -73,6 +66,7 @@ class Plugin(BasePlugin):
             if self.cmds[i]['owner'] == plugin_id:
                 self.api(f"{self.plugin_id}:remove.command.type")(i)
 
+    @AddAPI('type.remove', description='remove a command type')
     def _api_type_remove(self, cmdtype):
         """
         remove a command
@@ -83,10 +77,10 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_command_type_remove - {cmdtype} not found",
                       level='debug', sources=[self.plugin_id])()
 
-    # start a command
+    @AddAPI('start', description='tell the plugin a command has started')
     def _api_start(self, cmdtype):
         """
-        tell the queue a command has started
+        tell the plugin a command has started
         """
         if self.current_command and cmdtype != self.current_command['ctype']:
             LogRecord(f"_api_command_start - got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}",
@@ -94,6 +88,7 @@ class Plugin(BasePlugin):
             return
         self.api('libs.timing:timing.start')(f"cmd_{cmdtype}")
 
+    @AddAPI('type.add', description='add a command type')
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
         """
         add a command type
@@ -148,9 +143,10 @@ class Plugin(BasePlugin):
         """
         return any(i['cmd'] == cmd for i in self.queue)
 
+    @AddAPI('finish', description='tell the plugin a command has finished')
     def _api_finish(self, cmdtype):
         """
-        tell the queue that a command has finished
+        tell the plugin that a command has finished
         """
         LogRecord(f"_api_command_finish - got command finish for {cmdtype}",
                   level='debug',
@@ -168,6 +164,7 @@ class Plugin(BasePlugin):
             self.current_command = {}
             self.sendnext()
 
+    @AddAPI('queue.add.command', description='add a command to the plugin')
     def _api_queue_add_command(self, cmdtype, arguments=''):
         """
         add a command to the queue

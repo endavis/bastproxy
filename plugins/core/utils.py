@@ -19,6 +19,7 @@ import fnmatch
 
 # Project
 from plugins._baseplugin import BasePlugin
+from libs.api import AddAPI
 
 NAME = 'Utility functions'
 SNAME = 'utils'
@@ -37,32 +38,10 @@ class Plugin(BasePlugin):
     """
     a plugin to handle ansi colors
     """
-    def __init__(self, *args, **kwargs):
-        """
-        initialize the plugin
-        """
-        super().__init__(*args, **kwargs)
-
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'convert.timedelta.to.string', self._api_convert_timedelta_to_string)
-        self.api('libs.api:add')(self.plugin_id, 'convert.to.readable.number', self._api_convert_to_readable_number)
-        self.api('libs.api:add')(self.plugin_id, 'convert.seconds.to.dhms', self._api_convert_seconds_to_dhms)
-        self.api('libs.api:add')(self.plugin_id, 'format.time', self._api_format_time)
-        self.api('libs.api:add')(self.plugin_id, 'center.colored.string', self._api_center_colored_string)
-        self.api('libs.api:add')(self.plugin_id, 'check.list.for.match', self._api_check_list_for_match)
-        self.api('libs.api:add')(self.plugin_id, 'convert.timelength.to.secs', self._api_convert_timelength_to_secs)
-        self.api('libs.api:add')(self.plugin_id, 'verify.value', self._api_verify_value)
-        self.api('libs.api:add')(self.plugin_id, 'format.list.into.columns', self._api_format_list_into_columns)
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
-
+    @AddAPI('format.list.into.columns', description='formt the given list in evenly-spaced columns.',)
     def _api_format_list_into_columns(self, obj, cols=4, columnwise=True, gap=4):
         """
-        Print the given list in evenly-spaced columns.
+        format the given list in evenly-spaced columns.
 
         Parameters
         ----------
@@ -96,7 +75,7 @@ class Plugin(BasePlugin):
             [''.join([c.ljust(max_len + gap) for c in p]) for p in plist])
         return printer
 
-    # return the difference of two times
+    @AddAPI('convert.timedelta.to.string', description='take two times and return a string of the difference')
     def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
                                          colors='', nosec=False):
         """
@@ -138,7 +117,7 @@ class Plugin(BasePlugin):
         out = ":".join(message)
         return out
 
-    # convert a number to a shorter readable number
+    @AddAPI('convert.to.readable.number', description='convert a number to a shorter readable number')
     def _api_convert_to_readable_number(self, num, places=2):
         """
         convert a number to a shorter readable number
@@ -159,7 +138,7 @@ class Plugin(BasePlugin):
             converted_string = num # hundreds
         return converted_string
 
-    # convert seconds to years, days, hours, mins, secs
+    @AddAPI('convert.seconds.to.dhms', description='convert seconds to years, days, hours, mins, secs')
     def _api_convert_seconds_to_dhms(self, seconds):
         """
         convert seconds to years, days, hours, mins, secs
@@ -186,7 +165,7 @@ class Plugin(BasePlugin):
         converted_time['secs'] = int(seconds % 60)
         return converted_time
 
-    # format a length of time into a string
+    @AddAPI('format.time', description='format a length of time into a string')
     def _api_format_time(self, length, nosec=False):
         """
         format a length of time into a string
@@ -279,7 +258,7 @@ class Plugin(BasePlugin):
 
         return ttime
 
-    # verify different types
+    @AddAPI('verify.value', description='verify that a value is of a certain type')
     def _api_verify_value(self, value, vtype):
         """
         verify values
@@ -295,7 +274,7 @@ class Plugin(BasePlugin):
 
         return vtype(value)
 
-    # center a string with color codes
+    @AddAPI('center.colored.string', description='center a string with color codes')
     def _api_center_colored_string(self, string_to_center, filler_character, length, filler_color=None):
         """
         center a string with color codes
@@ -323,7 +302,7 @@ class Plugin(BasePlugin):
 
         return new_str
 
-    # check a list for a match
+    @AddAPI('check.list.for.match', description='check a list for a match of arg')
     def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
         """
         check a list for a match of arg
@@ -348,7 +327,7 @@ class Plugin(BasePlugin):
 
         return matches['partofstring']
 
-    # convert a time length to seconds
+    @AddAPI('convert.timelength.to.secs', description='converts a time length to seconds')
     def _api_convert_timelength_to_secs(self, timel):
         """
         converts a time length to seconds

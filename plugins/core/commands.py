@@ -35,7 +35,7 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import API
+from libs.api import API, AddAPI
 from plugins._baseplugin import BasePlugin
 from libs.persistentdict import PersistentDict
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, CmdArgsRecord
@@ -296,18 +296,6 @@ class Plugin(BasePlugin):
 
         self.current_command: Command | None = None
 
-        # add apis
-        self.api('libs.api:add')(self.plugin_id, 'run', self._api_run)
-        self.api('libs.api:add')(self.plugin_id, 'command.help.format', self._api_get_plugin_command_help)
-        self.api('libs.api:add')(self.plugin_id, 'get.command.prefix', self._api_get_command_prefix)
-        self.api('libs.api:add')(self.plugin_id, 'get.current.command.args', self._api_get_current_command_args)
-        self.api('libs.api:add')(self.plugin_id, 'set.current.command', self._api_set_current_command)
-        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.plugin', self._api_remove_data_for_plugin)
-        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.formatted', self._api_get_commands_for_plugin_formatted)
-        self.api('libs.api:add')(self.plugin_id, 'get.commands.for.plugin.data', self._api_get_commands_for_plugin_data)
-        self.api('libs.api:add')(self.plugin_id, 'get.command.format', self._api_get_command_format)
-        self.api('libs.api:add')(self.plugin_id, 'add.command.by.func', self._api_add_command_by_func)
-
         # initialize settings
         self.api(f"{self.plugin_id}:setting.add")('cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
@@ -385,6 +373,7 @@ class Plugin(BasePlugin):
 
         return function_list
 
+    @AddAPI('add.command.by.func', description='add a command based on a decorated function')
     def _api_add_command_by_func(self, func, force=False):
         """
         add a command based on the new decorator stuff
@@ -477,6 +466,7 @@ class Plugin(BasePlugin):
                     level='debug', sources=[self.plugin_id, event_record['plugin_id']])
             self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
 
+    @AddAPI('get.command.format', description='get a command string formatted for a plugin')
     def  _api_get_command_format(self, plugin_id, command):
         """
         return a command string formatted for the plugin
@@ -488,19 +478,21 @@ class Plugin(BasePlugin):
         """
         return f"{self.api('plugins.core.commands:get.command.prefix')()}.{plugin_id.replace('plugins.','')}.{command}"
 
+    @AddAPI('get.current.command.args', description='get the currently executing command args')
     def _api_get_current_command_args(self):
         """
         get the current command args
         """
         return self.current_command.current_args if self.current_command else {}
 
+    @AddAPI('set.current.command', description='set the currently executing command')
     def _api_set_current_command(self, command):
         """
         set the current command
         """
         self.current_command = command
 
-    # remove all commands for a plugin
+    @AddAPI('remove.data.for.plugin', description='remove all command data for a plugin')
     def _api_remove_data_for_plugin(self, plugin_id):
         """  remove all command data for a plugin
         @Yplugin@w    = the plugin to remove commands for
@@ -512,15 +504,15 @@ class Plugin(BasePlugin):
             new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
             self.commands_list = new_commands
 
-    # return the command prefix setting
+    @AddAPI('get.command.prefix', description='get the current command prefix')
     def _api_get_command_prefix(self):
         """  get the current command prefix
 
         returns the current command prefix as a string"""
         return self.api(f"{self.plugin_id}:setting.get")('cmdprefix')
 
-    # return the help for a command
-    def _api_get_plugin_command_help(self, plugin_id, command_name):
+    @AddAPI('command.help.format', description='format a help string for a command')
+    def _api_command_help_format(self, plugin_id, command_name):
         """  get the help for a command
         @Yplugin@w        = the plugin the command is in
         @Ycommand_name@w  = the command name
@@ -536,7 +528,7 @@ class Plugin(BasePlugin):
 
         return ''
 
-    # return a formatted list of commands for a plugin
+    @AddAPI('get.commands.for.plugin.formatted', description='get a formatted list of commands for a plugin')
     def _api_get_commands_for_plugin_formatted(self, plugin_id):
         """  get a list of commands for the specified plugin
         @Yplugin@w   = the plugin the command is in
@@ -548,7 +540,7 @@ class Plugin(BasePlugin):
 
         return None
 
-    # return the raw command data for a plugin
+    @AddAPI('get.commands.for.plugin.data', description='get the command data for a plugin')
     def _api_get_commands_for_plugin_data(self, plugin_id):
         """  get the data for commands for the specified plugin
         @Yplugin@w   = the plugin the command is in
@@ -560,7 +552,7 @@ class Plugin(BasePlugin):
 
         return {}
 
-    # run a command and return the output
+    @AddAPI('run', description='run a command and return the output')
     def _api_run(self, plugin_id: str, command_name: str, argument_string: str = '') -> tuple[bool | None, list[str]]:
         """  run a command and return the output
         @Yplugin_id@w          = the plugin_id the command is in

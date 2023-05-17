@@ -14,6 +14,7 @@ This plugin holds keeps up with various managers
 
 # Project
 from plugins._baseplugin import BasePlugin
+from libs.api import AddAPI
 
 NAME = 'Managers'
 SNAME = 'managers'
@@ -26,16 +27,7 @@ class Plugin(BasePlugin):
     """
     a plugin to test command parsing
     """
-    def __init__(self, *args, **kwargs):
-        """
-        init the instance
-        """
-        super().__init__(*args, **kwargs)
-
-        self.api('libs.api:add')(self.plugin_id, 'add', self._api_add)
-        self.api('libs.api:add')(self.plugin_id, 'get', self._api_get)
-
-    # get a manager
+    @AddAPI('get', description='get a manager')
     def _api_get(self, name):
         """  get a manager
         @Yname@w  = the name of the manager to get
@@ -43,7 +35,7 @@ class Plugin(BasePlugin):
         this function returns the manager instance"""
         return self.api.MANAGERS[name] if name in self.api.MANAGERS else None
 
-    # add a manager
+    @AddAPI('add', description='add a manager')
     def _api_add(self, name, manager):
         """  add a manager
         @Yname@w  = the name of the manager

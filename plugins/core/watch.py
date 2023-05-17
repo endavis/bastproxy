@@ -18,6 +18,7 @@ from libs.records import LogRecord, EventArgsRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 #these 5 are required
 NAME = 'Command Watch'
@@ -42,11 +43,6 @@ class Plugin(BasePlugin):
 
         self.regex_lookup = {}
         self.watch_data = {}
-
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'watch.add', self._api_watch_add)
-        self.api('libs.api:add')(self.plugin_id, 'watch.remove', self._api_watch_remove)
-        self.api('libs.api:add')(self.plugin_id, 'remove.all.data.for.plugin', self._api_remove_all_data_for_plugin)
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
@@ -115,7 +111,7 @@ class Plugin(BasePlugin):
 
         return True, message
 
-    # add a command watch
+    @AddAPI('watch.add', description='add a watch')
     def _api_watch_add(self, watch_name, regex, owner=None, **kwargs):
         """  add a command watch
         @Ywatch_name@w   = name
@@ -159,7 +155,7 @@ class Plugin(BasePlugin):
                                                                        'cmdname' : 'The command name that was matched',
                                                                        'data'    : 'The data that was matched'})
 
-    # remove a command watch
+    @AddAPI('watch.remove', description='remove a watch')
     def _api_watch_remove(self, watch_name, force=False):
         """  remove a command watch
         @Ywatch_name@w   = The watch name
@@ -182,7 +178,7 @@ class Plugin(BasePlugin):
             LogRecord(f"_api_watch_remove: watch {watch_name} does not exist",
                       level='error', sources=[self.plugin_id])()
 
-    # remove all watches related to a plugin
+    @AddAPI('remove.all.data.for.plugin', description='remove all watches for a plugin')
     def _api_remove_all_data_for_plugin(self, plugin):
         """  remove all watches related to a plugin
         @Yplugin@w   = The plugin

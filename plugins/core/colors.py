@@ -36,6 +36,7 @@ import libs.colors
 from libs.commands import AddParser, AddArgument
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
+from libs.api import AddAPI
 
 NAME = 'Ansi/Xterm Colors'
 SNAME = 'colors'
@@ -120,20 +121,7 @@ class Plugin(BasePlugin):
     """
     a plugin to handle ansi colors
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # convert to easier to read api
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.is.valid', self._api_colorcode_is_valid)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.ansicode', self._api_colorcode_to_ansicode)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.to.html', self._api_colorcode_to_html)
-        self.api('libs.api:add')(self.plugin_id, 'colorcode.strip', self._api_colorcode_strip)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.colorcode', self._api_ansicode_to_colorcode)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.to.string', self._api_ansicode_to_string)
-        self.api('libs.api:add')(self.plugin_id, 'ansicode.strip', self._api_ansicode_strip)
-        self.api('libs.api:add')(self.plugin_id, 'color.length.difference', self._api_color_length_difference)
-
-    # convert color codes to html
+    @AddAPI('colorcode.to.html', description='convert colorcodes to html')
     def _api_colorcode_to_html(self, sinput):
         # pylint: disable=no-self-use,too-many-branches
         """
@@ -191,7 +179,7 @@ class Plugin(BasePlugin):
 
         return '\n'.join(olist) + lastchar
 
-    # get the length difference of a colored string and its noncolor equivalent
+    @AddAPI('color.length.difference', description='get the length difference of a colored string and its noncolor equivalent')
     def _api_color_length_difference(self, colorstring):
         """
         get the length difference of a colored string and its noncolor equivalent
@@ -201,6 +189,7 @@ class Plugin(BasePlugin):
         return lencolor - lennocolor
 
     # check if a string is an @@ color, either xterm or ansi
+    @AddAPI('colorcode.is.valid', description='check if a string is a @ color, either xterm or ansi')
     def _api_colorcode_is_valid(self, color):
         # pylint: disable=no-self-use
         """
@@ -215,7 +204,7 @@ class Plugin(BasePlugin):
 
         return False
 
-    # convert @@ colors in a string
+    @AddAPI('colorcode.to.ansicode', description='convert @@ colors in a string')
     def _api_colorcode_to_ansicode(self, tstr):
         """
         convert @ colors in a string
@@ -244,7 +233,7 @@ class Plugin(BasePlugin):
         tstr = re.sub('\0', '@', tstr)    # put @ back in
         return tstr
 
-    # convert ansi color escape sequences to @@ colors
+    @AddAPI('ansicode.to.colorcode', description='convert ansi color escape sequences to @@ colors')
     def _api_ansicode_to_colorcode(self, text):
         # pylint: disable=no-self-use
         """
@@ -271,7 +260,7 @@ class Plugin(BasePlugin):
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 
-    # return an ansi coded string
+    @AddAPI('ansicode.to.string', description='return an ansi coded string')
     def _api_ansicode_to_string(self, color, data):
         # pylint: disable=no-self-use
         """
@@ -279,7 +268,7 @@ class Plugin(BasePlugin):
         """
         return f"{chr(27)}[{color}m{data}"
 
-    # strip all ansi from a string
+    @AddAPI('ansicode.strip', description='strip all ansi from a string')
     def _api_ansicode_strip(self, text):
         # pylint: disable=no-self-use
         """
@@ -287,7 +276,7 @@ class Plugin(BasePlugin):
         """
         return ANSI_COLOR_REGEX.sub('', text)
 
-    # strip @@ colors from a string
+    @AddAPI('colorcode.strip', description='strip @@ colors')
     def _api_colorcode_strip(self, text):
         """
         strip @@ colors

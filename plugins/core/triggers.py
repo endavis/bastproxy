@@ -20,7 +20,7 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import API
+from libs.api import API, AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
@@ -117,18 +117,6 @@ class Plugin(BasePlugin):
         self.created_regex['created_regex'] = ''
         self.created_regex['created_regex_compiled'] = ''
 
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'trigger.add', self._api_trigger_add)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.remove', self._api_trigger_remove)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.toggle.enable', self._api_trigger_toggle_enable)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.toggle.omit', self._api_trigger_toggle_omit)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.update', self._api_trigger_update)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.get', self._api_trigger_get)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.register', self._api_trigger_register)
-        self.api('libs.api:add')(self.plugin_id, 'trigger.unregister', self._api_trigger_unregister)
-        self.api('libs.api:add')(self.plugin_id, 'group.toggle.enable', self._api_group_toggle_enable)
-        self.api('libs.api:add')(self.plugin_id, 'remove.data.for.owner', self._api_remove_data_for_owner)
-
         self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
                                 'enable triggers')
 
@@ -204,6 +192,7 @@ class Plugin(BasePlugin):
         self.latest_regex_id = self.latest_regex_id + 1
         return f"reg_{self.latest_regex_id}"
 
+    @AddAPI('trigger.register', description='register a function to a trigger')
     def _api_trigger_register(self, trigger_name, function, **kwargs):
         """
         register a function to a trigger
@@ -214,6 +203,7 @@ class Plugin(BasePlugin):
         return self.api('plugins.core.events:register.to.event')(self.triggers[trigger_name].eventname,
                                                          function, *kwargs)
 
+    @AddAPI('trigger.unregister', description='unregister a function from a trigger')
     def _api_trigger_unregister(self, trigger_name, function):
         """
         unregister a function from a trigger
@@ -224,6 +214,7 @@ class Plugin(BasePlugin):
         return self.api('plugins.core.events:unregister.from.event')(self.triggers[trigger_name].eventname,
                                                              function)
 
+    @AddAPI('trigger.update', description='update a trigger without deleting it')
     def _api_trigger_update(self, trigger_name, trigger_data):
         """
         update a trigger without deleting it
@@ -296,7 +287,7 @@ class Plugin(BasePlugin):
 
         return regex_id
 
-    # add a trigger
+    @AddAPI('trigger.add', description='add a trigger')
     def _api_trigger_add(self, trigger_name, regex, owner_id=None, **kwargs): # pylint: disable=too-many-branches
         """  add a trigger
         @Ytrigger_name@w   = The trigger name
@@ -378,7 +369,7 @@ class Plugin(BasePlugin):
 
         return True, args['eventname']
 
-    # remove a trigger
+    @AddAPI('trigger.remove', description='remove a trigger')
     def _api_trigger_remove(self, trigger_name, force=False, owner_id=None):
         """  remove a trigger
         @Ytrigger_name@w   = The trigger name
@@ -429,7 +420,7 @@ class Plugin(BasePlugin):
 
         return True
 
-    # get a trigger
+    @AddAPI('trigger.get', description='get a trigger')
     def _api_trigger_get(self, trigger_name, owner_id=None):
         """get a trigger
         @Ytrigger_name@w   = The trigger name
@@ -443,7 +434,7 @@ class Plugin(BasePlugin):
 
         return None
 
-    # remove all triggers related to a plugin
+    @AddAPI('remove.data.for.owner', description='remove all triggers related to a owner')
     def _api_remove_data_for_owner(self, owner_id):
         """  remove all triggers related to a owner
         @Yowner_id@w   = The owner id
@@ -455,7 +446,7 @@ class Plugin(BasePlugin):
             if trigger.owner_id == owner_id:
                 self.api('plugins.core.triggers:trigger.remove')(trigger['trigger_name'], owner_id=owner_id)
 
-    # toggle a trigger
+    @AddAPI('trigger.toggle.enable', description='toggle a trigger')
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):
         """  toggle a trigger
         @Ytrigger_name@w = The trigger name
@@ -484,7 +475,7 @@ class Plugin(BasePlugin):
             LogRecord(f"toggletrigger - trigger {trigger_name} (maybe {owner_id}) does not exist",
                       level='error', sources=[self.plugin_id, owner_id])()
 
-    # toggle the omit flag for a trigger
+    @AddAPI('trigger.toggle.omit', description='toggle the omit flag for a trigger')
     def _api_trigger_toggle_omit(self, trigger_name, flag, owner_id=None):
         """  toggle a trigger
         @Ytrigger_name@w = The trigger name
@@ -501,7 +492,7 @@ class Plugin(BasePlugin):
             LogRecord(f"toggletriggeromit - trigger {trigger_name} (maybe {owner_id}) does not exist",
                       level='error', sources=[self.plugin_id, owner_id])()
 
-    # toggle a trigger group
+    @AddAPI('group.toggle.enable', description='toggle a trigger group')
     def _api_group_toggle_enable(self, trigger_group, flag):
         """  toggle a trigger group
         @Ytrigger_group@w = The triggergroup name

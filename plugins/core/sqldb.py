@@ -56,7 +56,7 @@ import contextlib
 # 3rd Party
 
 # Project
-from libs.api import API
+from libs.api import API, AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.commands import AddCommand, AddParser, AddArgument
@@ -105,34 +105,28 @@ class Sqldb(object):
         self.version_functions = {}
         self.tables = {}
 
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.select", self._api_select)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.modify", self._api_modify)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.modify.many", self._api_modify_many)
-        self.api('libs.api:add')(self.plugin_id, f"{self.database_name}.get.single.row", self._api_get_single_row)
-
-    # execute a select statement against the database
+    @AddAPI("{database_name}.select", description="execute a select statement against the database")
     def _api_select(self, sql_statement):
         """
         run a select sql_statement against the db
         """
         return self.select(sql_statement)
 
-    # execute a update/insert statement against the database
+    @AddAPI("{database_name}.modify", description="execute an update/insert statement against the database")
     def _api_modify(self, sql_statement, data=None):
         """
         modify the database
         """
         return self.modify(sql_statement, data)
 
-    # execute a update/insert statement multiple times
+    @AddAPI("{database_name}.modify.many", description="execute an update/insert statement multiple times against the database")
     def _api_modify_many(self, sql_statement, data):
         """
         update many rows in a database
         """
         return self.modifymany(sql_statement, data)
 
-    # get a row from a table
+    @AddAPI("{database_name}.get.single.row", description="get a row from a table")
     def _api_get_single_row(self, row_id, table_name):
         """
         get a row from a table
@@ -776,15 +770,13 @@ class Plugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-        self.api('libs.api:add')(self.plugin_id, 'baseclass', self._api_baseclass)
-
     def initialize(self):
         """
         initialize the plugin
         """
         BasePlugin.initialize(self)
 
-    # return the sql baseclass
+    @AddAPI('baseclass', description='return the sql baseclass')
     def _api_baseclass(self):
         # pylint: disable=no-self-use
         """

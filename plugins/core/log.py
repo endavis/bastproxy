@@ -25,6 +25,7 @@ from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord, RMANAGER
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 NAME = 'Logging'
 SNAME = 'log'
@@ -80,17 +81,7 @@ class Plugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('color_critical', '@r', 'color',
                                 'the color for critical messages')
 
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.console', self._api_set_log_to_console)
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.file', self._api_set_log_to_file)
-        self.api('libs.api:add')(self.plugin_id, 'set.log.to.client', self._api_set_log_to_client)
-        self.api('libs.api:add')(self.plugin_id, 'can.log.to.console', self._api_can_log_to_console)
-        self.api('libs.api:add')(self.plugin_id, 'can.log.to.file', self._api_can_log_to_file)
-        self.api('libs.api:add')(self.plugin_id, 'can.log.to.client', self._api_can_log_to_client)
-        self.api('libs.api:add')(self.plugin_id, 'get.level.color', self._api_get_level_color)
-        self.api('libs.api:add')(self.plugin_id, 'add.log.count', self._api_add_log_count)
-        self.api('libs.api:add')(self.plugin_id, 'clean.types', self._api_clean_types)
-
+    @AddAPI('add.log.count', description='add a log count')
     def _api_add_log_count(self, logtype, level):
         """
         add a log count
@@ -108,6 +99,7 @@ class Plugin(BasePlugin):
             self.type_counts[logger_name][level] = 0
         self.type_counts[logger_name][level] += 1
 
+    @AddAPI('get.level.color', description='get the color for a log level')
     def _api_get_level_color(self, level):
         """
         get the color for a log level
@@ -128,6 +120,7 @@ class Plugin(BasePlugin):
             case _:
                 return ''
 
+    @AddAPI('can.log.to.console', description='check if a logger can log to the console')
     def _api_can_log_to_console(self, logger, level):
         """
         check if a logger can log to the console
@@ -142,6 +135,7 @@ class Plugin(BasePlugin):
         convlevel = getattr(logging, self.handlers['console'][logger_name].upper(), logging.INFO)
         return level >= convlevel
 
+    @AddAPI('can.log.to.file', description='check if a logger can log to file')
     def _api_can_log_to_file(self, logger, level):
         """
         check if a logger can log to the file
@@ -156,6 +150,7 @@ class Plugin(BasePlugin):
         convlevel = getattr(logging, self.handlers['file'][logger_name].upper(), logging.INFO)
         return level >= convlevel
 
+    @AddAPI('can.log.to.client', description='check if a logger can log to the client')
     def _api_can_log_to_client(self, logger, level):
         """
         check if a logger can log to the client
@@ -167,7 +162,7 @@ class Plugin(BasePlugin):
         return logger_name in self.handlers['client'] and level >= getattr(
             logging, self.handlers['client'][logger_name].upper(), logging.INFO)
 
-    # toggle logging a logtype to the clients
+    @AddAPI('set.log.to.client', description='toggle a log type to show to clients')
     def _api_set_log_to_client(self, logtype, level: str='info', flag=True):
         """  toggle a log type to show to clients
         @Ylogtype@w   = the type to toggle, can be multiple (list)
@@ -246,7 +241,7 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    # toggle logging a logtype to the console
+    @AddAPI('set.log.to.console', description='toggle a log type to show to console')
     def _api_set_log_to_console(self, logtype, level='info'):
         """  toggle a log type to show to console
         @Ylogtype@w   = the type to toggle
@@ -312,9 +307,9 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
-    # toggle logging a logtype to a file
+    @AddAPI('set.log.to.file', description='toggle a log type to log to a file')
     def _api_set_log_to_file(self, logtype, level='info'):
-        """  toggle a log type to show to file
+        """  toggle a log type to log to a file
         @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to file, false otherwise (default: True)
 
@@ -458,6 +453,7 @@ class Plugin(BasePlugin):
         )
         return True, tmsg
 
+    @AddAPI('clean.types', description='clean log types that have not been logged to')
     def _api_clean_types(self):
         """
         clean log types with no counts

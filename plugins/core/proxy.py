@@ -24,6 +24,7 @@ from plugins._baseplugin import BasePlugin
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, EventArgsRecord
 from libs.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 #these 5 are required
 NAME = 'Proxy Interface'
@@ -51,13 +52,6 @@ class Plugin(BasePlugin):
         self.proxyvpw = None
         self.mudpw = None
         self.mud_connection = None
-
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'restart', self._api_restart)
-        self.api('libs.api:add')(self.plugin_id, 'shutdown', self._api_shutdown)
-        self.api('libs.api:add')(self.plugin_id, 'preamble.get', self._api_preamble)
-        self.api('libs.api:add')(self.plugin_id, 'preamble.color.get', self._api_preamble_color)
-        self.api('libs.api:add')(self.plugin_id, 'get.mud.connection', self._api_get_mud_connection)
 
         self.api(f"{self.plugin_id}:setting.add")('mudhost', '', str,
                                 'the hostname/ip of the mud')
@@ -95,6 +89,7 @@ class Plugin(BasePlugin):
                             default='defaultviewpass')
         self.mudpw = ssc('mudpw', self.plugin_id, desc='Mud password')
 
+    @AddAPI('get.mud.connection', description='get the mud connection')
     def _api_get_mud_connection(self) -> MudConnection:
         """
         get the mud connection
@@ -105,15 +100,17 @@ class Plugin(BasePlugin):
 
         return self.mud_connection
 
-    def _api_preamble(self):
+    @AddAPI('preamble.get', description='get the preamble')
+    def _api_preamble_get(self):
         """
         get the preamble
         """
         return self.api(f"{self.plugin_id}:setting.get")('preamble')
 
-    def _api_preamble_color(self, error=False):
+    @AddAPI('preamble.color.get', description='get the preamble color')
+    def _api_preamble_color_get(self, error=False):
         """
-        get the preamble
+        get the preamble color
         """
         if error:
             return self.api(f"{self.plugin_id}:setting.get")('preambleerrorcolor')
@@ -235,6 +232,7 @@ class Plugin(BasePlugin):
 
         return True, ['Connecting to the mud']
 
+    @AddAPI('shutdown', description='shutdown the proxy')
     def _api_shutdown(self):
         """
         shutdown the proxy
@@ -339,7 +337,7 @@ class Plugin(BasePlugin):
                 f'{__name__}:client_connected'
             )
 
-    # restart the proxy
+    @AddAPI('restart', description='restart the proxy')
     def _api_restart(self, restart_in=None):
         """
         restart the proxy after 10 seconds

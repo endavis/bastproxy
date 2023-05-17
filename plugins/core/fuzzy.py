@@ -22,6 +22,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
+from libs.api import AddAPI
 
 NAME = 'Fuzzy Match'
 SNAME = 'fuzzy'
@@ -45,16 +46,7 @@ class Plugin(BasePlugin):
     """
     a plugin to test command parsing
     """
-    def __init__(self, *args, **kwargs):
-        """
-        init the instance
-        """
-        super().__init__(*args, **kwargs)
-
-        self.api('libs.api:add')(self.plugin_id, 'get.best.match', self._api_get_best_match)
-        self.api('libs.api:add')(self.plugin_id, 'get.top.matches', self._api_get_top_matches)
-
-    # get the best match for a string in a list of strings
+    @AddAPI('get.best.match', description='get the best match for a string in a list of strings')
     def _api_get_best_match(self, item_to_match, list_to_match, score_cutoff = 80,
                        scorer: str = 'ratio') -> str:
         """  get the best match for a string in a list of strings
@@ -95,6 +87,7 @@ class Plugin(BasePlugin):
 
         return found
 
+    @AddAPI('get.top.matches', description='get the top fuzzy matches for a string')
     def _api_get_top_matches(self, item_to_match, list_to_match, items=5, score_cutoff=80, scorer: str = 'ratio') -> list:
         """
         scorer can be ratio, partial_ratio, token_sort_ratio,

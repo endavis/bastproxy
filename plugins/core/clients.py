@@ -18,6 +18,7 @@ from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 from libs.commands import AddParser
 from libs.event import RegisterToEvent
+from libs.api import AddAPI
 
 #these 5 are required
 NAME = 'Clients'
@@ -43,19 +44,6 @@ class Plugin(BasePlugin):
         self.clients = {}
         self.banned = {}
 
-        # new api format
-        self.api('libs.api:add')(self.plugin_id, 'get.client', self._api_get_client)
-        self.api('libs.api:add')(self.plugin_id, 'get.all.clients', self._api_get_all_clients)
-        self.api('libs.api:add')(self.plugin_id, 'client.banned.add', self._api_addbanned)
-        self.api('libs.api:add')(self.plugin_id, 'client.banned.check', self._api_checkbanned)
-        self.api('libs.api:add')(self.plugin_id, 'client.count', self._api_numconnected)
-        self.api('libs.api:add')(self.plugin_id, 'client.add', self._api_addclient)
-        self.api('libs.api:add')(self.plugin_id, 'client.remove', self._api_removeclient)
-        self.api('libs.api:add')(self.plugin_id, 'client.is.logged.in', self._api_is_client_logged_in)
-        self.api('libs.api:add')(self.plugin_id, 'client.is.view.client', self._api_is_client_view_client)
-        self.api('libs.api:add')(self.plugin_id, 'client.logged.in', self._api_client_logged_in)
-        self.api('libs.api:add')(self.plugin_id, 'client.logged.in.view.only', self._api_client_logged_in_view_only)
-
     def initialize(self):
         """
         initialize the plugin
@@ -75,19 +63,22 @@ class Plugin(BasePlugin):
                                                   description='An event that is raised when a client disconnects',
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
-    def _api_numconnected(self):
+    @AddAPI('client.count', description='return the # of clients connected')
+    def _api_client_count(self):
         """
         return the # of clients connected
         """
         return len(self.clients)
 
+    @AddAPI('get.client', description='get a client by uuid')
     def _api_get_client(self, client_uuid):
         """
-        get a connection
+        get a client by uuid
         """
         return self.clients[client_uuid] if client_uuid in self.clients else None
 
-    def _api_addbanned(self, client_uuid):
+    @AddAPI('client.banned.add', description='add a banned ip')
+    def _api_client_banned_add(self, client_uuid):
         """
         add a banned ip
         """
@@ -98,6 +89,7 @@ class Plugin(BasePlugin):
             self.banned[addr] =  datetime.datetime.now(datetime.timezone.utc)
             self.clients[client_uuid].state['connected'] = False
 
+    @AddAPI('client.is.view.client', description='check if a client is a view client')
     def _api_is_client_view_client(self, client_uuid):
         """
         check if a client is a view client
@@ -107,7 +99,8 @@ class Plugin(BasePlugin):
 
         return False
 
-    def _api_is_client_logged_in(self, client_uuid):
+    @AddAPI('client.is.logged.in', description='check if a client is logged in')
+    def _api_client_is_logged_in(self, client_uuid):
         """
         check if a client is logged in
         """
@@ -116,6 +109,7 @@ class Plugin(BasePlugin):
             and self.clients[client_uuid].state['logged in']
         )
 
+    @AddAPI('client.logged.in', description='set a client as logged in')
     def _api_client_logged_in(self, client_uuid):
         """
         set a client as logged in
@@ -129,6 +123,7 @@ class Plugin(BasePlugin):
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in",
                                         {'client_uuid':client_connection.uuid})
 
+    @AddAPI('client.logged.in.view.only', description='set a client as logged in for view only')
     def _api_client_logged_in_view_only(self, client_uuid):
         """
         set a client as logged in for view only
@@ -144,6 +139,7 @@ class Plugin(BasePlugin):
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
                                         {'client_uuid':client_connection.uuid})
 
+    @AddAPI('client.banned.check', description='check if a client is banned')
     def _api_checkbanned(self, clientip):
         """
         check if a client is banned
@@ -160,7 +156,8 @@ class Plugin(BasePlugin):
 
         return False
 
-    def _api_addclient(self, client_connection):
+    @AddAPI('client.add', description='add a connected client')
+    def _api_client_add(self, client_connection):
         """
         add a connected client
         """
@@ -170,7 +167,8 @@ class Plugin(BasePlugin):
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_connected",
                                                     {'client_uuid' : client_connection.uuid})
 
-    def _api_removeclient(self, client_connection):
+    @AddAPI('client.remove', description='remove a connected client')
+    def _api_client_remove(self, client_connection):
         """
         remove a connected client
         """
@@ -190,6 +188,7 @@ class Plugin(BasePlugin):
         """
         pass
 
+    @AddAPI('get.all.clients', description='get all clients')
     def _api_get_all_clients(self, uuid_only=False):
         """
         return a dictionary of clients
@@ -224,6 +223,5 @@ class Plugin(BasePlugin):
             #     tmsg.append('Option Info')
             #     for j in options:
             #         tmsg.append(j)
-
 
         return True, tmsg
