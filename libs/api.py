@@ -424,6 +424,7 @@ class API():
         self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
         self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
 
+    # scan the object for api decorated functions
     def _api_add_apis_for_object(self, toplevel, item):
         """
         scan an object for api decorated functions
