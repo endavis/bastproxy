@@ -438,7 +438,7 @@ class API():
 
     def _api_add_apis_for_object(self, toplevel, item):
         """
-        scan an item for api functions
+        scan an object for api decorated functions
         """
         from libs.records import LogRecord
         LogRecord(f"_api_add_apis_for_object: {item} {toplevel}", level='debug',
@@ -501,6 +501,7 @@ class API():
         """
         return self.is_character_active
 
+    # set the is_character_active flag
     def _api_is_character_active_set(self, flag:bool) -> None:
         """
         set the is_character_active flag
@@ -612,6 +613,7 @@ class API():
         return get_caller_owner_id(ignore_owner_list)
 
     @lru_cache(maxsize=128)
+    # get the plugin_id of the plugin that owns the function
     def _api_get_function_plugin_owner(self, function: typing.Callable) -> str:
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
