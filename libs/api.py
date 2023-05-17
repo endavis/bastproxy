@@ -808,7 +808,7 @@ class API():
 
         top_levels: list[str] = []
         for i in api_list:
-            toplevel, therest = i.split(':', 1)
+            toplevel, _ = i.split(':', 1)
             if toplevel not in top_levels:
                 if top_levels:
                     tmsg.append('@B' + '-' * 50 + '@w')
@@ -816,14 +816,10 @@ class API():
                 tmsg.extend((f"@G{toplevel:<10}@w", '@B' + '-' * 50 + '@w'))
 
             if api_data := self._api_data_get(i):
-                description = api_data.description
-                added_by = ''
-                if api_data.owner_id:
-                    added_by = f"- added in {api_data.owner_id} "
                 tmsg.extend(
                     (
-                        f"   @C{therest:<30}@w - {description}@w",
-                        f"        {added_by} - called {api_data.count} times @w",
+                        f"   @C{i:<60}@w : called {api_data.count} times @w",
+                        f"        {api_data.description}@w",
                     )
                 )
         return tmsg
