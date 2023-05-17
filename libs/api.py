@@ -413,28 +413,16 @@ class API():
         # added functions
         self.add('libs.api', 'add', self.add, overload=True)
         self.add('libs.api', 'has', self._api_has, overload=True)
-        if not self('libs.api:has')('libs.api:remove'):
-            self.add('libs.api', 'remove', self._api_remove, overload=True)
-        if not self('libs.api:has')('libs.api:get.children'):
-            self.add('libs.api', 'get.children', self._api_get_children, overload=True)
-        if not self('libs.api:has')('libs.api:run.as.plugin'):
-            self.add('libs.api', 'run.as.plugin', self._api_run_as_plugin, overload=True)
-        if not self('libs.api:has')('libs.api:detail'):
-            self.add('libs.api', 'detail', self._api_detail, overload=True)
-        if not self('libs.api:has')('libs.api:list'):
-            self.add('libs.api', 'list', self._api_list, overload=True)
-        if not self('libs.api:has')('libs.api:data.get'):
-            self.add('libs.api', 'data.get', self._api_data_get, overload=True)
-        if not self('libs.api:has')('libs.api:get.function.owner.plugin'):
-            self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_plugin_owner, overload=True)
-        if not self('libs.api:has')('libs.api:get.caller.owner'):
-            self.add('libs.api', 'get.caller.owner', self._api_caller_owner, overload=True)
-        if not self('libs.api:has')('libs.api:is.character.active'):
-            self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
-        if not self('libs.api:has')('libs.api:is.character.active.set'):
-            self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
-        if not self('libs.api:has')('libs.api:add.apis.for.object'):
-            self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, overload=True)
+        self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, overload=True)
+        self.add('libs.api', 'remove', self._api_remove, overload=True)
+        self.add('libs.api', 'get.children', self._api_get_children, overload=True)
+        self.add('libs.api', 'detail', self._api_detail, overload=True)
+        self.add('libs.api', 'list', self._api_list, overload=True)
+        self.add('libs.api', 'data.get', self._api_data_get, overload=True)
+        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_plugin_owner, overload=True)
+        self.add('libs.api', 'get.caller.owner', self._api_caller_owner, overload=True)
+        self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
+        self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
 
     def _api_add_apis_for_object(self, toplevel, item):
         """
@@ -641,21 +629,6 @@ class API():
         for i in tkeys:
             if i.startswith(api_toplevel):
                 del self._instance_api[i]
-
-    def _api_run_as_plugin(self, plugin_id: str, api_location: str):
-        """
-        run an api as another plugin
-        """
-        if plugin_instance := self('plugins.core.pluginm:get.plugin.instance')(
-            plugin_id
-        ):
-            return plugin_instance.api(api_location)
-        try:
-            from libs.records import LogRecord
-            LogRecord(f"_api_run_as_plugin: {plugin_id} plugin does not exist",
-                      level='error', sources=[__name__])()
-        except ImportError:
-            print(f"_api_run_as_plugin: {plugin_id} plugin does not exist")
 
     def get(self, api_location: str, do_not_overload: bool = False) -> typing.Callable:
         """
