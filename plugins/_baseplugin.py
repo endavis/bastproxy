@@ -107,6 +107,26 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add')(self.plugin_id, 'data.update', self._api_update_data)
         self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
 
+    def __baseclass__post__init__(self):
+        """
+        do things after all __init__ methods have been called
+
+        DO NOT OVERRIDE THIS METHOD
+        """
+        self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
+    def __init_subclass__(cls, *args, **kwargs):
+        """
+        hook into __init__ mechanism so that a post __init__
+        method can be called
+        """
+        super().__init_subclass__(*args, **kwargs)
+        def new_init(self, *args, init=cls.__init__, **kwargs):
+            init(self, *args, **kwargs)
+            if cls is type(self):
+                self.__baseclass__post__init__()
+        cls.__init__ = new_init
+
     # get the value of a setting
     def _api_setting_gets(self, setting, plugin=None):
         """  get the value of a setting
@@ -573,6 +593,12 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         """
         do something after the initialize function is run
         """
+        # add newly created api functions, this will happen if the plugin (in its
+        # initialize function) creates new objects that have apis
+        # an example is the plugins.core.proxy plugin initialziing
+        # new ssc objects in the initialize function
+        self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
         # go through each variable and raise var_%s_changed
         self.setting_values.raiseall()
 

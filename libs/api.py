@@ -25,6 +25,7 @@ See the BasePlugin class
 import inspect
 import pprint
 import typing
+import types
 from itertools import chain
 import traceback
 from pathlib import Path
@@ -36,6 +37,21 @@ import contextlib
 # Third Party
 
 # Project
+
+class AddAPI:
+    def __init__(self, api: str, description=''):
+        """
+        kwargs:
+            event_name: the event to register to
+            priority: the priority to register the function with (Default: 50)
+        """
+        self.api_name = api
+        self.description = description
+
+    def __call__(self, func):
+        func.api = {'name': self.api_name, 'description':self.description,'addedin':{}}
+
+        return func
 
 def stackdump(id='', msg='HERE') -> None:
     raw_tb = traceback.extract_stack()
@@ -217,7 +233,8 @@ class APIItem:
     """
     Wraps an API function to track its use.
     """
-    def __init__(self, full_api_name: str, tfunction: typing.Callable, owner_id: str | None) -> None:
+    def __init__(self, full_api_name: str, tfunction: typing.Callable, owner_id: str | None,
+                 description='') -> None:
         """
         Initializes an APIItem object.
 
@@ -232,6 +249,7 @@ class APIItem:
         self.tfunction: typing.Callable = tfunction
         self.overloaded: bool = False
         self.overwritten_api: APIItem | None = None
+        self.description: str = description
 
     def __call__(self, *args, **kwargs):
         """
@@ -270,8 +288,18 @@ class APIItem:
         """
         create a detailed message for this item
         """
+        description = []
+        for i, line in enumerate(self.description):
+            if not line:
+                continue
+            if i == 0:
+                description.append(f"{'Description':<13} : {line}")
+            else:
+                description.append(f"{'':<13}   {line}")
+
         tmsg: list[str] = [
             f"@C{'API':<11}@w : {self.full_api_name}",
+            *description,
             f"@C{'Function':<11}@w : {self.tfunction}",
             f"@C{'Owner':<11}@w : {self.owner_id}",
             f"@C{'Overloaded':<11}@w : {self.overloaded}",
@@ -398,6 +426,53 @@ class API():
             self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
         if not self('libs.api:has')('libs.api:is.character.active.set'):
             self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
+        if not self('libs.api:has')('libs.api:add.apis.for.object'):
+            self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, overload=True)
+
+    def _api_add_apis_for_object(self, toplevel, item):
+        """
+        scan an item for api functions
+        """
+        from libs.records import LogRecord
+        LogRecord(f"_api_add_apis_for_object: {item} {toplevel}", level='debug',
+                    sources=[__name__, toplevel])()
+        api_functions = self.get_api_functions_in_object(item)
+        LogRecord(f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions", level='debug',
+                    sources=[__name__, toplevel])()
+        if api_functions:
+            names = [item.__name__ for item in api_functions]
+            LogRecord(f"_api_add_apis_for_object {names = }", level='debug',
+                        sources=[__name__, toplevel])()
+            for func in api_functions:
+                if toplevel not in func.api['addedin']:
+                    func.api['addedin'][toplevel] = []
+                api_name = func.api['name'].format(**func.__self__.__dict__)
+                if api_name not in func.api['addedin'][toplevel]:
+                    func.api['addedin'][toplevel].append(api_name)
+                    LogRecord(f"Adding API {toplevel}:{api_name} with {func.__name__}", level='debug',
+                                sources=[__name__, toplevel])()
+                    description = func.api['description'].format(**func.__self__.__dict__)
+                    self(f"{__name__}:add")(toplevel, api_name, func, description=description)
+
+    def get_api_functions_in_object(self, base, recurse=True):
+        """
+        recursively search for functions that are commands in a plugin instance
+        and it's attributes
+        """
+        function_list = []
+        for item in dir(base):
+            if item.startswith('__'):
+                continue
+            try:
+                item = getattr(base, item)
+            except AttributeError:
+                continue
+            if isinstance(item, types.MethodType) and item.__name__.startswith('_api_') and hasattr(item, 'api'):
+                function_list.append(item)
+            elif recurse:
+                function_list.extend(self.get_api_functions_in_object(item, recurse=False))
+
+        return function_list
 
     def add_events(self) -> None:
         """
@@ -445,7 +520,8 @@ class API():
         return None
 
     # add a function to the api
-    def add(self, top_level_api: str, name: str, tfunction: typing.Callable, overload: bool = False, force: bool = False) -> bool:
+    def add(self, top_level_api: str, name: str, tfunction: typing.Callable, overload: bool = False, force: bool = False,
+            description='') -> bool:
         """  add a function to the api
         @Ytop_level_api@w  = the toplevel that the api should be under
         @Yname@w  = the name of the api
@@ -459,7 +535,7 @@ class API():
         this function returns no values"""
         full_api_name: str = f'{top_level_api}:{name}'
 
-        api_item = APIItem(full_api_name, tfunction, self.owner_id)
+        api_item = APIItem(full_api_name, tfunction, self.owner_id, description=description)
 
         if overload:
             return self._api_overload(api_item, force)
@@ -731,14 +807,16 @@ class API():
                 tmsg.extend((f"@G{toplevel:<10}@w", '@B' + '-' * 50 + '@w'))
 
             if api_data := self._api_data_get(i):
-                comments = inspect.getcomments(api_data.tfunction)
-                comments = comments.strip() if comments else ''
+                description = api_data.description
+                if not description:
+                    comments = inspect.getcomments(api_data.tfunction)
+                    description = comments.strip() if comments else ''
                 added_by = ''
                 if api_data.owner_id:
                     added_by = f"- added in {api_data.owner_id} "
                 tmsg.extend(
                     (
-                        f"   @C{therest:<30}@w - {comments}@w",
+                        f"   @C{therest:<30}@w - {description}@w",
                         f"        {added_by} - called {api_data.count} times @w",
                     )
                 )
