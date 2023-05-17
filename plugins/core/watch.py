@@ -64,16 +64,16 @@ class Plugin(BasePlugin):
         list watches
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
-        message = []
         watches = self.watch_data.keys()
         watches = sorted(watches)
         match = args['match']
 
         template = '%-25s : %-13s %s'
 
-        message.append(template % ('Name', 'Defined in',
-                                             'Hits'))
-        message.append('@B' + '-' * 60 + '@w')
+        message = [
+            template % ('Name', 'Defined in', 'Hits'),
+            '@B' + '-' * 60 + '@w',
+        ]
         for watch_name in watches:
             watch = self.watch_data[watch_name]
             if not match or match in watch_name or watch['owner'] == match:
@@ -93,16 +93,20 @@ class Plugin(BasePlugin):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         message = []
-        columnwidth = 13
         if args['watch']:
+            columnwidth = 13
             for watch in args['watch']:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]['event_name']
                     watch_event = self.api('plugins.core.events:get.event.detail')(event_name)
-                    message.append(f"{'Name':<{columnwidth}} : {watch}")
-                    message.append(f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['owner']}")
-                    message.append(f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}")
-                    message.append(f"{'Hits':<{columnwidth}} : {self.watch_data[watch]['hits']}")
+                    message.extend(
+                        (
+                            f"{'Name':<{columnwidth}} : {watch}",
+                            f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['owner']}",
+                            f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}",
+                            f"{'Hits':<{columnwidth}} : {self.watch_data[watch]['hits']}",
+                        )
+                    )
                     message.extend(watch_event)
                 else:
                     message.append(f"watch {watch} does not exist")
@@ -136,7 +140,7 @@ class Plugin(BasePlugin):
         watch_args = kwargs.copy()
         watch_args['regex'] = regex
         watch_args['owner'] = owner
-        watch_args['eventname'] = 'watch_' + watch_name
+        watch_args['eventname'] = f'watch_{watch_name}'
         try:
             self.watch_data[watch_name] = watch_args
             self.watch_data[watch_name]['hits'] = 0
@@ -165,11 +169,10 @@ class Plugin(BasePlugin):
         if watch_name in self.watch_data:
             event = self.api('plugins.core.events:get.event')(self.watch_data[watch_name]['eventname'])
             plugin = self.watch_data[watch_name]['owner']
-            if event:
-                if not event.isempty() and not force:
-                    LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} has functions registered",
-                              level='error', sources=[self.plugin_id, plugin])()
-                    return False
+            if event and not event.isempty() and not force:
+                LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} has functions registered",
+                          level='error', sources=[self.plugin_id, plugin])()
+                return False
             del self.regex_lookup[self.watch_data[watch_name]['regex']]
             del self.watch_data[watch_name]
             LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} removed",
@@ -189,24 +192,29 @@ class Plugin(BasePlugin):
         watches = self.watch_data.keys()
         for i in watches:
             if self.watch_data[i]['owner'] == plugin:
-                self.api('%s:watch.remove' % self.plugin_id)(i)
+                self.api(f'{self.plugin_id}:watch.remove')(i)
 
     @RegisterToEvent(event_name='ev_to_mud_data_modify')
     def _eventcb_check_command(self):
         """
         check input from the client and see if we are watching for it
         """
-        if event_record := self.api('plugins.core.events:get.current.event.record')():
-            client_data = event_record['line']
-            for watch_name in self.watch_data:
-                cmdre = self.watch_data[watch_name]['compiled']
-                match_data = cmdre.match(client_data)
-                if match_data:
-                    self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
-                    match_args = {}
-                    match_args['matched'] = match_data.groupdict()
-                    match_args['cmdname'] = 'cmd_' + watch_name
-                    match_args['data'] = client_data
-                    LogRecord(f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
-                            level='debug', sources=[self.plugin_id])()
-                    self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], match_args)
+        if not (
+            event_record := self.api(
+                'plugins.core.events:get.current.event.record'
+            )()
+        ):
+            return
+        client_data = event_record['line']
+        for watch_name in self.watch_data:
+            cmdre = self.watch_data[watch_name]['compiled']
+            if match_data := cmdre.match(client_data):
+                self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
+                match_args = {
+                    'matched': match_data.groupdict(),
+                    'cmdname': f'cmd_{watch_name}',
+                }
+                match_args['data'] = client_data
+                LogRecord(f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
+                        level='debug', sources=[self.plugin_id])()
+                self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], match_args)
