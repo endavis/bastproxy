@@ -578,6 +578,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.savestate()
         return True, ['Plugin settings saved']
 
+    # save the plugin state
     def savestate(self):
         """
         save all settings for the plugin

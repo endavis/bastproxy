@@ -85,6 +85,7 @@ class PluginMgr(BasePlugin):
                                 'plugins to load on startup',
                                 readonly=True)
 
+    # convert a short name to a plugin_id
     def _api_short_name_convert_plugin_id(self, short_name):
         """
         convert a short_name to a plugin_id
