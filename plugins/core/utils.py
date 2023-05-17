@@ -59,21 +59,18 @@ class Plugin(BasePlugin):
         """
 
         list_of_strings = [str(item) for item in obj]
-        if cols > len(list_of_strings):
-            number_of_columns = len(list_of_strings)
-        else:
-            number_of_columns = cols
-        max_len = max([len(item) for item in list_of_strings])
+        number_of_columns = min(cols, len(list_of_strings))
+        max_len = max(len(item) for item in list_of_strings)
         if columnwise:
             number_of_columns = int(math.ceil(float(len(list_of_strings)) / float(number_of_columns)))
         plist = [list_of_strings[i: i+number_of_columns] for i in range(0, len(list_of_strings), number_of_columns)]
         if columnwise:
-            if not len(plist[-1]) == number_of_columns:
+            if len(plist[-1]) != number_of_columns:
                 plist[-1].extend(['']*(len(list_of_strings) - len(plist[-1])))
             plist = zip(*plist)
-        printer = '\n'.join(
-            [''.join([c.ljust(max_len + gap) for c in p]) for p in plist])
-        return printer
+        return '\n'.join(
+            [''.join([c.ljust(max_len + gap) for c in p]) for p in plist]
+        )
 
     @AddAPI('convert.timedelta.to.string', description='take two times and return a string of the difference')
     def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
@@ -98,7 +95,7 @@ class Plugin(BasePlugin):
             temp_string = temp_string.replace(' day, ', ':')
             out = temp_string.replace(' days, ', ':')
         else:
-            out = '0:' + str(delta)
+            out = f'0:{str(delta)}'
         outar = out.split(':')
         outar = [(int(float(x))) for x in outar]
         message = []
@@ -155,13 +152,13 @@ class Plugin(BasePlugin):
             return converted_time
 
         converted_time['years'] = int(math.floor(seconds/(3600 * 24 * 365)))
-        seconds = seconds - (converted_time['years'] * 3600 * 24 * 365)
+        seconds -= converted_time['years'] * 3600 * 24 * 365
         converted_time['days'] = seconds // (3600 * 24)
-        seconds = seconds - (converted_time['days'] * 3600 * 24)
+        seconds -= converted_time['days'] * 3600 * 24
         converted_time['hours'] = seconds // 3600
-        seconds = seconds - (converted_time['hours'] * 3600)
+        seconds -= converted_time['hours'] * 3600
         converted_time['mins'] = seconds // 60
-        seconds = seconds - (converted_time['mins'] * 60)
+        seconds -= converted_time['mins'] * 60
         converted_time['secs'] = int(seconds % 60)
         return converted_time
 
@@ -206,15 +203,15 @@ class Plugin(BasePlugin):
         """
         convert a value to a bool, also converts some string and numbers
         """
-        if value == 0 or value == '0':
+        if value in [0, '0']:
             return False
-        elif value == 1 or value == '1':
+        elif value in [1, '1']:
             return True
         elif isinstance(value, str):
             value = value.lower()
-            if value == 'false' or value == 'no':
+            if value in ['false', 'no']:
                 return False
-            elif value == 'true' or value == 'yes':
+            elif value in ['true', 'yes']:
                 return True
 
         return bool(value)
@@ -253,26 +250,23 @@ class Plugin(BasePlugin):
         except ValueError:
             ttime = self.api(f"{self.plugin_id}:convert.timelength.to.secs")(usertime)
 
-        if ttime != 0 and not ttime:
+        if ttime == 0 or ttime:
+            return ttime
+        else:
             raise ValueError
-
-        return ttime
 
     @AddAPI('verify.value', description='verify that a value is of a certain type')
     def _api_verify_value(self, value, vtype):
         """
         verify values
         """
-        vtab = {}
-        vtab[bool] = self.verify_bool
-        vtab['color'] = self.verify_color
-        vtab['miltime'] = self.verify_miltime
-        vtab['timelength'] = self.verify_timelength
-
-        if vtype in vtab:
-            return vtab[vtype](value)
-
-        return vtype(value)
+        vtab = {
+            bool: self.verify_bool,
+            'color': self.verify_color,
+            'miltime': self.verify_miltime,
+            'timelength': self.verify_timelength,
+        }
+        return vtab[vtype](value) if vtype in vtab else vtype(value)
 
     @AddAPI('center.colored.string', description='center a string with color codes')
     def _api_center_colored_string(self, string_to_center, filler_character, length, filler_color=None):
@@ -287,7 +281,7 @@ class Plugin(BasePlugin):
 
         half_length = length_difference // 2
         new_str = "{filler_color}{filler}{filler_end}  {lstring}  {filler_color}{filler}".format(
-            filler_color=filler_color if filler_color else '',
+            filler_color=filler_color or '',
             filler=filler_character * half_length,
             filler_end='@w' if filler_color else '',
             lstring=string_to_center)
@@ -295,10 +289,10 @@ class Plugin(BasePlugin):
         new_length = (half_length * 2) + noncolored_string_length
 
         if new_length < length:
-            new_str = new_str + '-' * (length - new_length)
+            new_str += '-' * (length - new_length)
 
         if filler_color:
-            new_str = new_str + '@w'
+            new_str += '@w'
 
         return new_str
 
@@ -308,11 +302,8 @@ class Plugin(BasePlugin):
         check a list for a match of arg
         """
         string_to_match = str(arg)
-        matches = {}
-        match = string_to_match + '*'
-        matches['partofstring'] = []
-        matches['frontofstring'] = []
-
+        match = f'{string_to_match}*'
+        matches = {'partofstring': [], 'frontofstring': []}
         if arg in item_list or string_to_match in item_list:
             return [arg]
 
@@ -341,22 +332,38 @@ class Plugin(BasePlugin):
 
         timelength_match_groups = timelength_match.groupdict()
 
-        if not timelength_match_groups['days'] \
-             and not timelength_match_groups['hours'] \
-             and not timelength_match_groups['minutes'] \
-             and not timelength_match_groups['seconds']:
+        if all([not timelength_match_groups['days'],
+                not timelength_match_groups['hours'],
+                not timelength_match_groups['minutes'],
+                not timelength_match_groups['seconds']]):
             return None
 
         days = timelength_match_groups['days']
-        converted_days = int(days[:-1]) if days.endswith('d') else 0 if not days else int(days)
+        converted_days = (
+            int(days[:-1]) if days.endswith('d') else int(days) if days else 0
+        )
 
         hours = timelength_match_groups['hours']
-        converted_hours = int(hours[:-1]) if hours.endswith('h') else 0 if not hours else int(hours)
+        converted_hours = (
+            int(hours[:-1]) if hours.endswith('h') else int(hours) if hours else 0
+        )
 
         minutes = timelength_match_groups['minutes']
-        converted_minutes = int(minutes[:-1]) if minutes.endswith('m') else 0 if not minutes else int(minutes)
+        converted_minutes = (
+            int(minutes[:-1])
+            if minutes.endswith('m')
+            else int(minutes)
+            if minutes
+            else 0
+        )
 
         seconds = timelength_match_groups['seconds']
-        converted_seconds = int(seconds[:-1]) if seconds.endswith('s') else 0 if not seconds else int(seconds)
+        converted_seconds = (
+            int(seconds[:-1])
+            if seconds.endswith('s')
+            else int(seconds)
+            if seconds
+            else 0
+        )
 
         return converted_days * 24 * 60 * 60 + converted_hours * 60 * 60 + converted_minutes * 60 + converted_seconds
