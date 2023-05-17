@@ -311,7 +311,7 @@ class Plugin(BasePlugin):
         row_message = []
         compact = False
         joinc = ' '
-        if 'compact' in args:
+        if args['compact']:
             compact = True
             colors = '@z%s  @w'
             joinc = ''
