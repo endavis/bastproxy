@@ -10,8 +10,8 @@ This module holds the class BasePlugin, which all plugins should have as
 their base class.
 """
 
-import contextlib
 # Standard Library
+import contextlib
 import os
 import sys
 import textwrap
