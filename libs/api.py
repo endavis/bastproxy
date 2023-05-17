@@ -253,6 +253,9 @@ class APIItem:
         self.tfunction: typing.Callable = tfunction
         self.overloaded: bool = False
         self.overwritten_api: APIItem | None = None
+        if not description:
+            comments = inspect.getcomments(self.tfunction)
+            description = comments[2:].strip() if comments else ''
         self.description: str = description
 
     def __call__(self, *args, **kwargs):
@@ -814,9 +817,6 @@ class API():
 
             if api_data := self._api_data_get(i):
                 description = api_data.description
-                if not description:
-                    comments = inspect.getcomments(api_data.tfunction)
-                    description = comments.strip() if comments else ''
                 added_by = ''
                 if api_data.owner_id:
                     added_by = f"- added in {api_data.owner_id} "
