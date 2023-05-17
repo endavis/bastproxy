@@ -39,7 +39,7 @@ import contextlib
 # Project
 
 class AddAPI:
-    def __init__(self, api: str, description=''):
+    def __init__(self, api: str, description='', overload=False):
         """
         kwargs:
             event_name: the event to register to
@@ -47,9 +47,13 @@ class AddAPI:
         """
         self.api_name = api
         self.description = description
+        self.overload = overload
 
     def __call__(self, func):
-        func.api = {'name': self.api_name, 'description':self.description,'addedin':{}}
+        func.api = {'name': self.api_name,
+                    'description':self.description,
+                    'overload':self.overload,
+                    'addedin':{}}
 
         return func
 
@@ -452,7 +456,9 @@ class API():
                     LogRecord(f"Adding API {toplevel}:{api_name} with {func.__name__}", level='debug',
                                 sources=[__name__, toplevel])()
                     description = func.api['description'].format(**func.__self__.__dict__)
-                    self(f"{__name__}:add")(toplevel, api_name, func, description=description)
+                    overload = func.api['overload']
+                    self(f"{__name__}:add")(toplevel, api_name, func, description=description,
+                                            overload=overload)
 
     def get_api_functions_in_object(self, base, recurse=True):
         """
