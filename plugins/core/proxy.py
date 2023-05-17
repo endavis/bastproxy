@@ -71,9 +71,9 @@ class Plugin(BasePlugin):
                                 'the line length for data, does not affect data that comes from the mud or clients')
         self.api(f"{self.plugin_id}:setting.add")('preamble', '#BP', str,
                                 'the preamble from any proxy output')
-        self.api(f"{self.plugin_id}:setting.add")('preamblecolor', '@C', str,
+        self.api(f"{self.plugin_id}:setting.add")('preamblecolor', '@C', 'color',
                                 'the preamble color')
-        self.api(f"{self.plugin_id}:setting.add")('preambleerrorcolor', '@R', str,
+        self.api(f"{self.plugin_id}:setting.add")('preambleerrorcolor', '@R', 'color',
                                 'the preamble color for an error line')
         self.api(f"{self.plugin_id}:setting.add")('cmdseperator', '|', str,
                                 'the seperator for sending multiple commands')
