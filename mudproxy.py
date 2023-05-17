@@ -100,12 +100,6 @@ class MudProxy:
         self.api('plugins.core.events:add.event')('ev_bastproxy_proxy_ready', 'mudproxy',
                                             description='An event raised when the proxy is ready to accept connections',
                                             arg_descriptions={'None': None})
-        self.api('plugins.core.events:add.event')('ev_bastproxy_proxy_post_initialize', 'mudproxy',
-                                            description=["An event raised when all plugins have been initialized",
-                                                        "Do not use the RegisterToEvent decorator to register",
-                                                        "to this event as the event plugin will not have added",
-                                                        "any decorator events before this event is raised."],
-                                            arg_descriptions={'None': None})
 
         telnet_port: int = args['port']
         plugin_telnet_port = self.api('plugins.core.proxy:setting.get')('listenport')
