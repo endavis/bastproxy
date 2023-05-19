@@ -27,16 +27,15 @@ from libs.api import API
 import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
-from libs.info import LoadedPluginInfo, PluginFileInfo
+from libs.info import LoadedPluginInfo, PluginPackageInfo
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 
 REQUIREDRE = re.compile(r'^REQUIRED = (?P<value>.*)$')
-NAMERE = re.compile(r'^NAME = \'(?P<value>.*)\'$')
-AUTHORRE = re.compile(r'^AUTHOR = \'(?P<value>.*)\'$')
-VERSIONRE = re.compile(r'^VERSION = (?P<value>.*)$')
-PURPOSERE = re.compile(r'^PURPOSE = \'(?P<value>.*)\'$')
-ISPLUGINRE = re.compile(r'^class Plugin\(.*\):$')
+NAMERE = re.compile(r'^PLUGIN_NAME = \'(?P<value>.*)\'$')
+AUTHORRE = re.compile(r'^PLUGIN_AUTHOR = \'(?P<value>.*)\'$')
+VERSIONRE = re.compile(r'^PLUGIN_VERSION = (?P<value>.*)$')
+PURPOSERE = re.compile(r'^PLUGIN_PURPOSE = \'(?P<value>.*)\'$')
 
 class PluginMgr(BasePlugin):
     """
@@ -62,7 +61,7 @@ class PluginMgr(BasePlugin):
         self.loaded_plugins_info: dict[str, LoadedPluginInfo] = {}
 
         # key: full_import_location
-        self.all_plugin_file_info: dict[str, PluginFileInfo] = {}
+        self.all_plugin_file_info: dict[str, PluginPackageInfo] = {}
 
         # lookups by different types
         self.plugin_lookup_by_full_import_location = {}
@@ -460,7 +459,7 @@ class PluginMgr(BasePlugin):
         returns:
           a dict with the keys: required, isplugin, sname, isvalidpythoncode
         """
-        info = PluginFileInfo()
+        info = PluginPackageInfo()
         contents = Path(path).read_text()
         try:
             ast.parse(contents)
@@ -470,12 +469,14 @@ class PluginMgr(BasePlugin):
                       level='warning', sources=[self.plugin_id])()
 
         for tline in contents.split('\n'):
+
             if not info.name and (name_match := NAMERE.match(tline)):
+                info.isplugin = True
                 gdict = name_match.groupdict()
                 info.name = gdict['value']
                 continue
 
-            if not info.purpose and  (purpose_match := PURPOSERE.match(tline)):
+            if not info.purpose and (purpose_match := PURPOSERE.match(tline)):
                 gdict = purpose_match.groupdict()
                 info.purpose = gdict['value']
                 continue
@@ -496,13 +497,16 @@ class PluginMgr(BasePlugin):
                     info.isrequired = True
                 continue
 
-            if ISPLUGINRE.match(tline):
-                info.isplugin = True
-                continue
-
             if info.isrequired and info.isplugin and \
                    info.name and info.author and info.purpose and info.version > -1:
                 break
+
+        if info.isplugin:
+            # scan plugin directory for files
+            plugin_dir = Path(path).parent
+            for file in plugin_dir.iterdir():
+                if file.is_file():
+                    info.files.append(file.name)
 
         return info
 
@@ -515,11 +519,11 @@ class PluginMgr(BasePlugin):
         """
         LogRecord('Read all plugin information', level='info', sources=[self.plugin_id])()
 
-        _module_list = imputils.find_modules(self.base_plugin_dir, prefix='plugins.')
+        packages, plugins = imputils.find_packages_and_plugins(self.base_plugin_dir, 'plugins.')
 
         found_plugins = []
         # go through the plugins and read information from them
-        for module in _module_list:
+        for module in plugins:
             full_path = module['fullpath']
             plugin_id = module['plugin_id']
             filename = module['filename']
@@ -541,9 +545,10 @@ class PluginMgr(BasePlugin):
             info = self.scan_plugin_for_info(full_path)
 
             if info.isplugin:
-                info.plugin_path = full_path.relative_to(self.base_plugin_dir)
+                info.plugin_path = full_path.relative_to(self.base_plugin_dir).parent
                 info.fullpath = full_path
                 info.plugin_id = plugin_id
+                info.full_import_location = plugin_id
                 info.package = plugin_id.rsplit('.', 1)[0]
                 info.filename = filename
 
@@ -713,23 +718,20 @@ class PluginMgr(BasePlugin):
         """
         plugin_path = full_file_path.relative_to(self.base_plugin_dir)
 
-        # don't import plugins class
-        if '__init__.py' in plugin_path.parts:
-            return False
-
         # import the plugin
         success, msg, module, full_import_location = \
-              imputils.importmodule(plugin_path,
+              imputils.importmodule(plugin_path.parent,
                                 self, 'plugins')
         if not success or not module or not full_import_location:
             return False
 
-        # create the dictionary for the plugin
+        # create the info for the plugin
         plugin_id = full_import_location
         loaded_plugin_info = LoadedPluginInfo()
+        plugin_package_info = self.all_plugin_file_info[plugin_id]
         loaded_plugin_info.plugin_id = plugin_id
         loaded_plugin_info.full_import_location = full_import_location
-        loaded_plugin_info.plugin_path = plugin_path
+        loaded_plugin_info.plugin_path = plugin_package_info.plugin_path
         loaded_plugin_info.base_plugin_dir = self.base_plugin_dir
 
         if msg == 'dev module':
@@ -778,7 +780,7 @@ class PluginMgr(BasePlugin):
                 return False
         try:
             plugin_instance = loaded_plugin_info.module.Plugin(
-                                                loaded_plugin_info.module.NAME,
+                                                loaded_plugin_info.module.NAME if hasattr(loaded_plugin_info.module, 'NAME') else loaded_plugin_info.module.PLUGIN_NAME,
                                                 loaded_plugin_info.plugin_path,
                                                 loaded_plugin_info.base_plugin_dir,
                                                 loaded_plugin_info.full_import_location,
@@ -791,9 +793,9 @@ class PluginMgr(BasePlugin):
             else:
                 return False
 
-        plugin_instance.author = loaded_plugin_info.module.AUTHOR
-        plugin_instance.purpose = loaded_plugin_info.module.PURPOSE
-        plugin_instance.version = loaded_plugin_info.module.VERSION
+        plugin_instance.author = loaded_plugin_info.module.AUTHOR if hasattr(loaded_plugin_info.module, 'AUTHOR') else loaded_plugin_info.module.PLUGIN_AUTHOR
+        plugin_instance.purpose = loaded_plugin_info.module.PURPOSE if hasattr(loaded_plugin_info.module, 'PURPOSE') else loaded_plugin_info.module.PLUGIN_PURPOSE
+        plugin_instance.version = loaded_plugin_info.module.VERSION if hasattr(loaded_plugin_info.module, 'VERSION') else loaded_plugin_info.module.PLUGIN_VERSION
 
         # set the plugin instance
         self.loaded_plugins_info[plugin_id].plugininstance = plugin_instance

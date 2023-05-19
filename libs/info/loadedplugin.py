@@ -45,11 +45,11 @@ class LoadedPluginInfo():
         copy the relevant info from a module
         """
         self.module = module
-        self.name = module.NAME
-        self.purpose = module.PURPOSE
-        self.author = module.AUTHOR
-        self.version = module.VERSION
-        if hasattr(module, 'REQUIRED'):
-            self.isrequired = module.REQUIRED
-        self.short_name = self.plugin_path.stem
+        self.name = module.PLUGIN_NAME
+        self.purpose = module.PLUGIN_PURPOSE
+        self.author = module.PLUGIN_AUTHOR
+        self.version = module.PLUGIN_VERSION
+        if hasattr(module, 'PLUGIN_REQUIRED'):
+            self.isrequired = module.PLUGIN_REQUIRED
+        self.short_name = self.plugin_path.parent.stem
         self.importedtime = datetime.datetime.now(datetime.timezone.utc)

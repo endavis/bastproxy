@@ -12,6 +12,7 @@ holds functions to import plugins and files
 import os
 import sys
 import pkgutil
+import re
 from importlib import import_module
 from pathlib import Path
 
@@ -20,25 +21,42 @@ from pathlib import Path
 # Project
 from libs.records import LogRecord
 
-def find_modules(directory, prefix):
-    """
-    find all modules recursively in a directory
-    """
-    matches = []
-    for (loader, module_name, ispkg) in pkgutil.walk_packages([directory.as_posix()], prefix):
+NAMERE = re.compile(r'PLUGIN_NAME = \'(?P<value>.*)\'')
 
-        if not ispkg:
-            if tspec := loader.find_spec(module_name):
-                filename = module_name.split('.')[-1]
+def is_plugin(package_path):
+    """
+    check if a module is a plugin
+    """
+    contents = Path(package_path).read_text()
+    return bool(NAMERE.search(contents))
 
-                matches.append({'plugin_id':tspec.name,
+def find_packages_and_plugins(directory, prefix):
+    """
+    finds all packages and plugins recursively in a directory
+
+    returns nested dicts with a list of packages
+    """
+    matches = {'packages':[], 'plugins':[]}
+
+    for loader, name, ispkg in pkgutil.walk_packages([directory.as_posix()], prefix):
+        if ispkg:
+            location = name.replace(prefix, "")
+            parts = location.split('.')
+
+            if tspec := loader.find_spec(name):
+                if tspec.origin:
+                    if is_plugin(tspec.origin):
+                        # matches['plugins'].append({'plugin_id':tspec.name,
+                        #                            'fullpath':Path(tspec.loader.path).parent})
+                        matches['plugins'].append({'plugin_id':tspec.name,
                                 'fullpath':Path(tspec.loader.path),
-                                'filename':filename,
+                                'filename':name.split('.')[-1],
                                 'full_import_path':tspec.name})
+                    else:
+                        matches['packages'].append({'package_id':tspec.name,
+                                                    'fullpath':Path(tspec.loader.path).parent})
 
-    # print('found the following plugins:')
-    # print(pprint.pformat(matches))
-    return matches
+    return matches['packages'], matches['plugins']
 
 def get_module_name(module_path):
     """
