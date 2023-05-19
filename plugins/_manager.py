@@ -78,6 +78,7 @@ class PluginMgr(BasePlugin):
         self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self._api_save_all_plugins_state)
         self.api('libs.api:add')(self.plugin_id, 'get.loaded.plugins.list', self._api_get_loaded_plugins_list)
         self.api('libs.api:add')(self.plugin_id, 'get.packages.list', self._api_get_packages_list)
+        self.api('libs.api:add')(self.plugin_id, 'get.plugins.in.package', self._api_get_plugins_in_package)
         self.api('libs.api:add')(self.plugin_id, 'get.all.short.names', self._api_get_all_short_names)
         self.api('libs.api:add')(self.plugin_id, 'short.name.convert.plugin.id', self._api_short_name_convert_plugin_id)
 
