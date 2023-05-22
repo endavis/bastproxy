@@ -45,3 +45,11 @@ Plugin Developer Notes
     Keep data internal to the source plugin. For Example, command data is kept in the
     plugin that created the command, not the command plugin itself. This makes
     reloading plugins viable and easy.
+3) Notes on reloading plugins:
+    Reloading plugins does not update any objects that have been imported by another plugin.
+    Try to keep imports into other plugins at a minimum or to small use cases
+        one such item is a decorator that is used by other plugins, if the module the decorator
+        is defined in is reloaded then all the other modules that have used that decorator
+        will have the old decorator and they will have references to the old module,
+        meaning the old module will never be garbage collected until all the modules
+        with the old reference have been reloaded.
