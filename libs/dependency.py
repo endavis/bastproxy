@@ -16,13 +16,12 @@ import typing
 
 # Project
 from libs.records import LogRecord
-from libs.info.loadedplugin import LoadedPluginInfo
 
 class PluginDependencyResolver(object):
     """
     a class to resolve dependencies in order to load plugins
     """
-    def __init__(self, plugin_list: list[LoadedPluginInfo], resolved=None, broken_modules=None):
+    def __init__(self, plugin_list: list, resolved=None, broken_modules=None):
         """
         init the class
         """
@@ -30,7 +29,7 @@ class PluginDependencyResolver(object):
         self.unresolved: list[str] = []
         self.resolved: list[str] = []
         self.broken_modules: list[str] = []
-        self.plugin_lookup: dict[str, LoadedPluginInfo] = {}
+        self.plugin_lookup: dict = {}
         for plugin in plugin_list:
             self.plugin_lookup[plugin.plugin_id] = plugin
         if resolved:
@@ -55,7 +54,7 @@ class PluginDependencyResolver(object):
             return
         self.unresolved.append(plugin.plugin_id)
         for edge in plugin.plugininstance.dependencies:
-            edge_plugin: LoadedPluginInfo | None = None
+            edge_plugin = None
             try:
                 edge_plugin = self.plugin_lookup[edge]
             except KeyError:
