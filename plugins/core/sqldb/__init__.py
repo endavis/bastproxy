@@ -51,8 +51,6 @@ PLUGIN_PURPOSE = 'Hold the SQL DB baseclass'
 PLUGIN_AUTHOR = 'Bast'
 PLUGIN_VERSION = 1
 
-REQUIRED = True
-
 __all__ = ['Plugin']
 
 from ._plugin import SQLDBPlugin as Plugin
