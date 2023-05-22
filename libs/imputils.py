@@ -37,8 +37,15 @@ def find_packages_and_plugins(directory, prefix):
     returns nested dicts with a list of packages
     """
     matches = {'packages':[], 'plugins':[]}
+    errors = {}
 
-    for loader, name, ispkg in pkgutil.walk_packages([directory.as_posix()], prefix):
+    def on_error(package):
+        """
+        handle errors
+        """
+        errors[package] = sys.exc_info()
+
+    for loader, name, ispkg in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
         if ispkg:
             location = name.replace(prefix, "")
             parts = location.split('.')
@@ -49,14 +56,15 @@ def find_packages_and_plugins(directory, prefix):
                         # matches['plugins'].append({'plugin_id':tspec.name,
                         #                            'fullpath':Path(tspec.loader.path).parent})
                         matches['plugins'].append({'plugin_id':tspec.name,
-                                'fullpath':Path(tspec.loader.path),
+                                'full_init_file_path':Path(tspec.loader.path),
                                 'filename':name.split('.')[-1],
-                                'full_import_path':tspec.name})
+                                'full_package_path':Path(tspec.loader.path).parent,
+                                'full_import_location':tspec.name})
                     else:
                         matches['packages'].append({'package_id':tspec.name,
                                                     'fullpath':Path(tspec.loader.path).parent})
 
-    return matches['packages'], matches['plugins']
+    return matches['packages'], matches['plugins'], errors
 
 def get_module_name(module_path):
     """
@@ -73,14 +81,11 @@ def get_module_name(module_path):
     return value1, value2
 
 # import a module
-def importmodule(module_path, plugin, import_base, silent=False):
+def importmodule(full_import_location, calling_plugin, silent=False):
     """
     import a single module
     """
     _module = None
-
-    import_location, _ = get_module_name(module_path)
-    full_import_location = f'{import_base}.{import_location}'
 
     try:
         if full_import_location in sys.modules:
@@ -88,22 +93,22 @@ def importmodule(module_path, plugin, import_base, silent=False):
                     sys.modules[full_import_location], full_import_location)
 
         if not silent:
-            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[plugin.plugin_id])()
+            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[calling_plugin.plugin_id])()
         try:
             _module = import_module(full_import_location)
         except Exception:
-            LogRecord(f"{full_import_location:<30} : failed import", level='error', sources=[plugin.plugin_id], exc_info=True)()
+            LogRecord(f"{full_import_location:<30} : failed import", level='error', sources=[calling_plugin.plugin_id], exc_info=True)()
             return False, 'failed import', None, None
 
         if not silent:
-            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[plugin.plugin_id])()
+            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[calling_plugin.plugin_id])()
         return True, 'import', _module, full_import_location
 
     except Exception: # pylint: disable=broad-except
         if full_import_location in sys.modules:
             del sys.modules[full_import_location]
 
-        LogRecord(f"Module '{full_import_location}' failed to import/load.", level='error', sources=[plugin.plugin_id], exc_info=True)()
+        LogRecord(f"Module '{full_import_location}' failed to import/load.", level='error', sources=[calling_plugin.plugin_id], exc_info=True)()
         return False, 'error', _module, full_import_location
 
 def deletemodule(full_import_location, modules_to_keep=None):

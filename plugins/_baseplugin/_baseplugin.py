@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/_baseplugin.py
+# Filename: plugins/_baseplugin/_baseplugin.py
 #
-# File Description: holds the baseplugin class
+# File Description: holds the BasePlugin class
 #
 # By: Bast
-"""
-This module holds the class BasePlugin, which all plugins should have as
-their base class.
-"""
 
 # Standard Library
 import contextlib
@@ -496,15 +492,33 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if sys.modules[import_location].__doc__:
             msg.extend(sys.modules[import_location].__doc__.split('\n'))
 
+        if msg[-1] == '' and msg[-2] == '':
+            msg.pop()
+
         file_header = False
-        for file in self.find_files_changed_on_disk():
+        for file in self.api('plugins.core.pluginm:plugin.get.changed.files')(self.plugin_id):
             if not file_header:
                 file_header = True
-                msg.append('')
+                if msg[-1] != '':
+                    msg.append('')
                 msg.append(self.api('plugins.core.utils:center.colored.string')('@x86Files that have change since loading@w', '-', 60, filler_color='@B'))
             msg.append(f"    : {file}")
         if file_header:
-            msg.extend(('@B' + '-' * 60 + '@w', ''))
+            msg.append('@B' + '-' * 60 + '@w')
+
+        file_header = False
+        for file in self.api('plugins.core.pluginm:plugin.get.invalid.python.files')(self.plugin_id):
+            if not file_header:
+                file_header = True
+                if msg[-1] != '':
+                    msg.append('')
+                msg.append(self.api('plugins.core.utils:center.colored.string')('@x86Files that are invalid python@w', '-', 60, filler_color='@B'))
+            msg.append(f"    : {file}")
+        if file_header:
+            msg.append('@B' + '-' * 60 + '@w')
+
+        if msg[-1] != '':
+            msg.append('')
 
         if args['commands']:
             if cmd_list := self.api(
@@ -658,17 +672,6 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         #save the state
         self.savestate()
-
-    def find_files_changed_on_disk(self):
-        """
-        check to see if the files in this plugin have changed on disk
-
-        return:
-          a list of changed files
-        """
-        files = self.api('plugins.core.pluginm:get.plugin.files')(self.plugin_id)
-
-        return [file_name for file_name in files if files[file_name]['modified_time'] > self.loaded_time]
 
     def reset(self):
         """

@@ -5,7 +5,6 @@
 # File Description: a "package" to manage info classes
 #
 # By: Bast
-__all__ = ['LoadedPluginInfo', 'PluginPackageInfo']
+__all__ = ['PluginInfo']
 
-from libs.info.loadedplugin import LoadedPluginInfo
-from libs.info.pluginpackage import PluginPackageInfo
+from libs.info.plugin import PluginInfo
