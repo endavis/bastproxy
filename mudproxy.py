@@ -85,8 +85,8 @@ class MudProxy:
         LogRecord('Plugin Manager - loading', level='info', sources=['mudproxy'])()
 
         # instantiate the plugin manager
-        from plugins._manager import PluginMgr
-        plugin_manager = PluginMgr()
+        from plugins._pluginm import Plugin
+        plugin_manager = Plugin()
 
         # initialize the plugin manager which will load plugins
         plugin_manager.initialize()
