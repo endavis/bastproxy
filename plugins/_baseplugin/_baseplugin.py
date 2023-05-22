@@ -147,7 +147,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                     if self.api('libs.api:has')('plugins.core.utils:verify.value')
                     else self.setting_values[setting]
                 )
-        elif plugin_instance := self.api('plugins.core.pluginm:get.plugin.instance')(
+        elif plugin_instance := self.api('libs.pluginloader:get.plugin.instance')(
             plugin
         ):
             return self.api(f"{plugin_instance.plugin_id}:setting.get")(setting)
@@ -163,7 +163,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         returns:
           the data for the specified datatype, None if not found"""
         if plugin_id:
-            if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+            if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
                 return self.api(f"{plugin_id}:data.get")(datatype)
 
         elif datatype in self.data:
@@ -184,7 +184,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             return True
 
         else:
-            if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+            if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
                 return self.api(f"{plugin_id}:data.update")(datatype, newdata)
 
         return False
@@ -207,7 +207,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         if value == 'default':
             value = self.settings[setting]['default']
         if setting in self.settings:
-            if self.api('plugins.core.pluginm:is.plugin.loaded')('utils'):
+            if self.api('libs.pluginloader:is.plugin.loaded')('utils'):
                 value = self.api('plugins.core.utils:verify.value')(
                     value,
                     self.settings[setting]['stype'])
@@ -502,7 +502,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             msg.pop()
 
         file_header = False
-        for file in self.api('plugins.core.pluginm:plugin.get.changed.files')(self.plugin_id):
+        for file in self.api('libs.pluginloader:plugin.get.changed.files')(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != '':
@@ -513,7 +513,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             msg.append('@B' + '-' * 60 + '@w')
 
         file_header = False
-        for file in self.api('plugins.core.pluginm:plugin.get.invalid.python.files')(self.plugin_id):
+        for file in self.api('libs.pluginloader:plugin.get.invalid.python.files')(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != '':

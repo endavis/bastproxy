@@ -236,7 +236,7 @@ class PersistentDictEvent(PersistentDict):
         val = convert(val)
         old_value = None
         try:
-            plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
+            plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
         except AttributeError:
             plugin_instance = None
         if key in self and plugin_instance:
@@ -268,7 +268,7 @@ class PersistentDictEvent(PersistentDict):
         """
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
+        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
         old_value = '__init__'
         for i in self:
             if plugin_instance:
@@ -291,7 +291,7 @@ class PersistentDictEvent(PersistentDict):
         """
         always put plugin version in here
         """
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(self.owner_id)
+        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
         with contextlib.suppress(AttributeError):
             self['_version'] = plugin_instance.version
         super().sync()

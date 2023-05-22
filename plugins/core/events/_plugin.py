@@ -47,13 +47,13 @@ class EventsPlugin(BasePlugin):
         BasePlugin.initialize(self)
 
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api('plugins.core.events:register.to.event')('ev_core.plugins.pluginm_post_plugins_initialize', self._eventcb_register_events_at_startup)
+        self.api('plugins.core.events:register.to.event')("ev_libs.pluginloader_post_startup_plugins_initialize", self._eventcb_register_events_at_startup)
 
     def _eventcb_register_events_at_startup(self):
         """
         add commands on startup
         """
-        for plugin_id in self.api('plugins.core.pluginm:get.loaded.plugins.list')():
+        for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
             LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.register_events_for_plugin(plugin_id)
@@ -64,7 +64,7 @@ class EventsPlugin(BasePlugin):
         """
         update all commands for a plugin
         """
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(plugin_id)
+        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
         LogRecord(f"register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
                     sources=[self.plugin_id])()

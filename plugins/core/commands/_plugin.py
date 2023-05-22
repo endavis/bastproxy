@@ -292,7 +292,7 @@ class CommandPlugin(BasePlugin):
         add commands on startup
         """
         self.adding_all_commands_after_startup = True
-        for plugin_id in self.api('plugins.core.pluginm:get.loaded.plugins.list')():
+        for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
             LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(plugin_id)
@@ -315,7 +315,7 @@ class CommandPlugin(BasePlugin):
         """
         update all commands for a plugin
         """
-        plugin_instance = self.api('plugins.core.pluginm:get.plugin.instance')(plugin_id)
+        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
         command_functions = self.get_command_functions_in_object(plugin_instance)
         LogRecord(f"update_commands_for_plugin: {plugin_id} has {len(command_functions)} commands", level='debug',
                     sources=[self.plugin_id])()
@@ -472,7 +472,7 @@ class CommandPlugin(BasePlugin):
 
         this function returns no values"""
 
-        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             # remove commands from _command_list that start with plugin_instance.plugin_id
             new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
             self.commands_list = new_commands
@@ -493,7 +493,7 @@ class CommandPlugin(BasePlugin):
         returns the help message as a string"""
         # get the command data for the plugin
 
-        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             if command_data := self.get_command_data_from_plugin(
                 plugin_id, command_name
             ):
@@ -508,7 +508,7 @@ class CommandPlugin(BasePlugin):
 
         returns a list of strings formatted for the commands in the plugin
         """
-        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return self.list_commands(plugin_id)
 
         return None
@@ -520,7 +520,7 @@ class CommandPlugin(BasePlugin):
 
         returns a dictionary of commands
         """
-        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return self.api(f"{plugin_id}:data.get")('commands')
 
         return {}
@@ -600,7 +600,7 @@ class CommandPlugin(BasePlugin):
           None if not found, the command data dict if found
         """
         # find the instance
-        if self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             if data := self.api(f"{plugin_id}:data.get")('commands'):
                 # return the command
                 return data[command] if command in data else None
@@ -621,7 +621,7 @@ class CommandPlugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             LogRecord(f"commands - update_command: plugin {plugin_id} does not exist",
                       level='debug', sources=[plugin_id, self.plugin_id])(f"{self.plugin_id}:update_command")
             return False
@@ -766,7 +766,7 @@ class CommandPlugin(BasePlugin):
             # found just the command prefix
             # get the list of plugins
             packages_list = [package.replace('plugins.', '')
-                             for package in self.api('plugins.core.pluginm:get.packages.list')()]
+                             for package in self.api('libs.pluginloader:get.packages.list')()]
 
             message.extend(self.proxy_help("Proxy Help", "Available Packages:", packages_list))
 
@@ -811,7 +811,7 @@ class CommandPlugin(BasePlugin):
             if len(command_split) > 2:
                 temp_command = command_split[2]
 
-            plugins_list = self.api('plugins.core.pluginm:get.loaded.plugins.list')()
+            plugins_list = self.api('libs.pluginloader:get.loaded.plugins.list')()
 
             # the tuple is so that the function works with the lru_cache decorator
             all_plugin_list, package_list = get_plugin_permutations(tuple(plugins_list))
@@ -974,7 +974,7 @@ class CommandPlugin(BasePlugin):
         @Ycommand_name@w  = the name of the command
 
         this function returns no values"""
-        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             LogRecord(f"remove command: plugin {plugin_id} does not exist",
                       level='warning', sources=[self.plugin_id, plugin_id])(f"{self.plugin_id}:_api_remove_command")
             return False
@@ -1020,7 +1020,7 @@ class CommandPlugin(BasePlugin):
         returns the a list of strings for the list of commands
         """
 
-        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return []
 
         commands: dict[str, Command] = self.api(f"{plugin_id}:data.get")('commands')
@@ -1068,9 +1068,9 @@ class CommandPlugin(BasePlugin):
         message = []
         command = args['command']
         plugin_id = args['plugin']
-        if not self.api('plugins.core.pluginm:is.plugin.id')(plugin_id):
+        if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             message.append('Plugins')
-            plugin_id_list = self.api('plugins.core.pluginm:get.loaded.plugins.list')()
+            plugin_id_list = self.api('libs.pluginloader:get.loaded.plugins.list')()
             plugin_id_list = sorted(plugin_id_list)
             message.append(self.api('plugins.core.utils:format.list.into.columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
             return True, message

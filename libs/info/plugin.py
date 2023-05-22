@@ -168,3 +168,9 @@ class PluginInfo():
             if self.is_required and self.is_plugin and \
                    self.name and self.author and self.purpose and self.version > -1:
                 break
+
+    def reset_loaded_info(self):
+        """
+        reset the loaded info
+        """
+        self.loaded_info = LoadedPluginInfo()

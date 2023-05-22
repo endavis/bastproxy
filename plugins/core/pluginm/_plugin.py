@@ -1,0 +1,456 @@
+# pylint: disable=too-many-lines
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/_manager/_plugin.py
+#
+# File Description: holds the plugin manager
+#
+# By: Bast
+"""
+manages all plugins
+"""
+# Standard Library
+
+# 3rd Party
+
+# Project
+from plugins._baseplugin import BasePlugin
+from libs.records import LogRecord
+from libs.commands import AddParser, AddArgument
+from libs.event import RegisterToEvent
+
+class PluginManager(BasePlugin):
+    """
+    a class to manage plugins
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        initialize the instance
+        """
+        super().__init__(*args, **kwargs)
+
+        self.can_reload_f: bool = False
+
+        self.plugin_info_line_format = "{plugin_id:<30} : {name:<25} {author:<10} {version:<5} {purpose}@w"
+
+        self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self._api_save_all_plugins_state)
+
+        self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
+                                'plugins to load on startup',
+                                readonly=True)
+
+    def _command_helper_format_plugin_list(self, plugins, header='', columnheader=True,
+                                           required_color_line=True) -> list[str]:
+        """
+        format a list of loaded plugins to return to client
+
+        plugins = a list of plugin_info objects
+        """
+        required_color = '@x75'
+        msg = []
+
+        if columnheader:
+            msg.extend(
+                [
+                    self.api('plugins.core.utils:center.colored.string')(
+                        f'@x86{header}@w', '-', 80, filler_color='@B'
+                    ),
+                    self.plugin_info_line_format.format(
+                        **{
+                            'plugin_id': 'Id/Location',
+                            'name': 'Name',
+                            'author': 'Author',
+                            'version': 'Vers',
+                            'purpose': 'Purpose',
+                        }
+                    ),
+                ]
+            )
+        msg.append('-' * 75)
+
+        foundrequired = False
+        for plugin_id in plugins:
+            plugin_info = self.api('libs.pluginloader:get.plugin.info')(plugin_id)
+            plugin_color = required_color if plugin_info.is_required else ''
+            if plugin_color:
+                foundrequired = True
+            msg.append(
+                ''.join([plugin_color,
+                    self.plugin_info_line_format.format(**plugin_info.__dict__)])
+        )
+
+        if foundrequired and required_color_line:
+            msg.extend(('', f'* {required_color}Required plugins appear in this color@w'))
+        return msg
+
+    # get a message of plugins in a package
+    def _get_package_plugins(self, package):
+        """
+        create a message of loaded plugins in a package
+
+        arguments:
+          required:
+            package - the package name
+
+        returns:
+          a list of strings of loaded plugins in the specified package
+        """
+        msg = []
+        if 'plugins' not in package:
+            if package.startswith('.'):
+                package = f"plugins{package}"
+            else:
+                package = f"plugins.{package}"
+
+        loaded_plugins_by_id = self.api('libs.pluginloader:get.loaded.plugins.list')()
+        if plist := [
+            plugin_id
+            for plugin_id in loaded_plugins_by_id
+            if self.api('libs.pluginloader:get.plugin.info')(plugin_id).package == package
+        ]:
+            plugins = sorted(plist)
+            mod = __import__(package)
+            try:
+                desc = getattr(mod, package).PACKAGE_DESCRIPTION
+            except AttributeError:
+                desc = ''
+            msg.extend(self._command_helper_format_plugin_list(plugins,
+                                                    f"Plugins in {package}{f' - {desc}' if desc else ''}"))
+        else:
+            msg.append('That is not a valid package')
+
+        return msg
+
+    # create a message of all plugins
+    def _build_all_plugins_message(self):
+        """
+        create a message of all plugins
+
+        returns:
+          a list of strings
+        """
+        msg = []
+        packages_list = self.api("libs.pluginloader:get.packages.list")()
+        packages = {
+            package: self.api("libs.pluginloader:get.plugins.in.package")(package)
+            for package in packages_list
+        }
+        msg.extend(self._command_helper_format_plugin_list(packages['plugins.core'],
+                                                            required_color_line=False))
+        del packages['plugins.core']
+        for package in packages:
+            if packages[package]:
+                msg.extend(self._command_helper_format_plugin_list(packages[package],
+                                                                   required_color_line=False,
+                                                                   columnheader=False))
+
+        return msg
+
+    # get plugins that are change on disk
+    def _get_changed_plugins(self):
+        """
+        create a message of loaded plugins that are changed on disk
+        """
+        loaded_plugins_by_id = self.api('libs.pluginloader:get.loaded.plugins.list')()
+
+        msg = []
+        if list_to_format := [
+            plugin_id
+            for plugin_id in loaded_plugins_by_id
+            if self.api('libs.pluginloader:get.plugin.info')(plugin_id).get_changed_files()
+        ]:
+            msg = self._command_helper_format_plugin_list(list_to_format, "Changed Plugins")
+
+        return msg or ['No plugins are changed on disk.']
+
+    def _get_invalid_plugins(self):
+        """
+        create a message of plugins that are invalid python code
+        """
+        all_plugins_by_id = self.api('libs.pluginloader:get.all.plugins')()
+        msg = []
+        if list_to_format := [
+            plugin_id
+            for plugin_id in all_plugins_by_id
+            if self.api('libs.pluginloader:get.plugin.info')(plugin_id).get_invalid_python_files()
+        ]:
+            msg = self._command_helper_format_plugin_list(list_to_format, "Plugins with invalid python code")
+
+        return msg or ['All plugins are valid python code.']
+
+    # get all not loaded plugins
+    def _get_not_loaded_plugins(self):
+        """
+        create a message of all not loaded plugins
+        """
+        msg = []
+        not_loaded_plugins = self.api('libs.pluginloader:get.not.loaded.plugins')()
+        msg = self._command_helper_format_plugin_list(not_loaded_plugins, "Not Loaded Plugins")
+
+        return msg or ['There are no plugins that are not loaded']
+
+    @AddParser(description='list plugins')
+    @AddArgument('-n',
+                    '--notloaded',
+                    help='list plugins that are not loaded',
+                    action='store_true')
+    @AddArgument('-c',
+                    '--changed',
+                    help='list plugins that are loaded but are changed on disk',
+                    action='store_true')
+    @AddArgument('-i',
+                    '--invalid',
+                    help='list plugins that have files with invalid python code',
+                    action='store_true')
+    @AddArgument('package',
+                    help='the package of the plugins to list',
+                    default='',
+                    nargs='?')
+    def _command_list(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+          List plugins
+          @CUsage@w: list
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        msg = []
+
+        if args['notloaded']:
+            msg.extend(self._get_not_loaded_plugins())
+        elif args['changed']:
+            msg.extend(self._get_changed_plugins())
+        elif args['invalid']:
+            msg.extend(self._get_invalid_plugins())
+        elif args['package']:
+            msg.extend(self._get_package_plugins(args['package']))
+        else:
+            msg.extend(self._build_all_plugins_message())
+        return True, msg
+
+    def _load_other_plugins_after_core_and_client_plugins(self):
+        """
+        load plugins after core and client plugins have been loaded
+        from the pluginstoload setting
+        """
+        plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
+
+        if plugins_not_found := [
+            plugin
+            for plugin in plugins_to_load_setting
+            if not self.api('libs.pluginloader:does.plugin.exist')(plugin)
+        ]:
+            for plugin in plugins_not_found:
+                LogRecord(f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
+                          level='error', sources=[self.plugin_id])()
+                plugins_to_load_setting.remove(plugin)
+            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+
+        # print('Loading the following plugins')
+        # print(pprint.pformat(plugins_to_load))
+        if plugins_to_load_setting:
+            LogRecord('Loading other plugins', level='info', sources=[self.plugin_id])()
+            self.api('libs.pluginloader:load.plugins')(plugins_to_load_setting)
+
+    @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
+    def _eventcb_shutdown(self, _=None):
+        """
+        do tasks on shutdown
+        """
+        self.api(f"{self.plugin_id}:save.all.plugins.state")()
+
+    # save all plugins
+    def _api_save_all_plugins_state(self, _=None):
+        """
+        save all plugins
+        """
+        for plugin_id in self.api("libs.pluginloader:get.loaded.plugins.list")():
+            self.api(f"{plugin_id}:save.state")()
+
+    @AddParser( description='load a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to load, don\'t include the .py',
+                    default='',
+                    nargs='?')
+    def _command_load(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+          Load a plugin
+          @CUsage@w: load @Yplugin@w
+            @Yplugin@w    = the id of the plugin to load,
+                            example: core.example.timerex
+
+        will load the plugin and all of its dependencies
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        plugin_id = args['plugin']
+
+        if not plugin_id:
+            return False, ['No plugin specified']
+
+        if self.api('libs.pluginloader:is.plugin.loaded')(plugin_id):
+            return True, [f"Plugin {plugin_id} is already loaded"]
+
+        not_loaded_plugins_by_id = self.api('libs.pluginloader:get.not.loaded.plugins')()
+
+        if plugin_id and plugin_id not in not_loaded_plugins_by_id:
+            return True, [f"Plugin {plugin_id} not found"]
+
+        plugin_response = self.api('libs.pluginloader:load.plugins')([plugin_id])
+
+        tmsg = []
+        if plugin_response['loaded_plugins']:
+            for plugin_id in plugin_response['loaded_plugins']:
+                self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
+                self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                                                    {'plugin_id':plugin_id})
+            tmsg.extend(
+                (
+                    "Loaded the following plugins",
+                    "   " + ", ".join(plugin_response['loaded_plugins']),
+                )
+            )
+
+            # add the loaded plugins to the pluginstoload setting
+            plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
+            plugins_to_load_setting.extend(plugin_response['loaded_plugins'])
+            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+
+        if plugin_response['bad_plugins']:
+            tmsg.extend(
+                (
+                    "Failed to load the following plugins, please check the logs",
+                    "   " + ", ".join(plugin_response['bad_plugins']),
+                )
+            )
+        return True, tmsg
+
+    # @AddParser(description='unload a plugin')
+    # @AddArgument('plugin',
+    #                 help='the plugin to unload',
+    #                 default='',
+    #                 nargs='?')
+    # def _command_unload(self):
+    #     """
+    #     @G%(name)s@w - @B%(cmdname)s@w
+    #       unload a plugin
+    #       @CUsage@w: unload @Yplugin@w
+    #         @Yplugin@w    = the id of the plugin to unload,
+    #                         example: example.timerex
+    #     """
+    #     args = self.api('plugins.core.commands:get.current.command.args')()
+    #     tmsg = []
+    #     plugin = args['plugin']
+    #     plugin_found_f = bool(plugin and plugin in self.plugins_info.keys())
+    #     if plugin_found_f:
+    #         if self.unload_single_plugin(plugin):
+    #             tmsg.append(f"Plugin {plugin} successfully unloaded")
+    #         else:
+    #             tmsg.append(f"Plugin {plugin} could not be unloaded")
+    #     else:
+    #         tmsg.append(f"plugin {plugin} not found")
+
+    # self.api('plugins.core.events:raise.event')(f"ev_{plugin_info.plugin_id}_uninitialized", {})
+    # self.api('plugins.core.events:raise.event')(f"ev_{__name__}_plugin_uninitialized",
+    #                                     {'plugin':plugin_info.name,
+    #                                     'plugin_id':plugin_info.plugin_id})
+    #     return True, tmsg
+
+
+    # @AddParser(description='reload a plugin')
+    # @AddArgument('plugin',
+    #                 help='the plugin to reload',
+    #                 default='',
+    #                 nargs='?')
+    # def _command_reload(self):
+    #     """
+    #     @G%(name)s@w - @B%(cmdname)s@w
+    #       reload a plugin
+    #       @CUsage@w: reload @Yplugin@w
+    #         @Yplugin@w    = the id of the plugin to reload,
+    #                         example: example.timerex
+    #     """
+    #     args = self.api('plugins.core.commands:get.current.command.args')()
+    #     tmsg = []
+    #     plugin = args['plugin']
+    #     plugin_found_f = bool(plugin and plugin in self.plugins_info.keys())
+    #     loaded_plugins = self.api(f"{self.plugin_id}:get.loaded.plugins.list")()
+    #     if plugin_found_f and plugin not in loaded_plugins:
+    #         return True, [f"Plugin {plugin} is not loaded, use load instead"]
+    #     if not plugin_found_f:
+    #         return True, [f"Plugin {plugin} not found"]
+    #     if self.unload_single_plugin(plugin):
+    #         tmsg.append(f"Plugin {plugin} successfully unloaded")
+    #     else:
+    #         tmsg.append(f"Plugin {plugin} could not be unloaded")
+    #         return True, tmsg
+
+                # self.api('plugins.core.events:raise.event')(f"ev_{plugin_info.plugin_id}_uninitialized", {})
+                # self.api('plugins.core.events:raise.event')(f"ev_{__name__}_plugin_uninitialized",
+                #                                     {'plugin':plugin_info.name,
+                #                                     'plugin_id':plugin_info.plugin_id})
+
+    #     if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
+    #         tmsg.append(f"{plugin} is already loaded")
+    #     elif self.load_single_plugin(plugin, exit_on_error=False):
+    #         tmsg.append(f"Plugin {plugin} was loaded")
+    #     else:
+    #         tmsg.append(f"Plugin {plugin} would not load")
+
+                # self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
+                # self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                #                                     {'plugin_id':plugin_id})
+
+    #     return True, tmsg
+
+    @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
+    def _eventcb_all_events_registered(self):
+        """
+        this resends all the different plugin initialization events,
+        saves all plugin states, and adds the save plugin timer
+        """
+        self._load_other_plugins_after_core_and_client_plugins()
+
+        loaded_plugins = self.api("libs.pluginloader:get.loaded.plugins.list")()
+        for plugin_id in loaded_plugins:
+            self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_initialized", self.plugin_id,
+                                                        description=f"Raised when {plugin_id} is initialized",
+                                                        arg_descriptions={'None': None})
+            self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
+                                                        description=f"Raised when {plugin_id} is uninitialized",
+                                                        arg_descriptions={'None': None})
+
+            self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                                                {'plugin_id':plugin_id})
+
+        self.api(f"{self.plugin_id}:save.all.plugins.state")()
+        self.api('plugins.core.timers:add.timer')('global_save', self._api_save_all_plugins_state, 60, unique=True, log=False)
+
+
+    # initialize this plugin
+    def initialize(self):
+        """
+        initialize plugin
+        """
+        super().initialize()
+
+        self.api('plugins.core.events:add.event')(
+            f"ev_{self.plugin_id}_plugin_initialized",
+            self.plugin_id,
+            description="Raised when any plugin is initialized",
+            arg_descriptions={
+                'plugin': 'The plugin name',
+                'plugin_id': 'The plugin id',
+            },
+        )
+        self.api('plugins.core.events:add.event')(
+            f"ev_{self.plugin_id}_plugin_uninitialized",
+            self.plugin_id,
+            description="Raised when any plugin is initialized",
+            arg_descriptions={
+                'plugin': 'The plugin name',
+                'plugin_id': 'The plugin id',
+            },
+        )
+

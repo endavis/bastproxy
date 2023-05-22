@@ -157,7 +157,7 @@ class InspectPlugin(BasePlugin):
         if not args['plugin']:
             return False, ['Please enter a plugin name']
 
-        if not self.api('plugins.core.pluginm:is.plugin.id')(args['plugin']):
+        if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
             return True, [f'Plugin {args["plugin"]} not found']
 
         return True, self.api(f"{args['plugin']}:dump")(args['object'], args['simple'])[1]
