@@ -102,6 +102,10 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add')(self.plugin_id, 'data.update', self._api_update_data)
         self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
 
+    # add a dump_object method that is just dumps
+    # don't have to worry about importing dumper everywhere
+    dump_object_as_string = dumps
+
     def __baseclass__post__init__(self):
         """
         do things after all __init__ methods have been called
@@ -322,7 +326,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
                     if args['simple']:
                         tvars = pprint.pformat(obj)
                     else:
-                        tvars = str(dumps(obj))
+                        tvars = self.dump_object_as_string(obj)
 
                     message.append(f"found: {'.'.join(found_list)}")
                     message.append(tvars)
@@ -333,7 +337,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             if args['simple']:
                 tvars = pprint.pformat(vars(self))
             else:
-                tvars = str(dumps(self))
+                tvars = self.dump_object_as_string(self)
 
             message.append('@M' + '-' * 60 + '@x')
             message.append('Variables')
