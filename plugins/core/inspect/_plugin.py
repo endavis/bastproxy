@@ -135,3 +135,29 @@ class InspectPlugin(BasePlugin):
                                                      include_updates=args['include_updates']))
 
         return True, tmsg
+
+    @AddParser(description='inspect a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to inspect',
+                    default='')
+    @AddArgument('-o',
+                    '--object',
+                    help='show an object of the plugin, can be method or variable',
+                    default='')
+    @AddArgument('-s',
+                    '--simple',
+                    help='show a simple output',
+                    action='store_true')
+    def _command_plugin(self):
+        """
+        inspect another plugin
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        if not args['plugin']:
+            return False, ['Please enter a plugin name']
+
+        if not self.api('plugins.core.pluginm:is.plugin.id')(args['plugin']):
+            return True, [f'Plugin {args["plugin"]} not found']
+
+        return True, self.api(f"{args['plugin']}:dump")(args['object'], args['simple'])[1]

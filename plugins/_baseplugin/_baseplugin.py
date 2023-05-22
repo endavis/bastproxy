@@ -101,10 +101,13 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add')(self.plugin_id, 'data.get', self._api_get_data)
         self.api('libs.api:add')(self.plugin_id, 'data.update', self._api_update_data)
         self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
+        self.api('libs.api:add')(self.plugin_id, 'dump', self._api_dump)
 
     # add a dump_object method that is just dumps
     # don't have to worry about importing dumper everywhere
-    dump_object_as_string = dumps
+    def dump_object_as_string(self, object):
+        """ dump an object as a string """
+        return dumps(object)
 
     def __baseclass__post__init__(self):
         """
@@ -238,12 +241,93 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             'readonly':readonly_f
         }
 
+    def _find_attribute(self, attribute_name):
+        """
+        find an attribute of this plugin and dump it as a string
+
+        attr.some_attr_or_dict_key.child_attr_or_dict_key
+
+        will look for any attr in the plugin and then
+        search for attributes or dictionary keys that match the name
+        and return the value of the last one
+        """
+        obj = None
+        next_item = None
+
+        if '.' not in attribute_name:
+            items_to_get = [attribute_name]
+        else:
+            items_to_get = attribute_name.split('.')
+
+        obj = self
+
+        while items_to_get:
+            next_item = items_to_get.pop(0)
+            # check to see if next_item is an attribute
+            try:
+                obj = getattr(obj, next_item)
+                if not items_to_get:
+                    return obj
+            except AttributeError:
+                # check if obj is a dict and then check both the string next_item and integer next_item
+                if isinstance(obj, dict):
+                    if next_item not in obj:
+                        with contextlib.suppress(ValueError):
+                            next_item = int(next_item)
+                    if next_item in obj:
+                        obj = obj[next_item]
+                        if not items_to_get:
+                            return obj
+
+        return None
+
+    def _api_dump(self, attribute_name, simple=False):
+        """  dump self or an attribute of self to a string
+        @Yobj@w    = the object to inspect
+        @Ymethod@w = the method to inspect
+
+        returns:
+          the object or method"""
+
+        if not attribute_name:
+            if simple:
+                tvars = pprint.pformat(vars(self))
+            else:
+                tvars = self.dump_object_as_string(self)
+
+            message = []
+            message.append('@M' + '-' * 60 + '@x')
+            message.append('Attributes')
+            message.append('@M' + '-' * 60 + '@x')
+            message.append(tvars)
+            message.append('@M' + '-' * 60 + '@x')
+            message.append('Methods')
+            message.append('@M' + '-' * 60 + '@x')
+            message.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
+
+        else:
+            attr = self._find_attribute(attribute_name)
+
+            if not attr:
+                return False, [f"Could not find attribute {attribute_name}"]
+
+            message = [f"Object: {attribute_name}"]
+
+            if callable(attr):
+                text_list, _ = inspect.getsourcelines(attr)
+                message.extend([i.rstrip('\n') for i in text_list])
+                message.extend(
+                    ('', '@M' + '-' * 60 + '@x', f"Defined in {inspect.getfile(attr)}")
+                )
+            elif simple:
+                message.append(pprint.pformat(attr))
+            else:
+                message.extend(self.dump_object_as_string(attr).split('\n'))
+
+        return True, message
+
     @AddCommand(group='Base')
     @AddParser(description='inspect a plugin')
-    @AddArgument('-m',
-                    '--method',
-                    help='get code for a method',
-                    default='')
     @AddArgument('-o',
                     '--object',
                     help='show an object of the plugin, can be method or variable',
@@ -265,90 +349,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
           simple - only dump topllevel attributes
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
-        message = []
-        found_list = []
-        if args['method']:
-            try:
-                found_method = getattr(self, args['method'])
-                text_list, _ = inspect.getsourcelines(found_method)
-                for i in text_list:
-                    message.append(i.rstrip('\n'))
-                message.append('')
-                message.append('@M' + '-' * 60 + '@x')
-                message.append(f"Defined in {inspect.getfile(found_method)}")
-            except AttributeError:
-                message.append(f"There is no method named {args['method']}")
 
-        elif args['object']:
-            found_full_item = True
-            object_string = args['object']
-            next_item = None
-
-            if '.' not in object_string:
-                items_to_get = [object_string]
-            else:
-                items_to_get = object_string.split('.')
-
-            obj = self
-            while True:
-                next_item = items_to_get.pop(0)
-                # check to see if next_item is an attribute
-                try:
-                    obj = getattr(obj, next_item)
-                    found_list.append(':'.join(['attr', next_item]))
-                    if items_to_get:
-                        continue
-                    else:
-                        break
-                except AttributeError:
-                    # check if obj is a dict and then check both the string next_item and integer next_item
-                    if isinstance(obj, dict):
-                        if next_item not in obj:
-                            try:
-                                next_item = int(next_item)
-                            except ValueError:
-                                pass
-                        if next_item in obj:
-                            obj = obj[next_item]
-                            found_list.append(':'.join(['key', next_item]))
-                            if items_to_get:
-                                continue
-                            else:
-                                break
-                found_full_item = False
-                break
-
-            if found_list:
-                if not found_full_item:
-                    message.append(f"There is no item named {object_string}")
-                    message.append(f"found up to : {'.'.join(found_list)}")
-                else:
-                    if args['simple']:
-                        tvars = pprint.pformat(obj)
-                    else:
-                        tvars = self.dump_object_as_string(obj)
-
-                    message.append(f"found: {'.'.join(found_list)}")
-                    message.append(tvars)
-            else:
-                message.append(f"There is no item named {args['object']}")
-
-        else:
-            if args['simple']:
-                tvars = pprint.pformat(vars(self))
-            else:
-                tvars = self.dump_object_as_string(self)
-
-            message.append('@M' + '-' * 60 + '@x')
-            message.append('Variables')
-            message.append('@M' + '-' * 60 + '@x')
-            message.append(tvars)
-            message.append('@M' + '-' * 60 + '@x')
-            message.append('Methods')
-            message.append('@M' + '-' * 60 + '@x')
-            message.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
-
-        return True, message
+        return True, self.api(f"{self.plugin_id}:dump")(args['object'], simple=args['simple'])[1]
 
     @AddCommand(group='Base')
     @AddParser(description='show plugin stats')
