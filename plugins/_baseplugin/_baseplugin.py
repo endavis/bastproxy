@@ -40,7 +40,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
     """
     a base class for plugins
     """
-    def __init__(self, name, plugin_path: Path, base_plugin_dir: Path,
+    def __init__(self, name, full_plugin_path: Path, base_plugin_dir: Path,
                  full_import_location, plugin_id):    # pylint: disable=too-many-arguments
         """
         initialize the instance
@@ -51,7 +51,7 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         Arguments and examples:
           name : 'Actions' - from plugin file variable NAME (long name)
-          plugin_path : pathlib.Path : '/client/actions.py' - path relative to the plugins directory
+          full_plugin_path : pathlib.Path : '/plugins/client/actions' - full path to the plugin
           base_plugin_dir : pathlib.Path : '/home/src/games/bastproxy/bp/plugins' -
                             the full path to the plugins directory
           full_import_location : 'plugins.client.actions' - import location
@@ -67,9 +67,8 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         self.api = API(owner_id=self.plugin_id)
         self.full_import_location = full_import_location
-        self.plugin_path = plugin_path
         self.base_plugin_dir = base_plugin_dir
-        self.full_plugin_path: Path = base_plugin_dir / plugin_path
+        self.full_plugin_path: Path = full_plugin_path
         self.plugin_directory: Path  = self.full_plugin_path.parent
         self.data_directory: Path = self.api.BASEDATAPLUGINPATH / self.plugin_id
         self.settings_file: Path = self.data_directory / 'settingvalues.txt'
@@ -485,12 +484,9 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
             f"{'Purpose':<{width}} : {self.purpose}",
             f"{'Author':<{width}} : {self.author}",
             f"{'Version':<{width}} : {self.version}",
-            f"{'Plugin Path':<{width}} : {self.plugin_path}",
+            f"{'Full Plugin Path':<{width}} : {self.full_plugin_path}",
             f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}",
-            f"{'Modified Time':<{width}} : {datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc).strftime(self.api.time_format)}",
         ]
-        if self.is_changed_on_disk():
-            msg.append(f"{' ':<{width}} : @RThe plugin has been modified on disk since it was loaded@w")
 
         if '.__init__' in self.full_import_location:
             import_location = self.full_import_location.replace('.__init__', '')
@@ -499,6 +495,17 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
 
         if sys.modules[import_location].__doc__:
             msg.extend(sys.modules[import_location].__doc__.split('\n'))
+
+        file_header = False
+        for file in self.find_files_changed_on_disk():
+            if not file_header:
+                file_header = True
+                msg.append('')
+                msg.append(self.api('plugins.core.utils:center.colored.string')('@x86Files that have change since loading@w', '-', 60, filler_color='@B'))
+            msg.append(f"    : {file}")
+        if file_header:
+            msg.extend(('@B' + '-' * 60 + '@w', ''))
+
         if args['commands']:
             if cmd_list := self.api(
                 'plugins.core.commands:get.commands.for.plugin.formatted'
@@ -652,15 +659,16 @@ class BasePlugin(object): # pylint: disable=too-many-instance-attributes
         #save the state
         self.savestate()
 
-    def is_changed_on_disk(self):
+    def find_files_changed_on_disk(self):
         """
-        check to see if the file this plugin is based on has changed on disk
+        check to see if the files in this plugin have changed on disk
 
         return:
-          True if the plugin is changed on disk, False otherwise
+          a list of changed files
         """
-        file_modified_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.full_plugin_path), tz=datetime.timezone.utc)
-        return file_modified_time > self.loaded_time
+        files = self.api('plugins.core.pluginm:get.plugin.files')(self.plugin_id)
+
+        return [file_name for file_name in files if files[file_name]['modified_time'] > self.loaded_time]
 
     def reset(self):
         """
