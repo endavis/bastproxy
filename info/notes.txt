@@ -29,11 +29,11 @@ NOTE: no events are raised for data sent to the client that originated in the pr
 
 Sending data to the mud
 -------------------------------------------------------------------------
-1) use a ToMudRecord and send with the send method
+1) use a ToMudRecord and send by invoking the record
 
 Sending data to clients, this will also send it through the interpreter
 -------------------------------------------------------------------------
-1)  use a ToClientRecord and send with the send method
+1)  use a ToClientRecord and send by invoking the record
 
 Plugin Developer Notes
 -------------------------------------------------------------------------
