@@ -8,11 +8,13 @@
 """
 Holds the change record type
 """
+
 # Standard Library
 from uuid import uuid4
 import datetime
 import traceback
 import pprint
+import contextlib
 
 # 3rd Party
 
@@ -45,8 +47,9 @@ class UpdateRecord(object):
         # Extract the last 10 stack frames
         self.stack = self.fix_stack(traceback.format_stack(limit=10))
         self.event_stack = []
-        if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
-            self.event_stack = self.api('plugins.core.events:get.event.stack')()
+        with contextlib.suppress(Exception):
+            if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
+                self.event_stack = self.api('plugins.core.events:get.event.stack')()
 
     def fix_stack(self, stack):
         new_stack = []

@@ -11,6 +11,7 @@ Holds the log record type
 # Standard Library
 import logging
 import typing
+import contextlib
 
 # 3rd Party
 
@@ -70,7 +71,8 @@ class LogRecord(BaseListRecord):
         for i in self.sources:
             if i:
                 if add_log_count_func:
-                    add_log_count_func(i, self.level)
+                    with contextlib.suppress(AttributeError):
+                        add_log_count_func(i, self.level)
                 try:
                     logger = logging.getLogger(i)
                     loggingfunc = getattr(logger, self.level)
