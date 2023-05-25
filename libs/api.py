@@ -404,6 +404,8 @@ class API():
         # apis that have been overloaded will be put here
         self._instance_api: dict[str, APIItem] = {}
 
+        self.log_level: str = 'debug'
+
         # the format for the time
         self.time_format: str = '%a %b %d %Y %H:%M:%S %Z'
 
@@ -430,14 +432,14 @@ class API():
         scan an object for api decorated functions
         """
         from libs.records import LogRecord
-        LogRecord(f"_api_add_apis_for_object: {item} {toplevel}", level='debug',
+        LogRecord(f"_api_add_apis_for_object: {item} {toplevel}", level=self.log_level,
                     sources=[__name__, toplevel])()
         api_functions = self.get_api_functions_in_object(item)
-        LogRecord(f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions", level='debug',
+        LogRecord(f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions", level=self.log_level,
                     sources=[__name__, toplevel])()
         if api_functions:
             names = [item.__name__ for item in api_functions]
-            LogRecord(f"_api_add_apis_for_object {names = }", level='debug',
+            LogRecord(f"_api_add_apis_for_object {names = }", level=self.log_level,
                         sources=[__name__, toplevel])()
             for func in api_functions:
                 if toplevel not in func.api['addedin']:
@@ -445,7 +447,7 @@ class API():
                 api_name = func.api['name'].format(**func.__self__.__dict__)
                 if api_name not in func.api['addedin'][toplevel]:
                     func.api['addedin'][toplevel].append(api_name)
-                    LogRecord(f"Adding API {toplevel}:{api_name} with {func.__name__}", level='debug',
+                    LogRecord(f"Adding API {toplevel}:{api_name} with {func.__name__}", level=self.log_level,
                                 sources=[__name__, toplevel])()
                     description = func.api['description'].format(**func.__self__.__dict__)
                     overload = func.api['overload']
