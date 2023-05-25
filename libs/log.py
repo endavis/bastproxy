@@ -81,18 +81,22 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
-        canlog = bool(
-            not self.api('libs.api:has')('plugins.core.log:can.log.to.console')
-            or self.api('plugins.core.log:can.log.to.console')(
-                record.name, record.levelno
+        try:
+            canlog = bool(
+                not self.api('libs.api:has')('plugins.core.log:can.log.to.console')
+                or self.api('plugins.core.log:can.log.to.console')(
+                    record.name, record.levelno
+                )
             )
-        )
-        if type(record.msg) == LogRecord:
-            if canlog and not record.msg.wasemitted['console']:
-                record.msg.wasemitted['console'] = True
+            if type(record.msg) == LogRecord:
+                if canlog and not record.msg.wasemitted['console']:
+                    record.msg.wasemitted['console'] = True
+                    super().emit(record)
+            elif canlog:
                 super().emit(record)
-        elif canlog:
+        except Exception as e:
             super().emit(record)
+
 
 class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
     def __init__(self, filename, when='midnight', interval=1, backupCount=0, encoding=None, delay=False, utc=False, atTime=None):
@@ -101,19 +105,21 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
-        canlog = bool(
-            not self.api('libs.api:has')('plugins.core.log:can.log.to.file')
-            or self.api('plugins.core.log:can.log.to.file')(
-                record.name, record.levelno
+        try:
+            canlog = bool(
+                not self.api('libs.api:has')('plugins.core.log:can.log.to.file')
+                or self.api('plugins.core.log:can.log.to.file')(
+                    record.name, record.levelno
+                )
             )
-        )
-        if type(record.msg) == LogRecord:
-            if canlog and not record.msg.wasemitted['file']:
-                record.msg.wasemitted['file'] = True
+            if type(record.msg) == LogRecord:
+                if canlog and not record.msg.wasemitted['file']:
+                    record.msg.wasemitted['file'] = True
+                    super().emit(record)
+            elif canlog:
                 super().emit(record)
-        elif canlog:
+        except Exception as e:
             super().emit(record)
-
 
 class CustomClientHandler(logging.Handler):
     def __init__(self):
