@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
+# Filename: plugins/core/log/_init_.py
+#
+# File Description: a plugin to change logging settings
+#
+# By: Bast
+"""
+This module handles changing logging settings
+
+see info/logging_notes.txt for more information about logging
+"""
+# -*- coding: utf-8 -*-
+# Project: bastproxy
 # Filename: libs/log.py
 #
 # File Description: setup logging with some customizations
@@ -20,6 +32,7 @@ import logging
 import logging.handlers
 import sys
 import traceback
+from typing import Protocol
 
 # Third Party
 
@@ -27,6 +40,7 @@ import traceback
 from libs.api import API
 import libs.colors
 from libs.records import ToClientRecord, LogRecord
+from plugins._baseplugin import RegisterPluginHook
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
@@ -131,12 +145,12 @@ class CustomClientHandler(logging.Handler):
         if self.api.startup:
             return
 
-        canlog = bool(
-            not self.api('libs.api:has')('plugins.core.log:can.log.to.client')
-            or self.api('plugins.core.log:can.log.to.client')(
+        if not self.api('libs.api:has')('plugins.core.log:can.log.to.client'):
+            return
+
+        canlog = self.api('plugins.core.log:can.log.to.client')(
                 record.name, record.levelno
             )
-        )
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if type(record.msg) == LogRecord:
@@ -197,3 +211,9 @@ def setup_loggers(log_level: int):
     )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False
+
+class CustomLogger(Protocol):
+    @RegisterPluginHook('post_init')
+    def _loadhook_post_init_custom_logging(self):
+        # setup file logging and network data logging
+        setup_loggers(logging.DEBUG)

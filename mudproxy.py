@@ -25,7 +25,6 @@ from pathlib import Path
 
 # Project
 from libs.records import LogRecord
-from libs.log import setup_loggers
 from libs.api import API as BASEAPI
 from libs.net import server
 from libs.asynch import run_asynch
@@ -75,9 +74,6 @@ class MudProxy:
 
 
     def run(self, args):
-        # setup file logging and network data logging
-        setup_loggers(logging.DEBUG)
-
         LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
                 level='info', sources=['mudproxy'])()
 
