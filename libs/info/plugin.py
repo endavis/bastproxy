@@ -59,7 +59,7 @@ class PluginInfo():
         self.author: str = ''
         self.purpose: str = ''
         self.version: int = -1
-        self.is_dev: bool = False
+        self.is_dev = self.package[0] == '_'
         self.is_required: bool = False
         self.is_plugin: bool = False
         self.files = {}

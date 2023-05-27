@@ -234,19 +234,31 @@ class PluginManager(BasePlugin):
         """
         plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
 
-        if plugins_not_found := [
-            plugin
-            for plugin in plugins_to_load_setting
-            if not self.api('libs.pluginloader:does.plugin.exist')(plugin)
-        ]:
-            for plugin in plugins_not_found:
+        plugins_to_load = []
+
+        for plugin in plugins_to_load_setting[:]:
+            if not self.api('libs.pluginloader:does.plugin.exist')(plugin):
                 LogRecord(f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
                           level='error', sources=[self.plugin_id])()
                 plugins_to_load_setting.remove(plugin)
-            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+                continue
 
-        # print('Loading the following plugins')
-        # print(pprint.pformat(plugins_to_load))
+            if self.api('libs.pluginloader:is.plugin.loaded')(plugin):
+                LogRecord(f"plugin {plugin} was marked to load at startup and is already loaded, removing from startup",
+                          level='debug', sources=[self.plugin_id])()
+                plugins_to_load_setting.remove(plugin)
+                continue
+
+            if self.api('libs.pluginloader:get.plugin.info')(plugin).is_dev:
+                LogRecord(f"plugin {plugin} was marked to load at startup and is a dev plugin, removing from startup",
+                          level='debug', sources=[self.plugin_id])()
+                plugins_to_load_setting.remove(plugin)
+                continue
+
+            plugins_to_load.append(plugin)
+
+        self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+
         if plugins_to_load_setting:
             LogRecord('Loading other plugins', level='info', sources=[self.plugin_id])()
             self.api('libs.pluginloader:load.plugins')(plugins_to_load_setting)
