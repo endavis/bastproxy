@@ -243,10 +243,9 @@ class APIItem:
         Initializes an APIItem object.
 
         Args:
-            full_api_name (str): Full name of the API, including the full package,
-                module, and name of the function.
+            full_api_name (str): Full name of the API, e.g. 'plugins.core.log:reset
             tfunction (callable): The function to be wrapped.
-            plugin_id (str): Unique ID of the plugin calling the function.
+            owner_id (str): Unique id of the owner calling the function.
         """
         self.full_api_name: str = full_api_name
         self.owner_id: str = owner_id or 'unknown'
@@ -682,10 +681,19 @@ class API():
         see if something exists in the api
         """
         try:
-            self.get(api_location)
-            return True
+            API_item = self.get(api_location)
         except AttributeError:
             return False
+
+        if not API_item:
+            return False
+
+        # return False for apis in plugins that have not been instantiated
+        if (self('libs.pluginloader:is.plugin.id')(API_item.owner_id) and
+             API_item.tfunction.__self__.instantiating_f):
+                return False
+
+        return True
 
     # get the details for an api function
     def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches

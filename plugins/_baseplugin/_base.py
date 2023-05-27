@@ -52,6 +52,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         self.name = name
         self.plugin_id = plugin_id
+        self.instantiating_f = True
         self.initializing_f = True
         self.author = ''
         self.purpose = ''
@@ -99,6 +100,8 @@ class Base: # pylint: disable=too-many-instance-attributes
     @RegisterPluginHook('post_init', priority=1)
     def _load_hook_post_instantiate(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
+        self.instantiating_f = False
 
     def _process_plugin_hook(self, load_hook):
         """
@@ -332,6 +335,9 @@ class Base: # pylint: disable=too-many-instance-attributes
             self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,
                                                       prio=self.is_character_active_priority)
         self.initializing_f = False
+
+    def is_initialized(self):
+        return self.initializing_f
 
     def _eventcb_baseplugin_disconnect(self):
         """
