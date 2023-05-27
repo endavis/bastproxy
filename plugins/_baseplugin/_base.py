@@ -33,8 +33,7 @@ class Base: # pylint: disable=too-many-instance-attributes
     """
     a base class for plugins
     """
-    def __init__(self, name, full_plugin_path: Path, base_plugin_dir: Path,
-                 full_import_location, plugin_id):    # pylint: disable=too-many-arguments
+    def __init__(self, plugin_id, plugin_info):
         """
         initialize the instance
         The only things that should be done are:
@@ -43,44 +42,31 @@ class Base: # pylint: disable=too-many-instance-attributes
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
-          name : 'Actions' - from plugin file variable NAME (long name)
-          full_plugin_path : pathlib.Path : '/plugins/client/actions' - full path to the plugin
-          base_plugin_dir : pathlib.Path : '/home/src/games/bastproxy/bp/plugins' -
-                            the full path to the plugins directory
-          full_import_location : 'plugins.client.actions' - import location
           plugin_id : 'client.actions' - guaranteed to be unique
+          plugin_info: The plugin info object
         """
-        self.name = name
         self.plugin_id = plugin_id
-        self.instantiating_f = True
-        self.initializing_f = True
-        self.author = ''
-        self.purpose = ''
-        self.version = 0
-        self.priority = 100
+        self.plugin_info = plugin_info
 
         self.api = API(owner_id=self.plugin_id)
-        self.full_import_location = full_import_location
-        self.base_plugin_dir = base_plugin_dir
-        self.full_plugin_path: Path = full_plugin_path
-        self.plugin_directory: Path  = self.full_plugin_path.parent
-        self.data_directory: Path = self.api.BASEDATAPLUGINPATH / self.plugin_id
+
+        self.instantiating_f = True
+        self.initializing_f = True
+        self.can_reload_f = True
+        self.can_reset_f = True
+        self.reload_dependents_f = False
 
         # add any dependencies that are not in the packages plugins.core or plugins.client to this list
         self.dependencies = []
         with contextlib.suppress(ValueError):
             self.dependencies.remove(self.plugin_id)
+
         self.version_functions = {}
-        self.reload_dependents_f = False
         self.summary_template = "%20s : %s"
-        self.can_reload_f = True
-        self.can_reset_f = True
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
 
-        os.makedirs(self.data_directory, exist_ok=True)
-
-        self.package = self.plugin_id.rsplit('.', 1)[0]
+        os.makedirs(self.plugin_info.data_directory, exist_ok=True)
 
         self.data = {}
 
@@ -305,7 +291,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         old_plugin_version = self.api(f"{self.plugin_id}:setting.get")('_version')
 
-        new_plugin_version = self.version
+        new_plugin_version = self.plugin_info.version
 
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
@@ -317,7 +303,7 @@ class Base: # pylint: disable=too-many-instance-attributes
                     LogRecord(f"_update_version: no function to upgrade to version {version}",
                               level='error', sources=[self.plugin_id, 'plugin_upgrade'])()
 
-            self.api(f"{self.plugin_id}:setting.change")('_version', self.version)
+            self.api(f"{self.plugin_id}:setting.change")('_version', new_plugin_version)
 
             self.api(f"{self.plugin_id}:save.state")()
 

@@ -25,12 +25,12 @@ from ._pluginhooks import RegisterPluginHook
 Base = TypeVar('Base', bound='Base')
 
 class Settings:
-    @RegisterPluginHook('post_base_init', priority=1)
+    @RegisterPluginHook('post_base_init', priority=2)
     def _loadevent_post_initialize_add_settings(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add settings to the plugin
         """
-        self.settings_file: Path = self.data_directory / 'settingvalues.txt'
+        self.settings_file: Path = self.plugin_info.data_directory / 'settingvalues.txt'
 
         self.reset_f = True
 

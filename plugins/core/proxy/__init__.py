@@ -6,7 +6,7 @@
 #
 # By: Bast
 """
-This plugin will show information about connections to the proxy
+Holds settings and information about the proxy
 """
 
 # these 4 are required

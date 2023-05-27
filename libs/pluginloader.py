@@ -246,6 +246,8 @@ class PluginLoader:
             plugin_info.full_init_file_path = found_plugin['full_init_file_path']
             plugin_info.full_package_path = found_plugin['full_package_path']
             plugin_info.full_import_location = found_plugin['full_import_location']
+            plugin_info.data_directory = self.api.BASEDATAPLUGINPATH / plugin_info.plugin_id
+
             plugin_info.update_from_init()
 
             if plugin_info.package == 'plugins.core':
@@ -334,11 +336,8 @@ class PluginLoader:
                 return False
         try:
             plugin_instance = plugin_info.loaded_info.module.Plugin(
-                                                plugin_info.name,
-                                                plugin_info.full_package_path,
-                                                self.base_plugin_dir,
-                                                plugin_info.full_import_location,
-                                                plugin_info.plugin_id)
+                                                plugin_info.plugin_id,
+                                                plugin_info)
         except Exception: # pylint: disable=broad-except
             LogRecord(f"Could not instantiate plugin {plugin_id}", level='error',
                       sources=[__name__], exc_info=True)()
@@ -346,10 +345,6 @@ class PluginLoader:
                 sys.exit(1)
             else:
                 return False
-
-        plugin_instance.author =  plugin_info.author
-        plugin_instance.purpose = plugin_info.purpose
-        plugin_instance.version = plugin_info.version
 
         # set the plugin instance
         plugin_info.loaded_info.plugin_instance = plugin_instance

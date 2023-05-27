@@ -63,6 +63,9 @@ class PluginInfo():
         self.is_required: bool = False
         self.is_plugin: bool = False
         self.files = {}
+
+        self.data_directory: Path = Path('')
+
         self.last_updated =  datetime.datetime.now(datetime.timezone.utc)
         self.loaded_info = LoadedPluginInfo()
         self.import_errors = []
@@ -154,7 +157,7 @@ class PluginInfo():
                 self.author = gdict['value']
                 continue
 
-            if self.version != -1 and (version_match := VERSIONRE.match(tline)):
+            if self.version == -1 and (version_match := VERSIONRE.match(tline)):
                 gdict = version_match.groupdict()
                 self.version = int(gdict['value'])
                 continue

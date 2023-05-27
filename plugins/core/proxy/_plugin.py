@@ -71,11 +71,11 @@ class ProxyPlugin(BasePlugin):
                                                   arg_descriptions={'None': None})
 
         ssc = self.api('plugins.core.ssc:baseclass.get')()
-        self.proxypw = ssc('proxypw', self.plugin_id, self.data_directory, desc='Proxy password',
+        self.proxypw = ssc('proxypw', self.plugin_id, self.plugin_info.data_directory, desc='Proxy password',
                            default='defaultpass')
-        self.proxyvpw = ssc('proxypwview', self.plugin_id, self.data_directory, desc='Proxy View password',
+        self.proxyvpw = ssc('proxypwview', self.plugin_id, self.plugin_info.data_directory, desc='Proxy View password',
                             default='defaultviewpass')
-        self.mudpw = ssc('mudpw', self.plugin_id, self.data_directory, desc='Mud password')
+        self.mudpw = ssc('mudpw', self.plugin_id, self.plugin_info.data_directory, desc='Mud password')
 
     @AddAPI('get.mud.connection', description='get the mud connection')
     def _api_get_mud_connection(self) -> MudConnection:

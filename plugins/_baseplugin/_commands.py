@@ -102,18 +102,16 @@ class Commands(Protocol):
 
         msg = [
             f"{'Plugin ID':<{width}} : {self.plugin_id}",
-            f"{'Plugin Command Prefix':<{width}} : {self.plugin_id}",
-            f"{'Purpose':<{width}} : {self.purpose}",
-            f"{'Author':<{width}} : {self.author}",
-            f"{'Version':<{width}} : {self.version}",
-            f"{'Full Plugin Path':<{width}} : {self.full_plugin_path}",
+            f"{'Name':<{width}} : {self.plugin_info.name}",
+            f"{'Purpose':<{width}} : {self.plugin_info.purpose}",
+            f"{'Author':<{width}} : {self.plugin_info.author}",
+            f"{'Version':<{width}} : {self.plugin_info.version}",
+            f"{'Package':<{width}} : {self.plugin_info.package}",
+            f"{'Full Plugin Path':<{width}} : {self.plugin_info.full_package_path}",
             f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}",
         ]
 
-        if '.__init__' in self.full_import_location:
-            import_location = self.full_import_location.replace('.__init__', '')
-        else:
-            import_location = self.full_import_location
+        import_location = self.plugin_info.full_import_location
 
         if sys.modules[import_location].__doc__:
             msg.extend(sys.modules[import_location].__doc__.split('\n'))

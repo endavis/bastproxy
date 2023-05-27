@@ -45,17 +45,15 @@ class LogPlugin(BasePlugin):
 
         self.type_counts = {}
 
-        with contextlib.suppress(OSError):
-            os.makedirs(self.data_directory)
         self.handlers = {}
         self.handlers['client'] = PersistentDict(self.plugin_id,
-            self.data_directory /'logtypes_to_client.txt',
+            self.plugin_info.data_directory /'logtypes_to_client.txt',
             'c')
         self.handlers['console'] = PersistentDict(self.plugin_id,
-            self.data_directory / 'logtypes_to_console.txt',
+            self.plugin_info.data_directory / 'logtypes_to_console.txt',
             'c')
         self.handlers['file'] = PersistentDict(self.plugin_id,
-            self.data_directory / 'logtypes_to_file.txt',
+            self.plugin_info.data_directory / 'logtypes_to_file.txt',
             'c')
 
         self.api(f"{self.plugin_id}:setting.add")('color_error', '@x136', 'color',
