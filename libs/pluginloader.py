@@ -282,26 +282,30 @@ class PluginLoader:
           True if the plugin was imported, False otherwise
         """
         # import the plugin
-        success, msg, module, full_import_location = \
-              imputils.importmodule(plugin_id,
-                                self)
+        LogRecord(f"{plugin_id:<30} : attempting import", level='info', sources=[__name__])()
+        return_info = \
+              imputils.importmodule(plugin_id)
         plugin_info = self.plugins_info[plugin_id]
-        if not success or not module or not full_import_location:
+        if (not return_info['success']
+                or not return_info['module']
+                or not return_info['full_import_location']):
             plugin_info.loaded_info.is_imported = False
 
-            if msg == 'error':
-                LogRecord(f"Could not import plugin {plugin_id}", level='error', sources=[__name__])()
+            if return_info['message'] == 'error':
+                exc_msg = [line.strip() for line in traceback.format_exception(return_info['exception']) if line.strip() not in  ['\n', '']]
+
+                msg = [f"Could not import plugin {plugin_id}",
+                        *exc_msg]
+                LogRecord(msg, level='error', sources=[__name__])()
                 if exit_on_error:
                     sys.exit(1)
 
             return False
 
-        if msg == 'dev module':
-            plugin_info.is_dev = True
-
-        plugin_info.loaded_info.module = module
+        plugin_info.loaded_info.module = return_info['module']
         plugin_info.loaded_info.is_imported = True
         plugin_info.loaded_info.imported_time =  datetime.datetime.now(datetime.timezone.utc)
+        LogRecord(f"{plugin_id:<30} : imported successfully", level='info', sources=[__name__])()
         return True
 
     def _instantiate_single_plugin(self, plugin_id, exit_on_error=False):
@@ -319,6 +323,7 @@ class PluginLoader:
           True if the plugin was instantiated, False otherwise
         """
         plugin_info = self.plugins_info[plugin_id]
+        LogRecord(f"{plugin_id:<30} : creating instance", level='info', sources=[__name__])()
 
         if not plugin_info.loaded_info.module:
             LogRecord(f"Could not find module for {plugin_id}", level='error',

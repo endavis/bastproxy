@@ -19,7 +19,6 @@ from pathlib import Path
 # 3rd Party
 
 # Project
-from libs.records import LogRecord
 
 NAMERE = re.compile(r'PLUGIN_NAME = \'(?P<value>.*)\'')
 
@@ -81,35 +80,39 @@ def get_module_name(module_path):
     return value1, value2
 
 # import a module
-def importmodule(full_import_location, calling_plugin, silent=False):
+def importmodule(full_import_location):
     """
     import a single module
     """
     _module = None
 
+    return_dict = {'success':False,
+                     'message':'',
+                     'module':None,
+                     'exception':None,
+                     'full_import_location':full_import_location}
+
+    if full_import_location in sys.modules:
+        return_dict['success'] = True
+        return_dict['message'] = 'already'
+        return_dict['module'] = sys.modules[full_import_location]
+        return_dict['full_import_location'] = full_import_location
+        return return_dict
+
     try:
-        if full_import_location in sys.modules:
-            return (True, 'already',
-                    sys.modules[full_import_location], full_import_location)
+        _module = import_module(full_import_location)
+    except Exception as e:
+        return_dict['success'] = False
+        return_dict['message'] = 'error'
+        return_dict['exception'] = e
+        return return_dict
 
-        if not silent:
-            LogRecord(f"{full_import_location:<30} : attempting import", level='info', sources=[calling_plugin.plugin_id])()
-        try:
-            _module = import_module(full_import_location)
-        except Exception:
-            LogRecord(f"{full_import_location:<30} : failed import", level='error', sources=[calling_plugin.plugin_id], exc_info=True)()
-            return False, 'failed import', None, None
+    return_dict['success'] = True
+    return_dict['message'] = 'imported'
+    return_dict['module'] = _module
+    return_dict['full_import_location'] = full_import_location
+    return return_dict
 
-        if not silent:
-            LogRecord(f"{full_import_location:<30} : successfully imported", level='info', sources=[calling_plugin.plugin_id])()
-        return True, 'import', _module, full_import_location
-
-    except Exception: # pylint: disable=broad-except
-        if full_import_location in sys.modules:
-            del sys.modules[full_import_location]
-
-        LogRecord(f"Module '{full_import_location}' failed to import/load.", level='error', sources=[calling_plugin.plugin_id], exc_info=True)()
-        return False, 'error', _module, full_import_location
 
 def deletemodule(full_import_location, modules_to_keep=None):
     """
