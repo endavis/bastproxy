@@ -384,6 +384,9 @@ class Base: # pylint: disable=too-many-instance-attributes
 
     @RegisterPluginHook('pre_initialize')
     def _load_hook_pre_initialize(self):
+        """
+        initialize the plugin, do most things here
+        """
         self.api(f"{self.plugin_id}:setting.add")('_version', 0, int, 'The version of the plugin', hidden=True)
 
         self._update_version()
