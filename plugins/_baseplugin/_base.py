@@ -300,6 +300,10 @@ class Base: # pylint: disable=too-many-instance-attributes
             old_plugin_version - the version in the savestate file
             new_plugin_version - the latest version from the module
         """
+        old_plugin_version = self.api(f"{self.plugin_id}:setting.get")('_version')
+
+        new_plugin_version = self.version
+
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
                 LogRecord(f"_update_version: upgrading to version {version}", level='info',
