@@ -25,7 +25,7 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import API
+from libs.api import API, AddAPI
 from libs.records import LogRecord
 from ._pluginhooks import RegisterPluginHook
 
@@ -86,15 +86,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.data = {}
 
         self._dump_shallow_attrs = ['api']
-
-        self.api('libs.api:add')(self.plugin_id, 'dependency.add', self._api_dependency_add)
-        self.api('libs.api:add')(self.plugin_id, 'setting.add', self._api_setting_add)
-        self.api('libs.api:add')(self.plugin_id, 'setting.get', self._api_setting_gets)
-        self.api('libs.api:add')(self.plugin_id, 'setting.change', self._api_setting_change)
-        self.api('libs.api:add')(self.plugin_id, 'data.get', self._api_get_data)
-        self.api('libs.api:add')(self.plugin_id, 'data.update', self._api_update_data)
-        self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
-        self.api('libs.api:add')(self.plugin_id, 'dump', self._api_dump)
 
         self._process_plugin_hook('post_base_init')
 
@@ -170,8 +161,8 @@ class Base: # pylint: disable=too-many-instance-attributes
                 self._process_plugin_hook('post_init')
         cls.__init__ = new_init
 
-    # get the data for a specific datatype
-    def _api_get_data(self, datatype, plugin_id=None):
+    @AddAPI('data.get', description='get the data for a specific datatype')
+    def _api_data_get(self, datatype, plugin_id=None):
         """  get the data of a specific type from this plugin
         @Ydatatype@w = the datatype to get
         @Yplugin@w   = the plugin to get the data from (optional)
@@ -187,8 +178,8 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return None
 
-    # update the data for a specific datatype
-    def _api_update_data(self, datatype, newdata, plugin_id=None):
+    @AddAPI('data.update', description='update the data for a specific datatype')
+    def _api_data_update(self, datatype, newdata, plugin_id=None):
         """  get the data of a specific type from this plugin
         @Ydatatype@w = the datatype to get
         @Yplugin@w   = the plugin to get the data from (optional)
@@ -205,7 +196,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return False
 
-    # add a plugin dependency
+    @AddAPI('dependency.add', description='add a dependency for this plugin')
     def _api_dependency_add(self, dependency):
         """  add a depencency
         @Ydependency@w    = the name of the plugin that will be a dependency"""
@@ -252,6 +243,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return None
 
+    @AddAPI('dump', description='dump an object or attribute of an object to a string')
     def _api_dump(self, attribute_name, simple=False):
         """  dump self or an attribute of self to a string
         @Yobj@w    = the object to inspect
