@@ -75,7 +75,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.summary_template = "%20s : %s"
         self.can_reload_f = True
         self.can_reset_f = True
-        self.auto_initialize_f = True
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
 
