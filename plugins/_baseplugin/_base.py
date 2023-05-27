@@ -102,7 +102,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         self.instantiating_f = False
 
-    def _process_plugin_hook(self, load_hook):
+    def _process_plugin_hook(self, load_hook, **kwargs) -> dict:
         """
         process a loading hook
         """
@@ -115,8 +115,12 @@ class Base: # pylint: disable=too-many-instance-attributes
             for func in functions[key]:
                 LogRecord(f"calling function {func.__name__}", level='debug',
                         sources=[self.plugin_id, 'plugin_upgrade'])()
+                if not kwargs:
+                    func()
+                else:
+                    kwargs = func(**kwargs)
 
-                func()
+        return kwargs
 
     def _get_load_hook_functions(self, obj, load_hook, recurse=True) -> dict:
         """
