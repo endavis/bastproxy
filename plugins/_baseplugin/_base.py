@@ -361,7 +361,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active):
             self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active)
 
-    def get_stats(self):
+    def _base_get_stats(self):
         """
         get the stats for the plugin
 

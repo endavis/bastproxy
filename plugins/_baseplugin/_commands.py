@@ -49,7 +49,7 @@ class Commands(Protocol):
         show stats, memory, profile, etc.. for this plugin
         @CUsage@w: stats
         """
-        stats = self.get_stats()
+        stats = self._base_get_stats()
         tmsg = []
         for header in stats:
             tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))
@@ -182,3 +182,16 @@ class Commands(Protocol):
             return True, ['Plugin reset']
 
         return True, ['This plugin cannot be reset']
+
+    @RegisterPluginHook('stats')
+    def _commands_get_stats(self, **kwargs):
+        """
+        get statistics for commands
+        """
+        kwargs['stats']['Commands'] = {
+            'Size': f"{sys.getsizeof(self.data['commands'])} bytes"
+        }
+        kwargs['stats']['Commands']['Number of Commands'] = len(self.data['commands'])
+        kwargs['stats']['Commands']['showorder'] = ['Number of Commands', 'Size']
+
+        return kwargs
