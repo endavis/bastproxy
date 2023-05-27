@@ -388,7 +388,7 @@ class PluginLoader:
 
         # run the initialize function
         try:
-            plugin_info.loaded_info.plugin_instance.initialize()
+            plugin_info.loaded_info.plugin_instance.initialize_with_hooks()
             plugin_info.loaded_info.is_initialized = True
 
         except Exception: # pylint: disable=broad-except

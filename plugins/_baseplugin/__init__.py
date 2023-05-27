@@ -10,9 +10,10 @@ This module holds the class BasePlugin, which all plugins should have as
 their base class.
 """
 
-__all__ = ['BasePlugin']
+__all__ = ['BasePlugin', 'RegisterPluginHook']
 
 from ._base import Base
+from ._pluginhooks import RegisterPluginHook
 
 class BasePlugin(Base):
     pass

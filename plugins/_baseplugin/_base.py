@@ -13,6 +13,7 @@ import sys
 import textwrap
 import pprint
 import inspect
+import types
 import datetime
 from pathlib import Path
 
@@ -30,7 +31,7 @@ from libs.persistentdict import PersistentDictEvent
 from libs.api import API
 from libs.records import LogRecord
 from libs.commands import AddCommand, AddParser, AddArgument
-
+from ._pluginhooks import RegisterPluginHook
 
 class Base: # pylint: disable=too-many-instance-attributes
     """
@@ -103,30 +104,78 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add')(self.plugin_id, 'save.state', self._api_savestate)
         self.api('libs.api:add')(self.plugin_id, 'dump', self._api_dump)
 
+        self._process_plugin_hook('post_base_init')
+
+    @RegisterPluginHook('post_base_init', priority=1)
+    def _load_hook_add_apis(self):
+        """
+        load any apis that were added in the __init__ method
+        """
+        self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
+    @RegisterPluginHook('post_init', priority=1)
+    def _load_hook_post_instantiate(self):
+        self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
+    def _process_plugin_hook(self, load_hook):
+        """
+        process a loading hook
+        """
+        LogRecord(f"_process_plugin_hook: {load_hook}", level='debug',
+                sources=[self.plugin_id])()
+
+        functions = self._get_load_hook_functions(self, load_hook)
+        sorted_keys = sorted(functions.keys())
+        for key in sorted_keys:
+            for func in functions[key]:
+                LogRecord(f"calling function {func.__name__}", level='debug',
+                        sources=[self.plugin_id, 'plugin_upgrade'])()
+
+                func()
+
+    def _get_load_hook_functions(self, obj, load_hook, recurse=True) -> dict:
+        """
+        recursively search for functions that are commands in a plugin instance
+        and it's attributes that are registered to a load hook
+        """
+        function_list = {}
+        for item in dir(obj):
+            if item.startswith('__'):
+                continue
+            try:
+                item = getattr(self, item)
+            except AttributeError:
+                continue
+            if isinstance(item, types.MethodType) and hasattr(item, 'load_hooks'):
+                if load_hook in item.load_hooks:  # pyright: ignore[reportGeneralTypeIssues]
+                    if item.load_hooks[load_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues]
+                        function_list[item.load_hooks[load_hook]] = [] # pyright: ignore[reportGeneralTypeIssues]
+                    function_list[item.load_hooks[load_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues]
+            # elif recurse:
+            #     new_list = self.get_load_hook_functions(item, load_hook, recurse=False)
+            #     for key, value in new_list.items():
+            #         if key not in function_list:
+            #             function_list[key] = []
+            #         function_list[key].extend(value)
+
+        return function_list
+
     # add a dump_object method that is just dumps
     # don't have to worry about importing dumper everywhere
     def dump_object_as_string(self, object):
         """ dump an object as a string """
         return dumps(object)
 
-    def __baseclass__post__init__(self):
-        """
-        do things after all __init__ methods have been called
-
-        DO NOT OVERRIDE THIS METHOD
-        """
-        self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
-
     def __init_subclass__(cls, *args, **kwargs):
         """
-        hook into __init__ mechanism so that a post __init__
-        method can be called
+        hook into __init__ mechanism so that the
+        post_init load hook can be processed
         """
         super().__init_subclass__(*args, **kwargs)
         def new_init(self, *args, init=cls.__init__, **kwargs):
             init(self, *args, **kwargs)
             if cls is type(self):
-                self.__baseclass__post__init__()
+                self._process_plugin_hook('post_init')
         cls.__init__ = new_init
 
     # get the value of a setting
@@ -617,7 +666,8 @@ class Base: # pylint: disable=too-many-instance-attributes
     _api_savestate = savestate
     evc_savestate = savestate
 
-    def _eventcb_baseplugin_plugin_initialized(self):
+    @RegisterPluginHook('post_initialize')
+    def _load_hook_post_initialize_base_setup(self):
         """
         do something after the initialize function is run
         """
@@ -691,32 +741,42 @@ class Base: # pylint: disable=too-many-instance-attributes
             self.setting_values.sync()
             self.reset_f = False
 
-    def initialize(self):
-        """
-        initialize the plugin, do most things here
-        """
-        if '_version' in self.setting_values and \
-                self.setting_values['_version'] != self.version:
-            self._update_version(self.setting_values['_version'], self.version)
+    @RegisterPluginHook('pre_initialize')
+    def _load_hook_pre_initialize(self):
+        self.api(f"{self.plugin_id}:setting.add")('_version', 0, int, 'The version of the plugin', hidden=True)
 
-        if self.auto_initialize_f: # don't initialize when auto_initialize_f is False
+        self._update_version()
 
-            self._add_commands()
-
-            self.api('plugins.core.events:register.to.event')(f"ev_{self.plugin_id}_initialized",
-                                                      self._eventcb_baseplugin_plugin_initialized, prio=1)
-
-            self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
-
-            self.reset_f = False
-
-        for i in self.settings:
-            self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_var_{i}_modified", self.plugin_id,
-                                description=f"An event to modify the setting {i}",
-                                arg_descriptions={'var':'the variable that was modified',
-                                                    'newvalue':'the new value',
-                                                    'oldvalue':'the old value'})
+        self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_savestate", self.plugin_id,
                                     description='An event to save the state of the plugin',
                                     arg_descriptions={'None': None})
+
+    def initialize(self):
+        """
+        initialize the plugin, do most things here
+        """
+        pass
+
+    def initialize_with_hooks(self):
+        self._process_plugin_hook('pre_initialize')
+
+        if hasattr(self, 'initialize'):
+            self.initialize()
+
+        self._process_plugin_hook('post_initialize')
+
+    @AddAPI('save.state', 'Save the state of the plugin')
+    def _api_save_state(self):
+        """
+        save the state of the plugin
+        """
+        self._process_plugin_hook('save')
+
+    @AddAPI('reset', 'reset the plugin')
+    def _api_reset(self):
+        """
+        reset the plugin
+        """
+        self._process_plugin_hook('reset')
