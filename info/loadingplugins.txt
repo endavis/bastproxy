@@ -1,8 +1,17 @@
 Notes:
 Plugin loading at startup
-1) Load all REQUIRED plugins
-    at least import them and create the instance of the plugin class
-2) load all other plugins
+1) (libs.pluginloader) Load all plugins in plugins.core and plugins.client
+    import all plugins
+    instantiate all plugins
+        this include several hooks,
+            post_base_init - invoked after BasePlugin.__init__
+            post_init - invoked after all __init__ functions have completed
+    run the initialize function
+        Hooks include:
+            pre_initialize
+            post_initialize
+2) Passes work to plugins.core.pluginm to load all plugins in the
+    plugins.core.pluginm.pluginstoload setting
 
 Single instance Plugin loading
 1) import Plugin
@@ -11,4 +20,4 @@ Single instance Plugin loading
     import all dependencies
       instantiate all dependencies
       add to dependency list
-4) run initialize function in dependency order
+4) run initialize function
