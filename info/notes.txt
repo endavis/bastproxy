@@ -1,7 +1,8 @@
 Data Flow - Client To Mud
 -------------------------------------------------------------------------
 1) Proxy receives the data from the client
-2) The data is transformed to a ToMudRecord and is sent by invoking the record
+2) The data is transformed to a ToMudRecord and is sent to the client data handler
+    by calling the record
 3) For each line that is not internal and not a telnet command:
     ToMudRecord raises the event 'ev_to_mud_data_modify'
      - Use this event to transform data received from the client
@@ -15,7 +16,8 @@ Data Flow - Client To Mud
 Data Flow - Mud to Client
 -------------------------------------------------------------------------
 1) Proxy receives the data from the mud
-2) The data is transformed to a ToClientRecord and is sent by invoking the record
+2) The data is transformed to a ToClientRecord and is sent to the mud data handler
+    by calling the record
 3) For each line that is not internal and not a telnet command:
     ToClientRecord raises the event 'ev_to_client_data_modify'
      - Use this event to transform data received from the mud
@@ -29,11 +31,11 @@ NOTE: no events are raised for data sent to the client that originated in the pr
 
 Sending data to the mud
 -------------------------------------------------------------------------
-1) use a ToMudRecord and send by invoking the record
+1) use a ToMudRecord and send by calling the record
 
 Sending data to clients, this will also send it through the interpreter
 -------------------------------------------------------------------------
-1)  use a ToClientRecord and send by invoking the record
+1)  use a ToClientRecord and send by calling the record
 
 Plugin Developer Notes
 -------------------------------------------------------------------------
