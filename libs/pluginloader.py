@@ -236,7 +236,7 @@ class PluginLoader:
 
         # go through the plugins and read information from them
         for found_plugin in plugins:
-            LogRecord(f'Reading plugin information for {found_plugin["plugin_id"]}', level='info', sources=[__name__])()
+            LogRecord(f'{found_plugin["plugin_id"]:<30} : Reading plugin information', level='info', sources=[__name__])()
             if found_plugin['plugin_id'] in old_plugins_info:
                 plugin_info = old_plugins_info[found_plugin['plugin_id']]
                 plugin_info.is_plugin = True
@@ -566,7 +566,7 @@ class PluginLoader:
         core_plugins = [plugin_info.plugin_id for plugin_info in self.plugins_info.values() \
                                            if plugin_info.package in ['plugins.core', 'plugins.client']]
 
-        # load the log plugin first
+        # load plugin manager and then log plugin first
         core_plugins.remove('plugins.core.log')
         core_plugins.insert(0, 'plugins.core.log')
 
