@@ -10,7 +10,6 @@
 import contextlib
 import os
 import sys
-import textwrap
 import pprint
 import inspect
 import types
@@ -26,8 +25,6 @@ except ImportError:
     sys.exit(1)
 
 # Project
-import libs.argp as argp
-from libs.persistentdict import PersistentDictEvent
 from libs.api import API
 from libs.records import LogRecord
 from ._pluginhooks import RegisterPluginHook
@@ -77,7 +74,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.summary_template = "%20s : %s"
         self.can_reload_f = True
         self.can_reset_f = True
-        self.reset_f = True
         self.auto_initialize_f = True
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
@@ -87,10 +83,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         self.package = self.plugin_id.rsplit('.', 1)[0]
 
-        self.settings = {}
         self.data = {}
-        self.setting_values = PersistentDictEvent(self.plugin_id, self.settings_file, 'c')
-        self.setting_values.pload()
 
         self._dump_shallow_attrs = ['api']
 
@@ -177,31 +170,6 @@ class Base: # pylint: disable=too-many-instance-attributes
                 self._process_plugin_hook('post_init')
         cls.__init__ = new_init
 
-    # get the value of a setting
-    def _api_setting_gets(self, setting, plugin=None):
-        """  get the value of a setting
-        @Ysetting@w = the setting value to get
-        @Yplugin@w = the plugin to get the setting from (optional)
-
-        returns:
-          the value of the setting, None if not found"""
-        if not plugin:
-            with contextlib.suppress(KeyError):
-                return (
-                    self.api('plugins.core.utils:verify.value')(
-                        self.setting_values[setting],
-                        self.settings[setting]['stype'],
-                    )
-                    if self.api('libs.api:has')('plugins.core.utils:verify.value')
-                    else self.setting_values[setting]
-                )
-        elif plugin_instance := self.api('libs.pluginloader:get.plugin.instance')(
-            plugin
-        ):
-            return self.api(f"{plugin_instance.plugin_id}:setting.get")(setting)
-
-        return None
-
     # get the data for a specific datatype
     def _api_get_data(self, datatype, plugin_id=None):
         """  get the data of a specific type from this plugin
@@ -243,51 +211,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         @Ydependency@w    = the name of the plugin that will be a dependency"""
         if dependency not in self.dependencies:
             self.dependencies.append(dependency)
-
-    # change the value of a setting
-    def _api_setting_change(self, setting, value):
-        """  change a setting
-        @Ysetting@w    = the name of the setting to change
-        @Yvalue@w      = the value to set it as
-
-        returns:
-          True if the value was changed, False otherwise"""
-        if value == 'default':
-            value = self.settings[setting]['default']
-        if setting in self.settings:
-            if self.api('libs.pluginloader:is.plugin.loaded')('utils'):
-                value = self.api('plugins.core.utils:verify.value')(
-                    value,
-                    self.settings[setting]['stype'])
-
-            self.setting_values[setting] = value
-            self.setting_values.sync()
-            return True
-
-        return False
-
-    # add a setting to the plugin
-    def _api_setting_add(self, name, default, stype, shelp, **kwargs):
-        """  remove a command
-        @Yname@w     = the name of the setting
-        @Ydefault@w  = the default value of the setting
-        @Ystype@w    = the type of the setting
-        @Yshelp@w    = the help associated with the setting
-        Keyword Arguments
-          @Ynocolor@w    = if True, don't parse colors when showing value
-          @Yreadonly@w   = if True, can't be changed by a client"""
-
-        nocolor_f = kwargs.get('nocolor', False)
-        readonly_f = kwargs.get('readonly', False)
-        if name not in self.setting_values:
-            self.setting_values[name] = default
-        self.settings[name] = {
-            'default':default,
-            'help':shelp,
-            'stype':stype,
-            'nocolor':nocolor_f,
-            'readonly':readonly_f
-        }
 
     def _find_attribute(self, attribute_name):
         """
@@ -374,86 +297,6 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return True, message
 
-
-    @AddCommand(group='Base', show_in_history=False)
-    @AddParser(formatter_class=argp.RawDescriptionHelpFormatter,
-            description=textwrap.dedent("""
-              change a setting in the plugin
-
-              if there are no arguments or 'list' is the first argument then
-              it will list the settings for the plugin"""))
-    @AddArgument('name',
-                    help='the setting name',
-                    default='list',
-                    nargs='?')
-    @AddArgument('value',
-                    help='the new value of the setting',
-                    default='',
-                    nargs='?')
-    def _command_set(self):
-        """
-        @G%(name)s@w - @B%(cmdname)s@w
-        List or set vars
-        @CUsage@w: var @Y<varname>@w @Y<varvalue>@w
-          @Ysettingname@w    = The setting to set
-          @Ysettingvalue@w   = The value to set it to
-          if there are no arguments or 'list' is the first argument then
-          it will list the settings for the plugin
-        """
-        args = self.api('plugins.core.commands:get.current.command.args')()
-        msg = []
-        if args['name'] == 'list':
-            return True, self._list_vars()
-        elif args['name'] and args['value']:
-            var = args['name']
-            if var in self.settings:
-                if 'readonly' in self.settings[var] \
-                          and self.settings[var]['readonly']:
-                    return True, [f"{var} is a readonly setting"]
-                val = args['value']
-                try:
-                    self.api(f"{self.plugin_id}:setting.change")(var, val)
-                    tvar = self.setting_values[var]
-                    if self.settings[var]['nocolor']:
-                        tvar = tvar.replace('@', '@@')
-                    elif self.settings[var]['stype'] == 'color':
-                        tvar = f"{tvar}{tvar.replace('@', '@@')}@w"
-                    elif self.settings[var]['stype'] == 'timelength':
-                        tvar = self.api('plugins.core.utils:format.time')(
-                            self.api('plugins.core.utils:verify.value')(tvar, 'timelength'))
-                    return True, [f"{var} is now set to {tvar}"]
-                except ValueError:
-                    msg = [f"Cannot convert {val} to {self.settings[var]['stype']}"]
-                    return True, msg
-
-            else:
-                msg = [f"plugin setting {var} does not exist"]
-        return False, msg
-    def _list_vars(self):
-        """
-        returns:
-         a list of strings that list all settings
-        """
-        tmsg = []
-        if not self.setting_values:
-            tmsg.append('There are no settings defined')
-        else:
-            for i in self.settings:
-                columnwidth = 15
-                val = self.setting_values[i]
-                help = self.settings[i]['help']
-                if 'nocolor' in self.settings[i] and self.settings[i]['nocolor']:
-                    val = val.replace('@', '@@')
-                elif self.settings[i]['stype'] == 'color':
-                    tlen = len(val)
-                    columnwidth = 18 + tlen
-                    help = f"{val}{help}@w"
-                    val = f"{val}{val.replace('@', '@@')}@w"
-                elif self.settings[i]['stype'] == 'timelength':
-                    val = self.api('plugins.core.utils:format.time')(
-                        self.api('plugins.core.utils:verify.value')(val, 'timelength'))
-                tmsg.append(f"{i:<20} : {val:<{columnwidth}} - {help}")
-        return tmsg
     def _update_version(self):
         """
         update plugin data
@@ -473,21 +316,10 @@ class Base: # pylint: disable=too-many-instance-attributes
                     LogRecord(f"_update_version: no function to upgrade to version {version}",
                               level='error', sources=[self.plugin_id, 'plugin_upgrade'])()
 
-        self.setting_values['_version'] = self.version
+            self.api(f"{self.plugin_id}:setting.change")('_version', self.version)
 
-        self.setting_values.sync()
+            self.api(f"{self.plugin_id}:save.state")()
 
-    # save the plugin state
-    def savestate(self):
-        """
-        save all settings for the plugin
-        make sure to call this in any methods
-        of a subclass that overrides this
-        """
-        self.setting_values.sync()
-
-    _api_savestate = savestate
-    evc_savestate = savestate
 
     @RegisterPluginHook('post_initialize')
     def _load_hook_post_initialize_base_setup(self):
@@ -499,9 +331,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         # an example is the plugins.core.proxy plugin initialziing
         # new ssc objects in the initialize function
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
-
-        # go through each variable and raise var_%s_changed
-        self.setting_values.raiseall()
 
         mud = self.api('plugins.core.managers:get')('mud')
 
@@ -546,23 +375,11 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         uninitialize stuff
         """
+        #save the state
+        self.api(f"{self.plugin_id}:save.state")()
+
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
-
-        #save the state
-        self.savestate()
-
-    def reset(self):
-        """
-        internal function to reset data
-        """
-        if self.can_reset_f:
-            self.reset_f = True
-            self.setting_values.clear()
-            for i in self.settings:
-                self.setting_values[i] = self.settings[i]['default']
-            self.setting_values.sync()
-            self.reset_f = False
 
     @RegisterPluginHook('pre_initialize')
     def _load_hook_pre_initialize(self):
