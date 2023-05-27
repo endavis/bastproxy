@@ -12,4 +12,7 @@ their base class.
 
 __all__ = ['BasePlugin']
 
-from ._baseplugin import BasePlugin
+from ._base import Base
+
+class BasePlugin(Base):
+    pass

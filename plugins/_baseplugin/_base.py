@@ -32,7 +32,7 @@ from libs.records import LogRecord
 from libs.commands import AddCommand, AddParser, AddArgument
 
 
-class BasePlugin(object): # pylint: disable=too-many-instance-attributes
+class Base: # pylint: disable=too-many-instance-attributes
     """
     a base class for plugins
     """
