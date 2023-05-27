@@ -65,8 +65,8 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.full_plugin_path: Path = full_plugin_path
         self.plugin_directory: Path  = self.full_plugin_path.parent
         self.data_directory: Path = self.api.BASEDATAPLUGINPATH / self.plugin_id
-        self.settings_file: Path = self.data_directory / 'settingvalues.txt'
-        # add any dependencies that are not REQUIRED plugins to this list
+
+        # add any dependencies that are not in the packages plugins.core or plugins.client to this list
         self.dependencies = []
         with contextlib.suppress(ValueError):
             self.dependencies.remove(self.plugin_id)
@@ -78,7 +78,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.auto_initialize_f = True
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
-
 
         os.makedirs(self.data_directory, exist_ok=True)
 
