@@ -219,8 +219,9 @@ class Settings:
         elif args['name'] and args['value']:
             var = args['name']
             if var in self.settings:
-                if 'readonly' in self.settings[var] \
-                          and self.settings[var]['readonly']:
+                if self.settings[var]['hidden']:
+                    return True, [f"plugin setting {var} does not exist"]
+                if self.settings[var]['readonly']:
                     return True, [f"{var} is a readonly setting"]
                 val = args['value']
                 try:
