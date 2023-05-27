@@ -75,26 +75,26 @@ class Base: # pylint: disable=too-many-instance-attributes
         self._process_plugin_hook('post_base_init')
 
     @RegisterPluginHook('post_base_init', priority=1)
-    def _load_hook_add_apis(self):
+    def _plugin_hook_add_apis(self):
         """
         load any apis that were added in the __init__ method
         """
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
     @RegisterPluginHook('post_init', priority=1)
-    def _load_hook_post_instantiate(self):
+    def _plugin_hook_post_instantiate(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
         self.instantiating_f = False
 
-    def _process_plugin_hook(self, load_hook, **kwargs) -> dict:
+    def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
         """
         process a loading hook
         """
-        LogRecord(f"_process_plugin_hook: {load_hook}", level='debug',
+        LogRecord(f"_process_plugin_hook: {plugin_hook}", level='debug',
                 sources=[self.plugin_id])()
 
-        functions = self._get_load_hook_functions(self, load_hook)
+        functions = self._get_plugin_hook_functions(self, plugin_hook)
         sorted_keys = sorted(functions.keys())
         for key in sorted_keys:
             for func in functions[key]:
@@ -107,7 +107,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return kwargs
 
-    def _get_load_hook_functions(self, obj, load_hook, recurse=True) -> dict:
+    def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
         """
         recursively search for functions that are commands in a plugin instance
         and it's attributes that are registered to a load hook
@@ -120,13 +120,13 @@ class Base: # pylint: disable=too-many-instance-attributes
                 item = getattr(self, item)
             except AttributeError:
                 continue
-            if isinstance(item, types.MethodType) and hasattr(item, 'load_hooks'):
-                if load_hook in item.load_hooks:  # pyright: ignore[reportGeneralTypeIssues]
-                    if item.load_hooks[load_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues]
-                        function_list[item.load_hooks[load_hook]] = [] # pyright: ignore[reportGeneralTypeIssues]
-                    function_list[item.load_hooks[load_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues]
+            if isinstance(item, types.MethodType) and hasattr(item, 'plugin_hooks'):
+                if plugin_hook in item.plugin_hooks:  # pyright: ignore[reportGeneralTypeIssues]
+                    if item.plugin_hooks[plugin_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues]
+                        function_list[item.plugin_hooks[plugin_hook]] = [] # pyright: ignore[reportGeneralTypeIssues]
+                    function_list[item.plugin_hooks[plugin_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues]
             # elif recurse:
-            #     new_list = self.get_load_hook_functions(item, load_hook, recurse=False)
+            #     new_list = self.get_plugin_hook_functions(item, plugin_hook, recurse=False)
             #     for key, value in new_list.items():
             #         if key not in function_list:
             #             function_list[key] = []
@@ -309,7 +309,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
 
     @RegisterPluginHook('post_initialize')
-    def _load_hook_post_initialize_base_setup(self):
+    def _plugin_hook_post_initialize_base_setup(self):
         """
         do something after the initialize function is run
         """
@@ -372,7 +372,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.api('libs.api:remove')(self.plugin_id)
 
     @RegisterPluginHook('pre_initialize')
-    def _load_hook_pre_initialize(self):
+    def _plugin_hook_pre_initialize(self):
         """
         initialize the plugin, do most things here
         """

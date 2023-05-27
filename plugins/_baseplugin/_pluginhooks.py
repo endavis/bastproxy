@@ -31,10 +31,10 @@ class RegisterPluginHook:
         self.priority = priority
 
     def __call__(self, func):
-        if not hasattr(func, 'load_hooks'):
-            func.load_hooks = {}
-        if self.hook_name not in func.load_hooks:
-            func.load_hooks[self.hook_name] = []
-        func.load_hooks[self.hook_name] = self.priority
+        if not hasattr(func, 'plugin_hooks'):
+            func.plugin_hooks = {}
+        if self.hook_name not in func.plugin_hooks:
+            func.plugin_hooks[self.hook_name] = []
+        func.plugin_hooks[self.hook_name] = self.priority
 
         return func
