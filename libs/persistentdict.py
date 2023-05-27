@@ -24,8 +24,6 @@ import contextlib
 from libs.api import API
 from libs.records import LogRecord
 
-EVENTSSETUP = False
-
 def convert(tinput):
     """
     converts input to ascii (utf-8)
@@ -200,7 +198,7 @@ class PersistentDict(dict):
     def __deepcopy__(self, _):
         return self
 
-class PersistentDictEvent(PersistentDict):
+class PluginPersistentDict(PersistentDict):
     """
     a class to send events when a dictionary object is set
     """
@@ -209,21 +207,20 @@ class PersistentDictEvent(PersistentDict):
         init the class
         """
         super().__init__(owner_id, file_name, *args, **kwds)
-        self.add_events()
+        self.event_setup = False
 
     def add_events(self):
         """
         add events for each setting
         """
-        global EVENTSSETUP
-        if not EVENTSSETUP and self.api('libs.api:has')(
+        if not self.event_setup and self.api('libs.api:has')(
             'plugins.core.events:add.event'
         ):
-            EVENTSSETUP = True
             for i in self:
-                event_name = f"ev_{self.owner_id}_var_{i}_modified"
-                self.api('plugins.core.events:add.event')(event_name, self.owner_id,
-                                        description=f"An event raised when {i} is modified in {self.owner_id}",
+                if not self.api(f"{self.owner_id}:setting.is.hidden")(i):
+                    event_name = f"ev_{self.owner_id}_var_{i}_modified"
+                    self.api('plugins.core.events:add.event')(event_name, self.owner_id,
+                                        description=[f"An event raised when {i} is modified in {self.owner_id}"],
                                         arg_descriptions={'var':'The variable that was modified',
                                         'newvalue':'the new value of the variable',
                                         'oldvalue':'the old value of the variable, will be "__init__" if the variable was not set before'})
@@ -244,7 +241,10 @@ class PersistentDictEvent(PersistentDict):
         if old_value != val:
             dict.__setitem__(self, key, val)
 
-            if plugin_instance and (plugin_instance.reset_f or plugin_instance.initializing_f or key == '_version'):
+            if plugin_instance and \
+                (plugin_instance.reset_f
+                 or plugin_instance.initializing_f
+                 or self.api(f"{plugin_instance.plugin_id}:setting.is.hidden")(key)):
                 return
             if self.api.startup:
                 return
@@ -258,40 +258,32 @@ class PersistentDictEvent(PersistentDict):
             old_value = old_value
 
             if self.api('libs.api:has')('plugins.core.events:raise.event'):
-                self.api('plugins.core.events:raise.event')(
-                    event_name,
-                    {'var':key,
-                    'newvalue':new_value,
-                    'oldvalue':old_value})
+                    self.api('plugins.core.events:raise.event')(
+                        event_name,
+                        {'var':key,
+                        'newvalue':new_value,
+                        'oldvalue':old_value})
 
     def raiseall(self):
         """
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
+        self.add_events()
         plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
         old_value = '__init__'
         for i in self:
             if plugin_instance:
-                if i == '_version':
-                    return
+                if self.api(f"{plugin_instance.plugin_id}:setting.is.hidden")(i):
+                    continue
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self.api(f"{plugin_instance.plugin_id}:setting.get")(i)
             else:
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self[i]
 
-            old_value = old_value
             self.api('plugins.core.events:raise.event')(
                 event_name,
                 {'var':i,
                 'newvalue':new_value,
                 'oldvalue':old_value})
 
-    def sync(self):
-        """
-        always put plugin version in here
-        """
-        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
-        with contextlib.suppress(AttributeError):
-            self['_version'] = plugin_instance.version
-        super().sync()
