@@ -16,7 +16,7 @@ import numbers
 
 # Project
 from libs.persistentdict import PersistentDict
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord, RMANAGER
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
@@ -496,11 +496,11 @@ class LogPlugin(BasePlugin):
 
         return True, tmsg
 
+    @RegisterPluginHook('save')
     def savestate(self):
         """
         save items not covered by baseplugin class
         """
-        super().savestate()
         self.handlers['client'].sync()
         self.handlers['file'].sync()
         self.handlers['console'].sync()

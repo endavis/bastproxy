@@ -19,7 +19,7 @@ from functools import lru_cache
 
 # Project
 from libs.api import API, AddAPI
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
 from libs.records import ToClientRecord, LogRecord, ToMudRecord, CmdArgsRecord
 import libs.argp as argp
@@ -1146,9 +1146,9 @@ class CommandPlugin(BasePlugin):
             )
         return True, message
 
+    @RegisterPluginHook('save')
     def savestate(self):
         """
         save states
         """
-        super().savestate()
         self.command_history_dict.sync()
