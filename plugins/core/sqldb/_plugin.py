@@ -13,7 +13,7 @@
 # Project
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin
-from .sqlite import Sqldb
+from ._sqlite import Sqldb
 
 class SQLDBPlugin(BasePlugin):
     """
