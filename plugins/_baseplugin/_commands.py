@@ -184,7 +184,7 @@ class Commands(Protocol):
         return True, ['This plugin cannot be reset']
 
     @RegisterPluginHook('stats')
-    def _commands_get_stats(self, **kwargs):
+    def _commands_get_stats(self: Base, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
         """
         get statistics for commands
         """
