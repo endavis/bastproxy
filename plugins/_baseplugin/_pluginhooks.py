@@ -21,6 +21,8 @@ class RegisterPluginHook:
         'post_initialize' - invoked after the initialize method
         'save' - invoked when saving the plugin
         'reset' - invoked when resetting the plugin
+        'stats' - invoked when getting the stats of the plugin
+                    returns a dict of stats
 
             hook_name: the hook to register to
             priority: the priority to register the function with (Default: 50)

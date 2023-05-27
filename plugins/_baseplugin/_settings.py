@@ -11,6 +11,7 @@ from typing import TypeVar
 from pathlib import Path
 import contextlib
 import textwrap
+import sys
 
 # 3rd Party
 
@@ -243,3 +244,16 @@ class Settings:
                 msg = [f"plugin setting {var} does not exist"]
         return False, msg
 
+    @RegisterPluginHook('stats')
+    def _settings_stats(self: Base, **kwargs):    # pyright: ignore[reportInvalidTypeVarUse]
+        """
+        get settings stats
+        """
+        if self.settings:
+            kwargs['stats']['Settings'] = {
+                'Size': f"{sys.getsizeof(self.settings)} bytes"
+            }
+            kwargs['stats']['Settings']['Number of Settings'] = len(self.settings)
+            kwargs['stats']['Settings']['showorder'] = ['Number of Settings', 'Size']
+
+        return kwargs

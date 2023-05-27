@@ -368,13 +368,13 @@ class Base: # pylint: disable=too-many-instance-attributes
         returns:
           a dict of statistics
         """
-        stats = {'Base Sizes': {}}
-        stats['Base Sizes']['showorder'] = ['Class', 'Variables', 'Api']
-        stats['Base Sizes']['Variables'] = f"{sys.getsizeof(self.setting_values)} bytes"
+        stats = {'Base Sizes': {'showorder': ['Class', 'Api']}}
         stats['Base Sizes']['Class'] = f"{sys.getsizeof(self)} bytes"
         stats['Base Sizes']['Api'] = f"{sys.getsizeof(self.api)} bytes"
 
-        return stats
+        return_kwargs = self._process_plugin_hook('stats', stats=stats)
+
+        return return_kwargs.get('stats', stats)
 
     def uninitialize(self, _=None):
         """
