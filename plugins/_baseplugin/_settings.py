@@ -26,7 +26,7 @@ Base = TypeVar('Base', bound='Base')
 
 class Settings:
     @RegisterPluginHook('post_base_init', priority=2)
-    def _loadevent_post_initialize_add_settings(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_settings_plugin_hook_post_initialize_add_settings(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add settings to the plugin
         """
@@ -117,7 +117,7 @@ class Settings:
         if setting in self.settings:
             return self.settings[setting]['hidden']
 
-    def _list_vars(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_settings_list_vars(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         returns:
          a list of strings that list all settings
@@ -146,7 +146,7 @@ class Settings:
         return tmsg
 
     @RegisterPluginHook('reset')
-    def _settings_reset(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_settings_reset(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         internal function to reset settings data
         """
@@ -159,7 +159,7 @@ class Settings:
             self.reset_f = False
 
     @RegisterPluginHook('pre_initialize')
-    def _load_hook_pre_initialize(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_settings_plugin_hook_pre_initialize(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         initialize the plugin, do most things here
         """
@@ -175,12 +175,12 @@ class Settings:
                                                     'oldvalue':'the old value'})
 
     @RegisterPluginHook('post_initialize')
-    def _load_hook_post_initialize_raise_all_settings(self):
+    def _base_settings_plugin_hook_post_initialize_raise_all_settings(self):
         # go through each variable and raise var_%s_changed
         self.setting_values.raiseall()
 
     @RegisterPluginHook('save')
-    def _settings_save(self):
+    def _base_settings_save(self):
         """
         save all settings for the plugin
         make sure to call this in any methods
@@ -216,7 +216,7 @@ class Settings:
         args = self.api('plugins.core.commands:get.current.command.args')()
         msg = []
         if args['name'] == 'list':
-            return True, self._list_vars()
+            return True, self._base_settings_list_vars()
         elif args['name'] and args['value']:
             var = args['name']
             if var in self.settings:
@@ -245,7 +245,7 @@ class Settings:
         return False, msg
 
     @RegisterPluginHook('stats')
-    def _settings_stats(self: Base, **kwargs):    # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_settings_stats(self: Base, **kwargs):    # pyright: ignore[reportInvalidTypeVarUse]
         """
         get settings stats
         """

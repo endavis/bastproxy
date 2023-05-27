@@ -8,7 +8,7 @@ Base = TypeVar('Base', bound='Base')
 
 class Commands(Protocol):
     @RegisterPluginHook('post_initialize')
-    def _loadevent_post_initialize_add_commands(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_commands_plugin_hook_post_initialize_add_commands(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add commands to the plugin
         """
@@ -182,7 +182,7 @@ class Commands(Protocol):
         return True, ['This plugin cannot be reset']
 
     @RegisterPluginHook('stats')
-    def _commands_get_stats(self: Base, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
+    def _base_commands_get_stats(self: Base, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
         """
         get statistics for commands
         """

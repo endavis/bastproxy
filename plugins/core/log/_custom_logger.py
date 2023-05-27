@@ -214,6 +214,6 @@ def setup_loggers(log_level: int):
 
 class CustomLogger(Protocol):
     @RegisterPluginHook('post_init')
-    def _loadhook_post_init_custom_logging(self):
+    def _log_custom_logger_loadhook_post_init_custom_logging(self):
         # setup file logging and network data logging
         setup_loggers(logging.DEBUG)
