@@ -231,8 +231,10 @@ class PluginLoader:
 
         _, plugins, errors = imputils.find_packages_and_plugins(self.base_plugin_dir, 'plugins.')
 
+        LogRecord('Done finding plugins', level='debug', sources=[__name__])()
+
         old_plugins_info = self.plugins_info
-        self.plugins_info = {}
+        new_plugins_info = {}
 
         # go through the plugins and read information from them
         for found_plugin in plugins:
@@ -260,7 +262,9 @@ class PluginLoader:
 
             # print(dumps(info))
 
-            self.plugins_info[plugin_info.plugin_id] = plugin_info
+            new_plugins_info[plugin_info.plugin_id] = plugin_info
+
+        self.plugins_info = new_plugins_info
 
         # warn about plugins whose path is no longer valid
         removed_plugins = set(old_plugins_info.keys()) - set(self.plugins_info.keys())
