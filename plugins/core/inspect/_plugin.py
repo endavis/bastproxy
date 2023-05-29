@@ -31,10 +31,7 @@ class InspectPlugin(BasePlugin):
     @AddParser(description='return the list of record types')
     def _command_types(self):
         """
-        @G%(name)s@w - @B%(cmdname)s@w
-        List functions in the api
-          @CUsage@w: list @Y<apiname>@w
-          @Yapiname@w = (optional) the toplevel api to show
+        List the types of records
         """
         tmsg = ['Record Types:']
         tmsg.extend(f"{rtype:<25} - {count}" for rtype, count in RMANAGER.get_types())
@@ -44,25 +41,26 @@ class InspectPlugin(BasePlugin):
     @AddArgument('recordtype',
                     help='the type of record to list',
                     default='')
-    @AddArgument('-n',
-                    '--number',
+    @AddArgument('-c',
+                    '--count',
                     help='the # of items to return (default 10)',
                     default=10,
                     nargs='?',
                     type=int)
     def _command_list(self):
         """
-        @G%(name)s@w - @B%(cmdname)s@w
-        List functions in the api
-          @CUsage@w: list @Y<apiname>@w
-          @Yapiname@w = (optional) the toplevel api to show
+        List records of a specific type
         """
-        args = self.api('plugins.core.commands:get.current.command.args')()
-        if not args['recordtype']:
-            return True, [f'Please enter a record type of {", ".join(RMANAGER.get_types())}']
-        tmsg = [f"Last {args['number']} records of type {args['recordtype']}:"]
+        line_length = self.api('plugins.core.commands:get.output.line.length')()
+        header_color = self.api('plugins.core.commands:setting.get')('output_header_color')
 
-        if records := RMANAGER.get_records(args['recordtype'], count=args['number']):
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        rtypes = [rtype for rtype, _ in RMANAGER.get_types()]
+        if not args['recordtype'] or args['recordtype'] not in rtypes:
+            return True, ["Valid Types:", *[f"    {rtype}" for rtype in rtypes]]
+        tmsg = [f"Last {args['count']} records of type {args['recordtype']}:",
+                header_color + line_length * '-' + '@w']
+        if records := RMANAGER.get_records(args['recordtype'], count=args['count']):
             tmsg.extend([f"{record.uuid} - {record.original_data[0].strip()} ..." for record in records])
         else:
             tmsg.append('No records found')
@@ -103,10 +101,7 @@ class InspectPlugin(BasePlugin):
                     default=True)
     def _command_detail(self):
         """
-        @G%(name)s@w - @B%(cmdname)s@w
-        detail a function in the api
-          @CUsage@w: detail @Y<api>@w
-          @Yapi@w = (optional) the api to detail
+        get the details of a specific record
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         tmsg = []
