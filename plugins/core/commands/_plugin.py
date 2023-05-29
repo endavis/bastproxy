@@ -88,6 +88,50 @@ class CommandPlugin(BasePlugin):
                                 readonly=True)
         self.api(f"{self.plugin_id}:setting.add")('historysize', 50, int,
                                 'the size of the history to keep')
+        self.api(f"{self.plugin_id}:setting.add")('header_color', '@G', 'color',
+                                'the color to use for the command headers')
+        self.api(f"{self.plugin_id}:setting.add")('output_header_color', '@B', 'color',
+                                'the color to use for the header in the output of a command')
+        self.api(f"{self.plugin_id}:setting.add")('command_indent', 0, int,
+                                'the indent for a command')
+        self.api(f"{self.plugin_id}:setting.add")('simple_output', True, bool,
+                                'show simple output for commands')
+
+    @AddAPI('get.command.indent', description='indent for commands')
+    def _api_get_command_indent(self):
+        """
+        return the command indent
+        """
+        return self.api(f"{self.plugin_id}:setting.get")('command_indent')
+
+    @AddAPI('get.output.indent', description='indent for command output')
+    def _api_get_output_indent(self):
+        """
+        return the output indent
+        """
+        if self.api(f"{self.plugin_id}:setting.get")('simple_output'):
+            return self.api(f"{self.plugin_id}:setting.get")('command_indent')
+
+        return self.api(f"{self.plugin_id}:setting.get")('command_indent') * 2
+
+    @AddAPI('get.command.line.length', description='get line length for command')
+    def _api_get_command_line_length(self):
+        """
+        return the line length for output
+        """
+        line_length = self.api('plugins.core.proxy:setting.get')('linelen')
+        command_indent = self.api(f"{self.plugin_id}:get.command.indent")()
+        return line_length - 2 * command_indent
+
+    @AddAPI('get.output.line.length', description='get line length for command output')
+    def _api_get_output_line_length(self):
+        """
+        return the line length for output
+        """
+        simple = self.api(f"{self.plugin_id}:setting.get")('simple_output')
+        line_length = self.api('plugins.core.proxy:setting.get')('linelen')
+        output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
+        return line_length - 2 * output_indent
 
     @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')
     def _eventcb_add_commands_on_startup(self):
@@ -329,7 +373,7 @@ class CommandPlugin(BasePlugin):
         return {}
 
     @AddAPI('run', description='run a command and return the output')
-    def _api_run(self, plugin_id: str, command_name: str, argument_string: str = '') -> tuple[bool | None, list[str]]:
+    def _api_run(self, plugin_id: str, command_name: str, argument_string: str = '', format=False) -> tuple[bool | None, list[str]]:
         """  run a command and return the output
         @Yplugin_id@w          = the plugin_id the command is in
         @Ycommand_name@w    = the command name
@@ -346,7 +390,7 @@ class CommandPlugin(BasePlugin):
         LogRecord(f"running command {command_name} from plugin {plugin_id} with arguments {argument_string}",
                   level='debug', sources=[self.plugin_id, plugin_id])(actor = f"{self.plugin_id}:run_command:command_ran")
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
-            success, message, _ = command.run(argument_string)
+            success, message, _ = command.run(argument_string, format)
             return success, message
 
         return None, []
@@ -429,10 +473,7 @@ class CommandPlugin(BasePlugin):
                       level='debug', sources=[plugin_id, self.plugin_id])(f"{self.plugin_id}:update_command")
             return False
 
-        all_command_data = self.api(f"{plugin_id}:data.get")('commands')
-
-        if not all_command_data:
-            all_command_data = {}
+        all_command_data = self.api(f"{plugin_id}:data.get")('commands') or {}
 
         if command_name not in all_command_data and not self.api.startup:
             LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
@@ -731,7 +772,7 @@ class CommandPlugin(BasePlugin):
                     level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:run_internal_command_from_event")
             #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}")()
 
-            success, message, error = command_item.run(command_args)
+            success, message, error = command_item.run(command_args, format=True)
 
             if success:
                 event_record.addupdate(
@@ -746,7 +787,6 @@ class CommandPlugin(BasePlugin):
                                     savedata = False)
 
             if message:
-                message = command_item.format_return_message(message)
                 ToClientRecord(message, clients=clients)()
 
     @RegisterToEvent(event_name='ev_to_mud_data_modify')

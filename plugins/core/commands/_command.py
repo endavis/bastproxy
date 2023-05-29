@@ -36,11 +36,13 @@ class Command:
         self.short_help = shelp
         self.count = 0
         self.current_args: CmdArgsRecord | dict = {}
+        self.current_arg_string = ''
 
-    def run(self, arg_string: str = '') -> tuple[bool | None, list[str], str]:
+    def run(self, arg_string: str = '', format=False) -> tuple[bool | None, list[str], str]:
         """
         run the command
         """
+        self.current_arg_string = arg_string
         message: list[str] = []
         command_ran = f"{self.full_cmd} {arg_string}"
         LogRecord(f"running {command_ran}",
@@ -50,13 +52,13 @@ class Command:
 
         if not success:
             message.extend(fail_message)
-            return False, message, 'could not parse args'
+            return self.run_finish(False, message, 'could not parse args', format=format)
 
         args = CmdArgsRecord(f"{self.plugin_id}:{self.name}", vars(parsed_args), arg_string=arg_string)
 
         if args['help']:
             message.extend(self.arg_parser.format_help().split('\n'))
-            return True, message, 'help'
+            return self.run_finish(True, message, 'help', format=format)
 
         self.current_args = args
         self.api("plugins.core.commands:set.current.command")(self)
@@ -69,7 +71,7 @@ class Command:
             message.extend([f"Error running command: {command_ran}"])
             LogRecord(f"Error running command: {command_ran}",
                         level='error', sources=[self.plugin_id, 'plugins.core.commands'], exc_info=True)(actor)
-            return self.run_finish(False, message, 'function returned False')
+            return self.run_finish(False, message, 'function returned False', format=format)
 
         if isinstance(return_value, tuple):
             retval = return_value[0]
@@ -83,15 +85,19 @@ class Command:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append('')
             message.extend(self.arg_parser.format_help().split('\n'))
-            return self.run_finish(False, message, 'function returned False')
+            return self.run_finish(False, message, 'function returned False', format=format)
 
-        return self.run_finish(True, message, 'command ran successfully')
+        return self.run_finish(True, message, 'command ran successfully', format=format)
 
-    def run_finish(self, success: bool, message: list[str], return_value: str) -> tuple[bool, list[str], str]:
+    def run_finish(self, success: bool, message: list[str], return_value: str, format=False) -> tuple[bool, list[str], str]:
         """
         run the command finisher
         """
+        oldmessage = message[:]
+        if format:
+            message = self.format_return_message(oldmessage)
         self.current_args = {}
+        self.current_arg_string = ''
         self.api("plugins.core.commands:set.current.command")(None)
         return success, message, return_value
 
@@ -140,15 +146,78 @@ class Command:
         returns:
           the updated message
         """
-        #line_length = self.api('net.proxy:setting.get')('linelen')
-        line_length = 80
+        simple = self.api('plugins.core.commands:setting.get')('simple_output')
+        line_length = self.api('plugins.core.proxy:setting.get')('linelen')
+        preamble_color = self.api('plugins.core.proxy:preamble.color.get')()
+        header_color = self.api('plugins.core.commands:setting.get')('header_color')
+        command_indent = self.api("plugins.core.commands:get.command.indent")()
+        command_indent_string = ' ' * command_indent
+        command_line_length = self.api("plugins.core.commands:get.command.line.length")()
+        output_indent = self.api("plugins.core.commands:get.output.indent")()
+        output_indent_string = ' ' * output_indent
 
-        message.insert(0, '')
-        message.insert(1, self.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name))
-        message.insert(2, '@G' + '-' * line_length + '@w')
-        message.append('@G' + '-' * line_length + '@w')
-        message.append('')
-        return message
+        command = self.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name)
+
+        newmessage = ['', self.api('plugins.core.utils:center.colored.string')(
+                            f'Begin Command: {command}',
+                            '-',
+                            line_length,
+                            filler_color=preamble_color,
+                        )
+                    ]
+        if not simple:
+            newmessage.extend(
+                (
+                    command_indent_string
+                    + self.api('plugins.core.utils:center.colored.string')(
+                        'Full Command Line',
+                        '-',
+                        command_line_length,
+                        filler_color=header_color,
+                    ),
+                    f"{command_indent_string}{self.full_cmd} {self.current_arg_string}",
+                )
+            )
+            if arg_message := [
+                f"@G{item}@w: {self.current_args[item] or 'Not Specified'}"
+                for item in self.current_args
+                if item not in ['help']
+            ]:
+                newmessage.append(command_indent_string + self.api('plugins.core.utils:center.colored.string')('Arguments', '-',
+                                                                                                            command_line_length,
+                                                                                                            filler_color=header_color))
+                newmessage.extend([command_indent_string + line for line in arg_message])
+
+            newmessage.append(command_indent_string + self.api('plugins.core.utils:center.colored.string')('Output',
+                                                                                        '-',
+                                                                                        command_line_length,
+                                                                                        filler_color=header_color))
+
+        newmessage.extend(
+            [
+                '',
+                *[output_indent_string + line for line in message],
+                ''
+            ])
+
+        if not simple:
+                newmessage.append(command_indent_string
+                + self.api('plugins.core.utils:center.colored.string')(
+                    'End Output',
+                    '-',
+                    command_line_length,
+                    filler_color=header_color,
+                ))
+
+        newmessage.extend([
+                self.api('plugins.core.utils:center.colored.string')(
+                    f'End Command: {command}', '-', line_length, filler_color=preamble_color
+                ),
+                '',
+            ]
+        )
+
+        return newmessage
 
     def __call__(self, *args, **kwargs):
         self.count += 1
