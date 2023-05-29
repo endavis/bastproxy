@@ -46,6 +46,9 @@ class PluginManager(BasePlugin):
 
         plugins = a list of plugin_info objects
         """
+        line_length = self.api('plugins.core.commands:get.output.line.length')()
+        header_color = self.api('plugins.core.commands:setting.get')('output_header_color')
+
         required_color = '@x75'
         msg = []
 
@@ -53,7 +56,7 @@ class PluginManager(BasePlugin):
             msg.extend(
                 [
                     self.api('plugins.core.utils:center.colored.string')(
-                        f'@x86{header}@w', '-', 80, filler_color='@B'
+                        f'@x86{header}@w', '-', line_length, filler_color=header_color
                     ),
                     self.plugin_info_line_format.format(
                         **{
@@ -66,7 +69,7 @@ class PluginManager(BasePlugin):
                     ),
                 ]
             )
-        msg.append('-' * 75)
+        msg.append(header_color + '-' * line_length + '@w')
 
         foundrequired = False
         for plugin_id in plugins:
