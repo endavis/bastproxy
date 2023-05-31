@@ -99,10 +99,10 @@ class MudProxy:
                                             arg_descriptions={'None': None})
 
         telnet_port: int = args['port']
-        plugin_telnet_port = self.api('plugins.core.proxy:setting.get')('listenport')
+        plugin_telnet_port = self.api('plugins.core.settings:get')('plugins.core.proxy', 'listenport')
 
         if telnet_port != -1 and plugin_telnet_port != telnet_port:
-            self.api('plugins.core.proxy:setting.change')('listenport', telnet_port)
+            self.api('plugins.core.settings:change')('plugins.core.proxy', 'listenport', telnet_port)
         else:
             telnet_port = plugin_telnet_port
 

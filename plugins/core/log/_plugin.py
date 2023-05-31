@@ -62,15 +62,15 @@ class LogPlugin(BasePlugin):
         """
         super().initialize()
 
-        self.api(f"{self.plugin_id}:setting.add")('color_error', '@x136', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'color_error', '@x136', 'color',
                                 'the color for error messages')
-        self.api(f"{self.plugin_id}:setting.add")('color_warning', '@y', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'color_warning', '@y', 'color',
                                 'the color for warning messages')
-        self.api(f"{self.plugin_id}:setting.add")('color_info', '@w', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'color_info', '@w', 'color',
                                 'the color for info messages')
-        self.api(f"{self.plugin_id}:setting.add")('color_debug', '@x246', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'color_debug', '@x246', 'color',
                                 'the color for debug messages')
-        self.api(f"{self.plugin_id}:setting.add")('color_critical', '@r', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'color_critical', '@r', 'color',
                                 'the color for critical messages')
 
     @AddAPI('add.log.count', description='add a log count')

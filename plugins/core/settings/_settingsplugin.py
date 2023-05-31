@@ -38,14 +38,14 @@ class SettingsPlugin(BasePlugin):
         self.settings_values = {}
 
     @AddAPI('add', description='add a setting to a plugin')
-    def _api_add(self, plugin_id, setting_name, **kwargs):
+    def _api_add(self, plugin_id, setting_name, default, stype, help, **kwargs):
         """
         @Yplugin_id@w     = the plugin_id of the owner of the setting
         @Ysetting_name@w  = the name of the setting
+        @Ydefault@w    = the default value of the setting
+        @Ystype@w      = the type of the setting
+        @Yshelp@w      = the help associated with the setting
         Keyword Arguments
-          @Ydefault@w    = the default value of the setting
-          @Ystype@w      = the type of the setting
-          @Yshelp@w      = the help associated with the setting
           @Ynocolor@w    = if True, don't parse colors when showing value
           @Yreadonly@w   = if True, can't be changed by a client
           @Yhidden@w     = if True, don't show in @Ysettings@w command
@@ -58,9 +58,9 @@ class SettingsPlugin(BasePlugin):
             return
 
         setting_info = {
-            'default': kwargs.get('default', None),
-            'help': kwargs.get('help', None),
-            'stype': kwargs.get('stype', None),
+            'default': default,
+            'help': help,
+            'stype': stype,
             'nocolor': kwargs.get('nocolor', False),
             'readonly': kwargs.get('readonly', False),
             'hidden': kwargs.get('hidden', False),
@@ -278,7 +278,7 @@ class SettingsPlugin(BasePlugin):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         line_length = self.api('plugins.core.commands:get.output.line.length')()
-        header_color = self.api('plugins.core.commands:setting.get')('output_header_color')
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
         loaded_plugins = self.api('libs.pluginloader:get.loaded.plugins.list')()
 
         default_message = ['No settings found']

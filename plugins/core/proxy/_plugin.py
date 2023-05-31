@@ -47,23 +47,23 @@ class ProxyPlugin(BasePlugin):
         """
         super().initialize()
 
-        self.api(f"{self.plugin_id}:setting.add")('mudhost', '', str,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'mudhost', '', str,
                                 'the hostname/ip of the mud')
-        self.api(f"{self.plugin_id}:setting.add")('mudport', 0, int,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'mudport', 0, int,
                                 'the port of the mud')
-        self.api(f"{self.plugin_id}:setting.add")('listenport', 9999, int,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'listenport', 9999, int,
                                 'the port for the proxy to listen on')
-        self.api(f"{self.plugin_id}:setting.add")('username', '', str,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'username', '', str,
                                 'the mud username')
-        self.api(f"{self.plugin_id}:setting.add")('linelen', 80, int,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'linelen', 80, int,
                                 'the line length for internal output data, does not affect data that comes from the mud or clients')
-        self.api(f"{self.plugin_id}:setting.add")('preamble', '#BP', str,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'preamble', '#BP', str,
                                 'the preamble from any proxy output')
-        self.api(f"{self.plugin_id}:setting.add")('preamblecolor', '@C', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'preamblecolor', '@C', 'color',
                                 'the preamble color')
-        self.api(f"{self.plugin_id}:setting.add")('preambleerrorcolor', '@R', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'preambleerrorcolor', '@R', 'color',
                                 'the preamble color for an error line')
-        self.api(f"{self.plugin_id}:setting.add")('cmdseperator', '|', str,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'cmdseperator', '|', str,
                                 'the seperator for sending multiple commands')
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_shutdown", self.plugin_id,
@@ -83,8 +83,8 @@ class ProxyPlugin(BasePlugin):
         get the mud connection
         """
         if not self.mud_connection:
-            self.mud_connection = MudConnection(self.api(f"{self.plugin_id}:setting.get")('mudhost'),
-                                                self.api(f"{self.plugin_id}:setting.get")('mudport'))
+            self.mud_connection = MudConnection(self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'),
+                                                self.api('plugins.core.settings:get')(self.plugin_id, 'mudport'))
 
         return self.mud_connection
 
@@ -93,7 +93,7 @@ class ProxyPlugin(BasePlugin):
         """
         get the preamble
         """
-        return self.api(f"{self.plugin_id}:setting.get")('preamble')
+        return self.api('plugins.core.settings:get')(self.plugin_id, 'preamble')
 
     @AddAPI('preamble.color.get', description='get the preamble color')
     def _api_preamble_color_get(self, error=False):
@@ -101,9 +101,9 @@ class ProxyPlugin(BasePlugin):
         get the preamble color
         """
         if error:
-            return self.api(f"{self.plugin_id}:setting.get")('preambleerrorcolor')
+            return self.api('plugins.core.settings:get')(self.plugin_id, 'preambleerrorcolor')
         else:
-            return self.api(f"{self.plugin_id}:setting.get")('preamblecolor')
+            return self.api('plugins.core.settings:get')(self.plugin_id, 'preamblecolor')
 
     @RegisterToEvent(event_name='ev_libs.net.mud_mudconnect')
     def _eventcb_sendusernameandpw(self):
@@ -111,8 +111,8 @@ class ProxyPlugin(BasePlugin):
         if username and password are set, then send them when the proxy
         connects to the mud
         """
-        if self.api(f"{self.plugin_id}:setting.get")('username') != '':
-            ToMudRecord(self.api(f"{self.plugin_id}:setting.get")('username'), internal=True, show_in_history=False)()
+        if self.api('plugins.core.settings:get')(self.plugin_id, 'username') != '':
+            ToMudRecord(self.api('plugins.core.settings:get')(self.plugin_id, 'username'), internal=True, show_in_history=False)()
             pasw = self.api(f"{self.plugin_id}:ssc.mudpw")()
             if pasw != '':
                 ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)()
@@ -214,8 +214,8 @@ class ProxyPlugin(BasePlugin):
         if mud.connected:
             return True, ['The proxy is currently connected to the mud']
 
-        mud.connectmud(self.api(f"{self.plugin_id}:setting.get")('mudhost'),
-                       self.api(f"{self.plugin_id}:setting.get")('mudport'))
+        mud.connectmud(self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'),
+                       self.api('plugins.core.settings:get')(self.plugin_id, 'mudport'))
 
         return True, ['Connecting to the mud']
 
@@ -266,7 +266,7 @@ class ProxyPlugin(BasePlugin):
         tmsg = []
         divider = '@R------------------------------------------------@w'
         if not self.mud_connection or not self.mud_connection.connected:
-            if not self.api(f"{self.plugin_id}:setting.get")('mudhost'):
+            if not self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'):
                 tmsg.extend(
                     (
                         divider,
@@ -274,7 +274,7 @@ class ProxyPlugin(BasePlugin):
                         f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'set')} mudhost 'host'",
                     )
                 )
-            if self.api(f"{self.plugin_id}:setting.get")('mudport') == 0:
+            if self.api('plugins.core.settings:get')(self.plugin_id, 'mudport') == 0:
                 tmsg.extend(
                     (
                         divider,
@@ -330,7 +330,7 @@ class ProxyPlugin(BasePlugin):
         restart the proxy after 10 seconds
         """
         restart_in = restart_in or 10
-        listen_port = self.api(f"{self.plugin_id}:setting.get")('listenport')
+        listen_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
 
         ToClientRecord(
             f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"

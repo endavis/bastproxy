@@ -43,7 +43,7 @@ class EventsPlugin(BasePlugin):
         """
         BasePlugin.initialize(self)
 
-        self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
 
         # Can't use decorator since this is the one that registers all events from decorators

@@ -43,7 +43,7 @@ class PluginManager(BasePlugin):
         plugins = a list of plugin_info objects
         """
         line_length = self.api('plugins.core.commands:get.output.line.length')()
-        header_color = self.api('plugins.core.commands:setting.get')('output_header_color')
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
 
         required_color = '@x75'
         msg = []
@@ -231,7 +231,7 @@ class PluginManager(BasePlugin):
         load plugins after core and client plugins have been loaded
         from the pluginstoload setting
         """
-        plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
+        plugins_to_load_setting = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
 
         plugins_to_load = []
 
@@ -256,7 +256,7 @@ class PluginManager(BasePlugin):
 
             plugins_to_load.append(plugin)
 
-        self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+        self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load_setting)
 
         if plugins_to_load_setting:
             LogRecord('Loading other plugins', level='info', sources=[self.plugin_id])()
@@ -323,9 +323,9 @@ class PluginManager(BasePlugin):
             )
 
             # add the loaded plugins to the pluginstoload setting
-            plugins_to_load_setting = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
+            plugins_to_load_setting = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
             plugins_to_load_setting.extend(plugin_response['loaded_plugins'])
-            self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load_setting)
+            self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load_setting)
 
         if plugin_response['bad_plugins']:
             tmsg.extend(
@@ -446,7 +446,7 @@ class PluginManager(BasePlugin):
         """
         super().initialize()
 
-        self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'pluginstoload', [], list,
                         'plugins to load on startup',
                         readonly=True)
 

@@ -25,7 +25,7 @@ class InspectPlugin(BasePlugin):
         """
         super().initialize()
 
-        self.api(f"{self.plugin_id}:setting.add")('showLogRecords', False, bool,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'showLogRecords', False, bool,
                                 '1 to show LogRecords in detail command')
 
     @AddParser(description='return the list of record types')
@@ -52,7 +52,7 @@ class InspectPlugin(BasePlugin):
         List records of a specific type
         """
         line_length = self.api('plugins.core.commands:get.output.line.length')()
-        header_color = self.api('plugins.core.commands:setting.get')('output_header_color')
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
 
         args = self.api('plugins.core.commands:get.current.command.args')()
         rtypes = [rtype for rtype, _ in RMANAGER.get_types()]
@@ -123,7 +123,7 @@ class InspectPlugin(BasePlugin):
                 tmsg.append(f"update {args['update']} in record {args['uid']} not found")
 
         else:
-            showlogrecords = self.api(f"{self.plugin_id}:setting.get")('showLogRecords')
+            showlogrecords = self.api('plugins.core.settings:get')(self.plugin_id, 'showLogRecords')
             update_filter = [] if showlogrecords else ['LogRecord']
             tmsg.extend(record.get_formatted_details(update_filter=update_filter,
                                                      full_related_records=args['full_related_records'],

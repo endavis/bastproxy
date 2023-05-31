@@ -522,10 +522,10 @@ class PluginLoader:
             return False
 
         # # remove from pluginstoload so it doesn't load at startup
-        # plugins_to_load = self.api(f"{self.plugin_id}:setting.get")('pluginstoload')
+        # plugins_to_load = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
         # if plugin_info.plugin_id in plugins_to_load:
         #     plugins_to_load.remove(plugin_info.plugin_id)
-        #     self.api(f"{self.plugin_id}:setting.change")('pluginstoload', plugins_to_load)
+        #     self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load)
 
         if plugin_info.loaded_info.plugin_instance:
             # delete the instance

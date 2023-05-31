@@ -110,7 +110,7 @@ class TriggersPlugin(BasePlugin):
         """
         super().initialize()
 
-        self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
+        self.api('plugins.core.settings:add')(self.plugin_id, 'enabled', 'True', bool,
                                 'enable triggers')
 
         self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)

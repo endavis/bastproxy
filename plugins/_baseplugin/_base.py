@@ -294,7 +294,7 @@ class Base: # pylint: disable=too-many-instance-attributes
             old_plugin_version - the version in the savestate file
             new_plugin_version - the latest version from the module
         """
-        old_plugin_version = self.api(f"{self.plugin_id}:setting.get")('_version')
+        old_plugin_version = self.api('plugins.core.settings:get')(self.plugin_id, '_version')
 
         new_plugin_version = self.plugin_info.version
 
@@ -308,7 +308,7 @@ class Base: # pylint: disable=too-many-instance-attributes
                     LogRecord(f"_update_version: no function to upgrade to version {version}",
                               level='error', sources=[self.plugin_id, 'plugin_upgrade'])()
 
-            self.api(f"{self.plugin_id}:setting.change")('_version', new_plugin_version)
+            self.api('plugins.core.settings:change')(self.plugin_id, '_version', new_plugin_version)
 
             self.api(f"{self.plugin_id}:save.state")()
 
@@ -381,7 +381,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         initialize the plugin, do most things here
         """
-        self.api(f"{self.plugin_id}:setting.add")('_version', 1, int, 'The version of the plugin', hidden=True)
+        self.api('plugins.core.settings:add')(self.plugin_id, '_version', 1, int, 'The version of the plugin', hidden=True)
 
         self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 

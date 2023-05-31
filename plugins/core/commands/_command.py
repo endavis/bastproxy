@@ -146,10 +146,10 @@ class Command:
         returns:
           the updated message
         """
-        simple = self.api('plugins.core.commands:setting.get')('simple_output')
-        line_length = self.api('plugins.core.proxy:setting.get')('linelen')
+        simple = self.api('plugins.core.settings:get')('plugins.core.commands', 'simple_output')
+        line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
         preamble_color = self.api('plugins.core.proxy:preamble.color.get')()
-        header_color = self.api('plugins.core.commands:setting.get')('header_color')
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'header_color')
         command_indent = self.api("plugins.core.commands:get.command.indent")()
         command_indent_string = ' ' * command_indent
         command_line_length = self.api("plugins.core.commands:get.command.line.length")()

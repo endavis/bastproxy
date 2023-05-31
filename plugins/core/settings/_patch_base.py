@@ -76,15 +76,3 @@ def _settings_plugin_save(self):
     save all settings for the plugin
     """
     self.api('plugins.core.settings:save.plugin')(self.plugin_id)
-
-@AddAPI('setting.get', description='get the value of a setting')
-def _api_settings_plugin_get(self, setting):
-    return self.api('plugins.core.settings:get')(self.plugin_id, setting)
-
-@AddAPI('setting.change', description='change the value of a setting')
-def _api_settings_plugin_change(self, setting, value):
-    return self.api('plugins.core.settings:change')(self.plugin_id, setting, value)
-
-@AddAPI('setting.add', description='add a setting to the plugin')
-def _api_settings_plugin_add(self, name, default, stype, help, **kwargs):
-    self.api('plugins.core.settings:add')(self.plugin_id, name, default=default, stype=stype, help=help, **kwargs)

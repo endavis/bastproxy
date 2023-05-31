@@ -229,7 +229,7 @@ class Event:
             data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
-        log_savestate = self.api('plugins.core.events:setting.get')('log_savestate')
+        log_savestate = self.api('plugins.core.settings:get')('plugins.core.events', 'log_savestate')
         log: bool = True if log_savestate else not self.name.endswith('_savestate')
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
