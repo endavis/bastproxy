@@ -216,6 +216,7 @@ class PluginPersistentDict(PersistentDict):
         if not self.event_setup and self.api('libs.api:has')(
             'plugins.core.events:add.event'
         ):
+            self.event_setup = True
             for i in self:
                 if not self.api(f"{self.owner_id}:setting.is.hidden")(i):
                     event_name = f"ev_{self.owner_id}_var_{i}_modified"
