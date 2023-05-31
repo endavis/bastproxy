@@ -54,7 +54,7 @@ class SSC(object):
 
         return self.default
 
-    @AddCommand(dynamic_name="{name}")
+    @AddCommand(dynamic_name="{name}", show_in_history=False)
     @AddParser(description="set the {desc}")
     @AddArgument('value',
                     help='the new {desc}',
