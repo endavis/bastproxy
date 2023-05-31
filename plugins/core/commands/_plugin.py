@@ -228,8 +228,15 @@ class CommandPlugin(BasePlugin):
 
         if 'dynamic_name' in command_data.command and command_data.command['dynamic_name']:
             command_name = command_data.command['dynamic_name'].format(**func.__self__.__dict__)
+        elif 'name' in command_data.command:
+            command_name = command_data.command['name']
         else:
             command_name = func.__name__.replace('_command_', '')
+
+        command_name = command_name.strip()
+
+        if 'name' in command_data.command['kwargs']:
+            del command_data.command['kwargs']['name']
 
         if 'description' in command_data.argparse['kwargs']:
             command_data.argparse['kwargs']['description'] = command_data.argparse['kwargs']['description'].format(**func.__self__.__dict__)
@@ -259,11 +266,16 @@ class CommandPlugin(BasePlugin):
         if 'show_in_history' not in command_kwargs:
             command_kwargs['show_in_history'] = True
 
-        command = Command(plugin_id,
-                            command_name,
-                            func,
-                            parser,
-                            **command_kwargs)
+        try:
+            command = Command(plugin_id,
+                                command_name,
+                                func,
+                                parser,
+                                **command_kwargs)
+        except Exception as e:
+            LogRecord(f"Error creating command {func.__name__}: {command_kwargs}",
+                        level='error', sources=[self.plugin_id], exc_info=True)()
+            return
 
         self.update_command(plugin_id, command_name, command)
 
@@ -930,7 +942,7 @@ class CommandPlugin(BasePlugin):
         return True, message
 
     @AddCommand(shelp='run a command in history', show_in_history=False,
-                preamble=False, format=False, dynamic_name="!")
+                preamble=False, format=False, name="!")
     @AddParser(description='run a command in history')
     @AddArgument('number',
                     help='the history # to run',

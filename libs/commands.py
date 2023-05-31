@@ -76,6 +76,10 @@ class AddCommand:
     a class to decorate a function with command data
     """
     def __init__(self, *args, **kwargs):
+        self.name = None
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+            del kwargs['name']
         self.dynamic_name = False
         if 'dynamic_name' in  kwargs:
             self.dynamic_name = kwargs['dynamic_name']
@@ -90,6 +94,8 @@ class AddCommand:
         if not hasattr(func, 'command_data'):
             func.command_data  = CommandFuncData()
         func.command_data.command['kwargs'].update(self.command_kwargs)
+        if 'name' not in func.command_data.command:
+            func.command_data.command['name'] = self.name or func.__name__.replace('_command_', ' ')
         func.command_data.command['dynamic_name'] = self.dynamic_name
         func.command_data.command['autoadd'] = self.autoadd
 
