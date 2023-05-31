@@ -92,17 +92,43 @@ class LogPlugin(BasePlugin):
         """
         if isinstance(level, int):
             level = logging.getLevelName(level).lower()
+
         match level:
             case 'error':
-                return self.setting_values['color_error']
+                try:
+                    return self.api('plugins.core.settings:get')(
+                        self.plugin_id, 'color_error'
+                    )
+                except Exception:
+                    return '@x136'
             case 'warning':
-                return self.setting_values['color_warning']
+                try:
+                    return self.api('plugins.core.settings:get')(
+                        self.plugin_id, 'color_warning'
+                    )
+                except Exception:
+                    return '@y'
             case 'info':
-                return self.setting_values['color_info']
+                try:
+                    return self.api('plugins.core.settings:get')(
+                        self.plugin_id, 'color_info'
+                    )
+                except Exception:
+                    return '@w'
             case 'debug':
-                return self.setting_values['color_debug']
+                try:
+                    return self.api('plugins.core.settings:get')(
+                        self.plugin_id, 'color_debug'
+                    )
+                except Exception:
+                    return '@x246'
             case 'critical':
-                return self.setting_values['color_critical']
+                try:
+                    return self.api('plugins.core.settings:get')(
+                        self.plugin_id, 'color_critical'
+                    )
+                except Exception:
+                    return '@r'
             case _:
                 return ''
 
