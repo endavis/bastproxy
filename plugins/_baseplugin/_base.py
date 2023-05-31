@@ -381,7 +381,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         initialize the plugin, do most things here
         """
-        self.api(f"{self.plugin_id}:setting.add")('_version', 0, int, 'The version of the plugin', hidden=True)
+        self.api(f"{self.plugin_id}:setting.add")('_version', 1, int, 'The version of the plugin', hidden=True)
 
         self._update_version()
 
