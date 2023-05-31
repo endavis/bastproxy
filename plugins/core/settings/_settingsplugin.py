@@ -262,6 +262,7 @@ class SettingsPlugin(BasePlugin):
 
         return tmsg or [f'There are no settings defined in {plugin_id}']
 
+    @AddCommand(group='Settings', show_in_history=False)
     @AddParser(description="List all settings")
     @AddArgument('search',
                     help='only list settings with the included string',
