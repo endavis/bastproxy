@@ -315,7 +315,8 @@ class SettingsPlugin(BasePlugin):
         if not plugin_message:
             return True, default_message
 
-        return True, message.extend(plugin_message)
+        message.extend(plugin_message)
+        return True, message
 
     @AddCommand(group='Settings', name='pset', show_in_history=False)
     @AddParser(formatter_class=argp.RawDescriptionHelpFormatter,
@@ -341,7 +342,7 @@ class SettingsPlugin(BasePlugin):
         command to set a plugin setting
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
-        print(f"{args = }")
+
         if not args['value']:
             return False, ["please specify a value to set the setting to"]
 
