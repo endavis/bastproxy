@@ -62,6 +62,7 @@ class PluginInfo():
         self.is_dev = self.package[0] == '_'
         self.is_required: bool = False
         self.is_plugin: bool = False
+        self.is_valid_python_code: bool = True
         self.files = {}
 
         self.data_directory: Path = Path('')
@@ -106,7 +107,7 @@ class PluginInfo():
                     continue
 
                 success, exception = self.check_file_is_valid_python_code(file)
-                self.is_valid_python_code = success or self.is_valid_python_code
+                self.is_valid_python_code = success and self.is_valid_python_code
 
                 has_changed = False
                 if self.loaded_info.is_loaded and file_modified_time > self.loaded_info.imported_time:
