@@ -48,7 +48,7 @@ class ProxyPlugin(BasePlugin):
         self.api(f"{self.plugin_id}:setting.add")('listenport', 9999, int,
                                 'the port for the proxy to listen on')
         self.api(f"{self.plugin_id}:setting.add")('username', '', str,
-                                'username')
+                                'the mud username')
         self.api(f"{self.plugin_id}:setting.add")('linelen', 80, int,
                                 'the line length for internal output data, does not affect data that comes from the mud or clients')
         self.api(f"{self.plugin_id}:setting.add")('preamble', '#BP', str,
