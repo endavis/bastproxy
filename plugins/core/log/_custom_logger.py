@@ -79,8 +79,7 @@ class CustomColorFormatter(logging.Formatter):
                 record.msg += '\n'.join(formatted_exc_no_newline)
             record.exc_info = None
             record.exc_text = None
-        if self.api('libs.api:has')('plugins.core.log:get.level.color'):
-            color = self.api('plugins.core.log:get.level.color')(record.levelno)
+        if self.api('libs.api:has')('plugins.core.log:get.level.color') and (color := self.api('plugins.core.log:get.level.color')(record.levelno)):
             log_fmt = f"\x1b[{libs.colors.ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
         else:
             log_fmt = self.FORMATS.get(record.levelno)
