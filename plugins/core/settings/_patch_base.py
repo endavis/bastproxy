@@ -13,7 +13,6 @@ import textwrap
 
 # Project
 import libs.argp as argp
-from libs.api import AddAPI
 from plugins._baseplugin import RegisterPluginHook
 from libs.commands import AddCommand, AddParser, AddArgument
 

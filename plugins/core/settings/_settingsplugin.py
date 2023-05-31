@@ -191,7 +191,7 @@ class SettingsPlugin(BasePlugin):
         """
         self.settings_values[plugin_id].raiseall()
 
-    @AddAPI('is.setting.hidden')
+    @AddAPI('is.setting.hidden', description='check if a plugin setting is flagged hidden')
     def _api_is_setting_hidden(self, plugin_id, setting):
         """
         check if a plugin setting is hidden
