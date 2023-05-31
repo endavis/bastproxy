@@ -194,6 +194,11 @@ class Base: # pylint: disable=too-many-instance-attributes
         if dependency not in self.dependencies:
             self.dependencies.append(dependency)
 
+    @AddAPI('get.data.directory', description='get the data directory for this plugin')
+    def _api_get_data_directory(self):
+        """ get the data directory for this plugin """
+        return self.plugin_info.data_directory
+
     def _find_attribute(self, attribute_name):
         """
         find an attribute of this plugin and dump it as a string
