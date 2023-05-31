@@ -218,7 +218,7 @@ class PluginPersistentDict(PersistentDict):
         ):
             self.event_setup = True
             for i in self:
-                if not self.api(f"{self.owner_id}:setting.is.hidden")(i):
+                if not self.api("plugins.core.settings:is.setting.hidden")(self.owner_id, i):
                     event_name = f"ev_{self.owner_id}_var_{i}_modified"
                     self.api('plugins.core.events:add.event')(event_name, self.owner_id,
                                         description=[f"An event raised when {i} is modified in {self.owner_id}"],
@@ -238,20 +238,20 @@ class PluginPersistentDict(PersistentDict):
         except AttributeError:
             plugin_instance = None
         if key in self and plugin_instance:
-            old_value =  self.api(f"{plugin_instance.plugin_id}:setting.get")(key)
+            old_value =  self.api("plugins.core.settings:get")(self.owner_id, key)
         if old_value != val:
             dict.__setitem__(self, key, val)
 
             if plugin_instance and \
                 (plugin_instance.reset_f
                  or plugin_instance.initializing_f
-                 or self.api(f"{plugin_instance.plugin_id}:setting.is.hidden")(key)):
+                 or self.api("plugins.core.settings:is.setting.hidden")(self.owner_id, key)):
                 return
             if self.api.startup:
                 return
 
             if plugin_instance:
-                new_value =  self.api(f"{plugin_instance.plugin_id}:setting.get")(key)
+                new_value = self.api("plugins.core.settings:get")(self.owner_id, key)
             else:
                 new_value = val
 
@@ -270,14 +270,13 @@ class PluginPersistentDict(PersistentDict):
         go through and raise a ev_<plugin>_var_<setting>_modified event for each setting
         """
         self.add_events()
-        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(self.owner_id)
         old_value = '__init__'
         for i in self:
-            if plugin_instance:
-                if self.api(f"{plugin_instance.plugin_id}:setting.is.hidden")(i):
+            if self.api('libs.pluginloader:is.plugin.loaded')(self.owner_id):
+                if self.api("plugins.core.settings:is.setting.hidden")(self.owner_id, i):
                     continue
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
-                new_value = self.api(f"{plugin_instance.plugin_id}:setting.get")(i)
+                new_value = self.api("plugins.core.settings:get")(self.owner_id, i)
             else:
                 event_name = f"ev_{self.owner_id}_var_{i}_modified"
                 new_value = self[i]

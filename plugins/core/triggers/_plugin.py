@@ -103,14 +103,15 @@ class TriggersPlugin(BasePlugin):
 
         # The compiled regex
         self.created_regex = {'created_regex': '', 'created_regex_compiled': ''}
-        self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
-                                'enable triggers')
 
     def initialize(self):
         """
         initialize the plugin
         """
-        BasePlugin.initialize(self)
+        super().initialize()
+
+        self.api(f"{self.plugin_id}:setting.add")('enabled', 'True', bool,
+                                'enable triggers')
 
         self.api('plugins.core.triggers:trigger.add')('beall', None, self.plugin_id, enabled=False)
         self.api('plugins.core.triggers:trigger.add')('all', None, self.plugin_id, enabled=False)

@@ -19,11 +19,11 @@ class InspectPlugin(BasePlugin):
     """
     a plugin to show connection information
     """
-    def __init__(self, *args, **kwargs):
+    def initialize(self):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
+        super().initialize()
 
         self.api(f"{self.plugin_id}:setting.add")('showLogRecords', False, bool,
                                 '1 to show LogRecords in detail command')

@@ -35,10 +35,6 @@ class PluginManager(BasePlugin):
 
         self.api('libs.api:add')(self.plugin_id, 'save.all.plugins.state', self._api_save_all_plugins_state)
 
-        self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
-                                'plugins to load on startup',
-                                readonly=True)
-
     def _command_helper_format_plugin_list(self, plugins, header='', columnheader=True,
                                            required_color_line=True) -> list[str]:
         """
@@ -449,6 +445,10 @@ class PluginManager(BasePlugin):
         initialize plugin
         """
         super().initialize()
+
+        self.api(f"{self.plugin_id}:setting.add")('pluginstoload', [], list,
+                        'plugins to load on startup',
+                        readonly=True)
 
         self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_initialized",

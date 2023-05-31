@@ -37,7 +37,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use api:add, dependency:add, setting.add
+              only use api:add, dependency:add
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
@@ -273,7 +273,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
             if callable(attr):
                 text_list, _ = inspect.getsourcelines(attr)
-                message.extend([i.rstrip('\n') for i in text_list])
+                message.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
                 message.extend(
                     ('', '@M' + '-' * 60 + '@x', f"Defined in {inspect.getfile(attr)}")
                 )
@@ -284,6 +284,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         return True, message
 
+    @RegisterPluginHook('post_initialize')
     def _update_version(self):
         """
         update plugin data
@@ -381,8 +382,6 @@ class Base: # pylint: disable=too-many-instance-attributes
         initialize the plugin, do most things here
         """
         self.api(f"{self.plugin_id}:setting.add")('_version', 1, int, 'The version of the plugin', hidden=True)
-
-        self._update_version()
 
         self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 

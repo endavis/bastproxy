@@ -72,7 +72,13 @@ class CommandPlugin(BasePlugin):
 
         self.current_command: Command | None = None
 
-        # initialize settings
+
+    def initialize(self):
+        """
+        initialize the instance
+        """
+        super().initialize()
+
         self.api(f"{self.plugin_id}:setting.add")('cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
         self.api(f"{self.plugin_id}:setting.add")('spamcount', 20, int,

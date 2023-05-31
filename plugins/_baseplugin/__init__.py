@@ -14,9 +14,8 @@ __all__ = ['BasePlugin', 'RegisterPluginHook', 'patch']
 
 from ._base import Base
 from ._commands import Commands
-from ._settings import Settings
 from ._pluginhooks import RegisterPluginHook
 from ._patch import patch
 
-class BasePlugin(Base, Commands, Settings):
+class BasePlugin(Base, Commands):
     pass

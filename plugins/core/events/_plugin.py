@@ -37,14 +37,14 @@ class EventsPlugin(BasePlugin):
 
         self.events: dict[str, Event] = {}
 
-        self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
-                                'flag to log savestate events, reduces log spam if False')
-
     def initialize(self):
         """
         initialize the plugin
         """
         BasePlugin.initialize(self)
+
+        self.api(f"{self.plugin_id}:setting.add")('log_savestate', False, bool,
+                                'flag to log savestate events, reduces log spam if False')
 
         # Can't use decorator since this is the one that registers all events from decorators
         self.api('plugins.core.events:register.to.event')("ev_libs.pluginloader_post_startup_plugins_initialize", self._eventcb_register_events_at_startup)

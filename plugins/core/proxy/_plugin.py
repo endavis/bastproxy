@@ -41,6 +41,12 @@ class ProxyPlugin(BasePlugin):
         self.mudpw = None
         self.mud_connection = None
 
+    def initialize(self):
+        """
+        initialize the plugin
+        """
+        super().initialize()
+
         self.api(f"{self.plugin_id}:setting.add")('mudhost', '', str,
                                 'the hostname/ip of the mud')
         self.api(f"{self.plugin_id}:setting.add")('mudport', 0, int,
@@ -59,12 +65,6 @@ class ProxyPlugin(BasePlugin):
                                 'the preamble color for an error line')
         self.api(f"{self.plugin_id}:setting.add")('cmdseperator', '|', str,
                                 'the seperator for sending multiple commands')
-
-    def initialize(self):
-        """
-        initialize the plugin
-        """
-        BasePlugin.initialize(self)
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_shutdown", self.plugin_id,
                                                   description='event when the proxy is shutting down',

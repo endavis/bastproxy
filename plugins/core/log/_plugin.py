@@ -56,6 +56,12 @@ class LogPlugin(BasePlugin):
             self.plugin_info.data_directory / 'logtypes_to_file.txt',
             'c')
 
+    def initialize(self):
+        """
+        initialize the plugin
+        """
+        super().initialize()
+
         self.api(f"{self.plugin_id}:setting.add")('color_error', '@x136', 'color',
                                 'the color for error messages')
         self.api(f"{self.plugin_id}:setting.add")('color_warning', '@y', 'color',
