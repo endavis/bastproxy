@@ -128,7 +128,6 @@ class CommandPlugin(BasePlugin):
         """
         return the line length for output
         """
-        simple = self.api(f"{self.plugin_id}:setting.get")('simple_output')
         line_length = self.api('plugins.core.proxy:setting.get')('linelen')
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
@@ -214,13 +213,13 @@ class CommandPlugin(BasePlugin):
             return
 
         if hasattr(func, '__self__') and hasattr(func.__self__, 'plugin_id'):
-            plugin_id = func.__self__.plugin_id
+            plugin_id = func.__self__.plugin_id # pyright: ignore reportGeneralTypeIssues
         else:
             LogRecord(f"Function does not have a plugin: {func.__name__}",
                         level='warning', sources=[self.plugin_id])()
             return
 
-        command_data = copy.deepcopy(func.command_data)
+        command_data = copy.deepcopy(func.command_data) # pyright: ignore reportGeneralTypeIssues
         if not command_data.command['autoadd'] and not force:
             LogRecord(f"Command {func.__name__} in {plugin_id} will not be added, autoadd set to False",
                         level='debug', sources=[self.plugin_id])()
@@ -403,8 +402,13 @@ class CommandPlugin(BasePlugin):
                   level='debug', sources=[self.plugin_id, plugin_id])(actor = f"{self.plugin_id}:run_command:command_ran")
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
             success, message, _ = command.run(argument_string, format)
+            if not success:
+                LogRecord(f"command {command_name} from plugin {plugin_id} failed with message {message}",
+                            level='debug', sources=[self.plugin_id, plugin_id], stack_info=True)()
             return success, message
 
+        LogRecord(f"command {command_name} from plugin {plugin_id} not found",
+                    level='warning', sources=[self.plugin_id, plugin_id], stack_info=True)()
         return None, []
 
     def add_command_to_history(self, command: str):
@@ -421,7 +425,6 @@ class CommandPlugin(BasePlugin):
         returns:
           True if succcessful, False if not successful
         """
-
         # remove existing
         if command in self.command_history_data:
             self.command_history_data.remove(command)
