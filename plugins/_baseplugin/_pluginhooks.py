@@ -24,8 +24,8 @@ class RegisterPluginHook:
         'stats' - invoked when getting the stats of the plugin
                     returns a dict of stats
 
-            hook_name: the hook to register to
-            priority: the priority to register the function with (Default: 50)
+        hook_name: the hook to register to
+        priority: the priority to register the function with (default: 50)
         """
         self.hook_name = hook_name
         self.priority = priority
@@ -33,8 +33,6 @@ class RegisterPluginHook:
     def __call__(self, func):
         if not hasattr(func, 'plugin_hooks'):
             func.plugin_hooks = {}
-        if self.hook_name not in func.plugin_hooks:
-            func.plugin_hooks[self.hook_name] = []
         func.plugin_hooks[self.hook_name] = self.priority
 
         return func
