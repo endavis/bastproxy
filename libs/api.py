@@ -238,7 +238,7 @@ class APIItem:
     Wraps an API function to track its use.
     """
     def __init__(self, full_api_name: str, tfunction: typing.Callable, owner_id: str | None,
-                 description='') -> None:
+                 description: list | str ='') -> None:
         """
         Initializes an APIItem object.
 
@@ -254,8 +254,12 @@ class APIItem:
         self.overwritten_api: APIItem | None = None
         if not description:
             comments = inspect.getcomments(self.tfunction)
-            description = comments[2:].strip() if comments else ''
-        self.description: str = description
+            comments = comments[2:].strip() if comments else ''
+            description = comments.split('\n')
+        elif isinstance(description, str):
+            description = description.split('\n')
+
+        self.description: list = description
 
     def __call__(self, *args, **kwargs):
         """
@@ -299,7 +303,7 @@ class APIItem:
             if not line:
                 continue
             if i == 0:
-                description.append(f"{'Description':<13} : {line}")
+                description.append(f"@C{'Description':<11}@w : {line}")
             else:
                 description.append(f"{'':<13}   {line}")
 
@@ -805,7 +809,7 @@ class API():
                 tmsg.extend(
                     (
                         f"   @C{i:<60}@w : called {api_data.count} times @w",
-                        f"        {api_data.description}@w",
+                        f"        {api_data.description[0]}@w",
                     )
                 )
         return tmsg
