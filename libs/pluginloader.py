@@ -539,3 +539,42 @@ class PluginLoader:
                     traceback_message = [item.strip() for item in traceback_message if item and item != '\n']
                     LogRecord([f'Plugin {plugin_info.plugin_id} had an import error: ', *traceback_message],
                                 level='warning', sources=[__name__])()
+
+    @AddAPI('fuzzy.match.plugin.id', description='find a plugin id from a string')
+    def _api_fuzzy_match_plugin_id(self, plugin_id_string: str) -> tuple[bool, str, str, str]:
+        """
+        find a command from the client
+        return bool (found), plugin_id, message
+        """
+        LogRecord(f"find_plugin: {plugin_id_string}",
+                  level='debug',
+                  sources=[__name__])()
+
+        psplit = plugin_id_string.split('.', 1)
+
+        if len(psplit) not in [2, 3]:
+            return False, '', '', f"Invalid plugin string: {plugin_id_string}"
+
+        if len(psplit) == 2:
+            tmp_package = f"plugins.{psplit[0]}"
+            tmp_plugin = psplit[1]
+        else:
+            tmp_package = f"plugins.{psplit[1]}"
+            tmp_plugin = psplit[2]
+
+        loaded_list = self.api(f'{__name__}:get.loaded.plugins.list')()
+        package_list = self.api(f"{__name__}:get.packages.list")()
+
+        # try and find the package
+        new_package = self.api('plugins.core.fuzzy:get.best.match')(tmp_package, tuple(package_list),
+                                                                scorer='token_set_ratio')
+
+        if not new_package:
+            return False, '', '', 'Bad Package'
+
+        # try and find the plugin
+        new_plugin = self.api('plugins.core.fuzzy:get.best.match')(f"{new_package}.{tmp_plugin}",
+                                                                   tuple(loaded_list),
+                                                                   scorer='token_set_ratio')
+
+        return (True, new_package, new_plugin, '') if new_plugin else (False, new_package, '', 'Bad Plugin')
