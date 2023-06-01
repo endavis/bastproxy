@@ -8,6 +8,7 @@
 
 # Standard Library
 import sys
+from functools import lru_cache
 
 # 3rd Party
 try:
@@ -37,8 +38,9 @@ class FuzzyPlugin(BasePlugin):
     """
     a plugin to test command parsing
     """
+    @lru_cache(maxsize=128)
     @AddAPI('get.best.match', description='get the best match for a string in a list of strings')
-    def _api_get_best_match(self, item_to_match, list_to_match, score_cutoff = 80,
+    def _api_get_best_match(self, item_to_match, list_to_match: tuple, score_cutoff = 80,
                        scorer: str = 'ratio') -> str:
         """  get the best match for a string in a list of strings
         @Yitem_to_match@w  = the string to find the closest match for
@@ -78,8 +80,9 @@ class FuzzyPlugin(BasePlugin):
 
         return found
 
+    @lru_cache(maxsize=128)
     @AddAPI('get.top.matches', description='get the top fuzzy matches for a string')
-    def _api_get_top_matches(self, item_to_match, list_to_match, items=5, score_cutoff=80, scorer: str = 'ratio') -> list:
+    def _api_get_top_matches(self, item_to_match, list_to_match: tuple, items=5, score_cutoff=80, scorer: str = 'ratio') -> list:
         """
         scorer can be ratio, partial_ratio, token_sort_ratio,
                         token_set_ratio, partial_token_sort_ratio,
