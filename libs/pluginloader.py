@@ -21,7 +21,7 @@ import datetime
 
 # Project
 from libs.dependency import PluginDependencyResolver
-from libs.api import API
+from libs.api import API, AddAPI
 import libs.imputils as imputils
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
@@ -40,24 +40,9 @@ class PluginLoader:
         self.plugins_info: dict[str, PluginInfo] = {}
         self.base_plugin_dir = API.BASEPLUGINPATH
 
-        self.api('libs.api:add')(__name__, 'is.plugin.loaded', self._api_is_plugin_loaded)
-        self.api('libs.api:add')(__name__, 'is.plugin.id', self._api_is_plugin_id)
-        self.api('libs.api:add')(__name__, 'does.plugin.exist', self._api_does_plugin_exist)
-        self.api('libs.api:add')(__name__, 'get.plugin.instance', self._api_get_plugin_instance)
-        self.api('libs.api:add')(__name__, 'get.plugin.module', self._api_get_plugin_module)
-        self.api('libs.api:add')(__name__, 'get.loaded.plugins.list', self._api_get_loaded_plugins_list)
-        self.api('libs.api:add')(__name__, 'get.packages.list', self._api_get_packages_list)
-        self.api('libs.api:add')(__name__, 'get.plugin.info', self._api_get_plugin_info)
-        self.api('libs.api:add')(__name__, 'get.all.plugins', self._api_get_all_plugins)
-        self.api('libs.api:add')(__name__, 'get.not.loaded.plugins', self._api_get_not_loaded_plugins)
-        self.api('libs.api:add')(__name__, 'get.plugins.in.package', self._api_get_plugins_in_package)
-        self.api('libs.api:add')(__name__, 'get.all.short.names', self._api_get_all_short_names)
-        self.api('libs.api:add')(__name__, 'short.name.convert.plugin.id', self._api_short_name_convert_plugin_id)
-        self.api('libs.api:add')(__name__, 'plugin.get.files', self._api_plugin_get_files)
-        self.api('libs.api:add')(__name__, 'plugin.get.changed.files', self._api_plugin_get_changed_files)
-        self.api('libs.api:add')(__name__, 'plugin.get.invalid.python.files', self._api_plugin_get_invalid_python_files)
-        self.api('libs.api:add')(__name__, 'load.plugins', self._api_load_plugins)
+        self.api('libs.api:add.apis.for.object')(__name__, self)
 
+    @AddAPI('get.not.loaded.plugins', description='get a list of plugins that are not loaded')
     def _api_get_not_loaded_plugins(self):
         """
         get a list of plugins that are not loaded
@@ -73,64 +58,42 @@ class PluginLoader:
 
         return list(sorted(pdiff))
 
+    @AddAPI('get.all.plugins', description='get all plugins')
     def _api_get_all_plugins(self):
         """
         get all plugins
         """
         return self.plugins_info.keys()
 
+    @AddAPI('get.plugin.info', description='get the plugin info for a plugin')
     def _api_get_plugin_info(self, plugin_id):
         """
         get the plugin info for a plugin
         """
         return self.plugins_info[plugin_id]
 
+    @AddAPI('does.plugin.exist', description='check if a plugin exists')
     def _api_does_plugin_exist(self, plugin_id):
         """
         check if a plugin exists
         """
         return plugin_id in self.plugins_info
 
-    def _api_plugin_get_files(self, plugin_id):
-        """
-        get the files for a plugin
-        """
-        return self.plugins_info[plugin_id].get_files()
-
+    @AddAPI('plugin.get.changed.files', description='get the list of files that have changed since loading for a plugin')
     def _api_plugin_get_changed_files(self, plugin):
         """
         return a list of files that have changed since loading
         """
         return self.plugins_info[plugin].get_changed_files()
 
+    @AddAPI('plugin.get.invalid.python.files', description='get the list of files that have invalid python syntax for a plugin')
     def _api_plugin_get_invalid_python_files(self, plugin):
         """
         return a list of files that have invalid python syntax
         """
         return self.plugins_info[plugin].get_invalid_python_files()
 
-    # convert a short name to a plugin_id
-    def _api_short_name_convert_plugin_id(self, short_name):
-        """
-        convert a short_name to a plugin_id
-        Note: short_names are not guaranteed to be unique
-        """
-        short_name_list = []
-        plugin_id_list = []
-        for plugin_id in self.api(f"{__name__}:get.loaded.plugins.list")():
-            plugin_info = self.plugins_info[plugin_id]
-            short_name_list.append(plugin_info.short_name)
-            plugin_id_list.append(plugin_info.plugin_id)
-
-        if found_short_name := self.api('plugins.core.fuzzy:get.best.match')(
-            short_name, short_name_list
-        ):
-            short_name_index = short_name_list.index(found_short_name)
-            return plugin_id_list[short_name_index]
-
-        return None
-
-    # get a list of loaded plugins
+    @AddAPI('get.loaded.plugins.list', description='get the list of loaded plugins')
     def _api_get_loaded_plugins_list(self):
         """
         get the list of loaded plugins
@@ -139,15 +102,7 @@ class PluginLoader:
         """
         return [plugin_info.plugin_id for plugin_info in self.plugins_info.values() if plugin_info.loaded_info.is_loaded]
 
-    # return all short names
-    def _api_get_all_short_names(self):
-        """
-        return a list of all short names
-        for loaded plugins
-        """
-        return [self.plugins_info[plugin_id].short_name for plugin_id in self.api(f"{__name__}:get.loaded.plugins.list")()]
-
-    # get a list of all packages
+    @AddAPI('get.packages.list', description='get the list of packages')
     def _api_get_packages_list(self):
         """
         return the list of packages
@@ -157,6 +112,7 @@ class PluginLoader:
 
         return packages
 
+    @AddAPI('get.plugins.in.package', description='get the list of plugins in a package that have been loaded')
     def _api_get_plugins_in_package(self, package):
         """
         get the list of plugins in a package that have been loaded
@@ -165,19 +121,7 @@ class PluginLoader:
         """
         return [plugin_id for plugin_id in self.api(f"{__name__}:get.loaded.plugins.list")() if self.plugins_info[plugin_id].package == package]
 
-    # get a plugin instance
-    def _api_get_plugin_module(self, pluginname):
-        """  returns the module of a plugin
-        @Ypluginname@w  = the plugin to check for
-
-        returns:
-          the module for a plugin"""
-        if self.api(f"{__name__}:is.plugin.id")(pluginname) and self.plugins_info[pluginname].loaded_info.is_loaded:
-            return self.plugins_info[pluginname].loaded_info.module
-
-        return None
-
-    # get a plugin instance
+    @AddAPI('get.plugin.instance', description='get a loaded plugin instance')
     def _api_get_plugin_instance(self, plugin_name) -> BasePlugin | None:
         """  get a loaded plugin instance
         @Ypluginname@w  = the plugin to get
@@ -198,18 +142,18 @@ class PluginLoader:
 
         return plugin_instance
 
-    # get a plugin instance
+    @AddAPI('is.plugin.id', description='check if a str is a plugin id')
     def _api_is_plugin_id(self, plugin_id):
-        """  get a loaded plugin instance
-        @Ypluginname@w  = the plugin to get
+        """  check if a plugin is loaded
+        @Yplugin_id@w  = the plugin id to check
 
         returns:
-          if the plugin exists, returns a plugin instance, otherwise returns None"""
+          returns True if the plugin is an id, False if not"""
         return bool(
             self.api(f"{__name__}:get.plugin.instance")(plugin_id)
         )
 
-    # check if a plugin is loaded
+    @AddAPI('is.plugin.loaded', description='check if a plugin is loaded')
     def _api_is_plugin_loaded(self, pluginname):
         """  check if a plugin is loaded
         @Ypluginname@w  = the plugin to check for
@@ -409,6 +353,7 @@ class PluginLoader:
 
         return True
 
+    @AddAPI('load.plugins', 'load a list of plugins')
     def _api_load_plugins(self, plugins_to_load, exit_on_error=False, check_dependencies=True):
         """
         load a list of plugins
