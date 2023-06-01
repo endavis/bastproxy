@@ -58,25 +58,26 @@ class FuzzyPlugin(BasePlugin):
                   level='debug', sources=[self.plugin_id])()
         LogRecord(f"_api_get_best_match - {list_to_match=}",
                   level='debug', sources=[self.plugin_id])()
+
         if item_to_match in list_to_match:
-            found = item_to_match
             LogRecord(f"_api_get_best_match (exact) matched {item_to_match} to {found}",
                       level='debug', sources=[self.plugin_id])()
+            return item_to_match
+
+        matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
+        if len(matching_startswith) == 1:
+            found = matching_startswith[0]
+            LogRecord(f"_api_get_best_match (startswith) matched {item_to_match} to {found}",
+                    level='debug', sources=[self.plugin_id])()
         else:
-            matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
-            if len(matching_startswith) == 1:
-                found = matching_startswith[0]
-                LogRecord(f"_api_get_best_match (startswith) matched {item_to_match} to {found}",
-                        level='debug', sources=[self.plugin_id])()
-            else:
-                sorted_extract = sort_fuzzy_result(rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst))
-                LogRecord(f"_api_get_best_match - extract for {item_to_match} - {sorted_extract}",
-                        level='debug', sources=[self.plugin_id])()
-                maxscore = max(sorted_extract.keys())
-                if maxscore > score_cutoff and len(sorted_extract[maxscore]) == 1:
-                    found = sorted_extract[maxscore][0]
-                    LogRecord(f"_api_get_best_match - (score) matched {item_to_match} to {found}",
-                                level='debug', sources=[self.plugin_id])
+            sorted_extract = sort_fuzzy_result(rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst))
+            LogRecord(f"_api_get_best_match - extract for {item_to_match} - {sorted_extract}",
+                    level='debug', sources=[self.plugin_id])()
+            maxscore = max(sorted_extract.keys())
+            if maxscore > score_cutoff and len(sorted_extract[maxscore]) == 1:
+                found = sorted_extract[maxscore][0]
+                LogRecord(f"_api_get_best_match - (score) matched {item_to_match} to {found}",
+                            level='debug', sources=[self.plugin_id])
 
         return found
 
