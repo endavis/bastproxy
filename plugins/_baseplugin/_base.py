@@ -247,6 +247,9 @@ class Base: # pylint: disable=too-many-instance-attributes
         returns:
           the object or method"""
 
+        line_length = self.api('plugins.core.commands:get.output.line.length')()
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+
         if not attribute_name:
             if simple:
                 tvars = pprint.pformat(vars(self))
@@ -254,13 +257,13 @@ class Base: # pylint: disable=too-many-instance-attributes
                 tvars = self.dump_object_as_string(self)
 
             message = []
-            message.append('@M' + '-' * 60 + '@x')
+            message.append(header_color + '-' * line_length + '@x')
             message.append('Attributes')
-            message.append('@M' + '-' * 60 + '@x')
+            message.append(header_color + '-' * line_length + '@x')
             message.append(tvars)
-            message.append('@M' + '-' * 60 + '@x')
+            message.append(header_color + '-' * line_length + '@x')
             message.append('Methods')
-            message.append('@M' + '-' * 60 + '@x')
+            message.append(header_color + '-' * line_length + '@x')
             message.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
 
         else:
@@ -269,18 +272,23 @@ class Base: # pylint: disable=too-many-instance-attributes
             if not attr:
                 return False, [f"Could not find attribute {attribute_name}"]
 
-            message = [f"Object: {attribute_name}"]
+            message = []
 
-            if callable(attr):
-                text_list, _ = inspect.getsourcelines(attr)
-                message.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
-                message.extend(
-                    ('', '@M' + '-' * 60 + '@x', f"Defined in {inspect.getfile(attr)}")
-                )
-            elif simple:
+            if simple:
                 message.append(pprint.pformat(attr))
             else:
                 message.extend(self.dump_object_as_string(attr).split('\n'))
+
+            if callable(attr):
+                message.extend(
+                    (header_color + '-' * line_length + '@x',
+                    f"Defined in {inspect.getfile(attr)}",
+                    header_color + '-' * line_length + '@x',
+                    '')
+                )
+                text_list, _ = inspect.getsourcelines(attr)
+                message.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
+
 
         return True, message
 
