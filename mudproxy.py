@@ -115,8 +115,6 @@ class MudProxy:
 
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
 
-        LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy'])()
-
         # import the client handler here so that the server can be created
         import libs.net.client
 
@@ -127,9 +125,9 @@ class MudProxy:
                 shell=libs.net.client.client_telnet_handler,
                 connect_maxwait=0.5,
                 timeout=3600,
-            ), 'Proxy Telnet Listener')
+            ), 'Proxy Telnet Listener', startstring=f"Listening on port {telnet_port}")
 
-        LogRecord('__main__ - Launching proxy loop', level='info', sources=['mudproxy'])()
+        LogRecord('__main__ - Launching async loop', level='info', sources=['mudproxy'])()
 
         run_asynch()
 

@@ -19,16 +19,20 @@ class TaskItem:
     """
     a class to hold the task to be added to the event loop
     """
-    def __init__(self, task: Awaitable | Callable, name: str) -> None:
+    def __init__(self, task: Awaitable | Callable, name: str, startstring='') -> None:
         self.task = task
         self.name = name
+        self.startstring = startstring
 
     def start(self) -> None:
         if asyncio.iscoroutine(self.task):
             create_task(self.task, name=self.name)
         elif isinstance(self.task, Callable):
             create_task(self.task(), name=self.name)
-        LogRecord(f"TaskItem - Created task {self.name}", level='debug', sources=[__name__])()
+        if self.startstring:
+            LogRecord(f"Task {self.name}: {self.startstring}", level='info', sources=[__name__])()
+        else:
+            LogRecord(f"Task {self.name}: Started", level='debug', sources=[__name__])()
 
 class QueueManager:
     def __init__(self) -> None:
@@ -38,11 +42,11 @@ class QueueManager:
         self.api('libs.api:add')('libs.asynch', 'task.add', self._api_task_add)
 
     # add a task to the asyncio_tasks queue
-    def _api_task_add(self, task: Awaitable | Callable, name: str) -> None:
+    def _api_task_add(self, task: Awaitable | Callable, name: str, startstring=None) -> None:
         """
         add a task to the asyncio_tasks queue
         """
-        self.task_queue.put_nowait(TaskItem(task, name))
+        self.task_queue.put_nowait(TaskItem(task, name, startstring))
 
     async def task_check_for_new_tasks(self) -> None:
         """
