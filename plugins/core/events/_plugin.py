@@ -63,7 +63,6 @@ class EventsPlugin(BasePlugin):
                         sources=[self.plugin_id])()
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_all_events_registered")
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized', priority=10)
     def register_events_for_plugin(self, plugin_id):
         """
         update all commands for a plugin
