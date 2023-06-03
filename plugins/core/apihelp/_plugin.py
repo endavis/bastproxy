@@ -12,15 +12,21 @@
 
 # Project
 from libs.api import API
-from plugins._baseplugin import BasePlugin
 from libs.commands import AddParser, AddArgument
+from plugins._baseplugin import BasePlugin, patch
+from . import _patch_base
+
+# patch the base class with any function in the _patch_base module
+patch(_patch_base)
 
 class APIHelpPlugin(BasePlugin):
     """
     a plugin to show connection information
     """
     @AddParser(description='detail a function in the API')
-    @AddArgument('api', help='the api to detail (optional)',
+    @AddArgument('-a',
+                    '--api',
+                    help='the api to detail (optional)',
                     default='', nargs='?')
     @AddArgument('-s',
                     '--stats',
@@ -33,6 +39,9 @@ class APIHelpPlugin(BasePlugin):
     @AddArgument('-np',
                     '--noplugin',
                     help="use an API that is not from a plugin",
+                    action='store_true')
+    @AddArgument('-c', '--show-code',
+                    help="show the function code",
                     action='store_true')
     def _command_detail(self):
         """
@@ -47,7 +56,8 @@ class APIHelpPlugin(BasePlugin):
         if args['noplugin']:
             api = API(owner_id=f"{self.plugin_id}:_command_detail")
         if args['api']:
-            tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats'], stats_by_caller=args['statsdetail']))
+            tmsg.extend(api('libs.api:detail')(args['api'], stats_by_plugin=args['stats'], stats_by_caller=args['statsdetail'],
+                                               show_function_code=args['show_code']))
 
         else: # args <= 0
             tmsg.append('Please provide an api to detail')

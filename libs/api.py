@@ -290,14 +290,18 @@ class APIItem:
             dict: A dictionary of the stats for the API.
         """
         if stats := STATS_MANAGER.stats.get(self.full_api_name, None):
-            return STATS_MANAGER.stats[self.full_api_name]
+            return stats
         else:
             return None
 
-    def detail(self) -> list[str]:
+    def detail(self, stats_by_plugin=False, stats_by_caller=False, show_function_code=False) -> list[str]:
         """
         create a detailed message for this item
         """
+        api = API(owner_id=f"{self.full_api_name}:detail")
+        line_length = api('plugins.core.commands:get.output.line.length')()
+        header_color = '@M'
+
         description = []
         for i, line in enumerate(self.description):
             if not line:
@@ -327,14 +331,49 @@ class APIItem:
         if self.tfunction.__doc__:
             tmsg.append(self.tfunction.__doc__ % tdict)
 
-        tmsg.append('')
+        tmsg.append(api('plugins.core.utils:center.colored.string')('Code Details', '-',
+                                                                        line_length, filler_color=header_color))
 
         if sourcefile := inspect.getsourcefile(self.tfunction):
+            tmsg.append('')
             tmsg.append(f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}")
 
-        tmsg.append('')
+        if show_function_code:
+            tmsg.append('')
+            text_list, _ = inspect.getsourcelines(self.tfunction)
+            tmsg.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
+
+        if stats_by_plugin or stats_by_caller:
+            api_data = api('libs.api:data.get')(self.full_api_name)
+
+            if api_data and api_data.stats:
+                if stats_by_plugin:
+                    tmsg.append('')
+                    tmsg.append(api('plugins.core.utils:center.colored.string')('Stats', '-', line_length, filler_color=header_color))
+                    tmsg.append('Total Calls: %s' % api_data.stats.count)
+                    tmsg.append(header_color + '-' * 50)
+                    tmsg.append('Stats by caller')
+                    tmsg.append(header_color + '-' * 50)
+                    stats_keys = api_data.stats.calls_by_caller.keys()
+                    stats_keys = sorted(stats_keys)
+                    for i in stats_keys:
+                        tmsg.append(f"{i or 'unknown':<30}: {api_data.stats.calls_by_caller[i]}")
+
+                if stats_by_caller:
+                    tmsg.append('')
+                    tmsg.append(api('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-',
+                                                                                        line_length, filler_color=header_color))
+                    stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
+                    tmsg.append(f"Unique Callers: {len(stats_keys)}")
+                    stats_keys = sorted(stats_keys)
+                    for i in stats_keys:
+                        tmsg.append(f"{i or 'unknown':<22}: {api_data.stats.detailed_calls[i]}")
+
+                if stats_by_plugin or stats_by_caller:
+                    tmsg.append(header_color + '-' * line_length + '@w')
 
         if self.overwritten_api:
+            tmsg.append('')
             tmsg.extend(('', "This API overwrote the following:"))
             tmsg.extend(f"    {line}" for line in self.overwritten_api.detail())
 
@@ -544,7 +583,7 @@ class API():
         if overload:
             return self._api_overload(api_item, force)
 
-        if full_api_name in self._class_api:
+        if full_api_name in self._class_api and self._class_api[full_api_name].tfunction != tfunction:
             if force:
                 api_item.overwritten_api = self._class_api[full_api_name]
                 self._class_api[full_api_name] = api_item
@@ -700,12 +739,17 @@ class API():
         return True
 
     # get the details for an api function
-    def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches
+    def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None,
+                    show_function_code: bool = False) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches
         # parsing a function declaration and figuring out where the function
         # resides is intensive, so disabling pylint warning
         """
         return the detail of an api function
         """
+        line_length = self('plugins.core.commands:get.output.line.length')()
+        header_color = self('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+        #self.api('plugins.core.utils:center.colored.string')('@x86Files that have change since loading@w', '-', 60, filler_color='@B')
+
         tmsg: list[str] = []
         api_original = None
         api_overloaded = None
@@ -721,42 +765,30 @@ class API():
             with contextlib.suppress(KeyError):
                 api_overloaded = self._instance_api[api_location]
 
+
+            if api_original and api_overloaded:
+                from libs.records import LogRecord
+                LogRecord(f"{api_location} is in both the api and overloaded api", "warning",
+                          sources=[__name__])()
+
             if not api_original and not api_overloaded:
                 tmsg.append(f"{api_location} is not in the api")
                 return tmsg
 
             if api_original:
-                tmsg.extend(('Original API', '============'))
-                tmsg.extend(api_original.detail())
+                tmsg.append(self('plugins.core.utils:center.colored.string')('Original API', '-', line_length, filler_color=header_color))
+                tmsg.extend(api_original.detail(stats_by_plugin=stats_by_plugin,
+                                                stats_by_caller=stats_by_caller,
+                                                show_function_code=show_function_code))
+                tmsg.append(header_color + '-' * line_length + '@w')
 
             if api_overloaded:
-                tmsg.extend(('Overloaded API', '============'))
-                tmsg.extend(api_overloaded.detail())
+                tmsg.append(self('plugins.core.utils:center.colored.string')('Overloaded API', '-', line_length, filler_color=header_color))
+                tmsg.extend(api_overloaded.detail(stats_by_plugin=stats_by_plugin,
+                                                 stats_by_caller=stats_by_caller,
+                                                 show_function_code=show_function_code))
+                tmsg.append(header_color + '-' * line_length + '@w')
 
-            if stats_by_plugin or stats_by_caller:
-                api_data = self._api_data_get(api_location)
-
-                if api_data and api_data.stats:
-                    if stats_by_plugin:
-                        tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center.colored.string')('Stats', '-', 70, '@B'))
-                        tmsg.append('Total Calls: %s' % api_data.stats.count)
-                        tmsg.append('@B' + '-' * 50)
-                        tmsg.append('Stats by caller')
-                        tmsg.append('@B' + '-' * 50)
-                        stats_keys = api_data.stats.calls_by_caller.keys()
-                        stats_keys = sorted(stats_keys)
-                        for i in stats_keys:
-                            tmsg.append(f"{i or 'unknown':<30}: {api_data.stats.calls_by_caller[i]}")
-
-                    if stats_by_caller:
-                        tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
-                        stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
-                        tmsg.append(f"Unique Callers: {len(stats_keys)}")
-                        stats_keys = sorted(stats_keys)
-                        for i in stats_keys:
-                            tmsg.append(f"{i or 'unknown':<22}: {api_data.stats.detailed_calls[i]}")
 
         else:
             tmsg.append(f"{api_location} is not in the api")

@@ -60,28 +60,6 @@ class Commands(Protocol):
         return True, tmsg
 
     @AddCommand(group='Base')
-    @AddParser(description='list functions in the api')
-    @AddArgument('api',
-                    help='api to get details of',
-                    default='',
-                    nargs='?')
-    def _command_api(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
-        """
-        list functions in the api for a plugin
-        """
-        args = self.api('plugins.core.commands:get.current.command.args')()
-        tmsg = []
-
-        if args['api']:
-            tmsg.extend(self.api('libs.api:detail')(f"{self.plugin_id}:{args['api']}"))
-        elif api_list := self.api('libs.api:list')(self.plugin_id):
-            tmsg.extend(api_list)
-        else:
-            tmsg.append('nothing in the api')
-
-        return True, tmsg
-
-    @AddCommand(group='Base')
     @AddParser(description='show help info for this plugin')
     @AddArgument('-a',
                     '--api',
