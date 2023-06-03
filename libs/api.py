@@ -424,8 +424,8 @@ class API():
         self.add('libs.api', 'detail', self._api_detail, overload=True)
         self.add('libs.api', 'list', self._api_list, overload=True)
         self.add('libs.api', 'data.get', self._api_data_get, overload=True)
-        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_plugin_owner, overload=True)
-        self.add('libs.api', 'get.caller.owner', self._api_caller_owner, overload=True)
+        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_owner_plugin, overload=True)
+        self.add('libs.api', 'get.caller.owner', self._api_get_caller_owner, overload=True)
         self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
         self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
 
@@ -591,7 +591,7 @@ class API():
         return True
 
     # find the caller of this api
-    def _api_caller_owner(self, ignore_owner_list: list[str] | None=None) -> str:
+    def _api_get_caller_owner(self, ignore_owner_list: list[str] | None=None) -> str:
         """  get the plugin on the top of the frame stack
         @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
 
@@ -608,7 +608,7 @@ class API():
 
     @lru_cache(maxsize=128)
     # get the plugin_id of the plugin that owns the function
-    def _api_get_function_plugin_owner(self, function: typing.Callable) -> str:
+    def _api_get_function_owner_plugin(self, function: typing.Callable) -> str:
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
 
