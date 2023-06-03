@@ -166,6 +166,22 @@ if __name__ == "__main__":
 
     if args['profile']:
         import cProfile
-        cProfile.run('MP.run(args)', filename='proxy.profile')
+        import pstats
+        import io
+        with cProfile.Profile() as pr:
+            MP.run(args)
+
+            sortby = pstats.SortKey.CUMULATIVE
+            s = io.StringIO()
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+
+            result=s.getvalue()
+            # chop the string into a csv-like buffer
+            result='ncalls'+result.split('ncalls')[-1]
+            result='\n'.join([','.join(line.rstrip().split(None,5)) for line in result.split('\n')])
+            # save it to disk
+            with open('profile.csv', 'w+') as f:
+                f.write(result)
     else:
         MP.run(args)
