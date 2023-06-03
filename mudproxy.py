@@ -95,7 +95,7 @@ class MudProxy:
         # add events
         self.api.add_events()
         self.api('plugins.core.events:add.event')('ev_bastproxy_proxy_ready', 'mudproxy',
-                                            description='An event raised when the proxy is ready to accept connections',
+                                            description=['An event raised when the proxy is ready to accept connections'],
                                             arg_descriptions={'None': None})
 
         telnet_port: int = args['port']

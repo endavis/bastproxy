@@ -40,16 +40,16 @@ class ClientPlugin(BasePlugin):
         BasePlugin.initialize(self)
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_logged_in", self.plugin_id,
-                                                  description='An event that is raised when a client logs in',
+                                                  description=['An event that is raised when a client logs in'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_logged_in_view_only", self.plugin_id,
-                                                  description='An event that is raised when a client logs in as a view client',
+                                                  description=['An event that is raised when a client logs in as a view client'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_connected", self.plugin_id,
-                                                  description='An event that is raised when a client connects',
+                                                  description=['An event that is raised when a client connects'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_disconnected", self.plugin_id,
-                                                  description='An event that is raised when a client disconnects',
+                                                  description=['An event that is raised when a client disconnects'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
     @AddAPI('client.count', description='return the # of clients connected')

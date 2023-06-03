@@ -482,10 +482,10 @@ class API():
         add events for the api
         """
         self('plugins.core.events:add.event')('ev_libs.api_character_active', __name__,
-                                            description='An event for when the character is active and ready for commands',
+                                            description=['An event for when the character is active and ready for commands'],
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
         self('plugins.core.events:add.event')('ev_libs.api_character_inactive', __name__,
-                                            description='An event for when the character is inactive and not ready for commands',
+                                            description=['An event for when the character is inactive and not ready for commands'],
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
     # get the firstactive flag

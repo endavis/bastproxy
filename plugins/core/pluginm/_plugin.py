@@ -425,10 +425,10 @@ class PluginManager(BasePlugin):
         loaded_plugins = self.api("libs.pluginloader:get.loaded.plugins.list")()
         for plugin_id in loaded_plugins:
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_initialized", self.plugin_id,
-                                                        description=f"Raised when {plugin_id} is initialized",
+                                                        description=[f"Raised when {plugin_id} is initialized"],
                                                         arg_descriptions={'None': None})
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_uninitialized", self.plugin_id,
-                                                        description=f"Raised when {plugin_id} is uninitialized",
+                                                        description=[f"Raised when {plugin_id} is uninitialized"],
                                                         arg_descriptions={'None': None})
 
             self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
@@ -453,7 +453,7 @@ class PluginManager(BasePlugin):
         self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_initialized",
             self.plugin_id,
-            description="Raised when any plugin is initialized",
+            description=["Raised when any plugin is initialized"],
             arg_descriptions={
                 'plugin': 'The plugin name',
                 'plugin_id': 'The plugin id',
@@ -462,7 +462,7 @@ class PluginManager(BasePlugin):
         self.api('plugins.core.events:add.event')(
             f"ev_{self.plugin_id}_plugin_uninitialized",
             self.plugin_id,
-            description="Raised when any plugin is initialized",
+            description=["Raised when any plugin is initialized"],
             arg_descriptions={
                 'plugin': 'The plugin name',
                 'plugin_id': 'The plugin id',

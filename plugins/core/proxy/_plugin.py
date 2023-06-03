@@ -67,7 +67,7 @@ class ProxyPlugin(BasePlugin):
                                 'the seperator for sending multiple commands')
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_shutdown", self.plugin_id,
-                                                  description='event when the proxy is shutting down',
+                                                  description=['event when the proxy is shutting down'],
                                                   arg_descriptions={'None': None})
 
         ssc = self.api('plugins.core.ssc:baseclass.get')()

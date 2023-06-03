@@ -141,14 +141,14 @@ class EventsPlugin(BasePlugin):
         return self.event_stack.getstack()
 
     @AddAPI('add.event', description='add an event for this plugin to track')
-    def _api_add_event(self, event_name: str, created_by: str, description: str = '',
+    def _api_add_event(self, event_name: str, created_by: str, description: list | None = None,
                        arg_descriptions: dict[str, str] | None = None):
         """
         add an event for this plugin to track
         """
         event = self.api(f"{self.plugin_id}:get.event")(event_name)
         event.created_by = created_by
-        event.description = description
+        event.description = description or []
         event.arg_descriptions = arg_descriptions or {}
 
     @AddAPI('get.event', description='return the event')

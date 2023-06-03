@@ -143,7 +143,7 @@ class WatchPlugin(BasePlugin):
 
         # add the event so it can be tracked
         self.api('plugins.core.events:add.event')(watch_args['eventname'], watch_args['owner'],
-                                                  description = f"event for {watch_name} for {watch_args['regex']}",
+                                                  description = [f"event for {watch_name} for {watch_args['regex']}"],
                                                   arg_descriptions = { 'matched' : 'The matched arguments from the regex',
                                                                        'cmdname' : 'The command name that was matched',
                                                                        'data'    : 'The data that was matched'})

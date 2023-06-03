@@ -45,7 +45,7 @@ class Event:
     """
     a base class for an event and it's arguments
     """
-    def __init__(self, name: str, created_by: str ='', description: str | list | None = None, arg_descriptions: dict[str, str] | None = None):
+    def __init__(self, name: str, created_by: str ='', description: list | None = None, arg_descriptions: dict[str, str] | None = None):
         self.name: str = name
         self.owner_id: str = f"{__name__}:{self.name}"
         self.api = API(owner_id=self.owner_id)
@@ -54,14 +54,7 @@ class Event:
         self.created_by: str = created_by
         self.priority_dictionary = {}
         self.raised_count = 0
-        self.description: list = []
-        if isinstance(description, str):
-            self.description = [description]
-        elif isinstance(description, list):
-            self.description = description
-        else:
-            LogRecord(f"Event {self.name} has no description", level="warning",
-                      sources=[__name__, self.created_by])
+        self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
         self.current_record: EventArgsRecord | None = None
 

@@ -394,7 +394,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         self.api('plugins.core.events:register.to.event')('ev_libs.net.mud_muddisconnect', self._eventcb_baseplugin_disconnect)
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_savestate", self.plugin_id,
-                                    description='An event to save the state of the plugin',
+                                    description=['An event to save the state of the plugin'],
                                     arg_descriptions={'None': None})
 
     def initialize(self):

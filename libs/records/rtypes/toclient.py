@@ -72,11 +72,11 @@ class ToClientRecord(BaseListRecord):
         if not SETUPEVENTS:
             SETUPEVENTS = True
             self.api('plugins.core.events:add.event')(self.modify_data_event_name, __name__,
-                                                description='An event to modify data before it is sent to the client',
+                                                description=['An event to modify data before it is sent to the client'],
                                                 arg_descriptions={'line': 'The line to modify',
                                                                   'sendtoclient': 'A flag to determine if this line should be sent to the client'})
             self.api('plugins.core.events:add.event')(self.read_data_event_name, __name__,
-                                                description='An event to see data that was sent to the client',
+                                                description=['An event to see data that was sent to the client'],
                                                 arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
 
     @property

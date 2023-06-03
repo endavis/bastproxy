@@ -96,10 +96,10 @@ class CMDQPlugin(BasePlugin):
                                   'owner': owner}
 
             self.api('plugins.core.events:add.event')(f"cmd_{self.current_command['ctype']}_send", self.cmds[cmdtype]['owner'],
-                                                        description=f"event for the command {self.cmds[cmdtype]['ctype']} being sent",
+                                                        description=[f"event for the command {self.cmds[cmdtype]['ctype']} being sent"],
                                                         arg_descriptions={'None': None})
             self.api('plugins.core.events:add.event')(f"cmd_{self.current_command['ctype']}_completed", self.cmds[cmdtype]['owner'],
-                                                        description=f"event for the command {self.cmds[cmdtype]['ctype']} completing",
+                                                        description=[f"event for the command {self.cmds[cmdtype]['ctype']} completing"],
                                                         arg_descriptions={'None': None})
 
     def sendnext(self):

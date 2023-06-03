@@ -165,7 +165,7 @@ class SettingsPlugin(BasePlugin):
 
         for i in self.settings_info[plugin_id]:
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_var_{i}_modified", plugin_id,
-                                description=f"An event to modify the setting {i}",
+                                description=[f"An event to modify the setting {i}"],
                                 arg_descriptions={'var':'the variable that was modified',
                                                     'newvalue':'the new value',
                                                     'oldvalue':'the old value'})
