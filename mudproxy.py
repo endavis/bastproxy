@@ -89,6 +89,8 @@ class MudProxy:
         # initialize the plugin manager which will load plugins
         plugin_loader.initialize()
 
+        LogRecord('Plugin Manager - all plugins initialized and loaded', level='info', sources=['mudproxy'])()
+
         # do any post plugin init actions
         self.post_plugins_init()
 
@@ -108,6 +110,9 @@ class MudProxy:
 
         # done starting up, set the flag to False and raise the ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
+
+        LogRecord('__main__ - BastProxy ready', level='info', sources=['mudproxy'])()
+
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
 
         LogRecord(f"__main__ - Creating proxy Telnet listener on port {telnet_port}", level='info', sources=['mudproxy'])()

@@ -53,10 +53,14 @@ class EventsPlugin(BasePlugin):
         """
         add commands on startup
         """
+        LogRecord("_eventcb_add_register_events_at_startup: start", level='debug',
+                        sources=[self.plugin_id])()
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
-            LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
+            LogRecord(f"_eventcb_register_events_on_startup: registering events in {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.register_events_for_plugin(plugin_id)
+        LogRecord("_eventcb_add_register_events_at_startup: finish", level='debug',
+                        sources=[self.plugin_id])()
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_all_events_registered")
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized', priority=10)

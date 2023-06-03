@@ -125,12 +125,16 @@ class CommandPlugin(BasePlugin):
         """
         add commands on startup
         """
+        LogRecord('_eventcb_add_commands_on_startup: Start', level='debug',
+                    sources=[self.plugin_id])()
         self.adding_all_commands_after_startup = True
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
-            LogRecord(f"_eventdb_add_commands_on_startup: {plugin_id}", level='debug',
+            LogRecord(f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(plugin_id)
         self.adding_all_commands_after_startup = False
+        LogRecord('_eventcb_add_commands_on_startup: Finish', level='debug',
+                    sources=[self.plugin_id])()
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_initialized')
     def _eventcb_plugin_initialized(self):
