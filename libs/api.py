@@ -10,14 +10,11 @@ this module handles the api for all other modules
 
 Most api functions will go in as a class api.
 
-However, some api functions will need to be overloaded.
-The main reason for overloading an api is when
-a class instance calls an api function and needs to access itself,
-or there are multiple instances of a class that will add the
-same function to the api.
+However, some api functions will need to be put in the instance api.
+This has been used for the api functions in the API.
 
-regular apis are in the class variable "api"
-overloaded apis are in the instance variable "_instance_api"
+class apis are in the class variable "_class_api"
+instance apis are in the instance variable "_instance_api"
 
 See the BasePlugin class
 """
@@ -39,7 +36,7 @@ import contextlib
 # Project
 
 class AddAPI:
-    def __init__(self, api: str, description='', overload=False):
+    def __init__(self, api: str, description='', instance=False):
         """
         kwargs:
             event_name: the event to register to
@@ -47,12 +44,12 @@ class AddAPI:
         """
         self.api_name = api
         self.description = description
-        self.overload = overload
+        self.instance = instance
 
     def __call__(self, func):
         func.api = {'name': self.api_name,
                     'description':self.description,
-                    'overload':self.overload,
+                    'instance':self.instance,
                     'addedin':{}}
 
         return func
@@ -250,7 +247,7 @@ class APIItem:
         self.full_api_name: str = full_api_name
         self.owner_id: str = owner_id or 'unknown'
         self.tfunction: typing.Callable = tfunction
-        self.overloaded: bool = False
+        self.instance: bool = False
         self.overwritten_api: APIItem | None = None
         if not description:
             comments = inspect.getcomments(self.tfunction)
@@ -290,18 +287,14 @@ class APIItem:
             dict: A dictionary of the stats for the API.
         """
         if stats := STATS_MANAGER.stats.get(self.full_api_name, None):
-            return stats
+            return STATS_MANAGER.stats[self.full_api_name]
         else:
             return None
 
-    def detail(self, stats_by_plugin=False, stats_by_caller=False, show_function_code=False) -> list[str]:
+    def detail(self, show_function_code=False) -> list[str]:
         """
         create a detailed message for this item
         """
-        api = API(owner_id=f"{self.full_api_name}:detail")
-        line_length = api('plugins.core.commands:get.output.line.length')()
-        header_color = '@M'
-
         description = []
         for i, line in enumerate(self.description):
             if not line:
@@ -316,7 +309,7 @@ class APIItem:
             *description,
             f"@C{'Function':<11}@w : {self.tfunction}",
             f"@C{'Owner':<11}@w : {self.owner_id}",
-            f"@C{'Overloaded':<11}@w : {self.overloaded}",
+            f"@C{'Instance':<11}@w : {self.instance}",
             '',
         ]
 
@@ -331,9 +324,6 @@ class APIItem:
         if self.tfunction.__doc__:
             tmsg.append(self.tfunction.__doc__ % tdict)
 
-        tmsg.append(api('plugins.core.utils:center.colored.string')('Code Details', '-',
-                                                                        line_length, filler_color=header_color))
-
         if sourcefile := inspect.getsourcefile(self.tfunction):
             tmsg.append('')
             tmsg.append(f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}")
@@ -342,35 +332,6 @@ class APIItem:
             tmsg.append('')
             text_list, _ = inspect.getsourcelines(self.tfunction)
             tmsg.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
-
-        if stats_by_plugin or stats_by_caller:
-            api_data = api('libs.api:data.get')(self.full_api_name)
-
-            if api_data and api_data.stats:
-                if stats_by_plugin:
-                    tmsg.append('')
-                    tmsg.append(api('plugins.core.utils:center.colored.string')('Stats', '-', line_length, filler_color=header_color))
-                    tmsg.append('Total Calls: %s' % api_data.stats.count)
-                    tmsg.append(header_color + '-' * 50)
-                    tmsg.append('Stats by caller')
-                    tmsg.append(header_color + '-' * 50)
-                    stats_keys = api_data.stats.calls_by_caller.keys()
-                    stats_keys = sorted(stats_keys)
-                    for i in stats_keys:
-                        tmsg.append(f"{i or 'unknown':<30}: {api_data.stats.calls_by_caller[i]}")
-
-                if stats_by_caller:
-                    tmsg.append('')
-                    tmsg.append(api('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-',
-                                                                                        line_length, filler_color=header_color))
-                    stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
-                    tmsg.append(f"Unique Callers: {len(stats_keys)}")
-                    stats_keys = sorted(stats_keys)
-                    for i in stats_keys:
-                        tmsg.append(f"{i or 'unknown':<22}: {api_data.stats.detailed_calls[i]}")
-
-                if stats_by_plugin or stats_by_caller:
-                    tmsg.append(header_color + '-' * line_length + '@w')
 
         if self.overwritten_api:
             tmsg.append('')
@@ -443,7 +404,7 @@ class API():
         """
         initialize the class
         """
-        # apis that have been overloaded will be put here
+        # apis that have been add to this specific instance
         self._instance_api: dict[str, APIItem] = {}
 
         self.log_level: str = 'debug'
@@ -455,18 +416,18 @@ class API():
         self.owner_id: str = owner_id or 'unknown'
 
         # added functions
-        self.add('libs.api', 'add', self.add, overload=True)
-        self.add('libs.api', 'has', self._api_has, overload=True)
-        self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, overload=True)
-        self.add('libs.api', 'remove', self._api_remove, overload=True)
-        self.add('libs.api', 'get.children', self._api_get_children, overload=True)
-        self.add('libs.api', 'detail', self._api_detail, overload=True)
-        self.add('libs.api', 'list', self._api_list, overload=True)
-        self.add('libs.api', 'data.get', self._api_data_get, overload=True)
-        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_owner_plugin, overload=True)
-        self.add('libs.api', 'get.caller.owner', self._api_get_caller_owner, overload=True)
-        self.add('libs.api', 'is.character.active', self._api_is_character_active_get, overload=True)
-        self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, overload=True)
+        self.add('libs.api', 'add', self.add, instance=True)
+        self.add('libs.api', 'has', self._api_has, instance=True)
+        self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, instance=True)
+        self.add('libs.api', 'remove', self._api_remove, instance=True)
+        self.add('libs.api', 'get.children', self._api_get_children, instance=True)
+        self.add('libs.api', 'detail', self._api_detail, instance=True)
+        self.add('libs.api', 'list', self._api_list, instance=True)
+        self.add('libs.api', 'data.get', self._api_data_get, instance=True)
+        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True)
+        self.add('libs.api', 'get.caller.owner', self._api_get_caller_owner, instance=True)
+        self.add('libs.api', 'is.character.active', self._api_is_character_active_get, instance=True)
+        self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, instance=True)
 
     # scan the object for api decorated functions
     def _api_add_apis_for_object(self, toplevel, item):
@@ -488,19 +449,22 @@ class API():
                     func.api['addedin'][toplevel] = []
                 api_name = func.api['name'].format(**func.__self__.__dict__)
                 if api_name not in func.api['addedin'][toplevel]:
-                    func.api['addedin'][toplevel].append(api_name)
                     LogRecord(f"Adding API {toplevel}:{api_name} with {func.__name__}", level=self.log_level,
                                 sources=[__name__, toplevel])()
                     description = func.api['description'].format(**func.__self__.__dict__)
-                    overload = func.api['overload']
+                    instance = func.api['instance']
+                    if not instance:
+                        func.api['addedin'][toplevel].append(api_name)
                     self(f"{__name__}:add")(toplevel, api_name, func, description=description,
-                                            overload=overload)
+                                            instance=instance)
 
     def get_api_functions_in_object(self, base, recurse=True):
         """
         recursively search for functions that are commands in a plugin instance
         and it's attributes
         """
+        if not recurse and base == self:
+            return []
         function_list = []
         for item in dir(base):
             if item.startswith('__'):
@@ -521,10 +485,10 @@ class API():
         add events for the api
         """
         self('plugins.core.events:add.event')('ev_libs.api_character_active', __name__,
-                                            description=['An event for when the character is active and ready for commands'],
+                                            description='An event for when the character is active and ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
         self('plugins.core.events:add.event')('ev_libs.api_character_inactive', __name__,
-                                            description=['An event for when the character is inactive and not ready for commands'],
+                                            description='An event for when the character is inactive and not ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
     # get the firstactive flag
@@ -563,27 +527,27 @@ class API():
         return None
 
     # add a function to the api
-    def add(self, top_level_api: str, name: str, tfunction: typing.Callable, overload: bool = False, force: bool = False,
+    def add(self, top_level_api: str, name: str, tfunction: typing.Callable, instance: bool = False, force: bool = False,
             description='') -> bool:
         """  add a function to the api
         @Ytop_level_api@w  = the toplevel that the api should be under
         @Yname@w  = the name of the api
         @Yfunction@w  = the function
-        @Yoverload@w  = bool, True to add to instance api, false to add to class api
+        @Yinstance@w  = bool, True to add to instance api, false to add to class api
 
         the function is added as toplevel.name into the api
 
-        if the api already exists, it is added to the overloaded
+        if the api already exists, it is added to the instance api
 
         this function returns no values"""
         full_api_name: str = f'{top_level_api}:{name}'
 
         api_item = APIItem(full_api_name, tfunction, self.owner_id, description=description)
 
-        if overload:
-            return self._api_overload(api_item, force)
+        if instance:
+            return self._api_instance(api_item, force)
 
-        if full_api_name in self._class_api and self._class_api[full_api_name].tfunction != tfunction:
+        if full_api_name in self._class_api:
             if force:
                 api_item.overwritten_api = self._class_api[full_api_name]
                 self._class_api[full_api_name] = api_item
@@ -601,30 +565,30 @@ class API():
 
         return True
 
-    # overload a function in the api
-    def _api_overload(self, api_item: APIItem, force: bool = False) -> bool:
-        """  overload a function in the api
+    # add a function to the instance api
+    def _api_instance(self, api_item: APIItem, force: bool = False) -> bool:
+        """  add a function to the instance api
         @Yapi_data@w  = the api data dictionary
 
-        the function is added as api_data['full_api_name'] into the overloaded api
+        the function is added as api_data['full_api_name'] into the instance api
 
         this function returns True if added, False otherwise"""
         if api_item.full_api_name in self._instance_api:
             if force:
                 api_item.overwritten_api = self._instance_api[api_item.full_api_name]
-                api_item.overloaded = True
+                api_item.instance = True
                 self._instance_api[api_item.full_api_name] = api_item
             else:
                 try:
                     from libs.records import LogRecord
-                    LogRecord(f"libs.api:overload - {api_item.full_api_name} already exists from plugin: {api_item.owner_id}",
+                    LogRecord(f"libs.api:instance - {api_item.full_api_name} already exists from plugin: {api_item.owner_id}",
                             level='error', sources=[__name__, api_item.owner_id])()
                 except ImportError:
-                    print(f"libs.api:overload - {api_item.full_api_name} already exists")
+                    print(f"libs.api:instance - {api_item.full_api_name} already exists")
 
                 return False
         else:
-            api_item.overloaded = True
+            api_item.instance = True
             self._instance_api[api_item.full_api_name] = api_item
 
         return True
@@ -675,15 +639,15 @@ class API():
             if i.startswith(api_toplevel):
                 del self._instance_api[i]
 
-    def get(self, api_location: str, do_not_overload: bool = False) -> typing.Callable:
+    def get(self, api_location: str, get_class: bool = False) -> typing.Callable:
         """
         get an api function
 
-        do_not_overload = get the non overloaded api
+        get_class = get the class instance
         """
         # check overloaded api
         if (
-            not do_not_overload
+            not get_class
             and api_location in self._instance_api
             and self._instance_api[api_location]
         ):
@@ -746,13 +710,9 @@ class API():
         """
         return the detail of an api function
         """
-        line_length = self('plugins.core.commands:get.output.line.length')()
-        header_color = self('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
-        #self.api('plugins.core.utils:center.colored.string')('@x86Files that have change since loading@w', '-', 60, filler_color='@B')
-
         tmsg: list[str] = []
-        api_original = None
-        api_overloaded = None
+        api_class = None
+        api_instance = None
 
         if ':' not in api_location:
             tmsg.append(f"{api_location} is not a : api format")
@@ -760,35 +720,47 @@ class API():
 
         if api_location:
             with contextlib.suppress(KeyError):
-                api_original = self._class_api[api_location]
+                api_class = self._class_api[api_location]
 
             with contextlib.suppress(KeyError):
-                api_overloaded = self._instance_api[api_location]
+                api_instance = self._instance_api[api_location]
 
-
-            if api_original and api_overloaded:
-                from libs.records import LogRecord
-                LogRecord(f"{api_location} is in both the api and overloaded api", "warning",
-                          sources=[__name__])()
-
-            if not api_original and not api_overloaded:
+            if not api_class and not api_instance:
                 tmsg.append(f"{api_location} is not in the api")
                 return tmsg
 
-            if api_original:
-                tmsg.append(self('plugins.core.utils:center.colored.string')('Original API', '-', line_length, filler_color=header_color))
-                tmsg.extend(api_original.detail(stats_by_plugin=stats_by_plugin,
-                                                stats_by_caller=stats_by_caller,
-                                                show_function_code=show_function_code))
-                tmsg.append(header_color + '-' * line_length + '@w')
+            if api_class:
+                tmsg.extend(('Class API', '============'))
+                tmsg.extend(api_class.detail(show_function_code=show_function_code))
 
-            if api_overloaded:
-                tmsg.append(self('plugins.core.utils:center.colored.string')('Overloaded API', '-', line_length, filler_color=header_color))
-                tmsg.extend(api_overloaded.detail(stats_by_plugin=stats_by_plugin,
-                                                 stats_by_caller=stats_by_caller,
-                                                 show_function_code=show_function_code))
-                tmsg.append(header_color + '-' * line_length + '@w')
+            if api_instance:
+                tmsg.extend(('Instance API', '============'))
+                tmsg.extend(api_instance.detail(show_function_code=show_function_code))
 
+            if stats_by_plugin or stats_by_caller:
+                api_data = self._api_data_get(api_location)
+
+                if api_data and api_data.stats:
+                    if stats_by_plugin:
+                        tmsg.append('')
+                        tmsg.append(self('plugins.core.utils:center.colored.string')('Stats', '-', 70, '@B'))
+                        tmsg.append('Total Calls: %s' % api_data.stats.count)
+                        tmsg.append('@B' + '-' * 50)
+                        tmsg.append('Stats by caller')
+                        tmsg.append('@B' + '-' * 50)
+                        stats_keys = api_data.stats.calls_by_caller.keys()
+                        stats_keys = sorted(stats_keys)
+                        for i in stats_keys:
+                            tmsg.append(f"{i or 'unknown':<30}: {api_data.stats.calls_by_caller[i]}")
+
+                    if stats_by_caller:
+                        tmsg.append('')
+                        tmsg.append(self('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
+                        stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
+                        tmsg.append(f"Unique Callers: {len(stats_keys)}")
+                        stats_keys = sorted(stats_keys)
+                        for i in stats_keys:
+                            tmsg.append(f"{i or 'unknown':<22}: {api_data.stats.detailed_calls[i]}")
 
         else:
             tmsg.append(f"{api_location} is not in the api")
@@ -853,21 +825,21 @@ def test():
     # some generic description
     def testapi(msg):
         """
-        a test api
+        a test class api
         """
-        return f'{msg} (orig)'
+        return f'{msg} (class)'
 
-    def overloadtestapi(msg):
+    def instancetestapi(msg):
         """
-        a overload test api
+        a test instance api
         """
-        return f'{msg} (overload)'
+        return f'{msg} (instance)'
 
-    def overloadtestapi2(msg):
+    def instancetestapi2(msg):
         """
-        a overload test api
+        a 1nd test instance api
         """
-        return f'{msg} (overload2)'
+        return f'{msg} (instance)'
 
 
 
@@ -875,34 +847,34 @@ def test():
     api = API()
     print('adding a.test:api')
     api('libs.api:add')('a.test', 'api', testapi)
-    print('adding a.test:over')
-    api('libs.api:add')('a.test', 'over', testapi)
+    print('adding a.test:instance')
+    api('libs.api:add')('a.test', 'instance', testapi)
     print('adding a.test:some:api')
     api('libs.api:add')('a.test', 'some:api', testapi)
     print('called api a.test:api', api('a.test:api')('success'))
-    print('called api a.test:over', api('a.test:over')('success'))
+    print('called api a.test:instance', api('a.test:instance')('success'))
     print('called api a.test:some.api', api('a.test:some.api')('success'))
     print('dict api._class_api:\n', pprint.pformat(api._class_api))
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
-    print('overloading a.over.api')
-    api('libs.api:add')('a.over', 'api', overloadtestapi, overload=True)
-    print('overloading a.test.over')
-    api('libs.api:add')('a.test', 'over', overloadtestapi, overload=True)
+    print('adding a.instance.api in instance api')
+    api('libs.api:add')('a.instance', 'api', instancetestapi, instance=True)
+    print('adding a.test.instance in instance api')
+    api('libs.api:add')('a.test', 'instance', instancetestapi, instance=True)
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
-    print('called api a.over:api', api('a.over:api')('success'))
-    print('called api a.test:over', api('a.test:over')('success'))
+    print('called api a.instance:api', api('a.instance:api')('success'))
+    print('called api a.test:instance', api('a.test:instance')('success'))
     print('called api a.test:api', api('a.test:api')('success'))
-    print('api.has a.test:over', api('libs.api:has')('a.test:over'))
-    print('api.has a.test:over2', api('libs.api:has')('a.test:over2'))
-    print('api.has a.over:api', api('libs.api:has')('a.over:api'))
+    print('api.has a.test:instance', api('libs.api:has')('a.test:instance'))
+    print('api.has a.test:instance2', api('libs.api:has')('a.test:instance2'))
+    print('api.has a.instance:api', api('libs.api:has')('a.instance:api'))
     print('api.has a.test:some.api', api('libs.api:has')('a.test:some.api'))
     print('dict api._class_api:\n', pprint.pformat(api._class_api))
-    print('dict api.overloadapi:\n', pprint.pformat(api._instance_api))
+    print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
     print('\n'.join(api('libs.api:list')(top_level_api="test")))
     print('--------------------')
     print('\n'.join(api('libs.api:list')()))
     print('--------------------')
-    print('\n'.join(api('libs.api:detail')('a.test:over')))
+    print('\n'.join(api('libs.api:detail')('a.test:instance')))
     print('--------------------')
 
 
@@ -914,19 +886,19 @@ def test():
     print('dict api._instance_api:\n', pprint.pformat(api._instance_api))
     print('api2 dict api2.api:\n', pprint.pformat(api2._class_api))
     print('api2 dict api2._instance_api:\n', pprint.pformat(api2._instance_api))
-    print('api2 api_has a.over:api', api2('libs.api:has')('a.over:api'))
-    print('api2 api_has a.over:api', api2('libs.api:has')('a.test:over'))
+    print('api2 api_has a.instance:api', api2('libs.api:has')('a.instance:api'))
+    print('api2 api_has a.instance:api', api2('libs.api:has')('a.test:instance'))
     print('api2 called a.test:api', api2('a.test:api')('success'))
-    print('api2 called a.test:over', api2('a.test:over')('success'))
-    print('api2 overloading a.over.api')
-    api2('libs.api:add')('a.over', 'api', overloadtestapi2, overload=True)
+    print('api2 called a.test:instance', api2('a.test:instance')('success'))
+    print('api2 adding a.instance.api in instance api')
+    api2('libs.api:add')('a.instance', 'api', instancetestapi2, instance=True)
     print('api2 dict api._instance_api:\n', pprint.pformat(api2._instance_api))
-    print('api2 called a.over:api', api2('a.over:api')('success'))
-    print('api2 overloading a.test.over')
-    api2('libs.api:add')('a.test', 'over', overloadtestapi2, overload=True)
-    print('api2 dict api2:api:\n', pprint.pformat(api2._class_api))
-    print('api2 dict api2:overloadapi:\n', pprint.pformat(api2._instance_api))
-    print('api2 called a.test:over', api2('a.test:over')('success'))
+    print('api2 called a.instance:api', api2('a.instance:api')('success'))
+    print('api2 adding a.test.instance in instance api')
+    api2('libs.api:add')('a.test', 'instance', instancetestapi2, instance=True)
+    print('api2 dict api2:class api:\n', pprint.pformat(api2._class_api))
+    print('api2 dict api2:instance api:\n', pprint.pformat(api2._instance_api))
+    print('api2 called a.test:instance', api2('a.test:instance')('success'))
     print('api2 called a.test:api', api2('a.test:api')('success'))
     print('api2 api_has a.test:three', api2('libs.api:has')('a.test:three'))
     try:
