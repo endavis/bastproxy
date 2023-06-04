@@ -548,21 +548,23 @@ class API():
         if instance:
             return self._api_instance(api_item, force)
 
-        if full_api_name in self._class_api:
+        if api_item.full_api_name in self._class_api:
+            if api_item.tfunction == self._class_api[api_item.full_api_name].tfunction:
+                return True
             if force:
                 api_item.overwritten_api = self._class_api[full_api_name]
                 self._class_api[full_api_name] = api_item
             else:
                 try:
                     from libs.records import LogRecord
-                    added_in = self._class_api[full_api_name].owner_id
-                    LogRecord(f"libs.api:add - {full_api_name} already exists from plugin {added_in}",
+                    added_in = self._class_api[api_item.full_api_name].owner_id
+                    LogRecord(f"libs.api:add - {api_item.full_api_name} already exists from plugin {added_in}",
                                 level='error', sources=[__name__, self.owner_id])()
                 except ImportError:
-                    print(f"libs.api:add - {full_api_name} already exists")
+                    print(f"libs.api:add - {api_item.full_api_name} already exists")
                     return False
         else:
-            self._class_api[full_api_name] = api_item
+            self._class_api[api_item.full_api_name] = api_item
 
         return True
 
@@ -575,6 +577,9 @@ class API():
 
         this function returns True if added, False otherwise"""
         if api_item.full_api_name in self._instance_api:
+            if api_item.tfunction == self._instance_api[api_item.full_api_name].tfunction:
+                return True
+
             if force:
                 api_item.overwritten_api = self._instance_api[api_item.full_api_name]
                 api_item.instance = True
@@ -588,6 +593,7 @@ class API():
                     print(f"libs.api:instance - {api_item.full_api_name} already exists")
 
                 return False
+
         else:
             api_item.instance = True
             self._instance_api[api_item.full_api_name] = api_item
