@@ -11,7 +11,8 @@ this module handles the api for all other modules
 Most api functions will go in as a class api.
 
 However, some api functions will need to be put in the instance api.
-This has been used for the api functions in the API.
+This has been used for the api functions in the API since those apis need
+to check the instance api for the api there were invoked against.
 
 class apis are in the class variable "_class_api"
 instance apis are in the instance variable "_instance_api"
