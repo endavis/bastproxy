@@ -14,7 +14,7 @@
 from libs.api import API
 from libs.commands import AddCommand, AddParser, AddArgument
 
-@AddCommand(group='API', name='api')
+@AddCommand(group='Base', name='api')
 @AddParser(description='detail a function in the API')
 @AddArgument('-a',
                 '--api',
