@@ -356,7 +356,7 @@ class ProxyPlugin(BasePlugin):
         """
         restart when the listen port changes
         """
-        if not self.api.startup and not self.initializing_f:
+        if not self.api.startup and self.is_inititalized_f:
             self.api(f"{self.plugin_id}:restart")()
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")

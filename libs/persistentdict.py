@@ -242,9 +242,8 @@ class PluginPersistentDict(PersistentDict):
         if old_value != val:
             dict.__setitem__(self, key, val)
 
-            if plugin_instance and \
-                (plugin_instance.reset_f
-                 or plugin_instance.initializing_f
+            if (self.api(f"{self.owner_id}:is.initialized")()
+                 or self.api(f"{self.owner_id}:is.instantiated")()
                  or self.api("plugins.core.settings:is.setting.hidden")(self.owner_id, key)):
                 return
             if self.api.startup:

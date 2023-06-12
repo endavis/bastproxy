@@ -49,8 +49,8 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         self.api = API(owner_id=self.plugin_id)
 
-        self.instantiating_f = True
-        self.initializing_f = True
+        self.is_instantiated_f = False
+        self.is_inititalized_f = False
         self.can_reload_f = True
         self.can_reset_f = True
         self.reload_dependents_f = False
@@ -84,7 +84,7 @@ class Base: # pylint: disable=too-many-instance-attributes
     def _plugin_hook_post_instantiate(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
-        self.instantiating_f = False
+        self.is_instantiated_f = True
 
     def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
         """
@@ -339,10 +339,15 @@ class Base: # pylint: disable=too-many-instance-attributes
         else:
             self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,
                                                       prio=self.is_character_active_priority)
-        self.initializing_f = False
+        self.is_inititalized_f = True
 
-    def is_initialized(self):
-        return self.initializing_f
+    @AddAPI('is.initialized', description='return True if the plugin is initialized')
+    def _api_is_initializing(self):
+        return not self.is_inititalized_f
+
+    @AddAPI('is.instantiated', description='return True if the plugin is instantiated')
+    def _api_is_instantiating(self):
+        return not self.is_instantiated_f
 
     def _eventcb_baseplugin_disconnect(self):
         """
