@@ -15,7 +15,7 @@ from pathlib import Path
 # Project
 from libs.api import AddAPI
 import libs.argp as argp
-from libs.persistentdict import PluginPersistentDict
+from libs.persistentdict import PersistentDict, convert
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, patch
@@ -78,7 +78,7 @@ class SettingsPlugin(BasePlugin):
         if plugin_id not in self.settings_values:
             data_directory = self.api(f"{plugin_id}:get.data.directory")()
             settings_file: Path = data_directory / 'settingvalues.txt'
-            self.settings_values[plugin_id] = PluginPersistentDict(plugin_id, settings_file, 'c')
+            self.settings_values[plugin_id] = PersistentDict(plugin_id, settings_file, 'c')
 
         if setting_name not in self.settings_values[plugin_id]:
             self.settings_values[plugin_id][setting_name] = setting_info['default']
@@ -140,8 +140,32 @@ class SettingsPlugin(BasePlugin):
                         value,
                         self.settings_info[plugin_id][setting]['stype'])
 
+        old_value =  self.api("plugins.core.settings:get")(plugin_id, setting)
+
+        if old_value == value:
+            return True
+
         self.settings_values[plugin_id][setting] = value
         self.settings_values[plugin_id].sync()
+
+        if (self.api(f"{plugin_id}:is.initialized")()
+                or self.api(f"{plugin_id}:is.instantiated")()
+                or self.api("plugins.core.settings:is.setting.hidden")(plugin_id, setting)):
+            return True
+        if self.api.startup:
+            return True
+
+        new_value = self.api("plugins.core.settings:get")(plugin_id, setting)
+
+        event_name = f"ev_{plugin_id}_var_{setting}_modified"
+
+        if self.api('libs.api:has')('plugins.core.events:raise.event'):
+                self.api('plugins.core.events:raise.event')(
+                    event_name,
+                    {'var':setting,
+                    'newvalue':new_value,
+                    'oldvalue':old_value})
+        
         return True
 
     @AddAPI('get.setting.info', description='get the info for a setting')
@@ -164,6 +188,8 @@ class SettingsPlugin(BasePlugin):
             self.settings_info[plugin_id] = {}
 
         for i in self.settings_info[plugin_id]:
+            if self.api("plugins.core.settings:is.setting.hidden")(plugin_id, i):
+                continue            
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_var_{i}_modified", plugin_id,
                                 description=[f"An event to modify the setting {i}"],
                                 arg_descriptions={'var':'the variable that was modified',
@@ -189,7 +215,18 @@ class SettingsPlugin(BasePlugin):
         """
         raise an event for all settings
         """
-        self.settings_values[plugin_id].raiseall()
+        old_value = '__init__'
+        for i in self.settings_info[plugin_id]:
+            if self.api("plugins.core.settings:is.setting.hidden")(plugin_id, i):
+                continue
+            event_name = f"ev_{plugin_id}_var_{i}_modified"
+            new_value = self.api("plugins.core.settings:get")(plugin_id, i)
+
+            self.api('plugins.core.events:raise.event')(
+                event_name,
+                {'var':i,
+                'newvalue':new_value,
+                'oldvalue':old_value})        
 
     @AddAPI('is.setting.hidden', description='check if a plugin setting is flagged hidden')
     def _api_is_setting_hidden(self, plugin_id, setting):
