@@ -119,17 +119,12 @@ class Base: # pylint: disable=too-many-instance-attributes
                 item = getattr(self, item)
             except AttributeError:
                 continue
-            if isinstance(item, types.MethodType) and hasattr(item, 'plugin_hooks'):
-                if plugin_hook in item.plugin_hooks:  # pyright: ignore[reportGeneralTypeIssues]
+            if (isinstance(item, types.MethodType)
+                and hasattr(item, 'plugin_hooks')
+                and plugin_hook in item.plugin_hooks):  # pyright: ignore[reportGeneralTypeIssues]
                     if item.plugin_hooks[plugin_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues]
                         function_list[item.plugin_hooks[plugin_hook]] = [] # pyright: ignore[reportGeneralTypeIssues]
                     function_list[item.plugin_hooks[plugin_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues]
-            # elif recurse:
-            #     new_list = self.get_plugin_hook_functions(item, plugin_hook, recurse=False)
-            #     for key, value in new_list.items():
-            #         if key not in function_list:
-            #             function_list[key] = []
-            #         function_list[key].extend(value)
 
         return function_list
 
@@ -249,6 +244,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         line_length = self.api('plugins.core.commands:get.output.line.length')()
         header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+        header = header_color + '-' * line_length + '@x'
 
         if not attribute_name:
             if simple:
@@ -256,16 +252,16 @@ class Base: # pylint: disable=too-many-instance-attributes
             else:
                 tvars = self.dump_object_as_string(self)
 
-            message = []
-            message.append(header_color + '-' * line_length + '@x')
-            message.append('Attributes')
-            message.append(header_color + '-' * line_length + '@x')
-            message.append(tvars)
-            message.append(header_color + '-' * line_length + '@x')
-            message.append('Methods')
-            message.append(header_color + '-' * line_length + '@x')
-            message.append(pprint.pformat(inspect.getmembers(self, inspect.ismethod)))
-
+            message = [
+                header,
+                'Attributes',
+                header,
+                tvars,
+                header,
+                'Methods',
+                header,
+                pprint.pformat(inspect.getmembers(self, inspect.ismethod)),
+            ]
         else:
             attr = self._find_attribute(attribute_name)
 
@@ -281,9 +277,9 @@ class Base: # pylint: disable=too-many-instance-attributes
 
             if callable(attr):
                 message.extend(
-                    (header_color + '-' * line_length + '@x',
+                    (header,
                     f"Defined in {inspect.getfile(attr)}",
-                    header_color + '-' * line_length + '@x',
+                    header,
                     '')
                 )
                 text_list, _ = inspect.getsourcelines(attr)
