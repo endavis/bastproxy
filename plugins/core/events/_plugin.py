@@ -12,7 +12,7 @@ import types
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
 from libs.event import Event
 from libs.stack import SimpleStack
@@ -425,11 +425,11 @@ class EventsPlugin(BasePlugin):
         """
         return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
 
-    def get_stats(self):
+    @RegisterPluginHook('stats')
+    def __settings_plugin_hook_stats(self, stats):
         """
         return stats for events
         """
-        stats = BasePlugin.get_stats(self)
         stats['Events'] = {
                             'showorder': ['Total', 'Raised'],
                             'Total' : len(self.events),
