@@ -23,6 +23,7 @@ class RegisterPluginHook:
         'reset' - invoked when resetting the plugin
         'stats' - invoked when getting the stats of the plugin
                     returns a dict of stats
+        'uninitialize' - invoked when uninitializing the plugin
 
         hook_name: the hook to register to
         priority: the priority to register the function with (default: 50)

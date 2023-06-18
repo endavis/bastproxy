@@ -385,6 +385,8 @@ class Base: # pylint: disable=too-many-instance-attributes
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
 
+        self._process_plugin_hook('uninitialize')        
+
     @RegisterPluginHook('pre_initialize')
     def _plugin_hook_pre_initialize(self):
         """
