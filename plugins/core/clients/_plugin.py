@@ -168,15 +168,6 @@ class ClientPlugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id])()
 
-    @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
-    def _eventcb_shutdown(self):
-        """
-        close all clients
-
-        #TODO: need to fix this for asyncio
-        """
-        pass
-
     @AddAPI('get.all.clients', description='get all clients')
     def _api_get_all_clients(self, uuid_only=False):
         """
