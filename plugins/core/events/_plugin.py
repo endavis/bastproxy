@@ -377,9 +377,7 @@ class EventsPlugin(BasePlugin):
             f"{self.events[name].count():<3} - {name:<30}"
             for name in eventlist
             if (not match or match in name) and self.events[name]
-        ]
-        if not message:
-            message = ['No events found']
+        ] or ['No events found']
 
         return True, message
 
