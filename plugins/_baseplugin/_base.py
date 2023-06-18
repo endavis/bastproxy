@@ -37,7 +37,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use api:add, dependency:add
+              only use libs.api:add
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
