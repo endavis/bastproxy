@@ -1,0 +1,2 @@
+#TODO: save directories changed because plugin_id changed
+#TODO: core.log location for categories/datatypes changed

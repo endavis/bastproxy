@@ -1,0 +1,259 @@
+# IN PROGRESS
+    # BUG: fix reloading/loading - dependencies are broken
+    # TODO: plugin.core.commands
+        keep a global count vs instance count of called commands
+            useful for when updating commands
+        keep track of errors for each command
+        create a plugin.core.commands.det to get command details
+        make all output look the same for all commands
+            toplevel header
+            sub header
+    # TODO: look at ENUM for flags?
+    # TODO: create classes for specific items (mainly dicts) that are structured
+        TODO: watches, triggers, plugin stats, etc.
+        COMPLETE: events, commands
+    # TODO: have a seperate line length for each client, use telnet negotiation
+    # TODO : all plugin reloading
+        reload entire proxy but keep connections open?
+            save clients and mud connection
+            unload all plugins
+                clearing APis for that plugin
+                clearing events
+                remove all async tasks related to a plugin
+            reload all modules except libs.net, libs.async, and mudproxy.py
+        # Commands are kept in the plugin and then the command plugin can get them specific to api call for each plugin instead of them being stored in the command plugin
+        # the idea
+            attach to the plugin_loaded and plugin_unloaded event and update command list when seen
+            how to be able to call the api for each plugin to get its commands?
+        # could this be used for all plugins?, pull from source plugin vs push to action plugin (commands, triggers, etc)
+        # and then plugins could be reloaded much easier
+        # Plugins done: core.commands
+
+        # add a function internal to the plugin to save it's state in a dictionary or copy it into the new instance?
+        check refcounts to see what is still used
+        # also need to think about classes that were used
+            EG: commands has a Command class that is saved in another plugin's instance
+
+        Reloading plugins (see above about commands plugin):
+            #NEW save data to the specific plugin, so command data goes into each plugin instead
+            #NEW of the command plugin, then the command plugin registers to the initialize and
+            #NEW and uninitialize events to update it's local caches, data, etc..
+
+        don't save plugin_instances in data structures inside a plugin unless absolutely needed
+        if you need the instance, save the plugin_id and then use the api 'core.plugins:get:plugin:instance'
+        saving instances could lead to a memory leak and stale plugin instances floating around
+    # TODO: https://docs.python.org/3/library/collections.html#collections.namedtuple for SQLite queries????
+    # TODO: make all apis use similar formats
+        IE: plugins.core.commands:add and plugins.core.events:add
+        Say it like a sentence, or preface with object it's using
+            IE: plugins.core.events:register.to.event or plugins.core.events:event.register
+                plugins.core.proxy:get.preamble or plugins.core.proxy:preamble:get
+    # TODO: plugins.core.cmdq
+        rename to mudcmds????
+    # TODO: create other records for tracking things
+        create a record tree
+            ToMudRecord
+                    |-> EventRecord('ev_to_mud_data_modify')
+                        |-> CommandRecord(command)
+                            |-> ToClientRecord(command_output)
+                    |-> EventRecord('ev_to_mud_data_read')
+            ToClientRecord
+                    |-> EventRecord('ev_to_client_data_modify')
+                            |-> TriggerRecord()
+                                |-> SubstitionRecord
+                    |-> EventRecord('ev_to_client_data_read')
+        refactor to libs.tracking
+            with data and process?
+            libs.tracking.data.LogRecord
+            libs.tracking.workflow.event
+                could track events, command, triggers, etc
+        ???: records are for tracking data changes, should tracking flows
+            be added?
+        the event itself, commands, triggers, timers
+        could add errors to the record
+            for a command, the exception
+            for an event, the function that errored with the exception
+    # TODO: create a help plugin
+                for how to use as well as to develop for
+    # TODO: move libs.event into plugins.core.events? same for commands and colors?
+    # TODO: can I use the humanize library anywhere?
+
+
+
+# REVISIT:
+    # TODO: decorator for event description
+        maybe for __init__?
+    # TODO: libs.timing
+        DIDNTDO: change decorator to a class?
+
+# DONE
+    # COMPLETE: libs.api
+        COMPLETE: add an api to add an event to core.events
+        class should hold everything including args
+        see libs.events and plugins.core.events:add:event
+        COMPLETE: add stats cmd to apihelp for parents with a ':' in the name
+        COMPLETE: make @api decorator to add api items
+            see how commands are added with decorators
+            I don't think this will work since APIs are added at runtime with instance methods
+                and decorators are added at compile time
+            args would be a name
+            it would instrospect the function
+                if it finds a plugin in the next stack up, it would add it through that plugin
+            if not
+                it would add it by the argument
+            error checking to see if the function is not already in the api
+        COMPLETE: change
+                #BP:    setting.get                    - # get the value of a setting
+                #BP:         - added in plugins.core.proxy  - called 24 time
+            to be something like
+                #BP:    plugins.core.proxy:setting.get - called 24 times
+                            # get the value of a setting
+        COMPLETE: change apis to be listed alphabetically
+    # COMPLETE: libs.records
+        COMPLETE: keep up with the last (important) record created (ToClientRecord, ToMudRecord, EventArgsRecord, CmdArgsRecord, LogRecord)?
+            keep up with it in RecordManager and add related records before it changes?
+        COMPLETE: change record addchange to addupdate, refactor to update
+        WONTDO: convert all the record types to be fronted by a Factory - https://pravash-techie.medium.com/python-start-using-factory-pattern-design-323c743c0a49
+        COMPLETE: add an ToMudRecord to track stuff through execute
+    # COMPLETE: plugins.core.log
+        COMPLETE: on shutdown clean unused log types
+        COMPLETE: look at log file and saving all logging types, only toggle and show toplevel loggers
+    # COMPLETE: plugins._baseplugin.py
+        COMPLETE: change self.save_directory to self.data_directory
+        COMPLETE: added a auto_initialize_f flag
+        COMPLETE: remove ability for setting.* apis in _baseclass to take plugin argument
+        COMPLETE: remove overloading api:add in baseclass
+        COMPLETE: change api to only have 1 ':', change all other ":" to "."
+        COMPLETE: check into using __init_subclass__ (used this for api decorators)
+        COMPELTE: init with a PluginPackageObject instead of copying it all into the plugin
+    # COMPLETE: plugins.core.events
+        COMPLETE: register to multiple events with decorator
+        COMPLETE: implement stack for saving current event record in raise for get.current.event.record
+        COMPLETE: instead of passing around event_args
+            created two apis: plugins.core.events:get:current:event:name
+                            plugins.core.events:get:current:event:record
+        COMPLETE: add all events to a timeline
+            or create an api to start tracking all events and stop tracking all events
+            see variable all_event_stack in events plugin
+    # COMPLETE: plugins.core.pluginm
+        COMPLETE: in pluginm.list make required plugins blue
+        COMPLETE: move plugin manager to a separate file and out of plugins/__init__.py
+        COMPLETE: Combine PluginPackageInfo and LoadedPluginInfo
+            add short_name to PluginPackageInfo
+            PluginPackageInfo can have a
+                "Active Plugin" item that contains
+                    the module, the plugin instance, imported_time, isimported, isinitialized
+        COMPLETE: refactor paths
+            need only 3
+                plugin_init_file_path - points to __init__.py
+                plugin_package_path - points to package directory
+                full_import_location - used for importing (equivalent to plugin_id in current implementation)
+        COMPLETE: move plugin loading/import/instantiation/initializing machinery into libs
+            only have apis, commands, event cb, etc in the plugin itself
+        COMPLETE: check if self.auto_initialize_f = False is needed now that plugin initialization
+            has changed
+        COMPLETE: BUG - core.plugin.list -n doesn't work
+    # COMPLETE: plugins.core.inspect
+        COMPLETE: rename profile plugin to audit or inspect?
+        COMPLETE: add count for RecordTypes in list command
+        COMPLETE: add an inspect method that calls a specific plugins inspect command
+    # COMPLETE: plugins.core.commands
+        COMPLETE: change execute to only send to the client that executed the command if internal
+        COMPLETE: decorator for adding commands
+            see libs/commands.py
+            the decorator includes the various info as attributes on the function
+            the command plugin looks for any functions that start with _command_ in the instance and
+                any instance attributes (1 level down)
+        COMPLETE: create an api in commands to remove .plugins from a command string
+            see : plugins.core.commands:get.command.format
+            or an api for get command string(plugin_id, command)
+            See:
+                #BP: You are now logged in.
+                #BP: ------------------------------------------------
+                #BP: Please set the mudhost.
+                #BP: #bp.plugins.core.proxy.set mudhost 'host'
+                #BP: ------------------------------------------------
+                #BP: Please set the mudport.
+                #BP: #bp.plugins.core.proxy.set mudport 'port'
+                #BP: ------------------------------------------------
+                #BP: Conect to the mud with #bp.plugins.core.proxy.connect
+                #BP: ------------------------------------------------
+                #BP: The proxy password is still the default password.
+                #BP: Please set the proxy password!
+                #BP: #bp.plugins.core.proxy.proxypw 'This is a password'
+                #BP: ------------------------------------------------
+                #BP: The proxy view password is still the default password.
+                #BP: Please set the proxy view password!
+                #BP: #bp.plugins.core.proxy.proxypwview 'This is a view password'
+                #BP: ------------------------------------------------
+        WONTFIX: convert commands to be subparsers of a global parser for each plugin
+            this would break the way that we use fuzzy to find things
+        COMPLETE: convert commands to be a Class
+        WONTFIX: required arguments don't work right
+            see:  #bp.core.inspect.list
+            WONTFIX: commands must check for argument existence since exit_on_error
+                is turned off for argument parsing
+        COMPLETE: convert command callbacks to do something similar to what events does for event_args
+            create an api get.current.command.args
+        COMPLETE: Add arguments to output of command automatically
+            #BP: #bp.core.proxy.inspect arg_list
+            #BP: --------------------  Arguments ----------------------------------------------------
+            #BP: Arguments:
+            #BP:    Arg 1:
+            #BP:    Arg 2:
+            #BP: ------------------------- Output ------------------------------------------------
+            #BP: output
+            #BP: output
+    # COMPLETE: plugins.core.sqldb
+        COMPLETE: add function to list tables
+    # COMPLETE: plugins.core.timers
+        WONTFIX - convert timers to asyncio tasks
+            Is it easier to manage the timers through a single task or have to keep up with
+                multiple tasks?
+                4/3/2023 - Decided Yes :) could change.
+            Can I use asyncio to schedule a task to happen at a particular time?
+            New Timer:
+                figure out the first time it should fire and add it to an instance attribute (self.next_fire_time)
+                the execute function would look something like this
+                    while self.enabled:
+                        await asyncio.sleep(self.next_fire_time - now)
+
+                        # run the function associated with the timer
+
+                        # figure out the next time to fire and set self.next_fire_time
+    # COMPLETE: plugins.core.ssc
+        divorce the setting from having to lookup the plugin_instance
+        pass data_directory and plugin_id
+    # COMPLETE: research why the initialize function takes so long
+            get_caller_owner_id was optimized and no longer uses inspect.stack
+    # COMPLETE: add profiling as a command line argument
+    # COMPLETE: refactor different function names to be consistent
+        COMPLETE: commands are _command_*
+        COMPLETE: apis are _api_*, all api function calls should go through the api
+        COMPLETE: events are _eventcb_*
+    # COMPLETE: decorator for event registration
+    # COMPLETE: don't pass objects in event args (like Records, Commands, etc)
+        retrieve the object through an api using an id
+        # COMPLETE : Event Args, Command Args
+    # COMPLETE: break up plugins into multiple files under a single save_directory
+        Example: the core.commands plugin would be a folder commands under the core folder under the plugins folder
+            Need to figure out how to search this without looking for a Plugin object in all files
+            maybe in __init__, put the standard plugin header files
+            don't search for .py files, but search for packages?
+        will need to change the way info.isvalidpythoncode = True works
+        # NOTE: reloading plugins does not update any objects that have been imported by another plugin,
+            try to keep imports into other plugins at a minimum
+                one such item is a decorator that is used by other plugins, if the module the decorator exists in is reloaded
+                then all the other modules that have used that decorator will have the old decorator and they will have references
+                to the old module, meaning the old module will never be garbage collected until all those other modules have been reloaded.
+        # COMPLETE: search for __name__ and refactor
+    # COMPLETE: move fuzzy matching plugin names from commands to pluginloader??? add an api to do it?
+    # COMPLETE: plugins.core.settings
+        move all settings to a central plugin?
+                or just add a plugin to interact with all settings?
+            what would this break in __init__ or initializing?
+                would setting:add have to move to initialize?
+                do any plugins use setting:get in __init__ or initialize?
+            monkeypatch baseplugin with the __command__set function?
+    # COMPLETE: change api to use instance instead of overload
+        enforce that there cannot be two apis with the same name in ANY case
