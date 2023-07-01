@@ -71,6 +71,14 @@ class SimpleQueue(object):
         """
         return self.snapshot
 
+    def get(self) -> list:
+        """
+        return the current stack
+
+        returns a copy of the item list
+        """
+        return self.items[:]
+
     def get_by_id(self, item_id):
         """
         get an item by id
