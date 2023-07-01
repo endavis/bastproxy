@@ -14,6 +14,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
 """
 # Standard Library
 import typing
+import datetime
 
 # 3rd Party
 
@@ -146,6 +147,9 @@ class Event:
         """
         format a detail of the event
         """
+        header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+        subheader_color = '@M'
+
         description = []
         for i, line in enumerate(self.description):
             if not line:
@@ -162,10 +166,10 @@ class Event:
             f"{'Raised':<13} : {self.raised_count}",
             '',
             self.api('plugins.core.utils:center.colored.string')(
-                '@x86Registrations@w', '-', 60, filler_color='@B'
+                '@x86Registrations@w', '-', 60, filler_color=header_color
             ),
             f"{'priority':<13} : {'owner':<25} - function name",
-            '-' * 60,
+            subheader_color + '-' * 60 + '@w',
         ]
         function_message: list[str] = []
         key_list = self.priority_dictionary.keys()
@@ -179,8 +183,8 @@ class Event:
             message.append('None')
         else:
             message.extend(function_message)
-        message.extend(('@B' + '-' * 60, ''))
-        message.append(self.api('plugins.core.utils:center.colored.string')('@x86Data Keys@w', '-', 60, filler_color='@B'))
+        message.extend((header_color + '-' * 60 + '@w', ''))
+        message.append(self.api('plugins.core.utils:center.colored.string')('@x86Data Keys@w', '-', 60, filler_color=header_color))
         if self.arg_descriptions and 'None' not in self.arg_descriptions:
             message.extend(
                 f"@C{arg:<13}@w : {self.arg_descriptions[arg]}"
@@ -190,15 +194,22 @@ class Event:
             message.append('None')
         else:
             message.append('Unknown')
-        message.append('@B' + '-' * 60)
+        message.append(header_color + '-' * 60 + '@w')
 
         if self.call_stacks:
             message.append('')
-            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Call Stacks@w', '-', 60, filler_color='@B'))
-            for call_stack in self.call_stacks.get():
-                message.append(f"@CCalled from: {call_stack['calledfrom']:<13}@w")
-                message.extend(call_stack['stack'])
-                message.append('@B' + '-' * 40)
+            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Call Stacks@w', '-', 60, filler_color=header_color))
+            for i, call_stack in enumerate(self.call_stacks.get()):
+                if i > 0:
+                    message.append('')
+                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Stack: {i + 1}@w', '-', 40, filler_color=subheader_color))
+                message.append(f"Called from : {call_stack['calledfrom']:<13}@w")
+                message.append(f"Timestamp   : {call_stack['timestamp']}@w")
+                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Event Stack@w', '-', 40, filler_color=subheader_color))
+                message.extend([f"  {event}" for event in call_stack['event_stack']])
+                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Function Stack@w', '-', 40, filler_color=subheader_color))
+                message.extend([f"{call}" for call in call_stack['call_stack']])
+            message.append(header_color + '-' * 60 + '@w')
 
         return message
 
@@ -238,7 +249,9 @@ class Event:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by])()
 
-        call_stack = {'calledfrom': calledfrom, 'data': data, 'stack': self.api('libs.api:stackdump')()}
+        call_stack = {'calledfrom': calledfrom, 'data': data, 'call_stack': self.api('libs.api:stackdump')(),
+                      'event_stack':self.api('plugins.core.events:get.event.stack')(),
+                      'timestamp':datetime.datetime.now(datetime.timezone.utc)}
         self.call_stacks.enqueue(call_stack)
 
         self.current_record = data
