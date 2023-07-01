@@ -165,7 +165,7 @@ class SettingsPlugin(BasePlugin):
                     {'var':setting,
                     'newvalue':new_value,
                     'oldvalue':old_value})
-        
+
         return True
 
     @AddAPI('get.setting.info', description='get the info for a setting')
@@ -184,12 +184,13 @@ class SettingsPlugin(BasePlugin):
         """
         initialize the settings for a plugin
         """
+        LogRecord(f"initializing settings for {plugin_id}", level='debug', sources=[self.plugin_id, plugin_id])()
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
 
         for i in self.settings_info[plugin_id]:
             if self.api("plugins.core.settings:is.setting.hidden")(plugin_id, i):
-                continue            
+                continue
             self.api('plugins.core.events:add.event')(f"ev_{plugin_id}_var_{i}_modified", plugin_id,
                                 description=[f"An event to modify the setting {i}"],
                                 arg_descriptions={'var':'the variable that was modified',
@@ -215,6 +216,7 @@ class SettingsPlugin(BasePlugin):
         """
         raise an event for all settings
         """
+        LogRecord(f"Raising events for all settings in {plugin_id}", level='debug', sources=[self.plugin_id, plugin_id])()
         old_value = '__init__'
         for i in self.settings_info[plugin_id]:
             if self.api("plugins.core.settings:is.setting.hidden")(plugin_id, i):
@@ -226,7 +228,7 @@ class SettingsPlugin(BasePlugin):
                 event_name,
                 {'var':i,
                 'newvalue':new_value,
-                'oldvalue':old_value})        
+                'oldvalue':old_value})
 
     @AddAPI('is.setting.hidden', description='check if a plugin setting is flagged hidden')
     def _api_is_setting_hidden(self, plugin_id, setting):

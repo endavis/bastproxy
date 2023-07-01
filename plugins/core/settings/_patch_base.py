@@ -14,6 +14,7 @@ import textwrap
 # Project
 import libs.argp as argp
 from plugins._baseplugin import RegisterPluginHook
+from libs.event import RegisterToEvent
 from libs.commands import AddCommand, AddParser, AddArgument
 
 @AddCommand(group='Base', name='set', show_in_history=False)
@@ -67,6 +68,12 @@ def _settings_plugin_hook_post_initialize(self):
     self.reset_f = False
 
     self.api('plugins.core.settings:initialize.plugin.settings')(self.plugin_id)
+
+@RegisterToEvent(event_name="ev_{plugin_id}_initialized")
+def _eventcb_raise_event_all_settings(self):
+    """
+    raise all events for settings
+    """
     self.api('plugins.core.settings:raise.event.all.settings')(self.plugin_id)
 
 @RegisterPluginHook('save')
