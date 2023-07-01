@@ -16,6 +16,7 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
 from libs.event import Event
 from libs.stack import SimpleStack
+from libs.queue import SimpleQueue
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
@@ -31,9 +32,9 @@ class EventsPlugin(BasePlugin):
 
         self.global_raised_count: int = 0
         self.current_event: Event | None = None
-        self.event_stack = SimpleStack(100)
+        self.active_event_stack = SimpleStack(100)
 
-        self.all_event_stack = SimpleStack(300)
+        self.all_event_stack = SimpleQueue(300)
 
         self.events: dict[str, Event] = {}
 
@@ -65,7 +66,7 @@ class EventsPlugin(BasePlugin):
 
     def register_events_for_plugin(self, plugin_id):
         """
-        update all commands for a plugin
+        register all events in a plugin
         """
         plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
@@ -124,14 +125,14 @@ class EventsPlugin(BasePlugin):
         """
         return the current event name
         """
-        return self.event_stack.peek()
+        return self.active_event_stack.peek()
 
     @AddAPI('get.current.event.record', description='return the current event record')
     def _api_get_current_event_record(self):
         """
         return the current event record
         """
-        if last_event := self.event_stack.peek():
+        if last_event := self.active_event_stack.peek():
             event = self.api(f"{self.plugin_id}:get.event")(last_event)
             return event.current_record
         return None
@@ -141,7 +142,7 @@ class EventsPlugin(BasePlugin):
         """
         return the current event stack
         """
-        return self.event_stack.getstack()
+        return self.active_event_stack.getstack()
 
     @AddAPI('add.event', description='add an event for this plugin to track')
     def _api_add_event(self, event_name: str, created_by: str, description: list | None = None,
@@ -250,14 +251,14 @@ class EventsPlugin(BasePlugin):
 
         self.global_raised_count += 1
 
-        # push the evnet onto the stack
-        self.event_stack.push(event.name)
-        self.all_event_stack.push(event.name)
+        # push the event onto the stack
+        self.active_event_stack.push(event.name)
+        self.all_event_stack.enqueue(event.name)
 
         success = event.raise_event(args, calledfrom)
 
         # pop it back off
-        self.event_stack.pop()
+        self.active_event_stack.pop()
 
         return success
 
