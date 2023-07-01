@@ -66,9 +66,9 @@ def stackdump(id='', msg='') -> list[str]:
     del entries[-2:]
 
     # Split the stack entries on line boundaries.
-    lines = list(chain.from_iterable(line.splitlines() for line in entries))
-    lines.insert(0, msg)
+    lines = list(chain.from_iterable(line.splitlines() for line in entries if line))
     if msg:  # Append it to last line with name of caller function.
+        lines.insert(0, msg)
         lines.append(f'LEAVING STACK_DUMP: {id}' if id else '')
 
     return lines
