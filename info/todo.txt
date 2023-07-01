@@ -51,6 +51,9 @@
     # TODO: plugins.core.cmdq
         rename to mudcmds????
     # TODO: create other records for tracking things
+        can we combine events and records to make things easier to track?
+            records are used to track data
+            events are used to track workflow
         create a record tree
             ToMudRecord
                     |-> EventRecord('ev_to_mud_data_modify')
@@ -77,8 +80,8 @@
                 for how to use as well as to develop for
     # TODO: move libs.event into plugins.core.events? same for commands and colors?
     # TODO: can I use the humanize library anywhere?
-
-
+    # TODO: Discord Bot?
+    # BUG: stats command not working
 
 # REVISIT:
     # TODO: decorator for event description
