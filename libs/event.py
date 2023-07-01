@@ -21,6 +21,7 @@ import typing
 from libs.api import API
 from libs.records import LogRecord, EventArgsRecord
 from libs.callback import Callback
+from libs.queue import SimpleQueue
 
 class RegisterToEvent:
     """
@@ -57,6 +58,7 @@ class Event:
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
         self.current_record: EventArgsRecord | None = None
+        self.call_stacks = SimpleQueue(length=10)
 
     def count(self) -> int:
         """
@@ -190,6 +192,14 @@ class Event:
             message.append('Unknown')
         message.append('@B' + '-' * 60)
 
+        if self.call_stacks:
+            message.append('')
+            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Call Stacks@w', '-', 60, filler_color='@B'))
+            for call_stack in self.call_stacks.get():
+                message.append(f"@CCalled from: {call_stack['calledfrom']:<13}@w")
+                message.extend(call_stack['stack'])
+                message.append('@B' + '-' * 40)
+
         return message
 
     def raise_event(self, data: dict | EventArgsRecord, calledfrom: str) -> EventArgsRecord | None:
@@ -227,6 +237,9 @@ class Event:
         if log:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by])()
+
+        call_stack = {'calledfrom': calledfrom, 'data': data, 'stack': self.api('libs.api:stackdump')()}
+        self.call_stacks.enqueue(call_stack)
 
         self.current_record = data
         if keys := self.priority_dictionary.keys():
