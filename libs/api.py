@@ -55,7 +55,7 @@ class AddAPI:
 
         return func
 
-def stackdump(id='', msg='HERE') -> None:
+def stackdump(id='', msg='') -> list[str]:
     raw_tb = traceback.extract_stack()
     entries: list[str] = traceback.format_list(raw_tb)
 
@@ -68,15 +68,10 @@ def stackdump(id='', msg='HERE') -> None:
     # Split the stack entries on line boundaries.
     lines = list(chain.from_iterable(line.splitlines() for line in entries))
     lines.insert(0, msg)
-    lines.insert(0, '\n')
     if msg:  # Append it to last line with name of caller function.
         lines.append(f'LEAVING STACK_DUMP: {id}' if id else '')
-    try:
-        from libs.records import LogRecord
-        LogRecord(lines, level='warning', sources=[__name__])()
-    except ImportError:
-        print('\n'.join(lines))
-        print()
+
+    return lines
 
 @lru_cache(maxsize=128)
 def get_args(api_function: typing.Callable) -> str:
@@ -173,7 +168,14 @@ class APIStatItem:
         """
         self.count += 1
         if (not caller_id or caller_id == 'unknown'):
-            stackdump(msg=f"------------ Unknown caller_id for API call: {self.full_api_name} -----------------")
+            stack = stackdump(msg=f"------------ Unknown caller_id for API call: {self.full_api_name} -----------------")
+            stack.insert(0, '\n')
+            try:
+                from libs.records import LogRecord
+                LogRecord(stack, level='warning', sources=[__name__])()
+            except ImportError:
+                print('\n'.join(stack))
+                print()
         if caller_id not in self.detailed_calls:
             self.detailed_calls[caller_id] = 0
         self.detailed_calls[caller_id] += 1
@@ -429,6 +431,7 @@ class API():
         self.add('libs.api', 'get.caller.owner', self._api_get_caller_owner, instance=True)
         self.add('libs.api', 'is.character.active', self._api_is_character_active_get, instance=True)
         self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, instance=True)
+        self.add('libs.api', 'stackdump', stackdump, instance=True)
 
     # scan the object for api decorated functions
     def _api_add_apis_for_object(self, toplevel, item):
