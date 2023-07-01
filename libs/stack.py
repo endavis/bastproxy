@@ -17,7 +17,7 @@ This plugin has a simple queue class
 
 class SimpleStack(object):
     """
-    a simple queue class
+    a simple stack class
     """
     def __init__(self, length=20, id_key=None):
         """
