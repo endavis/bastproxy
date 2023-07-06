@@ -977,7 +977,7 @@ class CommandPlugin(BasePlugin):
         return True, message
 
     @RegisterPluginHook('save')
-    def _commands_plugin_savestate(self):
+    def _phook_commands_save(self):
         """
         save states
         """

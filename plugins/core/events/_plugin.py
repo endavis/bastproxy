@@ -425,7 +425,7 @@ class EventsPlugin(BasePlugin):
         return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
 
     @RegisterPluginHook('stats')
-    def __settings_plugin_hook_stats(self, stats):
+    def _phook_events_stats(self, stats):
         """
         return stats for events
         """

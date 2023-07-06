@@ -7,5 +7,10 @@ function names, variable names, class method names, and instance variable names 
 class names are CapitalizedWords
 constant names are UPPER_CASE_WITH_UNDERSCORES
 
+api functions start with _api_
+command functions start with _command_
+event callbacks start with _eventcb_
+plugin hooks start with _phook_
+
 numpy docstrings - https://numpydoc.readthedocs.io/en/latest/format.html
 

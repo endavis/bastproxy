@@ -527,7 +527,7 @@ class LogPlugin(BasePlugin):
         return True, tmsg
 
     @RegisterPluginHook('save')
-    def _log_plugin_savestate(self):
+    def _phook_log_save(self):
         """
         save items not covered by baseplugin class
         """

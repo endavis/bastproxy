@@ -51,7 +51,7 @@ def _command_settings_plugin_set(self):
     return self.api('plugins.core.commands:run')('plugins.core.settings', 'pset', argument_string=arg_string)
 
 @RegisterPluginHook('reset')
-def _settings_plugin_reset(self):
+def _phook_settings_reset(self):
     """
     reset settings data
     """
@@ -61,7 +61,7 @@ def _settings_plugin_reset(self):
         self.reset_f = False
 
 @RegisterPluginHook('post_initialize', priority=5)
-def _settings_plugin_hook_post_initialize(self):
+def _phook_settings_post_initialize(self):
     """
     setup the settings for the plugin
     """
@@ -77,7 +77,7 @@ def _eventcb_raise_event_all_settings(self):
     self.api('plugins.core.settings:raise.event.all.settings')(self.plugin_id)
 
 @RegisterPluginHook('save')
-def _settings_plugin_save(self):
+def _phook_settings_save(self):
     """
     save all settings for the plugin
     """

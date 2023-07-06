@@ -74,14 +74,14 @@ class Base: # pylint: disable=too-many-instance-attributes
         self._process_plugin_hook('post_base_init')
 
     @RegisterPluginHook('post_base_init', priority=1)
-    def _plugin_hook_add_apis(self):
+    def _phook_base_post_base_init_add_apis(self):
         """
         load any apis that were added in the __init__ method
         """
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
     @RegisterPluginHook('post_init', priority=1)
-    def _plugin_hook_post_instantiate(self):
+    def _phook_base_post_init(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
         self.is_instantiated_f = True
@@ -289,7 +289,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         return True, message
 
     @RegisterPluginHook('post_initialize')
-    def _update_version(self):
+    def _phook_base_post_initialize_update_version(self):
         """
         update plugin data
 
@@ -318,7 +318,7 @@ class Base: # pylint: disable=too-many-instance-attributes
 
 
     @RegisterPluginHook('post_initialize')
-    def _plugin_hook_post_initialize_base_setup(self):
+    def _phook_base_post_initialize_setup(self):
         """
         do something after the initialize function is run
         """
@@ -385,10 +385,10 @@ class Base: # pylint: disable=too-many-instance-attributes
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
 
-        self._process_plugin_hook('uninitialize')        
+        self._process_plugin_hook('uninitialize')
 
     @RegisterPluginHook('pre_initialize')
-    def _plugin_hook_pre_initialize(self):
+    def _phook_base_pre_initialize(self):
         """
         initialize the plugin, do most things here
         """
