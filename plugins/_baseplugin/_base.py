@@ -113,7 +113,7 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         function_list = {}
         for item in dir(obj):
-            if item.startswith('__'):
+            if not item.startswith('_phook_'):
                 continue
             try:
                 item = getattr(self, item)
