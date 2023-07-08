@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/fuzzy/_plugin.py
+# Filename: plugins/core/fuzzy/_fuzzy.py
 #
 # File Description: a plugin to do fuzzy matching with strings
 #

@@ -18,7 +18,7 @@ from libs.api import API
 from libs.records import LogRecord, CmdArgsRecord
 import libs.argp as argp
 
-class Command:
+class CommandClass:
     def __init__(self, plugin_id: str, name: str, function: typing.Callable,
                  arg_parser: argp.ArgumentParser, format: bool = True,
                  group: str | None = None, preamble: bool = True,

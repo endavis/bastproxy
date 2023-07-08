@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/ssc/_plugin.py
+# Filename: plugins/core/ssc/_ssc.py
 #
 # File Description: a plugin to save settings that should not stay in memory
 #

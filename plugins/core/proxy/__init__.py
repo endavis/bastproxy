@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import ProxyPlugin as Plugin
+from ._proxy import ProxyPlugin as Plugin

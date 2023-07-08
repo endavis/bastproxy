@@ -16,4 +16,4 @@ PLUGIN_VERSION = 1
 
 __all__ = ['Plugin']
 
-from ._plugin import APIHelpPlugin as Plugin
+from ._apihelp import APIHelpPlugin as Plugin

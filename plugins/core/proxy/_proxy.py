@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/proxy/_plugin.py
+# Filename: plugins/core/proxy/_proxy.py
 #
 # File Description: a plugin to handle settings and information about the proxy
 #

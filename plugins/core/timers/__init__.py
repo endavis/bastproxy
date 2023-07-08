@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import TimersPlugin as Plugin
+from ._timers import TimersPlugin as Plugin

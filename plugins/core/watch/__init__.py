@@ -18,4 +18,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import WatchPlugin as Plugin
+from ._watch import WatchPlugin as Plugin

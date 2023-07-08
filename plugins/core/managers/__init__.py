@@ -18,4 +18,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import ManagersPlugin as Plugin
+from ._managers import ManagersPlugin as Plugin

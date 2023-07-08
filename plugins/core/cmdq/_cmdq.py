@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/cmdq/_plugin.py
+# Filename: plugins/core/cmdq/_cmdq.py
 #
 # File Description: a command queue plugin
 #

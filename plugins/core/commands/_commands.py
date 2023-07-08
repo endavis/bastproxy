@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/commands/_plugin.py
+# Filename: plugins/core/commands/_commands.py
 #
 # File Description: a plugin that is the command interpreter for clients
 #
@@ -22,9 +22,9 @@ import libs.argp as argp
 from libs.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
 from ._formatter import CustomFormatter
-from ._command import Command
+from ._command import CommandClass
 
-class CommandPlugin(BasePlugin):
+class CommandsPlugin(BasePlugin):
     """
     a class to manage internal commands
     """
@@ -52,7 +52,7 @@ class CommandPlugin(BasePlugin):
             self.command_history_dict['history'] = []
         self.command_history_data = self.command_history_dict['history']
 
-        self.current_command: Command | None = None
+        self.current_command: CommandClass | None = None
 
 
     def initialize(self):
@@ -258,7 +258,7 @@ class CommandPlugin(BasePlugin):
             command_kwargs['show_in_history'] = True
 
         try:
-            command = Command(plugin_id,
+            command = CommandClass(plugin_id,
                                 command_name,
                                 func,
                                 parser,
@@ -441,7 +441,7 @@ class CommandPlugin(BasePlugin):
         return self.commands_list
 
     # retrieve a command from a plugin
-    def get_command_data_from_plugin(self, plugin_id, command) -> Command | None:
+    def get_command_data_from_plugin(self, plugin_id, command) -> CommandClass | None:
         """
         get the command from the plugin data
 
@@ -462,7 +462,7 @@ class CommandPlugin(BasePlugin):
         return None
 
     # update a command
-    def update_command(self, plugin_id, command_name, command: Command):
+    def update_command(self, plugin_id, command_name, command: CommandClass):
         """
         update a command
 
@@ -580,7 +580,7 @@ class CommandPlugin(BasePlugin):
 
         return newoutput
 
-    def find_command(self, command_line: str) -> tuple[Command | None, str, bool, str, list[str]]:
+    def find_command(self, command_line: str) -> tuple[CommandClass | None, str, bool, str, list[str]]:
         """
         find a command from the client
         """
@@ -819,7 +819,7 @@ class CommandPlugin(BasePlugin):
         LogRecord(f"remove command: command {plugin_id}.{command_name} does not exist", level='error', sources=[self.plugin_id, plugin_id])()
         return False
 
-    def format_command_list(self, command_list: list[Command]):
+    def format_command_list(self, command_list: list[CommandClass]):
         """
         format a list of commands by a category
 
@@ -853,7 +853,7 @@ class CommandPlugin(BasePlugin):
         if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return []
 
-        commands: dict[str, Command] = self.api(f"{plugin_id}:data.get")('commands')
+        commands: dict[str, CommandClass] = self.api(f"{plugin_id}:data.get")('commands')
         message = [f"Commands in {plugin_id}:", '@G' + '-' * 60 + '@w']
         groups = {}
         for i in sorted(commands.keys()):

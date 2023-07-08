@@ -17,4 +17,4 @@ PLUGIN_VERSION = 1
 
 __all__ = ['Plugin']
 
-from ._plugin import InspectPlugin as Plugin
+from ._inspect import InspectPlugin as Plugin

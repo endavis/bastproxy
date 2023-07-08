@@ -35,4 +35,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import Plugin
+from ._colors import ColorsPlugin as Plugin

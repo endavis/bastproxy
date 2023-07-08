@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/events/_plugin.py
+# Filename: plugins/core/events/_events.py
 #
 # File Description: a plugin to handle events
 #

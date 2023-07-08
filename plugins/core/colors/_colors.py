@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/colors/_plugin.py
+# Filename: plugins/core/colors/_colors.py
 #
 # File Description: a plugin to handle ansi and xterm colors
 #
@@ -90,7 +90,7 @@ def fixstring(tstr):
     tstr = re.sub(r"@[^xzcmyrgbwCMYRGBWD]", '', tstr)
     return tstr
 
-class Plugin(BasePlugin):
+class ColorsPlugin(BasePlugin):
     """
     a plugin to handle ansi colors
     """

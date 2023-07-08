@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/errors/_plugin.py
+# Filename: plugins/core/errors/_errors.py
 #
 # File Description: a plugin to handle errors
 #

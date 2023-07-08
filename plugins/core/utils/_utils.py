@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/utils/_plugin.py
+# Filename: plugins/core/utils/_utils.py
 #
 # File Description: a plugin with various utility functions
 #

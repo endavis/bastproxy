@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/sqldb/_plugin.py
+# Filename: plugins/core/sqldb/_sqldb.py
 #
 # File Description: a plugin to create a sqlite3 interface
 #

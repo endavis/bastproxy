@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import ClientPlugin as Plugin
+from ._clients import ClientPlugin as Plugin

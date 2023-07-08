@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/clients/_plugin.py
+# Filename: plugins/core/clients/_clients.py
 #
 # File Description: a plugin to hold information about clients
 #

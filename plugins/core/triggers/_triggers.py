@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/triggers/_plugin.py
+# Filename: plugins/core/triggers/_triggers.py
 #
 # File Description: a plugin to handle internal triggers
 #

@@ -17,7 +17,7 @@ PLUGIN_VERSION = 1
 
 __all__ = ['Plugin']
 
-from ._settingsplugin import SettingsPlugin
+from ._settings import SettingsPlugin
 
 class Plugin(SettingsPlugin):
     pass

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/watch/_plugin.py
+# Filename: plugins/core/watch/_watch.py
 #
 # File Description: a plugin to watch for commands from the client
 #

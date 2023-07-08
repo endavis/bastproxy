@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import ErrorPlugin as Plugin
+from ._errors import ErrorPlugin as Plugin

@@ -25,4 +25,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import CommandPlugin as Plugin
+from ._commands import CommandsPlugin as Plugin

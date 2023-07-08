@@ -53,4 +53,4 @@ PLUGIN_VERSION = 1
 
 __all__ = ['Plugin']
 
-from ._plugin import SQLDBPlugin as Plugin
+from ._sqldb import SQLDBPlugin as Plugin

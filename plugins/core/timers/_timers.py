@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/timers/_plugin.py
+# Filename: plugins/core/timers/_timers.py
 #
 # File Description: a plugin to handle timers
 #

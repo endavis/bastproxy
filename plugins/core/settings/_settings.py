@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/example/_exampleplugin.py
+# Filename: plugins/core/example/_settings.py
 #
 # File Description: an example plugin
 #

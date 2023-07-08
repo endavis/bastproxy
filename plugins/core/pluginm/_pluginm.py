@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/_manager/_plugin.py
+# Filename: plugins/_manager/_pluginm.py
 #
 # File Description: holds the plugin manager
 #

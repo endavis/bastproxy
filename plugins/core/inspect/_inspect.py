@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/inspect/_plugin.py
+# Filename: plugins/core/inspect/_inspect.py
 #
 # File Description: a plugin to inspect plugin internals
 #

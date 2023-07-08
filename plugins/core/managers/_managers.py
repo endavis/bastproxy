@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/managers/_plugin.py
+# Filename: plugins/core/managers/_managers.py
 #
 # File Description: a plugin to keep up with managers
 #

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/log/_plugin.py
+# Filename: plugins/core/log/_log.py
 #
 # File Description: a plugin to change logging settings
 #

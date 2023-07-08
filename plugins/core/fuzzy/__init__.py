@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import FuzzyPlugin as Plugin
+from ._fuzzy import FuzzyPlugin as Plugin

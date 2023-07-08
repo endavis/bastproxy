@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/apihelp/_plugin.py
+# Filename: plugins/core/apihelp/_apihelp.py
 #
 # File Description: a plugin to show api functions and details
 #

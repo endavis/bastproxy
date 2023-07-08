@@ -30,4 +30,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import EventsPlugin as Plugin
+from ._events import EventsPlugin as Plugin

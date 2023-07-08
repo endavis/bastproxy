@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import UtilsPlugin as Plugin
+from ._utils import UtilsPlugin as Plugin

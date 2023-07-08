@@ -21,7 +21,7 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import LogPlugin
+from ._log import LogPlugin
 from ._custom_logger import CustomLogger
 
 class Plugin(LogPlugin, CustomLogger):

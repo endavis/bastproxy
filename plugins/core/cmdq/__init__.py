@@ -20,4 +20,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import CMDQPlugin as Plugin
+from ._cmdq import CMDQPlugin as Plugin

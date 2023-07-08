@@ -30,4 +30,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import SSCPlugin as Plugin
+from ._ssc import SSCPlugin as Plugin

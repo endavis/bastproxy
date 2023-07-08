@@ -19,4 +19,4 @@ PLUGIN_REQUIRED = True
 
 __all__ = ['Plugin']
 
-from ._plugin import TriggersPlugin as Plugin
+from ._triggers import TriggersPlugin as Plugin
