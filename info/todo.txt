@@ -81,7 +81,6 @@
     # TODO: move libs.event into plugins.core.events? same for commands and colors?
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
-    # BUG: stats command not working
 
 # REVISIT:
     # TODO: decorator for event description
