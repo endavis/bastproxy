@@ -598,133 +598,135 @@ class CommandsPlugin(BasePlugin):
         if command_str in [commandprefix, f"{commandprefix}.",
                             f"{commandprefix}.plugins", f"{commandprefix}.plugins."]:
 
-            # found just the command prefix
-            # get the list of plugins
-            packages_list = [package.replace('plugins.', '')
-                             for package in self.api('libs.pluginloader:get.packages.list')()]
+            return None, '', False, 'Proxy Help', self.find_command_only_prefix()
 
-            message.extend(self.proxy_help("Proxy Help", "Available Packages:", packages_list))
+        # split the string into the command and the command_args
+        found, new_package, new_plugin, tmessage, command_split, command_args = self.find_command_split_command_string(command_str)
 
-            return None, '', False, 'Proxy Help', message
-
-        else:
-            # split the string into the command and the command_args
-            cmd_args_split = command_str.split(' ', 1)
-            command_str = cmd_args_split[0]
-            command_args = ''
-            if len(cmd_args_split) > 1:
-                command_args = cmd_args_split[1]
-
-            LogRecord(f"looking for {command}, {command_str}, {command_args}",
-                  level='debug',
-                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-
-            # split the command by the '.'
-            command_split = command_str.split('.')
-            LogRecord(f"{command_split=}",
-                  level='debug',
-                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-
-            # remove the command prefix
-            if commandprefix in command_split:
-                del command_split[command_split.index(commandprefix)]
-
-            # remove the literal 'plugins' string
-            if 'plugins' in command_split:
-                del command_split[command_split.index('plugins')]
-
-            LogRecord(f"2: {command_split=}",
-                  level='debug',
-                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-
-            plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
-            found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str)
-
-            if not found:
-                if tmessage == 'Bad Package':
-                    # did not get a package, so output the list of packages
-                    output = [
-                                "Could not find a matching package",
-                                "".join(["@B", '-' * 79]),
-                                "Available Packages",
-                                "".join(["@B", '-' * 79])
-                            ]
-                    package_list = self.api('libs.pluginloader:get.packages.list')()
-                    for match in package_list:
-                        output.append(match.replace('plugins.', ''))
-                    output.append("".join(["@B", '-' * 79]))
-
-                    message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
-
-                    return None, '', False, 'Could not find package', message
-                elif tmessage == 'Bad Plugin':
-                    # did not get a plugin, so output the list of plugins in the package
-                    success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
-                                                                                'list', new_package)
-
-                    output = [
-                                "Could not find a matching plugin",
-                                "".join(["@B", '-' * 79]),
-                                f"Available Plugins in {new_package}",
-                                "".join(["@B", '-' * 79])
-                            ]
-                    if success:
-                        for match in cmd_output:
-                            output.append(match.replace('plugins.', ''))
-                    output.append("".join(["@B", '-' * 79]))
-
-                    message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
-
-                    return None, '', False, 'Could not find plugin', message
-
-            LogRecord(f"{found} {new_package} {new_plugin} {tmessage}",
-                  level='debug',
-                  sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-
-            # get all the pieces of the command
-            temp_package = command_split[0]
-            LogRecord(f"{temp_package=}",
-                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-            temp_command = ''
-
-            if len(command_split) > 2:
-                temp_command = command_split[2]
-
-            # try and find the command
-            command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(new_plugin)
-            command_list = list(command_data.keys())
-            LogRecord(f"{command_list=}",
-                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-            LogRecord(f"{temp_command=}",
-                  level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
-
-            new_command = self.api('plugins.core.fuzzy:get.best.match')(temp_command, tuple(command_list),
-                                                                scorer='token_set_ratio')
-
-            if not new_command:
-                # did not get a command, so output the list of commands in the plugin
+        if not found:
+            if tmessage == 'Bad Package':
+                # did not get a package, so output the list of packages
+                output = [
+                            "Could not find a matching package",
+                            "".join(["@B", '-' * 79]),
+                            "Available Packages",
+                            "".join(["@B", '-' * 79])
+                        ]
+                package_list = self.api('libs.pluginloader:get.packages.list')()
+                output.extend(match.replace('plugins.', '') for match in package_list)
+                return self.find_command_format_proxy_help(
+                    output, message, command_str, 'Could not find package'
+                )
+            elif tmessage == 'Bad Plugin':
+                # did not get a plugin, so output the list of plugins in the package
                 success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
-                                                                            'list', new_plugin)
+                                                                            'list', new_package)
 
                 output = [
-                            "Could not find a matching command",
+                            "Could not find a matching plugin",
                             "".join(["@B", '-' * 79]),
-                            f"Available Commands in {new_plugin}",
+                            f"Available Plugins in {new_package}",
                             "".join(["@B", '-' * 79])
                         ]
                 if success:
-                    for match in cmd_output:
-                        output.append(match.replace('plugins.', ''))
-                output.append("".join(["@B", '-' * 79]))
+                    output.extend(match.replace('plugins.', '') for match in cmd_output)
+                return self.find_command_format_proxy_help(
+                    output, message, command_str, 'Could not find plugin'
+                )
+        LogRecord(f"{found} {new_package} {new_plugin} {tmessage}",
+                level='debug',
+                sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
-                message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
+        # get all the pieces of the command
+        temp_package = command_split[0]
+        LogRecord(f"{temp_package=}",
+                level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
+        temp_command = command_split[2] if len(command_split) > 2 else ''
+        # try and find the command
+        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(new_plugin)
+        command_list = list(command_data.keys())
+        LogRecord(f"{command_list=}",
+                level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
+        LogRecord(f"{temp_command=}",
+                level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
-                return None, '', False, 'Could not find command', message
+        new_command = self.api('plugins.core.fuzzy:get.best.match')(temp_command, tuple(command_list),
+                                                            scorer='token_set_ratio')
 
-            # got it all
-            command_item = command_data[new_command]
+        if not new_command:
+            # did not get a command, so output the list of commands in the plugin
+            success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
+                                                                        'list', new_plugin)
 
-            return command_item, command_args, True, f'found {command_item.full_cmd}', message
+            output = [
+                        "Could not find a matching command",
+                        "".join(["@B", '-' * 79]),
+                        f"Available Commands in {new_plugin}",
+                        "".join(["@B", '-' * 79])
+                    ]
+            if success:
+                output.extend(match.replace('plugins.', '') for match in cmd_output)
+            return self.find_command_format_proxy_help(
+                output, message, command_str, 'Could not find command'
+            )
+        # got it all
+        command_item = command_data[new_command]
+
+        return command_item, command_args, True, f'found {command_item.full_cmd}', message
+
+    def find_command_split_command_string(self, command_str: str) -> tuple[bool, str, str, str, list, str]:
+        """
+        split a command string into its parts
+        """
+        commandprefix = self.api('plugins.core.settings:get')(self.plugin_id, 'cmdprefix')
+
+        cmd_args_split = command_str.split(' ', 1)
+        command_str = cmd_args_split[0]
+        command_args = cmd_args_split[1] if len(cmd_args_split) > 1 else ''
+        LogRecord(f"looking for {command_str}, {command_str}, {command_args}",
+            level='debug',
+            sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
+
+        # split the command by the '.'
+        command_split = command_str.split('.')
+        LogRecord(f"{command_split=}",
+            level='debug',
+            sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
+
+        # remove the command prefix
+        if commandprefix in command_split:
+            del command_split[command_split.index(commandprefix)]
+
+        # remove the literal 'plugins' string
+        if 'plugins' in command_split:
+            del command_split[command_split.index('plugins')]
+
+        LogRecord(f"2: {command_split=}",
+            level='debug',
+            sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
+
+        plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
+
+        found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str)
+        return found, new_package, new_plugin, tmessage, command_split, command_args
+
+    def find_command_only_prefix(self):
+        """
+        found only the command_prefix
+        """
+        # found just the command prefix
+        # get the list of packages
+        packages_list = [package.replace('plugins.', '')
+                            for package in self.api('libs.pluginloader:get.packages.list')()]
+
+        return self.proxy_help("Proxy Help", "Available Packages:", packages_list)
+
+    def find_command_format_proxy_help(self, output, message, command_str, arg3):
+        output.append("".join(["@B", '-' * 79]))
+
+        message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
+
+        return None, '', False, arg3, message
 
     def run_internal_command_from_event(self):
         """
