@@ -279,10 +279,10 @@ class SettingsPlugin(BasePlugin):
         value_string = self.format_setting_for_print(plugin_id, setting_name)
         if info['stype'] == 'color':
             tlen = len(val)
-            value_column_width = 18 + tlen
+            value_column_width = value_column_width + 3 + tlen
             help = f"{val}{help}@w"
 
-        return f"{setting_name:<20} : {value_string:<{value_column_width}} - {help}"
+        return f"{setting_name:<22} : {value_string:<{value_column_width}} - {help}"
 
     @AddAPI('get.all.settings.formatted', description='get all settings formatted')
     def _api_get_all_settings_formatted(self, plugin_id):
@@ -337,7 +337,7 @@ class SettingsPlugin(BasePlugin):
             return True, ['No settings found']
 
         message = [
-            f"{'Plugin ID':<30} {'Setting':<20} : {'Value':<15} - Help",
+            f"{'Plugin ID':<30} {'Setting':<22} : {'Value':<15} - Help",
             header_color + '-' * line_length + '@w',
         ]
         plugin_message = []
