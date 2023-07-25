@@ -58,7 +58,7 @@ class ProxyPlugin(BasePlugin):
         self.api('plugins.core.settings:add')(self.plugin_id, 'linelen', 80, int,
                                 'the line length for internal output data, does not affect data that comes from the mud or clients')
         self.api('plugins.core.settings:add')(self.plugin_id, 'preamble', '#BP', str,
-                                'the preamble from any proxy output')
+                                'the preamble for any proxy output')
         self.api('plugins.core.settings:add')(self.plugin_id, 'preamblecolor', '@C', 'color',
                                 'the preamble color')
         self.api('plugins.core.settings:add')(self.plugin_id, 'preambleerrorcolor', '@R', 'color',
