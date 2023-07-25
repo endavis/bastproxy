@@ -208,17 +208,18 @@ class TimersPlugin(BasePlugin):
           @CUsage@w: list
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
+        output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
         message: list[str] = []
 
         match: str = args['match']
 
         message.append(f"UTC time is: {datetime.datetime.now(datetime.timezone.utc).strftime('%a %b %d %Y %H:%M:%S %Z')}")
 
-        message.append('@M' + '-' * 80 + '@w')
+        message.append(output_header_color + '-' * 80 + '@w')
         templatestring = '%-20s : %-25s %-9s %-8s %s'
         message.append(templatestring % ('Name', 'Defined in',
                                                        'Enabled', 'Fired', 'Next Fire'))
-        message.append('@M' + '-' * 80 + '@w')
+        message.append(output_header_color + '-' * 80 + '@w')
         for i in self.timer_lookup:
             if not match or match in i:
                 timer = self.timer_lookup[i]

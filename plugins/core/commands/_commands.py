@@ -76,10 +76,12 @@ class CommandsPlugin(BasePlugin):
                                 readonly=True)
         self.api('plugins.core.settings:add')(self.plugin_id, 'historysize', 50, int,
                                 'the size of the history to keep')
-        self.api('plugins.core.settings:add')(self.plugin_id, 'header_color', '@G', 'color',
+        self.api('plugins.core.settings:add')(self.plugin_id, 'header_color', '@M', 'color',
                                 'the color to use for the command headers')
         self.api('plugins.core.settings:add')(self.plugin_id, 'output_header_color', '@B', 'color',
                                 'the color to use for the header in the output of a command')
+        self.api('plugins.core.settings:add')(self.plugin_id, 'output_subheader_color', '@G', 'color',
+                                'the color to use for a subheader in the output of a command')
         self.api('plugins.core.settings:add')(self.plugin_id, 'command_indent', 0, int,
                                 'the indent for a command')
         self.api('plugins.core.settings:add')(self.plugin_id, 'simple_output', True, bool,
@@ -832,12 +834,13 @@ class CommandsPlugin(BasePlugin):
         returns a list of stings for the commands
         """
         message = []
+        output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
         for i in command_list:
             if i != 'default' and i.arg_parser.description:
                     tlist = i.arg_parser.description.split('\n')
                     if not tlist[0]:
                         tlist.pop(0)
-                    message.append(f"  @B{i.name:<10}@w : {tlist[0]}")
+                    message.append(f"  {output_header_color}{i.name:<10}@w : {tlist[0]}")
 
         return message
 
@@ -855,8 +858,11 @@ class CommandsPlugin(BasePlugin):
         if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return []
 
+        output_header_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_header_color')
+        output_subheader_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_subheader_color')
+
         commands: dict[str, CommandClass] = self.api(f"{plugin_id}:data.get")('commands')
-        message = [f"Commands in {plugin_id}:", '@G' + '-' * 60 + '@w']
+        message = [f"Commands in {plugin_id}:", output_header_color + '-' * 60 + '@w']
         groups = {}
         for i in sorted(commands.keys()):
             if i != 'default':
@@ -867,13 +873,12 @@ class CommandsPlugin(BasePlugin):
 
         for group in sorted(groups.keys()):
             if group != 'Base':
-                message.append('@M' + '-' * 5 + ' ' +  group + ' ' + '-' * 5)
+                message.append(output_subheader_color + '-' * 5 + ' ' +  group + ' ' + '-' * 5 + '@w')
                 message.extend(self.format_command_list(groups[group]))
                 message.append('')
 
-        message.append('@M' + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5)
+        message.append(output_subheader_color + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5 + '@w')
         message.extend(self.format_command_list(groups['Base']))
-        #message.append('@G' + '-' * 60 + '@w')
 
         return message
 

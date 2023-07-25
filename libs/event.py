@@ -148,7 +148,7 @@ class Event:
         format a detail of the event
         """
         header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
-        subheader_color = '@M'
+        subheader_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
 
         description = []
         for i, line in enumerate(self.description):
