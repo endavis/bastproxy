@@ -135,7 +135,7 @@ class SettingsPlugin(BasePlugin):
 
         if value == 'default':
             value = self.settings_info[plugin_id][setting]['default']
-        elif self.api('libs.pluginloader:is.plugin.loaded')('utils'):
+        elif self.api('libs.pluginloader:is.plugin.loaded')('plugins.core.utils'):
             value = self.api('plugins.core.utils:verify.value')(
                         value,
                         self.settings_info[plugin_id][setting]['stype'])
