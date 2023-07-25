@@ -249,8 +249,9 @@ class ProxyPlugin(BasePlugin):
         restart the proxy
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
-        seconds = args['seconds'] or None
-        self.api(f"{self.plugin_id}:restart")(seconds)
+        listen_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
+        self.api(f"{self.plugin_id}:restart")(args['seconds'])
+        return True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
 
     @RegisterToEvent(event_name='ev_plugins.core.clients_client_logged_in')
     def _eventcb_client_logged_in(self):
