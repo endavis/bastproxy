@@ -11,8 +11,6 @@
 
     We do not register to events here, but we do fire events.
 """
-
-
 # Standard Library
 import asyncio
 import contextlib
