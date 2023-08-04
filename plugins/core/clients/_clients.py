@@ -76,7 +76,7 @@ class ClientPlugin(BasePlugin):
             LogRecord(f"{addr} has been banned for 10 minutes",
                       level='error', sources=[self.plugin_id])()
             self.banned[addr] =  datetime.datetime.now(datetime.timezone.utc)
-            self.clients[client_uuid].state['connected'] = False
+            self.clients[client_uuid].connected = False
 
     @AddAPI('client.is.view.client', description='check if a client is a view client')
     def _api_is_client_view_client(self, client_uuid):

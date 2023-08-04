@@ -85,22 +85,12 @@ class ClientConnection:
                                       client_uuid=self.uuid)
                 loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
 
-    async def setup_client(self) -> bool:
+    async def setup_client(self) -> None:
         """
         send telnet options
         send welcome message to client
         ask for password
         """
-        if self.api('plugins.core.clients:client.banned.check')(self.addr):
-            LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] is banned. Closing connection.",
-                      level='warning',
-                      sources=[__name__])()
-            self.writer.write('You are banned from this proxy. Goodbye.\n\r')
-            with contextlib.suppress(AttributeError):
-                await self.writer.drain()
-            self.connected = False
-            return False
-
         LogRecord(f"setup_client - Sending echo on to {self.uuid}",
                   level='debug',
                   sources=[__name__])()
@@ -139,8 +129,6 @@ class ClientConnection:
                   sources=[__name__])()
 
         await self.writer.drain()
-
-        return True
 
     async def client_read(self) -> None:
         """
@@ -270,10 +258,20 @@ class ClientConnection:
                   level='debug',
                   sources=[__name__])()
 
-async def register_client(connection) -> None:
+async def register_client(connection) -> bool:
     """
         This function is for things to do before the client is fully connected.
     """
+    if connection.api('plugins.core.clients:client.banned.check')(connection.addr):
+        LogRecord(f"client_read - {connection.uuid} [{connection.addr}:{connection.port}] is banned. Closing connection.",
+                    level='warning',
+                    sources=[__name__])()
+        connection.writer.write('You are banned from this proxy. Goodbye.\n\r')
+        with contextlib.suppress(AttributeError):
+            await connection.writer.drain()
+        connection.connected = False
+        return False
+
     LogRecord(f"register_client - Registering client {connection.uuid}",
               level='debug',
               sources=[__name__])()
@@ -284,6 +282,7 @@ async def register_client(connection) -> None:
               level='debug',
               sources=[__name__])()
 
+    return True
 
 async def unregister_client(connection) -> None:
     """
@@ -341,13 +340,18 @@ async def client_telnet_handler(reader, writer) -> None:
         # Remove client from the registration list and perform connection specific cleanup.
         await unregister_client(connection)
 
-        with contextlib.suppress(AttributeError):
-            writer.write_eof()
-            await writer.drain()
-            writer.close()
-
         for task in rest:
             task.cancel()
 
-        await asyncio.sleep(1)
+    with contextlib.suppress(AttributeError):
+        print(f"Closing writer with {addr} : {port} : {rest} : uuid - {connection.uuid}")
+        writer.write_eof()
+        await writer.drain()
+        writer.close()
+        print(f"Closing reader with {addr} : {port} : {rest} : uuid - {connection.uuid}")
+        reader.write_eof()
+        await reader.drain()
+        reader.close()
+
+    await asyncio.sleep(1)
 
