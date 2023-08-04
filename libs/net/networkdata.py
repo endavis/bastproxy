@@ -34,7 +34,7 @@ class NetworkData:
         just a regular byte string to send
     """
     def __init__(self, msg_type, **kwargs):
-        self.msg = kwargs.get('message', '')
+        self.msg: bytes | bytearray = kwargs.get('message', '')
         self.prompt = kwargs.get('is_prompt', 'false')
         self.client_uuid = kwargs.get('client_uuid', '')
         self.uuid = uuid4().hex
