@@ -144,14 +144,13 @@ class PluginLoader:
 
     @AddAPI('is.plugin.id', description='check if a str is a plugin id')
     def _api_is_plugin_id(self, plugin_id):
-        """  check if a plugin is loaded
-        @Yplugin_id@w  = the plugin id to check
+        """  check if a string is a plugin id
+        @Yplugin_id@w  = the string id to check
 
         returns:
           returns True if the plugin is an id, False if not"""
-        return bool(
-            self.api(f"{__name__}:get.plugin.instance")(plugin_id)
-        )
+
+        return plugin_id in self.plugins_info
 
     @AddAPI('is.plugin.loaded', description='check if a plugin is loaded')
     def _api_is_plugin_loaded(self, pluginname):
@@ -160,9 +159,12 @@ class PluginLoader:
 
         returns:
           True if the plugin is loaded, False if not"""
-        return bool(
-            self.api(f"{__name__}:get.plugin.instance")(pluginname)
-        )
+        plugin_instance = self.api(f"{__name__}:get.plugin.instance")(pluginname)
+
+        if not plugin_instance or not plugin_instance.is_inititalized_f:
+            return False
+
+        return True
 
     def update_all_plugin_information(self):
         """
