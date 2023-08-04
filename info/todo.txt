@@ -42,6 +42,14 @@
         don't save plugin_instances in data structures inside a plugin unless absolutely needed
         if you need the instance, save the plugin_id and then use the api 'core.plugins:get:plugin:instance'
         saving instances could lead to a memory leak and stale plugin instances floating around
+
+        create a "plugin" directory under the main plugin directory
+            when a plugin is reloaded, everything in the directory is reloaded
+        creata a "libs" directory under the main plugin directory
+            when a plugin is reloaded, this directory is not reloaded
+
+        do we just have reload start from scratch but keep connections?
+
     # TODO: https://docs.python.org/3/library/collections.html#collections.namedtuple for SQLite queries????
     # TODO: make all apis use similar formats
         IE: plugins.core.commands:add and plugins.core.events:add
