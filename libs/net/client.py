@@ -85,7 +85,7 @@ class ClientConnection:
                                       client_uuid=self.uuid)
                 loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
 
-    async def setup_client(self) -> None:
+    async def setup_client(self) -> bool:
         """
         send telnet options
         send welcome message to client
@@ -99,7 +99,7 @@ class ClientConnection:
             with contextlib.suppress(AttributeError):
                 await self.writer.drain()
             self.connected = False
-            return
+            return False
 
         LogRecord(f"setup_client - Sending echo on to {self.uuid}",
                   level='debug',
@@ -140,6 +140,8 @@ class ClientConnection:
 
         await self.writer.drain()
 
+        return True
+
     async def client_read(self) -> None:
         """
             Utilized by the Telnet client_handler.
@@ -151,7 +153,11 @@ class ClientConnection:
                   sources=[__name__])()
 
         while self.connected:
-            inp: bytes = await self.reader.readline()
+            try:
+                inp: bytes = await self.reader.readline()
+            except BrokenPipeError:
+                self.connected = False
+                continue
             LogRecord(f"client_read - Raw received data in client_read : {inp}",
                       level='debug',
                       sources=[__name__])()
@@ -312,36 +318,36 @@ async def client_telnet_handler(reader, writer) -> None:
     # Need to work on better telnet support for regular old telnet clients.
     # Everything so far works great in Mudlet.  Just saying....
 
-    await register_client(connection)
+    if await register_client(connection):
 
-    tasks: list[asyncio.Task] = [
-        create_task(connection.client_read(),
-                            name=f"{connection.uuid} telnet read"),
-        create_task(connection.client_write(),
-                            name=f"{connection.uuid} telnet write"),
-    ]
+        tasks: list[asyncio.Task] = [
+            create_task(connection.client_read(),
+                                name=f"{connection.uuid} telnet read"),
+            create_task(connection.client_write(),
+                                name=f"{connection.uuid} telnet write"),
+        ]
 
-    if current_task := asyncio.current_task():
-        current_task.set_name(f"{connection.uuid} telnet client handler")
+        if current_task := asyncio.current_task():
+            current_task.set_name(f"{connection.uuid} telnet client handler")
 
-    await connection.setup_client()
+        await connection.setup_client()
 
-    # We want to .wait until the first task is completed.  "Completed" could be an actual finishing
-    # of execution or an exception.  If either the reader or writer "completes", we want to ensure
-    # we move beyond this point and cleanup the tasks associated with this client.
-    _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
+        # We want to .wait until the first task is completed.  "Completed" could be an actual finishing
+        # of execution or an exception.  If either the reader or writer "completes", we want to ensure
+        # we move beyond this point and cleanup the tasks associated with this client.
+        _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
 
-    # Once we reach this point one of our tasks (reader/writer) have completed or failed.
-    # Remove client from the registration list and perform connection specific cleanup.
-    await unregister_client(connection)
+        # Once we reach this point one of our tasks (reader/writer) have completed or failed.
+        # Remove client from the registration list and perform connection specific cleanup.
+        await unregister_client(connection)
 
-    with contextlib.suppress(AttributeError):
-        writer.write_eof()
-        await writer.drain()
-        writer.close()
+        with contextlib.suppress(AttributeError):
+            writer.write_eof()
+            await writer.drain()
+            writer.close()
 
-    for task in rest:
-        task.cancel()
+        for task in rest:
+            task.cancel()
 
-    await asyncio.sleep(1)
+        await asyncio.sleep(1)
 
