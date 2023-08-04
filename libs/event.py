@@ -20,7 +20,7 @@ import datetime
 
 # Project
 from libs.api import API
-from libs.records import LogRecord, EventArgsRecord
+from libs.records import LogRecord, EventArgsRecord, RaisedEventRecord
 from libs.callback import Callback
 from libs.queue import SimpleQueue
 
@@ -59,7 +59,7 @@ class Event:
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
         self.current_record: EventArgsRecord | None = None
-        self.call_stacks = SimpleQueue(length=10)
+        self.raised_data = SimpleQueue(length=10)
 
     def count(self) -> int:
         """
@@ -196,19 +196,13 @@ class Event:
             message.append('Unknown')
         message.append(header_color + '-' * 60 + '@w')
 
-        if self.call_stacks:
+        if self.raised_data:
             message.append('')
-            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Call Stacks@w', '-', 60, filler_color=header_color))
-            for i, call_stack in enumerate(self.call_stacks.get()):
+            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Raised Events@w', '-', 60, filler_color=header_color))
+            for i, data in enumerate(self.raised_data.get()):
                 if i > 0:
                     message.append('')
-                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Stack: {i + 1}@w', '-', 40, filler_color=subheader_color))
-                message.append(f"Called from : {call_stack['calledfrom']:<13}@w")
-                message.append(f"Timestamp   : {call_stack['timestamp']}@w")
-                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Event Stack@w', '-', 40, filler_color=subheader_color))
-                message.extend([f"  {event}" for event in call_stack['event_stack']])
-                message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Function Stack@w', '-', 40, filler_color=subheader_color))
-                message.extend([f"{call}" for call in call_stack['call_stack']])
+                message.extend(data.format_simple())
             message.append(header_color + '-' * 60 + '@w')
 
         return message
@@ -238,10 +232,6 @@ class Event:
             )()
             return None
 
-        # convert a dict to an EventArgsRecord object
-        if not isinstance(data, EventArgsRecord):
-            data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
-
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('plugins.core.settings:get')('plugins.core.events', 'log_savestate')
         log: bool = True if log_savestate else not self.name.endswith('_savestate')
@@ -249,10 +239,13 @@ class Event:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by])()
 
-        call_stack = {'calledfrom': calledfrom, 'data': data, 'call_stack': self.api('libs.api:stackdump')(),
-                      'event_stack':self.api('plugins.core.events:get.event.stack')(),
-                      'timestamp':datetime.datetime.now(datetime.timezone.utc)}
-        self.call_stacks.enqueue(call_stack)
+        event_data = RaisedEventRecord(self.name, called_from=calledfrom)
+        self.raised_data.enqueue(event_data)
+
+        # convert a dict to an EventArgsRecord object
+        if not isinstance(data, EventArgsRecord):
+            data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
+        event_data.arg_data = data
 
         self.current_record = data
         if keys := self.priority_dictionary.keys():
