@@ -57,15 +57,15 @@ class ToClientRecord(BaseListRecord):
         self.modify_data_event_name = 'ev_to_client_data_modify'
         self.read_data_event_name = 'ev_to_client_data_read'
 
-        self.items_to_format_in_details.extend([('Preamble', 'preamble'),
-                                                ('Prelogin', 'prelogin'),
-                                                ('Error', 'error'),
-                                                ('Send To Clients', 'send_to_clients'),
-                                                ('Clients', 'clients'),
-                                                ('Exclude Clients', 'exclude_clients'),
-                                                ('Color For All Lines', 'color_for_all_lines')])
-
         self.setup_events()
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[0].extend([('Preamble', 'preamble'), ('Prelogin', 'prelogin'),
+                              ('Error', 'error'), ('Send To Clients', 'send_to_clients'),
+                              ('Clients', 'clients'), ('Exclude Clients', 'exclude_clients'),
+                              ('Color For All Lines', 'color_for_all_lines')])
+        return attributes
 
     def setup_events(self):
         global SETUPEVENTS

@@ -37,9 +37,13 @@ class BaseRecord:
         self.updates = UpdateManager()
         self.related_records: list[BaseRecord] = []
         self.track_record = track_record
-        self.items_to_format_in_details = [('UUID', 'uuid'), ('Owner ID', 'owner_id'), ('Creation Time', 'created')]
+        self.column_width = 15
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
+        if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
+            self.event_stack = self.api('plugins.core.events:get.event.stack')()
+        else:
+            self.event_stack = ['No event stack available']
 
         current_active_record = RMANAGER.get_latest_record()
         if current_active_record is not None:
@@ -115,6 +119,18 @@ class BaseRecord:
             new_stack.extend([nline for nline in line.split('\n') if nline])
         return new_stack
 
+    def get_attributes_to_format(self):
+        """
+        attributes to format in the details
+        0 will be the top section
+        1 is the middle section
+        3 is the bottom section
+        """
+        return {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
+                      ('Creation Time', 'created')],
+                1:[],
+                2:[]}
+
     def get_formatted_details(self, full_related_records=False,
                               include_updates=True, update_filter=None,
                               include_related_records=True) -> list[str]:
@@ -126,19 +142,24 @@ class BaseRecord:
                 f"{'Type':<{column_width}} : {self.__class__.__name__}",
               ]
 
-        for item_string, item_attr in self.items_to_format_in_details:
-            attr = getattr(self, item_attr)
-            if isinstance(attr, (list, dict)):
-                msg.append(f"{item_string:<{column_width}} : ")
-                msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).split('\n'))
-            else:
-                msg.append(f"{item_string:<{column_width}} : {attr}")
+        attributes = self.get_attributes_to_format()
+        for level in attributes:
+            for item_string, item_attr in attributes[level]:
+                attr = getattr(self, item_attr)
+                if isinstance(attr, (list, dict)):
+                    msg.append(f"{item_string:<{self.column_width}} : ")
+                    msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).split('\n'))
+                else:
+                    msg.append(f"{item_string:<{self.column_width}} : {attr}")
 
-        msg.extend(["Stack at Creation :",
-                *[
-                f"    {line}" for line in self.stack_at_creation if line
-                ],
-        ])
+        msg.extend(
+            [
+                "Event Stack at Creation :",
+                *[f"    {event}" for event in self.event_stack],
+                "Call Stack at Creation :",
+                *[f"    {line}" for line in self.stack_at_creation if line],
+            ]
+        )
         if include_related_records:
             if full_related_records:
                 related_records = self.get_all_related_records(update_filter)
@@ -214,10 +235,17 @@ class BaseListRecord(UserList, BaseRecord):
         self.sending = False
         # copy the original data
         self.original_data = message[:]
-        self.items_to_format_in_details.extend([('Internal', 'internal'),
-                                                ('Message Type', 'message_type'),
-                                                ('Original Data', 'original_data')])
         self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[0].extend([('Internal', 'internal'),
+                                    ('Message Type', 'message_type')])
+        attributes[2].append(('Data', 'data'))
+        if self.original_data != self.data:
+            attributes[2].append(('Original Data', 'original_data'))
+
+        return attributes
 
     @property
     def is_command_telnet(self):
@@ -335,10 +363,15 @@ class BaseDictRecord(UserDict, BaseRecord):
         UserDict.__init__(self, data)
         BaseRecord.__init__(self, owner_id, track_record=track_record)
         self.original_data = data.copy()
-        self.items_to_format_in_details.extend([('Data', 'data'),
-                                                ('Original data', 'original_data')])
         self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
 
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[2].append(('Data', 'data'))
+        if self.original_data != self.data:
+            attributes[2].append(('Original Data', 'original_data'))
+
+        return attributes
 
     def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
         """

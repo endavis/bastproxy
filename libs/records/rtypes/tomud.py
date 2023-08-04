@@ -46,10 +46,14 @@ class ToMudRecord(BaseListRecord):
         self.client_id = client_id
         self.modify_data_event_name = 'ev_to_mud_data_modify'
         self.read_data_event_name = 'ev_to_mud_data_read'
-        self.items_to_format_in_details.extend([('Show in History', 'show_in_history'),
-                                                ('Send to Mud', 'send_to_mud'),
-                                                ('Client ID', 'client_id')])
         self.setup_events()
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[0].extend([('Show in History', 'show_in_history'),
+                              ('Send to Mud', 'send_to_mud'),
+                              ('Client ID', 'client_id')])
+        return attributes
 
     def setup_events(self):
         global SETUPEVENTS

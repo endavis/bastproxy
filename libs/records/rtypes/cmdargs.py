@@ -22,4 +22,8 @@ class CmdArgsRecord(BaseDictRecord):
         """
         BaseDictRecord.__init__(self, owner_id, data, track_record=False)
         self.arg_string: str = arg_string
-        self.items_to_format_in_details.extend([('Arg String', 'arg_string')])
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[0].append(('Arg String', 'arg_string'))
+        return attributes

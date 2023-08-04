@@ -25,5 +25,10 @@ class EventArgsRecord(BaseDictRecord):
         if 'notes' not in self.data:
             self.data['notes'] = {}
         self.event_name = event_name
-        self.items_to_format_in_details.extend([('Event Name', 'event_name')])
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[0].append(('Event Name', 'event_name'))
+        return attributes
+
 
