@@ -21,13 +21,14 @@ There are also some private classes that are used to manage records
     ChangeManager - a manager that manages changes to records
 """
 __all__ = ['LogRecord', 'ToClientRecord', 'ToMudRecord',
-           'RMANAGER', 'EventArgsRecord', 'CmdArgsRecord']
+           'RMANAGER', 'EventArgsRecord', 'CmdArgsRecord',
+           'RaisedEventRecord']
 
 from libs.records.rtypes.base import BaseRecord # import to resolve circular import
 from libs.records.rtypes.toclient import ToClientRecord
 from libs.records.rtypes.tomud import ToMudRecord
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.eventargs import EventArgsRecord
+from libs.records.rtypes.events import EventArgsRecord, RaisedEventRecord
 from libs.records.rtypes.cmdargs import CmdArgsRecord
 from libs.records.managers.records import RMANAGER
 
