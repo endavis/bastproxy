@@ -22,8 +22,6 @@ class EventArgsRecord(BaseDictRecord):
         initialize the class
         """
         BaseDictRecord.__init__(self, owner_id, data)
-        if 'notes' not in self.data:
-            self.data['notes'] = {}
         self.event_name = event_name
 
     def get_attributes_to_format(self):
