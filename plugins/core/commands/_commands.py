@@ -86,6 +86,8 @@ class CommandsPlugin(BasePlugin):
                                 'the indent for a command')
         self.api('plugins.core.settings:add')(self.plugin_id, 'simple_output', True, bool,
                                 'show simple output for commands')
+        self.api('plugins.core.settings:add')(self.plugin_id, 'include_date', True, bool,
+                                'include the date in the output of a command')
 
     @AddAPI('get.command.indent', description='indent for commands')
     def _api_get_command_indent(self):

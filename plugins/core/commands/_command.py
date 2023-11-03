@@ -10,6 +10,7 @@
 from __future__ import print_function
 import shlex
 import typing
+import datetime
 
 # 3rd Party
 
@@ -147,6 +148,7 @@ class CommandClass:
           the updated message
         """
         simple = self.api('plugins.core.settings:get')('plugins.core.commands', 'simple_output')
+        include_date = self.api('plugins.core.settings:get')('plugins.core.commands', 'include_date')
         line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
         preamble_color = self.api('plugins.core.proxy:preamble.color.get')()
         header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'header_color')
@@ -163,8 +165,13 @@ class CommandClass:
                             '-',
                             line_length,
                             filler_color=preamble_color,
-                        )
+                        ),
                     ]
+        if include_date:
+            newmessage.append(self.api('plugins.core.utils:center.colored.string')(
+                        datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format),
+                        '-', line_length, filler_color=preamble_color))
+
         if not simple:
             newmessage.extend(
                 (
