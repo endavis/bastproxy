@@ -49,7 +49,6 @@
             when a plugin is reloaded, this directory is not reloaded
 
         do we just have reload start from scratch but keep connections?
-
     # TODO: https://docs.python.org/3/library/collections.html#collections.namedtuple for SQLite queries????
     # TODO: make all apis use similar formats
         IE: plugins.core.commands:add and plugins.core.events:add
@@ -234,6 +233,9 @@
     # COMPLETE: plugins.core.ssc
         divorce the setting from having to lookup the plugin_instance
         pass data_directory and plugin_id
+    # COMPLETE: plugins.core.clients
+        COMPLETE: add banned clients to a command
+            added ban command to plugin
     # COMPLETE: research why the initialize function takes so long
             get_caller_owner_id was optimized and no longer uses inspect.stack
     # COMPLETE: add profiling as a command line argument
