@@ -14,9 +14,37 @@ import datetime
 # Project
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
+from libs.api import API
 from libs.commands import AddParser
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
+
+class BanRecord:
+    def __init__(self, plugin_id, ip_addr, how_long=600):
+        self.api = API(owner_id=f"{plugin_id}:Ban:{ip_addr}")
+        self.plugin_id = plugin_id
+        self.ip_addr = ip_addr
+        self.how_long = how_long
+        self.timer = None
+
+        if self.how_long > 0:
+            LogRecord(f"{self.ip_addr} has been banned for {self.how_long} seconds",
+                      level='error', sources=[self.plugin_id])()
+            self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
+                                                            self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
+        else:
+            LogRecord(f"{self.ip_addr} has been banned with no expiration",
+                      level='error', sources=[self.plugin_id])()
+
+    def expires(self):
+        if self.timer:
+            return self.timer.next_fire_datetime.strftime(self.api.time_format)
+        else:
+            return 'Never'
+
+    def remove(self):
+        self.api(f"{self.plugin_id}:client.banned.remove")(self.ip_addr)
+
 
 class ClientPlugin(BasePlugin):
     """
@@ -73,10 +101,27 @@ class ClientPlugin(BasePlugin):
         """
         if client_uuid in self.clients:
             addr = self.clients[client_uuid].addr
-            LogRecord(f"{addr} has been banned for 10 minutes",
-                      level='error', sources=[self.plugin_id])()
-            self.banned[addr] =  datetime.datetime.now(datetime.timezone.utc)
+            ban_record = BanRecord(self.plugin_id, addr)
+            self.banned[addr] = ban_record
             self.clients[client_uuid].connected = False
+
+    @AddAPI('client.banned.check', description='check if a client is banned')
+    def _api_checkbanned(self, clientip):
+        """
+        check if a client is banned
+
+        required
+          clientip - the client ip to check
+        """
+        return clientip in self.banned
+
+    @AddAPI('client.banned.remove', description='remove a banned ip')
+    def _api_client_banned_remove(self, addr):
+        """
+        remove a banned ip
+        """
+        if addr in self.banned:
+            del self.banned[addr]
 
     @AddAPI('client.is.view.client', description='check if a client is a view client')
     def _api_is_client_view_client(self, client_uuid):
@@ -127,23 +172,6 @@ class ClientPlugin(BasePlugin):
 
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
                                         {'client_uuid':client_connection.uuid})
-
-    @AddAPI('client.banned.check', description='check if a client is banned')
-    def _api_checkbanned(self, clientip):
-        """
-        check if a client is banned
-
-        required
-          clientip - the client ip to check
-        """
-        if clientip in self.banned:
-            difference =  datetime.datetime.now(datetime.timezone.utc) - self.banned[clientip]
-            if difference.total_seconds() > 600:
-                del self.banned[clientip]
-                return False
-            return True
-
-        return False
 
     @AddAPI('client.add', description='add a connected client')
     def _api_client_add(self, client_connection):
@@ -203,5 +231,17 @@ class ClientPlugin(BasePlugin):
             #     tmsg.append('Option Info')
             #     for j in options:
             #         tmsg.append(j)
+
+        if self.banned:
+            bannedformat = '%-20s %s'
+            tmsg.extend(['',
+                    (
+                        bannedformat % ('Banned IPs', 'Until')
+                    ),
+                '@B' + 70 * '-'])
+            for banned_ip in self.banned:
+                banned_time = self.banned[banned_ip].expires()
+
+                tmsg.append(bannedformat % (banned_ip, banned_time))
 
         return True, tmsg
