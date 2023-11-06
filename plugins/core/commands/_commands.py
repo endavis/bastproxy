@@ -221,10 +221,8 @@ class CommandsPlugin(BasePlugin):
                         level='debug', sources=[self.plugin_id])()
             return
 
-        if 'dynamic_name' in command_data.command and command_data.command['dynamic_name']:
-            command_name = command_data.command['dynamic_name'].format(**func.__self__.__dict__)
-        elif 'name' in command_data.command:
-            command_name = command_data.command['name']
+        if 'name' in command_data.command:
+            command_name = command_data.command['name'].format(**func.__self__.__dict__)
         else:
             command_name = func.__name__.replace('_command_', '')
 

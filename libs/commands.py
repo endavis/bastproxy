@@ -20,8 +20,7 @@ commands_at_startup = {}
 
 class CommandFuncData:
     def __init__(self):
-        self.command = {'dynamic_name': False,
-                        'autoadd': True,
+        self.command = {'autoadd': True,
                         'kwargs': {}}
         self.argparse = {'kwargs': {'add_help': False},
                          'args': []}
@@ -36,10 +35,6 @@ class AddCommand:
         if 'name' in kwargs:
             self.name = kwargs['name']
             del kwargs['name']
-        self.dynamic_name = False
-        if 'dynamic_name' in  kwargs:
-            self.dynamic_name = kwargs['dynamic_name']
-            del kwargs['dynamic_name']
         self.autoadd = True
         if 'autoadd' in  kwargs:
             self.autoadd = kwargs['autoadd']
@@ -52,7 +47,6 @@ class AddCommand:
         func.command_data.command['kwargs'].update(self.command_kwargs)
         if 'name' not in func.command_data.command:
             func.command_data.command['name'] = self.name or func.__name__.replace('_command_', ' ')
-        func.command_data.command['dynamic_name'] = self.dynamic_name
         func.command_data.command['autoadd'] = self.autoadd
 
         return func
