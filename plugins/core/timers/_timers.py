@@ -346,12 +346,13 @@ class TimersPlugin(BasePlugin):
                 LogRecord(f"_api_remove_timer - removing {timer}",
                           level='debug', sources=[self.plugin_id, timer.owner_id])()
                 ttime = timer.get_next_fire()
-                if timer in self.timer_events[math.floor(ttime.timestamp())]:
+                next_fire = math.floor(ttime.timestamp())
+                if next_fire in self.timer_events and timer in self.timer_events[next_fire]:
                     self.timer_events[math.floor(ttime.timestamp())].remove(timer)
                 del self.timer_lookup[name]
         except KeyError:
-            LogRecord(f"_api_remove_timer - timer {name} does not exist",
-                      level='error', sources=[self.plugin_id])()
+            LogRecord(f"_api_remove_timer - could not remove timer {name}",
+                      level='error', sources=[self.plugin_id], exc_info=True)()
 
     @AddAPI('toggle.timer', description='toggle a timer to be enabled/disabled')
     def _api_toggle_timer(self, name: str, flag: bool):
