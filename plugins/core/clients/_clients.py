@@ -15,7 +15,7 @@ import datetime
 from plugins._baseplugin import BasePlugin
 from libs.records import LogRecord
 from libs.api import API
-from libs.commands import AddParser
+from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
 
@@ -40,7 +40,7 @@ class BanRecord:
         if self.timer:
             return self.timer.next_fire_datetime.strftime(self.api.time_format)
         else:
-            return 'Never'
+            return 'Permanent'
 
     def remove(self):
         self.api(f"{self.plugin_id}:client.banned.remove")(self.ip_addr)
@@ -94,16 +94,25 @@ class ClientPlugin(BasePlugin):
         """
         return self.clients[client_uuid] if client_uuid in self.clients else None
 
-    @AddAPI('client.banned.add', description='add a banned ip')
-    def _api_client_banned_add(self, client_uuid):
+    @AddAPI('client.banned.add', description='add a banned client')
+    def _api_client_banned_add(self, client_uuid, how_long=600):
         """
-        add a banned ip
+        add a banned client
         """
         if client_uuid in self.clients:
             addr = self.clients[client_uuid].addr
-            ban_record = BanRecord(self.plugin_id, addr)
+            ban_record = BanRecord(self.plugin_id, addr, how_long=how_long)
             self.banned[addr] = ban_record
             self.clients[client_uuid].connected = False
+
+    @AddAPI('client.banned.add.by.ip', description='add a banned ip')
+    def _api_client_banned_add_by_ip(self, ip_address, how_long=600):
+        """
+        add a banned ip
+        """
+        if ip_address not in self.banned:
+            ban_record = BanRecord(self.plugin_id, ip_address, how_long=how_long)
+            self.banned[ip_address] = ban_record
 
     @AddAPI('client.banned.check', description='check if a client is banned')
     def _api_checkbanned(self, clientip):
@@ -243,5 +252,47 @@ class ClientPlugin(BasePlugin):
                 banned_time = self.banned[banned_ip].expires()
 
                 tmsg.append(bannedformat % (banned_ip, banned_time))
+
+        return True, tmsg
+
+    @AddParser(description='add or remove a banned ip')
+    @AddArgument('ips',
+                        help='a list of ips to ban or remove (this is a toggle)',
+                        default=None,
+                        nargs='*')
+    def _command_ban(self):
+        """
+        ban or remove an IP
+
+        required
+          ips - a list of IPs to ban or remove (this is a toggle)
+
+        if the ip is already banned, it will be unbanned
+        otherwise, it will be banned
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        if not args['ips']:
+            return True, ['No IPs specified']
+
+        removed = []
+        added = []
+
+        for ip in args['ips']:
+            if ip in self.banned:
+                removed.append(ip)
+                self.banned[ip].remove()
+            else:
+                added.append(ip)
+                self.api(f"{self.plugin_id}:client.banned.add.by.ip")(ip, how_long=-1)
+
+        tmsg = []
+        if removed:
+            tmsg.extend((f"Removed {len(removed)} IPs from the ban list", ', '.join(removed)))
+        if added:
+            tmsg.extend((f"Added {len(added)} IPs to the ban list", ', '.join(added)))
+
+        if not tmsg:
+            tmsg = ['No changes made']
 
         return True, tmsg
