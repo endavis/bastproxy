@@ -22,7 +22,7 @@ from libs.callback import Callback
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
-from libs.api import AddAPI
+from libs.api import AddAPI, API
 
 class Timer(Callback):
     """
@@ -45,6 +45,7 @@ class Timer(Callback):
         """
         super().__init__(name, plugin_id, func, enabled)
         self.seconds: int = seconds
+        self.api = API(owner_id=f"{plugin_id}:Timer:{name}")
 
         self.onetime: bool = False
         if 'onetime' in kwargs:
@@ -105,7 +106,7 @@ class Timer(Callback):
         """
         return a string representation of the timer
         """
-        return f"Timer {self.name:<10} : {self.owner_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}"
+        return f"Timer {self.name:<10} : {self.owner_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime(self.api.time_format)}"
 
 class TimersPlugin(BasePlugin):
     """
