@@ -287,8 +287,9 @@ class TimersPlugin(BasePlugin):
         plugin_id: str = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if 'plugin_id' in kwargs:
-            plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(kwargs['plugin'])
+            plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(kwargs['plugin_id'])
             plugin_id = plugin_instance.plugin_id
+            del kwargs['plugin_id']
 
         if not plugin_id or not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
