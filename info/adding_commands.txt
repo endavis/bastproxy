@@ -1,0 +1,47 @@
+1) The function must start with _command_
+
+2) The name of the command will then be anything after _command_
+    E.G. If the function name is "_command_list" then the command will be "list"
+        This can be overridden, see the AddCommand decorator
+
+3) 3 decorators are then used for various settings on the command
+    Note: all 3 are not required, and only one needs to be used for the automated mechanism to add the command
+    @AddCommand decorator:
+        The following arguments can be used in AddCommand (mainly from the arguments for plugins.core.commands.Command.__init__ kwargs)
+            group - to group commands
+            autoadd - automatically add the command
+                useful to programatically add a command at runtime given certain conditions
+                see the reset command in BasePlugin
+            name - used to set the name of the command, otherwise it is generated from the name of the function
+                can be used in conjunction with attributes of the class instance that owns the function
+                see the plugins.core.ssc plugin
+            show_in_history - flag to show in history, True (default) shows in history, False does not show in history
+            format - flag to format the command, True (default) formats the command, False does not format the command
+            shelp - the short help string
+                can be used in conjunction with attributes of the class instance that owns the function
+            preamble - flag to include the proxy preamble, True (default) includes the preamble, False does not include the preamble
+
+    @AddParser decorator:
+        These arguments are passed directly to the argparse.ArgumentParser constructor
+        The help and description keywords can be used in conjunction with attributes of the class instance that owns the function
+
+        @AddParser(description='inspect a plugin')
+
+    @AddArgument decorator
+        These arguments are passed directly to the ArgumentParser.add_argument function
+        @AddArgument('-o',
+                        '--object',
+                        help='show an object of the plugin, can be method or variable',
+                        default='')
+        @AddArgument('-s',
+                        '--simple',
+                        help='show a simple output',
+                        action='store_true')
+
+4) To retrieve the command arguments inside of the command function do the following:
+    args = self.api('plugins.core.commands:get.current.command.args')()
+
+5) The return values for the command are two items:
+    bool: flag if the command ran successfully or not
+        if this is False, then the commands help will also be output to the client
+    list[str]: the data to output to the client
