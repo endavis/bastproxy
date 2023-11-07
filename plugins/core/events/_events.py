@@ -167,6 +167,15 @@ class EventsPlugin(BasePlugin):
 
         return self.events[event_name]
 
+    @AddAPI('has.event', description='return the event')
+    def _api_has_event(self, event_name):
+        """  check if an event exists
+        @Yevent_name@w   = the event to check for
+
+        this function returns True if found, False otherwise
+        """
+        return event_name in self.events
+
     @AddAPI('is.registered.to.event', description='check if a function is registered to an event')
     def _api_is_registered_to_event(self, event_name, func):
         """  check if a function is registered to an event
