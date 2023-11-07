@@ -88,6 +88,7 @@
     # TODO: move libs.event into plugins.core.events? same for commands and colors?
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
+    # TODO: proxy usage command with mem, average cpu, open files, etc...
 
 # REVISIT:
     # TODO: decorator for event description
