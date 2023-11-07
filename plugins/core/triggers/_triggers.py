@@ -27,7 +27,7 @@ from libs.event import RegisterToEvent
 class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex, enabled=True,
                  group=None, omit=False, priority=100, stopevaluating=False, argtypes=None,
-                 matchcolor=False, trigger_id=None, eventname=None,
+                 matchcolor=False, trigger_id=None, event_name=None,
                  original_regex_compiled=None) -> None:
         """
         initialize the instance
@@ -48,7 +48,7 @@ class TriggerItem:
         self.matchcolor = matchcolor
         self.hits = 0
         self.trigger_id = trigger_id
-        self.event_name = eventname
+        self.event_name = event_name
 
     def raisetrigger(self, args):
         """
@@ -102,7 +102,7 @@ class TriggersPlugin(BasePlugin):
         self.regex_lookup_to_id = {}
 
         # The compiled regex
-        self.created_regex = {'created_regex': '', 'created_regex_compiled': ''}
+        self.created_regex: dict = {'created_regex': '', 'created_regex_compiled': ''}
 
     def initialize(self):
         """
@@ -186,7 +186,7 @@ class TriggersPlugin(BasePlugin):
         if trigger_name not in self.triggers:
             owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api('plugins.core.events:register.to.event')(self.triggers[trigger_name].eventname,
+        return self.api('plugins.core.events:register.to.event')(self.triggers[trigger_name].event_name,
                                                          function, *kwargs)
 
     @AddAPI('trigger.unregister', description='unregister a function from a trigger')
@@ -197,7 +197,7 @@ class TriggersPlugin(BasePlugin):
         if trigger_name not in self.triggers:
             owner_id = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api('plugins.core.events:unregister.from.event')(self.triggers[trigger_name].eventname,
+        return self.api('plugins.core.events:unregister.from.event')(self.triggers[trigger_name].event_name,
                                                              function)
 
     @AddAPI('trigger.update', description='update a trigger without deleting it')
@@ -313,7 +313,7 @@ class TriggersPlugin(BasePlugin):
         original_regex = None
 
         args['trigger_id'] = trigger_id
-        args['eventname'] = f'ev_core.triggers_{trigger_id}'
+        args['event_name'] = f'ev_core.triggers_{trigger_id}'
 
         if regex:
             original_regex = regex
@@ -354,7 +354,7 @@ class TriggersPlugin(BasePlugin):
         LogRecord(f"_api_trigger_add - added trigger {trigger_name} (unique name: {trigger_id}) for {owner_id}",
                   level='debug', sources=[self.plugin_id, owner_id])()
 
-        return True, args['eventname']
+        return True, args['event_name']
 
     @AddAPI('trigger.remove', description='remove a trigger')
     def _api_trigger_remove(self, trigger_name, force=False, owner_id=None):
@@ -381,7 +381,7 @@ class TriggersPlugin(BasePlugin):
             return False
 
         if event := self.api('plugins.core.events:get.event')(
-            self.triggers[trigger_id].eventname
+            self.triggers[trigger_id].event_name
         ):
             if not event.isempty() and not force:
                 LogRecord(f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
@@ -489,6 +489,50 @@ class TriggersPlugin(BasePlugin):
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
 
+    def process_match(self, data, colored_data, regex_match_data, event_record):
+        """Processes a match for triggers.
+
+        Args:
+            data (str): The original data.
+            colored_data (str): The colored data.
+            regex_match_data (list): The list of regexes that matched the data.
+            event_record: The event record.
+
+        Returns:
+            None
+        """
+        LogRecord(f"_eventcb_check_trigger - line {data} matched the following regexes {regex_match_data}",
+                    level='debug', sources=[self.plugin_id])()
+        for regex_id in regex_match_data:
+            match = None
+            if regex_id not in self.regexes:
+                LogRecord(f"_eventcb_check_trigger - regex_id {regex_id} not found in _eventcb_check_trigger",
+                            level='error', sources=[self.plugin_id])()
+                continue
+
+            self.regexes[regex_id]['hits'] = self.regexes[regex_id]['hits'] + 1
+            for trigger_id in self.regexes[regex_id]['triggers']:
+                if not self.triggers[trigger_id].enabled:
+                    continue
+                if self.triggers[trigger_id].matchcolor:
+                    match = self.triggers[trigger_id].original_regex_compiled.match(colored_data)
+                else:
+                    match = self.triggers[trigger_id].original_regex_compiled.match(data)
+                if match:
+                    group_dict = match.groupdict()
+                    if self.triggers[trigger_id].argtypes:
+                        for arg in self.triggers[trigger_id].argtypes:
+                            if arg in group_dict:
+                                group_dict[arg] = self.triggers[trigger_id].argtypes[arg](group_dict[arg])
+                    group_dict['line'] = data
+                    group_dict['colorline'] = colored_data
+                    group_dict['trigger_name'] = self.triggers[trigger_id]['trigger_name']
+                    group_dict['trigger_id'] = self.triggers[trigger_id]['trigger_id']
+                    args = self.triggers[trigger_id].raiseevent(group_dict, event_record)
+                    if self.triggers[trigger_id].stopevaluating:
+                        break
+
+
     @RegisterToEvent(event_name='ev_to_client_data_modify')
     def _eventcb_check_trigger(self):    # pylint: disable=too-many-branches
         """
@@ -508,7 +552,6 @@ class TriggersPlugin(BasePlugin):
 
         self.triggers[self.beall_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.beall_id].trigger_name}, event_record)
 
-
         if data == '': # pylint: disable=too-many-nested-blocks
             self.triggers[self.emptyline_id].raisetrigger({'line':data, 'trigger_name':self.triggers[self.emptyline_id].trigger_name}, event_record)
         else:
@@ -523,37 +566,7 @@ class TriggersPlugin(BasePlugin):
                 match_groups = {}
 
             if regex_match_data := match_groups.keys():
-                LogRecord(f"_eventcb_check_trigger - line {data} matched the following regexes {regex_match_data}",
-                          level='debug', sources=[self.plugin_id])()
-                for regex_id in regex_match_data:
-                    match = None
-                    if regex_id not in self.regexes:
-                        LogRecord(f"_eventcb_check_trigger - regex_id {regex_id} not found in _eventcb_check_trigger",
-                                  level='error', sources=[self.plugin_id])()
-                        continue
-
-                    self.regexes[regex_id]['hits'] = self.regexes[regex_id]['hits'] + 1
-                    for trigger_id in self.regexes[regex_id]['triggers']:
-                        if not self.triggers[trigger_id].enabled:
-                            continue
-                        if self.triggers[trigger_id].matchcolor:
-                            match = self.triggers[trigger_id].original_regex_compiled.match(colored_data)
-                        else:
-                            match = self.triggers[trigger_id].original_regex_compiled.match(data)
-                        if match:
-                            group_dict = match.groupdict()
-                            if self.triggers[trigger_id].argtypes:
-                                for arg in self.triggers[trigger_id].argtypes:
-                                    if arg in group_dict:
-                                        group_dict[arg] = self.triggers[trigger_id].argtypes[arg](group_dict[arg])
-                            group_dict['line'] = data
-                            group_dict['colorline'] = colored_data
-                            group_dict['trigger_name'] = self.triggers[trigger_id]['trigger_name']
-                            group_dict['trigger_id'] = self.triggers[trigger_id]['trigger_id']
-                            args = self.triggers[trigger_id].raiseevent(group_dict, event_record)
-                            if self.triggers[trigger_id].stopevaluating:
-                                break
-
+                self.process_match(data, colored_data, regex_match_data, event_record)
             else:
                 LogRecord(f"_eventcb_check_trigger - line {data} did not match any regexes",
                           level='debug', sources=[self.plugin_id])()
@@ -564,7 +577,7 @@ class TriggersPlugin(BasePlugin):
         """
         raise a trigger event
         """
-        event_name = self.triggers[trigger_id].eventname
+        event_name = self.triggers[trigger_id].event_name
         if trigger_id in self.triggers and self.triggers[trigger_id]['omit']:
             origargs['omit'] = True
 
@@ -620,10 +633,10 @@ class TriggersPlugin(BasePlugin):
         ]
         for trigger_id in trigger_ids:
             trigger = self.triggers[trigger_id]
-            if not match or match in trigger_id or trigger['owner_id'] == match:
+            if not match or match in trigger_id or trigger.owner_id == match:
                 message.append(template % \
-                      (trigger['trigger_name'], trigger['owner_id'], trigger['enabled'],
-                   trigger['hits'], trigger_id))
+                      (trigger.trigger_name, trigger.owner_id, trigger.enabled,
+                   trigger.hits, trigger_id))
 
         return True, message
 
@@ -685,32 +698,35 @@ class TriggersPlugin(BasePlugin):
 
             for trigger in args['trigger']:
                 if trigger in self.triggers:
-                    event_name = self.triggers[trigger].eventname
-                    event_details = self.api('plugins.core.events:get.event.detail')(event_name)
+                    event_name = self.triggers[trigger].event_name
                     message.extend(
                         (
-                            f"{'Name':<{columnwidth}} : {self.triggers[trigger]['trigger_name']}",
-                            f"{'Internal Id':<{columnwidth}} : {self.triggers[trigger]['trigger_id']}",
-                            f"{'Defined in':<{columnwidth}} : {self.triggers[trigger]['owner_id']}",
-                            f"{'Enabled':<{columnwidth}} : {self.triggers[trigger]['enabled']}",
-                            f"{'Regex':<{columnwidth}} : {self.triggers[trigger]['original_regex']}",
-                            f"{'Regex (w/o Groups)':<{columnwidth}} : {self.triggers[trigger]['regex']}",
-                            f"{'Regex ID':<{columnwidth}} : {self.triggers[trigger]['regex_id']}",
-                            f"{'Match Color':<{columnwidth}} : {self.triggers[trigger]['matchcolor']}",
-                            f"{'Group':<{columnwidth}} : {self.triggers[trigger]['group']}",
+                            f"{'Name':<{columnwidth}} : {self.triggers[trigger].trigger_name}",
+                            f"{'Internal Id':<{columnwidth}} : {self.triggers[trigger].trigger_id}",
+                            f"{'Defined in':<{columnwidth}} : {self.triggers[trigger].owner_id}",
+                            f"{'Enabled':<{columnwidth}} : {self.triggers[trigger].enabled}",
+                            f"{'Regex':<{columnwidth}} : {self.triggers[trigger].original_regex}",
+                            f"{'Regex (w/o Groups)':<{columnwidth}} : {self.triggers[trigger].regex}",
+                            f"{'Regex ID':<{columnwidth}} : {self.triggers[trigger].regex_id}",
+                            f"{'Match Color':<{columnwidth}} : {self.triggers[trigger].matchcolor}",
+                            f"{'Group':<{columnwidth}} : {self.triggers[trigger].group}",
                         )
                     )
-                    if self.triggers[trigger]['argtypes']:
-                        message.append(f"{'Argument Types':<{columnwidth}} : {self.triggers[trigger]['argtypes']}")
+                    if self.triggers[trigger].argtypes:
+                        message.append(f"{'Argument Types':<{columnwidth}} : {self.triggers[trigger].argtypes}")
                     message.extend(
                         (
-                            f"{'Priority':<{columnwidth}} : {self.triggers[trigger]['priority']}",
-                            f"{'Omit':<{columnwidth}} : {self.triggers[trigger]['omit']}",
-                            f"{'Hits':<{columnwidth}} : {self.triggers[trigger]['hits']}",
-                            f"{'Stop Evaluating':<{columnwidth}} : {self.triggers[trigger]['stopevaluating']}",
+                            f"{'Priority':<{columnwidth}} : {self.triggers[trigger].priority}",
+                            f"{'Omit':<{columnwidth}} : {self.triggers[trigger].omit}",
+                            f"{'Hits':<{columnwidth}} : {self.triggers[trigger].hits}",
+                            f"{'Stop Evaluating':<{columnwidth}} : {self.triggers[trigger].stopevaluating}",
                         )
                     )
-                    message.extend(event_details)
+                    if self.api('plugins.core.events:has.event')(event_name):
+                        event_details = self.api('plugins.core.events:get.event.detail')(event_name)
+                        message.extend(event_details)
+                    else:
+                        message.extend(['', 'No functions registered for this trigger'])
                 else:
                     message.append(f"trigger {trigger} does not exist")
         else:
