@@ -17,7 +17,7 @@ import typing
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.callback import Callback
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument
@@ -171,12 +171,12 @@ class TimersPlugin(BasePlugin):
 
         return True, message
 
-    def get_stats(self):
+
+    @RegisterPluginHook('stats')
+    def _phook_timer_stats(self, **kwargs):
         """
         return stats for this plugin
         """
-        stats = BasePlugin.get_stats(self)
-
         disabled = 0
         enabled = 0
 
@@ -186,15 +186,15 @@ class TimersPlugin(BasePlugin):
             else:
                 disabled = disabled + 1
 
-        stats['Timers'] = {
-            'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage']
+        kwargs['stats']['Timers'] = {
+            'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage'],
+            'Total': len(self.timer_lookup),
+            'Enabled': enabled,
+            'Disabled': disabled,
+            'Fired': self.overall_fire_count,
+            'Memory Usage': sys.getsizeof(self.timer_events),
         }
-        stats['Timers']['Total'] = len(self.timer_lookup)
-        stats['Timers']['Enabled'] = enabled
-        stats['Timers']['Disabled'] = disabled
-        stats['Timers']['Fired'] = self.overall_fire_count
-        stats['Timers']['Memory Usage'] = sys.getsizeof(self.timer_events)
-        return stats
+        return kwargs
 
     @AddParser(description='list timers')
     @AddArgument('match',
