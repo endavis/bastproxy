@@ -20,7 +20,7 @@ except ImportError:
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 
@@ -627,25 +627,25 @@ class TriggersPlugin(BasePlugin):
 
         return True, message
 
-    def get_stats(self):
+
+    @RegisterPluginHook('stats')
+    def _phook_trigger_stats(self, **kwargs):
         """
         return stats for this plugin
         """
-        stats = BasePlugin.get_stats(self)
-
         overall_hit_count = 0
         total_enabled_triggers = 0
         total_disabled_triggers = 0
         for trigger in self.triggers:
-            overall_hit_count = overall_hit_count + self.triggers[trigger]['hits']
-            if self.triggers[trigger]['enabled']:
+            overall_hit_count = overall_hit_count + self.triggers[trigger].hits
+            if self.triggers[trigger].enabled:
                 total_enabled_triggers = total_enabled_triggers + 1
             else:
                 total_disabled_triggers = total_disabled_triggers + 1
 
         regex_hits = sum(regex['hits'] for regex in self.regexes.values() if regex)
 
-        stats['Triggers'] = {
+        kwargs['stats']['Triggers'] = {
             'showorder': [
                 'Total Triggers',
                 'Enabled Triggers',
@@ -655,17 +655,17 @@ class TriggersPlugin(BasePlugin):
                 'Total Regexes',
                 'Total Regex Hits',
                 'Regexes Memory Usage',
-            ]
+            ],
+            'Total Triggers': len(self.triggers),
+            'Enabled Triggers': total_enabled_triggers,
+            'Disabled Triggers': total_disabled_triggers,
+            'Overall Trigger Hits': overall_hit_count,
+            'Triggers Mem Usage': sys.getsizeof(self.triggers),
+            'Total Regexes': len(self.regexes.keys()),
+            'Total Regex Hits': regex_hits,
+            'Regexes Memory Usage': sys.getsizeof(self.regexes)
         }
-        stats['Triggers']['Total Triggers'] = len(self.triggers)
-        stats['Triggers']['Enabled Triggers'] = total_enabled_triggers
-        stats['Triggers']['Disabled Triggers'] = total_disabled_triggers
-        stats['Triggers']['Overall Trigger Hits'] = overall_hit_count
-        stats['Triggers']['Triggers Memory Usage'] = sys.getsizeof(self.triggers)
-        stats['Triggers']['Total Regexes'] = len(self.regexes.keys())
-        stats['Triggers']['Total Regex Hits'] = regex_hits
-        stats['Triggers']['Regexes Memory Usage'] = sys.getsizeof(self.regexes)
-        return stats
+        return kwargs
 
     @AddParser(description='get details for triggers')
     @AddArgument('trigger',
