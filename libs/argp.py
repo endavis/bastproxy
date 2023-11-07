@@ -27,7 +27,7 @@ class ArgumentParser(argparse.ArgumentParser):
         override the error class to raise an error and not exit
         """
         if exc := sys.exc_info()[1]:
-            exc.errormsg = message
+            exc.add_note(message)
             raise exc
 
 
