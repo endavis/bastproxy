@@ -72,19 +72,19 @@ class Timer(Callback):
             datetime: First fire time of the timer.
         """
         now = datetime.datetime.now(datetime.timezone.utc)
+        new_date = now + datetime.timedelta(seconds=self.seconds)
         if self.time:
             hour_minute = time.strptime(self.time, '%H%M')
             new_date = now.replace(hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0)
             while new_date < now:
                 new_date = new_date + datetime.timedelta(days=1)
-            return new_date
 
         else:
-            new_date = now + datetime.timedelta(seconds=self.seconds)
 
             while new_date < now:
                 new_date = new_date + datetime.timedelta(seconds=self.seconds)
-            return new_date
+
+        return new_date
 
     def get_next_fire(self) -> datetime.datetime:
         """
@@ -94,13 +94,12 @@ class Timer(Callback):
             int: Timestamp of the next time when the timer should fire.
         """
         now = datetime.datetime.now(datetime.timezone.utc)
-        if self.last_fired_datetime:
-            next_fire = self.last_fired_datetime + datetime.timedelta(seconds=self.seconds)
-            while next_fire < now:
-                next_fire = next_fire + datetime.timedelta(seconds=self.seconds)
-            return next_fire
-        else:
+        if not self.last_fired_datetime:
             return self.get_first_fire()
+        next_fire = self.last_fired_datetime + datetime.timedelta(seconds=self.seconds)
+        while next_fire < now:
+            next_fire = next_fire + datetime.timedelta(seconds=self.seconds)
+        return next_fire
 
     def __str__(self) -> str:
         """
@@ -163,10 +162,10 @@ class TimersPlugin(BasePlugin):
         message: list[str] = []
         if args['timername'] in self.timer_lookup:
             self.timer_lookup[args['timername']].log = \
-                not self.timer_lookup[args['timername']].log
-            message.append('changed log flag to %s for timer %s' % \
-              (self.timer_lookup[args['timername']].log,
-               args['timername']))
+                    not self.timer_lookup[args['timername']].log
+            message.append(
+                f"changed log flag to {self.timer_lookup[args['timername']].log} for timer {args['timername']}"
+            )
         else:
             message.append(f"timer {args['timername']} does not exist")
 
@@ -187,9 +186,9 @@ class TimersPlugin(BasePlugin):
             else:
                 disabled = disabled + 1
 
-        stats['Timers'] = {}
-        stats['Timers']['showorder'] = ['Total', 'Enabled', 'Disabled',
-                                        'Fired', 'Memory Usage']
+        stats['Timers'] = {
+            'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage']
+        }
         stats['Timers']['Total'] = len(self.timer_lookup)
         stats['Timers']['Enabled'] = enabled
         stats['Timers']['Disabled'] = disabled
@@ -210,17 +209,20 @@ class TimersPlugin(BasePlugin):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
-        message: list[str] = []
-
         match: str = args['match']
 
-        message.append(f"UTC time is: {datetime.datetime.now(datetime.timezone.utc).strftime('%a %b %d %Y %H:%M:%S %Z')}")
-
-        message.append(output_header_color + '-' * 80 + '@w')
+        message: list[str] = [
+            f"UTC time is: {datetime.datetime.now(datetime.timezone.utc).strftime('%a %b %d %Y %H:%M:%S %Z')}",
+            output_header_color + '-' * 80 + '@w',
+        ]
         templatestring = '%-20s : %-25s %-9s %-8s %s'
-        message.append(templatestring % ('Name', 'Defined in',
-                                                       'Enabled', 'Fired', 'Next Fire'))
-        message.append(output_header_color + '-' * 80 + '@w')
+        message.extend(
+            (
+                templatestring
+                % ('Name', 'Defined in', 'Enabled', 'Fired', 'Next Fire'),
+                output_header_color + '-' * 80 + '@w',
+            )
+        )
         for i in self.timer_lookup:
             if not match or match in i:
                 timer = self.timer_lookup[i]
@@ -244,25 +246,33 @@ class TimersPlugin(BasePlugin):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         message: list[str] = []
-        columnwidth: int = 13
         if args['timers']:
+            columnwidth: int = 13
             for timer in args['timers']:
                 if timer in self.timer_lookup:
                     timer = self.timer_lookup[timer]
-                    message.append(f"{'Name':<{columnwidth}} : {timer.name}")
-                    message.append(f"{'Enabled':<{columnwidth}} : {timer.enabled}")
-                    message.append(f"{'Owner':<{columnwidth}} : {timer.owner_id}")
-                    message.append(f"{'Onetime':<{columnwidth}} : {timer.onetime}")
-                    message.append(f"{'Time':<{columnwidth}} : {timer.time or 'None'}")
-                    message.append(f"{'Seconds':<{columnwidth}} : {timer.seconds}")
-                    message.append(f"{'Times Fired':<{columnwidth}} : {timer.raised_count}")
-                    message.append(f"{'Log':<{columnwidth}} : {timer.log}")
+                    message.extend(
+                        (
+                            f"{'Name':<{columnwidth}} : {timer.name}",
+                            f"{'Enabled':<{columnwidth}} : {timer.enabled}",
+                            f"{'Owner':<{columnwidth}} : {timer.owner_id}",
+                            f"{'Onetime':<{columnwidth}} : {timer.onetime}",
+                            f"{'Time':<{columnwidth}} : {timer.time or 'None'}",
+                            f"{'Seconds':<{columnwidth}} : {timer.seconds}",
+                            f"{'Times Fired':<{columnwidth}} : {timer.raised_count}",
+                            f"{'Log':<{columnwidth}} : {timer.log}",
+                        )
+                    )
                     last_fire_time = 'None'
                     if timer.last_fired_datetime:
                         last_fire_time = timer.last_fired_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')
                         message.append(f"{'Last Fire':<{columnwidth}} : {last_fire_time}")
-                    message.append(f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}")
-                    message.append('')
+                    message.extend(
+                        (
+                            f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
+                            '',
+                        )
+                    )
                 else:
                     message.append(f"Timer {timer} does not exist")
 
@@ -306,11 +316,10 @@ class TimersPlugin(BasePlugin):
                       'error', sources=[self.plugin_id, plugin_id])()
             return
 
-        if 'unique' in kwargs and kwargs['unique']:
-            if name in self.timer_lookup:
-                LogRecord(f"_api_add_timer: timer {name} already exists, not adding",
-                          'error', sources=[self.plugin_id, plugin_id])()
-                return
+        if 'unique' in kwargs and kwargs['unique'] and name in self.timer_lookup:
+            LogRecord(f"_api_add_timer: timer {name} already exists, not adding",
+                      'error', sources=[self.plugin_id, plugin_id])()
+            return
 
         timer = Timer(name, func, seconds, plugin_id, **kwargs)
         LogRecord(f"_api_add_timer: adding timer {name}",
@@ -325,13 +334,13 @@ class TimersPlugin(BasePlugin):
 
         this function returns no values"""
         plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(name)
-        timers_to_remove: list[str] = []
         LogRecord(f"removing timers for {name}",
                   level='debug', sources=[self.plugin_id, name])()
-        for i in self.timer_lookup:
-            if plugin_instance.plugin_id == self.timer_lookup[i].owner_id:
-                timers_to_remove.append(i)
-
+        timers_to_remove: list[str] = [
+            i
+            for i in self.timer_lookup
+            if plugin_instance.plugin_id == self.timer_lookup[i].owner_id
+        ]
         for i in timers_to_remove:
             self.api(f"{self.plugin_id}:remove.timer")(i)
 
@@ -342,8 +351,7 @@ class TimersPlugin(BasePlugin):
 
         this function returns no values"""
         try:
-            timer = self.timer_lookup[name]
-            if timer:
+            if timer := self.timer_lookup[name]:
                 LogRecord(f"_api_remove_timer - removing {timer}",
                           level='debug', sources=[self.plugin_id, timer.owner_id])()
                 ttime = timer.get_next_fire()
@@ -376,15 +384,53 @@ class TimersPlugin(BasePlugin):
             self.timer_events[timer_next_time_to_fire].append(timer)
         self.timer_lookup[timer.name] = timer
 
+    def execute_timer(self, time, timer: Timer):
+        """
+        Executes and reschedules the given timer.
+
+        Args:
+            timer (Timer): The timer to be executed.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If an error occurs during the execution of the timer.
+        """
+        if timer.enabled:
+            try:
+                timer.execute()
+                self.overall_fire_count = self.overall_fire_count + 1
+                if timer.log:
+                    LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
+                            level='debug', sources=[self.plugin_id, timer.owner_id])()
+            except Exception:  # pylint: disable=broad-except
+                LogRecord(f"check_for_timers_to_fire - timer had an error: {timer}",
+                        level='error', sources=[self.plugin_id, timer.owner_id], exc_info=True)()
+        try:
+            self.timer_events[time].remove(timer)
+        except ValueError:
+            LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
+                    level='error', sources=[self.plugin_id, timer.owner_id])()
+        if not timer.onetime:
+            timer.next_fire_datetime = timer.get_next_fire()
+            if timer.log:
+                LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
+                        level='debug', sources=[self.plugin_id, timer.owner_id])()
+            self._add_timer_internal(timer)
+        else:
+            self.api(f"{self.plugin_id}:remove.timer")(timer.name)
+        if not self.timer_events[time]:
+            del self.timer_events[time]
+
     async def check_for_timers_to_fire(self):
         # this is a callback, so disable unused-argument
         # pylint: disable=unused-argument,too-many-nested-blocks
         """
         check all timers
         """
-        current_task = asyncio.current_task()
-        if current_task:
-            current_task.set_name(f"timers task")
+        if current_task := asyncio.current_task():
+            current_task.set_name("timers task")
         firstrun: bool = True
         keepgoing: bool = True
         while keepgoing:
@@ -401,31 +447,7 @@ class TimersPlugin(BasePlugin):
                 for i in range(math.floor(self.time_last_checked.timestamp()), math.floor(now.timestamp()) + 1):
                     if i in self.timer_events and self.timer_events[i]:
                         for timer in self.timer_events[i][:]:
-                            if timer.enabled:
-                                try:
-                                    timer.execute()
-                                    self.overall_fire_count = self.overall_fire_count + 1
-                                    if timer.log:
-                                        LogRecord(f"check_for_timers_to_fire - timer fired: {timer}",
-                                                level='debug', sources=[self.plugin_id, timer.owner_id])()
-                                except Exception:  # pylint: disable=broad-except
-                                    LogRecord(f"check_for_timers_to_fire - timer had an error: {timer}",
-                                            level='error', sources=[self.plugin_id, timer.owner_id], exc_info=True)()
-                            try:
-                                self.timer_events[i].remove(timer)
-                            except ValueError:
-                                LogRecord(f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
-                                        level='error', sources=[self.plugin_id, timer.owner_id])()
-                            if not timer.onetime:
-                                timer.next_fire_datetime = timer.get_next_fire()
-                                if timer.log:
-                                    LogRecord(f"check_for_timers_to_fire - re adding timer {timer.name} for {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
-                                            level='debug', sources=[self.plugin_id, timer.owner_id])()
-                                self._add_timer_internal(timer)
-                            else:
-                                self.api(f"{self.plugin_id}:remove.timer")(timer.name)
-                            if not self.timer_events[i]:
-                                del self.timer_events[i]
+                            self.execute_timer(i, timer)
 
                 self.time_last_checked = now
 
