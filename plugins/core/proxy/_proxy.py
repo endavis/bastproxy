@@ -47,14 +47,34 @@ class ProxyPlugin(BasePlugin):
         """
         super().initialize()
 
+        restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"
+
+        # Network Settings
+        self.api('plugins.core.settings:add')(self.plugin_id, 'listenport', 9999, int,
+                                'the port for the proxy to listen on',
+                                aftersetmessage=restartproxymessage)
+        self.api('plugins.core.settings:add')(self.plugin_id, 'ipv4', True, bool,
+                                'add an IPv4 listener',
+                                aftersetmessage=restartproxymessage)
+        self.api('plugins.core.settings:add')(self.plugin_id, 'ipv4address', 'localhost', str,
+                                'the IPv4 hostname to bind to',
+                                aftersetmessage=restartproxymessage)
+        self.api('plugins.core.settings:add')(self.plugin_id, 'ipv6', False, bool,
+                                'add an IPv6 listener',
+                                aftersetmessage=restartproxymessage)
+        self.api('plugins.core.settings:add')(self.plugin_id, 'ipv6address', 'ip6-localhost', str,
+                                'the IPv6 hostname to bind to',
+                                aftersetmessage=restartproxymessage)
+
+        # Mud Settings
         self.api('plugins.core.settings:add')(self.plugin_id, 'mudhost', '', str,
                                 'the hostname/ip of the mud')
         self.api('plugins.core.settings:add')(self.plugin_id, 'mudport', 0, int,
                                 'the port of the mud')
-        self.api('plugins.core.settings:add')(self.plugin_id, 'listenport', 9999, int,
-                                'the port for the proxy to listen on')
         self.api('plugins.core.settings:add')(self.plugin_id, 'username', '', str,
                                 'the mud username')
+
+        # Output and Command Settings
         self.api('plugins.core.settings:add')(self.plugin_id, 'linelen', 80, int,
                                 'the line length for internal output data, does not affect data that comes from the mud or clients')
         self.api('plugins.core.settings:add')(self.plugin_id, 'preamble', '#BP', str,
@@ -352,19 +372,10 @@ class ProxyPlugin(BasePlugin):
 
         os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
-    @RegisterToEvent(event_name="ev_{plugin_id}_var_listenport_modified")
-    def _eventcb_listen_port_change(self):
-        """
-        restart when the listen port changes
-        """
-        if not self.api.startup and self.is_inititalized_f:
-            self.api(f"{self.plugin_id}:restart")()
-
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):
         """
         update the command regex
-
         """
         if event_record := self.api('plugins.core.events:get.current.event.record')():
             newsep = event_record['newvalue']
