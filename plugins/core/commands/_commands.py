@@ -21,7 +21,6 @@ from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
 from libs.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
-from ._formatter import CustomFormatter
 from ._command import CommandClass
 
 class CommandsPlugin(BasePlugin):
@@ -241,7 +240,7 @@ class CommandsPlugin(BasePlugin):
 
         parser.add_argument('-h', '--help', help='show help',
                                 action='store_true')
-        parser.formatter_class = CustomFormatter
+        parser.formatter_class = argp.CustomFormatter
 
         parser.prog = self.api('plugins.core.commands:get.command.format')(self.plugin_id, command_name)
 
