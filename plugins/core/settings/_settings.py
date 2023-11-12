@@ -49,6 +49,7 @@ class SettingsPlugin(BasePlugin):
           @Ynocolor@w    = if True, don't parse colors when showing value
           @Yreadonly@w   = if True, can't be changed by a client
           @Yhidden@w     = if True, don't show in @Ysettings@w command
+          @Yaftersetmessage@w = message to send to client after setting is changed
         """
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
@@ -64,6 +65,7 @@ class SettingsPlugin(BasePlugin):
             'nocolor': kwargs.get('nocolor', False),
             'readonly': kwargs.get('readonly', False),
             'hidden': kwargs.get('hidden', False),
+            'aftersetmessage': kwargs.get('aftersetmessage', '')
         }
 
         if not setting_info['hidden']:
@@ -405,7 +407,10 @@ class SettingsPlugin(BasePlugin):
             try:
                 self.api("plugins.core.settings:change")(plugin_id, setting_name, val)
                 tsetting_name = self.format_setting_for_print(plugin_id, setting_name)
-                return True, [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
+                tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
+                if setting_info['aftersetmessage']:
+                    tmsg.extend(['\n',setting_info['aftersetmessage']])
+                return True, tmsg
             except ValueError:
                 msg = [f"Cannot convert {val} to {setting_info['stype']}"]
                 return True, msg

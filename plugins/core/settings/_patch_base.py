@@ -48,7 +48,11 @@ def _command_settings_plugin_set(self):
         return True, self.api('plugins.core.settings:get.all.settings.formatted')(self.plugin_id)
 
     arg_string = f"-p {self.plugin_id} {args.arg_string}"
-    return self.api('plugins.core.commands:run')('plugins.core.settings', 'pset', argument_string=arg_string)
+    retval, return_string = self.api('plugins.core.commands:run')('plugins.core.settings',
+                                                                  'pset',
+                                                                  argument_string=arg_string)
+
+    return True, return_string
 
 @RegisterPluginHook('reset')
 def _phook_settings_reset(self):
