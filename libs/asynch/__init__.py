@@ -24,6 +24,20 @@ def _handle_task_result(
     *,
     message: str = '',
 ) -> None:
+    """
+    Handle the result of an asyncio task.
+
+    This function retrieves the result of the task and logs any exceptions that occurred.
+    If the task was cancelled, it is not logged as an error.
+    If an exception occurred, it is logged as an error along with the task name and any provided message.
+
+    Args:
+        task (asyncio.Task): The asyncio task to handle.
+        message (str, optional): Additional message to include in the log record. Defaults to ''.
+
+    Returns:
+        None
+    """
     try:
         task.result()
     except asyncio.CancelledError:
@@ -36,9 +50,43 @@ def _handle_task_result(
 
 class TaskItem:
     """
-    a class to hold the task to be added to the event loop
+    Represents an asynchronous task item.
+
+    This class encapsulates a coroutine or callable function and provides methods to create and manage an asyncio task.
+    It also handles logging of exceptions that occur during task execution.
+
+    Args:
+        func (Awaitable | Callable): The coroutine or callable function to be executed as a task.
+        name (str): The name of the task.
+        startstring (str, optional): Additional string to include in the log record when the task is created. Defaults to ''.
+
+    Attributes:
+        done (bool): Indicates whether the task has completed.
+        result: The result of the task, if available.
+
+    Methods:
+        create: Creates and starts the asyncio task for the task item.
+
+    Examples:
+        task = TaskItem(my_coroutine, 'my_task')
+        task.create()
     """
+
     def __init__(self, func: Awaitable | Callable, name: str, startstring='') -> None:
+        """
+        Initialize a TaskItem object.
+
+        This constructor sets the attributes of the TaskItem instance based on the provided arguments.
+        It also checks if the provided function is a coroutine or callable, and assigns the appropriate coroutine.
+
+        Args:
+            func (Awaitable | Callable): The coroutine or callable function to be executed as a task.
+            name (str): The name of the task.
+            startstring (str, optional): Additional string to include in the log record when the task is created. Defaults to ''.
+
+        Returns:
+            None
+        """
         self.func = func
         self.task = None
         self.name = name
@@ -52,10 +100,26 @@ class TaskItem:
 
     @property
     def done(self):
+        """
+        Check if the task is done.
+
+        This property returns True if the task has completed, and False otherwise.
+
+        Returns:
+            bool: True if the task is done, False otherwise.
+        """
         return self.task.done() if self.task else False
 
     @property
     def result(self):
+        """
+        Get the result of the task.
+
+        This property returns the result of the task if it has completed, or None if the task is not yet done.
+
+        Returns:
+            Any: The result of the task, or None if the task is not done.
+        """
         return self.task.result() if self.task else None
 
     def create(self,
@@ -86,7 +150,34 @@ class TaskItem:
         return self.task
 
 class QueueManager:
+    """
+    Manages the queue of tasks to be executed asynchronously.
+
+    This class provides methods to add tasks to the queue and run them in an asyncio loop.
+    It also holds a reference to the asyncio task queue and the BASEAPI instance.
+
+    Attributes:
+        task_queue (asyncio.Queue[TaskItem]): The queue of tasks to be executed.
+        api (BASEAPI): The BASEAPI instance for API interactions.
+
+    Methods:
+        _api_task_add: Add a task to the task queue.
+        task_check_for_new_tasks: Wait for new tasks to be added to the task queue and run them.
+
+    Examples:
+        queue_manager = QueueManager()
+        queue_manager._api_task_add(my_coroutine, 'my_task')
+        await queue_manager.task_check_for_new_tasks()
+    """
     def __init__(self) -> None:
+        """
+        Initialize a QueueManager object.
+
+        This constructor initializes the task queue and the BASEAPI instance for managing asynchronous tasks.
+
+        Returns:
+            None
+        """
         # holds the asyncio tasks to start after plugin initialization
         self.task_queue: asyncio.Queue[TaskItem] = asyncio.Queue()
         self.api = BASEAPI(owner_id=f"{__name__}:QueueManager")
@@ -95,7 +186,22 @@ class QueueManager:
     # add a task to the asyncio_tasks queue
     def _api_task_add(self, task: Awaitable | Callable, name: str, startstring='') -> TaskItem:
         """
-        add a task to the asyncio_tasks queue
+        Add a task to the task queue.
+
+        This method creates a new TaskItem object with the provided task, name, and startstring.
+        The TaskItem is then added to the task queue for execution.
+
+        Args:
+            task (Awaitable | Callable): The coroutine or callable function to be executed as a task.
+            name (str): The name of the task.
+            startstring (str, optional): Additional string to include in the log record when the task is created. Defaults to ''.
+
+        Returns:
+            TaskItem: The created TaskItem object.
+
+        Examples:
+            queue_manager = QueueManager()
+            task = queue_manager._api_task_add(my_coroutine, 'my_task')
         """
         new_task = TaskItem(task, name, startstring)
         self.task_queue.put_nowait(new_task)
@@ -103,7 +209,17 @@ class QueueManager:
 
     async def task_check_for_new_tasks(self) -> None:
         """
-        wait for new tasks to be added to the asyncio_tasks queue and then run them
+        Wait for new tasks to be added to the task queue and run them.
+
+        This asynchronous function continuously waits for tasks to be added to the task queue.
+        Once a task is retrieved, it is created and executed.
+        The function also logs the current tasks and sleeps for a short duration before checking for new tasks again.
+
+        Args:
+            self: The QueueManager instance.
+
+        Returns:
+            None
         """
         while True:
             task: TaskItem = await self.task_queue.get()
@@ -116,8 +232,17 @@ class QueueManager:
 
 async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) -> None:
     """
-        shutdown coroutine utilized for cleanup on receipt of certain signals.
-        Created and added as a handler to the loop in main.
+    Handle the shutdown process.
+
+    This asynchronous function is called when a shutdown signal is received.
+    It performs the necessary cleanup tasks, cancels outstanding tasks, and stops the event loop.
+
+    Args:
+        signal_ (signal.Signals): The shutdown signal received.
+        loop_ (asyncio.AbstractEventLoop): The event loop to stop.
+
+    Returns:
+        None
     """
     api = BASEAPI(owner_id=f"{__name__}:shutdown")
     LogRecord(f"shutdown - Received exit signal {signal_}:{signal_.name}", level='warning', sources=['mudproxy'])()
@@ -147,7 +272,15 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
     loop_.stop()
 
 def run_asynch() -> None:
+    """
+    Run the asynchronous event loop.
 
+    This function sets up the event loop, registers signal handlers, and starts the event loop.
+    It creates a task to check for new tasks in the task queue and adds signal handlers for shutdown signals.
+
+    Returns:
+        None
+    """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

@@ -73,6 +73,23 @@ class MudProxy:
 
 
     def run(self, args):
+        """
+        Run the MudProxy application.
+
+        This function initializes the plugin manager, adds events, and creates listeners.
+        It also sets the necessary settings based on the provided arguments.
+        Finally, it starts the async loop and logs the application's exit.
+
+        Args:
+            args (dict): A dictionary of arguments passed to the function.
+
+        Returns:
+            None
+
+        Examples:
+            mudproxy = MudProxy()
+            mudproxy.run({'port': 8080, 'IPv4_address': '127.0.0.1'})
+        """
         LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
                 level='info', sources=['mudproxy'])()
 
