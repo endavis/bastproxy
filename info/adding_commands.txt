@@ -43,5 +43,5 @@
 
 5) The return values for the command are two items:
     bool: flag if the command ran successfully or not
-        if this is False, then the commands help will also be output to the client
+        if this is False, then the command's help will also be output to the client
     list[str]: the data to output to the client
