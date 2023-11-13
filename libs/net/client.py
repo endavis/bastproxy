@@ -344,11 +344,11 @@ async def client_telnet_handler(reader, writer) -> None:
             task.cancel()
 
     with contextlib.suppress(AttributeError):
-        print(f"Closing writer with {addr} : {port} : {rest} : uuid - {connection.uuid}")
+        #print(f"Closing writer with {addr} : {port} : {rest} : uuid - {connection.uuid}")
         writer.write_eof()
         await writer.drain()
         writer.close()
-        print(f"Closing reader with {addr} : {port} : {rest} : uuid - {connection.uuid}")
+        #print(f"Closing reader with {addr} : {port} : {rest} : uuid - {connection.uuid}")
         reader.write_eof()
         await reader.drain()
         reader.close()
