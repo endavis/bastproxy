@@ -22,7 +22,7 @@ from uuid import uuid4
 
 # Project
 from libs.net import telnet
-from libs.asynch.task_logger import create_task
+from libs.asynch import TaskItem
 from libs.api import API
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.net.networkdata import NetworkData
@@ -320,10 +320,10 @@ async def client_telnet_handler(reader, writer) -> None:
     if await register_client(connection):
 
         tasks: list[asyncio.Task] = [
-            create_task(connection.client_read(),
-                                name=f"{connection.uuid} telnet read"),
-            create_task(connection.client_write(),
-                                name=f"{connection.uuid} telnet write"),
+            TaskItem(connection.client_read(),
+                                name=f"{connection.uuid} telnet read").create(),
+            TaskItem(connection.client_write(),
+                                name=f"{connection.uuid} telnet write").create(),
         ]
 
         if current_task := asyncio.current_task():

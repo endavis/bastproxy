@@ -13,7 +13,6 @@
 
     It will support multiple MUD protocols, such as GMCP, MCCP2, etc.
 """
-
 # Standard Library
 import logging
 import datetime
@@ -26,7 +25,7 @@ from pathlib import Path
 # Project
 from libs.records import LogRecord
 from libs.api import API as BASEAPI
-from libs.net import server
+from libs.net.listeners import Listeners
 from libs.asynch import run_asynch
 
 # The modules below are imported to add their functions to the API
@@ -100,13 +99,17 @@ class MudProxy:
                                             description=['An event raised when the proxy is ready to accept connections'],
                                             arg_descriptions={'None': None})
 
-        telnet_port: int = args['port']
-        plugin_telnet_port = self.api('plugins.core.settings:get')('plugins.core.proxy', 'listenport')
+        args_listen_port: int = args['port']
+        plugin_listen_port = self.api('plugins.core.settings:get')('plugins.core.proxy', 'listenport')
 
-        if telnet_port != -1 and plugin_telnet_port != telnet_port:
-            self.api('plugins.core.settings:change')('plugins.core.proxy', 'listenport', telnet_port)
-        else:
-            telnet_port = plugin_telnet_port
+        args_ipv4_address = args['IPv4_address']
+        plugin_ipv4_address = self.api('plugins.core.settings:get')('plugins.core.proxy', 'ipv4address')
+
+        if args_listen_port != -1 and plugin_listen_port != args_listen_port:
+            self.api('plugins.core.settings:change')('plugins.core.proxy', 'listenport', args_listen_port)
+
+        if args_ipv4_address and plugin_ipv4_address != args_ipv4_address:
+            self.api('plugins.core.settings:change')('plugins.core.proxy', 'ipv4address', args_ipv4_address)
 
         # done starting up, set the flag to False and raise the ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
@@ -115,17 +118,7 @@ class MudProxy:
 
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
 
-        # import the client handler here so that the server can be created
-        import libs.net.client
-
-        self.api('libs.asynch:task.add')(
-            server.create_server(
-                host='localhost',
-                port=telnet_port,
-                shell=libs.net.client.client_telnet_handler,
-                connect_maxwait=0.5,
-                timeout=3600,
-            ), 'Proxy Telnet Listener', startstring=f"Listening on port {telnet_port}")
+        Listeners().create_listeners()
 
         LogRecord('__main__ - Launching async loop', level='info', sources=['mudproxy'])()
 
@@ -144,19 +137,26 @@ if __name__ == "__main__":
 
     # create an ArgumentParser to parse the command line
     parser = libs.argp.ArgumentParser(description='A python mud proxy')
+    parser.formatter_class = libs.argp.CustomFormatter
 
     # create a port option, this sets the variable automatically in the proxy plugin
     parser.add_argument(
         '-p',
         '--port',
-        help='the port for the proxy to listen on, defaults to 9999',
+        help='the port for the proxy to listen on, \nwill override the plugins.core.proxy listenport setting (default: 9999)',
         default=-1)
+
     parser.add_argument(
         '-pf',
         '--profile',
         help='profile code',
         action='store_true',
         default=False)
+
+    parser.add_argument(
+        '--IPv4-address',
+        help='the ip4 address to bind to (default: localhost)',
+        default='')
 
     args = vars(parser.parse_args())
 
