@@ -706,6 +706,10 @@ class CommandsPlugin(BasePlugin):
             level='debug',
             sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
 
+        # make sure there are two items in the list
+        if len(command_split) == 1:
+            command_split.append('')
+
         plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
 
         found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str)
