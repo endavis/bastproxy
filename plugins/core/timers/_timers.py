@@ -134,8 +134,7 @@ class TimersPlugin(BasePlugin):
                   'debug', sources=[self.plugin_id])()
 
         # setup the task to check for timers to fire
-        self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer Plugin task',
-                                        startstring='Started')
+        self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer Plugin task')
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
