@@ -270,3 +270,23 @@
             monkeypatch baseplugin with the __command__set function?
     # COMPLETE: change api to use instance instead of overload
         enforce that there cannot be two apis with the same name in ANY case
+    # COMPLETE: BUG - Command: #bp.c
+        #BP: 2023-11-12 21:18:33,200 UTC : ERROR     - plugins.core.commands  - raise_event - event ev_to_mud_data_modify with function _eventcb_check_for_command raised an exception
+        #BP: Traceback (most recent call last):
+        #BP:   File "/home/endavis/bastproxy-py3/libs/event.py", line 259, in raise_event
+        #BP:     event_function.execute()
+        #BP:   File "/home/endavis/bastproxy-py3/libs/callback.py", line 46, in execute
+        #BP:     return self.func()
+        #BP:            ^^^^^^^^^^^
+        #BP:   File "/home/endavis/bastproxy-py3/plugins/core/commands/_commands.py", line 795, in _eventcb_check_for_command
+        #BP:     self.run_internal_command_from_event()
+        #BP:   File "/home/endavis/bastproxy-py3/plugins/core/commands/_commands.py", line 746, in run_internal_command_from_event
+        #BP:     command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
+        #BP:                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #BP:   File "/home/endavis/bastproxy-py3/plugins/core/commands/_commands.py", line 605, in find_command
+        #BP:     found, new_package, new_plugin, tmessage, command_split, command_args = self.find_command_split_command_string(command_str)
+        #BP:                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #BP:   File "/home/endavis/bastproxy-py3/plugins/core/commands/_commands.py", line 709, in find_command_split_command_string
+        #BP:     plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
+        #BP:                                                ~~~~~~~~~~~~~^^^
+        #BP: IndexError: list index out of range
