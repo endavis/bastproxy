@@ -366,3 +366,65 @@ class UtilsPlugin(BasePlugin):
         )
 
         return converted_days * 24 * 60 * 60 + converted_hours * 60 * 60 + converted_minutes * 60 + converted_seconds
+
+    @AddAPI('convert.data.to.output.table', description='converts a list of dicts to a table, the first list item is the header')
+    def _api_convert_data_to_output_table(self, table_name, data, columns):
+        """
+        columns is a list of dicts
+            dict format:
+                'name'  : string for the column name,
+                'key'   : dictionary key,
+                'width' : the width of the column
+        """
+        line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+        output_subheader_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
+        temp_data = [{item['key']: item['name'] for item in columns}, *list(data)]
+        color_end = '@w'
+
+        for column in columns:
+            column['width'] = max(len(str(item[column['key']])) for item in temp_data)
+
+        # build the template string
+        template_strings = [
+            "{" + item['key'] + ":<" + str(item['width']) + "}" for item in columns
+        ]
+        template_string = f'{f" {output_subheader_color}|{color_end} ".join(template_strings)}'
+
+        # build the header dict
+        header_dict = {item['key']: item['name'] for item in columns}
+
+        subheader_msg = template_string.format(**header_dict)
+        data_msg = [template_string.format(**item) for item in data]
+
+        largest_line = max(len(self.api('plugins.core.colors:colorcode.strip')(subheader_msg)),
+                           *[len(self.api('plugins.core.colors:colorcode.strip')(line)) for line in data_msg])
+
+        line_length = max(line_length, largest_line)
+
+        return [
+            # self.api('plugins.core.utils:center.colored.string')(
+            #     table_name, '-', line_length, filler_color=output_subheader_color
+            # ),
+            *self.api('plugins.core.commands:format.output.subheader')(table_name),
+            self.api('plugins.core.utils:cap.line')(subheader_msg, '|', color=output_subheader_color, line_length=line_length),
+            f'{output_subheader_color}{"-" * line_length}',
+            *[self.api('plugins.core.utils:cap.line')(line, '|', color=output_subheader_color, line_length=line_length) for line in data_msg],
+            f'{output_subheader_color}{"-" * line_length}',
+        ]
+
+    @AddAPI('cap.line', description='converts a list of dicts to a table, the first list item is the header')
+    def _api_cap_line(self, line, capchar, color='', line_length=None):
+        """
+        cap a line with delimiters
+        """
+        color_end = '@w' if color else ''
+
+        if not line_length:
+            line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+
+        line_length -= 2
+        noncolored_string = self.api('plugins.core.colors:colorcode.strip')(line)
+
+        missing = line_length - len(noncolored_string)
+
+        return f'{color}{capchar}{color_end}{line}{" " * missing}{color}{capchar}{color_end}'
