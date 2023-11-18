@@ -259,30 +259,39 @@ class UtilsPlugin(BasePlugin):
         return vtab[vtype](value) if vtype in vtab else vtype(value)
 
     @AddAPI('center.colored.string', description='center a string with color codes')
-    def _api_center_colored_string(self, string_to_center, filler_character, length, filler_color=None):
+    def _api_center_colored_string(self, string_to_center, filler_character='',
+                                   length=80, filler_color='', endcaps=False):
         """
         center a string with color codes
         """
         converted_colors_string = self.api('plugins.core.colors:colorcode.to.ansicode')(string_to_center)
         noncolored_string = self.api('plugins.core.colors:ansicode.strip')(converted_colors_string)
 
+        if endcaps:
+            length -= 2
+
         noncolored_string_length = len(noncolored_string) + 4
         length_difference = length - noncolored_string_length
-
         half_length = length_difference // 2
-        new_str = "{filler_color}{filler}{filler_end}  {lstring}  {filler_color}{filler}".format(
-            filler_color=filler_color or '',
-            filler=filler_character * half_length,
-            filler_end='@w' if filler_color else '',
+
+        filler=filler_character * half_length
+        filler_color_end='@w' if filler_color else ''
+
+        new_str = "{filler_color}{filler}{filler_color_end}  {lstring}  {filler_color}{filler}".format(
+            filler_color=filler_color,
+            filler=filler,
+            filler_color_end=filler_color_end,
             lstring=string_to_center)
 
         new_length = (half_length * 2) + noncolored_string_length
 
         if new_length < length:
-            new_str += '-' * (length - new_length)
+            new_str += filler_character * (length - new_length)
 
-        if filler_color:
-            new_str += '@w'
+        if endcaps:
+            new_str = f'{filler_color}|{filler_color_end}{new_str}{filler_color}|{filler_color_end}'
+
+        new_str = f"{new_str}{filler_color_end}"
 
         return new_str
 
