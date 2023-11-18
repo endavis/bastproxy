@@ -85,6 +85,8 @@ class CommandsPlugin(BasePlugin):
                                 'the indent for a command')
         self.api('plugins.core.settings:add')(self.plugin_id, 'simple_output', True, bool,
                                 'show simple output for commands')
+        self.api('plugins.core.settings:add')(self.plugin_id, 'multiline_headers', True, bool,
+                                'headers are multiline')
         self.api('plugins.core.settings:add')(self.plugin_id, 'include_date', True, bool,
                                 'include the date in the output of a command')
 
@@ -104,6 +106,56 @@ class CommandsPlugin(BasePlugin):
             return self.api('plugins.core.settings:get')(self.plugin_id, 'command_indent')
 
         return self.api('plugins.core.settings:get')(self.plugin_id, 'command_indent') * 2
+
+    @AddAPI('format.output.header', description='return a formatted header')
+    def _api_format_output_header(self, header_text, line_length=None):
+        """
+        format an output header
+        """
+        if line_length is None:
+            line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+        color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+
+        return self._format_output_header(header_text, color, line_length)
+
+    @AddAPI('format.output.subheader', description='return a formatted header')
+    def _api_format_output_subheader(self, header_text, line_length=None):
+        """
+        format an output header
+        """
+        if line_length is None:
+            line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+        color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
+
+        return self._format_output_header(header_text, color, line_length)
+
+    def _format_output_header(self, header_text, color, line_length=None):
+        """
+        format an output header
+        """
+        if not line_length:
+            line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+
+        if not color:
+            color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+
+        if _ := self.api('plugins.core.settings:get')(
+            'plugins.core.commands', 'multiline_headers'
+        ):
+            return [
+                f'{color}{"-" * line_length}',
+                self.api('plugins.core.utils:center.colored.string')(
+                    header_text, ' ', line_length, filler_color=color, endcaps=True
+                ),
+                f'{color}{"-" * line_length}',
+            ]
+        else:
+            return [
+                *self.api('plugins.core.utils:center.colored.string')(
+                    header_text, '-', line_length, filler_color=color
+            ),
+            ]
+
 
     @AddAPI('get.command.line.length', description='get line length for command')
     def _api_get_command_line_length(self):
