@@ -15,6 +15,18 @@ import datetime
 import signal
 
 # 3rd Party
+try:
+    import psutil
+except ImportError:
+    print('Please install required libraries. psutil is missing.')
+    print('From the root of the project: pip(3) install -r requirements.txt')
+    sys.exit(1)
+try:
+    import humanize
+except ImportError:
+    print('Please install required libraries. humanize is missing.')
+    print('From the root of the project: pip(3) install -r requirements.txt')
+    sys.exit(1)
 
 # Project
 from libs.net.mud import MudConnection
@@ -381,3 +393,89 @@ class ProxyPlugin(BasePlugin):
             newsep = event_record['newvalue']
 
             self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % ('\\' + newsep, '\\' + newsep, '\\' + newsep)
+
+    @AddParser(description='output proxy resource usage')
+    def _command_resource(self):
+        """
+        output proxy resource usage
+        """
+        cpu_percent = psutil.cpu_percent()
+        virtual_memory = psutil.virtual_memory()
+        cpu_count = psutil.cpu_count()
+        load_average = os.getloadavg()
+        net_connections = psutil.net_connections(kind='inet')
+        net_if_addrs = psutil.net_if_addrs()
+        proxy_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
+        line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+        output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+        output_subheader_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
+        column_width = 19
+
+        msg = [
+            *self.api('plugins.core.commands:format.output.header')('CPU Info'),
+            f'{"CPU Percent":<{column_width}} : {cpu_percent}',
+            f'{"CPU Count":<{column_width}} : {cpu_count}',
+            *self.api('plugins.core.commands:format.output.header')('Load Info'),
+            f'{"1 Minute":<{column_width}} : {load_average[0]}',
+            f'{"5 Minute":<{column_width}} : {load_average[1]}',
+            f'{"15 Minute":<{column_width}} : {load_average[2]}',
+            *self.api('plugins.core.commands:format.output.header')('Memory Info'),
+            f'{"Total":<{column_width}} : {humanize.naturalsize(virtual_memory.total, binary=True)}',
+            f'{"Available":<{column_width}} : {humanize.naturalsize(virtual_memory.available, binary=True)}',
+            f'{"Used":<{column_width}} : {humanize.naturalsize(virtual_memory.used, binary=True)}',
+            f'{"Used Percent":<{column_width}} : {virtual_memory.percent}%',
+            *self.api('plugins.core.commands:format.output.header')('Network Info'),
+        ]
+
+        nic_addesses_columns = [
+            {'name': 'NIC', 'key': 'nic', 'width': 10},
+            {'name': 'Address', 'key': 'address', 'width': 40},
+            {'name': 'Type', 'key': 'type', 'width': 10},
+        ]
+
+        nic_addresses = []
+        for nic in net_if_addrs:
+            nic_addresses.extend(
+                {'nic': nic, 'address': addr.address, 'type': addr.family.name}
+                for addr in net_if_addrs[nic]
+            )
+
+        connected_port_columns = [
+            {'name': 'Local Address', 'key': 'local_address', 'width': 20},
+            {'name': 'Local Port', 'key': 'local_port', 'width': 11},
+            {'name': 'Remote Address', 'key': 'remote_address', 'width': 20},
+            {'name': 'Remote Port', 'key': 'remote_port', 'width': 12},
+            {'name': 'Status', 'key': 'status', 'width': 7},
+        ]
+        listening_port_columns = [
+            {'name': 'Local Address', 'key': 'local_address', 'width': 20},
+            {'name': 'Local Port', 'key': 'local_port', 'width': 11},
+            {'name': 'Status', 'key': 'status', 'width': 7},
+        ]
+
+        listening_ports_dicts = []
+        connected_ports_dicts = []
+        for conn in net_connections:
+            if conn.laddr[1] == proxy_port:
+                if conn.status == 'LISTEN':
+                    listening_ports_dicts.append({'local_address': conn.laddr.ip,
+                                                  'local_port': conn.laddr.port,
+                                                  'status': conn.status})
+                else:
+                    connected_ports_dicts.append({'local_address': conn.laddr.ip,
+                                                  'local_port': conn.laddr.port,
+                                                  'remote_address': conn.raddr.ip,
+                                                  'remote_port': conn.raddr.port,
+                                                  'status': conn.status})
+
+        msg.extend(
+            [
+                *self.api('plugins.core.utils:convert.data.to.output.table')('Network Addresses', nic_addresses, nic_addesses_columns),
+                '',
+                *self.api('plugins.core.utils:convert.data.to.output.table')('Listening Ports', listening_ports_dicts, listening_port_columns),
+                '',
+                *self.api('plugins.core.utils:convert.data.to.output.table')('Connected Ports', connected_ports_dicts, connected_port_columns),
+            ]
+        )
+
+        return True, msg
