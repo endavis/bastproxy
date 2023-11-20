@@ -35,7 +35,9 @@ class CommandsPlugin(BasePlugin):
 
         # a list of commands, such as 'core.msg.set' or 'clients.ssub.list'
         self.commands_list: list[str] = []
-        self.adding_all_commands_after_startup = False
+
+        # a dict of commands by plugin
+        self.command_data: dict[str, dict[str, CommandClass]] = {}
 
         # a list of commands that should not be run again if already in the queue
         self.no_multiple_commands = {}
@@ -175,19 +177,16 @@ class CommandsPlugin(BasePlugin):
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
 
-    @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')
     def _eventcb_add_commands_on_startup(self):
         """
         add commands on startup
         """
         LogRecord('_eventcb_add_commands_on_startup: Start', level='debug',
                     sources=[self.plugin_id])()
-        self.adding_all_commands_after_startup = True
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
             LogRecord(f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(plugin_id)
-        self.adding_all_commands_after_startup = False
         LogRecord('_eventcb_add_commands_on_startup: Finish', level='debug',
                     sources=[self.plugin_id])()
 
@@ -196,9 +195,6 @@ class CommandsPlugin(BasePlugin):
         """
         handle the plugin initialized event
         """
-        if self.api.startup:
-            return
-
         if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
@@ -338,9 +334,13 @@ class CommandsPlugin(BasePlugin):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
-                    level='debug', sources=[self.plugin_id, event_record['plugin_id']])
-            self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
+            if event_record['plugin_id'] != self.plugin_id:
+                LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
+                        level='debug', sources=[self.plugin_id, event_record['plugin_id']])
+                self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
+            else:
+                LogRecord(f"{self.plugin_id}_plugin_uninitialize: {self.plugin_id} is me!", level='debug',
+                            sources=[self.plugin_id])()
 
     @AddAPI('get.command.format', description='get a command string formatted for a plugin')
     def  _api_get_command_format(self, plugin_id, command):
@@ -424,8 +424,7 @@ class CommandsPlugin(BasePlugin):
         returns a dictionary of commands
         """
         if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
-            return self.api(f"{plugin_id}:data.get")('commands')
-
+            return self.command_data[plugin_id]
         return {}
 
     @AddAPI('run', description='run a command and return the output')
@@ -508,7 +507,7 @@ class CommandsPlugin(BasePlugin):
         """
         # find the instance
         if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
-            if data := self.api(f"{plugin_id}:data.get")('commands'):
+            if data := self.command_data[plugin_id]:
                 # return the command
                 return data[command] if command in data else None
 
@@ -533,19 +532,22 @@ class CommandsPlugin(BasePlugin):
                       level='debug', sources=[plugin_id, self.plugin_id])(f"{self.plugin_id}:update_command")
             return False
 
-        all_command_data = self.api(f"{plugin_id}:data.get")('commands') or {}
+        if plugin_id not in self.command_data:
+            self.command_data[plugin_id] = {}
 
-        if command_name not in all_command_data and not self.api.startup:
+        plugin_command_data = self.command_data[plugin_id]
+
+        if command_name not in plugin_command_data and not self.api.startup:
             LogRecord(f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
                       level='debug', sources=[plugin_id, self.plugin_id])()
 
         # update any items from the old command to the new command
-        if command_name in all_command_data:
-            command.count = all_command_data[command_name].count
+        if command_name in plugin_command_data:
+            command.count = plugin_command_data[command_name].count
 
-        all_command_data[command_name] = command
+        plugin_command_data[command_name] = command
 
-        return self.api(f"{plugin_id}:data.update")('commands', all_command_data)
+        return True
 
     def pass_through_command_from_event(self) -> None:
         """
@@ -868,7 +870,7 @@ class CommandsPlugin(BasePlugin):
                       level='warning', sources=[self.plugin_id, plugin_id])(f"{self.plugin_id}:_api_remove_command")
             return False
 
-        data = self.api(f"{plugin_id}:data.get")('commands')
+        data = self.command_data[plugin_id]
         if data and command_name in data:
             del data[command_name]
             self.api(f"{plugin_id}:data.update")('commands', data)
@@ -916,7 +918,7 @@ class CommandsPlugin(BasePlugin):
         output_header_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_header_color')
         output_subheader_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_subheader_color')
 
-        commands: dict[str, CommandClass] = self.api(f"{plugin_id}:data.get")('commands')
+        commands: dict[str, CommandClass] = self.command_data[plugin_id]
         message = [f"Commands in {plugin_id}:", output_header_color + '-' * 60 + '@w']
         groups = {}
         for i in sorted(commands.keys()):
@@ -967,7 +969,7 @@ class CommandsPlugin(BasePlugin):
             message.append(self.api('plugins.core.utils:format.list.into.columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
             return True, message
 
-        if plugin_commands := self.api(f"{plugin_id}:data.get")('commands'):
+        if plugin_commands := self.command_data[plugin_id]:
             if command and command in plugin_commands:
                 help_message = plugin_commands[command]['parser'].format_help().split('\n')
                 message.extend(help_message)

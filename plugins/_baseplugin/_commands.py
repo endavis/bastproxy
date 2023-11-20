@@ -3,12 +3,13 @@ import sys
 
 from libs.commands import AddCommand, AddParser, AddArgument
 from ._pluginhooks import RegisterPluginHook
+from libs.event import RegisterToEvent
 
 Base = TypeVar('Base', bound='Base')
 
 class Commands(Protocol):
-    @RegisterPluginHook('post_initialize')
-    def _phook_base_post_initialize_add_reset_command(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    @RegisterToEvent(event_name="ev_{plugin_id}_initialized")
+    def _eventcb_base_post_initialize_add_reset_command(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add commands to the plugin
         """
