@@ -17,6 +17,7 @@ import signal
 # 3rd Party
 try:
     import psutil
+    from psutil._common import addr as psutil_addr
 except ImportError:
     print('Please install required libraries. psutil is missing.')
     print('From the root of the project: pip(3) install -r requirements.txt')
@@ -406,9 +407,6 @@ class ProxyPlugin(BasePlugin):
         net_connections = psutil.net_connections(kind='inet')
         net_if_addrs = psutil.net_if_addrs()
         proxy_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
-        line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
-        output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
-        output_subheader_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
         column_width = 19
 
         msg = [
@@ -456,12 +454,12 @@ class ProxyPlugin(BasePlugin):
         listening_ports_dicts = []
         connected_ports_dicts = []
         for conn in net_connections:
-            if conn.laddr[1] == proxy_port:
+            if isinstance(conn.laddr, psutil_addr) and conn.laddr.port == proxy_port:
                 if conn.status == 'LISTEN':
                     listening_ports_dicts.append({'local_address': conn.laddr.ip,
                                                   'local_port': conn.laddr.port,
                                                   'status': conn.status})
-                else:
+                elif isinstance(conn.raddr, psutil_addr):
                     connected_ports_dicts.append({'local_address': conn.laddr.ip,
                                                   'local_port': conn.laddr.port,
                                                   'remote_address': conn.raddr.ip,
