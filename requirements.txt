@@ -2,3 +2,5 @@ dumper
 rapidfuzz
 telnetlib3
 regex
+psutil
+humanize
