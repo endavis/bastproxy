@@ -212,7 +212,7 @@ class ColorsPlugin(BasePlugin):
         """
         convert ansi color escape sequences to @@ colors
         """
-        def single_sub(match):
+        def single_sub(match) -> str:
             """
             do a single substitution
             """
@@ -230,6 +230,7 @@ class ColorsPlugin(BasePlugin):
             except KeyError:
                 LogRecord(f"could not lookup color {tstr} for text {repr(text)}",
                           level='error', plugin=self.plugin_id)()
+                return ''
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 
