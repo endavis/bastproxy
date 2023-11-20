@@ -161,10 +161,7 @@ class PluginLoader:
           True if the plugin is loaded, False if not"""
         plugin_instance = self.api(f"{__name__}:get.plugin.instance")(pluginname)
 
-        if not plugin_instance or not plugin_instance.is_inititalized_f:
-            return False
-
-        return True
+        return bool(plugin_instance and plugin_instance.is_inititalized_f)
 
     def update_all_plugin_information(self):
         """
@@ -552,7 +549,7 @@ class PluginLoader:
     def _api_fuzzy_match_plugin_id(self, plugin_id_string: str) -> tuple[bool, str, str, str]:
         """
         find a command from the client
-        return bool (found), plugin_id, message
+        return bool (found), package. plugin_id, message
         """
         LogRecord(f"find_plugin: {plugin_id_string}",
                   level='debug',
