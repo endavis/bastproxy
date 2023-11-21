@@ -55,7 +55,6 @@ class CommandsPlugin(BasePlugin):
 
         self.current_command: CommandClass | None = None
 
-
     def initialize(self):
         """
         initialize the instance
@@ -177,17 +176,17 @@ class CommandsPlugin(BasePlugin):
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
 
-    def _eventcb_add_commands_on_startup(self):
+    def _eventcb_add_commands_on_reload(self):
         """
         add commands on startup
         """
-        LogRecord('_eventcb_add_commands_on_startup: Start', level='debug',
+        LogRecord('_eventcb_add_commands_on_startup: reload', level='warning',
                     sources=[self.plugin_id])()
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
             LogRecord(f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(plugin_id)
-        LogRecord('_eventcb_add_commands_on_startup: Finish', level='debug',
+        LogRecord('_eventcb_add_commands_on_reload: Finish', level='debug',
                     sources=[self.plugin_id])()
 
     @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_initialized')
@@ -198,7 +197,10 @@ class CommandsPlugin(BasePlugin):
         if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
-        self.update_commands_for_plugin(event_record['plugin_id'])
+        if event_record['plugin_id'] != self.plugin_id or self.api.startup:
+            self.update_commands_for_plugin(event_record['plugin_id'])
+        else:
+            self._eventcb_add_commands_on_reload()
 
     def update_commands_for_plugin(self, plugin_id):
         """
