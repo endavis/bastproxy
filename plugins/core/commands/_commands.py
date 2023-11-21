@@ -971,7 +971,7 @@ class CommandsPlugin(BasePlugin):
 
         if plugin_commands := self.command_data[plugin_id]:
             if command and command in plugin_commands:
-                help_message = plugin_commands[command]['parser'].format_help().split('\n')
+                help_message = plugin_commands[command].arg_parser.format_help().split('\n')
                 message.extend(help_message)
             else:
                 message.extend(self.list_commands(plugin_id))
