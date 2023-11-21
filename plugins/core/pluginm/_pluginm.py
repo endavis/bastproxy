@@ -368,51 +368,27 @@ class PluginManager(BasePlugin):
     #     return True, tmsg
 
 
-    # @AddParser(description='reload a plugin')
-    # @AddArgument('plugin',
-    #                 help='the plugin to reload',
-    #                 default='',
-    #                 nargs='?')
-    # def _command_reload(self):
-    #     """
-    #     @G%(name)s@w - @B%(cmdname)s@w
-    #       reload a plugin
-    #       @CUsage@w: reload @Yplugin@w
-    #         @Yplugin@w    = the id of the plugin to reload,
-    #                         example: example.timerex
-    #     """
-    #     args = self.api('plugins.core.commands:get.current.command.args')()
-    #     tmsg = []
-    #     plugin = args['plugin']
-    #     plugin_found_f = bool(plugin and plugin in self.plugins_info.keys())
-    #     loaded_plugins = self.api(f"{self.plugin_id}:get.loaded.plugins.list")()
-    #     if plugin_found_f and plugin not in loaded_plugins:
-    #         return True, [f"Plugin {plugin} is not loaded, use load instead"]
-    #     if not plugin_found_f:
-    #         return True, [f"Plugin {plugin} not found"]
-    #     if self.unload_single_plugin(plugin):
-    #         tmsg.append(f"Plugin {plugin} successfully unloaded")
-    #     else:
-    #         tmsg.append(f"Plugin {plugin} could not be unloaded")
-    #         return True, tmsg
+    @AddParser(description='reload a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to reload',
+                    default='',
+                    nargs='?')
+    def _command_reload(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+          reload a plugin
+          @CUsage@w: reload @Yplugin@w
+            @Yplugin@w    = the id of the plugin to reload,
+                            example: example.timerex
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
 
-                # self.api('plugins.core.events:raise.event')(f"ev_{plugin_info.plugin_id}_uninitialized", {})
-                # self.api('plugins.core.events:raise.event')(f"ev_{__name__}_plugin_uninitialized",
-                #                                     {'plugin':plugin_info.name,
-                #                                     'plugin_id':plugin_info.plugin_id})
+        if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
+            return True, [f"{args['plugin']} is not a valid plugin id"]
 
-    #     if self.api(f"{self.plugin_id}:is.plugin.loaded")(plugin):
-    #         tmsg.append(f"{plugin} is already loaded")
-    #     elif self.load_single_plugin(plugin, exit_on_error=False):
-    #         tmsg.append(f"Plugin {plugin} was loaded")
-    #     else:
-    #         tmsg.append(f"Plugin {plugin} would not load")
+        retval = self.api('libs.pluginloader:reload.plugin')(args['plugin'])
 
-                # self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
-                # self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
-                #                                     {'plugin_id':plugin_id})
-
-    #     return True, tmsg
+        return True, [f'{args["plugin"]} reloaded'] if retval else [f'{args["plugin"]} not reloaded, please check logs']
 
     @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self):
