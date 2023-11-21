@@ -199,6 +199,24 @@ class SettingsPlugin(BasePlugin):
                                                     'newvalue':'the new value',
                                                     'oldvalue':'the old value'})
 
+    @AddAPI('remove.plugin.settings', description='remove the settings for a plugin')
+    def _api_remove_plugin_settings(self, plugin_id):
+        """
+        removing the settings for a plugin
+        """
+        LogRecord(f"Removing settings for {plugin_id}", level='debug', sources=[self.plugin_id, plugin_id])()
+        if plugin_id not in self.settings_info:
+            self.settings_info[plugin_id] = {}
+
+        for i in self.settings_info[plugin_id]:
+            if i in self.settings_map:
+                del self.settings_map[i]
+
+        del self.settings_info[plugin_id]
+
+        self.settings_values[plugin_id].close()
+        del self.settings_values[plugin_id]
+
     @AddAPI('save.plugin', description='save the settings for a plugin')
     def _api_save_plugin(self, plugin_id):
         """

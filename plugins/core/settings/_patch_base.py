@@ -86,3 +86,10 @@ def _phook_settings_save(self):
     save all settings for the plugin
     """
     self.api('plugins.core.settings:save.plugin')(self.plugin_id)
+
+@RegisterPluginHook('uninitialize')
+def _phook_settings_uninitialize(self):
+    """
+    remove the settings for the plugin
+    """
+    self.api('plugins.core.settings:remove.plugin.settings')(self.plugin_id)
