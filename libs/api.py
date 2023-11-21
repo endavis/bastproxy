@@ -461,6 +461,9 @@ class API():
                         func.api['addedin'][toplevel].append(api_name)
                     self(f"{__name__}:add")(toplevel, api_name, func, description=description,
                                             instance=instance)
+                else:
+                    LogRecord(f"API {toplevel}:{api_name} already added", level=self.log_level,
+                                sources=[__name__, toplevel])()
 
     def get_api_functions_in_object(self, base, recurse=True):
         """
@@ -637,17 +640,32 @@ class API():
         @Ytop_level_api@w  = the toplevel of the api to remove
 
         this function returns no values"""
+        from libs.records import LogRecord
+        LogRecord(f"libs.api:remove - {top_level_api}",
+                level='debug', sources=[__name__, top_level_api])()
         api_toplevel = f"{top_level_api}:"
 
-        tkeys = sorted(self._class_api.keys())
-        for i in tkeys:
-            if i.startswith(api_toplevel):
-                del self._class_api[i]
+        class_keys = [item for item in self._class_api.keys() if item.startswith(api_toplevel)]
+        LogRecord(f"libs.api:remove class api - {class_keys =}",
+                level='debug', sources=[__name__, top_level_api])()
+        for i in class_keys:
+            func = self._class_api[i].tfunction
+            api_name = func.api['name'].format(**func.__self__.__dict__)
+            # clean up decorated functions so that subclasses APIs can be reloaded
+            # this affects apis that are part of a subclass, such as the baseplugin APIs
+            self._class_api[i].tfunction.api['addedin'][top_level_api].remove(api_name)
+            del self._class_api[i]
 
-        tkeys = sorted(self._instance_api.keys())
-        for i in tkeys:
-            if i.startswith(api_toplevel):
-                del self._instance_api[i]
+        instance_keys = [item for item in self._instance_api.keys() if item.startswith(api_toplevel)]
+        LogRecord(f"libs.api:remove instance api - {instance_keys =}",
+                level='debug', sources=[__name__, top_level_api])()
+        for i in instance_keys:
+            func = self._instance_api[i].tfunction
+            api_name = func.api['name'].format(**func.__self__.__dict__)
+            # clean up decorated functions so that subclasses APIs can be reloaded
+            # this affects apis that are part of a subclass, such as the baseplugin APIs
+            self._instance_api[i].tfunction.api['addedin'][top_level_api].remove(api_name)
+            del self._instance_api[i]
 
     def get(self, api_location: str, get_class: bool = False) -> typing.Callable:
         """
