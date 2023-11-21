@@ -420,6 +420,17 @@ class PluginLoader:
 
         return {'loaded_plugins': loaded_plugins, 'bad_plugins': bad_plugins, 'already_loaded_plugins': already_loaded_plugins}
 
+    @AddAPI('reload.plugin', 'reload a plugin')
+    def _api_reload_plugin(self, plugin_id):
+        """
+        reload a single plugin
+        """
+        success = False
+        if self._unload_single_plugin(plugin_id):
+            success = self._api_load_plugins([plugin_id], exit_on_error=False, check_dependencies=True)
+
+        return success
+
     def _unload_single_plugin(self, plugin_id):
         """
         unload a plugin
@@ -465,25 +476,32 @@ class PluginLoader:
                         sources=[__name__, plugin_info.plugin_id], exc_info=True)()
             return False
 
-        # # remove from pluginstoload so it doesn't load at startup
-        # plugins_to_load = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
-        # if plugin_info.plugin_id in plugins_to_load:
-        #     plugins_to_load.remove(plugin_info.plugin_id)
-        #     self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load)
+        # remove from pluginstoload so it doesn't load at startup
+        plugins_to_load = self.api('plugins.core.settings:get')('plugins.core.pluginm', 'pluginstoload')
+        if plugin_info.plugin_id in plugins_to_load:
+            plugins_to_load.remove(plugin_info.plugin_id)
+            self.api('plugins.core.settings:change')('plugins.core.pluginm', 'pluginstoload', plugins_to_load)
 
         if plugin_info.loaded_info.plugin_instance:
             # delete the instance
             del plugin_info.loaded_info.plugin_instance
 
+        modules_to_delete = []
         if plugin_info.loaded_info.is_imported:
-            # TODO: remove all the modules in a plugin from sys.modules
+            modules_to_delete.extend(
+                item
+                for item in sys.modules.keys()
+                if item.startswith(plugin_info.full_import_location)
+            )
+
+        for item in modules_to_delete:
             if imputils.deletemodule(
-                plugin_info.full_import_location
+                item
             ):
-                LogRecord(f"{plugin_info.plugin_id:<30} : deleting imported module was successful ({plugin_info.name})",
+                LogRecord(f"{plugin_info.plugin_id:<30} : deleting imported module {item} was successful ({plugin_info.name})",
                             level='info', sources=[__name__, plugin_info.plugin_id])()
             else:
-                LogRecord(f"{plugin_info.plugin_id:<30} : deleting imported module failed ({plugin_info.name})",
+                LogRecord(f"{plugin_info.plugin_id:<30} : deleting imported module {item} failed ({plugin_info.name})",
                             level='error', sources=[__name__, plugin_info.plugin_id])()
 
         # set the appropriate plugin_info.loaded_info attributes to None
