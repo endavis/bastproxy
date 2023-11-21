@@ -275,16 +275,16 @@ class Base: # pylint: disable=too-many-instance-attributes
             else:
                 message.extend(self.dump_object_as_string(attr).split('\n'))
 
-            if callable(attr):
-                message.extend(
-                    (header,
-                    f"Defined in {inspect.getfile(attr)}",
-                    header,
-                    '')
-                )
-                text_list, _ = inspect.getsourcelines(attr)
-                message.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
-
+            with contextlib.suppress(TypeError):
+                if callable(attr):
+                    message.extend(
+                        (header,
+                        f"Defined in {inspect.getfile(attr)}",
+                        header,
+                        '')
+                    )
+                    text_list, _ = inspect.getsourcelines(attr)
+                    message.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
 
         return True, message
 
