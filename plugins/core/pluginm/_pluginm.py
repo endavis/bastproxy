@@ -386,9 +386,13 @@ class PluginManager(BasePlugin):
         if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
-        retval = self.api('libs.pluginloader:reload.plugin')(args['plugin'])
-
-        return True, [f'{args["plugin"]} reloaded'] if retval else [f'{args["plugin"]} not reloaded, please check logs']
+        if self.api('libs.pluginloader:reload.plugin')(args['plugin']):
+            self.api('plugins.core.events:raise.event')(f"ev_{args['plugin']}_initialized", {})
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                                                {'plugin_id':args['plugin']})
+            return True, [f'{args["plugin"]} reloaded']
+        else:
+            return False, [f'{args["plugin"]} not reloaded, please check logs']
 
     @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self):
