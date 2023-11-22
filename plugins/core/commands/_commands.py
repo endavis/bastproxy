@@ -178,7 +178,7 @@ class CommandsPlugin(BasePlugin):
         """
         add commands on startup
         """
-        LogRecord('_eventcb_add_commands_on_startup: reload', level='warning',
+        LogRecord('_eventcb_add_commands_on_startup: reload', level='debug',
                     sources=[self.plugin_id])()
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
             LogRecord(f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}", level='debug',
