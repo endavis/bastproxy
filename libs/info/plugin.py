@@ -113,10 +113,14 @@ class PluginInfo():
                 if self.loaded_info.is_loaded and file_modified_time > self.loaded_info.imported_time:
                     has_changed = True
 
-                file_info = {'modified_time': file_modified_time,
-                                            'is_valid_python_code': success,
-                                            'exception': exception,
-                                            'has_changed': has_changed}
+                file_info = {
+                    'modified_time': file_modified_time,
+                    'is_valid_python_code': success,
+                    'exception': exception,
+                    'has_changed': has_changed,
+                    'full_import_path': f'{self.full_import_location}.'
+                                        + file.name.replace('.py', ''),
+                }
 
                 self.files[file.name] = file_info
 
