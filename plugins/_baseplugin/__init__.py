@@ -12,10 +12,10 @@ their base class.
 
 __all__ = ['BasePlugin', 'RegisterPluginHook', 'patch']
 
-from ._base import Base
+from ._base import Plugin
 from ._commands import Commands
 from ._pluginhooks import RegisterPluginHook
 from ._patch import patch
 
-class BasePlugin(Base, Commands):
+class BasePlugin(Plugin, Commands):
     pass

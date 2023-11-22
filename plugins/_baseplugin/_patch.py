@@ -12,7 +12,7 @@ import types
 # 3rd Party
 
 # Project
-from ._base import Base
+from ._base import Plugin
 from libs.records import LogRecord
 
 modules_patched = []
@@ -30,9 +30,9 @@ def patch(module, override=False):
     for item in dir(module):
         itemo = getattr(module, item)
         if isinstance(itemo, types.FunctionType) and item.startswith('_'):
-            if hasattr(Base, itemo.__name__):
+            if hasattr(Plugin, itemo.__name__):
                 LogRecord(f"skipping {module.__name__}:{itemo.__name__} as it already exists in base", level='warning', sources=['baseplugin'])()
                 continue
 
             LogRecord(f"adding {itemo.__name__}", level='info', sources=['baseplugin'])()
-            setattr(Base, itemo.__name__, itemo)
+            setattr(Plugin, itemo.__name__, itemo)

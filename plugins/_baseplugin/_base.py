@@ -28,7 +28,7 @@ from libs.api import API, AddAPI
 from libs.records import LogRecord
 from ._pluginhooks import RegisterPluginHook
 
-class Base: # pylint: disable=too-many-instance-attributes
+class Plugin: # pylint: disable=too-many-instance-attributes
     """
     a base class for plugins
     """
