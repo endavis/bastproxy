@@ -425,11 +425,13 @@ class PluginLoader:
         """
         reload a single plugin
         """
-        success = False
-        if self._unload_single_plugin(plugin_id):
-            success = self._api_load_plugins([plugin_id], exit_on_error=False, check_dependencies=True)
-
-        return success
+        return (
+            self._api_load_plugins(
+                [plugin_id], exit_on_error=False, check_dependencies=True
+            )
+            if self._unload_single_plugin(plugin_id)
+            else False
+        )
 
     def _unload_single_plugin(self, plugin_id):
         """
