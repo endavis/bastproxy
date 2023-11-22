@@ -13,11 +13,7 @@
 # Project
 from libs.api import API
 from libs.commands import AddParser, AddArgument
-from plugins._baseplugin import BasePlugin, patch
-from . import _patch_base
-
-# patch the base class with any function in the _patch_base module
-patch(_patch_base)
+from plugins._baseplugin import BasePlugin
 
 class APIHelpPlugin(BasePlugin):
     """

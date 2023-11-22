@@ -23,7 +23,7 @@ import datetime
 from libs.dependency import PluginDependencyResolver
 from libs.api import API, AddAPI
 import libs.imputils as imputils
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, patch
 from libs.records import LogRecord
 from libs.info import PluginInfo
 
@@ -254,7 +254,17 @@ class PluginLoader:
         plugin_info.loaded_info.module = return_info['module']
         plugin_info.loaded_info.is_imported = True
         plugin_info.loaded_info.imported_time =  datetime.datetime.now(datetime.timezone.utc)
+
         LogRecord(f"{plugin_id:<30} : imported successfully", level='info', sources=[__name__])()
+
+        # check for patches to the base plugin
+        if '_patch_base.py' in plugin_info.files:
+            LogRecord(f"{plugin_id:<30} : attempting to patch base", level='info', sources=[__name__])()
+            if patch(plugin_info.files['_patch_base.py']['full_import_path']):
+                LogRecord(f"{plugin_id:<30} : patching base successful", level='info', sources=[__name__])()
+            else:
+                LogRecord(f"{plugin_id:<30} : patching base failed", level='error', sources=[__name__])()
+
         return True
 
     def _instantiate_single_plugin(self, plugin_id, exit_on_error=False):

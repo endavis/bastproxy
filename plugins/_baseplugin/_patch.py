@@ -8,6 +8,8 @@
 
 # Standard Library
 import types
+import sys
+from importlib import import_module
 
 # 3rd Party
 
@@ -17,13 +19,21 @@ from libs.records import LogRecord
 
 modules_patched = []
 
-def patch(module, override=False):
+def patch(full_import_location, override=False):
     """
     patch the base class with any function in the specified module
     """
+    if full_import_location not in sys.modules:
+        try:
+            module = import_module(full_import_location)
+        except Exception as e:
+            LogRecord(f"Could not load module {full_import_location} for patching of base", level='warning', sources=['baseplugin'])()
+            return False
+    else:
+        module = sys.modules[full_import_location]
     if module.__name__ in modules_patched and not override:
         LogRecord(f"module {module.__name__} has already patched base", level='warning', sources=['baseplugin'])()
-        return
+        return False
     if module.__name__ not in modules_patched:
         modules_patched.append(module.__name__)
     LogRecord(f"patching base from module {module.__name__}", level='info', sources=['baseplugin'])()
@@ -36,3 +46,4 @@ def patch(module, override=False):
 
             LogRecord(f"adding {itemo.__name__}", level='info', sources=['baseplugin'])()
             setattr(Plugin, itemo.__name__, itemo)
+    return True

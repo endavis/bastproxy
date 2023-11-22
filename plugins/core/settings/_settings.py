@@ -18,11 +18,8 @@ import libs.argp as argp
 from libs.persistentdict import PersistentDict, convert
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument, AddCommand
-from plugins._baseplugin import BasePlugin, patch, RegisterPluginHook
-from . import _patch_base
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 
-# patch the base class with any function in the _patch_base module
-patch(_patch_base)
 
 class SettingsPlugin(BasePlugin):
     """
