@@ -30,6 +30,7 @@ from libs.asynch import run_asynch
 
 # The modules below are imported to add their functions to the API
 from libs import timing
+from libs import reloadutils
 
 # set the start time
 BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
