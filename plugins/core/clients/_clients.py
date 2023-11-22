@@ -20,21 +20,22 @@ from libs.event import RegisterToEvent
 from libs.api import AddAPI
 
 class BanRecord:
-    def __init__(self, plugin_id, ip_addr, how_long=600):
+    def __init__(self, plugin_id, ip_addr, how_long=600, copy=False):
         self.api = API(owner_id=f"{plugin_id}:Ban:{ip_addr}")
         self.plugin_id = plugin_id
         self.ip_addr = ip_addr
         self.how_long = how_long
         self.timer = None
 
-        if self.how_long > 0:
-            LogRecord(f"{self.ip_addr} has been banned for {self.how_long} seconds",
-                      level='error', sources=[self.plugin_id])()
-            self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
-                                                            self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
-        else:
-            LogRecord(f"{self.ip_addr} has been banned with no expiration",
-                      level='error', sources=[self.plugin_id])()
+        if not copy:
+            if self.how_long > 0:
+                LogRecord(f"{self.ip_addr} has been banned for {self.how_long} seconds",
+                        level='error', sources=[self.plugin_id])()
+                self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
+                                                                self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
+            else:
+                LogRecord(f"{self.ip_addr} has been banned with no expiration",
+                        level='error', sources=[self.plugin_id])()
 
     def expires(self):
         if self.timer:
@@ -45,6 +46,10 @@ class BanRecord:
     def remove(self):
         self.api(f"{self.plugin_id}:client.banned.remove")(self.ip_addr)
 
+    def copy(self):
+        newrecord = BanRecord(self.plugin_id, self.ip_addr, self.how_long, copy=True)
+        newrecord.timer = self.timer
+        return newrecord
 
 class ClientPlugin(BasePlugin):
     """
@@ -56,7 +61,7 @@ class ClientPlugin(BasePlugin):
         """
         BasePlugin.__init__(self, *args, **kwargs)
 
-        self.can_reload_f = False
+        self.attributes_to_save_on_reload = ['clients', 'banned']
 
         self.clients = {}
         self.banned = {}
@@ -79,6 +84,12 @@ class ClientPlugin(BasePlugin):
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_disconnected", self.plugin_id,
                                                   description=['An event that is raised when a client disconnects'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
+
+        # copy the banned ips to new objects to free up the original objects
+        if self.banned:
+            LogRecord(f"Loading {len(self.banned)} banned IPs", level='debug', sources=[self.plugin_id])()
+            for item in self.banned:
+                self.banned[item] = self.banned[item].copy()
 
     @AddAPI('client.count', description='return the # of clients connected')
     def _api_client_count(self):
