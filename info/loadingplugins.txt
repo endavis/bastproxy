@@ -3,15 +3,13 @@ Plugin loading at startup
 1) (libs.pluginloader) Load all plugins in plugins.core and plugins.client
     import all plugins
     instantiate all plugins
-        this include several hooks,
-            post_base_init - invoked after BasePlugin.__init__
-            post_init - invoked after all __init__ functions have completed
-    run the initialize function
-        Hooks include:
-            pre_initialize
-            post_initialize
-2) Passes work to plugins.core.pluginm to load all plugins in the
-    plugins.core.pluginm.pluginstoload setting
+        for each plugin:
+            use the "__init__" hook
+            it is after the baseplugin __init__ has finished
+            @RegisterPluginHook('__init__')
+    initialize all plugins
+            use the "initialize" hook
+            @RegisterPluginHook('initialize')
 
 Single instance Plugin loading
 1) import Plugin
