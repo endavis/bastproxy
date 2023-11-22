@@ -15,10 +15,8 @@
 class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
         """
-        'post_base_init' - invoked after the base plugin class __init__
-        'post_init' - invoked after all __init__ have completed
-        'pre_initialize' - invoked before the initialize method
-        'post_initialize' - invoked after the initialize method
+        '__init__' - invoked for __init__ at the end of baseplugin.__init__
+        'initialize' - invoked for initialize
         'save' - invoked when saving the plugin
         'reset' - invoked when resetting the plugin
         'stats' - invoked when getting the stats of the plugin

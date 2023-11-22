@@ -18,7 +18,7 @@ import libs.argp as argp
 from libs.persistentdict import PersistentDict, convert
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument, AddCommand
-from plugins._baseplugin import BasePlugin, patch
+from plugins._baseplugin import BasePlugin, patch, RegisterPluginHook
 from . import _patch_base
 
 # patch the base class with any function in the _patch_base module
@@ -28,11 +28,11 @@ class SettingsPlugin(BasePlugin):
     """
     a test plugin
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance through common __init__ method
         """
-        super().__init__(*args, **kwargs)
         self.settings_map = {}
         self.settings_info = {}
         self.settings_values = {}

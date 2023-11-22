@@ -32,12 +32,11 @@ class LogPlugin(BasePlugin):
     """
     a class to manage logging
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         init the class
         """
-        super().__init__(*args, **kwargs)
-
         self.can_reload_f = False
         self.record_manager = RMANAGER
         self.log_directory = self.api.BASEDATAPATH / 'logs'
@@ -56,12 +55,10 @@ class LogPlugin(BasePlugin):
             self.plugin_info.data_directory / 'logtypes_to_file.txt',
             'c')
 
-    def initialize(self):
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        super().initialize()
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'color_error', '@x136', 'color',
                                 'the color for error messages')
         self.api('plugins.core.settings:add')(self.plugin_id, 'color_warning', '@y', 'color',

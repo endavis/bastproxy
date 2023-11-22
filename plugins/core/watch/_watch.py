@@ -13,7 +13,7 @@ import re
 
 # Project
 from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
@@ -22,12 +22,11 @@ class WatchPlugin(BasePlugin):
     """
     a plugin to watch for commands coming from the client
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
-
         self.can_reload_f = False
 
         self.regex_lookup = {}

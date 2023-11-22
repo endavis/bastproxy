@@ -111,12 +111,11 @@ class TimersPlugin(BasePlugin):
     """
     a plugin to handle timers
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
-
         self.can_reload_f: bool = False
 
         self.timer_events: dict[int, list[Timer]] = {}
@@ -124,12 +123,11 @@ class TimersPlugin(BasePlugin):
         self.overall_fire_count: int = 0
         self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
 
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        BasePlugin.initialize(self)
-
         LogRecord(f"initialize - lasttime:  {self.time_last_checked}",
                   'debug', sources=[self.plugin_id])()
 

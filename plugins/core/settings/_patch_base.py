@@ -64,7 +64,7 @@ def _phook_settings_reset(self):
         self.api('plugins.core.settings:reset')(self.plugin_id)
         self.reset_f = False
 
-@RegisterPluginHook('post_initialize', priority=5)
+@RegisterPluginHook('initialize', priority=75)
 def _phook_settings_post_initialize(self):
     """
     setup the settings for the plugin

@@ -14,7 +14,7 @@ manages all plugins
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
@@ -23,12 +23,11 @@ class PluginManager(BasePlugin):
     """
     a class to manage plugins
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        super().__init__(*args, **kwargs)
-
         self.can_reload_f: bool = False
 
         self.plugin_info_line_format = "{plugin_id:<30} : {name:<25} {author:<10} {version:<5} {purpose}@w"
@@ -422,12 +421,11 @@ class PluginManager(BasePlugin):
 
 
     # initialize this plugin
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize plugin
         """
-        super().initialize()
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'pluginstoload', [], list,
                         'plugins to load on startup',
                         readonly=True)

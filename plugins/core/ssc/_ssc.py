@@ -16,7 +16,7 @@ import stat
 from libs.api import API, AddAPI
 from libs.records import LogRecord
 from libs.commands import AddCommand, AddParser, AddArgument
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 
 
 class SSC(object):
@@ -77,9 +77,8 @@ class SSCPlugin(BasePlugin):
     """
     a plugin to handle secret settings
     """
-    def __init__(self, *args, **kwargs):
-        BasePlugin.__init__(self, *args, **kwargs)
-
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         self.reload_dependents_f = True
 
     @AddAPI("baseclass.get", description="return the ssc baseclass")

@@ -12,7 +12,7 @@
 
 # Project
 from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
@@ -21,12 +21,11 @@ class ErrorPlugin(BasePlugin):
     """
     a plugin to handle errors
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        super().__init__(*args, **kwargs)
-
         self.errors = []
 
     @RegisterToEvent(event_name='ev_bastproxy_proxy_ready')

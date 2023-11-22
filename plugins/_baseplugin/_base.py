@@ -74,17 +74,17 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         self._dump_shallow_attrs = ['api']
 
-        self._process_plugin_hook('post_base_init')
+        self._process_plugin_hook('__init__')
 
-    @RegisterPluginHook('post_base_init', priority=1)
-    def _phook_base_post_base_init_add_apis(self):
+    @RegisterPluginHook('__init__', priority=1)
+    def _phook_base_init_add_apis(self):
         """
         load any apis that were added in the __init__ method
         """
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
-    @RegisterPluginHook('post_init', priority=1)
-    def _phook_base_post_init(self):
+    @RegisterPluginHook('__init__', priority=75)
+    def _phook_base_init(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
         # load anything in the reload cache
@@ -145,17 +145,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         """ dump an object as a string """
         return dumps(object)
 
-    def __init_subclass__(cls, *args, **kwargs):
-        """
-        hook into __init__ mechanism so that the
-        post_init load hook can be processed
-        """
-        super().__init_subclass__(*args, **kwargs)
-        def new_init(self, *args, init=cls.__init__, **kwargs):
-            init(self, *args, **kwargs)
-            if cls is type(self):
-                self._process_plugin_hook('post_init')
-        cls.__init__ = new_init
 
     @AddAPI('data.get', description='get the data for a specific datatype')
     def _api_data_get(self, datatype, plugin_id=None):
@@ -304,7 +293,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         return True, message
 
-    @RegisterPluginHook('post_initialize')
+    @RegisterPluginHook('initialize', priority=90)
     def _phook_base_post_initialize_update_version(self):
         """
         update plugin data
@@ -333,7 +322,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             self.api(f"{self.plugin_id}:save.state")()
 
 
-    @RegisterPluginHook('post_initialize')
+    @RegisterPluginHook('initialize', priority=90)
     def _phook_base_post_initialize_setup(self):
         """
         do something after the initialize function is run
@@ -408,8 +397,8 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         self._process_plugin_hook('uninitialize')
 
-    @RegisterPluginHook('pre_initialize')
-    def _phook_base_pre_initialize(self):
+    @RegisterPluginHook('initialize', priority=1)
+    def _phook_base_initialize(self):
         """
         initialize the plugin, do most things here
         """
@@ -422,18 +411,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
                                     arg_descriptions={'None': None})
 
     def initialize(self):
-        """
-        initialize the plugin, do most things here
-        """
-        pass
-
-    def initialize_with_hooks(self):
-        self._process_plugin_hook('pre_initialize')
-
-        if hasattr(self, 'initialize'):
-            self.initialize()
-
-        self._process_plugin_hook('post_initialize')
+        self._process_plugin_hook('initialize')
 
     @AddAPI('save.state', 'Save the state of the plugin')
     def _api_save_state(self):

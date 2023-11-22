@@ -12,16 +12,15 @@
 
 # Project
 from libs.api import AddAPI
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from ._sqlite import Sqldb
 
 class SQLDBPlugin(BasePlugin):
     """
     a plugin to handle the base sqldb
     """
-    def __init__(self, *args, **kwargs):
-        BasePlugin.__init__(self, *args, **kwargs)
-
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         self.reload_dependents_f = True
 
     @AddAPI('baseclass', description='return the sql baseclass')

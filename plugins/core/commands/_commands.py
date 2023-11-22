@@ -27,12 +27,11 @@ class CommandsPlugin(BasePlugin):
     """
     a class to manage internal commands
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         init the class
         """
-        super().__init__(*args, **kwargs)
-
         # a list of commands, such as 'core.msg.set' or 'clients.ssub.list'
         self.commands_list: list[str] = []
 
@@ -55,12 +54,11 @@ class CommandsPlugin(BasePlugin):
 
         self.current_command: CommandClass | None = None
 
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the instance
         """
-        super().initialize()
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'cmdprefix', '#bp', str,
                                 'the prefix to signify the input is a command')
         self.api('plugins.core.settings:add')(self.plugin_id, 'spamcount', 20, int,

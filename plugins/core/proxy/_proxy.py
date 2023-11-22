@@ -31,7 +31,7 @@ except ImportError:
 
 # Project
 from libs.net.mud import MudConnection
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
@@ -41,12 +41,11 @@ class ProxyPlugin(BasePlugin):
     """
     a plugin to show connection information
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
-
         self.api(f"{self.plugin_id}:dependency.add")('core.ssc')
 
         self.proxypw = None
@@ -54,12 +53,11 @@ class ProxyPlugin(BasePlugin):
         self.mudpw = None
         self.mud_connection = None
 
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        super().initialize()
-
         restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"
 
         # Network Settings

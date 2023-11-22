@@ -11,7 +11,7 @@
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import RMANAGER
 from libs.commands import AddParser, AddArgument
 
@@ -19,12 +19,11 @@ class InspectPlugin(BasePlugin):
     """
     a plugin to show connection information
     """
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the instance
         """
-        super().initialize()
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'showLogRecords', False, bool,
                                 '1 to show LogRecords in detail command')
 

@@ -25,9 +25,8 @@ class EventsPlugin(BasePlugin):
     """
     a class to manage events
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         self.can_reload_f: bool = False
 
         self.global_raised_count: int = 0
@@ -38,12 +37,11 @@ class EventsPlugin(BasePlugin):
 
         self.events: dict[str, Event] = {}
 
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        BasePlugin.initialize(self)
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'log_savestate', False, bool,
                                 'flag to log savestate events, reduces log spam if False')
 

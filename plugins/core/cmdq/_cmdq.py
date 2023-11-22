@@ -13,7 +13,7 @@ import re
 
 # Project
 from libs.records import LogRecord, ToMudRecord
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.commands import AddParser
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
@@ -22,9 +22,8 @@ class CMDQPlugin(BasePlugin):
     """
     a plugin to handle sending a command to the mud
     """
-    def __init__(self, *args, **kwargs):
-        BasePlugin.__init__(self, *args, **kwargs)
-
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         self.queue = []
         self.cmds = {}
         self.current_command = {}

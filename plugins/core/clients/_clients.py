@@ -12,7 +12,7 @@ import datetime
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
 from libs.api import API
 from libs.commands import AddParser, AddArgument
@@ -55,23 +55,22 @@ class ClientPlugin(BasePlugin):
     """
     a plugin to show connection information
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
-        initialize the instance
+        initialize the plugin
         """
-        BasePlugin.__init__(self, *args, **kwargs)
-
         self.attributes_to_save_on_reload = ['clients', 'banned']
 
         self.clients = {}
         self.banned = {}
 
-    def initialize(self):
+
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        BasePlugin.initialize(self)
-
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_logged_in", self.plugin_id,
                                                   description=['An event that is raised when a client logs in'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})

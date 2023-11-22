@@ -70,12 +70,11 @@ class TriggersPlugin(BasePlugin):
     """
     a plugin to handle internal triggers
     """
-    def __init__(self, *args, **kwargs):
+    @RegisterPluginHook('__init__')
+    def _phook_init_plugin(self):
         """
         initialize the instance
         """
-        BasePlugin.__init__(self, *args, **kwargs)
-
         self.can_reload_f = False
         self.latest_regex_id = 0
 
@@ -104,12 +103,11 @@ class TriggersPlugin(BasePlugin):
         # The compiled regex
         self.created_regex: dict = {'created_regex': '', 'created_regex_compiled': ''}
 
-    def initialize(self):
+    @RegisterPluginHook('initialize')
+    def _phook_initialize(self):
         """
         initialize the plugin
         """
-        super().initialize()
-
         self.api('plugins.core.settings:add')(self.plugin_id, 'enabled', 'True', bool,
                                 'enable triggers')
 
