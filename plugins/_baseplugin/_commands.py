@@ -171,15 +171,3 @@ class Commands(Protocol):
 
         return True, ['This plugin cannot be reset']
 
-    @RegisterPluginHook('stats')
-    def _phook_base_stats(self: Plugin, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
-        """
-        get statistics for commands
-        """
-        kwargs['stats']['Commands'] = {
-            'Size': f"{sys.getsizeof(self.data['commands'])} bytes"
-        }
-        kwargs['stats']['Commands']['Number of Commands'] = len(self.data['commands'])
-        kwargs['stats']['Commands']['showorder'] = ['Number of Commands', 'Size']
-
-        return kwargs

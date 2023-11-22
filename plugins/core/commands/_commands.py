@@ -96,6 +96,13 @@ class CommandsPlugin(BasePlugin):
         """
         return self.api('plugins.core.settings:get')(self.plugin_id, 'command_indent')
 
+    @AddAPI('get.command.count', description='get a command count for a specific plugin')
+    def _api_get_command_count(self, plugin_id):
+        """
+        get the command count for a specific plugin
+        """
+        return len(self.command_data[plugin_id]) if plugin_id in self.command_data else 0
+
     @AddAPI('get.output.indent', description='indent for command output')
     def _api_get_output_indent(self):
         """
