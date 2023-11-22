@@ -1,6 +1,17 @@
+# -*- coding: utf-8 -*-
+# Project: bastproxy
+# Filename: plugins/_baseplugin/_commands.py
+#
+# File Description: holds commands for the base plugin
+#
+# By: Bast
+# Standard Library
 from typing import TypeVar, Protocol
 import sys
 
+# 3rd Party
+
+# Project
 from libs.commands import AddCommand, AddParser, AddArgument
 from ._pluginhooks import RegisterPluginHook
 from libs.event import RegisterToEvent

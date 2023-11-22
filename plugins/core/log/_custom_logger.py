@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/log/_init_.py
+# Filename: plugins/core/log/_custom_logger.py
 #
 # File Description: a plugin to change logging settings
 #
@@ -10,22 +10,6 @@ This module handles changing logging settings
 
 see info/logging_notes.txt for more information about logging
 """
-# -*- coding: utf-8 -*-
-# Project: bastproxy
-# Filename: libs/log.py
-#
-# File Description: setup logging with some customizations
-#
-# By: Bast
-"""
-This plugin sets up logging for various types of data
-
-data from the mud and the client
-general logging of everything else which will use the root logger
-
-see info/logging_notes.txt for more information about logging
-"""
-
 # Standard Library
 import os
 import logging

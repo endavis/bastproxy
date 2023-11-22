@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_settings.py
+# Filename: plugins/_baseplugin/_patch.py
 #
-# File Description: holds the settings implementation
+# File Description: holds the plugin patching implementation
 #
 # By: Bast
 
