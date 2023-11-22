@@ -20,6 +20,7 @@
                 clearing APis for that plugin
                 clearing events
                 remove all async tasks related to a plugin
+                can we use importlib.reload?
             reload all modules except libs.net, libs.async, and mudproxy.py
         # Commands are kept in the plugin and then the command plugin can get them specific to api call for each plugin instead of them being stored in the command plugin
         # the idea
@@ -34,10 +35,18 @@
         # also need to think about classes that were used
             EG: commands has a Command class that is saved in another plugin's instance
 
-        Reloading plugins (see above about commands plugin):
-            #NEW save data to the specific plugin, so command data goes into each plugin instead
-            #NEW of the command plugin, then the command plugin registers to the initialize and
-            #NEW and uninitialize events to update it's local caches, data, etc..
+        Reloading Single Plugins:
+            OLD Thoughts:
+                Reloading plugins (see above about commands plugin):
+                    #NEW save data to the specific plugin, so command data goes into each plugin instead
+                    #NEW of the command plugin, then the command plugin registers to the initialize and
+                    #NEW and uninitialize events to update it's local caches, data, etc..
+            NEW Thoughts:
+                Decorate functions with info to recreate stuff
+                The command plugin now uses decorators and so can easily rebuild the commands for a plugin
+                    What about commands created at runtime like the reset command - put this in the event for that specific plugin initialization
+                        see baseclass._commands
+                Events does the same for registrations (not for event definitions)
 
         don't save plugin_instances in data structures inside a plugin unless absolutely needed
         if you need the instance, save the plugin_id and then use the api 'core.plugins:get:plugin:instance'
@@ -48,7 +57,7 @@
         creata a "libs" directory under the main plugin directory
             when a plugin is reloaded, this directory is not reloaded
 
-        do we just have reload start from scratch but keep connections?
+        do we just have reload and start from scratch but keep connections?
     # TODO: https://docs.python.org/3/library/collections.html#collections.namedtuple for SQLite queries????
     # TODO: make all apis use similar formats
         IE: plugins.core.commands:add and plugins.core.events:add
@@ -89,6 +98,12 @@
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
     # TODO: proxy usage command with mem, average cpu, open files, etc...
+        pympler?
+    # TODO: add specific Exceptions
+            APINotFoundException
+    # TODO: look at slots
+    # TODO: plugins.core.clients
+        save permanently banned clients
 
 # REVISIT:
     # TODO: decorator for event description
@@ -237,6 +252,9 @@
     # COMPLETE: plugins.core.clients
         COMPLETE: add banned clients to a command
             added ban command to plugin
+    # COMPLETE: baseplugin
+        # TODO: refactor all initialization to use hooks instead of the initialize function
+            use a priority system
     # COMPLETE: research why the initialize function takes so long
             get_caller_owner_id was optimized and no longer uses inspect.stack
     # COMPLETE: add profiling as a command line argument
@@ -290,3 +308,4 @@
         #BP:     plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
         #BP:                                                ~~~~~~~~~~~~~^^^
         #BP: IndexError: list index out of range
+    # COMPLETE: stats command throws an exception
