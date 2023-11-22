@@ -51,9 +51,12 @@ class Base: # pylint: disable=too-many-instance-attributes
 
         self.is_instantiated_f = False
         self.is_inititalized_f = False
+        self.is_reloading_f = False
         self.can_reload_f = True
         self.can_reset_f = True
         self.reload_dependents_f = False
+
+        self.attributes_to_save_on_reload = []
 
         # add any dependencies that are not in the packages plugins.core or plugins.client to this list
         self.dependencies = []
@@ -83,6 +86,14 @@ class Base: # pylint: disable=too-many-instance-attributes
     @RegisterPluginHook('post_init', priority=1)
     def _phook_base_post_init(self):
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
+
+        # load anything in the reload cache
+        cache = self.api('libs.reloadutils:get.plugin.cache')(self.plugin_id)
+        for item in cache:
+            LogRecord(f"loading {item} from cache", level='debug',
+                      sources=[self.plugin_id])()
+            self.__setattr__(item, cache[item])
+        self.api('libs.reloadutils:remove.plugin.cache')(self.plugin_id)
 
         self.is_instantiated_f = True
 
@@ -192,6 +203,11 @@ class Base: # pylint: disable=too-many-instance-attributes
     def _api_get_data_directory(self):
         """ get the data directory for this plugin """
         return self.plugin_info.data_directory
+
+    @AddAPI('set.reload', description='set the reload flag')
+    def _api_set_reload(self):
+        """ set the reload flag """
+        self.is_reloading_f = True
 
     def _find_attribute(self, attribute_name):
         """
@@ -381,6 +397,11 @@ class Base: # pylint: disable=too-many-instance-attributes
         """
         #save the state
         self.api(f"{self.plugin_id}:save.state")()
+
+        # save data for reloading
+        if self.is_reloading_f:
+            for item in self.attributes_to_save_on_reload:
+                self.api('libs.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
 
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
