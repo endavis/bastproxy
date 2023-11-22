@@ -386,6 +386,8 @@ class PluginManager(BasePlugin):
         if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
+        self.api(f'{args["plugin"]}:set.reload')()
+
         if self.api('libs.pluginloader:reload.plugin')(args['plugin']):
             self.api('plugins.core.events:raise.event')(f"ev_{args['plugin']}_initialized", {})
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
