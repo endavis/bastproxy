@@ -16,11 +16,11 @@ from libs.commands import AddCommand, AddParser, AddArgument
 from ._pluginhooks import RegisterPluginHook
 from libs.event import RegisterToEvent
 
-Base = TypeVar('Base', bound='Base')
+Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
 
 class Commands(Protocol):
     @RegisterToEvent(event_name="ev_{plugin_id}_initialized")
-    def _eventcb_base_post_initialize_add_reset_command(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _eventcb_base_post_initialize_add_reset_command(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add commands to the plugin
         """
@@ -37,7 +37,7 @@ class Commands(Protocol):
                     '--simple',
                     help='show a simple output',
                     action='store_true')
-    def _command_inspect(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_inspect(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         show the plugin as it currently is in memory
 
@@ -55,7 +55,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Base')
     @AddParser(description='show plugin stats')
-    def _command_stats(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_stats(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
@@ -81,7 +81,7 @@ class Commands(Protocol):
                     '--commands',
                     help='show commands in this plugin',
                     action='store_true')
-    def _command_help(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_help(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
@@ -148,7 +148,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Base')
     @AddParser(description='save the plugin state')
-    def _command_save(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_save(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         @G%(name)s@w - @B%(cmdname)s@w
         save plugin state
@@ -159,7 +159,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Base', autoadd=False)
     @AddParser(description='reset the plugin')
-    def _command_reset(self: Base): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_reset(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reset the plugin
@@ -172,7 +172,7 @@ class Commands(Protocol):
         return True, ['This plugin cannot be reset']
 
     @RegisterPluginHook('stats')
-    def _phook_base_stats(self: Base, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
+    def _phook_base_stats(self: Plugin, **kwargs): # pyright: ignore[reportInvalidTypeVarUse]
         """
         get statistics for commands
         """

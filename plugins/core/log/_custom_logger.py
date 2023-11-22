@@ -16,7 +16,7 @@ import logging
 import logging.handlers
 import sys
 import traceback
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 # Third Party
 
@@ -28,6 +28,15 @@ from plugins._baseplugin import RegisterPluginHook
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
+
+Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
+
+class CustomLogger(Protocol):
+    @RegisterPluginHook('__init__', priority=99)
+    def _phook_log_post_init_custom_logging(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+        # setup file logging and network data logging
+        LogRecord('setting up custom logging', level='debug', sources=[self.plugin_id])()
+        setup_loggers(logging.DEBUG)
 
 class CustomColorFormatter(logging.Formatter):
     """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629"""
@@ -194,9 +203,3 @@ def setup_loggers(log_level: int):
     )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False
-
-class CustomLogger(Protocol):
-    @RegisterPluginHook('post_init')
-    def _phook_log_post_init_custom_logging(self):
-        # setup file logging and network data logging
-        setup_loggers(logging.DEBUG)
