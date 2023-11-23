@@ -216,6 +216,11 @@ class CommandClass:
                     filler_color=header_color,
                 ))
 
+        if include_date:
+            newmessage.append(self.api('plugins.core.utils:center.colored.string')(
+                        datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format),
+                        '-', line_length, filler_color=preamble_color))
+
         newmessage.extend([
                 self.api('plugins.core.utils:center.colored.string')(
                     f'End Command: {command}', '-', line_length, filler_color=preamble_color
