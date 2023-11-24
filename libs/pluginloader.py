@@ -16,6 +16,8 @@ loading all other plugins to plugins.core.pluginm
 import sys
 import traceback
 import datetime
+import weakref
+from functools import partial
 
 # 3rd Party
 
@@ -37,10 +39,29 @@ class PluginLoader:
         """
         self.api = API(owner_id=__name__)
 
+        self.weak_references_to_modules = {}
+
         self.plugins_info: dict[str, PluginInfo] = {}
         self.base_plugin_dir = API.BASEPLUGINPATH
 
         self.api('libs.api:add.apis.for.object')(__name__, self)
+
+    @AddAPI('get.unloaded.plugins.in.memory', description='get all plugins')
+    def _api_get_unloaded_plugins_in_memory(self):
+        """
+        get a list of unloaded plugins that have not been garbage collected
+        """
+        return self.weak_references_to_modules.keys()
+
+    def remove_weakref(self, weakref_obj, module_import_path):
+        """
+        remove a weak reference to a module
+        """
+        old_object = weakref_obj()
+        if not old_object:
+            LogRecord(f"{module_import_path} was garbage collected", level='info', sources=[__name__])()
+            if module_import_path in self.weak_references_to_modules:
+                del self.weak_references_to_modules[module_import_path]
 
     @AddAPI('get.not.loaded.plugins', description='get a list of plugins that are not loaded')
     def _api_get_not_loaded_plugins(self):
@@ -504,10 +525,12 @@ class PluginLoader:
             modules_to_delete.extend(
                 item
                 for item in sys.modules.keys()
-                if item.startswith(plugin_info.package_import_location)
+                if item.startswith(plugin_info.package_import_location) and '._patch_base' not in item
             )
 
         for item in modules_to_delete:
+            cb_weakref = partial(self.remove_weakref, module_import_path=item)
+            self.weak_references_to_modules[item] = weakref.ref(sys.modules[item], cb_weakref)
             if imputils.deletemodule(
                 item
             ):
