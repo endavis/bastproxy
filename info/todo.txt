@@ -104,6 +104,8 @@
     # TODO: look at slots
     # TODO: plugins.core.clients
         save permanently banned clients
+    # TODO: update commands to use tables
+        plugins.c.pluginm.list
 
 # REVISIT:
     # TODO: decorator for event description
