@@ -169,7 +169,7 @@ class CommandClass:
                     ]
         if include_date:
             newmessage.append(self.api('plugins.core.utils:center.colored.string')(
-                        datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format),
+                    f'Start: {datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format)}',
                         '-', line_length, filler_color=preamble_color))
 
         if not simple:
@@ -217,9 +217,12 @@ class CommandClass:
                 ))
 
         if include_date:
-            newmessage.append(self.api('plugins.core.utils:center.colored.string')(
-                        datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format),
-                        '-', line_length, filler_color=preamble_color))
+            newmessage.append(
+                self.api('plugins.core.utils:center.colored.string')(
+                    f'Finish: {datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format)}',
+                    '-', line_length, filler_color=preamble_color,
+                )
+            )
 
         newmessage.extend([
                 self.api('plugins.core.utils:center.colored.string')(
