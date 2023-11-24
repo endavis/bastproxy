@@ -86,3 +86,26 @@ class APIHelpPlugin(BasePlugin):
         else:
             tmsg.append(f"{args['toplevel']} does not exist in the api")
         return True, tmsg
+
+    @AddParser(description='call an API')
+    @AddArgument('-a',
+                    '--api',
+                    help='the api to detail (optional)',
+                    default='', nargs='?')
+    @AddArgument('arguments',
+                    help='arguments to the api',
+                    default='', nargs='*')
+    def _command_run(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+        List functions in the api
+          @CUsage@w: list @Y<apiname>@w
+          @Yapiname@w = (optional) the toplevel api to show
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        api = args['api']
+        try:
+            returnstuff = self.api(api)(*args['arguments'])
+            return True, ['Api returned:', f'{returnstuff}']
+        except Exception as e:
+            return True, ['Api returned an error:', f'{e}']
