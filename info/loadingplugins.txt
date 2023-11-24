@@ -19,3 +19,8 @@ Single instance Plugin loading
       instantiate all dependencies
       add to dependency list
 4) run initialize function
+
+Notes about Plugin reloading
+    Patching of the base class is not done on a plugin reload as
+        this would require reloading all plugins
+    restart the proxy to reload all plugins
