@@ -17,7 +17,6 @@ from string import printable
 
 # Third Party
 
-log: logging.Logger = logging.getLogger(__name__)
 
 # Basic Telnet protocol opcodes. The MSSP character will be imported from it's module.
 IAC: bytes = bytes([255])  # "Interpret As Command"
@@ -104,7 +103,7 @@ def split_opcode_from_input(data) -> tuple[bytes, str]:
     This one will need some love once we get into sub negotiation, ie NAWS.  Review
     iterating over the data and clean up the hot mess below.
     """
-    log.debug(f"Received raw data (len={len(data)} of: {data}")
+    logging.getLogger(__name__).debug(f"Received raw data (len={len(data)} of: {data}")
     opcodes = b''
     inp = ''
     for position, _ in enumerate(data):
@@ -112,7 +111,7 @@ def split_opcode_from_input(data) -> tuple[bytes, str]:
             opcodes += bytes([data[position]])
         elif chr(data[position]) in printable:
             inp += chr(data[position])
-    log.debug(f"Bytecodes found in input.\n\ropcodes: {opcodes}\n\rinput returned: {inp}")
+    logging.getLogger(__name__).debug(f"Bytecodes found in input.\n\ropcodes: {opcodes}\n\rinput returned: {inp}")
     return opcodes, inp
 
 
@@ -124,7 +123,7 @@ def advertise_features() -> bytes:
     features = b''
     for each_feature in GAME_CAPABILITIES:
         features += features + IAC + WILL + code[each_feature]
-    log.debug(f"Advertising features: {features}")
+    logging.getLogger(__name__).debug(f"Advertising features: {features}")
     return features
 
 
@@ -163,11 +162,11 @@ async def handle(opcodes, writer) -> None:
     """
     This is the handler for opcodes we receive from the connected client.
     """
-    log.debug(f"Handling opcodes: {opcodes}")
+    logging.getLogger(__name__).debug(f"Handling opcodes: {opcodes}")
     for each_code in opcodes.split(IAC):
         if each_code and each_code in opcode_match:
             result = iac_sb(opcode_match[each_code]())
-            log.debug(f"Responding to previous opcode with: {result}")
+            logging.getLogger(__name__).debug(f"Responding to previous opcode with: {result}")
             writer.write(result)
             await writer.drain()
-    log.debug('Finished handling opcodes.')
+    logging.getLogger(__name__).debug('Finished handling opcodes.')

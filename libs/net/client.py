@@ -27,8 +27,6 @@ from libs.api import API
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.net.networkdata import NetworkData
 
-log = logging.getLogger(__name__)
-
 class ClientConnection:
     """
         Each connection when created in async handle_client will instantiate this class.

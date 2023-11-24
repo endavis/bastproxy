@@ -37,7 +37,6 @@ class LogPlugin(BasePlugin):
         """
         init the class
         """
-        self.can_reload_f = False
         self.record_manager = RMANAGER
         self.log_directory = self.api.BASEDATAPATH / 'logs'
         self.logtype_col_length = 35

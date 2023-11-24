@@ -156,14 +156,30 @@ class CustomClientHandler(logging.Handler):
             else:
                 ToClientRecord(formatted_message)('logging client handler')
 
+def reset_logging():
+    """
+    reset logging handlers and filters
+    """
+    rootlogger = logging.getLogger()
+    while rootlogger.hasHandlers():
+        try:
+            rootlogger.handlers[0].acquire()
+            rootlogger.handlers[0].flush()
+            rootlogger.handlers[0].close()
+        except (OSError, ValueError):
+            pass
+        finally:
+            rootlogger.handlers[0].release()
+        rootlogger.removeHandler(rootlogger.handlers[0])
+    list(map(rootlogger.removeFilter, rootlogger.filters[:]))
+
 def setup_loggers(log_level: int):
 
     from libs.api import API
 
+    reset_logging()
     rootlogger = logging.getLogger()
     rootlogger.setLevel(log_level)
-    for item in rootlogger.handlers:
-        rootlogger.removeHandler(item)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
     os.makedirs(API.BASEDATALOGPATH / 'networkdata', exist_ok=True)

@@ -25,7 +25,7 @@ from libs.api import API
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.net.networkdata import NetworkData
 
-log = logging.getLogger(__name__)
+
 
 class MudConnection:
     """
