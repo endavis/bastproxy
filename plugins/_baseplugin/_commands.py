@@ -97,11 +97,11 @@ class Commands(Protocol):
             f"{'Author':<{width}} : {self.plugin_info.author}",
             f"{'Version':<{width}} : {self.plugin_info.version}",
             f"{'Package':<{width}} : {self.plugin_info.package}",
-            f"{'Full Plugin Path':<{width}} : {self.plugin_info.full_package_path}",
+            f"{'Full Plugin Path':<{width}} : {self.plugin_info.package_path}",
             f"{'Time Loaded':<{width}} : {self.loaded_time.strftime(self.api.time_format)}",
         ]
 
-        import_location = self.plugin_info.full_import_location
+        import_location = self.plugin_info.package_import_location
 
         if sys.modules[import_location].__doc__:
             msg.extend(sys.modules[import_location].__doc__.split('\n'))

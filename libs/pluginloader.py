@@ -188,9 +188,9 @@ class PluginLoader:
                 plugin_info.files = {}
             else:
                 plugin_info = PluginInfo(plugin_id=found_plugin['plugin_id'])
-            plugin_info.full_init_file_path = found_plugin['full_init_file_path']
-            plugin_info.full_package_path = found_plugin['full_package_path']
-            plugin_info.full_import_location = found_plugin['full_import_location']
+            plugin_info.package_init_file_path = found_plugin['package_init_file_path']
+            plugin_info.package_path = found_plugin['package_path']
+            plugin_info.package_import_location = found_plugin['package_import_location']
             plugin_info.data_directory = self.api.BASEDATAPLUGINPATH / plugin_info.plugin_id
 
             plugin_info.update_from_init()
@@ -198,8 +198,8 @@ class PluginLoader:
             if plugin_info.package == 'plugins.core':
                 plugin_info.is_required = True
 
-            if plugin_info.full_import_location in errors:
-                plugin_info.import_errors.append(errors[plugin_info.full_import_location])
+            if plugin_info.package_import_location in errors:
+                plugin_info.import_errors.append(errors[plugin_info.package_import_location])
 
             plugin_info.get_files()
 
@@ -213,7 +213,7 @@ class PluginLoader:
         removed_plugins = set(old_plugins_info.keys()) - set(self.plugins_info.keys())
         for plugin_id in removed_plugins:
             if plugin_id in old_plugins_info and old_plugins_info[plugin_id].loaded_info:
-                LogRecord([f'Loaded Plugin {plugin_id}\'s path is no longer valid: {old_plugins_info[plugin_id].full_package_path}',
+                LogRecord([f'Loaded Plugin {plugin_id}\'s path is no longer valid: {old_plugins_info[plugin_id].package_path}',
                            'If this plugin is no longer valid, please unload it'], level='error', sources=[__name__])()
 
     def _import_single_plugin(self, plugin_id, exit_on_error: bool = False):
@@ -260,7 +260,7 @@ class PluginLoader:
         # check for patches to the base plugin
         if '_patch_base.py' in plugin_info.files:
             LogRecord(f"{plugin_id:<30} : attempting to patch base", level='info', sources=[__name__])()
-            if patch(plugin_info.files['_patch_base.py']['full_import_path']):
+            if patch(plugin_info.files['_patch_base.py']['full_import_location']):
                 LogRecord(f"{plugin_id:<30} : patching base successful", level='info', sources=[__name__])()
             else:
                 LogRecord(f"{plugin_id:<30} : patching base failed", level='error', sources=[__name__])()
@@ -503,7 +503,7 @@ class PluginLoader:
             modules_to_delete.extend(
                 item
                 for item in sys.modules.keys()
-                if item.startswith(plugin_info.full_import_location)
+                if item.startswith(plugin_info.package_import_location)
             )
 
         for item in modules_to_delete:

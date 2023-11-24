@@ -55,10 +55,10 @@ def find_packages_and_plugins(directory, prefix):
                         # matches['plugins'].append({'plugin_id':tspec.name,
                         #                            'fullpath':Path(tspec.loader.path).parent})
                         matches['plugins'].append({'plugin_id':tspec.name,
-                                'full_init_file_path':Path(tspec.loader.path),
+                                'package_init_file_path':Path(tspec.loader.path),
                                 'filename':name.split('.')[-1],
-                                'full_package_path':Path(tspec.loader.path).parent,
-                                'full_import_location':tspec.name})
+                                'package_path':Path(tspec.loader.path).parent,
+                                'package_import_location':tspec.name})
                     else:
                         matches['packages'].append({'package_id':tspec.name,
                                                     'fullpath':Path(tspec.loader.path).parent})

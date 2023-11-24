@@ -49,9 +49,9 @@ class PluginInfo():
     a class to hold information about a plugin package
     """
     def __init__(self, plugin_id: str):
-        self.full_init_file_path: Path = Path('')
-        self.full_package_path: Path = Path('')
-        self.full_import_location: str = ''
+        self.package_init_file_path: Path = Path('')
+        self.package_path: Path = Path('')
+        self.package_import_location: str = ''
         self.plugin_id: str = plugin_id
         self.package: str = plugin_id.rsplit('.', 1)[0]
         self.name: str = ''
@@ -99,8 +99,8 @@ class PluginInfo():
         """
         oldfiles = self.files
         self.files = {}
-        for file in self.full_package_path.iterdir():
-            if file.is_file():
+        for file in self.package_path.iterdir():
+            if file.is_file() and '__init__' not in file.name and file.name.endswith('.py'):
                 file_modified_time = datetime.datetime.fromtimestamp(file.stat().st_mtime, tz=datetime.timezone.utc)
                 if file.name in oldfiles and file_modified_time == oldfiles[file.name]['modified_time']:
                     self.files[file.name] = oldfiles[file.name]
@@ -118,7 +118,7 @@ class PluginInfo():
                     'is_valid_python_code': success,
                     'exception': exception,
                     'has_changed': has_changed,
-                    'full_import_path': f'{self.full_import_location}.'
+                    'full_import_location': f'{self.package_import_location}.'
                                         + file.name.replace('.py', ''),
                 }
 
@@ -142,7 +142,7 @@ class PluginInfo():
         returns:
           a dict with the keys: required, isplugin, sname, isvalidpythoncode
         """
-        contents = self.full_init_file_path.read_text()
+        contents = self.package_init_file_path.read_text()
 
         for tline in contents.split('\n'):
 
