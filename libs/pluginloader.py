@@ -421,8 +421,9 @@ class PluginLoader:
                     del plugin_info.loaded_info.plugin_instance
                     plugin_info.loaded_info.plugin_instance = None
                 if plugin_info.loaded_info.module:
-                    # TODO: unload all the modules in a plugin
-                    del plugin_info.loaded_info.module
+                    for item in plugin_info.files:
+                        del sys.modules[item['full_import_location']]
+                    del sys.modules[plugin_info.package_import_location]
                     plugin_info.loaded_info.module = None
 
         if bad_plugins and exit_on_error:
