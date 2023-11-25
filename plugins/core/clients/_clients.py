@@ -267,9 +267,9 @@ class ClientPlugin(BasePlugin):
 
         # TODO: add telnet options
         clients = [
-            {'state': 'Active', 'address': item.addr, 'port': item.port,
-             'term_type': 'Term Type', 'connected': item.connected_length,
-             'view_only': item.view_only} for item in self.clients.values()
+            {'state': 'Active', 'address': client.addr, 'port': client.port,
+             'term_type': 'Term Type', 'connected': client.connected_length,
+             'view_only': str(client.view_only)} for client in self.clients.values()
         ]
 
         clients_columns = [
