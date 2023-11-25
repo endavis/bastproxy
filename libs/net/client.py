@@ -19,6 +19,7 @@ import datetime
 from uuid import uuid4
 
 # Third Party
+from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
 
 # Project
 from libs.net import telnet
@@ -41,8 +42,8 @@ class ClientConnection:
             self.state is the current state of the client connection
             self.uuid is a uuid.uuid4() converted to hex for unique session tracking
             self.view_only is a bool to determine if the client is view only
-            self.reader is the asyncio.StreamReader for the connection
-            self.writer is the asyncio.StreamWriter for the connection
+            self.reader is the telnetlib3.TelnetReaderUnicode for the connection
+            self.writer is the telnetlib3.TelnetWriterUnicode for the connection
 
     """
     def __init__(self, addr, port, conn_type, reader, writer, rows=24):
@@ -58,8 +59,8 @@ class ClientConnection:
         self.view_only = False
         self.send_queue: asyncio.Queue[NetworkData] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
-        self.reader: asyncio.StreamReader = reader
-        self.writer: asyncio.StreamWriter = writer
+        self.reader: TelnetReaderUnicode = reader
+        self.writer: TelnetWriterUnicode = writer
 
     def send_to(self, data: ToClientRecord) -> None:
         """
@@ -250,7 +251,10 @@ class ClientConnection:
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
 
-            self.api('libs.asynch:task.add')(self.writer.drain, name=f"{self.uuid}.write.drain")
+            # ensure the client is connected before we drain the writer
+            # this can happen if the client disconnects while a task is waiting to write
+            if self.connected:
+                self.api('libs.asynch:task.add')(self.writer.drain, name=f"{self.uuid}.write.drain")
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
