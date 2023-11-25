@@ -62,6 +62,12 @@ class ClientConnection:
         self.reader: TelnetReaderUnicode = reader
         self.writer: TelnetWriterUnicode = writer
 
+    @property
+    def connected_length(self) -> str:
+        return self.api('plugins.core.utils:convert.timedelta.to.string')(
+                 self.connected_time,
+                 datetime.datetime.now(datetime.timezone.utc))
+
     def send_to(self, data: ToClientRecord) -> None:
         """
         add data to the queue
