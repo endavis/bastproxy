@@ -278,6 +278,25 @@ class TimersPlugin(BasePlugin):
 
         return True, message
 
+    @AddAPI('has.timer', description='check if a timer exists')
+    def _api_has_timer(self, name: str):
+        """  check if a timer exists
+        @Yname@w   = the name of the timer to check
+
+        returns True if the timer exists, False otherwise"""
+        return name in self.timer_lookup
+
+    @AddAPI('get.timer.next.fire', description='get the next fire time for a timer')
+    def _api_get_timer_next_fire(self, name: str) -> datetime.datetime | None:
+        """  get the next fire time for a timer
+        @Yname@w   = the name of the timer to check
+
+        returns the next fire time for the timer, or None if the timer does not exist"""
+        if name in self.timer_lookup:
+            return self.timer_lookup[name].next_fire_datetime
+        else:
+            return None
+
     @AddAPI('add.timer', description='add a timer')
     def _api_add_timer(self, name: str, func: typing.Callable, seconds: int, **kwargs) -> Timer | None:
         """  add a timer
