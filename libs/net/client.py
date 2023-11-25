@@ -225,7 +225,7 @@ class ClientConnection:
         LogRecord(f"client_write - Starting coroutine for {self.uuid}",
                   level='debug',
                   sources=[__name__])()
-        while self.connected:
+        while self.connected and not self.writer.connection_closed:
             msg_obj: NetworkData = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
@@ -256,11 +256,6 @@ class ClientConnection:
                           sources=[__name__])()
                 self.writer.send_iac(msg_obj.msg)
                 logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.msg}")
-
-            # ensure the client is connected before we drain the writer
-            # this can happen if the client disconnects while a task is waiting to write
-            if self.connected:
-                self.api('libs.asynch:task.add')(self.writer.drain, name=f"{self.uuid}.write.drain")
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
@@ -351,15 +346,13 @@ async def client_telnet_handler(reader, writer) -> None:
         for task in rest:
             task.cancel()
 
-    with contextlib.suppress(AttributeError):
-        #print(f"Closing writer with {addr} : {port} : {rest} : uuid - {connection.uuid}")
-        writer.write_eof()
-        await writer.drain()
-        writer.close()
-        #print(f"Closing reader with {addr} : {port} : {rest} : uuid - {connection.uuid}")
-        reader.write_eof()
-        await reader.drain()
-        reader.close()
+    # drain and close the writer
+    writer.write_eof()
+    await writer.drain()
+    writer.close()
+
+    # close the reader
+    reader.feed_eof()
 
     await asyncio.sleep(1)
 
