@@ -54,6 +54,7 @@ class LogPlugin(BasePlugin):
             self.plugin_info.data_directory / 'logtypes_to_file.txt',
             'c')
 
+    @RegisterPluginHook('initialize')
     def _phook_initialize(self):
         """
         initialize the plugin
