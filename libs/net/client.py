@@ -38,7 +38,7 @@ class ClientConnection:
             self.conn_type is the type of client connection
             self.rows is the number of rows the client requested
             self.login_attempts is the number of login attempts
-                close connection on 3 failed attempts
+                close connection and ban IP for 10 minutes on 3 failed attempts
             self.state is the current state of the client connection
             self.uuid is a uuid.uuid4() converted to hex for unique session tracking
             self.view_only is a bool to determine if the client is view only

@@ -18,26 +18,22 @@ from libs.api import API
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
+from libs.net.client import ClientConnection
 
 class BanRecord:
-    def __init__(self, plugin_id, ip_addr, how_long=600, copy=False):
+    def __init__(self, plugin_id:str , ip_addr: str, how_long: int = 600, copy: bool = False):
         self.api = API(owner_id=f"{plugin_id}:Ban:{ip_addr}")
-        self.plugin_id = plugin_id
-        self.ip_addr = ip_addr
-        self.how_long = how_long
+        self.plugin_id: str = plugin_id
+        self.ip_addr: str = ip_addr
+        self.how_long: int = how_long
         self.timer = None
 
-        if not copy:
-            if self.how_long > 0:
-                LogRecord(f"{self.ip_addr} has been banned for {self.how_long} seconds",
-                        level='error', sources=[self.plugin_id])()
-                self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
-                                                                self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
-            else:
-                LogRecord(f"{self.ip_addr} has been banned with no expiration",
-                        level='error', sources=[self.plugin_id])()
+        if not copy and self.how_long > 0:
+            self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
+                                                            self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
 
-    def expires(self):
+    @property
+    def expires(self) -> str:
         if self.timer:
             return self.timer.next_fire_datetime.strftime(self.api.time_format)
         else:
@@ -62,15 +58,19 @@ class ClientPlugin(BasePlugin):
         """
         self.attributes_to_save_on_reload = ['clients', 'banned']
 
-        self.clients = {}
-        self.banned = {}
-
+        self.clients: dict[str, ClientConnection] = {}
+        self.banned: dict[str, BanRecord] = {}
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
         """
         initialize the plugin
         """
+
+        self.api('plugins.core.settings:add')(self.plugin_id, 'permbanips', [], list,
+                        'A list of IPs that are permanently banned',
+                        readonly=True)
+
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_client_logged_in", self.plugin_id,
                                                   description=['An event that is raised when a client logs in'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
@@ -110,20 +110,30 @@ class ClientPlugin(BasePlugin):
         """
         add a banned client
         """
-        if client_uuid in self.clients:
-            addr = self.clients[client_uuid].addr
-            ban_record = BanRecord(self.plugin_id, addr, how_long=how_long)
-            self.banned[addr] = ban_record
-            self.clients[client_uuid].connected = False
+        self.clients[client_uuid].connected = False
+        return self.api(f"{self.plugin_id}:client.banned.add.by.ip")(self.clients[client_uuid].addr, how_long)
 
     @AddAPI('client.banned.add.by.ip', description='add a banned ip')
     def _api_client_banned_add_by_ip(self, ip_address, how_long=600):
         """
         add a banned ip
         """
-        if ip_address not in self.banned:
+        if how_long == -1:
+            permbanips = self.api('plugins.core.settings:get')(self.plugin_id, 'permbanips')
+            if ip_address not in permbanips:
+                permbanips.append(ip_address)
+                self.api('plugins.core.settings:change')(self.plugin_id, 'permbanips', permbanips)
+                LogRecord(f"{ip_address} has been banned with no expiration",
+                        level='error', sources=[self.plugin_id])()
+                return True
+        elif ip_address not in self.banned:
             ban_record = BanRecord(self.plugin_id, ip_address, how_long=how_long)
             self.banned[ip_address] = ban_record
+            LogRecord(f"{ip_address} has been banned for {how_long} seconds",
+                        level='error', sources=[self.plugin_id])()
+            return True
+
+        return False
 
     @AddAPI('client.banned.check', description='check if a client is banned')
     def _api_checkbanned(self, clientip):
@@ -133,7 +143,8 @@ class ClientPlugin(BasePlugin):
         required
           clientip - the client ip to check
         """
-        return clientip in self.banned
+        permbanips = self.api('plugins.core.settings:get')(self.plugin_id, 'permbanips')
+        return clientip in self.banned or clientip in permbanips
 
     @AddAPI('client.banned.remove', description='remove a banned ip')
     def _api_client_banned_remove(self, addr):
@@ -142,6 +153,18 @@ class ClientPlugin(BasePlugin):
         """
         if addr in self.banned:
             del self.banned[addr]
+            LogRecord(f"{addr} is no longer banned",
+                        level='error', sources=[self.plugin_id])()
+            return True
+        permbanips = self.api('plugins.core.settings:get')(self.plugin_id, 'permbanips')
+        if addr in permbanips:
+            permbanips.remove(addr)
+            self.api('plugins.core.settings:change')(self.plugin_id, 'permbanips', permbanips)
+            LogRecord(f"{addr} is no longer banned",
+                        level='error', sources=[self.plugin_id])()
+            return True
+
+        return False
 
     @AddAPI('client.is.view.client', description='check if a client is a view client')
     def _api_is_client_view_client(self, client_uuid):
@@ -251,17 +274,23 @@ class ClientPlugin(BasePlugin):
 
         tmsg.extend(self.api('plugins.core.utils:convert.data.to.output.table')('Clients', clients, clients_columns, color=color))
 
-        if self.banned:
-            bannedformat = '%-20s %s'
-            tmsg.extend(['',
-                    (
-                        bannedformat % ('Banned IPs', 'Until')
-                    ),
-                '@B' + 70 * '-'])
-            for banned_ip in self.banned:
-                banned_time = self.banned[banned_ip].expires()
+        banned_clients = [
+            {'address': item, 'until': self.banned[item].expires}
+            for item in self.banned
+        ]
+        permbanips = self.api('plugins.core.settings:get')(self.plugin_id, 'permbanips')
+        banned_clients.extend(
+            {'address': item, 'until': 'Permanent'} for item in permbanips
+        )
 
-                tmsg.append(bannedformat % (banned_ip, banned_time))
+        if banned_clients:
+            banned_clients_columns = [
+                {'name': 'Address', 'key': 'address', 'width': 30},
+                {'name': 'Until', 'key': 'until', 'width': 20},
+            ]
+
+            tmsg.append('')
+            tmsg.extend(self.api('plugins.core.utils:convert.data.to.output.table')('Banned IPs', banned_clients, banned_clients_columns, color=color))
 
         return True, tmsg
 
@@ -289,18 +318,22 @@ class ClientPlugin(BasePlugin):
         added = []
 
         for ip in args['ips']:
-            if ip in self.banned:
-                removed.append(ip)
-                self.banned[ip].remove()
-            else:
+            if self.api(f"{self.plugin_id}:client.banned.check")(ip):
+                if self.api(f"{self.plugin_id}:client.banned.remove")(ip):
+                    removed.append(ip)
+            elif self.api(f"{self.plugin_id}:client.banned.add.by.ip")(ip, how_long=-1):
                 added.append(ip)
-                self.api(f"{self.plugin_id}:client.banned.add.by.ip")(ip, how_long=-1)
+
+        found_ips = set(removed + added)
+        not_found = set(args['ips']) - found_ips
 
         tmsg = []
         if removed:
             tmsg.extend((f"Removed {len(removed)} IPs from the ban list", ', '.join(removed)))
         if added:
             tmsg.extend((f"Added {len(added)} IPs to the ban list", ', '.join(added)))
+        if not_found:
+            tmsg.extend((f"{len(not_found)} IPs were not acted on", ', '.join(not_found)))
 
         if not tmsg:
             tmsg = ['No changes made']
