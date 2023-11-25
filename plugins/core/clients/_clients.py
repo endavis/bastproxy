@@ -46,8 +46,8 @@ class BanRecord:
     def remove(self):
         self.api(f"{self.plugin_id}:client.banned.remove")(self.ip_addr)
 
-    def copy(self):
-        newrecord = BanRecord(self.plugin_id, self.ip_addr, self.how_long, copy=True)
+    def copy(self, newclass):
+        newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)
         newrecord.timer = self.timer
         return newrecord
 
@@ -84,11 +84,12 @@ class ClientPlugin(BasePlugin):
                                                   description=['An event that is raised when a client disconnects'],
                                                   arg_descriptions={'client_uuid':'the uuid of the client'})
 
-        # copy the banned ips to new objects to free up the original objects
+        # This will only occur if the plugin is reloaded
+        # copy the banned ips to the newly loaded class to free up the original objects and class
         if self.banned:
             LogRecord(f"Loading {len(self.banned)} banned IPs", level='debug', sources=[self.plugin_id])()
             for item in self.banned:
-                self.banned[item] = self.banned[item].copy()
+                self.banned[item] = self.banned[item].copy(BanRecord)
 
     @AddAPI('client.count', description='return the # of clients connected')
     def _api_client_count(self):
