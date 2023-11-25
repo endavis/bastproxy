@@ -26,7 +26,7 @@ from libs.queue import SimpleQueue
 
 class RegisterToEvent:
     """
-    a class to decorate a function with command data
+    a class to decorate a function with to register it to an event
     """
     def __init__(self, **kwargs):
         """
