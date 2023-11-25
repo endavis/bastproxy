@@ -33,7 +33,8 @@ class ToClientRecord(BaseListRecord):
         'TELNET-COMMAND' - a telnet command to the client
     when it goes on the client queue, it will be converted to a NetworkData object
     """
-    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str='IO', clients: list|None=None, exclude_clients: list|None=None, preamble=True,
+    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str='IO',
+                 clients: list|None=None, exclude_clients: list|None=None, preamble=True,
                  internal: bool=True, prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
         initialize the class

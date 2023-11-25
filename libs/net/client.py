@@ -141,7 +141,7 @@ class ClientConnection:
 
         while self.connected:
             try:
-                inp: bytes = await self.reader.readline()
+                inp: str = await self.reader.readline()
             except BrokenPipeError:
                 self.connected = False
                 continue
