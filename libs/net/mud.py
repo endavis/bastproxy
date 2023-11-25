@@ -18,13 +18,14 @@ import logging
 import datetime
 
 # Third Party
+from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
 
 # Project
 from libs.net import telnet
 from libs.api import API
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.net.networkdata import NetworkData
-
+from libs.asynch import TaskItem
 
 
 class MudConnection:
@@ -41,17 +42,17 @@ class MudConnection:
             self.writer is the asyncio.StreamWriter for the connection
 
     """
-    def __init__(self, addr, port):
+    def __init__(self, addr, port, reader, writer):
         self.addr: str = addr
         self.port: str = port
         self.api = API(owner_id=f"{__name__}")
         #self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
-        self.connected = False
+        self.connected = True
         self.send_queue: asyncio.Queue[NetworkData] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
-        #self.reader: asyncio.StreamReader = reader
-        #self.writer: asyncio.StreamWriter = writer
+        self.reader: TelnetReaderUnicode = reader
+        self.writer: TelnetWriterUnicode = writer
         #print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
         # term = self.writer.protocol._extra['TERM']
@@ -107,7 +108,7 @@ class MudConnection:
         )()
 
         while self.connected:
-            inp: bytes = await self.reader.readline()
+            inp: str = await self.reader.readline()
             LogRecord(f"client_read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
             LogRecord(f"client_read - inp type = {type(inp)}", level='debug', sources=[__name__])()
             logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
@@ -178,45 +179,29 @@ async def mud_telnet_handler(reader, writer) -> None:
     client_details: str = writer.get_extra_info('peername')
 
     addr, port, *rest = client_details
-    #connection: ClientConnection = ClientConnection(addr, port, 'telnet', reader, writer)
-    #LogRecord(f"Connection established with {addr} : {port} : {rest} : uuid - {connection.uuid}", level='warning', sources=[__name__])()
+    mud_connection: MudConnection = MudConnection(addr, port, reader, writer)
+    LogRecord(f"Mud Connection opened - {addr} : {port} : {rest}", level='warning', sources=[__name__])()
 
-    # Need to work on better telnet support for regular old telnet clients.
-    # Everything so far works great in Mudlet.  Just saying....
+    tasks: list[asyncio.Task] = [
+        TaskItem(mud_connection.mud_read(),
+                            name="mud telnet read").create(),
+        TaskItem(mud_connection.mud_write(),
+                            name="mud telnet write").create(),
+    ]
 
-    # tasks = asyncio.all_tasks()
-    # print(tasks)
+    if current_task := asyncio.current_task():
+        current_task.set_name("mud telnet client handler")
 
-    # tasks: list[asyncio.Task] = [
-    #     create_task(connection.client_read(),
-    #                         name=f"{connection.uuid} telnet read"),
-    #     create_task(connection.client_write(),
-    #                         name=f"{connection.uuid} telnet write"),
-    # ]
+    mud_connection.api('plugins.core.proxy:add.mud.connection')(mud_connection)
 
-    # asyncio.current_task().set_name(f"{connection.uuid} telnet client handler")  # type: ignore
+    _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
 
-    # await connection.setup_client()
+    for task in rest:
+        task.cancel()
 
-    # We want to .wait until the first task is completed.  "Completed" could be an actual finishing
-    # of execution or an exception.  If either the reader or writer "completes", we want to ensure
-    # we move beyond this point and cleanup the tasks associated with this client.
-    # _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
+    mud_connection.connected = False
+    mud_connection.api('plugins.core.proxy:remove.mud.connection')(mud_connection)
+    LogRecord(f"Mud Connection closed - {addr} : {port} : {rest}", level='warning', sources=[__name__])()
 
-    # Once we reach this point one of our tasks (reader/writer) have completed or failed.
-    # Remove client from the registration list and perform connection specific cleanup.
-    # await unregister_client(connection)
-
-    # try:
-    #     writer.write_eof()
-    #     await writer.drain()
-    #     writer.close()
-    # except AttributeError:
-    #     # The transport was already closed
-    #     pass
-
-    # for task in rest:
-    #     task.cancel()
-
-    # await asyncio.sleep(1)
+    await asyncio.sleep(1)
 

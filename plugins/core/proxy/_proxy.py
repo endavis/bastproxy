@@ -30,8 +30,8 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.net.mud import MudConnection
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from libs.net.mud import MudConnection
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from libs.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
@@ -51,7 +51,7 @@ class ProxyPlugin(BasePlugin):
         self.proxypw = None
         self.proxyvpw = None
         self.mudpw = None
-        self.mud_connection = None
+        self.mud_connection: MudConnection | None = None
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
@@ -108,15 +108,40 @@ class ProxyPlugin(BasePlugin):
                             default='defaultviewpass')
         self.mudpw = ssc('mudpw', self.plugin_id, self.plugin_info.data_directory, desc='Mud password')
 
+    @AddAPI('remove.mud.connection', description='remove the mud connection')
+    def _api_remove_mud_connection(self, connection: MudConnection):
+        if self.mud_connection == connection:
+            self.mud_connection = None
+            return True
+
+        LogRecord('Proxy: mud connection not removed, connection does not match',
+            level='warning',
+            sources=[self.plugin_id],
+        )()
+
+        return False
+
+    @AddAPI('add.mud.connection', description='add the mud connection')
+    def _api_add_mud_connection(self, connection: MudConnection):
+        """
+        add the mud connection
+        """
+        if not self.mud_connection:
+            self.mud_connection = connection
+            return True
+
+        LogRecord('Proxy: mud connection not added, connection already exists',
+            level='warning',
+            sources=[self.plugin_id],
+        )()
+
+        return False
+
     @AddAPI('get.mud.connection', description='get the mud connection')
-    def _api_get_mud_connection(self) -> MudConnection:
+    def _api_get_mud_connection(self) -> MudConnection | None:
         """
         get the mud connection
         """
-        if not self.mud_connection:
-            self.mud_connection = MudConnection(self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'),
-                                                self.api('plugins.core.settings:get')(self.plugin_id, 'mudport'))
-
         return self.mud_connection
 
     @AddAPI('preamble.get', description='get the preamble')

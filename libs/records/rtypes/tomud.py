@@ -35,7 +35,8 @@ class ToMudRecord(BaseListRecord):
         'TELNET-COMMAND' - a telnet command to the client
     when it goes on the client queue, it will be converted to a NetworkData object
     """
-    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes, message_type: str = 'IO', internal: bool = False,
+    def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
+                 message_type: str = 'IO', internal: bool = False,
                  show_in_history: bool = True, client_id = None):
         """
         initialize the class
@@ -73,7 +74,10 @@ class ToMudRecord(BaseListRecord):
 
         this will split the data along the command seperator and along newlines
         """
-        self.addupdate('Info', f"{'Start':<8}: Prepare", f"{actor}:prepare", savedata=False,
+        self.addupdate('Info',
+                       f"{'Start':<8}: Prepare",
+                       f"{actor}:prepare",
+                       savedata=False,
                        extra={'msg': 'split the data along the command seperator and along newlines'})
 
         new_message = []
@@ -98,7 +102,7 @@ class ToMudRecord(BaseListRecord):
                     self.addupdate('Info', "split (Split_Char)", f"{actor}:prepare",
                                    extra={'line':line, 'newlines':split_data,
                                           'msg': 'split the data along the command seperator'},
-                                    savedata=False)
+                                   savedata=False)
                     new_message.extend(split_data)
                 else:
                     new_message.append(line)
@@ -114,7 +118,10 @@ class ToMudRecord(BaseListRecord):
         take out double command seperators and replaces them with a single one before
         sending the data to the mud
         """
-        self.addupdate('Info', f"{'Start':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False,
+        self.addupdate('Info',
+                       f"{'Start':<8}: Fix Double Command Seperator",
+                       f"{actor}:fix_double_command_seperator",
+                       savedata=False,
                        extra={'msg': 'take out double command seperators and replaces them with a single one'})
         new_message = []
         for line in self:
@@ -123,7 +130,8 @@ class ToMudRecord(BaseListRecord):
 
         self.replace(new_message, actor=f"{actor}:fix_double_command_seperator")
 
-        self.addupdate('Info', f"{'Complete':<8}: Fix Double Command Seperator", f"{actor}:fix_double_command_seperator", savedata=False)
+        self.addupdate('Info', f"{'Complete':<8}: Fix Double Command Seperator",
+                       f"{actor}:fix_double_command_seperator", savedata=False)
 
     def format(self, actor):
         """
@@ -161,16 +169,21 @@ class ToMudRecord(BaseListRecord):
                                                             'client_id':self.client_id,})
 
                 if event_args['line'] != line:
-                    self.addupdate('Modify', f"event:{self.modify_data_event_name} modified line" ,
-                                    f"{actor}:send:{self.modify_data_event_name}", extra={'line':line, 'newline':event_args['data']}, savedata=False)
+                    self.addupdate('Modify',
+                                   f"event:{self.modify_data_event_name} modified line" ,
+                                    f"{actor}:send:{self.modify_data_event_name}",
+                                    extra={'line':line, 'newline':event_args['data']},
+                                    savedata=False)
                     self.add_related_record(event_args)
 
                 if event_args['sendtomud']:
                     new_message.append(event_args['line'])
                 else:
-                    self.addupdate('Modify', f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
-                                    f"{actor}:send:{self.modify_data_event_name}", extra={'line':line},
-                                    savedata=False)
+                    self.addupdate('Modify',
+                                   f"event:{self.modify_data_event_name}: line removed because sendtomud was set to False",
+                                   f"{actor}:send:{self.modify_data_event_name}",
+                                   extra={'line':line},
+                                   savedata=False)
                     self.add_related_record(event_args)
 
             self.replace(new_message, f"{actor}:{self.modify_data_event_name}")
@@ -178,8 +191,8 @@ class ToMudRecord(BaseListRecord):
 
         if self.send_to_mud and self:
             self.format(f"{actor}:send")
-            mud_connection = self.api('plugins.core.proxy:get.mud.connection')()
-            mud_connection.send_to(self)
+            if mud_connection := self.api('plugins.core.proxy:get.mud.connection')():
+                mud_connection.send_to(self)
 
         if self.is_io:
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'ToMudRecord': self})
