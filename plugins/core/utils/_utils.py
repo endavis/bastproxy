@@ -409,7 +409,7 @@ class UtilsPlugin(BasePlugin):
             f'{output_color}{"-" * line_length}',
         ]
 
-    @AddAPI('cap.line', description='converts a list of dicts to a table, the first list item is the header')
+    @AddAPI('cap.line', description='caps the line with a character')
     def _api_cap_line(self, line, capchar, color='', line_length=None):
         """
         cap a line with delimiters
@@ -419,9 +419,9 @@ class UtilsPlugin(BasePlugin):
         if not line_length:
             line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
 
-        line_length -= 2
+        line_length -= 4
         noncolored_string = self.api('plugins.core.colors:colorcode.strip')(line)
 
         missing = line_length - len(noncolored_string)
 
-        return f'{color}{capchar}{color_end}{line}{" " * missing}{color}{capchar}{color_end}'
+        return f'{color}{capchar}{color_end} {line}{" " * missing} {color}{capchar}{color_end}'
