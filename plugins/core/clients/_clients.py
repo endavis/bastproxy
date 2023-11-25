@@ -8,6 +8,7 @@
 
 # Standard Library
 import datetime
+from functools import partial
 
 # 3rd Party
 
@@ -26,25 +27,29 @@ class BanRecord:
         self.plugin_id: str = plugin_id
         self.ip_addr: str = ip_addr
         self.how_long: int = how_long
-        self.timer = None
+        self.timer_name = f'{self.plugin_id}_banremove_{self.ip_addr}'
 
         if not copy and self.how_long > 0:
-            self.timer = self.api('plugins.core.timers:add.timer')(f'{self.plugin_id}_banremove_{self.ip_addr}', self.remove,
-                                                            self.how_long, unique=True, onetime=True, plugin_id=self.plugin_id)
+            api_call = self.api(f"{self.plugin_id}:client.banned.remove")
+            callback = partial(api_call, self.ip_addr, auto=True)
+            self.api('plugins.core.timers:add.timer')(self.timer_name, callback,
+                                                      self.how_long, unique=True,
+                                                      onetime=True, plugin_id=self.plugin_id)
 
     @property
     def expires(self) -> str:
-        if self.timer:
-            return self.timer.next_fire_datetime.strftime(self.api.time_format)
+        if next_fire := self.api('plugins.core.timers:get.timer.next.fire')(self.timer_name):
+            return next_fire.strftime(self.api.time_format)
         else:
             return 'Permanent'
 
     def remove(self):
-        self.api(f"{self.plugin_id}:client.banned.remove")(self.ip_addr)
+        if self.api('plugins.core.timers:has.timer')(self.timer_name):
+            self.api('plugins.core.timers:remove.timer')(self.timer_name)
 
     def copy(self, newclass):
         newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)
-        newrecord.timer = self.timer
+        newrecord.timer_name = self.timer_name
         return newrecord
 
 class ClientPlugin(BasePlugin):
@@ -114,7 +119,7 @@ class ClientPlugin(BasePlugin):
         return self.api(f"{self.plugin_id}:client.banned.add.by.ip")(self.clients[client_uuid].addr, how_long)
 
     @AddAPI('client.banned.add.by.ip', description='add a banned ip')
-    def _api_client_banned_add_by_ip(self, ip_address, how_long=600):
+    def _api_client_banned_add_by_ip(self, ip_address, how_long):
         """
         add a banned ip
         """
@@ -129,7 +134,7 @@ class ClientPlugin(BasePlugin):
         elif ip_address not in self.banned:
             ban_record = BanRecord(self.plugin_id, ip_address, how_long=how_long)
             self.banned[ip_address] = ban_record
-            LogRecord(f"{ip_address} has been banned for {how_long} seconds",
+            LogRecord(f"{ip_address} has been automatically banned for {how_long} seconds",
                         level='error', sources=[self.plugin_id])()
             return True
 
@@ -147,21 +152,25 @@ class ClientPlugin(BasePlugin):
         return clientip in self.banned or clientip in permbanips
 
     @AddAPI('client.banned.remove', description='remove a banned ip')
-    def _api_client_banned_remove(self, addr):
+    def _api_client_banned_remove(self, addr, auto=False):
         """
         remove a banned ip
         """
+        if auto:
+            msg = f"{addr} : ban has timed out and is no longer banned."
+        else:
+            msg = f"{addr} : unbanned through a command."
         if addr in self.banned:
+            if not auto:
+                self.banned[addr].remove()
             del self.banned[addr]
-            LogRecord(f"{addr} is no longer banned",
-                        level='error', sources=[self.plugin_id])()
+            LogRecord(msg, level='error', sources=[self.plugin_id])()
             return True
         permbanips = self.api('plugins.core.settings:get')(self.plugin_id, 'permbanips')
         if addr in permbanips:
             permbanips.remove(addr)
             self.api('plugins.core.settings:change')(self.plugin_id, 'permbanips', permbanips)
-            LogRecord(f"{addr} is no longer banned",
-                        level='error', sources=[self.plugin_id])()
+            LogRecord(msg, level='error', sources=[self.plugin_id])()
             return True
 
         return False
@@ -301,13 +310,11 @@ class ClientPlugin(BasePlugin):
                         nargs='*')
     def _command_ban(self):
         """
-        ban or remove an IP
-
         required
           ips - a list of IPs to ban or remove (this is a toggle)
 
         if the ip is already banned, it will be unbanned
-        otherwise, it will be banned
+        otherwise, it will be permanently banned
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
 
