@@ -102,8 +102,6 @@
     # TODO: add specific Exceptions
             APINotFoundException
     # TODO: look at slots
-    # TODO: plugins.core.clients
-        save permanently banned clients
     # TODO: update commands to use tables
         plugins.c.pluginm.list
 
@@ -254,6 +252,7 @@
     # COMPLETE: plugins.core.clients
         COMPLETE: add banned clients to a command
             added ban command to plugin
+        COMPLETE: save permanently banned clients
     # COMPLETE: baseplugin
         # TODO: refactor all initialization to use hooks instead of the initialize function
             use a priority system
