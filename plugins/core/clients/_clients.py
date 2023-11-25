@@ -229,28 +229,27 @@ class ClientPlugin(BasePlugin):
         """
         show all clients
         """
-        clientformat = '%-6s %-17s %-7s %-17s %-12s %-s'
-        tmsg = [
-            '',
-            (
-                clientformat
-                % ('Type', 'Host', 'Port', 'Client', 'Connected', 'View Only')
-            ),
-            '@B' + 70 * '-',
-        ]
-        for i in self.clients:
-            client = self.clients[i]
-            ttime = self.api('plugins.core.utils:convert.timedelta.to.string')(
-                client.connected_time,
-                datetime.datetime.now(datetime.timezone.utc))
+        tmsg = []
 
-            tmsg.append(clientformat % ('Active', client.addr, client.port,
-                                        'Terminal Type', ttime, client.view_only))
-            # options = i.options_info()
-            # if options:
-            #     tmsg.append('Option Info')
-            #     for j in options:
-            #         tmsg.append(j)
+        color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
+
+        # TODO: add telnet options
+        clients = [
+            {'state': 'Active', 'address': item.addr, 'port': item.port,
+             'term_type': 'Term Type', 'connected': item.connected_length,
+             'view_only': item.view_only} for item in self.clients.values()
+        ]
+
+        clients_columns = [
+            {'name': 'State', 'key': 'state', 'width': 6},
+            {'name': 'Client IP', 'key': 'address', 'width': 17},
+            {'name': 'Port', 'key': 'port', 'width': 7},
+            {'name': 'Term Type', 'key': 'term_type', 'width': 17},
+            {'name': 'Connected', 'key': 'connected', 'width': 12},
+            {'name': 'View Only', 'key': 'view_only', 'width': 8},
+        ]
+
+        tmsg.extend(self.api('plugins.core.utils:convert.data.to.output.table')('Clients', clients, clients_columns, color=color))
 
         if self.banned:
             bannedformat = '%-20s %s'
