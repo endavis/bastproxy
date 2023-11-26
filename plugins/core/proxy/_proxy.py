@@ -175,14 +175,14 @@ class ProxyPlugin(BasePlugin):
                 '@B-------------------   Mud  ------------------@w',
             ),
         ]
-        if mud and mud.connected:
-            if mud.connected_time:
+        if self.mud_connection and self.mud_connection.connected:
+            if self.mud_connection.connected_time:
                 tmsg.extend(
                     (
                         template
                         % (
                             'Connected',
-                            mud.connected_time.strftime(self.api.time_format),
+                            self.mud_connection.connected_time.strftime(self.api.time_format),
                         ),
                         template
                         % (
@@ -190,17 +190,17 @@ class ProxyPlugin(BasePlugin):
                             self.api(
                                 'plugins.core.utils:convert.timedelta.to.string'
                             )(
-                                mud.connected_time,
+                                self.mud_connection.connected_time,
                                 datetime.datetime.now(datetime.timezone.utc),
                             ),
                         ),
-                        template % ('Host', mud.host),
-                        template % ('Port', mud.port),
+                        template % ('Host', self.mud_connection.addr),
+                        template % ('Port', self.mud_connection.port),
                         template % ('Options', ''),
                     )
                 )
-                options = mud.options_info()
-                tmsg.extend(f"     {i}" for i in options)
+                # options = self.mud_connection.options_info()
+                # tmsg.extend(f"     {i}" for i in options)
         else:
             tmsg.append(template % ('Mud', 'disconnected'))
 
@@ -230,9 +230,9 @@ class ProxyPlugin(BasePlugin):
         """
         disconnect from the mud
         """
-        mud = self.api('plugins.core.managers:get')('mud')
-        if mud.connected:
-            mud.handle_close()
+        if self.mud_connection and self.mud_connection.connected:
+            self.mud_connection.disconnect_from_mud()
+            self.mud_connection = None
 
             return True, ['Attempted to close the connection to the mud']
         else:
@@ -241,14 +241,15 @@ class ProxyPlugin(BasePlugin):
     @AddParser(description='connect to the mud')
     def _command_connect(self):
         """
-        disconnect from the mud
+        connect to the mud
         """
-        mud = self.api('plugins.core.managers:get')('mud')
-        if mud.connected:
+        if self.mud_connection and self.mud_connection.connected:
             return True, ['The proxy is currently connected to the mud']
 
-        mud.connectmud(self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'),
-                       self.api('plugins.core.settings:get')(self.plugin_id, 'mudport'))
+        self.mud_connection = MudConnection(self.api('plugins.core.settings:get')(self.plugin_id, 'mudhost'),
+                        self.api('plugins.core.settings:get')(self.plugin_id, 'mudport'))
+
+        self.api('libs.asynch:task.add')(self.mud_connection.connect_to_mud, 'Mud Connect Task')
 
         return True, ['Connecting to the mud']
 

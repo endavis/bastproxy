@@ -18,7 +18,7 @@ import logging
 import datetime
 
 # Third Party
-from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
+from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 
 # Project
 from libs.net import telnet
@@ -42,7 +42,7 @@ class MudConnection:
             self.writer is the asyncio.StreamWriter for the connection
 
     """
-    def __init__(self, addr, port, reader, writer):
+    def __init__(self, addr, port):
         self.addr: str = addr
         self.port: str = port
         self.api = API(owner_id=f"{__name__}")
@@ -51,11 +51,29 @@ class MudConnection:
         self.connected = True
         self.send_queue: asyncio.Queue[NetworkData] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
-        self.reader: TelnetReaderUnicode = reader
-        self.writer: TelnetWriterUnicode = writer
+        self.reader = None
+        self.writer = None
+        self.term_type = 'bastproxy'
         #print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
         # term = self.writer.protocol._extra['TERM']
+
+    async def connect_to_mud(self):
+        """
+        connect to a mud
+        """
+        # create a mud connection through telnetlib3
+        await open_connection(self.addr, int(self.port),
+                             term=self.term_type, shell=self.mud_telnet_handler)
+        # print(f'{type(self.reader) = }')
+        # print(f'{type(self.writer) = }')
+        #await self.mud_telnet_handler(self.reader, self.writer)
+
+    def disconnect_from_mud(self):
+        """
+        disconnect from a mud
+        """
+        self.connected = False
 
     def send_to(self, data: ToMudRecord) -> None:
         """
@@ -93,7 +111,8 @@ class MudConnection:
                 sources=[__name__],
             )()
 
-        await self.writer.drain()
+        if self.writer:
+            await self.writer.drain()
 
     async def mud_read(self) -> None:
         """
@@ -107,7 +126,7 @@ class MudConnection:
             sources=[__name__],
         )()
 
-        while self.connected:
+        while self.connected and self.reader:
             inp: str = await self.reader.readline()
             LogRecord(f"client_read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
             LogRecord(f"client_read - inp type = {type(inp)}", level='debug', sources=[__name__])()
@@ -138,7 +157,7 @@ class MudConnection:
             level='debug',
             sources=[__name__],
         )()
-        while self.connected:
+        while self.connected and self.writer:
             msg_obj: NetworkData = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
@@ -170,38 +189,40 @@ class MudConnection:
             sources=[__name__]
         )()
 
+    async def mud_telnet_handler(self, reader, writer) -> None:
+        """
+        This handler is for the mud connection and is the starting point for
+        creating the tasks necessary to handle the mud connection.
+        """
+        client_details: str = writer.get_extra_info('peername')
 
-async def mud_telnet_handler(reader, writer) -> None:
-    """
-    This handler is for telnet client connections. Upon a client connection this handler is
-    the starting point for creating the tasks necessary to handle the client.
-    """
-    client_details: str = writer.get_extra_info('peername')
+        _, _, *rest = client_details
+        LogRecord(f"Mud Connection opened - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
+        self.reader = reader
+        self.writer = writer
+        print(f'{type(self.reader) = }')
+        print(f'{type(self.writer) = }')
 
-    addr, port, *rest = client_details
-    mud_connection: MudConnection = MudConnection(addr, port, reader, writer)
-    LogRecord(f"Mud Connection opened - {addr} : {port} : {rest}", level='warning', sources=[__name__])()
+        tasks: list[asyncio.Task] = [
+            TaskItem(self.mud_read(),
+                                name="mud telnet read").create(),
+            TaskItem(self.mud_write(),
+                                name="mud telnet write").create(),
+        ]
 
-    tasks: list[asyncio.Task] = [
-        TaskItem(mud_connection.mud_read(),
-                            name="mud telnet read").create(),
-        TaskItem(mud_connection.mud_write(),
-                            name="mud telnet write").create(),
-    ]
+        if current_task := asyncio.current_task():
+            current_task.set_name("mud telnet client handler")
 
-    if current_task := asyncio.current_task():
-        current_task.set_name("mud telnet client handler")
+        await self.setup_mud()
 
-    mud_connection.api('plugins.core.proxy:add.mud.connection')(mud_connection)
+        _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
 
-    _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
+        for task in rest:
+            task.cancel()
 
-    for task in rest:
-        task.cancel()
+        self.connected = False
 
-    mud_connection.connected = False
-    mud_connection.api('plugins.core.proxy:remove.mud.connection')(mud_connection)
-    LogRecord(f"Mud Connection closed - {addr} : {port} : {rest}", level='warning', sources=[__name__])()
+        LogRecord(f"Mud Connection closed - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
 
-    await asyncio.sleep(1)
+        await asyncio.sleep(1)
 
