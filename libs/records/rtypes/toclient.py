@@ -224,8 +224,7 @@ class ToClientRecord(BaseListRecord):
             )(uuid_only=True)
             for client_uuid in clients:
                 if self.can_send_to_client(client_uuid):
-                    client = self.api('plugins.core.clients:get.client')(client_uuid)
-                    client.send_to(self)
+                    self.api('plugins.core.clients:send.to.client')(client_uuid, self)
                 else:
                     LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
                             level='debug', sources=[__name__])()

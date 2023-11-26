@@ -14,7 +14,7 @@ from functools import partial
 
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.records import LogRecord
+from libs.records import LogRecord, ToClientRecord
 from libs.api import API
 from libs.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
@@ -109,6 +109,14 @@ class ClientPlugin(BasePlugin):
         get a client by uuid
         """
         return self.clients[client_uuid] if client_uuid in self.clients else None
+
+    @AddAPI('send.to.client', description='send data to a client')
+    def _api_send_to_client(self, client_uuid, data):
+        """
+        send data to a client
+        """
+        if client_uuid in self.clients:
+            return self.clients[client_uuid].send_to(data)
 
     @AddAPI('client.banned.add', description='add a banned client')
     def _api_client_banned_add(self, client_uuid, how_long=600):
