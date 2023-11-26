@@ -25,7 +25,6 @@ class RecordManager(object):
         self.max_records: int = 1000
         self.records: dict[str, list] = {}
         self.api = BASEAPI(owner_id=__name__)
-        self.api.MANAGERS['records'] = self
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
 

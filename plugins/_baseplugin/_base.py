@@ -333,9 +333,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         # new ssc objects in the initialize function
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
-        mud = self.api('plugins.core.managers:get')('mud')
-
-        if mud and mud.connected and self.api('libs.api:is.character.active')():
+        if self.api('plugins.core.proxy:is.mud.connected') and self.api('libs.api:is.character.active')():
             self._eventcb_baseplugin_after_character_is_active()
         else:
             self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,

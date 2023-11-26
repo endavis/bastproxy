@@ -108,34 +108,12 @@ class ProxyPlugin(BasePlugin):
                             default='defaultviewpass')
         self.mudpw = ssc('mudpw', self.plugin_id, self.plugin_info.data_directory, desc='Mud password')
 
-    @AddAPI('remove.mud.connection', description='remove the mud connection')
-    def _api_remove_mud_connection(self, connection: MudConnection):
-        if self.mud_connection == connection:
-            self.mud_connection = None
-            return True
-
-        LogRecord('Proxy: mud connection not removed, connection does not match',
-            level='warning',
-            sources=[self.plugin_id],
-        )()
-
-        return False
-
-    @AddAPI('add.mud.connection', description='add the mud connection')
-    def _api_add_mud_connection(self, connection: MudConnection):
+    @AddAPI('is.mud.connected', description='get the mud connection')
+    def _api_is_mud_connected(self) -> bool:
         """
-        add the mud connection
+        get the mud connection
         """
-        if not self.mud_connection:
-            self.mud_connection = connection
-            return True
-
-        LogRecord('Proxy: mud connection not added, connection already exists',
-            level='warning',
-            sources=[self.plugin_id],
-        )()
-
-        return False
+        return bool(self.mud_connection and self.mud_connection.connected)
 
     @AddAPI('get.mud.connection', description='get the mud connection')
     def _api_get_mud_connection(self) -> MudConnection | None:
@@ -179,7 +157,6 @@ class ProxyPlugin(BasePlugin):
         show info about the proxy
         """
         template = '%-15s : %s'
-        mud = self.api('plugins.core.managers:get')('mud')
         started = 'Unknown'
         if self.api.proxy_start_time:
             started = self.api.proxy_start_time.strftime(self.api.time_format)

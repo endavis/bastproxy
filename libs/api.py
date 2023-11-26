@@ -387,10 +387,6 @@ class API():
     # a flag to show that bastproxy is shutting down
     shutdown: bool = False
 
-    # a dictionary of managers that could not be made into plugins
-    MANAGERS: dict[str, typing.Any] = {}
-    MANAGERS['api_stats'] = STATS_MANAGER
-
     # the proxy start time, will be dynamically set in bastproxy.py
     proxy_start_time: datetime | None = None
 

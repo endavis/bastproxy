@@ -580,8 +580,6 @@ class PluginLoader:
         LogRecord('Loading core and client plugins', level='info', sources=[__name__])()
         self._load_core_and_client_plugins_on_startup()
 
-        self.api('plugins.core.managers:add')('plugins', self)
-
         LogRecord(f'ev_{__name__}_post_startup_plugins_initialize: Started', level='debug', sources=[__name__])()
 
         self.api('plugins.core.events:raise.event')(f"ev_{__name__}_post_startup_plugins_initialize")
