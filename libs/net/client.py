@@ -347,9 +347,10 @@ async def client_telnet_handler(reader, writer) -> None:
             task.cancel()
 
     # drain and close the writer
-    writer.write_eof()
-    await writer.drain()
-    writer.close()
+    if not writer.is_closing():
+        writer.write_eof()
+        await writer.drain()
+        writer.close()
 
     # close the reader
     reader.feed_eof()
