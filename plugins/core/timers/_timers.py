@@ -370,14 +370,11 @@ class TimersPlugin(BasePlugin):
             if timer := self.timer_lookup[name]:
                 LogRecord(f"_api_remove_timer - removing {timer}",
                           level='debug', sources=[self.plugin_id, timer.owner_id])()
-                ttime = timer.get_next_fire()
-                next_fire = math.floor(ttime.timestamp())
-                if next_fire in self.timer_events and timer in self.timer_events[next_fire]:
-                    self.timer_events[math.floor(ttime.timestamp())].remove(timer)
-                del self.timer_lookup[name]
+                self._remove_timer_internal(timer)
+
         except KeyError:
             LogRecord(f"_api_remove_timer - could not remove timer {name}",
-                      level='error', sources=[self.plugin_id], exc_info=True)()
+                      level='error', sources=[self.plugin_id], stack_info=True)()
 
     @AddAPI('toggle.timer', description='toggle a timer to be enabled/disabled')
     def _api_toggle_timer(self, name: str, flag: bool):
@@ -399,6 +396,19 @@ class TimersPlugin(BasePlugin):
                 self.timer_events[timer_next_time_to_fire] = []
             self.timer_events[timer_next_time_to_fire].append(timer)
         self.timer_lookup[timer.name] = timer
+
+    def _remove_timer_internal(self, timer: Timer):
+        """
+        internally remove a timer
+        """
+        timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
+        if timer_next_time_to_fire != -1 and timer_next_time_to_fire in self.timer_events:
+            if timer in self.timer_events[timer_next_time_to_fire]:
+                self.timer_events[timer_next_time_to_fire].remove(timer)
+            if not self.timer_events[timer_next_time_to_fire]:
+                del self.timer_events[timer_next_time_to_fire]
+        if timer.name in self.timer_lookup:
+            del self.timer_lookup[timer.name]
 
     def execute_timer(self, time, timer: Timer):
         """
@@ -436,8 +446,6 @@ class TimersPlugin(BasePlugin):
             self._add_timer_internal(timer)
         else:
             self.api(f"{self.plugin_id}:remove.timer")(timer.name)
-        if not self.timer_events[time]:
-            del self.timer_events[time]
 
     async def check_for_timers_to_fire(self):
         # this is a callback, so disable unused-argument
