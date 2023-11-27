@@ -399,7 +399,6 @@ class UtilsPlugin(BasePlugin):
         largest_line = max([len(self.api('plugins.core.colors:colorcode.strip')(subheader_msg)),
                            *[len(self.api('plugins.core.colors:colorcode.strip')(line)) for line in data_msg]])
 
-
         if largest_line > line_length_default:
             # Add 4 to account for the '| ' and ' |' that cap the lines
             line_length = largest_line + 4
