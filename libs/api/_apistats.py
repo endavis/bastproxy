@@ -6,7 +6,7 @@
 #
 # By: Bast
 """
-
+Implementation of the StatsManager class to track API stats.
 """
 # Standard Library
 

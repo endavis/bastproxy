@@ -6,7 +6,7 @@
 #
 # By: Bast
 """
-
+tools to work with functions and call stacks
 """
 # Standard Library
 import traceback

@@ -2,11 +2,12 @@
 # Project: bastproxy
 # Filename: libs/api/_apiitem.py
 #
-# File Description: holds the apistatitem class
+# File Description: holds the apiitem class
 #
 # By: Bast
 """
-
+Hold the APIItem class that wraps an API function to track its use and
+provide information about it.
 """
 # Standard Library
 import typing
@@ -74,7 +75,7 @@ class APIItem:
         Returns:
             dict: A dictionary of the stats for the API.
         """
-        if stats := STATS_MANAGER.stats.get(self.full_api_name, None):
+        if _ := STATS_MANAGER.stats.get(self.full_api_name, None):
             return STATS_MANAGER.stats[self.full_api_name]
         else:
             return None
