@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/api.py
+# Filename: libs/api/_api.py
 #
 # File Description: create an api for use by plugins and modules
 #
@@ -20,346 +20,23 @@ instance apis are in the instance variable "_instance_api"
 See the BasePlugin class
 """
 # Standard Library
-import inspect
 import pprint
 import typing
 import types
-from itertools import chain
-import traceback
 from pathlib import Path
 from datetime import datetime
 from functools import lru_cache
-import logging
 import contextlib
 
 # Third Party
 
 # Project
+from ._apistats import APIStatItem
+from ._functools import stackdump
+from ._apiitem import APIItem
+from ._functools import get_caller_owner_id
 
-class AddAPI:
-    def __init__(self, api: str, description='', instance=False):
-        """
-        kwargs:
-            event_name: the event to register to
-            priority: the priority to register the function with (Default: 50)
-        """
-        self.api_name = api
-        self.description = description
-        self.instance = instance
-
-    def __call__(self, func):
-        func.api = {'name': self.api_name,
-                    'description':self.description,
-                    'instance':self.instance,
-                    'addedin':{}}
-
-        return func
-
-def stackdump(id='', msg='') -> list[str]:
-    raw_tb = traceback.extract_stack()
-    entries: list[str] = traceback.format_list(raw_tb)
-
-    # Remove the last two entries for the call to extract_stack() and to
-    # the one before that, this function. Each entry consists of single
-    # string with consisting of two lines, the script file path then the
-    # line of source code making the call to this function.
-    del entries[-2:]
-
-    # Split the stack entries on line boundaries.
-    lines = list(chain.from_iterable(line.splitlines() for line in entries if line))
-    if msg:  # Append it to last line with name of caller function.
-        lines.insert(0, msg)
-        lines.append(f'LEAVING STACK_DUMP: {id}' if id else '')
-
-    return lines
-
-@lru_cache(maxsize=128)
-def get_args(api_function: typing.Callable) -> str:
-    """
-    Get the arguments of a given function from a it's function declaration.
-
-    Parameters
-    ----------
-    api_function : Callable
-        The function to get the arguments for.
-
-    Returns
-    -------
-    str
-        A string containing the function arguments.
-    """
-    sig = inspect.signature(api_function)
-    argn: list[str] = [f"@Y{str(i)}@w" for i in sig.parameters if str(i) != 'self']
-    args: str = ', '.join(argn)
-
-    return args
-
-def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
-    """
-    Returns the owner ID of the plugin that called the current function.
-
-    It goes through the stack and checks each frame for one of the following:
-        an owner_id attribute
-        an api attribute and gets the owner_id from that
-
-    Args:
-        ignore_owner_list (list[str]): A list of owner IDs to ignore if they are on the stack.
-
-    Returns:
-        str: The owner ID of the plugin on the stack.
-    """
-    ignore_list = ignore_owner_list or []
-
-    caller_id = 'unknown'
-
-    if frame := inspect.currentframe():
-        while frame := frame.f_back:
-            if 'self' in frame.f_locals and not isinstance(frame.f_locals['self'], APIItem):
-                tcs = frame.f_locals['self']
-                if (
-                    hasattr(tcs, 'owner_id')
-                    and tcs.owner_id
-                    and tcs.owner_id not in ignore_list
-                ):
-                    caller_id = tcs.owner_id
-                    break
-                if (
-                    hasattr(tcs, 'api')
-                    and isinstance(tcs.api, API)
-                    and tcs.api.owner_id
-                    and tcs.api.owner_id not in ignore_list
-                ):
-                    caller_id = tcs.api.owner_id
-                    break
-
-    if caller_id == 'unknown':
-        logger = logging.getLogger(__name__)
-        logger.warn(f"Unknown caller_id for API call: {inspect.stack()[1][3]}")
-
-    return caller_id
-
-class APIStatItem:
-    """
-    This class is used to track the number of times that a particular
-    API has been called by a particular caller.  The full_api_name is
-    the full name of the API, including the full package, module,
-    and name of the function, and the caller_id is the ID of
-    the object/function that is making the call.
-    """
-    def __init__(self, full_api_name: str) -> None:
-        """
-        Initializes an APIStatItem object.
-
-        Args:
-            full_api_name (str): Full name of the API, including the full package,
-                module, and name of the function.
-        """
-        self.full_api_name: str = full_api_name
-        self.calls_by_caller: dict[str, int] = {}
-        self.detailed_calls: dict[str, int] = {}
-        self.count: int = 0  # Total number of calls to this API
-
-    def add_call(self, caller_id: str) -> None:
-        """
-        Adds a call to the APIStatItem object.
-
-        Args:
-            caller_id (str): ID of the caller
-        """
-        self.count += 1
-        if (not caller_id or caller_id == 'unknown'):
-            stack = stackdump(msg=f"------------ Unknown caller_id for API call: {self.full_api_name} -----------------")
-            stack.insert(0, '\n')
-            try:
-                from libs.records import LogRecord
-                LogRecord(stack, level='warning', sources=[__name__])()
-            except ImportError:
-                print('\n'.join(stack))
-                print()
-        if caller_id not in self.detailed_calls:
-            self.detailed_calls[caller_id] = 0
-        self.detailed_calls[caller_id] += 1
-
-        if ':' in caller_id:
-            caller_id = caller_id.split(':')[0]
-        if caller_id not in self.calls_by_caller:
-            self.calls_by_caller[caller_id] = 0
-        self.calls_by_caller[caller_id] += 1
-
-class StatsManager:
-    """
-    Holds the stats for all API items.
-    """
-    def __init__(self) -> None:
-        """
-        Initializes a StatsManager object.
-        """
-        self.stats: dict[str, APIStatItem] = {}
-
-    def add_call(self, full_api_name: str, caller_id: str) -> None:
-        """
-        Adds a call to the StatsManager object.
-
-        Args:
-            full_api_name (str): Full name of the API, including the full package,
-                module, and name of the function.
-            caller_id (str): Id of what object is calling the function
-        """
-        if full_api_name not in self.stats:
-            self.stats[full_api_name] = APIStatItem(full_api_name)
-        self.stats[full_api_name].add_call(caller_id)
-
-    def get_all_stats(self) -> dict[str, APIStatItem]:
-        """
-        Returns the stats held in the StatsManager object.
-
-        Returns:
-            dict: A dictionary of the stats held in the object.
-        """
-        return self.stats
-
-    def get_stats(self, full_api_name) -> APIStatItem | None:
-        """
-        Returns the stats for a specific API.
-
-        Args:
-            full_api_name (str): Full name of the API, including the full package,
-                module, and name of the function.
-
-        Returns:
-            dict: A dictionary of the stats for the API.
-        """
-        return self.stats.get(full_api_name, None)
-
-STATS_MANAGER = StatsManager()
-
-class APIItem:
-    """
-    Wraps an API function to track its use.
-    """
-    def __init__(self, full_api_name: str, tfunction: typing.Callable, owner_id: str | None,
-                 description: list | str ='') -> None:
-        """
-        Initializes an APIItem object.
-
-        Args:
-            full_api_name (str): Full name of the API, e.g. 'plugins.core.log:reset
-            tfunction (callable): The function to be wrapped.
-            owner_id (str): Unique id of the owner calling the function.
-        """
-        self.full_api_name: str = full_api_name
-        self.owner_id: str = owner_id or 'unknown'
-        self.tfunction: typing.Callable = tfunction
-        self.instance: bool = False
-        self.overwritten_api: APIItem | None = None
-        if not description:
-            comments = inspect.getcomments(self.tfunction)
-            comments = comments[2:].strip() if comments else ''
-            description = comments.split('\n')
-        elif isinstance(description, str):
-            description = description.split('\n')
-
-        self.description: list = description
-
-    def __call__(self, *args, **kwargs):
-        """
-        Calls the wrapped function and adds a call to the StatsManager object.
-        """
-        caller_id: str = get_caller_owner_id()
-        STATS_MANAGER.add_call(self.full_api_name, caller_id)
-        return self.tfunction(*args, **kwargs)
-
-    @property
-    def count(self) -> int:
-        """
-        Returns the number of times the API has been called.
-
-        Returns:
-            int: The number of times the API has been called.
-        """
-        if stats := STATS_MANAGER.stats.get(self.full_api_name, None):
-            return stats.count
-        return 0
-
-    @property
-    def stats(self) -> APIStatItem | None:
-        """
-        Returns the stats for the API.
-
-        Returns:
-            dict: A dictionary of the stats for the API.
-        """
-        if stats := STATS_MANAGER.stats.get(self.full_api_name, None):
-            return STATS_MANAGER.stats[self.full_api_name]
-        else:
-            return None
-
-    def detail(self, show_function_code=False) -> list[str]:
-        """
-        create a detailed message for this item
-        """
-        description = []
-        for i, line in enumerate(self.description):
-            if not line:
-                continue
-            if i == 0:
-                description.append(f"@C{'Description':<11}@w : {line}")
-            else:
-                description.append(f"{'':<13}   {line}")
-
-        tmsg: list[str] = [
-            f"@C{'API':<11}@w : {self.full_api_name}",
-            *description,
-            f"@C{'Function':<11}@w : {self.tfunction}",
-            f"@C{'Owner':<11}@w : {self.owner_id}",
-            f"@C{'Instance':<11}@w : {self.instance}",
-            '',
-        ]
-
-        args = get_args(self.tfunction)
-
-        location_split = self.full_api_name.split(':')
-        name = location_split[0]
-        command_name = ':'.join(location_split[1:])
-        tdict = {'name':name, 'cmdname':command_name, 'api_location':self.full_api_name}
-
-        tmsg.append(f"@G{self.full_api_name}@w({args})")
-        if self.tfunction.__doc__:
-            tmsg.append(self.tfunction.__doc__ % tdict)
-
-        if sourcefile := inspect.getsourcefile(self.tfunction):
-            tmsg.append('')
-            tmsg.append(f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}")
-
-        if show_function_code:
-            tmsg.append('')
-            text_list, _ = inspect.getsourcelines(self.tfunction)
-            tmsg.extend([i.replace('@', '@@').rstrip('\n') for i in text_list])
-
-        if self.overwritten_api:
-            tmsg.append('')
-            tmsg.extend(('', "This API overwrote the following:"))
-            tmsg.extend(f"    {line}" for line in self.overwritten_api.detail())
-
-        return tmsg
-
-    def __repr__(self) -> str:
-        """
-        Returns a string representation of the APIItem object.
-
-        Returns:
-            str: A string representation of the object.
-        """
-        return f"APIItem({self.full_api_name}, {self.owner_id}, {self.tfunction})"
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the APIItem object.
-
-        Returns:
-            str: A string representation of the object.
-        """
-        return f"APIItem({self.full_api_name}, {self.owner_id}, {self.tfunction})"
+APILOCATION = 'libs.api'
 
 class API():
     """
@@ -415,19 +92,19 @@ class API():
         self.owner_id: str = owner_id or 'unknown'
 
         # added functions
-        self.add('libs.api', 'add', self.add, instance=True)
-        self.add('libs.api', 'has', self._api_has, instance=True)
-        self.add('libs.api', 'add.apis.for.object', self._api_add_apis_for_object, instance=True)
-        self.add('libs.api', 'remove', self._api_remove, instance=True)
-        self.add('libs.api', 'get.children', self._api_get_children, instance=True)
-        self.add('libs.api', 'detail', self._api_detail, instance=True)
-        self.add('libs.api', 'list', self._api_list, instance=True)
-        self.add('libs.api', 'data.get', self._api_data_get, instance=True)
-        self.add('libs.api', 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True)
-        self.add('libs.api', 'get.caller.owner', self._api_get_caller_owner, instance=True)
-        self.add('libs.api', 'is.character.active', self._api_is_character_active_get, instance=True)
-        self.add('libs.api', 'is.character.active:set', self._api_is_character_active_set, instance=True)
-        self.add('libs.api', 'stackdump', stackdump, instance=True)
+        self.add(APILOCATION, 'add', self.add, instance=True)
+        self.add(APILOCATION, 'has', self._api_has, instance=True)
+        self.add(APILOCATION, 'add.apis.for.object', self._api_add_apis_for_object, instance=True)
+        self.add(APILOCATION, 'remove', self._api_remove, instance=True)
+        self.add(APILOCATION, 'get.children', self._api_get_children, instance=True)
+        self.add(APILOCATION, 'detail', self._api_detail, instance=True)
+        self.add(APILOCATION, 'list', self._api_list, instance=True)
+        self.add(APILOCATION, 'data.get', self._api_data_get, instance=True)
+        self.add(APILOCATION, 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True)
+        self.add(APILOCATION, 'get.caller.owner', self._api_get_caller_owner, instance=True)
+        self.add(APILOCATION, 'is.character.active', self._api_is_character_active_get, instance=True)
+        self.add(APILOCATION, 'is.character.active:set', self._api_is_character_active_set, instance=True)
+        self.add(APILOCATION, 'stackdump', stackdump, instance=True)
 
     # scan the object for api decorated functions
     def _api_add_apis_for_object(self, toplevel, item):
@@ -455,7 +132,7 @@ class API():
                     instance = func.api['instance']
                     if not instance:
                         func.api['addedin'][toplevel].append(api_name)
-                    self(f"{__name__}:add")(toplevel, api_name, func, description=description,
+                    self(f"{APILOCATION}:add")(toplevel, api_name, func, description=description,
                                             instance=instance)
                 else:
                     LogRecord(f"API {toplevel}:{api_name} already added", level=self.log_level,
@@ -487,10 +164,10 @@ class API():
         """
         add events for the api
         """
-        self('plugins.core.events:add.event')('ev_libs.api_character_active', __name__,
+        self('plugins.core.events:add.event')('ev_libs.api_character_active', APILOCATION,
                                             description='An event for when the character is active and ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
-        self('plugins.core.events:add.event')('ev_libs.api_character_inactive', __name__,
+        self('plugins.core.events:add.event')('ev_libs.api_character_inactive', APILOCATION,
                                             description='An event for when the character is inactive and not ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
@@ -511,11 +188,11 @@ class API():
         if flag:
             self('plugins.core.events:raise.event')('ev_libs.api_character_active',
                                             args={'is_character_active':self.is_character_active},
-                                            calledfrom='libs.api')
+                                            calledfrom=APILOCATION)
         else:
             self('plugins.core.events:raise.event')('ev_libs.api_character_inactive',
                                             args={'is_character_active':self.is_character_active},
-                                            calledfrom='libs.api')
+                                            calledfrom=APILOCATION)
 
     # return the data for an api
     def _api_data_get(self, api_name: str, base: bool = False) -> APIItem | None:
