@@ -367,7 +367,7 @@ class UtilsPlugin(BasePlugin):
 
         return converted_days * 24 * 60 * 60 + converted_hours * 60 * 60 + converted_minutes * 60 + converted_seconds
 
-    @AddAPI('convert.data.to.output.table', description='converts a list of dicts to a table, the first list item is the header')
+    @AddAPI('convert.data.to.output.table', description='converts a list of dicts to a table with a header')
     def _api_convert_data_to_output_table(self, table_name, data, columns, color=''):
         """
         columns is a list of dicts
@@ -376,7 +376,7 @@ class UtilsPlugin(BasePlugin):
                 'key'   : dictionary key,
                 'width' : the width of the column
         """
-        line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
+        line_length_default = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
         output_color = color or self.api('plugins.core.settings:get')('plugins.core.commands', 'output_subheader_color')
         temp_data = [{item['key']: item['name'] for item in columns}, *list(data)]
         color_end = '@w'
@@ -399,18 +399,23 @@ class UtilsPlugin(BasePlugin):
         largest_line = max([len(self.api('plugins.core.colors:colorcode.strip')(subheader_msg)),
                            *[len(self.api('plugins.core.colors:colorcode.strip')(line)) for line in data_msg]])
 
-        line_length = max(line_length, largest_line)
+
+        if largest_line > line_length_default:
+            # Add 4 to account for the '| ' and ' |' that cap the lines
+            line_length = largest_line + 4
+        else:
+            line_length = line_length_default
 
         return [
             *self.api('plugins.core.commands:format.header')(table_name, color=output_color, line_length=line_length),
             self.api('plugins.core.utils:cap.line')(subheader_msg, '|', color=output_color, line_length=line_length),
-            f'{output_color}{"-" * line_length}',
+            f'{output_color}+{"-" * (line_length - 2)}+',
             *[self.api('plugins.core.utils:cap.line')(line, '|', color=output_color, line_length=line_length) for line in data_msg],
-            f'{output_color}{"-" * line_length}',
+            f'{output_color}+{"-" * (line_length - 2)}+',
         ]
 
     @AddAPI('cap.line', description='caps the line with a character')
-    def _api_cap_line(self, line, capchar, color='', line_length=None):
+    def _api_cap_line(self, line, capchar='|', color='', line_length=None):
         """
         cap a line with delimiters
         """
@@ -419,7 +424,9 @@ class UtilsPlugin(BasePlugin):
         if not line_length:
             line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
 
+        # account for the lines being capped with '| ' and ' |'
         line_length -= 4
+
         noncolored_string = self.api('plugins.core.colors:colorcode.strip')(line)
 
         missing = line_length - len(noncolored_string)
