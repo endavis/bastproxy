@@ -135,11 +135,10 @@ class Commands(Protocol):
             msg.append('')
 
         if args['commands']:
-            if cmd_list := self.api(
-                'plugins.core.commands:get.commands.for.plugin.formatted'
-            )(self.plugin_id):
-                msg.extend(cmd_list)
-                msg.extend(('@G' + '-' * 60 + '@w', ''))
+            _, cmd_output = self.api("plugins.core.commands:run")('plugins.core.commands',
+                                                            'list', self.plugin_id)
+            msg.extend(cmd_output)
+            msg.extend(('@G' + '-' * 60 + '@w', ''))
         if args['api']:
             if api_list := self.api('libs.api:list')(self.plugin_id):
                 msg.extend((f"API functions in {self.plugin_id}", '@G' + '-' * 60 + '@w'))
