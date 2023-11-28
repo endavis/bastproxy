@@ -144,7 +144,7 @@ class TimersPlugin(BasePlugin):
         )():
             LogRecord(f"_eventcb_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
                     'debug', sources=[self.plugin_id, event_record['plugin_id']])()
-            self.api(f"{self.plugin_id}:remove.all.timers.for.plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
 
     @AddParser(description='toggle log flag for a timer')
     @AddArgument('timername',
@@ -343,8 +343,8 @@ class TimersPlugin(BasePlugin):
         self._add_timer_internal(timer)
         return timer
 
-    @AddAPI('remove.all.timers.for.plugin', description='remove all timers for a plugin')
-    def _api_remove_all_timers_for_plugin(self, name: str):
+    @AddAPI('remove.data.for.plugin', description='remove all data for a plugin')
+    def _api_remove_data_for_plugin(self, name: str):
         """  remove all timers associated with a plugin
         @Yname@w   = the name of the plugin
 
