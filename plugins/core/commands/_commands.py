@@ -159,11 +159,13 @@ class CommandsPlugin(BasePlugin):
             'plugins.core.commands', 'multiline_headers'
         ):
             return [
-                f'{color}{"-" * line_length}',
+                self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=color,
+                                                        line_length=line_length, space=False, fullcolor=True),
                 self.api('plugins.core.utils:center.colored.string')(
                     header_text, ' ', line_length, filler_color=color, endcaps=True
                 ),
-                f'{color}{"-" * line_length}',
+                self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=color,
+                                                        line_length=line_length, space=False, fullcolor=True),
             ]
         else:
             return [

@@ -408,26 +408,34 @@ class UtilsPlugin(BasePlugin):
         return [
             *self.api('plugins.core.commands:format.header')(table_name, color=output_color, line_length=line_length),
             self.api('plugins.core.utils:cap.line')(subheader_msg, '|', color=output_color, line_length=line_length),
-            f'{output_color}+{"-" * (line_length - 2)}+',
+            #f'{output_color}+{"-" * (line_length - 2)}+',
+            self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=output_color,
+                                                    line_length=line_length, space=False, fullcolor=True),
             *[self.api('plugins.core.utils:cap.line')(line, '|', color=output_color, line_length=line_length) for line in data_msg],
-            f'{output_color}+{"-" * (line_length - 2)}+',
+            #f'{output_color}+{"-" * (line_length - 2)}+',
+            self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=output_color,
+                                                    line_length=line_length, space=False, fullcolor=True),
         ]
 
     @AddAPI('cap.line', description='caps the line with a character')
-    def _api_cap_line(self, line, capchar='|', color='', line_length=None):
+    def _api_cap_line(self, line, capchar='|', color='', line_length=None, space=True, fullcolor=False):
         """
         cap a line with delimiters
         """
         color_end = '@w' if color else ''
 
+        spacechar = ' ' if space else ''
+
         if not line_length:
             line_length = self.api('plugins.core.settings:get')('plugins.core.proxy', 'linelen')
 
+        capchar_len = len(capchar + spacechar)
+
         # account for the lines being capped with '| ' and ' |'
-        line_length -= 4
+        line_length -= capchar_len * 2
 
         noncolored_string = self.api('plugins.core.colors:colorcode.strip')(line)
 
         missing = line_length - len(noncolored_string)
 
-        return f'{color}{capchar}{color_end} {line}{" " * missing} {color}{capchar}{color_end}'
+        return f'{color}{capchar}{"" if fullcolor else color_end}{spacechar}{line}{" " * missing}{spacechar}{color}{capchar}{color_end}'
