@@ -5,7 +5,9 @@
 # File Description: a plugin to show api functions and details
 #
 # By: Bast
-
+"""
+this plugin can be used to inspect and call functions in the api
+"""
 # Standard Library
 
 # 3rd Party
@@ -17,7 +19,7 @@ from plugins._baseplugin import BasePlugin
 
 class APIHelpPlugin(BasePlugin):
     """
-    a plugin to show connection information
+    a plugin to show api information
     """
     @AddParser(description='detail a function in the API')
     @AddArgument('-a',
@@ -80,11 +82,17 @@ class APIHelpPlugin(BasePlugin):
         api = self.api
         if args['noplugin']:
             api = API(owner_id=f"{self.plugin_id}:_command_list")
-        if apilist := api('libs.api:list')(args['toplevel']):
-            tmsg.extend(apilist)
+        if apilist := api('libs.api:list.data')(args['toplevel']):
+            api_columns = [
+                {'name': 'API', 'key': 'full_api_name', 'width': 5},
+                {'name': 'Called', 'key': 'called_count', 'width': 7},
+                {'name': 'Description', 'key': 'description', 'width': 10},
+            ]
 
+            tmsg.extend(self.api('plugins.core.utils:convert.data.to.output.table')('APIs', apilist, api_columns))
         else:
             tmsg.append(f"{args['toplevel']} does not exist in the api")
+
         return True, tmsg
 
     @AddParser(description='call an API')
