@@ -92,23 +92,35 @@ class API():
         self.owner_id: str = owner_id or 'unknown'
 
         # added functions
-        self.add(APILOCATION, 'add', self.add, instance=True)
-        self.add(APILOCATION, 'has', self._api_has, instance=True)
-        self.add(APILOCATION, 'add.apis.for.object', self._api_add_apis_for_object, instance=True)
-        self.add(APILOCATION, 'remove', self._api_remove, instance=True)
-        self.add(APILOCATION, 'get.children', self._api_get_children, instance=True)
-        self.add(APILOCATION, 'detail', self._api_detail, instance=True)
-        self.add(APILOCATION, 'list', self._api_list, instance=True)
+        self.add(APILOCATION, 'add', self.add, instance=True,
+                 description='add a function to the api')
+        self.add(APILOCATION, 'has', self._api_has, instance=True,
+                 description='check to see if something exists in the api')
+        self.add(APILOCATION, 'add.apis.for.object', self._api_add_apis_for_object, instance=True,
+                 description='add apis for an object')
+        self.add(APILOCATION, 'remove', self._api_remove, instance=True,
+                 description='remove a toplevel api')
+        self.add(APILOCATION, 'get.children', self._api_get_children, instance=True,
+                 description='return a list of apis in a toplevel api')
+        self.add(APILOCATION, 'detail', self._api_detail, instance=True,
+                 description='return the detail of an api function')
+        self.add(APILOCATION, 'list', self._api_list, instance=True,
+                 description='return a formatted list of functions in an api')
         self.add(APILOCATION, 'list.data', self._api_list_data, instance=True,
                  description='return a dict of api data')
-        self.add(APILOCATION, 'data.get', self._api_data_get, instance=True)
-        self.add(APILOCATION, 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True)
-        self.add(APILOCATION, 'get.caller.owner', self._api_get_caller_owner, instance=True)
-        self.add(APILOCATION, 'is.character.active', self._api_is_character_active_get, instance=True)
-        self.add(APILOCATION, 'is.character.active:set', self._api_is_character_active_set, instance=True)
-        self.add(APILOCATION, 'stackdump', stackdump, instance=True)
+        self.add(APILOCATION, 'data.get', self._api_data_get, instance=True,
+                 description='return the data for an api')
+        self.add(APILOCATION, 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True,
+                 description='get the plugin_id of the plugin that owns the function')
+        self.add(APILOCATION, 'get.caller.owner', self._api_get_caller_owner, instance=True,
+                 description='get the plugin on the top of the frame stack')
+        self.add(APILOCATION, 'is.character.active', self._api_is_character_active_get, instance=True,
+                 description='returns the is_character_active flag')
+        self.add(APILOCATION, 'is.character.active:set', self._api_is_character_active_set, instance=True,
+                 description='set the is_character_active flag')
+        self.add(APILOCATION, 'stackdump', stackdump, instance=True,
+                 description='return a stackdump')
 
-    # scan the object for api decorated functions
     def _api_add_apis_for_object(self, toplevel, item):
         """
         scan an object for api decorated functions
@@ -173,14 +185,12 @@ class API():
                                             description='An event for when the character is inactive and not ready for commands',
                                             arg_descriptions={'is_character_active':'The state of the is_character_active flag'})
 
-    # get the firstactive flag
     def _api_is_character_active_get(self) -> bool:
         """
         returns the is_character_active flag
         """
         return self.is_character_active
 
-    # set the is_character_active flag
     def _api_is_character_active_set(self, flag:bool) -> None:
         """
         set the is_character_active flag
@@ -196,7 +206,6 @@ class API():
                                             args={'is_character_active':self.is_character_active},
                                             calledfrom=APILOCATION)
 
-    # return the data for an api
     def _api_data_get(self, api_name: str, base: bool = False) -> APIItem | None:
         """
         return the data for an api
@@ -208,7 +217,6 @@ class API():
 
         return None
 
-    # add a function to the api
     def add(self, top_level_api: str, name: str, tfunction: typing.Callable, instance: bool = False, force: bool = False,
             description='') -> bool:
         """  add a function to the api
@@ -249,7 +257,6 @@ class API():
 
         return True
 
-    # add a function to the instance api
     def _api_instance(self, api_item: APIItem, force: bool = False) -> bool:
         """  add a function to the instance api
         @Yapi_data@w  = the api data dictionary
@@ -283,7 +290,8 @@ class API():
 
     # find the caller of this api
     def _api_get_caller_owner(self, ignore_owner_list: list[str] | None=None) -> str:
-        """  get the plugin on the top of the frame stack
+        """  find the caller of this api by gettting the plugin on
+        the top of the frame stack
         @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
 
         check to see if the caller is a plugin, if so return the plugin id
@@ -298,7 +306,6 @@ class API():
         return get_caller_owner_id(ignore_owner_list)
 
     @lru_cache(maxsize=128)
-    # get the plugin_id of the plugin that owns the function
     def _api_get_function_owner_plugin(self, function: typing.Callable) -> str:
         """  get the plugin_id of the plugin that owns the function
         @Yfunction@w  = the function
@@ -309,7 +316,6 @@ class API():
             plugin_id = function.__self__.plugin_id
         return plugin_id
 
-    # remove a toplevel api
     def _api_remove(self, top_level_api: str) -> None:
         """  remove a toplevel api
         @Ytop_level_api@w  = the toplevel of the api to remove
@@ -364,7 +370,6 @@ class API():
 
     __call__ = get
 
-    # return a list of api functions in a toplevel api
     def _api_get_children(self, parent_api: str) -> list[str]:
         """
         return a list of apis in a toplevel api
@@ -385,7 +390,6 @@ class API():
 
         return list(set(api_list))
 
-    # check to see if something exists in the api
     def _api_has(self, api_location: str) -> bool:
         """
         see if something exists in the api
@@ -404,7 +408,6 @@ class API():
             or API_item.tfunction.__self__.is_instantiated_f
         )
 
-    # get the details for an api function
     def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None,
                     show_function_code: bool = False) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches
         # parsing a function declaration and figuring out where the function
