@@ -238,9 +238,9 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         return None
 
-    @AddAPI('dump', description='dump an object or attribute of an object to a string')
+    @AddAPI('dump', description='dump this plugin or a specific attribute to a string')
     def _api_dump(self, attribute_name, simple=False):
-        """  dump self or an attribute of self to a string
+        """  dump this plugin or a specific attribute to a string
         @Yobj@w    = the object to inspect
         @Ymethod@w = the method to inspect
 
