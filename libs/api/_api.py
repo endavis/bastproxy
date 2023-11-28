@@ -99,6 +99,8 @@ class API():
         self.add(APILOCATION, 'get.children', self._api_get_children, instance=True)
         self.add(APILOCATION, 'detail', self._api_detail, instance=True)
         self.add(APILOCATION, 'list', self._api_list, instance=True)
+        self.add(APILOCATION, 'list.data', self._api_list_data, instance=True,
+                 description='return a dict of api data')
         self.add(APILOCATION, 'data.get', self._api_data_get, instance=True)
         self.add(APILOCATION, 'get.function.owner.plugin', self._api_get_function_owner_plugin, instance=True)
         self.add(APILOCATION, 'get.caller.owner', self._api_get_caller_owner, instance=True)
@@ -490,7 +492,26 @@ class API():
 
         return sorted(set(api_list))
 
-    # return a formatted list of functions in a toplevel api
+    def _api_list_data(self, top_level_api: str = '') -> list[dict]:
+        """
+        return a dict of api data
+        """
+        all_api_data = []
+        api_list = self.get_top_level_api_list(top_level_api) if top_level_api else self.get_full_api_list()
+        for i in api_list:
+            toplevel, api_name = i.split(':', 1)
+            if api_data := self._api_data_get(i):
+                all_api_data.append({
+                    'toplevel': toplevel,
+                    'name': api_name,
+                    'full_api_name': i,
+                    'called_count': api_data.count,
+                    'description': ' '.join(api_data.description),
+                })
+
+        all_api_data.sort(key=lambda x: x['full_api_name'])
+        return all_api_data
+
     def _api_list(self, top_level_api: str = '') -> list[str]:
         """
         return a formatted list of functions in an api
