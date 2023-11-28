@@ -113,7 +113,7 @@ class CommandsPlugin(BasePlugin):
 
         return self.api('plugins.core.settings:get')(self.plugin_id, 'command_indent') * 2
 
-    @AddAPI('format.output.header', description='return a formatted header with the header color')
+    @AddAPI('format.output.header', description='format a header with the header color')
     def _api_format_output_header(self, header_text, line_length=None):
         """
         format an output header
@@ -124,7 +124,7 @@ class CommandsPlugin(BasePlugin):
 
         return self._format_output_header(header_text, color, line_length)
 
-    @AddAPI('format.output.subheader', description='return a formatted header with the subheader color')
+    @AddAPI('format.output.subheader', description='format a header with the subheader color')
     def _api_format_output_subheader(self, header_text, line_length=None):
         """
         format an output header
@@ -135,7 +135,7 @@ class CommandsPlugin(BasePlugin):
 
         return self._format_output_header(header_text, color, line_length)
 
-    @AddAPI('format.header', description='return a formatted header with the specified color')
+    @AddAPI('format.header', description='format a header with the specified color')
     def _api_format_header(self, header_text, color, line_length=None):
         """
         format an output header
