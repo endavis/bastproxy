@@ -162,7 +162,7 @@ class ColorsPlugin(BasePlugin):
         return lencolor - lennocolor
 
     # check if a string is an @@ color, either xterm or ansi
-    @AddAPI('colorcode.is.valid', description='check if a string is a @ color, either xterm or ansi')
+    @AddAPI('colorcode.is.valid', description='check if a string is a @@ color, either xterm or ansi')
     def _api_colorcode_is_valid(self, color):
         # pylint: disable=no-self-use
         """
