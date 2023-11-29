@@ -397,18 +397,38 @@ class ProxyPlugin(BasePlugin):
             self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % ('\\' + newsep, '\\' + newsep, '\\' + newsep)
 
     @AddParser(description='output proxy resource usage')
+    @AddArgument('-ni',
+                    '--networkinterfaces',
+                    help='show network interfaces in output',
+                    action='store_false',
+                    default=True)
+    @AddArgument('-of',
+                    '--openfiles',
+                    help='show open files in output',
+                    action='store_false',
+                    default=True)
+    @AddArgument('-p',
+                    '--ports',
+                    help='show network ports',
+                    action='store_false',
+                    default=True)
+
     def _command_resource(self):
         """
         output proxy resource usage
         """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
         cpu_percent = psutil.cpu_percent()
         virtual_memory = psutil.virtual_memory()
         cpu_count = psutil.cpu_count()
         load_average = os.getloadavg()
-        net_connections = psutil.net_connections(kind='inet')
         net_if_addrs = psutil.net_if_addrs()
-        proxy_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
         column_width = 19
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        net_connections = process.connections(kind='inet')
+        open_files = process.open_files()
 
         msg = [
             *self.api('plugins.core.commands:format.output.header')('CPU Info'),
@@ -423,58 +443,84 @@ class ProxyPlugin(BasePlugin):
             f'{"Available":<{column_width}} : {humanize.naturalsize(virtual_memory.available, binary=True)}',
             f'{"Used":<{column_width}} : {humanize.naturalsize(virtual_memory.used, binary=True)}',
             f'{"Used Percent":<{column_width}} : {virtual_memory.percent}%',
+            *self.api('plugins.core.commands:format.output.header')('Process Info'),
+            f'{"CPU Percentage":<{column_width}} : {process.cpu_percent()}',
+            f'{"Memory Percentage":<{column_width}} : {process.memory_percent():.2}%',
+            f'{"Memory RSS":<{column_width}} : {humanize.naturalsize(mem_info.rss, binary=True)}',
+            f'{"Memory VMS":<{column_width}} : {humanize.naturalsize(mem_info.vms, binary=True)}',
             *self.api('plugins.core.commands:format.output.header')('Network Info'),
         ]
 
-        nic_addesses_columns = [
-            {'name': 'NIC', 'key': 'nic', 'width': 10},
-            {'name': 'Address', 'key': 'address', 'width': 40},
-            {'name': 'Type', 'key': 'type', 'width': 10},
-        ]
+        if args['networkinterfaces']:
+            nic_addresses = []
+            for nic in net_if_addrs:
+                nic_addresses.extend(
+                    {'nic': nic, 'address': addr.address, 'type': addr.family.name}
+                    for addr in net_if_addrs[nic]
+                )
 
-        nic_addresses = []
-        for nic in net_if_addrs:
-            nic_addresses.extend(
-                {'nic': nic, 'address': addr.address, 'type': addr.family.name}
-                for addr in net_if_addrs[nic]
-            )
+            nic_addresses_columns = [
+                {'name': 'NIC', 'key': 'nic', 'width': 10},
+                {'name': 'Address', 'key': 'address', 'width': 40},
+                {'name': 'Type', 'key': 'type', 'width': 10},
+            ]
 
-        connected_port_columns = [
-            {'name': 'Local Address', 'key': 'local_address', 'width': 20},
-            {'name': 'Local Port', 'key': 'local_port', 'width': 11},
-            {'name': 'Remote Address', 'key': 'remote_address', 'width': 20},
-            {'name': 'Remote Port', 'key': 'remote_port', 'width': 12},
-            {'name': 'Status', 'key': 'status', 'width': 7},
-        ]
-        listening_port_columns = [
-            {'name': 'Local Address', 'key': 'local_address', 'width': 20},
-            {'name': 'Local Port', 'key': 'local_port', 'width': 11},
-            {'name': 'Status', 'key': 'status', 'width': 7},
-        ]
+            msg.extend(
+                    [
+                        *self.api('plugins.core.utils:convert.data.to.output.table')('Network Addresses', nic_addresses, nic_addresses_columns),
+                    ])
 
-        listening_ports_dicts = []
-        connected_ports_dicts = []
-        for conn in net_connections:
-            if isinstance(conn.laddr, psutil_addr) and conn.laddr.port == proxy_port:
+        if args['ports']:
+            connected_port_columns = [
+                {'name': 'Local Address', 'key': 'local_address', 'width': 20},
+                {'name': 'Local Port', 'key': 'local_port', 'width': 11},
+                {'name': 'Remote Address', 'key': 'remote_address', 'width': 20},
+                {'name': 'Remote Port', 'key': 'remote_port', 'width': 12},
+                {'name': 'Status', 'key': 'status', 'width': 7},
+            ]
+            listening_port_columns = [
+                {'name': 'Local Address', 'key': 'local_address', 'width': 20},
+                {'name': 'Local Port', 'key': 'local_port', 'width': 11},
+                {'name': 'Status', 'key': 'status', 'width': 7},
+            ]
+
+            listening_ports_dicts = []
+            connected_ports_dicts = []
+            for conn in net_connections:
                 if conn.status == 'LISTEN':
                     listening_ports_dicts.append({'local_address': conn.laddr.ip,
-                                                  'local_port': conn.laddr.port,
-                                                  'status': conn.status})
+                                                    'local_port': conn.laddr.port,
+                                                    'status': conn.status})
                 elif isinstance(conn.raddr, psutil_addr):
                     connected_ports_dicts.append({'local_address': conn.laddr.ip,
-                                                  'local_port': conn.laddr.port,
-                                                  'remote_address': conn.raddr.ip,
-                                                  'remote_port': conn.raddr.port,
-                                                  'status': conn.status})
+                                                    'local_port': conn.laddr.port,
+                                                    'remote_address': conn.raddr.ip,
+                                                    'remote_port': conn.raddr.port,
+                                                    'status': conn.status})
 
-        msg.extend(
-            [
-                *self.api('plugins.core.utils:convert.data.to.output.table')('Network Addresses', nic_addresses, nic_addesses_columns),
-                '',
-                *self.api('plugins.core.utils:convert.data.to.output.table')('Listening Ports', listening_ports_dicts, listening_port_columns),
-                '',
-                *self.api('plugins.core.utils:convert.data.to.output.table')('Connected Ports', connected_ports_dicts, connected_port_columns),
+            msg.extend(
+                [
+                    '',
+                    *self.api('plugins.core.utils:convert.data.to.output.table')('Listening Ports', listening_ports_dicts, listening_port_columns),
+                    '',
+                    *self.api('plugins.core.utils:convert.data.to.output.table')('Connected Ports', connected_ports_dicts, connected_port_columns),
+                ])
+
+        if args['openfiles']:
+            open_files_columns = [
+                {'name': 'File', 'key': 'path', 'width': 60},
+                {'name': 'Mode', 'key': 'mode', 'width': 5},
             ]
-        )
+
+            open_files_dicts = [
+                {'path': file.path, 'mode': file.mode} for file in open_files
+            ]
+
+            msg.extend(
+                [
+                    '',
+                    *self.api('plugins.core.utils:convert.data.to.output.table')('Open Files', open_files_dicts, open_files_columns),
+                ]
+            )
 
         return True, msg
