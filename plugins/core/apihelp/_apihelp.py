@@ -114,6 +114,7 @@ class APIHelpPlugin(BasePlugin):
         api = args['api']
         try:
             returnstuff = self.api(api)(*args['arguments'])
-            return True, ['Api returned:', f'{returnstuff}']
+            tmsg = self.dump_object_as_string(returnstuff)
+            return True, ['Api returned:', '', tmsg]
         except Exception as e:
             return True, ['Api returned an error:', f'{e}']
