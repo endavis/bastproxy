@@ -279,7 +279,7 @@ class PluginLoader:
         LogRecord(f"{plugin_id:<30} : imported successfully", level='info', sources=[__name__])()
 
         # check for patches to the base plugin
-        if '_patch_base.py' in plugin_info.files:
+        if '_patch_base.py' in plugin_info.files and not plugin_info.has_been_reloaded:
             LogRecord(f"{plugin_id:<30} : attempting to patch base", level='info', sources=[__name__])()
             if patch(plugin_info.files['_patch_base.py']['full_import_location']):
                 LogRecord(f"{plugin_id:<30} : patching base successful", level='info', sources=[__name__])()
@@ -540,6 +540,7 @@ class PluginLoader:
                 LogRecord(f"{plugin_info.plugin_id:<30} : deleting imported module {item} failed ({plugin_info.name})",
                             level='error', sources=[__name__, plugin_info.plugin_id])()
 
+        plugin_info.has_been_reloaded = True
         # set the appropriate plugin_info.loaded_info attributes to None
         plugin_info.reset_loaded_info()
 
