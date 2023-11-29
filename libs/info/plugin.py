@@ -72,10 +72,8 @@ class PluginInfo():
         self.import_errors = []
 
     def check_file_is_valid_python_code(self, file):
-        contents = file.read_text()
-
         try:
-            ast.parse(contents)
+            ast.parse(file.read_text())
             return True, None
         except Exception as E:
             return False, E
