@@ -17,6 +17,8 @@ from plugins._baseplugin import RegisterPluginHook
 from libs.event import RegisterToEvent
 from libs.commands import AddCommand, AddParser, AddArgument
 
+CANRELOAD = False
+
 @AddCommand(group='Base', name='set', show_in_history=False)
 @AddParser(formatter_class=argp.RawDescriptionHelpFormatter,
         description=textwrap.dedent("""

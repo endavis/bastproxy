@@ -525,7 +525,7 @@ class PluginLoader:
             modules_to_delete.extend(
                 item
                 for item in sys.modules.keys()
-                if item.startswith(plugin_info.package_import_location) and '._patch_base' not in item
+                if item.startswith(plugin_info.package_import_location) and getattr(sys.modules[item], 'CANRELOAD', True)
             )
 
         for item in modules_to_delete:

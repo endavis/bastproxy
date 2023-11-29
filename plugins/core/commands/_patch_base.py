@@ -13,6 +13,8 @@
 # Project
 from plugins._baseplugin import RegisterPluginHook
 
+CANRELOAD = False
+
 @RegisterPluginHook('stats')
 def _phook_command_stats(self, **kwargs):    # pyright: ignore[reportInvalidTypeVarUse]
     """
