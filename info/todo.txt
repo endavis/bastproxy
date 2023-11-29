@@ -95,13 +95,13 @@
     # TODO: create a help plugin
                 for how to use as well as to develop for
     # TODO: move libs.event into plugins.core.events? same for commands and colors?
+        I don't think the decorators would ever be reloaded because all the plugins use them
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
     # TODO: proxy usage command with mem, average cpu, open files, etc...
         pympler?
     # TODO: add specific Exceptions
             APINotFoundException
-    # TODO: look at slots
     # TODO: update commands to use tables
         plugins.c.pluginm.list
 
@@ -110,6 +110,8 @@
         maybe for __init__?
     # TODO: libs.timing
         DIDNTDO: change decorator to a class?
+    # TODO: look at slots
+        NOTES: This messes with using __dict__ to format strings
 
 # DONE
     # COMPLETE: libs.api
