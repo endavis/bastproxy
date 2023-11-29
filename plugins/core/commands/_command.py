@@ -190,7 +190,7 @@ class CommandClass:
                 )
             )
             if arg_message := [
-                f"@G{item}@w: {self.current_args[item] or 'Not Specified'}"
+                f"@G{item}@w: {'Not Specified' if self.current_args[item] is None else self.current_args[item]}"
                 for item in self.current_args
                 if item not in ['help']
             ]:
