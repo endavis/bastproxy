@@ -38,11 +38,14 @@ class CommandClass:
         self.count = 0
         self.current_args: CmdArgsRecord | dict = {}
         self.current_arg_string = ''
+        self.last_run_start_time: datetime.datetime | None = None
+        self.last_run_end_time: datetime.datetime | None = None
 
     def run(self, arg_string: str = '', format=False) -> tuple[bool | None, list[str], str]:
         """
         run the command
         """
+        self.last_run_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.current_arg_string = arg_string
         message: list[str] = []
         command_ran = f"{self.full_cmd} {arg_string}"
@@ -95,6 +98,7 @@ class CommandClass:
         run the command finisher
         """
         oldmessage = message[:]
+        self.last_run_end_time = datetime.datetime.now(datetime.timezone.utc)
         if format:
             message = self.format_return_message(oldmessage)
         self.current_args = {}
@@ -169,7 +173,7 @@ class CommandClass:
                     ]
         if include_date:
             newmessage.append(self.api('plugins.core.utils:center.colored.string')(
-                    f'Start: {datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format)}',
+                    f'Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else "Unknown"}',
                         '-', line_length, filler_color=preamble_color))
 
         if not simple:
@@ -219,7 +223,7 @@ class CommandClass:
         if include_date:
             newmessage.append(
                 self.api('plugins.core.utils:center.colored.string')(
-                    f'Finish: {datetime.datetime.now(datetime.timezone.utc).strftime(self.api.time_format)}',
+                    f'Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else "Unknown"}',
                     '-', line_length, filler_color=preamble_color,
                 )
             )
