@@ -408,11 +408,9 @@ class UtilsPlugin(BasePlugin):
         return [
             *self.api('plugins.core.commands:format.header')(table_name, color=output_color, line_length=line_length),
             self.api('plugins.core.utils:cap.line')(subheader_msg, '|', color=output_color, line_length=line_length),
-            #f'{output_color}+{"-" * (line_length - 2)}+',
             self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=output_color,
                                                     line_length=line_length, space=False, fullcolor=True),
             *[self.api('plugins.core.utils:cap.line')(line, '|', color=output_color, line_length=line_length) for line in data_msg],
-            #f'{output_color}+{"-" * (line_length - 2)}+',
             self.api('plugins.core.utils:cap.line')(f'{"-" * (line_length - 2)}', '+', color=output_color,
                                                     line_length=line_length, space=False, fullcolor=True),
         ]
