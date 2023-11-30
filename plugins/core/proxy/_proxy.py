@@ -52,6 +52,7 @@ class ProxyPlugin(BasePlugin):
         self.proxyvpw = None
         self.mudpw = None
         self.mud_connection: MudConnection | None = None
+        self.attributes_to_save_on_reload = ['mud_connection']
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
