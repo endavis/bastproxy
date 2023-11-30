@@ -423,18 +423,6 @@ class CommandsPlugin(BasePlugin):
 
         return ''
 
-    @AddAPI('get.commands.for.plugin.formatted', description='get a formatted list of commands for a plugin')
-    def _api_get_commands_for_plugin_formatted(self, plugin_id):
-        """  get a list of commands for the specified plugin
-        @Yplugin@w   = the plugin the command is in
-
-        returns a list of strings formatted for the commands in the plugin
-        """
-        if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
-            return self.list_commands(plugin_id)
-
-        return None
-
     @AddAPI('get.commands.for.plugin.data', description='get the command data for a plugin')
     def _api_get_commands_for_plugin_data(self, plugin_id):
         """  get the data for commands for the specified plugin
@@ -687,14 +675,13 @@ class CommandsPlugin(BasePlugin):
                             "".join(["@B", '-' * 79])
                         ]
                 package_list = self.api('libs.pluginloader:get.packages.list')()
-                output.extend(match.replace('plugins.', '') for match in package_list)
+                output.extend(package_list)
                 return self.find_command_format_proxy_help(
                     output, message, command_str, 'Could not find package'
                 )
             elif tmessage == 'Bad Plugin':
                 # did not get a plugin, so output the list of plugins in the package
-                success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
-                                                                            'list', new_package)
+                cmd_output = self.api(f"{self.plugin_id}:list.plugins.formatted")(new_package)
 
                 output = [
                             "Could not find a matching plugin",
@@ -702,8 +689,7 @@ class CommandsPlugin(BasePlugin):
                             f"Available Plugins in {new_package}",
                             "".join(["@B", '-' * 79])
                         ]
-                if success:
-                    output.extend(match.replace('plugins.', '') for match in cmd_output)
+                output.extend(cmd_output)
                 return self.find_command_format_proxy_help(
                     output, message, command_str, 'Could not find plugin'
                 )
@@ -729,17 +715,13 @@ class CommandsPlugin(BasePlugin):
 
         if not new_command:
             # did not get a command, so output the list of commands in the plugin
-            success, cmd_output = self.api(f"{self.plugin_id}:run")('plugins.core.commands',
-                                                                        'list', new_plugin)
+            cmd_output = self.api(f"{self.plugin_id}:list.commands.formatted")(new_plugin)
 
             output = [
                         "Could not find a matching command",
                         "".join(["@B", '-' * 79]),
-                        f"Available Commands in {new_plugin}",
-                        "".join(["@B", '-' * 79])
                     ]
-            if success:
-                output.extend(match.replace('plugins.', '') for match in cmd_output)
+            output.extend(cmd_output)
             return self.find_command_format_proxy_help(
                 output, message, command_str, 'Could not find command'
             )
@@ -920,7 +902,8 @@ class CommandsPlugin(BasePlugin):
 
         return message
 
-    def list_commands(self, plugin_id):
+    @AddAPI('list.commands.formatted', description='return a formatted list of commands for a plugin')
+    def _api_list_commands_formatted(self, plugin_id):
         """
         build a table of commands for a plugin
 
@@ -958,6 +941,23 @@ class CommandsPlugin(BasePlugin):
 
         return message
 
+    @AddAPI('list.plugins.formatted', description='return a formatted list of all plugins')
+    def _api_list_plugins_formatted(self, package=None):
+        """
+        list all plugins
+        """
+        if package:
+            plugin_id_list = self.api('libs.pluginloader:get.plugins.in.package')(package)
+        else:
+            plugin_id_list = self.api('libs.pluginloader:get.loaded.plugins.list')()
+        plugin_id_list = sorted(plugin_id_list)
+        return [
+            'Plugins',
+            self.api('plugins.core.utils:format.list.into.columns')(
+                plugin_id_list, cols=3, columnwise=False, gap=6
+            ),
+        ]
+
     @AddCommand(shelp='list commands', show_in_history=False)
     @AddParser(description='list commands in a plugin')
     @AddArgument('plugin',
@@ -981,19 +981,16 @@ class CommandsPlugin(BasePlugin):
         message = []
         command = args['command']
         plugin_id = args['plugin']
+
         if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
-            message.append('Plugins')
-            plugin_id_list = self.api('libs.pluginloader:get.loaded.plugins.list')()
-            plugin_id_list = sorted(plugin_id_list)
-            message.append(self.api('plugins.core.utils:format.list.into.columns')(plugin_id_list, cols=3, columnwise=False, gap=6))
-            return True, message
+            return True, self.api(f'{self.plugin_id}:list.plugins.formatted')(package=plugin_id)
 
         if plugin_commands := self.command_data[plugin_id]:
             if command and command in plugin_commands:
                 help_message = plugin_commands[command].arg_parser.format_help().split('\n')
                 message.extend(help_message)
             else:
-                message.extend(self.list_commands(plugin_id))
+                message.extend(self.api(f'{self.plugin_id}:list.commands.formatted')(plugin_id))
         else:
             message.append(f'There are no commands in plugin {plugin_id}')
 

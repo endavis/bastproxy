@@ -135,8 +135,7 @@ class Commands(Protocol):
             msg.append('')
 
         if args['commands']:
-            _, cmd_output = self.api("plugins.core.commands:run")('plugins.core.commands',
-                                                            'list', self.plugin_id)
+            cmd_output = self.api('plugins.core.commands:list.commands.formatted')(self.plugin_id)
             msg.extend(cmd_output)
             msg.extend(('@G' + '-' * 60 + '@w', ''))
         if args['api']:
