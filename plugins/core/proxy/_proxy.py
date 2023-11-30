@@ -398,7 +398,6 @@ class ProxyPlugin(BasePlugin):
                     help='show network ports',
                     action='store_false',
                     default=True)
-
     def _command_resource(self):
         """
         output proxy resource usage
