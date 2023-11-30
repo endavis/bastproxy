@@ -168,11 +168,11 @@ class ProxyPlugin(BasePlugin):
 
         tmsg = [
             *(
-                '@B-------------------  Proxy ------------------@w',
+                *self.api('plugins.core.commands:format.output.header')('Proxy Info'),
                 template % ('Started', started),
                 template % ('Uptime', uptime),
                 '',
-                '@B-------------------   Mud  ------------------@w',
+                *self.api('plugins.core.commands:format.output.header')('Mud Info'),
             ),
         ]
         if self.mud_connection and self.mud_connection.connected:
@@ -204,24 +204,10 @@ class ProxyPlugin(BasePlugin):
         else:
             tmsg.append(template % ('Mud', 'disconnected'))
 
-        clients = self.api('plugins.core.clients:get.all.clients')()
+        tmsg.append('')
 
-        # client.view_only
-        aclients = [client for client in clients if not client.view_only]
-        vclients = [client for client in clients if client.view_only]
-
-        tmsg.extend(
-            (
-                '',
-                '@B-----------------   Clients  ----------------@w',
-                template % ('Clients', len(aclients)),
-                template % ('View Clients', len(vclients)),
-                '@B---------------------------------------------@w',
-            )
-        )
         _, nmsg = self.api('plugins.core.commands:run')('plugins.core.clients', 'show', '')
 
-        del nmsg[0]
         tmsg.extend(nmsg)
         return True, tmsg
 
