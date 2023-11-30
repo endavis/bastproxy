@@ -170,7 +170,6 @@ class ProxyPlugin(BasePlugin):
                 '@B-------------------  Proxy ------------------@w',
                 template % ('Started', started),
                 template % ('Uptime', uptime),
-                template % ('Python Version', platform.python_version()),
                 '',
                 '@B-------------------   Mud  ------------------@w',
             ),
@@ -430,7 +429,17 @@ class ProxyPlugin(BasePlugin):
         net_connections = process.connections(kind='inet')
         open_files = process.open_files()
 
+        uname = platform.uname()
+
         msg = [
+            *self.api('plugins.core.commands:format.output.header')('OS Info'),
+            f'{"OS":<{column_width}} : {uname.system}',
+            f'{"Hostname":<{column_width}} : {uname.node}',
+            f'{"Platform":<{column_width}} : {platform.platform()}',
+            *self.api('plugins.core.commands:format.output.header')('Python Info'),
+            f'{"Python Version":<{column_width}} : {platform.python_version()}',
+            f'{"Python Path":<{column_width}} :',
+            *[f'     {i}' for i in sys.path],
             *self.api('plugins.core.commands:format.output.header')('CPU Info'),
             f'{"CPU Percent":<{column_width}} : {cpu_percent}',
             f'{"CPU Count":<{column_width}} : {cpu_count}',
