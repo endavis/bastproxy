@@ -104,6 +104,9 @@
             APINotFoundException
     # TODO: update commands to use tables
         plugins.c.pluginm.list
+    # TODO: check on plac instead of ArgumentParser
+        see if it can do both + and - as arguments
+            ++openfile vs --openfiles for proxy.resources
 
 # REVISIT:
     # TODO: decorator for event description
