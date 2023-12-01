@@ -623,24 +623,102 @@ class CommandsPlugin(BasePlugin):
         returns the data
         """
         newoutput = [
-            f"{header}",
-            "".join(["@B", '-' * 79]),
+            '',
+            *self.api(f'{self.plugin_id}:format.output.header')(header),
             "To send a command to the proxy, prefix it with a #bp",
-            "commands are not required to start with 'plugins'",
-            "however, they must include the package",
+            "Commands are not required to start with 'plugins'",
+            "However, they must include the package",
             "The proxy will do its best to find the correct command",
             "Valid:     #bp.core.proxy.info -h",
             "           #bp.c.proxy",
             "           #bp.co.prox",
             "Not Valid: #bp.proxy.info -h",
             "           #bp.proxy",
-            "".join(["@B", '-' * 79]),
+#            "".join(["@B", '-' * 80]),
         ]
         if header2:
-            newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", '-' * 79])))
+            newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", '-' * 80])))
         newoutput.extend(data)
+        newoutput.append('')
 
         return newoutput
+
+    def error_command_not_found_in_plugin(self, plugin_id, command=None):
+        """
+        command not found in plugin
+        """
+        message = []
+        if command:
+            message = [
+                self.api('plugins.core.utils:cap.line')(f'{"-" * (80 - 2)}', '+', color='@B',
+                                                            line_length=80, space=False, fullcolor=True),
+                self.api('plugins.core.utils:center.colored.string')(f'@RError - Plugin {plugin_id.replace('plugins.', '')} has no command{f" : {command}" if command else ""}@w',
+                                                                 filler_character='-',
+                                                                 length=80,
+                                                                 filler_color='@B',
+                                                                 endcaps=True),
+            ]
+
+        message.extend([
+            *[line.replace('plugins.', '') for line in self.api(f'{self.plugin_id}:list.commands.formatted')(plugin_id)],
+        ])
+
+        return self.proxy_help("Proxy Help", "", message)
+
+    def error_plugin_not_found(self, plugin_id=None, package=None):
+        """
+        plugin not found
+        """
+        message = []
+        if plugin_id:
+            message = [
+                self.api('plugins.core.utils:cap.line')(f'{"-" * (80 - 2)}', '+', color='@B',
+                                                            line_length=80, space=False, fullcolor=True),
+                self.api('plugins.core.utils:center.colored.string')(f'@RError - Unknown plugin{f" : {plugin_id}" if plugin_id else ""}@w',
+                                                                    filler_character='-',
+                                                                    length=80,
+                                                                    filler_color='@B',
+                                                                    endcaps=True),
+            ]
+
+        plugins = [line.replace('plugins.', '') for line in self.api('libs.pluginloader:get.plugins.in.package')(package)]
+
+        message.extend([
+            *self.api(f'{self.plugin_id}:format.output.header')(f'Available Plugins in {package}'),
+            self.api('plugins.core.utils:format.list.into.columns')(
+                    plugins, cols=3, columnwise=False, gap=6
+                ),
+        ])
+        return self.proxy_help("Proxy Help", "", message)
+
+    def error_package_not_found(self, package=None):
+        """
+        package not found
+        """
+        message = [
+            self.api('plugins.core.utils:cap.line')(f'{"-" * (80 - 2)}', '+', color='@B',
+                                                        line_length=80, space=False, fullcolor=True),
+            self.api('plugins.core.utils:center.colored.string')(f'@RError - Unknown package{f" : {package}" if package else ""}@w',
+                                                                 filler_character='-',
+                                                                 length=80,
+                                                                 filler_color='@B',
+                                                                 endcaps=True),
+            *self.api(f'{self.plugin_id}:format.output.header')('Available Packages'),
+            *[line.replace('plugins.', '') for line in self.api('libs.pluginloader:get.packages.list')(active_only=True)],
+        ]
+        return self.proxy_help("Proxy Help", "", message)
+
+    def find_command_only_prefix(self):
+        """
+        found only the command_prefix
+        """
+        # found just the command prefix
+        # get the list of packages
+        message = [
+            *self.api(f'{self.plugin_id}:format.output.header')('Available Packages'),
+            *[line.replace('plugins.', '') for line in self.api('libs.pluginloader:get.packages.list')(active_only=True)],
+        ]
+        return self.proxy_help("Proxy Help", "", message)
 
     def find_command(self, command_line: str) -> tuple[CommandClass | None, str, bool, str, list[str]]:
         """
@@ -668,31 +746,13 @@ class CommandsPlugin(BasePlugin):
         if not found:
             if tmessage == 'Bad Package':
                 # did not get a package, so output the list of packages
-                output = [
-                            "Could not find a matching package",
-                            "".join(["@B", '-' * 79]),
-                            "Available Packages",
-                            "".join(["@B", '-' * 79])
-                        ]
-                package_list = self.api('libs.pluginloader:get.packages.list')()
-                output.extend(package_list)
-                return self.find_command_format_proxy_help(
-                    output, message, command_str, 'Could not find package'
-                )
+                output =  self.error_package_not_found(command_split[0])
+                return None, '', False, command_str, output
             elif tmessage == 'Bad Plugin':
                 # did not get a plugin, so output the list of plugins in the package
-                cmd_output = self.api(f"{self.plugin_id}:list.plugins.formatted")(new_package)
+                output =  self.error_plugin_not_found(command_split[1], new_package)
+                return None, '', False, command_str, output
 
-                output = [
-                            "Could not find a matching plugin",
-                            "".join(["@B", '-' * 79]),
-                            f"Available Plugins in {new_package}",
-                            "".join(["@B", '-' * 79])
-                        ]
-                output.extend(cmd_output)
-                return self.find_command_format_proxy_help(
-                    output, message, command_str, 'Could not find plugin'
-                )
         LogRecord(f"{found} {new_package} {new_plugin} {tmessage}",
                 level='debug',
                 sources=[self.plugin_id])(actor = f"{self.plugin_id}:find_command")
@@ -715,16 +775,9 @@ class CommandsPlugin(BasePlugin):
 
         if not new_command:
             # did not get a command, so output the list of commands in the plugin
-            cmd_output = self.api(f"{self.plugin_id}:list.commands.formatted")(new_plugin)
+            output =  self.error_command_not_found_in_plugin(new_plugin, temp_command)
+            return None, '', False, command_str, output
 
-            output = [
-                        "Could not find a matching command",
-                        "".join(["@B", '-' * 79]),
-                    ]
-            output.extend(cmd_output)
-            return self.find_command_format_proxy_help(
-                output, message, command_str, 'Could not find command'
-            )
         # got it all
         command_item = command_data[new_command]
 
@@ -767,26 +820,8 @@ class CommandsPlugin(BasePlugin):
 
         plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
 
-        found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str)
+        found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str, active_only=True)
         return found, new_package, new_plugin, tmessage, command_split, command_args
-
-    def find_command_only_prefix(self):
-        """
-        found only the command_prefix
-        """
-        # found just the command prefix
-        # get the list of packages
-        packages_list = [package.replace('plugins.', '')
-                            for package in self.api('libs.pluginloader:get.packages.list')()]
-
-        return self.proxy_help("Proxy Help", "Available Packages:", packages_list)
-
-    def find_command_format_proxy_help(self, output, message, command_str, arg3):
-        output.append("".join(["@B", '-' * 79]))
-
-        message.extend(self.proxy_help("Proxy Help", f"Unknown command: {command_str}", output))
-
-        return None, '', False, arg3, message
 
     def run_internal_command_from_event(self):
         """
@@ -898,7 +933,7 @@ class CommandsPlugin(BasePlugin):
                     tlist = i.arg_parser.description.split('\n')
                     if not tlist[0]:
                         tlist.pop(0)
-                    message.append(f"  {output_header_color}{i.name:<10}@w : {tlist[0]}")
+                    message.append(f"  {output_header_color}{i.name.replace('plugins.', ''):<10}@w : {tlist[0]}")
 
         return message
 
@@ -913,15 +948,15 @@ class CommandsPlugin(BasePlugin):
 
         returns the a list of strings for the list of commands
         """
-
         if not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             return []
 
-        output_header_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_header_color')
         output_subheader_color = self.api('plugins.core.settings:get')(self.plugin_id, 'output_subheader_color')
 
         commands: dict[str, CommandClass] = self.command_data[plugin_id]
-        message = [f"Commands in {plugin_id}:", output_header_color + '-' * 60 + '@w']
+
+        message = self.api(f'{self.plugin_id}:format.output.header')(f'Available Commands in {plugin_id.replace("plugins.", "")}')
+
         groups = {}
         for i in sorted(commands.keys()):
             if i != 'default':
@@ -932,7 +967,7 @@ class CommandsPlugin(BasePlugin):
 
         for group in sorted(groups.keys()):
             if group != 'Base':
-                message.append(output_subheader_color + '-' * 5 + ' ' +  group + ' ' + '-' * 5 + '@w')
+                message.append(output_subheader_color + '-' * 5 + ' ' +  group.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
                 message.extend(self.format_command_list(groups[group]))
                 message.append('')
 
@@ -947,16 +982,18 @@ class CommandsPlugin(BasePlugin):
         list all plugins
         """
         if package:
-            plugin_id_list = self.api('libs.pluginloader:get.plugins.in.package')(package)
+            plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.pluginloader:get.plugins.in.package')(package)]
         else:
-            plugin_id_list = self.api('libs.pluginloader:get.loaded.plugins.list')()
-        plugin_id_list = sorted(plugin_id_list)
-        return [
-            'Plugins',
-            self.api('plugins.core.utils:format.list.into.columns')(
-                plugin_id_list, cols=3, columnwise=False, gap=6
-            ),
-        ]
+            plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.pluginloader:get.plugins.in.package')()]
+
+        if plugin_id_list := sorted(plugin_id_list):
+            return [
+                self.api('plugins.core.utils:format.list.into.columns')(
+                    plugin_id_list, cols=3, columnwise=False, gap=6
+                ),
+            ]
+        else:
+            return  ['No plugins found']
 
     @AddCommand(shelp='list commands', show_in_history=False)
     @AddParser(description='list commands in a plugin')
