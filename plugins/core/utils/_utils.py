@@ -260,15 +260,18 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI('center.colored.string', description='center a string with color codes')
     def _api_center_colored_string(self, string_to_center, filler_character='',
-                                   length=80, filler_color='', endcaps=False):
+                                   length=80, filler_color='', endcaps=False,
+                                   capchar='|'):
         """
         center a string with color codes
         """
         converted_colors_string = self.api('plugins.core.colors:colorcode.to.ansicode')(string_to_center)
         noncolored_string = self.api('plugins.core.colors:ansicode.strip')(converted_colors_string)
 
+        caplength = 0
         if endcaps:
-            length -= 2
+            caplength = length
+            length -= 4
 
         noncolored_string_length = len(noncolored_string) + 4
         length_difference = length - noncolored_string_length
@@ -289,7 +292,8 @@ class UtilsPlugin(BasePlugin):
             new_str += filler_character * (length - new_length)
 
         if endcaps:
-            new_str = f'{filler_color}|{filler_color_end}{new_str}{filler_color}|{filler_color_end}'
+            new_str = self.api('plugins.core.utils:cap.line')(new_str, capchar, color=filler_color,
+                                                    line_length=caplength, space=True, fullcolor=False)
 
         new_str = f"{new_str}{filler_color_end}"
 
