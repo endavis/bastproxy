@@ -124,11 +124,15 @@ class PluginLoader:
         return [plugin_info.plugin_id for plugin_info in self.plugins_info.values() if plugin_info.loaded_info.is_loaded]
 
     @AddAPI('get.packages.list', description='get the list of packages')
-    def _api_get_packages_list(self):
+    def _api_get_packages_list(self, active_only=False):
         """
         return the list of packages
         """
-        packages = [plugin_info.package for plugin_info in self.plugins_info.values()]
+        if active_only:
+            packages = [plugin_info.package for plugin_info in self.plugins_info.values() if plugin_info.loaded_info.is_loaded]
+        else:
+            packages = [plugin_info.package for plugin_info in self.plugins_info.values()]
+
         packages = list(set(packages))
 
         return packages
@@ -599,7 +603,7 @@ class PluginLoader:
         LogRecord('Finished Loading core and client plugins', level='info', sources=[__name__])()
 
     @AddAPI('fuzzy.match.plugin.id', description='find a plugin id from a string')
-    def _api_fuzzy_match_plugin_id(self, plugin_id_string: str) -> tuple[bool, str, str, str]:
+    def _api_fuzzy_match_plugin_id(self, plugin_id_string: str, active_only = False) -> tuple[bool, str, str, str]:
         """
         find a command from the client
         return bool (found), package. plugin_id, message
@@ -621,7 +625,7 @@ class PluginLoader:
             tmp_plugin = psplit[2]
 
         loaded_list = self.api(f'{__name__}:get.loaded.plugins.list')()
-        package_list = self.api(f"{__name__}:get.packages.list")()
+        package_list = self.api(f"{__name__}:get.packages.list")(active_only)
 
         # try and find the package
         new_package = self.api('plugins.core.fuzzy:get.best.match')(tmp_package, tuple(package_list),
