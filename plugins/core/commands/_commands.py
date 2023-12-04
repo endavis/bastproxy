@@ -53,6 +53,9 @@ class CommandsPlugin(BasePlugin):
         self.command_history_data = self.command_history_dict['history']
 
         self.current_command: CommandClass | None = None
+        self.current_input_event: None = None
+
+        self.attributes_to_save_on_reload = ['current_input_event']
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
@@ -885,6 +888,14 @@ class CommandsPlugin(BasePlugin):
         if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
+        if self.current_input_event == event_record:
+            LogRecord(f"current_input_event: {self.current_input_event} is being processed, skipping",
+                    level='debug', sources=[self.plugin_id])()
+            self.current_input_event = None
+            return
+
+        self.current_input_event = event_record
+
         if event_record['line'].startswith(commandprefix):
             self.run_internal_command_from_event()
 
@@ -893,6 +904,8 @@ class CommandsPlugin(BasePlugin):
 
         if event_record['showinhistory'] and not event_record['internal']:
             self.add_command_to_history(event_record['line'])
+
+        self.current_input_event = None
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
