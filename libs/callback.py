@@ -34,6 +34,24 @@ class Callback: # pylint: disable=too-few-public-methods
         self.created_time: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
         self.last_raised_datetime: datetime.datetime | None = None
 
+    def __hash__(self) -> int:
+        """
+        hash the callback
+        """
+        return hash(self.func) + hash(self.owner_id) + hash(self.name) + hash(self.created_time)
+
+    def __eq__(self, other_function):
+        """
+        check equality between two callbacks
+        """
+        if isinstance(other_function, Callback):
+            return hash(self) == hash(other_function)
+
+        return (
+            isinstance(other_function, typing.Callable)
+            and other_function == self.func
+        )
+
     def execute(self, args: dict | None = None):
         """
         execute the callback
@@ -50,19 +68,3 @@ class Callback: # pylint: disable=too-few-public-methods
         return a string representation of the callback
         """
         return f"Event {self.name:<10} : {self.owner_id:<15}"
-
-    def __eq__(self, other_function: typing.Callable) -> bool:
-        """
-        check equality between two functions
-        """
-        if callable(other_function):
-            if other_function == self.func:
-                return True
-
-        try:
-            if self.func == other_function.func:
-                return True
-        except AttributeError:
-            return False
-
-        return False
