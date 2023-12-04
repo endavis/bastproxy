@@ -14,7 +14,6 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
 """
 # Standard Library
 import typing
-import datetime
 
 # 3rd Party
 
@@ -60,6 +59,7 @@ class Event:
         self.arg_descriptions = arg_descriptions or {}
         self.current_record: EventArgsRecord | None = None
         self.raised_data = SimpleQueue(length=10)
+        self.current_callback = None
 
     def count(self) -> int:
         """
@@ -91,14 +91,19 @@ class Event:
         """
         priority = prio or 50
         if priority not in self.priority_dictionary:
-            self.priority_dictionary[priority] = []
+            self.priority_dictionary[priority] = {}
 
-        event_function = Callback(func.__name__, func_owner_id, func)
+        call_back = Callback(func.__name__, func_owner_id, func)
 
-        if event_function not in self.priority_dictionary[priority]:
-            self.priority_dictionary[priority].append(event_function)
-            LogRecord(f"{self.name} - register function {event_function} with priority {priority}",
-                      level='debug', sources=[event_function.owner_id, self.created_by])()
+        if call_back not in self.priority_dictionary[priority]:
+            # This is a list of functions that are registered to this event at this priority
+            # It is used to ensure that a function is not registered twice
+            # Each time the event is invoked, the dictionary item will be set to True
+            # when the function has been called. This is used to ensure that all functions
+            # are called at least once before the event is finished
+            self.priority_dictionary[priority][call_back]= False
+            LogRecord(f"{self.name} - register function {call_back} with priority {priority}",
+                      level='debug', sources=[call_back.owner_id, self.created_by])()
             return True
 
         return False
@@ -107,13 +112,17 @@ class Event:
         """
         unregister a function from this event container
         """
+        # print(f"unregister - {self.name} - {func.__name__}")
         for priority in self.priority_dictionary:
-            if func in self.priority_dictionary[priority]:
-                event_function = self.priority_dictionary[priority][self.priority_dictionary[priority].index(func)]
-                LogRecord(f"unregister - {self.name} - unregister function {event_function} with priority {priority}",
-                          level='debug', sources=[event_function.owner_id, self.created_by])()
-                self.priority_dictionary[priority].remove(event_function)
-                return True
+            # print(f"unregister - {self.name} - {func.__name__} - {priority}")
+            for call_back in self.priority_dictionary[priority]:
+                # print(f"unregister - {self.name} - {func.__name__} - {priority} - {call_back}")
+                # print(f"{call_back == func = }")
+                if call_back == func:
+                    LogRecord(f"unregister - {self.name} - unregister function {func} with priority {priority}",
+                              level='debug', sources=[call_back.owner_id, self.created_by])()
+                    del self.priority_dictionary[priority][call_back]
+                    return True
 
         LogRecord(f"unregister - {self.name} - could not find function {func.__name__}",
                   level='error', sources=[self.created_by])()
@@ -123,9 +132,9 @@ class Event:
         registrations = []
         for priority in self.priority_dictionary:
             registrations.extend(
-                event_function.name
-                for event_function in self.priority_dictionary[priority]
-                if event_function.owner_id == owner_id
+                call_back.name
+                for call_back in self.priority_dictionary[priority]
+                if call_back.owner_id == owner_id
             )
         return registrations
 
@@ -136,9 +145,9 @@ class Event:
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
             plugins_to_unregister.extend(
-                event_function
-                for event_function in self.priority_dictionary[priority]
-                if event_function.owner_id == owner_id
+                call_back
+                for call_back in self.priority_dictionary[priority]
+                if call_back.owner_id == owner_id
             )
         for event_function in plugins_to_unregister:
             self.api('plugins.core.events:unregister.from.event')(self.name, event_function.func)
@@ -176,8 +185,8 @@ class Event:
         key_list = sorted(key_list)
         for priority in key_list:
             function_message.extend(
-                f"{priority:<13} : {event_function.owner_id:<25} - {event_function.name}"
-                for event_function in self.priority_dictionary[priority]
+                f"{priority:<13} : {call_back.owner_id:<25} - {call_back.name}"
+                for call_back in self.priority_dictionary[priority]
             )
         if not function_message:
             message.append('None')
@@ -206,6 +215,43 @@ class Event:
             message.append(header_color + '-' * 60 + '@w')
 
         return message
+
+    def reset_event(self):
+        """
+        reset the event
+        """
+        for priority in self.priority_dictionary:
+            for call_back in self.priority_dictionary[priority]:
+                self.priority_dictionary[priority][call_back] = False
+
+    def raise_priority(self, priority, already_done: bool) -> bool:
+        """
+        raise the event at a specific priority
+        """
+        found = False
+        for call_back in list(self.priority_dictionary[priority].keys()):
+            try:
+                # A callback should call the api 'plugins.core.events:get:current:event'
+                # which returns event_name, EventArgsRecord
+                # If the registered event changes the data, it should snapshot it with addupdate
+                if call_back in self.priority_dictionary[priority] \
+                        and not self.priority_dictionary[priority][call_back] \
+                        and self.current_callback != call_back:
+                    self.current_callback = call_back
+                    self.priority_dictionary[priority][call_back] = True
+                    call_back.execute()
+                    found = True
+                    if already_done:
+                        LogRecord(f"raise_event - event {self.name} with function {call_back.owner_id}:{call_back.name} was called out of order at priority {priority}",
+                                    level='warning', sources=[call_back.owner_id, self.created_by])()
+                        LogRecord(f"    this is likely due to a function being registered at priority {priority} during the execution of the event",
+                                    level='warning', sources=[call_back.owner_id, self.created_by])()
+
+            except Exception:  # pylint: disable=broad-except
+                LogRecord(f"raise_event - event {self.name} with function {call_back.name} raised an exception",
+                            level='error', sources=[call_back.owner_id, self.created_by], exc_info=True)()
+
+        return found
 
     def raise_event(self, data: dict | EventArgsRecord, calledfrom: str) -> EventArgsRecord | None:
         """
@@ -247,19 +293,32 @@ class Event:
             data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
         event_data.arg_data = data
 
-        self.current_record = data
-        if keys := self.priority_dictionary.keys():
-            keys = sorted(keys)
-            for priority in keys:
-                for event_function in self.priority_dictionary[priority][:]:
-                    try:
-                        # A callback should call the api 'plugins.core.events:get:current:event'
-                        # which returns event_name, EventArgsRecord
-                        # If the registered event changes the data, it should snapshot it with addupdate
-                        event_function.execute()
-                    except Exception:  # pylint: disable=broad-except
-                        LogRecord(f"raise_event - event {self.name} with function {event_function.name} raised an exception",
-                                    level='error', sources=[event_function.owner_id, self.created_by], exc_info=True)()
-        self.current_record = None
-        return data
+        # This checks each priority seperately and executes the functions in order of priority
+        # A while loop is used to ensure that if a function is added to the event during the execution of the same event
+        # it will be processed in the same order as the other functions
+        # This means that any registration added during the execution of the event will be processed
+        priorities_done = []
 
+        self.current_record = data
+        found_callbacks = True
+        count = 0
+        while found_callbacks:
+            count = count + 1
+            found_callbacks = False
+            if keys := list(self.priority_dictionary.keys()):
+                keys = sorted(keys)
+                if len(keys) < 1:
+                    found_callbacks = False
+                    continue
+                for priority in keys:
+                    found_callbacks = self.raise_priority(priority, priority in priorities_done)
+                    priorities_done.append(priority)
+
+        if count > 2: # the minimum number of times through the loop is 2
+            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} was processed {count} times",
+                        level='warning', sources=[self.created_by])()
+
+        self.current_record = None
+        self.current_callback = None
+        self.reset_event()
+        return data
