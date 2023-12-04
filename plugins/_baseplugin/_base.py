@@ -108,7 +108,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         sorted_keys = sorted(functions.keys())
         for key in sorted_keys:
             for func in functions[key]:
-                LogRecord(f"calling function {func.__name__}", level='debug',
+                LogRecord(f"phook {plugin_hook} calling function {func.__name__}", level='debug',
                         sources=[self.plugin_id, 'plugin_upgrade'])()
                 if not kwargs:
                     func()
@@ -321,8 +321,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
             self.api(f"{self.plugin_id}:save.state")()
 
-
-    @RegisterPluginHook('initialize', priority=90)
+    @RegisterPluginHook('initialize', priority=91)
     def _phook_base_post_initialize_setup(self):
         """
         do something after the initialize function is run
@@ -338,7 +337,21 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         else:
             self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,
                                                       prio=self.is_character_active_priority)
+
         self.is_inititalized_f = True
+        self.api('libs.pluginloader:set.plugin.is.loaded')(self.plugin_id)
+
+        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_initialized", self.plugin_id,
+                                                    description=[f"Raised when {self.plugin_id} is initialized"],
+                                                    arg_descriptions={'None': None})
+        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_uninitialized", self.plugin_id,
+                                                    description=[f"Raised when {self.plugin_id} is uninitialized"],
+                                                    arg_descriptions={'None': None})
+
+        if not self.api.startup:
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_initialized", {})
+            self.api('plugins.core.events:raise.event')("ev_plugin_initialized",
+                                                     {'plugin_id':self.plugin_id})
 
     @AddAPI('is.initialized', description='return True if the plugin is initialized')
     def _api_is_initializing(self):
@@ -378,9 +391,12 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         return return_kwargs.get('stats', stats)
 
-    def uninitialize(self, _=None):
+    @RegisterPluginHook('uninitialize', priority=100)
+    def _phook_base_unitialize_hook(self):
         """
-        uninitialize stuff
+        unitialize the plugin
+
+        should be the last thing done in uninitialize
         """
         #save the state
         self.api(f"{self.plugin_id}:save.state")()
@@ -390,9 +406,17 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             for item in self.attributes_to_save_on_reload:
                 self.api('libs.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
 
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_uninitialized", {})
+        self.api('plugins.core.events:raise.event')("ev_plugin_uninitialized",
+                                                    {'plugin_id':self.plugin_id})
+
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
 
+    def uninitialize(self, _=None):
+        """
+        uninitialize stuff
+        """
         self._process_plugin_hook('uninitialize')
 
     @RegisterPluginHook('initialize', priority=1)

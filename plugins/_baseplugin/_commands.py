@@ -19,8 +19,8 @@ from libs.event import RegisterToEvent
 Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
 
 class Commands(Protocol):
-    @RegisterToEvent(event_name="ev_{plugin_id}_initialized")
-    def _eventcb_base_post_initialize_add_reset_command(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    @RegisterPluginHook('initialize')
+    def _phook_base_post_initialize_add_reset_command(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """
         add commands to the plugin
         """

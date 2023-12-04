@@ -30,7 +30,7 @@ class CMDQPlugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
+    @RegisterToEvent(event_name='ev_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
@@ -38,7 +38,7 @@ class CMDQPlugin(BasePlugin):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            self.api(f"{self.plugin_id}:remove.commands.for.plugin")(event_record['plugin_id'])
+            self.api(f"{self.plugin_id}:remove.mud.commands.for.plugin")(event_record['plugin_id'])
 
     @AddAPI('remove.mud.commands.for.plugin', description='remove all mud commands related to a plugin')
     def _api_remove_mud_commands_for_plugin(self, plugin_id):

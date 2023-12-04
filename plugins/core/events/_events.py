@@ -69,13 +69,23 @@ class EventsPlugin(BasePlugin):
         plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
         LogRecord(f"register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
-                    sources=[self.plugin_id])()
+                    sources=[self.plugin_id, plugin_id])()
         if event_functions:
             names = [item.__name__ for item in event_functions]
             LogRecord(f"register_events_for_plugin {names = }", level='debug',
-                        sources=[self.plugin_id])()
+                        sources=[self.plugin_id, plugin_id])()
             for func in event_functions:
                 self.api(f"{self.plugin_id}:register.event.by.func")(func)
+
+    @RegisterToEvent(event_name='ev_plugin_initialized', priority=1)
+    def _eventcb_plugin_initialized(self):
+        """
+        a plugin was initialized, so load all events
+        """
+        if self.api.startup or not (event_record := self.api('plugins.core.events:get.current.event.record')()):
+            return
+
+        self.register_events_for_plugin(event_record['plugin_id'])
 
     def get_event_registration_functions_in_object(self, base, recurse=True):
         """
@@ -108,14 +118,14 @@ class EventsPlugin(BasePlugin):
             prio = item['priority']
             self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
+    @RegisterToEvent(event_name='ev_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
         """
         if event_record := self.api('plugins.core.events:get.current.event.record')():
             LogRecord(f"_eventcb_plugin_uninitialized - removing events for {event_record['plugin_id']}",
-                    level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
+                    level='info', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 
     @AddAPI('get.current.event.name', description='return the current event name')
@@ -229,7 +239,7 @@ class EventsPlugin(BasePlugin):
         @Yowner_id@w   = The owner to remove events for
         this function returns no values"""
         LogRecord(f"_api_remove_events_for_owner - removing events for {owner_id}",
-                  level='debug', sources=[self.plugin_id, owner_id])()
+                  level='info', sources=[self.plugin_id, owner_id])()
 
         for event in self.events:
             self.events[event].removeowner(owner_id)
@@ -389,7 +399,7 @@ class EventsPlugin(BasePlugin):
 
         return True, message
 
-    @AddParser(description='list events for a specific owner')
+    @AddParser(description='list registrations for a specific owner')
     @AddArgument('owner',
                     help='list only events that have this argument in their name',
                     default='',

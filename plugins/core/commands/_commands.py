@@ -209,7 +209,7 @@ class CommandsPlugin(BasePlugin):
         LogRecord('_eventcb_add_commands_on_reload: Finish', level='debug',
                     sources=[self.plugin_id])()
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_initialized')
+    @RegisterToEvent(event_name='ev_plugin_initialized')
     def _eventcb_plugin_initialized(self):
         """
         handle the plugin initialized event
@@ -217,10 +217,13 @@ class CommandsPlugin(BasePlugin):
         if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
-        if event_record['plugin_id'] != self.plugin_id or self.api.startup:
-            self.update_commands_for_plugin(event_record['plugin_id'])
-        else:
+        if not self.api.startup and event_record['plugin_id'] == self.plugin_id:
             self._eventcb_add_commands_on_reload()
+        else:
+            LogRecord(f"_eventcb_plugin_initialized: loading commands for {event_record['plugin_id']}", level='debug',
+                        sources=[self.plugin_id])()
+            self.update_commands_for_plugin(event_record['plugin_id'])
+
 
     def update_commands_for_plugin(self, plugin_id):
         """
@@ -346,7 +349,7 @@ class CommandsPlugin(BasePlugin):
         LogRecord(f"added command {plugin_id}.{command_name}",
                   level='debug', sources=[self.plugin_id, plugin_id])()
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
+    @RegisterToEvent(event_name='ev_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized
@@ -357,8 +360,6 @@ class CommandsPlugin(BasePlugin):
             'plugins.core.events:get.current.event.record'
         )():
             if event_record['plugin_id'] != self.plugin_id:
-                LogRecord(f"removing commands for plugin {event_record['plugin_id']}",
-                        level='debug', sources=[self.plugin_id, event_record['plugin_id']])
                 self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
             else:
                 LogRecord(f"{self.plugin_id}_plugin_uninitialize: {self.plugin_id} is me!", level='debug',
@@ -396,7 +397,8 @@ class CommandsPlugin(BasePlugin):
         @Yplugin@w    = the plugin to remove commands for
 
         this function returns no values"""
-
+        LogRecord(f"removing commands for plugin {plugin_id}",
+                        level='debug', sources=[self.plugin_id, plugin_id])()
         if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
             # remove commands from _command_list that start with plugin_instance.plugin_id
             new_commands = [command for command in self.commands_list if not command.startswith(plugin_id)]
@@ -808,6 +810,9 @@ class CommandsPlugin(BasePlugin):
         # remove the command prefix
         if commandprefix in command_split:
             del command_split[command_split.index(commandprefix)]
+
+        # TODO: make the rest of this an api so that any command that takes a plugin as an argument
+        #         can parse the plugin string just like the command plugin does
 
         # remove the literal 'plugins' string
         if 'plugins' in command_split:

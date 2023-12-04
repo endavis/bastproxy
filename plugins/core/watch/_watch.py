@@ -32,7 +32,7 @@ class WatchPlugin(BasePlugin):
         self.regex_lookup = {}
         self.watch_data = {}
 
-    @RegisterToEvent(event_name='ev_plugins.core.pluginm_plugin_uninitialized')
+    @RegisterToEvent(event_name='ev_plugin_uninitialized')
     def _eventcb_plugin_uninitialized(self):
         """
         a plugin was uninitialized

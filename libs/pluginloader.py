@@ -330,7 +330,7 @@ class PluginLoader:
 
         # set the plugin instance
         plugin_info.loaded_info.plugin_instance = plugin_instance
-        plugin_info.loaded_info.is_initialized = False
+        plugin_info.loaded_info.is_loaded = False
 
         LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[__name__])()
 
@@ -353,7 +353,7 @@ class PluginLoader:
         """
         # don't do anything if the plugin has already been initialized
         plugin_info = self.plugins_info[plugin_id]
-        if plugin_info.loaded_info.is_initialized:
+        if plugin_info.loaded_info.is_loaded:
             return True
         LogRecord(f"{plugin_info.plugin_id:<30} : attempting to initialize ({plugin_info.name})", level='info',
                   sources=[__name__, plugin_info.plugin_id])()
@@ -366,7 +366,6 @@ class PluginLoader:
         # run the initialize function
         try:
             plugin_info.loaded_info.plugin_instance.initialize()
-            plugin_info.loaded_info.is_initialized = True
 
         except Exception: # pylint: disable=broad-except
             LogRecord(f"could not run the initialize function for {plugin_info.plugin_id}", level='error',
@@ -382,8 +381,6 @@ class PluginLoader:
 
         LogRecord(f"{plugin_info.plugin_id:<30} : successfully loaded", level='info',
                   sources=[__name__, plugin_info.plugin_id])()
-
-        plugin_info.loaded_info.is_loaded = True
 
         return True
 
@@ -469,6 +466,13 @@ class PluginLoader:
             else False
         )
 
+    @AddAPI('set.plugin.is.loaded', 'set the initialized flag for a plugin')
+    def _api_set_plugin_is_loaded(self, plugin_id):
+        """
+        set the is loaded flag for a plugin
+        """
+        self.plugins_info[plugin_id].loaded_info.is_loaded = True
+
     def _unload_single_plugin(self, plugin_id):
         """
         unload a plugin
@@ -500,7 +504,7 @@ class PluginLoader:
         try:
             # run the uninitialize function if it exists
             if plugin_info.loaded_info.plugin_instance:
-                if plugin_info.loaded_info.is_initialized:
+                if plugin_info.loaded_info.is_loaded:
                         plugin_info.loaded_info.plugin_instance.uninitialize()
 
                 LogRecord(f"{plugin_info.plugin_id:<30} : successfully unitialized ({plugin_info.name})", level='info',
