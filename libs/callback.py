@@ -26,7 +26,7 @@ class Callback: # pylint: disable=too-few-public-methods
         init the class
         """
         self.name: str = name
-        self.owner_id: str = owner_id if owner_id else f"{owner_id}:callback:{name}"
+        self.owner_id: str = owner_id or f"{owner_id}:callback:{name}"
         self.api = API(owner_id=self.owner_id)
         self.raised_count: int = 0
         self.func: typing.Callable = func
@@ -58,10 +58,7 @@ class Callback: # pylint: disable=too-few-public-methods
         """
         self.last_raised_datetime = datetime.datetime.now(datetime.timezone.utc)
         self.raised_count = self.raised_count + 1
-        if args:
-            return self.func(args)
-        else:
-            return self.func()
+        return self.func(args) if args else self.func()
 
     def __str__(self) -> str:
         """
