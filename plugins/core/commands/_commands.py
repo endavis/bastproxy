@@ -810,9 +810,6 @@ class CommandsPlugin(BasePlugin):
         if commandprefix in command_split:
             del command_split[command_split.index(commandprefix)]
 
-        # TODO: make the rest of this an api so that any command that takes a plugin as an argument
-        #         can parse the plugin string just like the command plugin does
-
         # remove the literal 'plugins' string
         if 'plugins' in command_split:
             del command_split[command_split.index('plugins')]
