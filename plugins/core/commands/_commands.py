@@ -7,7 +7,6 @@
 # By: Bast
 
 # Standard Library
-from __future__ import print_function
 import types
 import copy
 
@@ -1014,7 +1013,7 @@ class CommandsPlugin(BasePlugin):
         if package:
             plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.pluginloader:get.plugins.in.package')(package)]
         else:
-            plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.pluginloader:get.plugins.in.package')()]
+            plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.pluginloader:get.loaded.plugins.list')()]
 
         if plugin_id_list := sorted(plugin_id_list):
             return [
