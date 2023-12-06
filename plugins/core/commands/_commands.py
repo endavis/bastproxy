@@ -828,7 +828,19 @@ class CommandsPlugin(BasePlugin):
 
         plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
 
-        found, new_package, new_plugin, tmessage = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str, active_only=True)
+        new_package, new_plugin = self.api('libs.pluginloader:fuzzy.match.plugin.id')(plugin_id_temp_str, active_only=True)
+
+        found = False
+        tmessage = ''
+        if new_package and new_plugin:
+            found = True
+        elif new_package:
+            tmessage = 'Bad Plugin'
+            found = False
+        else:
+            tmessage = 'Bad Package'
+            found = False
+
         return found, new_package, new_plugin, tmessage, command_split, command_args
 
     def run_internal_command_from_event(self):
