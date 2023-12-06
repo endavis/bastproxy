@@ -607,7 +607,7 @@ class PluginLoader:
         LogRecord('Finished Loading core and client plugins', level='info', sources=[__name__])()
 
     @AddAPI('fuzzy.match.plugin.id', description='find a plugin id from a string')
-    def _api_fuzzy_match_plugin_id(self, plugin_id_string: str, active_only = False) -> tuple[bool, str, str, str]:
+    def _api_fuzzy_match_plugin_id(self, plugin_id_string: str, active_only = False) -> tuple[str, str]:
         """
         find a command from the client
         return bool (found), package. plugin_id, message
@@ -619,7 +619,7 @@ class PluginLoader:
         psplit = plugin_id_string.split('.', 1)
 
         if len(psplit) not in [2, 3]:
-            return False, '', '', f"Invalid plugin string: {plugin_id_string}"
+            return '', ''
 
         if len(psplit) == 2:
             tmp_package = f"plugins.{psplit[0]}"
@@ -636,11 +636,11 @@ class PluginLoader:
                                                                 scorer='token_set_ratio')
 
         if not new_package:
-            return False, '', '', 'Bad Package'
+            return '', ''
 
         # try and find the plugin
         new_plugin = self.api('plugins.core.fuzzy:get.best.match')(f"{new_package}.{tmp_plugin}",
                                                                    tuple(loaded_list),
                                                                    scorer='token_set_ratio')
 
-        return (True, new_package, new_plugin, '') if new_plugin else (False, new_package, '', 'Bad Plugin')
+        return new_package, new_plugin
