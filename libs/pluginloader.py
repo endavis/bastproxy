@@ -574,9 +574,6 @@ class PluginLoader:
         core_plugins.remove('plugins.core.log')
         core_plugins.insert(0, 'plugins.core.log')
 
-        core_plugins.remove('plugins.core.pluginm')
-        core_plugins.insert(0, 'plugins.core.pluginm')
-
         # print(f"loading core plugins: {core_plugins}")
         self.api(f"{__name__}:load.plugins")(core_plugins, exit_on_error=True, check_dependencies=False)
 
