@@ -14,7 +14,7 @@ import re
 # Project
 from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.commands import AddParser
+from plugins.core.commands import AddParser
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/commands.py
+# Filename: plugins/core/commands/_utils.py
 #
 # File Description: holds command utilities
 #

@@ -14,7 +14,7 @@ this plugin can be used to inspect and call functions in the api
 
 # Project
 from libs.api import API
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from plugins._baseplugin import BasePlugin
 
 class APIHelpPlugin(BasePlugin):

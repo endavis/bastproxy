@@ -21,7 +21,7 @@ except ImportError:
 from libs.api import API, AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 
 class TriggerItem:

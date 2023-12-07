@@ -15,7 +15,7 @@ import stat
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 
 

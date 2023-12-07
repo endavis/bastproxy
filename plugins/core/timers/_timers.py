@@ -20,7 +20,7 @@ import typing
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.callback import Callback
 from libs.records import LogRecord
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI, API
 

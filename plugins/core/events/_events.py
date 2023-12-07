@@ -17,7 +17,7 @@ from libs.records import LogRecord
 from libs.event import Event
 from libs.stack import SimpleStack
 from libs.queue import SimpleQueue
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
 

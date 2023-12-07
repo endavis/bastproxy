@@ -12,7 +12,7 @@
 
 # Project
 from libs.api import API
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 
 CANRELOAD = False
 

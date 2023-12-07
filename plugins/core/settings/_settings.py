@@ -17,7 +17,7 @@ from libs.api import AddAPI
 import libs.argp as argp
 from libs.persistentdict import PersistentDict, convert
 from libs.records import LogRecord
-from libs.commands import AddParser, AddArgument, AddCommand
+from plugins.core.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 
 

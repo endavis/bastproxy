@@ -20,7 +20,7 @@ import contextlib
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 
 def dict_factory(cursor, row):
     """

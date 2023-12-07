@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/commands/_commands.py
+# Filename: plugins/core/commands/plugin/_commands.py
 #
 # File Description: a plugin that is the command interpreter for clients
 #
@@ -18,9 +18,9 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
-from ._command import CommandClass
+from .._command import CommandClass
 
 class CommandsPlugin(BasePlugin):
     """

@@ -13,7 +13,7 @@ import re
 
 # Project
 import libs.colors
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
 from libs.api import AddAPI

@@ -16,7 +16,7 @@ from functools import partial
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord, ToClientRecord
 from libs.api import API
-from libs.commands import AddParser, AddArgument
+from plugins.core.commands import AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
 from libs.net.client import ClientConnection

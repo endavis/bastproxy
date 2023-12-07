@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/commands/_patch_base.py
+# Filename: plugins/core/commands/plugin/_patch_base.py
 #
 # File Description: adds stats to the base plugin
 #

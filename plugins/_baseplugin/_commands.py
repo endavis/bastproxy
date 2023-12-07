@@ -12,7 +12,7 @@ import sys
 # 3rd Party
 
 # Project
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 from ._pluginhooks import RegisterPluginHook
 from libs.event import RegisterToEvent
 

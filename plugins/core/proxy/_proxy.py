@@ -33,7 +33,7 @@ except ImportError:
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.net.mud import MudConnection
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
-from libs.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument
 from libs.event import RegisterToEvent
 from libs.api import AddAPI
 
