@@ -14,7 +14,7 @@ import textwrap
 # Project
 import libs.argp as argp
 from plugins._baseplugin import RegisterPluginHook
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 
 CANRELOAD = False

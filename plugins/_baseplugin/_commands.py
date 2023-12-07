@@ -14,7 +14,7 @@ import sys
 # Project
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from ._pluginhooks import RegisterPluginHook
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 
 Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
 

@@ -17,7 +17,7 @@ manages all plugins
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
 from plugins.core.commands import AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 
 class PluginManager(BasePlugin):
     """

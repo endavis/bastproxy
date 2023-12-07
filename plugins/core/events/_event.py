@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/event.py
+# Filename: plugins/core/events/_event.py
 #
 # File Description: Holds base classes for event items
 #
@@ -22,25 +22,6 @@ from libs.api import API
 from libs.records import LogRecord, EventArgsRecord, RaisedEventRecord
 from libs.callback import Callback
 from libs.queue import SimpleQueue
-
-class RegisterToEvent:
-    """
-    a class to decorate a function with to register it to an event
-    """
-    def __init__(self, **kwargs):
-        """
-        kwargs:
-            event_name: the event to register to
-            priority: the priority to register the function with (Default: 50)
-        """
-        self.registration_args = {'event_name':'', 'priority':50} | kwargs
-
-    def __call__(self, func):
-        if not hasattr(func, 'event_registration'):
-            func.event_registration = []
-        func.event_registration.append(self.registration_args)
-
-        return func
 
 class Event:
     """

@@ -19,7 +19,7 @@ from libs.persistentdict import PersistentDict
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from .._command import CommandClass
 
 class CommandsPlugin(BasePlugin):

@@ -14,7 +14,7 @@
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
 
 class ErrorPlugin(BasePlugin):

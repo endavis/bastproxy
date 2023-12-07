@@ -15,7 +15,7 @@ import re
 from libs.records import LogRecord, ToMudRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddParser
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
 
 class CMDQPlugin(BasePlugin):

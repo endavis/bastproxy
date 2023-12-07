@@ -41,7 +41,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
               anything that needs to be done so another plugin can interact with this plugin
 
         Arguments and examples:
-          plugin_id : 'client.actions' - guaranteed to be unique
+          plugin_id : 'plugins.core.commands' - guaranteed to be unique
           plugin_info: The plugin info object
         """
         self.plugin_id = plugin_id

@@ -34,7 +34,7 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.net.mud import MudConnection
 from libs.records import ToClientRecord, LogRecord, ToMudRecord
 from plugins.core.commands import AddCommand, AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
 
 class ProxyPlugin(BasePlugin):

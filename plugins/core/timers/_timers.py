@@ -21,7 +21,7 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.callback import Callback
 from libs.records import LogRecord
 from plugins.core.commands import AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI, API
 
 class Timer(Callback):

@@ -19,7 +19,7 @@ from libs.persistentdict import PersistentDict
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord, RMANAGER
 from plugins.core.commands import AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
 
 def get_toplevel(logger_name):

@@ -22,7 +22,7 @@ from libs.api import API, AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddParser, AddArgument
-from libs.event import RegisterToEvent
+from plugins.core.events import RegisterToEvent
 
 class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex, enabled=True,
