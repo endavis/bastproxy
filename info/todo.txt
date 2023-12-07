@@ -94,8 +94,6 @@
             for an event, the function that errored with the exception
     # TODO: create a help plugin
                 for how to use as well as to develop for
-    # TODO: move libs.event into plugins.core.events? same for commands and colors?
-        I don't think the decorators would ever be reloaded because all the plugins use them
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
     # TODO: proxy usage command with mem, average cpu, open files, etc...
@@ -104,9 +102,8 @@
             APINotFoundException
     # TODO: update commands to use tables
         plugins.c.pluginm.list
-    # TODO: check on plac instead of ArgumentParser
-        see if it can do both + and - as arguments
-            ++openfile vs --openfiles for proxy.resources
+    # TODO: get rid of all calls to the plugins.core.commands:run api
+    # TODO: change stats hook to stats event, same with reset hook
 
 # REVISIT:
     # TODO: decorator for event description
@@ -115,6 +112,9 @@
         DIDNTDO: change decorator to a class?
     # TODO: look at slots
         NOTES: This messes with using __dict__ to format strings
+    # TODO: check on plac instead of ArgumentParser
+        see if it can do both + and - as arguments
+            ++openfile vs --openfiles for proxy.resources
 
 # DONE
     # COMPLETE: libs.api
@@ -261,6 +261,7 @@
     # COMPLETE: baseplugin
         # TODO: refactor all initialization to use hooks instead of the initialize function
             use a priority system
+        # BUG: uninitialize event is not being called on reload
     # COMPLETE: research why the initialize function takes so long
             get_caller_owner_id was optimized and no longer uses inspect.stack
     # COMPLETE: add profiling as a command line argument
@@ -315,3 +316,9 @@
         #BP:                                                ~~~~~~~~~~~~~^^^
         #BP: IndexError: list index out of range
     # COMPLETE: stats command throws an exception
+    # COMPLETE: move libs.event into plugins.core.events? same for commands and colors?
+        I don't think the decorators would ever be reloaded because all the plugins use them
+        Anything used in _baseplugin cannot be moved into a plugin because
+            of circular imports
+            @AddCommand is an example
+
