@@ -5,6 +5,7 @@
         This can be overridden, see the AddCommand decorator
 
 3) 3 decorators are then used for various settings on the command
+    import them from plugins.core.commands
     Note: all 3 are not required, and only one needs to be used for the automated mechanism to add the command
     @AddCommand decorator:
         The following arguments can be used in AddCommand (mainly from the arguments for plugins.core.commands.Command.__init__ kwargs)
