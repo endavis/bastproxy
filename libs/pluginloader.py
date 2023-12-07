@@ -228,8 +228,6 @@ class PluginLoader:
 
             plugin_info.get_files()
 
-            # print(dumps(info))
-
             new_plugins_info[plugin_info.plugin_id] = plugin_info
 
         self.plugins_info = new_plugins_info
@@ -257,9 +255,9 @@ class PluginLoader:
         """
         # import the plugin
         LogRecord(f"{plugin_id:<30} : attempting import", level='info', sources=[__name__])()
-        return_info = \
-              imputils.importmodule(plugin_id)
         plugin_info = self.plugins_info[plugin_id]
+        return_info = \
+              imputils.importmodule(plugin_info.package_import_location)
         if (not return_info['success']
                 or not return_info['module']
                 or not return_info['full_import_location']):

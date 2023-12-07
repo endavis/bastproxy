@@ -52,11 +52,9 @@ def find_packages_and_plugins(directory, prefix):
             if tspec := loader.find_spec(name):
                 if tspec.origin:
                     if is_plugin(tspec.origin):
-                        # matches['plugins'].append({'plugin_id':tspec.name,
-                        #                            'fullpath':Path(tspec.loader.path).parent})
-                        matches['plugins'].append({'plugin_id':tspec.name,
+                        # if the name ends in .plugin, remove it
+                        matches['plugins'].append({'plugin_id':re.sub('.plugin$','',tspec.name),
                                 'package_init_file_path':Path(tspec.loader.path),
-                                'filename':name.split('.')[-1],
                                 'package_path':Path(tspec.loader.path).parent,
                                 'package_import_location':tspec.name})
                     else:
