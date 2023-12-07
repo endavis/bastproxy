@@ -21,6 +21,7 @@ from libs.records import LogRecord, RMANAGER
 from plugins.core.commands import AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
+from .._custom_logger import setup_loggers
 
 def get_toplevel(logger_name):
     """
@@ -53,6 +54,12 @@ class LogPlugin(BasePlugin):
         self.handlers['file'] = PersistentDict(self.plugin_id,
             self.plugin_info.data_directory / 'logtypes_to_file.txt',
             'c')
+
+    @RegisterPluginHook('__init__', priority=99)
+    def _phook_log_post_init_custom_logging(self): # pyright: ignore[reportInvalidTypeVarUse]
+        # setup file logging and network data logging
+        LogRecord('setting up custom logging', level='debug', sources=[self.plugin_id])()
+        setup_loggers(logging.DEBUG)
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):

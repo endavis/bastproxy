@@ -29,15 +29,6 @@ from plugins._baseplugin import RegisterPluginHook
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
 
-Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
-
-class CustomLogger(Protocol):
-    @RegisterPluginHook('__init__', priority=99)
-    def _phook_log_post_init_custom_logging(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
-        # setup file logging and network data logging
-        LogRecord('setting up custom logging', level='debug', sources=[self.plugin_id])()
-        setup_loggers(logging.DEBUG)
-
 class CustomColorFormatter(logging.Formatter):
     """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629"""
 
