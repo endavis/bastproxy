@@ -12,7 +12,7 @@ import re
 # 3rd Party
 
 # Project
-import libs.colors
+from .._colors import COLORTABLE, CONVERTCOLORS, CONVERTANSI
 from plugins.core.commands import AddParser, AddArgument
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
@@ -30,11 +30,11 @@ def convertcolorcodetohtml(colorcode):
     """
     try:
         colorcode = int(colorcode)
-        if colorcode in libs.colors.COLORTABLE:
-            return f"#{libs.colors.COLORTABLE[colorcode][0]:02x}{libs.colors.COLORTABLE[colorcode][1]:02x}{libs.colors.COLORTABLE[colorcode][2]:02x}"
+        if colorcode in COLORTABLE:
+            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
     except ValueError:
-        if colorcode in libs.colors.COLORTABLE:
-            return f"#{libs.colors.COLORTABLE[colorcode][0]:02x}{libs.colors.COLORTABLE[colorcode][1]:02x}{libs.colors.COLORTABLE[colorcode][2]:02x}"
+        if colorcode in COLORTABLE:
+            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
 
     return '#000'
 
@@ -199,7 +199,7 @@ class ColorsPlugin(BasePlugin):
                     color = f'48;5;{tcolor}'
                     tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
                 else:
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(libs.colors.CONVERTCOLORS[color], text)
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(CONVERTCOLORS[color], text)
 
             if tstr2:
                 tstr = tstr2 + '%c[0m' % chr(27)
@@ -226,7 +226,7 @@ class ColorsPlugin(BasePlugin):
                 tstr = tstr + ';%d' % int(argsdict['arg_3'])
 
             try:
-                return f'@{libs.colors.CONVERTANSI[tstr]}'
+                return f'@{CONVERTANSI[tstr]}'
             except KeyError:
                 LogRecord(f"could not lookup color {tstr} for text {repr(text)}",
                           level='error', plugin=self.plugin_id)()

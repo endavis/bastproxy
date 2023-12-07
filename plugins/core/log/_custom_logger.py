@@ -22,7 +22,7 @@ from typing import Protocol, TypeVar
 
 # Project
 from libs.api import API
-import libs.colors
+from plugins.core.colors import ALLCONVERTCOLORS
 from libs.records import ToClientRecord, LogRecord
 from plugins._baseplugin import RegisterPluginHook
 
@@ -41,11 +41,11 @@ class CustomLogger(Protocol):
 class CustomColorFormatter(logging.Formatter):
     """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629"""
 
-    error = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@x136']}m"
-    warning = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@y']}m"
-    info = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@w']}m"
-    debug = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@x246']}m"
-    critical = f"\x1b[{libs.colors.ALLCONVERTCOLORS['@r']}m"
+    error = f"\x1b[{ALLCONVERTCOLORS['@x136']}m"
+    warning = f"\x1b[{ALLCONVERTCOLORS['@y']}m"
+    info = f"\x1b[{ALLCONVERTCOLORS['@w']}m"
+    debug = f"\x1b[{ALLCONVERTCOLORS['@x246']}m"
+    critical = f"\x1b[{ALLCONVERTCOLORS['@r']}m"
     reset = '\x1b[0m'
 
     def __init__(self, fmt: str):
@@ -73,7 +73,7 @@ class CustomColorFormatter(logging.Formatter):
             record.exc_info = None
             record.exc_text = None
         if self.api('libs.api:has')('plugins.core.log:get.level.color') and (color := self.api('plugins.core.log:get.level.color')(record.levelno)):
-            log_fmt = f"\x1b[{libs.colors.ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
+            log_fmt = f"\x1b[{ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
         else:
             log_fmt = self.FORMATS.get(record.levelno)
 
