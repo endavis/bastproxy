@@ -12,7 +12,7 @@ import re
 # 3rd Party
 
 # Project
-from .._colors import COLORTABLE, CONVERTCOLORS, CONVERTANSI
+from ..libs._colors import COLORTABLE, CONVERTCOLORS, CONVERTANSI
 from plugins.core.commands import AddParser, AddArgument
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin

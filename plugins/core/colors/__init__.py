@@ -1,3 +1,3 @@
 __ALL__ = ["ALLCONVERTCOLORS"]
 
-from ._colors import ALLCONVERTCOLORS
+from .libs._colors import ALLCONVERTCOLORS
