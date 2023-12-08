@@ -5,7 +5,10 @@
 # File Description: holds the RegisterPluginHook decorator
 #
 # By: Bast
-
+"""
+plugin hooks are for plugins to register functions to be called at certain
+points in the plugins lifecycle
+"""
 # Standard Library
 
 # 3rd Party
@@ -18,8 +21,6 @@ class RegisterPluginHook:
         '__init__' - invoked for __init__ at the end of baseplugin.__init__
         'initialize' - invoked for initialize
         'save' - invoked when saving the plugin
-        'stats' - invoked when getting the stats of the plugin
-                    returns a dict of stats
         'uninitialize' - invoked when uninitializing the plugin
 
         hook_name: the hook to register to

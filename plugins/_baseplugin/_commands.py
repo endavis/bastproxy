@@ -61,7 +61,7 @@ class Commands(Protocol):
         show stats, memory, profile, etc.. for this plugin
         @CUsage@w: stats
         """
-        stats = self._base_get_stats()
+        stats = self.api(f'{self.plugin_id}:get.stats')()
         tmsg = []
         for header in stats:
             tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))

@@ -441,15 +441,18 @@ class EventsPlugin(BasePlugin):
         """
         return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
 
-    @RegisterPluginHook('stats')
-    def _phook_events_stats(self, stats):
+    # @RegisterPluginHook('stats')
+    # def _phook_events_stats(self, stats):
+    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    def _eventcb_events_ev_plugins_stats(self):
         """
-        return stats for events
+        return stats for the plugin
         """
-        stats['Events'] = {
-                            'showorder': ['Total', 'Raised'],
-                            'Total' : len(self.events),
-                            'Raised' : self.global_raised_count
-                          }
-
-        return stats
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            event_record['stats']['Events'] = {
+                        'showorder': ['Total', 'Raised'],
+                        'Total' : len(self.events),
+                        'Raised' : self.global_raised_count
+                        }

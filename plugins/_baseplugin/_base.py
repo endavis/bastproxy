@@ -376,20 +376,23 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active):
             self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active)
 
-    def _base_get_stats(self):
+    @AddAPI('get.stats', 'get stats for the plugin')
+    def _api_get_stats(self):
         """
-        get the stats for the plugin
-
-        returns:
-          a dict of statistics
+        get stats for the plugin
         """
-        stats = {'Base Sizes': {'showorder': ['Class', 'Api']}}
-        stats['Base Sizes']['Class'] = f"{sys.getsizeof(self)} bytes"
-        stats['Base Sizes']['Api'] = f"{sys.getsizeof(self.api)} bytes"
+        stats = {}
+        # stats = {'Base Sizes': {'showorder': ['Class', 'Api'],
+        #                         'Class': f"{sys.getsizeof(self)} bytes",
+        #                         'Api': f"{sys.getsizeof(self.api)} bytes"}}
 
-        return_kwargs = self._process_plugin_hook('stats', stats=stats)
+        event_args = self.api('plugins.core.events:raise.event')(f"ev_plugin_{self.plugin_id}_stats", args={'plugin_id':self.plugin_id,
+                                                                                   'stats': stats})
 
-        return return_kwargs.get('stats', stats)
+        event_args = self.api('plugins.core.events:raise.event')("ev_plugin_stats", args={'plugin_id':self.plugin_id,
+                                                                                   'stats': event_args['stats']})
+
+        return event_args['stats']
 
     @RegisterPluginHook('uninitialize', priority=100)
     def _phook_base_unitialize_hook(self):

@@ -639,44 +639,48 @@ class TriggersPlugin(BasePlugin):
         return True, message
 
 
-    @RegisterPluginHook('stats')
-    def _phook_trigger_stats(self, **kwargs):
+    # @RegisterPluginHook('stats')
+    # def _phook_trigger_stats(self, **kwargs):
+    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    def _eventcb_triggers_ev_plugins_stats(self):
         """
-        return stats for this plugin
+        return stats for the plugin
         """
-        overall_hit_count = 0
-        total_enabled_triggers = 0
-        total_disabled_triggers = 0
-        for trigger in self.triggers:
-            overall_hit_count = overall_hit_count + self.triggers[trigger].hits
-            if self.triggers[trigger].enabled:
-                total_enabled_triggers = total_enabled_triggers + 1
-            else:
-                total_disabled_triggers = total_disabled_triggers + 1
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            overall_hit_count = 0
+            total_enabled_triggers = 0
+            total_disabled_triggers = 0
+            for trigger in self.triggers:
+                overall_hit_count = overall_hit_count + self.triggers[trigger].hits
+                if self.triggers[trigger].enabled:
+                    total_enabled_triggers = total_enabled_triggers + 1
+                else:
+                    total_disabled_triggers = total_disabled_triggers + 1
 
-        regex_hits = sum(regex['hits'] for regex in self.regexes.values() if regex)
+            regex_hits = sum(regex['hits'] for regex in self.regexes.values() if regex)
 
-        kwargs['stats']['Triggers'] = {
-            'showorder': [
-                'Total Triggers',
-                'Enabled Triggers',
-                'Disabled Triggers',
-                'Overall Trigger Hits',
-                'Triggers Memory Usage',
-                'Total Regexes',
-                'Total Regex Hits',
-                'Regexes Memory Usage',
-            ],
-            'Total Triggers': len(self.triggers),
-            'Enabled Triggers': total_enabled_triggers,
-            'Disabled Triggers': total_disabled_triggers,
-            'Overall Trigger Hits': overall_hit_count,
-            'Triggers Mem Usage': sys.getsizeof(self.triggers),
-            'Total Regexes': len(self.regexes.keys()),
-            'Total Regex Hits': regex_hits,
-            'Regexes Memory Usage': sys.getsizeof(self.regexes)
-        }
-        return kwargs
+            event_record['stats']['Triggers'] = {
+                'showorder': [
+                    'Total Triggers',
+                    'Enabled Triggers',
+                    'Disabled Triggers',
+                    'Overall Trigger Hits',
+                    'Triggers Memory Usage',
+                    'Total Regexes',
+                    'Total Regex Hits',
+                    'Regexes Memory Usage',
+                ],
+                'Total Triggers': len(self.triggers),
+                'Enabled Triggers': total_enabled_triggers,
+                'Disabled Triggers': total_disabled_triggers,
+                'Overall Trigger Hits': overall_hit_count,
+                'Triggers Memory Usage': sys.getsizeof(self.triggers),
+                'Total Regexes': len(self.regexes.keys()),
+                'Total Regex Hits': regex_hits,
+                'Regexes Memory Usage': sys.getsizeof(self.regexes)
+            }
 
     @AddParser(description='get details for triggers')
     @AddArgument('trigger',

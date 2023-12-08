@@ -169,29 +169,33 @@ class TimersPlugin(BasePlugin):
         return True, message
 
 
-    @RegisterPluginHook('stats')
-    def _phook_timer_stats(self, **kwargs):
+    # @RegisterPluginHook('stats')
+    # def _phook_timer_stats(self, **kwargs):
+    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    def _eventcb_timers_ev_plugins_stats(self):
         """
-        return stats for this plugin
+        return stats for the plugin
         """
-        disabled = 0
-        enabled = 0
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            disabled = 0
+            enabled = 0
 
-        for i in self.timer_lookup:
-            if self.timer_lookup[i].enabled:
-                enabled = enabled + 1
-            else:
-                disabled = disabled + 1
+            for i in self.timer_lookup:
+                if self.timer_lookup[i].enabled:
+                    enabled = enabled + 1
+                else:
+                    disabled = disabled + 1
 
-        kwargs['stats']['Timers'] = {
-            'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage'],
-            'Total': len(self.timer_lookup),
-            'Enabled': enabled,
-            'Disabled': disabled,
-            'Fired': self.overall_fire_count,
-            'Memory Usage': sys.getsizeof(self.timer_events),
-        }
-        return kwargs
+            event_record['stats']['Timers'] = {
+                'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage'],
+                'Total': len(self.timer_lookup),
+                'Enabled': enabled,
+                'Disabled': disabled,
+                'Fired': self.overall_fire_count,
+                'Memory Usage': sys.getsizeof(self.timer_events),
+            }
 
     @AddParser(description='list timers')
     @AddArgument('match',
