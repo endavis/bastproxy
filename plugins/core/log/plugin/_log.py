@@ -21,7 +21,7 @@ from libs.records import LogRecord, RMANAGER
 from plugins.core.commands import AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
-from .._custom_logger import setup_loggers
+from ..libs._custom_logger import setup_loggers
 
 def get_toplevel(logger_name):
     """
