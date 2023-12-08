@@ -164,8 +164,14 @@ class Commands(Protocol):
           @CUsage@w: reset
         """
         if self.can_reset_f:
-            self.api(f"{self.plugin_id}:reset")()
-            return True, ['Plugin reset']
+            plugins_that_acted = self.api(f"{self.plugin_id}:reset")()
+            msg = [
+                    'Plugin reset',
+                    '',
+                    f"Plugins that {self.plugin_id}'s data was reset for:",
+                    *[f"    {plugin}" for plugin in plugins_that_acted]
+            ]
+            return True, msg
 
         return True, ['This plugin cannot be reset']
 

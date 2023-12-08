@@ -18,7 +18,6 @@ class RegisterPluginHook:
         '__init__' - invoked for __init__ at the end of baseplugin.__init__
         'initialize' - invoked for initialize
         'save' - invoked when saving the plugin
-        'reset' - invoked when resetting the plugin
         'stats' - invoked when getting the stats of the plugin
                     returns a dict of stats
         'uninitialize' - invoked when uninitializing the plugin

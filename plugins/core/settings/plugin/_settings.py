@@ -19,6 +19,7 @@ from libs.persistentdict import PersistentDict, convert
 from libs.records import LogRecord
 from plugins.core.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.events import RegisterToEvent
 
 
 class SettingsPlugin(BasePlugin):
@@ -106,6 +107,17 @@ class SettingsPlugin(BasePlugin):
             )
 
         return returnval
+
+    @RegisterToEvent(event_name='ev_plugin_reset')
+    def _eventcb_plugin_reset(self):
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            print(self.dump_object_as_string(event_record))
+
+            plugin_id = event_record['plugin_id']
+            self.api(f"{self.plugin_id}:reset")(plugin_id)
+            event_record['plugins_that_acted'].append(self.plugin_id)
 
     @AddAPI('reset', description='reset all settings for a plugin to their default values')
     def _api_reset(self, plugin_id):

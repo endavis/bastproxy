@@ -56,16 +56,6 @@ def _command_settings_plugin_set(self):
 
     return True, return_string
 
-@RegisterPluginHook('reset')
-def _phook_settings_reset(self):
-    """
-    reset settings data
-    """
-    if self.can_reset_f:
-        self.reset_f = True
-        self.api('plugins.core.settings:reset')(self.plugin_id)
-        self.reset_f = False
-
 @RegisterPluginHook('initialize', priority=75)
 def _phook_settings_post_initialize(self):
     """

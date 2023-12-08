@@ -447,4 +447,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         """
         reset the plugin
         """
-        self._process_plugin_hook('reset')
+        event_record = self.api('plugins.core.events:raise.event')("ev_plugin_reset", args={'plugin_id':self.plugin_id,
+                                                                                   'plugins_that_acted': []})
+
+        return event_record['plugins_that_acted']
