@@ -14,7 +14,7 @@ import types
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
-from .._event import Event
+from ..libs._event import Event
 from libs.stack import SimpleStack
 from libs.queue import SimpleQueue
 from plugins.core.commands import AddParser, AddArgument

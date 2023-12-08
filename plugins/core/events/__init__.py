@@ -1,3 +1,3 @@
 __ALL__ = ["RegisterToEvent"]
 
-from ._utils import RegisterToEvent
+from .libs._utils import RegisterToEvent
