@@ -20,7 +20,7 @@ from libs.records import ToClientRecord, LogRecord, ToMudRecord
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
-from .._command import CommandClass
+from ..libs._command import CommandClass
 
 class CommandsPlugin(BasePlugin):
     """
