@@ -451,7 +451,7 @@ class EventsPlugin(BasePlugin):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            event_record['stats']['Events'] = {
+            event_record['stats']['Overall Event Stats'] = {
                         'showorder': ['Total', 'Raised'],
                         'Total' : len(self.events),
                         'Raised' : self.global_raised_count

@@ -69,6 +69,7 @@ class Commands(Protocol):
                 f"{subtype:<20} : {stats[header][subtype]}"
                 for subtype in stats[header]['showorder']
             )
+            tmsg.append('')
         return True, tmsg
 
     @AddCommand(group='Base')

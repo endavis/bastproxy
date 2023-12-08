@@ -889,6 +889,43 @@ class CommandsPlugin(BasePlugin):
             if message:
                 ToClientRecord(message, clients=clients)()
 
+    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    def _eventcb_commands_ev_plugins_stats(self):
+        """
+        return stats for the plugin
+        """
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            event_record['stats']['Overall Command Stats'] = {
+                        'showorder': ['Total Commands'],
+                        'Total Commands' : len(self.commands_list),
+                        }
+
+    @RegisterToEvent(event_name="ev_plugin_stats")
+    def _eventcb_commands_get_stats_for_plugin(self) -> None:
+        """
+        get stats for a plugin
+        """
+        if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
+            return
+
+        plugin_id = event_record['plugin_id']
+
+        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(plugin_id)
+
+        commands = [command.name for command in command_data.values()]
+
+        command_str = "".join(f"{'':<23}{item}\n" for item in commands)
+
+        event_record['stats'][f'{plugin_id} Command Stats'] = {
+            'Number of Commands': self.api(
+                'plugins.core.commands:get.command.count'
+            )(plugin_id),
+            'Commands': command_str.strip(),
+            'showorder': ['Number of Commands', 'Commands'],
+        }
+
     @RegisterToEvent(event_name='ev_to_mud_data_modify')
     def _eventcb_check_for_command(self) -> None:
         """
