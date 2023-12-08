@@ -457,10 +457,10 @@ class PluginLoader:
         reload a single plugin
         """
         return (
-            self.api(f'{__name__}:load_plugins')(
+            self.api(f'{__name__}:load.plugins')(
                 [plugin_id], exit_on_error=False, check_dependencies=True
             )
-            if self.api(f'{__name__}:unload_plugin')(plugin_id)
+            if self.api(f'{__name__}:unload.plugin')(plugin_id)
             else False
         )
 
