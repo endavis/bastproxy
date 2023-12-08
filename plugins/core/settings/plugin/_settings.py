@@ -113,8 +113,6 @@ class SettingsPlugin(BasePlugin):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            print(self.dump_object_as_string(event_record))
-
             plugin_id = event_record['plugin_id']
             self.api(f"{self.plugin_id}:reset")(plugin_id)
             event_record['plugins_that_acted'].append(self.plugin_id)
