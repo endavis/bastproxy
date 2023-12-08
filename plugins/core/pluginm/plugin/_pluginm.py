@@ -335,37 +335,33 @@ class PluginManager(BasePlugin):
             )
         return True, tmsg
 
-    # @AddParser(description='unload a plugin')
-    # @AddArgument('plugin',
-    #                 help='the plugin to unload',
-    #                 default='',
-    #                 nargs='?')
-    # def _command_unload(self):
-    #     """
-    #     @G%(name)s@w - @B%(cmdname)s@w
-    #       unload a plugin
-    #       @CUsage@w: unload @Yplugin@w
-    #         @Yplugin@w    = the id of the plugin to unload,
-    #                         example: example.timerex
-    #     """
-    #     args = self.api('plugins.core.commands:get.current.command.args')()
-    #     tmsg = []
-    #     plugin = args['plugin']
-    #     plugin_found_f = bool(plugin and plugin in self.plugins_info.keys())
-    #     if plugin_found_f:
-    #         if self.unload_single_plugin(plugin):
-    #             tmsg.append(f"Plugin {plugin} successfully unloaded")
-    #         else:
-    #             tmsg.append(f"Plugin {plugin} could not be unloaded")
-    #     else:
-    #         tmsg.append(f"plugin {plugin} not found")
+    @AddParser(description='unload a plugin')
+    @AddArgument('plugin',
+                    help='the plugin to unload',
+                    default='',
+                    nargs='?')
+    def _command_unload(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+          unload a plugin
+          @CUsage@w: unload @Yplugin@w
+            @Yplugin@w    = the id of the plugin to unload,
+                            example: example.timerex
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
 
-    # self.api('plugins.core.events:raise.event')(f"ev_{plugin_info.plugin_id}_uninitialized", {})
-    # self.api('plugins.core.events:raise.event')(f"ev_{__name__}_plugin_uninitialized",
-    #                                     {'plugin':plugin_info.name,
-    #                                     'plugin_id':plugin_info.plugin_id})
-    #     return True, tmsg
+        plugin_id = args['plugin']
 
+        if not plugin_id:
+            return False, ['No plugin specified']
+
+        if not self.api('libs.pluginloader:is.plugin.loaded')(plugin_id):
+            return True, [f"Plugin {plugin_id} is not loaded"]
+
+        if self.api('libs.pluginloader:unload.plugin')(plugin_id):
+            return True, [f"Plugin {plugin_id} unloaded"]
+
+        return False, [f"Plugin {plugin_id} not unloaded, please check logs"]
 
     @AddParser(description='reload a plugin')
     @AddArgument('plugin',

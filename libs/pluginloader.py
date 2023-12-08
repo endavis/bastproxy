@@ -457,10 +457,10 @@ class PluginLoader:
         reload a single plugin
         """
         return (
-            self._api_load_plugins(
+            self.api(f'{__name__}:load_plugins')(
                 [plugin_id], exit_on_error=False, check_dependencies=True
             )
-            if self._unload_single_plugin(plugin_id)
+            if self.api(f'{__name__}:unload_plugin')(plugin_id)
             else False
         )
 
@@ -471,7 +471,8 @@ class PluginLoader:
         """
         self.plugins_info[plugin_id].loaded_info.is_loaded = True
 
-    def _unload_single_plugin(self, plugin_id):
+    @AddAPI('unload.plugin', 'unload a plugin')
+    def _api_unload_plugin(self, plugin_id):
         """
         unload a plugin
           1) run uninitialize function
