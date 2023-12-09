@@ -456,3 +456,29 @@ class EventsPlugin(BasePlugin):
                         'Total' : len(self.events),
                         'Raised' : self.global_raised_count
                         }
+
+    @RegisterToEvent(event_name="ev_plugin_stats")
+    def _eventcb_event_get_stats_for_plugin(self) -> None:
+        """
+        get stats for a plugin
+        """
+        if not (event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )()):
+            return
+
+        plugin_id = event_record['plugin_id']
+        registrations = {}
+        for event in self.events:
+            if new_registrations := self.events[event].getownerregistrations(plugin_id):
+                registrations[event] = new_registrations
+
+        all_registrations = list(registrations.keys())
+
+        registrations_str = "".join(f"{'':<23}{item}\n" for item in all_registrations)
+
+        event_record['stats'][f'{plugin_id} Event Stats'] = {
+            'showorder': ['Registered', 'Events Registered To'],
+            'Registered': len(registrations),
+            'Events Registered To': registrations_str.strip()
+        }

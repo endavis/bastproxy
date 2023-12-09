@@ -188,7 +188,7 @@ class TimersPlugin(BasePlugin):
                 else:
                     disabled = disabled + 1
 
-            event_record['stats']['Timers'] = {
+            event_record['stats']['Overall Timer Stats'] = {
                 'showorder': ['Total', 'Enabled', 'Disabled', 'Fired', 'Memory Usage'],
                 'Total': len(self.timer_lookup),
                 'Enabled': enabled,
@@ -196,6 +196,34 @@ class TimersPlugin(BasePlugin):
                 'Fired': self.overall_fire_count,
                 'Memory Usage': sys.getsizeof(self.timer_events),
             }
+
+    @RegisterToEvent(event_name="ev_plugin_stats")
+    def _eventcb_event_get_stats_for_plugin(self) -> None:
+        """
+        get stats for a plugin
+        """
+        if not (event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )()):
+            return
+
+        plugin_id = event_record['plugin_id']
+        timers = [
+            timer.name
+            for timer in self.timer_lookup.values()
+            if timer.owner_id == plugin_id
+        ]
+
+        if not timers:
+            return
+
+        timers_str = "".join(f"{'':<23}{item}\n" for item in timers)
+
+        event_record['stats'][f'{plugin_id} Timer Stats'] = {
+            'showorder': ['Total Timers Owned', 'Timers Owned'],
+            'Total Timers Owned': len(timers),
+            'Timers Owned': timers_str.strip()
+        }
 
     @AddParser(description='list timers')
     @AddArgument('match',
