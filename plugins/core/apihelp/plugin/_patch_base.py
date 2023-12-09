@@ -16,7 +16,7 @@ from plugins.core.commands import AddCommand, AddParser, AddArgument
 
 CANRELOAD = False
 
-@AddCommand(group='Base', name='api')
+@AddCommand(group='Debug/Info', name='api')
 @AddParser(description='detail a function in the API')
 @AddArgument('-a',
                 '--api',

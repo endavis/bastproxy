@@ -1028,15 +1028,25 @@ class CommandsPlugin(BasePlugin):
 
                 groups[commands[i].group].append(commands[i])
 
+        message.append(output_subheader_color + '-' * 5 + ' ' +  plugin_id.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
+        message.extend(self.format_command_list(groups[plugin_id]))
+        message.append('')
+
+        print(f"{groups = }")
+
         for group in sorted(groups.keys()):
-            if group != 'Base':
+            if group not in ['Base', 'Debug/Info', plugin_id]:
                 message.append(output_subheader_color + '-' * 5 + ' ' +  group.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
                 message.extend(self.format_command_list(groups[group]))
                 message.append('')
 
         message.append(output_subheader_color + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5 + '@w')
         message.extend(self.format_command_list(groups['Base']))
+        message.append('')
+        message.append(output_subheader_color + '-' * 5 + ' ' +  'Debug/Info' + ' ' + '-' * 5 + '@w')
+        message.extend(self.format_command_list(groups['Debug/Info']))
 
+        print(message)
         return message
 
     @AddAPI('list.plugins.formatted', description='return a formatted list of all plugins')

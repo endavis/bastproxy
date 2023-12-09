@@ -27,8 +27,8 @@ class Commands(Protocol):
         if self.can_reset_f:
             self.api('plugins.core.commands:add.command.by.func')(self._command_reset, force=True)
 
-    @AddCommand(group='Base')
-    @AddParser(description='inspect a plugin')
+    @AddCommand(group='Debug/Info')
+    @AddParser(description='inspect a plugin and its attributes')
     @AddArgument('-o',
                     '--object',
                     help='show an object of the plugin, can be method or variable',
@@ -53,7 +53,7 @@ class Commands(Protocol):
 
         return True, self.api(f"{self.plugin_id}:dump")(args['object'], simple=args['simple'])[1]
 
-    @AddCommand(group='Base')
+    @AddCommand(group='Debug/Info')
     @AddParser(description='show plugin stats')
     def _command_stats(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """

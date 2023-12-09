@@ -382,9 +382,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         get stats for the plugin
         """
         stats = {}
-        # stats = {'Base Sizes': {'showorder': ['Class', 'Api'],
-        #                         'Class': f"{sys.getsizeof(self)} bytes",
-        #                         'Api': f"{sys.getsizeof(self.api)} bytes"}}
 
         event_args = self.api('plugins.core.events:raise.event')(f"ev_plugin_{self.plugin_id}_stats", args={'plugin_id':self.plugin_id,
                                                                                    'stats': stats})
