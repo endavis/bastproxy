@@ -25,22 +25,40 @@ from libs.queue import SimpleQueue
 
 class Event:
     """
-    a base class for an event and it's arguments
+    Base class for an event
     """
     def __init__(self, name: str, created_by: str ='', description: list | None = None, arg_descriptions: dict[str, str] | None = None):
+        """
+        name: the name of the event
+        created_by: the name of the plugin or module that created the event
+        description: a list of strings that describe the event
+        arg_descriptions: a dictionary of argument names and descriptions
+        """
         self.name: str = name
-        self.owner_id: str = f"{__name__}:{self.name}"
-        self.api = API(owner_id=self.owner_id)
-        # this is the plugin or module that created the event
         # it should be the __name__ of the module or plugin
         self.created_by: str = created_by
-        self.priority_dictionary = {}
-        self.raised_count = 0
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
+
+        self.owner_id: str = f"{__name__}:{self.name}"
+        self.api = API(owner_id=self.owner_id)
+        self.priority_dictionary = {}
+        self.raised_count = 0
         self.current_record: EventArgsRecord | None = None
         self.raised_data = SimpleQueue(length=10)
         self.current_callback = None
+
+    def copy(self, newclass):
+        """
+        copy the event to a new event with a new baseclass
+        """
+        newrecord = newclass(self.name, self.created_by, self.description, self.arg_descriptions, copy=True)
+        newrecord.priority_dictionary = self.priority_dictionary
+        newrecord.raised_count = self.raised_count
+        newrecord.current_record = self.current_record
+        newrecord.raised_data = self.raised_data
+        newrecord.current_callback = self.current_callback
+        return newrecord
 
     def count(self) -> int:
         """
