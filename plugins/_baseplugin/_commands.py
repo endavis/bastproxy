@@ -54,6 +54,25 @@ class Commands(Protocol):
         return True, self.api(f"{self.plugin_id}:dump")(args['object'], simple=args['simple'])[1]
 
     @AddCommand(group='Debug/Info')
+    @AddParser(description='show internal plugin hooks')
+    def _command_hooks(self: Plugin):    # pyright: ignore[reportInvalidTypeVarUse]
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+        show internal plugin hooks
+        @CUsage@w: hooks
+        """
+        hooks = self._get_all_plugin_hook_functions()
+        tmsg = []
+        for hook in hooks:
+            tmsg.append(self.api('plugins.core.utils:center.colored.string')(hook, '=', 60))
+            priorities = hooks[hook].keys()
+            priorities = sorted(list(priorities))
+            for priority in priorities:
+                tmsg.extend(f"{priority:<5} : {item}" for item in hooks[hook][priority])
+            tmsg.append('')
+        return True, tmsg
+
+    @AddCommand(group='Debug/Info')
     @AddParser(description='show plugin stats')
     def _command_stats(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
         """

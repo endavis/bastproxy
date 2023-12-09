@@ -117,6 +117,28 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         return kwargs
 
+    def _get_all_plugin_hook_functions(self) -> dict:
+        """
+        recursively search for functions that are commands in a plugin instance
+        and it's attributes that are registered to a load hook
+        """
+        function_list = {}
+        for item in dir(self):
+            try:
+                item = getattr(self, item)
+            except AttributeError:
+                continue
+            if isinstance(item, types.MethodType):
+                if item_plugin_hooks := getattr(item, 'plugin_hooks', None):
+                    for plugin_hook in item_plugin_hooks:
+                        if plugin_hook not in function_list:
+                            function_list[plugin_hook] = {}
+                        if item_plugin_hooks[plugin_hook] not in function_list[plugin_hook]:
+                            function_list[plugin_hook][item_plugin_hooks[plugin_hook]] = []
+                        function_list[plugin_hook][item_plugin_hooks[plugin_hook]].append(item)
+
+        return function_list
+
     def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
         """
         recursively search for functions that are commands in a plugin instance
