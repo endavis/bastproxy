@@ -1032,8 +1032,6 @@ class CommandsPlugin(BasePlugin):
         message.extend(self.format_command_list(groups[plugin_id]))
         message.append('')
 
-        print(f"{groups = }")
-
         for group in sorted(groups.keys()):
             if group not in ['Base', 'Debug/Info', plugin_id]:
                 message.append(output_subheader_color + '-' * 5 + ' ' +  group.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
@@ -1046,7 +1044,6 @@ class CommandsPlugin(BasePlugin):
         message.append(output_subheader_color + '-' * 5 + ' ' +  'Debug/Info' + ' ' + '-' * 5 + '@w')
         message.extend(self.format_command_list(groups['Debug/Info']))
 
-        print(message)
         return message
 
     @AddAPI('list.plugins.formatted', description='return a formatted list of all plugins')
