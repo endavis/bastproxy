@@ -18,6 +18,11 @@ see info/add_commands.txt for more info
 
 commands_at_startup = {}
 
+def set_command_autoadd(func, autoadd):
+    if not hasattr(func, 'command_data'):
+        func.command_data = CommandFuncData()
+    func.command_data.command['autoadd'] = autoadd
+
 class CommandFuncData:
     def __init__(self):
         self.command = {'autoadd': True,

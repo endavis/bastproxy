@@ -12,7 +12,7 @@ import sys
 # 3rd Party
 
 # Project
-from plugins.core.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddCommand, AddParser, AddArgument, set_command_autoadd
 from ._pluginhooks import RegisterPluginHook
 from plugins.core.events import RegisterToEvent
 
@@ -25,7 +25,7 @@ class Commands(Protocol):
         add commands to the plugin
         """
         if self.can_reset_f:
-            self.api('plugins.core.commands:add.command.by.func')(self._command_reset, force=True)
+            set_command_autoadd(self._command_reset, True)
 
     @AddCommand(group='Debug/Info')
     @AddParser(description='inspect a plugin and its attributes')
