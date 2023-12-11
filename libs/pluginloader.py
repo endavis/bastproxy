@@ -17,6 +17,7 @@ import sys
 import traceback
 import datetime
 import weakref
+import contextlib
 from functools import partial
 
 # 3rd Party
@@ -257,7 +258,7 @@ class PluginLoader:
         LogRecord(f"{plugin_id:<30} : attempting import", level='info', sources=[__name__])()
         plugin_info = self.plugins_info[plugin_id]
         return_info = \
-              imputils.importmodule(plugin_info.package_import_location)
+              imputils.importmodule(plugin_info.plugin_class_import_location)
         if (not return_info['success']
                 or not return_info['module']
                 or not return_info['full_import_location']):
@@ -274,16 +275,18 @@ class PluginLoader:
 
             return False
 
-        plugin_info.loaded_info.module = return_info['module']
         plugin_info.loaded_info.is_imported = True
         plugin_info.loaded_info.imported_time =  datetime.datetime.now(datetime.timezone.utc)
 
         LogRecord(f"{plugin_id:<30} : imported successfully", level='info', sources=[__name__])()
 
         # check for patches to the base plugin
-        if '_patch_base.py' in plugin_info.files and not plugin_info.has_been_reloaded:
+        if (patch_file:= plugin_info.find_file_by_name('_patch_base.py')) and not plugin_info.has_been_reloaded:
+            if len(patch_file) > 1:
+                LogRecord(f"{plugin_id:<30} : found more than one _patch_base.py file, only the first will be used", level='warning', sources=[__name__])()
+            patch_file = patch_file[0]
             LogRecord(f"{plugin_id:<30} : attempting to patch base", level='info', sources=[__name__])()
-            if patch(plugin_info.files['_patch_base.py']['full_import_location']):
+            if patch(patch_file['full_import_location']):
                 LogRecord(f"{plugin_id:<30} : patching base successful", level='info', sources=[__name__])()
             else:
                 LogRecord(f"{plugin_id:<30} : patching base failed", level='error', sources=[__name__])()
@@ -307,7 +310,7 @@ class PluginLoader:
         plugin_info = self.plugins_info[plugin_id]
         LogRecord(f"{plugin_id:<30} : creating instance", level='info', sources=[__name__])()
 
-        if not plugin_info.loaded_info.module:
+        if not plugin_info.plugin_class_import_location:
             LogRecord(f"Could not find module for {plugin_id}", level='error',
                       sources=[__name__])()
             if exit_on_error:
@@ -315,7 +318,8 @@ class PluginLoader:
             else:
                 return False
         try:
-            plugin_instance = plugin_info.loaded_info.module.Plugin(
+            plugin_module = sys.modules[str(plugin_info.plugin_class_import_location)]
+            plugin_instance = plugin_module.Plugin(
                                                 plugin_info.plugin_id,
                                                 plugin_info)
         except Exception: # pylint: disable=broad-except
@@ -440,11 +444,10 @@ class PluginLoader:
                 if plugin_info.loaded_info.plugin_instance:
                     del plugin_info.loaded_info.plugin_instance
                     plugin_info.loaded_info.plugin_instance = None
-                if plugin_info.loaded_info.module:
-                    for item in plugin_info.files:
+                for item in plugin_info.files:
+                    with contextlib.suppress(Exception):
                         del sys.modules[item['full_import_location']]
-                    del sys.modules[plugin_info.package_import_location]
-                    plugin_info.loaded_info.module = None
+                del sys.modules[plugin_info.package_import_location]
 
         if bad_plugins and exit_on_error:
             sys.exit(1)
@@ -548,6 +551,7 @@ class PluginLoader:
                             level='error', sources=[__name__, plugin_info.plugin_id])()
 
         plugin_info.has_been_reloaded = True
+
         # set the appropriate plugin_info.loaded_info attributes to None
         plugin_info.reset_loaded_info()
 

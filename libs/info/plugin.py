@@ -35,10 +35,6 @@ class LoadedPluginInfo():
         self.is_loaded = False
         # The plugin package has been imported
         self.is_imported: bool = False
-        # The plugin has been initialized
-        self.is_initialized: bool = False
-        # The plugin module
-        self.module: types.ModuleType | None = None
         # The plugin instance
         self.plugin_instance: None | BasePlugin = None
         # The imported time
@@ -80,20 +76,38 @@ class PluginInfo():
         except Exception as E:
             return False, E
 
-    def get_changed_files(self):
+    def _get_files_by_flag_helper(self, files: dict, flag) -> list:
+        """
+        return a list of changed files
+        """
+        changed_files = []
+        if 'files' in files:
+            changed_files.extend(
+                files['files'][file]
+                for file in files['files']
+                if files['files'][file][flag]
+            )
+
+        for item, value in files.items():
+            if item != 'files':
+                changed_files.extend(self._get_files_by_flag_helper(value, flag))
+
+        return changed_files
+
+    def get_changed_files(self, flag='has_changed'):
         """
         return a list of changed files
         """
         self.get_files()
 
-        return [file for file in self.files if self.files[file]['has_changed']]
+        return self._get_files_by_flag_helper(self.files, flag)
 
     def get_invalid_python_files(self):
         self.get_files()
 
-        return [file for file in self.files if not self.files[file]['is_valid_python_code']]
+        return self._get_files_by_flag_helper(self.files, 'is_valid_python_code')
 
-    def get_files(self,):
+    def get_files(self):
         """
         read the files
         """
@@ -101,9 +115,17 @@ class PluginInfo():
         self.files = {}
         for file in self.package_path.rglob('*.py'):
             if '__init__' not in file.name:
+                if str(file.relative_to(self.package_path)) == file.name:
+                    parent_dir = '.'
+                    parent_dir_import_location = ''
+                else:
+                    parent_dir = file.parent.name
+                    parent_dir_import_location = file.parent.name
+                if parent_dir not in self.files:
+                    self.files[parent_dir] = {'files': {}}
                 file_modified_time = datetime.datetime.fromtimestamp(file.stat().st_mtime, tz=datetime.timezone.utc)
-                if file.name in oldfiles and file_modified_time == oldfiles[file.name]['modified_time']:
-                    self.files[file.name] = oldfiles[file.name]
+                if parent_dir in oldfiles and file.name in oldfiles[parent_dir] and file_modified_time == oldfiles[parent_dir][file.name]['modified_time']:
+                    self.files[parent_dir][file.name] = oldfiles[parent_dir][file.name]
                     continue
 
                 success, exception = self.check_file_is_valid_python_code(file)
@@ -118,14 +140,38 @@ class PluginInfo():
                     'is_valid_python_code': success,
                     'exception': exception,
                     'has_changed': has_changed,
-                    'full_import_location': f'{self.package_import_location}.'
-                                        + file.name.replace('.py', ''),
+                    'full_import_location': (
+                        f'{self.package_import_location}{f".{parent_dir_import_location}" if parent_dir_import_location else ""}.'
+                        + file.name.replace('.py', '')
+                    ),
                     'full_path': file,
                 }
 
-                self.files[file.name] = file_info
+                self.files[parent_dir]['files'][file.name] = file_info
 
         return self.files
+
+    def _find_file_by_name_helper(self, file_name: str, files: dict) -> list:
+        """
+        find a file
+        """
+        list_of_files = []
+        if 'files' in files and file_name in files['files']:
+            list_of_files.append(files['files'][file_name])
+
+        for item, value in files.items():
+            if item != 'files':
+                list_of_files.extend(self._find_file_by_name_helper(file_name, value))
+
+        return list_of_files
+
+    def find_file_by_name(self, file_name: str) -> list:
+        """
+        find a file
+        """
+        self.get_files()
+
+        return self._find_file_by_name_helper(file_name, self.files)
 
     def update_from_init(self):
         """

@@ -27,7 +27,7 @@ def patch(full_import_location, override=False):
         try:
             module = import_module(full_import_location)
         except Exception as e:
-            LogRecord(f"Could not load module {full_import_location} for patching of base", level='warning', sources=['baseplugin'])()
+            LogRecord(f"Could not load module {full_import_location} for patching of base", level='warning', sources=['baseplugin'], exc_info=True)()
             return False
     else:
         module = sys.modules[full_import_location]

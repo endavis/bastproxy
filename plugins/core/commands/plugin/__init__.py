@@ -2,7 +2,7 @@
 # Project: bastproxy
 # Filename: plugins/core/commands/plugin/_init_.py
 #
-# File Description: a plugin to test the new import functionality
+# File Description: a plugin for handling command parsing and execution
 #
 # By: Bast
 """
@@ -14,15 +14,6 @@ Commands are stored in a dictionary in the source plugin, use #bp.<plugin>.inspe
     to find what's in the dictionary
 $cmd{'#bp.client.actions.inspect -o data.commands -s'}
 """
-
-# these 4 are required
-PLUGIN_NAME = 'Commands'
-PLUGIN_PURPOSE = 'Parse and handle commands'
-PLUGIN_AUTHOR = 'Bast'
-PLUGIN_VERSION = 1
-
-PLUGIN_REQUIRED = True
-
 __all__ = ['Plugin']
 
 from ._commands import CommandsPlugin as Plugin
