@@ -92,14 +92,14 @@ class PluginInfo():
 
         return [file for file in self.files if not self.files[file]['is_valid_python_code']]
 
-    def get_files(self):
+    def get_files(self,):
         """
         read the files
         """
         oldfiles = self.files
         self.files = {}
-        for file in self.package_path.iterdir():
-            if file.is_file() and '__init__' not in file.name and file.name.endswith('.py'):
+        for file in self.package_path.rglob('*.py'):
+            if '__init__' not in file.name:
                 file_modified_time = datetime.datetime.fromtimestamp(file.stat().st_mtime, tz=datetime.timezone.utc)
                 if file.name in oldfiles and file_modified_time == oldfiles[file.name]['modified_time']:
                     self.files[file.name] = oldfiles[file.name]
@@ -119,6 +119,7 @@ class PluginInfo():
                     'has_changed': has_changed,
                     'full_import_location': f'{self.package_import_location}.'
                                         + file.name.replace('.py', ''),
+                    'full_path': file,
                 }
 
                 self.files[file.name] = file_info
