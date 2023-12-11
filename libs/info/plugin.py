@@ -98,16 +98,16 @@ class PluginInfo():
         """
         return a list of changed files
         """
-        self.get_files()
+        self.get_file_data()
 
         return self._get_files_by_flag_helper(self.files, flag)
 
     def get_invalid_python_files(self):
-        self.get_files()
+        self.get_file_data()
 
         return self._get_files_by_flag_helper(self.files, 'is_valid_python_code')
 
-    def get_files(self):
+    def get_file_data(self):
         """
         read the files
         """
@@ -169,7 +169,7 @@ class PluginInfo():
         """
         find a file
         """
-        self.get_files()
+        self.get_file_data()
 
         return self._find_file_by_name_helper(file_name, self.files)
 

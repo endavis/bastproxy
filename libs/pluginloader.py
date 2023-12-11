@@ -227,7 +227,7 @@ class PluginLoader:
             if plugin_info.package_import_location in errors:
                 plugin_info.import_errors.append(errors[plugin_info.package_import_location])
 
-            plugin_info.get_files()
+            plugin_info.get_file_data()
 
             new_plugins_info[plugin_info.plugin_id] = plugin_info
 
