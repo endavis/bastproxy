@@ -9,6 +9,7 @@
 this plugin can be used to inspect and call functions in the api
 """
 # Standard Library
+import traceback
 
 # 3rd Party
 
@@ -117,4 +118,5 @@ class APIHelpPlugin(BasePlugin):
             tmsg = self.dump_object_as_string(returnstuff)
             return True, ['Api returned:', '', tmsg]
         except Exception as e:
-            return True, ['Api returned an error:', f'{e}']
+            exc_str = traceback.format_exception(e)
+            return True, ['Api returned an error:', *exc_str]
