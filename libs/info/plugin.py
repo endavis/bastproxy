@@ -54,6 +54,7 @@ class PluginInfo():
         self.package_import_location: str = ''
         self.plugin_id: str = plugin_id
         self.package: str = plugin_id.rsplit('.', 1)[0]
+        self.plugin_class_import_location = f'{self.plugin_id}.plugin'
         self.name: str = ''
         self.short_name = plugin_id.split('.')[-1]
         self.author: str = ''
