@@ -6,7 +6,7 @@
 #
 # By: Bast
 # Standard Library
-from typing import TypeVar, Protocol
+from typing import TypeVar, Protocol, Generic
 import sys
 
 # 3rd Party
@@ -14,13 +14,12 @@ import sys
 # Project
 from plugins.core.commands import AddCommand, AddParser, AddArgument, set_command_autoadd
 from ._pluginhooks import RegisterPluginHook
-from plugins.core.events import RegisterToEvent
 
-Plugin = TypeVar('Plugin', bound='Plugin') # pyright: ignore[reportGenericTypeIssues]
+t_Plugin = TypeVar('t_Plugin', bound='Plugin', contravariant=True) # pyright: ignore[reportUndefinedVariable]
 
-class Commands(Protocol):
+class Commands(Protocol, Generic[t_Plugin]):
     @RegisterPluginHook('initialize')
-    def _phook_base_post_initialize_add_reset_command(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _phook_base_post_initialize_add_reset_command(self: t_Plugin):
         """
         add commands to the plugin
         """
@@ -37,7 +36,7 @@ class Commands(Protocol):
                     '--simple',
                     help='show a simple output',
                     action='store_true')
-    def _command_inspect(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_inspect(self: t_Plugin):
         """
         show the plugin as it currently is in memory
 
@@ -55,7 +54,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Debug/Info')
     @AddParser(description='show internal plugin hooks')
-    def _command_hooks(self: Plugin):    # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_hooks(self: t_Plugin):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show internal plugin hooks
@@ -74,7 +73,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Debug/Info')
     @AddParser(description='show plugin stats')
-    def _command_stats(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_stats(self: t_Plugin):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
@@ -101,7 +100,7 @@ class Commands(Protocol):
                     '--commands',
                     help='show commands in this plugin',
                     action='store_true')
-    def _command_help(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_help(self: t_Plugin):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
@@ -166,7 +165,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Base')
     @AddParser(description='save the plugin state')
-    def _command_save(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_save(self: t_Plugin):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         save plugin state
@@ -177,7 +176,7 @@ class Commands(Protocol):
 
     @AddCommand(group='Base', autoadd=False)
     @AddParser(description='reset the plugin')
-    def _command_reset(self: Plugin): # pyright: ignore[reportInvalidTypeVarUse]
+    def _command_reset(self: t_Plugin):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reset the plugin
