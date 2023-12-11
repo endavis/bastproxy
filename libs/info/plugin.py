@@ -105,7 +105,7 @@ class PluginInfo():
     def get_invalid_python_files(self):
         self.get_file_data()
 
-        return self._get_files_by_flag_helper(self.files, 'is_valid_python_code')
+        return self._get_files_by_flag_helper(self.files, 'invalid_python_code')
 
     def get_file_data(self):
         """
@@ -137,7 +137,7 @@ class PluginInfo():
 
                 file_info = {
                     'modified_time': file_modified_time,
-                    'is_valid_python_code': success,
+                    'invalid_python_code': not success,
                     'exception': exception,
                     'has_changed': has_changed,
                     'full_import_location': (
