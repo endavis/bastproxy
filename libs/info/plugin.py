@@ -23,7 +23,7 @@ AUTHORRE = re.compile(r'^PLUGIN_AUTHOR = \'(?P<value>.*)\'$')
 VERSIONRE = re.compile(r'^PLUGIN_VERSION = (?P<value>.*)$')
 PURPOSERE = re.compile(r'^PLUGIN_PURPOSE = \'(?P<value>.*)\'$')
 
-class LoadedPluginInfo():
+class PluginRuntimeInfo():
     """
     a class to hold information about a plugin
     """
@@ -66,7 +66,7 @@ class PluginInfo():
         self.data_directory: Path = Path('')
 
         self.last_updated =  datetime.datetime.now(datetime.timezone.utc)
-        self.loaded_info = LoadedPluginInfo()
+        self.runtime_info = PluginRuntimeInfo()
         self.import_errors = []
 
     def check_file_is_valid_python_code(self, file):
@@ -132,7 +132,7 @@ class PluginInfo():
                 self.is_valid_python_code = success and self.is_valid_python_code
 
                 has_changed = False
-                if self.loaded_info.is_loaded and file_modified_time > self.loaded_info.imported_time:
+                if self.runtime_info.is_loaded and file_modified_time > self.runtime_info.imported_time:
                     has_changed = True
 
                 file_info = {
@@ -224,8 +224,8 @@ class PluginInfo():
                    self.name and self.author and self.purpose and self.version > -1:
                 break
 
-    def reset_loaded_info(self):
+    def reset_runtime_info(self):
         """
         reset the loaded info
         """
-        self.loaded_info = LoadedPluginInfo()
+        self.runtime_info = PluginRuntimeInfo()

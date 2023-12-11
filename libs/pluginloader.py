@@ -122,7 +122,7 @@ class PluginLoader:
 
         returns: list of plugin_ids
         """
-        return [plugin_info.plugin_id for plugin_info in self.plugins_info.values() if plugin_info.loaded_info.is_loaded]
+        return [plugin_info.plugin_id for plugin_info in self.plugins_info.values() if plugin_info.runtime_info.is_loaded]
 
     @AddAPI('get.packages.list', description='get the list of packages')
     def _api_get_packages_list(self, active_only=False):
@@ -130,7 +130,7 @@ class PluginLoader:
         return the list of packages
         """
         if active_only:
-            packages = [plugin_info.package for plugin_info in self.plugins_info.values() if plugin_info.loaded_info.is_loaded]
+            packages = [plugin_info.package for plugin_info in self.plugins_info.values() if plugin_info.runtime_info.is_loaded]
         else:
             packages = [plugin_info.package for plugin_info in self.plugins_info.values()]
 
@@ -158,8 +158,8 @@ class PluginLoader:
         plugin_instance = None
 
         if isinstance(plugin_name, str):
-            if plugin_name in self.plugins_info and self.plugins_info[plugin_name].loaded_info.is_loaded:
-                plugin_instance = self.plugins_info[plugin_name].loaded_info.plugin_instance
+            if plugin_name in self.plugins_info and self.plugins_info[plugin_name].runtime_info.is_loaded:
+                plugin_instance = self.plugins_info[plugin_name].runtime_info.plugin_instance
         elif isinstance(plugin_name, BasePlugin):
             plugin_instance = plugin_name
 
@@ -236,7 +236,7 @@ class PluginLoader:
         # warn about plugins whose path is no longer valid
         removed_plugins = set(old_plugins_info.keys()) - set(self.plugins_info.keys())
         for plugin_id in removed_plugins:
-            if plugin_id in old_plugins_info and old_plugins_info[plugin_id].loaded_info:
+            if plugin_id in old_plugins_info and old_plugins_info[plugin_id].runtime_info:
                 LogRecord([f'Loaded Plugin {plugin_id}\'s path is no longer valid: {old_plugins_info[plugin_id].package_path}',
                            'If this plugin is no longer valid, please unload it'], level='error', sources=[__name__])()
 
@@ -262,7 +262,7 @@ class PluginLoader:
         if (not return_info['success']
                 or not return_info['module']
                 or not return_info['full_import_location']):
-            plugin_info.loaded_info.is_imported = False
+            plugin_info.runtime_info.is_imported = False
 
             if return_info['message'] == 'error':
                 exc_msg = [line.strip() for line in traceback.format_exception(return_info['exception']) if line.strip() not in  ['\n', '']]
@@ -275,8 +275,8 @@ class PluginLoader:
 
             return False
 
-        plugin_info.loaded_info.is_imported = True
-        plugin_info.loaded_info.imported_time =  datetime.datetime.now(datetime.timezone.utc)
+        plugin_info.runtime_info.is_imported = True
+        plugin_info.runtime_info.imported_time =  datetime.datetime.now(datetime.timezone.utc)
 
         LogRecord(f"{plugin_id:<30} : imported successfully", level='info', sources=[__name__])()
 
@@ -331,8 +331,8 @@ class PluginLoader:
                 return False
 
         # set the plugin instance
-        plugin_info.loaded_info.plugin_instance = plugin_instance
-        plugin_info.loaded_info.is_loaded = False
+        plugin_info.runtime_info.plugin_instance = plugin_instance
+        plugin_info.runtime_info.is_loaded = False
 
         LogRecord(f"{plugin_id:<30} : instance created successfully", level='info', sources=[__name__])()
 
@@ -355,19 +355,19 @@ class PluginLoader:
         """
         # don't do anything if the plugin has already been initialized
         plugin_info = self.plugins_info[plugin_id]
-        if plugin_info.loaded_info.is_loaded:
+        if plugin_info.runtime_info.is_loaded:
             return True
         LogRecord(f"{plugin_info.plugin_id:<30} : attempting to initialize ({plugin_info.name})", level='info',
                   sources=[__name__, plugin_info.plugin_id])()
 
-        if not plugin_info.loaded_info.plugin_instance:
+        if not plugin_info.runtime_info.plugin_instance:
             LogRecord(f"{plugin_info.plugin_id:<30} : plugin instance is None, not initializing", level='error',
                         sources=[__name__, plugin_info.plugin_id])()
             return False
 
         # run the initialize function
         try:
-            plugin_info.loaded_info.plugin_instance.initialize()
+            plugin_info.runtime_info.plugin_instance.initialize()
 
         except Exception: # pylint: disable=broad-except
             LogRecord(f"could not run the initialize function for {plugin_info.plugin_id}", level='error',
@@ -391,7 +391,7 @@ class PluginLoader:
         """
         load a list of plugins
         """
-        plugins_not_loaded = [plugin_id for plugin_id in plugins_to_load if not self.plugins_info[plugin_id].loaded_info.is_loaded]
+        plugins_not_loaded = [plugin_id for plugin_id in plugins_to_load if not self.plugins_info[plugin_id].runtime_info.is_loaded]
         already_loaded_plugins = set(plugins_to_load) - set(plugins_not_loaded)
 
         bad_plugins = []
@@ -440,10 +440,10 @@ class PluginLoader:
         # clean up plugins that were not imported, initialized, or instantiated
         for plugin_id in plugins_to_load:
             plugin_info = self.plugins_info[plugin_id]
-            if not plugin_info.loaded_info.is_loaded:
-                if plugin_info.loaded_info.plugin_instance:
-                    del plugin_info.loaded_info.plugin_instance
-                    plugin_info.loaded_info.plugin_instance = None
+            if not plugin_info.runtime_info.is_loaded:
+                if plugin_info.runtime_info.plugin_instance:
+                    del plugin_info.runtime_info.plugin_instance
+                    plugin_info.runtime_info.plugin_instance = None
                 for item in plugin_info.files:
                     with contextlib.suppress(Exception):
                         del sys.modules[item['full_import_location']]
@@ -472,7 +472,7 @@ class PluginLoader:
         """
         set the is loaded flag for a plugin
         """
-        self.plugins_info[plugin_id].loaded_info.is_loaded = True
+        self.plugins_info[plugin_id].runtime_info.is_loaded = True
 
     @AddAPI('unload.plugin', 'unload a plugin')
     def _api_unload_plugin(self, plugin_id):
@@ -481,7 +481,7 @@ class PluginLoader:
           1) run uninitialize function
           2) destroy instance
           3) remove all files in package from sys.modules
-          4) set the appropriate plugin_info.loaded_info attributes to None
+          4) set the appropriate plugin_info.runtime_info attributes to None
 
         arguments:
           required:
@@ -498,16 +498,16 @@ class PluginLoader:
         except Exception:
             return False
 
-        if plugin_info.loaded_info.plugin_instance and not plugin_info.loaded_info.plugin_instance.can_reload_f:
+        if plugin_info.runtime_info.plugin_instance and not plugin_info.runtime_info.plugin_instance.can_reload_f:
             LogRecord(f"{plugin_info.plugin_id:<30} : this plugin cannot be unloaded ({plugin_info.name})",
                         level='error', sources=[__name__, plugin_info.plugin_id])()
             return False
 
         try:
             # run the uninitialize function if it exists
-            if plugin_info.loaded_info.plugin_instance:
-                if plugin_info.loaded_info.is_loaded:
-                        plugin_info.loaded_info.plugin_instance.uninitialize()
+            if plugin_info.runtime_info.plugin_instance:
+                if plugin_info.runtime_info.is_loaded:
+                        plugin_info.runtime_info.plugin_instance.uninitialize()
 
                 LogRecord(f"{plugin_info.plugin_id:<30} : successfully unitialized ({plugin_info.name})", level='info',
                         sources=[__name__, plugin_info.plugin_id])()
@@ -526,12 +526,12 @@ class PluginLoader:
             plugins_to_load.remove(plugin_info.plugin_id)
             self.api('plugins.core.settings:change')('plugins.core.pluginm', 'pluginstoload', plugins_to_load)
 
-        if plugin_info.loaded_info.plugin_instance:
+        if plugin_info.runtime_info.plugin_instance:
             # delete the instance
-            del plugin_info.loaded_info.plugin_instance
+            del plugin_info.runtime_info.plugin_instance
 
         modules_to_delete = []
-        if plugin_info.loaded_info.is_imported:
+        if plugin_info.runtime_info.is_imported:
             modules_to_delete.extend(
                 item
                 for item in sys.modules.keys()
@@ -552,8 +552,8 @@ class PluginLoader:
 
         plugin_info.has_been_reloaded = True
 
-        # set the appropriate plugin_info.loaded_info attributes to None
-        plugin_info.reset_loaded_info()
+        # set the appropriate plugin_info.runtime_info attributes to None
+        plugin_info.reset_runtime_info()
 
         return True
 
