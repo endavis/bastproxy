@@ -14,6 +14,8 @@ holds base color codes for ansi and xterm
 
 # Project
 
+CANRELOAD = False
+
 # for finding ANSI color sequences
 
 CONVERTANSI: dict[str, str] = {}

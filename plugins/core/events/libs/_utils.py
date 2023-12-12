@@ -14,6 +14,8 @@
 
 # Project
 
+CANRELOAD = False
+
 class RegisterToEvent:
     """
     a class to decorate a function with to register it to an event

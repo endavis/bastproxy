@@ -16,6 +16,8 @@ see info/add_commands.txt for more info
 
 # Project
 
+CANRELOAD = False
+
 commands_at_startup = {}
 
 def set_command_autoadd(func, autoadd):
