@@ -17,7 +17,7 @@ from plugins.core.commands import AddParser, AddArgument
 
 class InspectPlugin(BasePlugin):
     """
-    a plugin to show connection information
+    a plugin to show inspect records
     """
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
