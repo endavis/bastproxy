@@ -1,5 +1,6 @@
 # IN PROGRESS
     # BUG: fix reloading/loading - dependencies are broken
+    # TODO: update command to update proxy from git
     # TODO: plugin.core.commands
         keep a global count vs instance count of called commands
             useful for when updating commands
@@ -13,51 +14,35 @@
         TODO: watches, triggers, plugin stats, etc.
         COMPLETE: events, commands
     # TODO: have a seperate line length for each client, use telnet negotiation
-    # TODO : all plugin reloading
-        reload entire proxy but keep connections open?
-            save clients and mud connection
-            unload all plugins
-                clearing APis for that plugin
-                clearing events
-                remove all async tasks related to a plugin
-                can we use importlib.reload?
-            reload all modules except libs.net, libs.async, and mudproxy.py
-        # Commands are kept in the plugin and then the command plugin can get them specific to api call for each plugin instead of them being stored in the command plugin
-        # the idea
-            attach to the plugin_loaded and plugin_unloaded event and update command list when seen
-            how to be able to call the api for each plugin to get its commands?
-        # could this be used for all plugins?, pull from source plugin vs push to action plugin (commands, triggers, etc)
-        # and then plugins could be reloaded much easier
-        # Plugins done: core.commands
+    # TODO: plugin reloading
 
-        # add a function internal to the plugin to save it's state in a dictionary or copy it into the new instance?
-        check refcounts to see what is still used
-        # also need to think about classes that were used
-            EG: commands has a Command class that is saved in another plugin's instance
-
-        Reloading Single Plugins:
-            OLD Thoughts:
-                Reloading plugins (see above about commands plugin):
-                    #NEW save data to the specific plugin, so command data goes into each plugin instead
-                    #NEW of the command plugin, then the command plugin registers to the initialize and
-                    #NEW and uninitialize events to update it's local caches, data, etc..
-            NEW Thoughts:
-                Decorate functions with info to recreate stuff
-                The command plugin now uses decorators and so can easily rebuild the commands for a plugin
-                    What about commands created at runtime like the reset command - put this in the event for that specific plugin initialization
-                        see baseclass._commands
-                Events does the same for registrations (not for event definitions)
-
-        don't save plugin_instances in data structures inside a plugin unless absolutely needed
-        if you need the instance, save the plugin_id and then use the api 'core.plugins:get:plugin:instance'
+        don't save plugin_instances
+            if you need the instance, save the plugin_id
+            and then use the api 'libs.pluginloader:get:plugin:instance'
         saving instances could lead to a memory leak and stale plugin instances floating around
 
-        create a "plugin" directory under the main plugin directory
-            when a plugin is reloaded, everything in the directory is reloaded
-        creata a "libs" directory under the main plugin directory
-            when a plugin is reloaded, this directory is not reloaded
+        # TODO: remove any static imports from a plugin
+            things like decorators can be statically imported but should not be reloaded
 
-        do we just have reload and start from scratch but keep connections?
+        NEW Thoughts:
+            Decorate functions with info to recreate stuff
+            The command plugin now uses decorators and so can easily rebuild the commands for a plugin
+            all command data is now kept locally in the command plugin
+                What about commands created at runtime like the reset command - put this in the event for that specific plugin initialization
+                    there is now an api to change the autoadd flag for a command
+            Events does the same for registrations (not for event definitions)
+
+        Plugin folder structure
+            if a file should not be reloaded when a plugin is reloaded
+                add a CANRELOAD = False line to the file
+            Location: plugins.core.events - the main directory
+                a "plugin" directory under the main directory
+                    this is the location of the plugin class
+                    it is recommended to only include modules that are not statically imported by other modules
+                        in this directory
+                a "libs" directory under the main directory
+                    best practice is to expose only those things other plugins need
+                        in the plugin's main directory/__init__.py
     # TODO: https://docs.python.org/3/library/collections.html#collections.namedtuple for SQLite queries????
     # TODO: make all apis use similar formats
         IE: plugins.core.commands:add and plugins.core.events:add
@@ -96,18 +81,37 @@
                 for how to use as well as to develop for
     # TODO: can I use the humanize library anywhere?
     # TODO: Discord Bot?
-    # TODO: proxy usage command with mem, average cpu, open files, etc...
-        pympler?
     # TODO: add specific Exceptions
             APINotFoundException
     # TODO: update commands to use tables
         plugins.c.pluginm.list
     # TODO: get rid of all calls to the plugins.core.commands:run api
-    # TODO: change stats hook to stats event, same with reset hook
+    # TODO: plugin_id class?
+        has package, plugin attributes
+        __str__, __repr__ returns package.plugin
+        will need to be able to hash it for dictionary keys
+    # TODO: create a command to show basic stats for a plugin
+        For things:
+            # DONE: all events that have registered functions from the plugin
+            # DONE: all commands that are from the plugin
+            # DONE: all timers that are from the plugin
+            all triggers that are from the plugin
+            etc...
+    # TODO: ??? move all the debug stuff into a single plugin
+        inspect, stats, data/internal, hooks command
+        rename inspect plugins to records?
+        create a new package called debug?
+    # TODO: data/internal command, like stats but more detailed
+        #bp.c.eve.owner
+        #bp.c.comm.list
+            except adds function data
+        events for specific plugin
+        triggers for specific plugin
+        apis for specific plugin
+        etc
+
 
 # REVISIT:
-    # TODO: decorator for event description
-        maybe for __init__?
     # TODO: libs.timing
         DIDNTDO: change decorator to a class?
     # TODO: look at slots
@@ -234,6 +238,8 @@
             #BP: ------------------------- Output ------------------------------------------------
             #BP: output
             #BP: output
+        COMPLETE: BUG: reloading plugins.core.commands
+            reset command is not readded for other plugins
     # COMPLETE: plugins.core.sqldb
         COMPLETE: add function to list tables
     # COMPLETE: plugins.core.timers
@@ -262,6 +268,7 @@
         # TODO: refactor all initialization to use hooks instead of the initialize function
             use a priority system
         # BUG: uninitialize event is not being called on reload
+        # TODO: change stats hook to stats event, same with reset hook
     # COMPLETE: research why the initialize function takes so long
             get_caller_owner_id was optimized and no longer uses inspect.stack
     # COMPLETE: add profiling as a command line argument
@@ -321,4 +328,45 @@
         Anything used in _baseplugin cannot be moved into a plugin because
             of circular imports
             @AddCommand is an example
+    # COMPLETE: proxy usage command with mem, average cpu, open files, etc...
+        pympler?
+    # COMPLETE: create a command to show hooks in a plugin
+    # COMPLETE: plugin reloading
+        # DONE: add a function internal to the plugin to save it's state in a dictionary or copy it into the new instance?
+            see self.attributes_to_save_on_reload usage in baseplugin
+        # DONE: check refcounts to see what is still used
 
+# REJECTED/OLD
+    # OLD: plugin reloading
+        Reloading Single Plugins:
+            # Commands are kept in the plugin and then the command plugin can get them specific to api call for each plugin instead of them being stored in the command plugin
+            # the idea
+                attach to the plugin_loaded and plugin_unloaded event and update command list when seen
+                how to be able to call the api for each plugin to get its commands?
+            # could this be used for all plugins?, pull from source plugin vs push to action plugin (commands, triggers, etc)
+            # and then plugins could be reloaded much easier
+            # Plugins done: core.commands
+            OLD Thoughts:
+                Reloading plugins (see above about commands plugin):
+                    #NEW save data to the specific plugin, so command data goes into each plugin instead
+                    #NEW of the command plugin, then the command plugin registers to the initialize and
+                    #NEW and uninitialize events to update it's local caches, data, etc..
+    # REJECTED: decorator for event description
+        put it on the function that actually raises the event
+        kinda hard to do for a function/method that raises a dynamically named event since
+            the function will be in every plugin
+    # REJECTED: plugin reloading
+        I am leaning away from doing this, it's just easier to restart the proxy and reconnect
+            do we just have reload and start from scratch but keep connections?
+                can we reload everything and just get connections back into async?
+            for all ? reload entire proxy but keep connections open?
+                save clients and mud connection
+                unload all plugins
+                    clearing APis for that plugin
+                    clearing events
+                    remove all async tasks related to a plugin
+                    can we use importlib.reload?
+                reload all files in plugins/*
+                don't reload libs/*
+                    need to check to make sure libs/* only uses APIs and doesn't statically
+                        import anything from a plugin
