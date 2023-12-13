@@ -46,33 +46,49 @@ class EventsPlugin(BasePlugin):
                                 'flag to log savestate events, reduces log spam if False')
 
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api('plugins.core.events:register.to.event')("ev_libs.pluginloader_post_startup_plugins_initialize", self._eventcb_register_events_at_startup)
+        self.api('plugins.core.events:register.to.event')("ev_libs.pluginloader_post_startup_plugins_initialize", self._eventcb_post_startup_plugins_initialize)
 
-    def _eventcb_register_events_at_startup(self):
+    def _eventcb_post_startup_plugins_initialize(self):
+        """
+        register all events in all plugins
+        """
+        self._register_all_plugin_events()
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_all_events_registered")
+
+    @RegisterToEvent(event_name='ev_baseplugin_patched')
+    def _eventcb_baseplugin_patched(self):
+        """
+        a plugin was patched, so reload all events
+        """
+        if self.api.startup:
+            return
+
+        self._register_all_plugin_events()
+
+    def _register_all_plugin_events(self):
         """
         add commands on startup
         """
-        LogRecord("_eventcb_add_register_events_at_startup: start", level='debug',
+        LogRecord("_register_all_plugin_events: start", level='debug',
                         sources=[self.plugin_id])()
         for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
-            LogRecord(f"_eventcb_register_events_on_startup: registering events in {plugin_id}", level='debug',
+            LogRecord(f"_register_all_plugin_events: registering events in {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
-            self.register_events_for_plugin(plugin_id)
-        LogRecord("_eventcb_add_register_events_at_startup: finish", level='debug',
+            self._register_events_for_plugin(plugin_id)
+        LogRecord("_register_all_plugin_events: finish", level='debug',
                         sources=[self.plugin_id])()
-        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_all_events_registered")
 
-    def register_events_for_plugin(self, plugin_id):
+    def _register_events_for_plugin(self, plugin_id):
         """
         register all events in a plugin
         """
         plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
-        LogRecord(f"register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
+        LogRecord(f"_register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
                     sources=[self.plugin_id, plugin_id])()
         if event_functions:
             names = [item.__name__ for item in event_functions]
-            LogRecord(f"register_events_for_plugin {names = }", level='debug',
+            LogRecord(f"_register_events_for_plugin {names = }", level='debug',
                         sources=[self.plugin_id, plugin_id])()
             for func in event_functions:
                 self.api(f"{self.plugin_id}:register.event.by.func")(func)
@@ -85,7 +101,7 @@ class EventsPlugin(BasePlugin):
         if self.api.startup or not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
 
-        self.register_events_for_plugin(event_record['plugin_id'])
+        self._register_events_for_plugin(event_record['plugin_id'])
 
     def get_event_registration_functions_in_object(self, base, recurse=True):
         """
@@ -214,6 +230,10 @@ class EventsPlugin(BasePlugin):
             LogRecord(f"_api_register_to_event - could not find owner for {func}",
                       level='error', sources=[self.plugin_id])()
             return
+
+        # unregister if it's already registered, it might be a new priority
+        if self.api(f'{self.plugin_id}:is.registered.to.event')(event_name, func):
+            self.api(f'{self.plugin_id}:unregister.from.event')(event_name, func)
 
         event = self.api(f"{self.plugin_id}:get.event")(event_name)
 
