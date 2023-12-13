@@ -16,12 +16,14 @@ Holds the log record type
 from libs.records.rtypes.base import BaseDictRecord
 
 class CmdArgsRecord(BaseDictRecord):
-    def __init__(self, owner_id: str = '', data: dict | None = None, arg_string: str = ''):
+    def __init__(self, owner_id: str = '', data: dict | None = None,
+                 arg_string: str = '', command: str = 'unknown'):
         """
         initialize the class
         """
         BaseDictRecord.__init__(self, owner_id, data, track_record=False)
         self.arg_string: str = arg_string
+        self.command: str = command
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

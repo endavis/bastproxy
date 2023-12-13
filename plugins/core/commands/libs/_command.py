@@ -58,7 +58,8 @@ class CommandClass:
             message.extend(fail_message)
             return self.run_finish(False, message, 'could not parse args', format=format)
 
-        args = CmdArgsRecord(f"{self.plugin_id}:{self.name}", vars(parsed_args), arg_string=arg_string)
+        args = CmdArgsRecord(f"{self.plugin_id}:{self.name}", vars(parsed_args), arg_string=arg_string,
+                             command = self.full_cmd)
 
         if args['help']:
             message.extend(self.arg_parser.format_help().split('\n'))
