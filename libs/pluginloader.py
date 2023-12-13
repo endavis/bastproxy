@@ -59,7 +59,7 @@ class PluginLoader:
         remove a weak reference to a module
         """
         old_object = weakref_obj()
-        if not old_object:
+        if not old_object and not self.api.shutdown:
             LogRecord(f"{module_import_path} was garbage collected", level='info', sources=[__name__])()
             if module_import_path in self.weak_references_to_modules:
                 del self.weak_references_to_modules[module_import_path]
