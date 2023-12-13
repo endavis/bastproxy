@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/records/_init_.py
+# Filename: plugins/debug/records/_init_.py
 #
 # File Description: a plugin to inspect records
 #
