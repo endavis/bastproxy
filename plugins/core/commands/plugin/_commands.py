@@ -1028,9 +1028,10 @@ class CommandsPlugin(BasePlugin):
 
                 groups[commands[i].group].append(commands[i])
 
-        message.append(output_subheader_color + '-' * 5 + ' ' +  plugin_id.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
-        message.extend(self.format_command_list(groups[plugin_id]))
-        message.append('')
+        if plugin_id in groups:
+            message.append(output_subheader_color + '-' * 5 + ' ' +  plugin_id.replace('plugins.', '') + ' ' + '-' * 5 + '@w')
+            message.extend(self.format_command_list(groups[plugin_id]))
+            message.append('')
 
         for group in sorted(groups.keys()):
             if group not in ['Base', 'Debug/Info', plugin_id]:
