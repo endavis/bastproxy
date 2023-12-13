@@ -176,7 +176,6 @@ class CommandsPlugin(BasePlugin):
             ),
             ]
 
-
     @AddAPI('get.command.line.length', description='get line length for command')
     def _api_get_command_line_length(self):
         """
@@ -195,9 +194,21 @@ class CommandsPlugin(BasePlugin):
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
 
-    def _eventcb_add_commands_on_reload(self):
+    @RegisterToEvent(event_name='ev_baseplugin_patched')
+    def _eventcb_commands_baseplugin_patched(self):
         """
-        add commands on startup
+        the base plugin was patched
+        """
+        LogRecord(
+            "commands - _eventcb_commands_baseplugin_patched: baseplugin patched, adding commands",
+            level='debug',
+            sources=[self.plugin_id],
+        )()
+        self._add_commands_for_all_plugins()
+
+    def _add_commands_for_all_plugins(self):
+        """
+        add commands for all loaded plugins
         """
         LogRecord('_eventcb_add_commands_on_startup: reload', level='debug',
                     sources=[self.plugin_id])()
@@ -217,7 +228,7 @@ class CommandsPlugin(BasePlugin):
             return
 
         if not self.api.startup and event_record['plugin_id'] == self.plugin_id:
-            self._eventcb_add_commands_on_reload()
+            self._add_commands_for_all_plugins()
         else:
             LogRecord(f"_eventcb_plugin_initialized: loading commands for {event_record['plugin_id']}", level='debug',
                         sources=[self.plugin_id])()
