@@ -14,8 +14,11 @@ from importlib import import_module
 # 3rd Party
 
 # Project
+from libs.api import API as APIClass
 from ._base import Plugin
 from libs.records import LogRecord
+
+API = APIClass(__name__)
 
 modules_patched = []
 
@@ -23,6 +26,7 @@ def patch(full_import_location, override=False):
     """
     patch the base class with any function in the specified module
     """
+    added = False
     if full_import_location not in sys.modules:
         try:
             module = import_module(full_import_location)
@@ -46,4 +50,9 @@ def patch(full_import_location, override=False):
 
             LogRecord(f"adding {itemo.__name__}", level='info', sources=['baseplugin'])()
             setattr(Plugin, itemo.__name__, itemo)
+            added = True
+
+    if added and not API.startup:
+        API('plugins.core.events:raise.event')('ev_baseplugin_patched')
+
     return True
