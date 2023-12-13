@@ -822,8 +822,8 @@ class CommandsPlugin(BasePlugin):
             del command_split[command_split.index(commandprefix)]
 
         # remove the literal 'plugins' string
-        if 'plugins' in command_split:
-            del command_split[command_split.index('plugins')]
+        if command_split[0] == 'plugins':
+            del command_split[0]
 
         LogRecord(f"2: {command_split=}",
             level='debug',

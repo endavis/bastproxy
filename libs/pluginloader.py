@@ -631,7 +631,6 @@ class PluginLoader:
             tmp_package = f"plugins.{psplit[1]}"
             tmp_plugin = psplit[2]
 
-        loaded_list = self.api(f'{__name__}:get.loaded.plugins.list')()
         package_list = self.api(f"{__name__}:get.packages.list")(active_only)
 
         # try and find the package
@@ -640,6 +639,11 @@ class PluginLoader:
 
         if not new_package:
             return '', ''
+
+        if not tmp_plugin:
+            return new_package, ''
+
+        loaded_list = self.api(f'{__name__}:get.loaded.plugins.list')()
 
         # try and find the plugin
         new_plugin = self.api('plugins.core.fuzzy:get.best.match')(f"{new_package}.{tmp_plugin}",
