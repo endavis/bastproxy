@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/inspect/_inspect.py
+# Filename: plugins/core/records/_records.py
 #
-# File Description: a plugin to inspect plugin internals
+# File Description: a plugin to inspect records
 #
 # By: Bast
 
@@ -15,9 +15,9 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import RMANAGER
 from plugins.core.commands import AddParser, AddArgument
 
-class InspectPlugin(BasePlugin):
+class RecordPlugin(BasePlugin):
     """
-    a plugin to show inspect records
+    a plugin to inspect records
     """
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):

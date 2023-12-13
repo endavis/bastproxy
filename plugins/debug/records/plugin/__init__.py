@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/inspect/plugin/_init_.py
+# Filename: plugins/core/records/plugin/_init_.py
 #
-# File Description: a plugin to inspect plugin internals
+# File Description: a plugin to inspect records
 #
 # By: Bast
 __all__ = ['Plugin']
 
-from ._inspect import InspectPlugin as Plugin
+from ._records import RecordPlugin as Plugin
