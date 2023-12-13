@@ -24,6 +24,12 @@ class EventArgsRecord(BaseDictRecord):
         BaseDictRecord.__init__(self, owner_id, data)
         self.event_name = event_name
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f"{self.event_name}"
+
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
         attributes[0].append(('Event Name', 'event_name'))
@@ -37,6 +43,12 @@ class RaisedEventRecord(BaseRecord):
         self.arg_data : EventArgsRecord | None = None
         self.id = f"{__name__}:{self.event_name}:{self.created}"
         self.addupdate('Info', 'Init', f"{self.id}:init")
+
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f"{self.event_name}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

@@ -50,6 +50,12 @@ class BaseRecord:
             current_active_record.add_related_record(self)
         RMANAGER.add(self)
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f"{self.owner_id}"
+
     def get_all_related_records(self, update_filter=None) -> list:
         """
         get all related records
@@ -237,6 +243,17 @@ class BaseListRecord(UserList, BaseRecord):
         self.original_data = message[:]
         self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        first_str = ''
+        index = 0
+        while not first_str:
+            first_str = self.original_data[index].strip()
+            index += 1
+        return f"{first_str}"
+
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
         attributes[0].extend([('Internal', 'internal'),
@@ -364,6 +381,12 @@ class BaseDictRecord(UserDict, BaseRecord):
         BaseRecord.__init__(self, owner_id, track_record=track_record)
         self.original_data = data.copy()
         self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
+
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f"{self.original_data[list(self.original_data.keys())[0]].strip()}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

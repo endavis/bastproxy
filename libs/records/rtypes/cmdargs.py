@@ -29,3 +29,9 @@ class CmdArgsRecord(BaseDictRecord):
         attributes = super().get_attributes_to_format()
         attributes[0].append(('Arg String', 'arg_string'))
         return attributes
+
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f"{self.command} {self.arg_string}"

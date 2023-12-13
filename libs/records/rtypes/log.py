@@ -38,6 +38,13 @@ class LogRecord(BaseListRecord):
             'client': False,
         }
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        tstr = super().one_line_summary()
+        return f"{self.level}:{tstr}"
+
     def color_lines(self, actor: str=''):
         """
         color the message
