@@ -328,6 +328,7 @@ class PluginLoader:
             if exit_on_error:
                 sys.exit(1)
             else:
+                self.api(f'{__name__}:unload.plugin')(plugin_id)
                 return False
 
         # set the plugin instance
@@ -376,6 +377,7 @@ class PluginLoader:
                 LogRecord(f"{plugin_info.plugin_id:<30} : DID NOT INITIALIZE", level='error',
                           sources=[__name__, plugin_info.plugin_id])()
                 sys.exit(1)
+            self.api(f'{__name__}:unload.plugin')(plugin_id)
             return False
 
         LogRecord(f"{plugin_info.plugin_id:<30} : successfully initialized ({plugin_info.name})", level='info',
@@ -447,7 +449,8 @@ class PluginLoader:
                 for item in plugin_info.files:
                     with contextlib.suppress(Exception):
                         del sys.modules[item['full_import_location']]
-                del sys.modules[plugin_info.package_import_location]
+                with contextlib.suppress(Exception):
+                    del sys.modules[plugin_info.package_import_location]
 
         if bad_plugins and exit_on_error:
             sys.exit(1)
