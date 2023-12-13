@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/apihelp/_apihelp.py
+# Filename: plugins/debug/apihelp/_apihelp.py
 #
 # File Description: a plugin to show api functions and details
 #
@@ -18,7 +18,7 @@ from libs.api import API
 from plugins.core.commands import AddParser, AddArgument
 from plugins._baseplugin import BasePlugin
 
-class APIHelpPlugin(BasePlugin):
+class APIPlugin(BasePlugin):
     """
     a plugin to show api information
     """
@@ -104,12 +104,13 @@ class APIHelpPlugin(BasePlugin):
     @AddArgument('arguments',
                     help='arguments to the api',
                     default='', nargs='*')
-    def _command_run(self):
+    def _command_call(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
-        List functions in the api
-          @CUsage@w: list @Y<apiname>@w
-          @Yapiname@w = (optional) the toplevel api to show
+        Call an API
+          @CUsage@w: call @Y<apiname>@w
+          -a @Yapiname@w  = the api to call
+            @Yarguments@w = (optional) arguments to the api
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         api = args['api']

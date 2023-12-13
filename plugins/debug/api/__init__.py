@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/apihelp/_init_.py
+# Filename: plugins/debug/api/_init_.py
 #
 # File Description: a plugin to show api functions and details
 #
@@ -9,7 +9,7 @@
 This plugin will show api functions and details
 """
 # these 4 are required
-PLUGIN_NAME = 'API help'
-PLUGIN_PURPOSE = 'show info about the api'
+PLUGIN_NAME = 'API debugging'
+PLUGIN_PURPOSE = 'show info and debug the api'
 PLUGIN_AUTHOR = 'Bast'
 PLUGIN_VERSION = 1

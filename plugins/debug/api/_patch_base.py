@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/settings/_set_cmd.py
+# Filename: plugins/debug/api/_patch_base.py
 #
-# File Description: holds the set command to add to BasePlugin
+# File Description: holds the api command to patch into all plugins
 #
 # By: Bast
 
