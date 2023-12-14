@@ -220,6 +220,11 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         """ set the reload flag """
         self.is_reloading_f = True
 
+    @AddAPI('get.plugin.hooks', description='get the plugin hooks for this plugin')
+    def _api_get_plugin_hooks(self):
+        """ get the plugin hooks for this plugin """
+        return self._get_all_plugin_hook_functions()
+
     def _find_attribute(self, attribute_name):
         """
         find an attribute of this plugin and dump it as a string

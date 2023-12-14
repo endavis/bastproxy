@@ -37,9 +37,40 @@ class PluginsPlugin(BasePlugin):
         args = self.api('plugins.core.commands:get.current.command.args')()
 
         if not args['plugin']:
-            return False, ['Please enter a plugin name']
+            return False, ['Please enter a plugin id']
 
         if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
             return True, [f'Plugin {args["plugin"]} not found']
 
         return True, self.api(f"{args['plugin']}:dump")(args['object'], args['simple'])[1]
+
+    @AddParser(description='show internal plugin hooks')
+    @AddArgument('plugin',
+                    help='the plugin to show the hooks for',
+                    default='')
+    def _command_hooks(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+        show internal plugin hooks
+        @CUsage@w: hooks
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        if not args['plugin']:
+            return False, ['Please enter a plugin name']
+
+        tmsg = []
+
+        hooks = self.api(f'{args["plugin"]}:get.plugin.hooks')()
+
+        tmsg.extend(self.api('plugins.core.commands:format.output.header')(f'Plugin Hooks for {args["plugin"]}'))
+
+        for hook in hooks:
+            tmsg.extend(self.api('plugins.core.commands:format.output.subheader')(f'{hook}'))
+            priorities = hooks[hook].keys()
+            priorities = sorted(list(priorities))
+            for priority in priorities:
+                tmsg.extend(f"{priority:<5} : {item}" for item in hooks[hook][priority])
+            tmsg.append('')
+
+        return True, tmsg
