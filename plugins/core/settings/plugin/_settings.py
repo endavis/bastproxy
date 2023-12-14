@@ -125,6 +125,14 @@ class SettingsPlugin(BasePlugin):
             self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
             self.api(f"{self.plugin_id}:remove.plugin.settings")(plugin_id)
 
+    @RegisterToEvent(event_name='ev_plugin_save')
+    def _eventcb_settings_plugin_save(self):
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            plugin_id = event_record['plugin_id']
+            self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
+
     @RegisterToEvent(event_name='ev_plugin_reset')
     def _eventcb_plugin_reset(self):
         if event_record := self.api(
@@ -246,6 +254,7 @@ class SettingsPlugin(BasePlugin):
         """
         save the settings for a plugin
         """
+        LogRecord(f"{self.plugin_id} : Saving settings for {plugin_id}", level='debug', sources=[self.plugin_id, plugin_id])()
         self.settings_values[plugin_id].sync()
 
     @AddAPI('get.all.for.plugin', description='get all settings for a plugin')

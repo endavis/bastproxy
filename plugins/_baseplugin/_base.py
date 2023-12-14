@@ -468,6 +468,9 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         save the state of the plugin
         """
         self._process_plugin_hook('save')
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_save", {})
+        self.api('plugins.core.events:raise.event')("ev_plugin_save",
+                                                    {'plugin_id':self.plugin_id})
 
     @AddAPI('reset', 'reset the plugin')
     def _api_reset(self):
