@@ -14,7 +14,6 @@ import textwrap
 # Project
 import libs.argp as argp
 from plugins._baseplugin import RegisterPluginHook
-from plugins.core.events import RegisterToEvent
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 
 CANRELOAD = False
@@ -64,24 +63,3 @@ def _phook_settings_post_initialize(self):
     self.reset_f = False
 
     self.api('plugins.core.settings:initialize.plugin.settings')(self.plugin_id)
-
-@RegisterToEvent(event_name="ev_{plugin_id}_initialized")
-def _eventcb_raise_event_all_settings(self):
-    """
-    raise all events for settings
-    """
-    self.api('plugins.core.settings:raise.event.all.settings')(self.plugin_id)
-
-@RegisterPluginHook('save')
-def _phook_settings_save(self):
-    """
-    save all settings for the plugin
-    """
-    self.api('plugins.core.settings:save.plugin')(self.plugin_id)
-
-@RegisterPluginHook('uninitialize', priority=100)
-def _phook_settings_uninitialize(self):
-    """
-    remove the settings for the plugin
-    """
-    self.api('plugins.core.settings:remove.plugin.settings')(self.plugin_id)

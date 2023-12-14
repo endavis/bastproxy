@@ -108,6 +108,23 @@ class SettingsPlugin(BasePlugin):
 
         return returnval
 
+    @RegisterToEvent(event_name='ev_plugin_initialized')
+    def _eventcb_settings_plugin_initialized(self):
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            plugin_id = event_record['plugin_id']
+            self.api(f"{self.plugin_id}:raise.event.all.settings")(plugin_id)
+
+    @RegisterToEvent(event_name='ev_plugin_uninitialized')
+    def _eventcb_settings_plugin_uninitialized(self):
+        if event_record := self.api(
+            'plugins.core.events:get.current.event.record'
+        )():
+            plugin_id = event_record['plugin_id']
+            self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
+            self.api(f"{self.plugin_id}:remove.plugin.settings")(plugin_id)
+
     @RegisterToEvent(event_name='ev_plugin_reset')
     def _eventcb_plugin_reset(self):
         if event_record := self.api(
