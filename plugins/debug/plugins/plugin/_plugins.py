@@ -74,3 +74,30 @@ class PluginsPlugin(BasePlugin):
             tmsg.append('')
 
         return True, tmsg
+
+    @AddParser(description='show plugin stats')
+    @AddArgument('plugin',
+                    help='the plugin to show the hooks for',
+                    default='')
+    def _command_stats(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+        show stats, memory, profile, etc.. for this plugin
+        @CUsage@w: stats
+        """
+
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        if not args['plugin']:
+            return False, ['Please enter a plugin name']
+
+        stats = self.api(f'{args["plugin"]}:get.stats')()
+        tmsg = []
+        for header in stats:
+            tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))
+            tmsg.extend(
+                f"{subtype:<20} : {stats[header][subtype]}"
+                for subtype in stats[header]['showorder']
+            )
+            tmsg.append('')
+        return True, tmsg

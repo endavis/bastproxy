@@ -26,53 +26,6 @@ class Commands(Protocol, Generic[t_Plugin]):
         if self.can_reset_f:
             set_command_autoadd(self._command_reset, True)
 
-    @AddCommand(group='Debug/Info')
-    @AddParser(description='inspect a plugin and its attributes')
-    @AddArgument('-o',
-                    '--object',
-                    help='show an object of the plugin, can be method or variable',
-                    default='')
-    @AddArgument('-s',
-                    '--simple',
-                    help='show a simple output',
-                    action='store_true')
-    def _command_inspect(self: t_Plugin):
-        """
-        show the plugin as it currently is in memory
-
-        args dictionary:
-          method - inspect specified method
-          object - inspect specified object
-                      to get to nested objects or dictionary keys use .
-                      Ex. data.commands.stats.parser.description
-
-          simple - only dump topllevel attributes
-        """
-        args = self.api('plugins.core.commands:get.current.command.args')()
-
-        return True, self.api(f"{self.plugin_id}:dump")(args['object'], simple=args['simple'])[1]
-
-
-
-    @AddCommand(group='Debug/Info')
-    @AddParser(description='show plugin stats')
-    def _command_stats(self: t_Plugin):
-        """
-        @G%(name)s@w - @B%(cmdname)s@w
-        show stats, memory, profile, etc.. for this plugin
-        @CUsage@w: stats
-        """
-        stats = self.api(f'{self.plugin_id}:get.stats')()
-        tmsg = []
-        for header in stats:
-            tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))
-            tmsg.extend(
-                f"{subtype:<20} : {stats[header][subtype]}"
-                for subtype in stats[header]['showorder']
-            )
-            tmsg.append('')
-        return True, tmsg
-
     @AddCommand(group='Base')
     @AddParser(description='show help info for this plugin')
     @AddArgument('-a',

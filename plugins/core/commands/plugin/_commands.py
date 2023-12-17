@@ -1053,8 +1053,6 @@ class CommandsPlugin(BasePlugin):
         message.append(output_subheader_color + '-' * 5 + ' ' +  'Base' + ' ' + '-' * 5 + '@w')
         message.extend(self.format_command_list(groups['Base']))
         message.append('')
-        message.append(output_subheader_color + '-' * 5 + ' ' +  'Debug/Info' + ' ' + '-' * 5 + '@w')
-        message.extend(self.format_command_list(groups['Debug/Info']))
 
         return message
 
