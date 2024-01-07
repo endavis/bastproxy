@@ -30,12 +30,12 @@ class Event:
     def __init__(self, name: str, created_by: str ='', description: list | None = None, arg_descriptions: dict[str, str] | None = None):
         """
         name: the name of the event
-        created_by: the name of the plugin or module that created the event
+        created_by: it should be the __name__ of the module or the plugin id for easy identification
         description: a list of strings that describe the event
         arg_descriptions: a dictionary of argument names and descriptions
         """
         self.name: str = name
-        # it should be the __name__ of the module or plugin
+        # it should be the __name__ of the module or the plugin id for easy identification
         self.created_by: str = created_by
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
