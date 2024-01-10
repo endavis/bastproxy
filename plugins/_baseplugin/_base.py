@@ -403,21 +403,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         if self.api('plugins.core.events:is.registered.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active):
             self.api('plugins.core.events:unregister.from.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active)
 
-    @AddAPI('get.stats', 'get stats for the plugin')
-    def _api_get_stats(self):
-        """
-        get stats for the plugin
-        """
-        stats = {}
-
-        event_args = self.api('plugins.core.events:raise.event')(f"ev_plugin_{self.plugin_id}_stats", args={'plugin_id':self.plugin_id,
-                                                                                   'stats': stats})
-
-        event_args = self.api('plugins.core.events:raise.event')("ev_plugin_stats", args={'plugin_id':self.plugin_id,
-                                                                                   'stats': event_args['stats']})
-
-        return event_args['stats']
-
     @RegisterPluginHook('uninitialize', priority=100)
     def _phook_base_unitialize_hook(self):
         """

@@ -900,42 +900,70 @@ class CommandsPlugin(BasePlugin):
             if message:
                 ToClientRecord(message, clients=clients)()
 
-    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
-    def _eventcb_commands_ev_plugins_stats(self):
+    @AddAPI('get.summary.data.for.plugin', description="get summary data for a plugin")
+    def _api_get_summary_data_for_plugin(self, plugin_id):
         """
         return stats for the plugin
         """
-        if event_record := self.api(
-            'plugins.core.events:get.current.event.record'
-        )():
-            event_record['stats']['Overall Command Stats'] = {
-                        'showorder': ['Total Commands'],
-                        'Total Commands' : len(self.commands_list),
-                        }
+        msg = []
 
-    @RegisterToEvent(event_name="ev_plugin_stats")
-    def _eventcb_commands_get_stats_for_plugin(self) -> None:
-        """
-        get stats for a plugin
-        """
-        if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
-            return
-
-        plugin_id = event_record['plugin_id']
+        if plugin_id == self.plugin_id:
+            msg.extend(
+                (
+                    self.api('plugins.core.utils:center.colored.string')(
+                        "Overall Command Data", '=', 80, filler_color='@G'
+                    ),
+                    f'Total Commands for all plugins : {len(self.commands_list)}',
+                    '',
+                    self.api('plugins.core.utils:center.colored.string')(
+                        f"{self.plugin_id} specific data", '=', 80, filler_color='@G'
+                    ),
+                )
+            )
 
         command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(plugin_id)
 
         commands = [command.name for command in command_data.values()]
 
-        command_str = "".join(f"{'':<23}{item}\n" for item in commands)
+        command_str = "".join(f"{'':<26}{item}\n" for item in commands)
 
-        event_record['stats'][f'{plugin_id} Command Stats'] = {
-            'Number of Commands': self.api(
-                'plugins.core.commands:get.command.count'
-            )(plugin_id),
-            'Commands': command_str.strip(),
-            'showorder': ['Number of Commands', 'Commands'],
-        }
+        count = len(commands)
+
+        msg.extend([
+            f"{f'{count} Commands':<23} : {command_str.strip()}",
+        ])
+
+        return msg
+
+    @AddAPI('get.detailed.data.for.plugin', description='get detailed data for a plugin')
+    def _api_get_detailed_data_for_plugin(self, plugin_id):
+        """
+        get detailed data for a plugin
+        """
+        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(plugin_id)
+
+        if not command_data:
+            return ['None']
+
+        columns = [
+            {'name': 'Command Name', 'key': 'name', 'width':20},
+            {'name': 'Function', 'key': 'function_name', 'width':20},
+        ]
+
+        sorted_keys = sorted(command_data.keys())
+        data = [
+            {'name': command_data[command].name,
+                'function_name': command_data[command].function.__name__}
+            for command in sorted_keys
+        ]
+
+        count = len(data)
+
+        return [
+            *self.api('plugins.core.utils:convert.data.to.output.table')(
+                f"{count} Commands for plugin: {plugin_id}", data, columns
+            )
+        ]
 
     @RegisterToEvent(event_name='ev_to_mud_data_modify')
     def _eventcb_check_for_command(self) -> None:

@@ -639,8 +639,6 @@ class TriggersPlugin(BasePlugin):
         return True, message
 
 
-    # @RegisterPluginHook('stats')
-    # def _phook_trigger_stats(self, **kwargs):
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_triggers_ev_plugins_stats(self):
         """

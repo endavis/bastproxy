@@ -75,11 +75,44 @@ class PluginsPlugin(BasePlugin):
 
         return True, tmsg
 
-    @AddParser(description='show plugin stats')
+    @AddParser(description='show plugin data summary')
     @AddArgument('plugin',
-                    help='the plugin to show the hooks for',
+                    help='the plugin to show the summary for',
                     default='')
-    def _command_stats(self):
+    def _command_summary(self):
+        """
+        @G%(name)s@w - @B%(cmdname)s@w
+        show a summary of what data a plugin has
+        @CUsage@w: stats
+        """
+
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+        if not args['plugin']:
+            return False, ['Please enter a plugin name']
+
+        data = {}
+
+        loaded_plugins = self.api('libs.pluginloader:get.loaded.plugins.list')()
+
+        for plugin in loaded_plugins:
+            api = f'{plugin}:get.summary.data.for.plugin'
+            if self.api('libs.api:has')(api):
+                data[plugin] = self.api(api)(args['plugin'])
+
+        tmsg = []
+        for plugin in data:
+            tmsg.extend(self.api('plugins.core.commands:format.output.header')(f'{plugin}: data for {args["plugin"]}'))
+            tmsg.extend(data[plugin])
+            tmsg.append('')
+
+        return True, tmsg
+
+    @AddParser(description='show detailed plugin data in other plugins')
+    @AddArgument('plugin',
+                    help='the plugin to show the data for',
+                    default='')
+    def _command_detail(self):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
@@ -91,13 +124,19 @@ class PluginsPlugin(BasePlugin):
         if not args['plugin']:
             return False, ['Please enter a plugin name']
 
-        stats = self.api(f'{args["plugin"]}:get.stats')()
+        data = {}
+
+        loaded_plugins = self.api('libs.pluginloader:get.loaded.plugins.list')()
+
+        for plugin in loaded_plugins:
+            api = f'{plugin}:get.detailed.data.for.plugin'
+            if self.api('libs.api:has')(api):
+                data[plugin] = self.api(api)(args['plugin'])
+
         tmsg = []
-        for header in stats:
-            tmsg.append(self.api('plugins.core.utils:center.colored.string')(header, '=', 60))
-            tmsg.extend(
-                f"{subtype:<20} : {stats[header][subtype]}"
-                for subtype in stats[header]['showorder']
-            )
+        for plugin in data:
+            tmsg.extend(self.api('plugins.core.commands:format.output.header')(f'{plugin}: data for {args["plugin"]}'))
+            tmsg.extend(data[plugin])
             tmsg.append('')
+
         return True, tmsg

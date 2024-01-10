@@ -131,7 +131,7 @@ class Event:
         registrations = []
         for priority in self.priority_dictionary:
             registrations.extend(
-                call_back.name
+                {'function_name': call_back.name, 'priority': priority}
                 for call_back in self.priority_dictionary[priority]
                 if call_back.owner_id == owner_id
             )

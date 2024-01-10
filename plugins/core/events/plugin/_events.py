@@ -264,6 +264,45 @@ class EventsPlugin(BasePlugin):
         for event in self.events:
             self.events[event].removeowner(owner_id)
 
+    @AddAPI('get.detailed.data.for.plugin', description='get detailed data for a plugin')
+    def _api_get_detailed_data_for_plugin(self, owner_name):
+        """
+        return all events for an owner
+        """
+        owner_events = {}
+        for event in self.events.values():
+            if registrations := event.getownerregistrations(owner_name):
+                owner_events[event.name] = registrations
+
+        if not owner_events:
+            return []
+
+        columns = [
+            {'name': 'Event Name', 'key': 'event', 'width': 10},
+            {'name': 'Priority', 'key': 'priority', 'width': 10},
+            {'name': 'Function', 'key': 'function_name', 'width': 40},
+        ]
+
+        data = []
+        sorted_keys = sorted(owner_events.keys())
+        for event_name in sorted_keys:
+            data.extend(
+                {
+                    'event': event_name,
+                    'function_name': item['function_name'],
+                    'priority': item['priority'],
+                }
+                for item in owner_events[event_name]
+            )
+
+        count = len(data)
+
+        return [
+            *self.api('plugins.core.utils:convert.data.to.output.table')(
+                f"{count} Event Registrations for owner: {owner_name}", data, columns
+            )
+        ]
+
     @AddAPI('raise.event', description='raise an event')
     def _api_raise_event(self, event_name, args=None, calledfrom=None):
         # pylint: disable=too-many-nested-blocks
@@ -434,25 +473,9 @@ class EventsPlugin(BasePlugin):
 
         owner_name = args['owner']
 
-        owner_events = {}
-        for event in self.events.values():
-            if registrations := event.getownerregistrations(owner_name):
-                owner_events[event.name] = registrations
+        data = self.api(f"{self.plugin_id}:get.detailed.data.for.plugin")(owner_name)
 
-        if not owner_events:
-            return True, [f"No events found for object: {owner_name}"]
-
-        message = [f"Registrations for owner: {owner_name}",
-                   ''.join(['@B', '-' * 70, '@w']),
-                    f"{'Event Name':<40} : Function",
-                   ''.join(['@B', '-' * 70, '@w'])]
-
-        sorted_keys = sorted(owner_events.keys())
-        for event_name in sorted_keys:
-            message.append(f"{event_name:<40} : {owner_events[event_name][0]}")
-            message.extend(f"{'':<40} : {registration}" for registration in owner_events[event_name][1:])
-
-        return True, message
+        return True, data or ['No registrations']
 
     def summarystats(self, _=None):
         # pylint: disable=unused-argument
@@ -461,33 +484,28 @@ class EventsPlugin(BasePlugin):
         """
         return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
 
-    # @RegisterPluginHook('stats')
-    # def _phook_events_stats(self, stats):
-    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
-    def _eventcb_events_ev_plugins_stats(self):
+    @AddAPI('get.summary.data.for.plugin', description="get summary data for a plugin")
+    def _api_get_summary_data_for_plugin(self, plugin_id):
         """
-        return stats for the plugin
+        return a summary of the data in this plugin for a specific plugin_id
         """
-        if event_record := self.api(
-            'plugins.core.events:get.current.event.record'
-        )():
-            event_record['stats']['Overall Event Stats'] = {
-                        'showorder': ['Total', 'Raised'],
-                        'Total' : len(self.events),
-                        'Raised' : self.global_raised_count
-                        }
+        msg = []
+        if plugin_id == self.plugin_id:
+            msg.extend(
+                (
+                    self.api('plugins.core.utils:center.colored.string')(
+                        "Overall Event Data", '=', 80, filler_color='@G'
+                    ),
+                    f'Total Events  : {len(self.events)}',
+                    f'Raised Events : {self.global_raised_count}',
+                    '',
+                    self.api('plugins.core.utils:center.colored.string')(
+                        f"{self.plugin_id} specific data", '=', 80, filler_color='@G'
+                    ),
 
-    @RegisterToEvent(event_name="ev_plugin_stats")
-    def _eventcb_event_get_stats_for_plugin(self) -> None:
-        """
-        get stats for a plugin
-        """
-        if not (event_record := self.api(
-            'plugins.core.events:get.current.event.record'
-        )()):
-            return
+                )
+            )
 
-        plugin_id = event_record['plugin_id']
         registrations = {}
         for event in self.events:
             if new_registrations := self.events[event].getownerregistrations(plugin_id):
@@ -495,10 +513,12 @@ class EventsPlugin(BasePlugin):
 
         all_registrations = list(registrations.keys())
 
-        registrations_str = "".join(f"{'':<23}{item}\n" for item in all_registrations)
+        registrations_str = "".join(f"{'':<26}{item}\n" for item in all_registrations)
 
-        event_record['stats'][f'{plugin_id} Event Stats'] = {
-            'showorder': ['Registered', 'Events Registered To'],
-            'Registered': len(registrations),
-            'Events Registered To': registrations_str.strip()
-        }
+        count = len(all_registrations)
+
+        msg.extend([
+            f"{f'{count} Event Registrations':<23} : {registrations_str.strip()}",
+        ])
+
+        return msg
