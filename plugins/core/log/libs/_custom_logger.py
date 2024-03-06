@@ -178,17 +178,17 @@ def setup_loggers(log_level: int):
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path,
                                                     when='midnight')
     file_handler.formatter = logging.Formatter(
-        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
+        "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     console_handler = CustomConsoleHandler()
     console_handler.formatter = CustomColorFormatter(
-        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
+        "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     client_handler = CustomClientHandler()
     client_handler.formatter = CustomColorFormatter(
-        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
+        "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     # add the handler to the root logger
@@ -210,7 +210,7 @@ def setup_loggers(log_level: int):
     data_logger.setLevel(logging.INFO)
     data_logger_file_handler = logging.handlers.TimedRotatingFileHandler(data_logger_log_file_path, when='midnight')
     data_logger_file_handler.formatter = logging.Formatter(
-        f"%(asctime)s : %(name)-11s - %(message)s"
+        "%(asctime)s : %(name)-11s - %(message)s"
     )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False

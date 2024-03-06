@@ -46,7 +46,7 @@ BASEAPI.startup = True
 logging.basicConfig(
     stream=sys.stdout,
     level='INFO',
-    format=f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
+    format="%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
 )
 
 # change LOG_IN_UTC_TZ to False if you want to log in local time
