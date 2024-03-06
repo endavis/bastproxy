@@ -27,10 +27,14 @@ from libs.records import LogRecord
 from libs.api import API as BASEAPI
 from libs.net.listeners import Listeners
 from libs.asynch import run_asynch
+from plugins.core.log.libs.tz import formatTime_RFC3339_UTC, formatTime_RFC3339
 
 # The modules below are imported to add their functions to the API
 from libs import timing
 from libs import reloadutils
+
+# set this to True to log in UTC timezone, False to log in local timezone
+BASEAPI.LOG_IN_UTC_TZ = True
 
 # set the start time
 BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
@@ -38,15 +42,19 @@ BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
 # set the startup flag
 BASEAPI.startup = True
 
-if tzinfo := BASEAPI.proxy_start_time.tzinfo:
-    BASEAPI.TIMEZONE = tzinfo.tzname(BASEAPI.proxy_start_time) or ''
-
 # set the logging format (this is overwritten when libs.log.setup_loggers is called)
 logging.basicConfig(
     stream=sys.stdout,
     level='INFO',
-    format=f"%(asctime)s {BASEAPI.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s",
+    format=f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
 )
+
+# change LOG_IN_UTC_TZ to False if you want to log in local time
+# updates the formatter for the logging module
+if BASEAPI.LOG_IN_UTC_TZ:
+    logging.Formatter.formatTime = formatTime_RFC3339_UTC
+else:
+    logging.Formatter.formatTime = formatTime_RFC3339
 
 # set the base path from the parent of the current file
 npath = Path(__file__).resolve()

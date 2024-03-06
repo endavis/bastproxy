@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: plugins/core/log/_custom_logger.py
+# Filename: plugins/core/log/libs/_custom_logger.py
 #
 # File Description: a plugin to change logging settings
 #
@@ -16,7 +16,6 @@ import logging
 import logging.handlers
 import sys
 import traceback
-from typing import Protocol, TypeVar
 
 # Third Party
 
@@ -24,7 +23,7 @@ from typing import Protocol, TypeVar
 from libs.api import API
 from plugins.core.colors import ALLCONVERTCOLORS
 from libs.records import ToClientRecord, LogRecord
-from plugins._baseplugin import RegisterPluginHook
+from .tz import formatTime_RFC3339_UTC, formatTime_RFC3339
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
@@ -179,23 +178,28 @@ def setup_loggers(log_level: int):
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path,
                                                     when='midnight')
     file_handler.formatter = logging.Formatter(
-        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     console_handler = CustomConsoleHandler()
     console_handler.formatter = CustomColorFormatter(
-        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     client_handler = CustomClientHandler()
     client_handler.formatter = CustomColorFormatter(
-        f"%(asctime)s {API.TIMEZONE} : %(levelname)-9s - %(name)-22s - %(message)s"
+        f"%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
     # add the handler to the root logger
     logging.getLogger().addHandler(file_handler)
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().addHandler(client_handler)
+
+    if API.LOG_IN_UTC_TZ:
+        logging.Formatter.formatTime = formatTime_RFC3339_UTC
+    else:
+        logging.Formatter.formatTime = formatTime_RFC3339
 
     # This logger is for any network data from both the mud and the client to facilitate
     # debugging. It is not intended to be used for general logging. It will not use the same
@@ -206,7 +210,7 @@ def setup_loggers(log_level: int):
     data_logger.setLevel(logging.INFO)
     data_logger_file_handler = logging.handlers.TimedRotatingFileHandler(data_logger_log_file_path, when='midnight')
     data_logger_file_handler.formatter = logging.Formatter(
-        f"%(asctime)s {API.TIMEZONE} : %(name)-11s - %(message)s"
+        f"%(asctime)s : %(name)-11s - %(message)s"
     )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False

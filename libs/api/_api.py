@@ -56,7 +56,7 @@ class API():
     BASEDATALOGPATH: Path = Path('')
     BASEPLUGINPATH: Path = Path('')
 
-    TIMEZONE: str = ''
+    LOG_IN_UTC_TZ: bool = True
 
     # a flag to show that bastproxy is starting up
     startup: bool = False
