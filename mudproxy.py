@@ -27,7 +27,7 @@ from libs.records import LogRecord
 from libs.api import API as BASEAPI
 from libs.net.listeners import Listeners
 from libs.asynch import run_asynch
-from plugins.core.log.libs.tz import formatTime_RFC3339_UTC, formatTime_RFC3339
+from plugins.core.log import formatTime_RFC3339_UTC, formatTime_RFC3339
 
 # The modules below are imported to add their functions to the API
 from libs import timing
