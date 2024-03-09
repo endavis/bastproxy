@@ -10,7 +10,6 @@ libraries to resolve plugin dependencies
 """
 # Standard Library
 import sys
-import typing
 
 # 3rd Party
 

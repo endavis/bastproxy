@@ -6,10 +6,8 @@
 #
 # By: Bast
 
-import contextlib
 # Standard Library
 import logging
-import os
 import numbers
 
 # 3rd Party

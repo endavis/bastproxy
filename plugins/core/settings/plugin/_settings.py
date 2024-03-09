@@ -15,7 +15,7 @@ from pathlib import Path
 # Project
 from libs.api import AddAPI
 import libs.argp as argp
-from libs.persistentdict import PersistentDict, convert
+from libs.persistentdict import PersistentDict
 from libs.records import LogRecord
 from plugins.core.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, RegisterPluginHook

@@ -7,17 +7,15 @@
 # By: Bast
 
 # Standard Library
-import datetime
 from functools import partial
 
 # 3rd Party
 
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.records import LogRecord, ToClientRecord
+from libs.records import LogRecord
 from libs.api import API
 from plugins.core.commands import AddParser, AddArgument
-from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
 from libs.net.client import ClientConnection
 
