@@ -103,6 +103,7 @@
         triggers for specific plugin
         apis for specific plugin
         etc
+    # TODO: move pluginloader, info/plugins, , dependency, imputils, reloadutils into libs/plugin
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
