@@ -5,6 +5,7 @@
 # File Description: an example plugin
 #
 # By: Bast
+
 # Standard Library
 import contextlib
 import textwrap
@@ -20,6 +21,7 @@ from libs.records import LogRecord
 from plugins.core.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.events import RegisterToEvent
+from ..libs._settinginfo import SettingInfo
 
 
 class SettingsPlugin(BasePlugin):
@@ -31,8 +33,16 @@ class SettingsPlugin(BasePlugin):
         """
         initialize the instance through common __init__ method
         """
+        # a map of setting names to plugins
+        # this is used to check for conflicts
         self.settings_map = {}
+
+        # a dictionary of settings info
+        # the key is the plugin_id and the value is a dictionary of settings info
         self.settings_info = {}
+
+        # a dictionary of settings values with plugin_id as key
+        # the value is a PersistentDict object
         self.settings_values = {}
 
     @AddAPI('add', description='add a setting to a plugin')
@@ -49,6 +59,7 @@ class SettingsPlugin(BasePlugin):
           @Yhidden@w     = if True, don't show in @Ysettings@w command
           @Yaftersetmessage@w = message to send to client after setting is changed
         """
+        LogRecord(f"setting {plugin_id}.{setting_name} {default} {stype} {help} {kwargs}", level='debug', sources=[self.plugin_id])()
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
         if setting_name in self.settings_info[plugin_id]:
@@ -56,17 +67,10 @@ class SettingsPlugin(BasePlugin):
                       sources=[self.plugin_id])()
             return
 
-        setting_info = {
-            'default': default,
-            'help': help,
-            'stype': stype,
-            'nocolor': kwargs.get('nocolor', False),
-            'readonly': kwargs.get('readonly', False),
-            'hidden': kwargs.get('hidden', False),
-            'aftersetmessage': kwargs.get('aftersetmessage', '')
-        }
+        setting_info = SettingInfo(setting_name, default, help, stype, **kwargs)
+        LogRecord(f"setting info {self.dump_object_as_string(setting_info)}", level='debug', sources=[self.plugin_id])()
 
-        if not setting_info['hidden']:
+        if not setting_info.hidden:
             if setting_name in self.settings_map:
                 LogRecord(f"setting {setting_name} already exists in {self.settings_map[setting_name]}", level='error',
                       sources=[self.plugin_id])()
@@ -81,7 +85,7 @@ class SettingsPlugin(BasePlugin):
             self.settings_values[plugin_id] = PersistentDict(plugin_id, settings_file, 'c')
 
         if setting_name not in self.settings_values[plugin_id]:
-            self.settings_values[plugin_id][setting_name] = setting_info['default']
+            self.settings_values[plugin_id][setting_name] = setting_info.default
 
         self.settings_info[plugin_id][setting_name] = setting_info
 
@@ -100,7 +104,7 @@ class SettingsPlugin(BasePlugin):
             returnval = (
                 self.api('plugins.core.utils:verify.value')(
                     self.settings_values[plugin_id][setting],
-                    self.settings_info[plugin_id][setting]['stype'],
+                    self.settings_info[plugin_id][setting].stype,
                 )
                 if self.api('libs.api:has')('plugins.core.utils:verify.value')
                 else self.settings_values[plugin_id][setting]
@@ -149,7 +153,7 @@ class SettingsPlugin(BasePlugin):
         """
         self.settings_values[plugin_id].clear()
         for i in self.settings_info[plugin_id]:
-            self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i]['default']
+            self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i].default
         self.settings_values[plugin_id].sync()
 
     @AddAPI('change', description='change the value of a setting')
@@ -168,11 +172,11 @@ class SettingsPlugin(BasePlugin):
             return False
 
         if value == 'default':
-            value = self.settings_info[plugin_id][setting]['default']
+            value = self.settings_info[plugin_id][setting].default
         elif self.api('libs.pluginloader:is.plugin.loaded')('plugins.core.utils'):
             value = self.api('plugins.core.utils:verify.value')(
                         value,
-                        self.settings_info[plugin_id][setting]['stype'])
+                        self.settings_info[plugin_id][setting].stype)
 
         old_value =  self.api("plugins.core.settings:get")(plugin_id, setting)
 
@@ -288,7 +292,7 @@ class SettingsPlugin(BasePlugin):
         """
         check if a plugin setting is hidden
         """
-        return self.settings_info[plugin_id][setting]['hidden']
+        return self.settings_info[plugin_id][setting].hidden
 
     @AddAPI('add.setting.to.map', description='add a setting to the settings map')
     def _api_add_setting_to_map(self, plugin_id, setting_name):
@@ -306,11 +310,11 @@ class SettingsPlugin(BasePlugin):
         """
         value = self.api(f"{self.plugin_id}:get")(plugin_id, setting_name)
         setting_info = self.api(f"{self.plugin_id}:get.setting.info")(plugin_id, setting_name)
-        if setting_info['nocolor']:
+        if setting_info.nocolor:
             value = value.replace('@', '@@')
-        elif setting_info['stype'] == 'color':
+        elif setting_info.stype == 'color':
             value = f"{value}{value.replace('@', '@@')}@w"
-        elif setting_info['stype'] == 'timelength':
+        elif setting_info.stype == 'timelength':
             value = self.api('plugins.core.utils:format.time')(
                 self.api('plugins.core.utils:verify.value')(value, 'timelength'))
 
@@ -324,13 +328,13 @@ class SettingsPlugin(BasePlugin):
         val = self.api(f"{self.plugin_id}:get")(plugin_id, setting_name)
         info = self.api(f"{self.plugin_id}:get.setting.info")(plugin_id, setting_name)
 
-        if info['hidden']:
+        if info.hidden:
             return ""
 
         value_column_width = 15
-        help = info['help']
+        help = info.help
         value_string = self.format_setting_for_print(plugin_id, setting_name)
-        if info['stype'] == 'color':
+        if info.stype == 'color':
             tlen = len(val)
             value_column_width = value_column_width + 3 + tlen
             help = f"{val}{help}@w"
@@ -398,7 +402,7 @@ class SettingsPlugin(BasePlugin):
             for setting_name in settings[plugin_id]:
                 if args['search'] and args['search'] not in setting_name:
                     continue
-                if settings[plugin_id][setting_name]['readonly']:
+                if settings[plugin_id][setting_name].readonly:
                     continue
                 if setting_format := self.api(f'{self.plugin_id}:format.setting')(
                     plugin_id, setting_name
@@ -449,9 +453,9 @@ class SettingsPlugin(BasePlugin):
         if setting_info := self.api('plugins.core.settings:get.setting.info')(
             plugin_id, setting_name
         ):
-            if setting_info['hidden']:
+            if setting_info.hidden:
                 return True, [f"plugin setting {setting_name} does not exist"]
-            if setting_info['readonly']:
+            if setting_info.readonly:
                 return True, [f"{setting_name} is a readonly setting"]
 
             val = args['value']
@@ -459,11 +463,11 @@ class SettingsPlugin(BasePlugin):
                 self.api("plugins.core.settings:change")(plugin_id, setting_name, val)
                 tsetting_name = self.format_setting_for_print(plugin_id, setting_name)
                 tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
-                if setting_info['aftersetmessage']:
-                    tmsg.extend(['\n',setting_info['aftersetmessage']])
+                if setting_info.aftersetmessage:
+                    tmsg.extend(['\n',setting_info.aftersetmessage])
                 return True, tmsg
             except ValueError:
-                msg = [f"Cannot convert {val} to {setting_info['stype']}"]
+                msg = [f"Cannot convert {val} to {setting_info.stype}"]
                 return True, msg
 
         else:
