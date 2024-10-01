@@ -44,12 +44,19 @@ Plugin Developer Notes
     will not be garbage collected. The old plugin instance could interfere
     with the new plugin instance.
 2) Location of Data
-    Keep data internal to the source plugin. For Example, command data is kept in the
-    plugin that created the command, not the command plugin itself. This makes
-    reloading plugins viable and easy.
+    a) Rebuild when plugin that uses the data is reloaded
+        For example, the Command plugin uses decorators that put specific info on functions
+        in a plugin. If the command plugin is reloaded, it searches all plugins for functions
+        with this info.
+    b) Add data that needs to be saved on a reload to the reload cache with the apis. Be careful,
+        do not store items in the cache that have references to anything in the plugin that will
+        be reloaded
+        libs.reloadutils:add.cache           | add data to the cache         
+        libs.reloadutils:get.plugin.cache    | get cache for a plugin        
+        libs.reloadutils:remove.plugin.cache | remove the cache for a plugin 
 3) Notes on reloading plugins:
     Reloading plugins does not update any objects that have been imported by another plugin.
-    Try to keep imports into other plugins at a minimum or to small use cases
+    Try to keep imports into other plugins at a minimum or small use cases
         one such item is a decorator that is used by other plugins, if the module the decorator
         is defined in is reloaded then all the other modules that have used that decorator
         will have the old decorator and they will have references to the old module,

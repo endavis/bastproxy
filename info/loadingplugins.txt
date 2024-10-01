@@ -11,16 +11,64 @@ Plugin loading at startup
             use the "initialize" hook
             @RegisterPluginHook('initialize')
 
-Single instance Plugin loading
-1) import Plugin
-2) instantiate Plugin
-3) check for dependencies
-    import all dependencies
-      instantiate all dependencies
-      add to dependency list
-4) run initialize function
-
 Notes about Plugin reloading
     Patching of the base class is not done on a plugin reload as
         this would require reloading all plugins
     restart the proxy to reload all plugins
+
+Steps taken when loading a single plugin:
+    1) import Plugin
+        look for _patch_base.py to apply patches to the base Plugin class
+        updates plugin_info.runtime_info.is_imported
+    2) instantiate Plugin
+        updates plugin_info.runtime_info.is_loaded 
+    3) CURRENTLY NOT IMPLEMENTED: check for dependencies
+        import all dependencies
+        instantiate all dependencies
+        add to dependency list
+    4) run initialize function
+
+Steps taken when unloading a single plugin:
+    1) run the uninitialize function
+    2) delete instance from plugin_info.runtime_info.
+    3) delete all modules in sys.modules that starts with plugin_info.package_import_location and don't have the CANRELOAD flag
+    4) resets the internal plugin_info.runtime_info data
+
+Data kept in plugin_info:
+#BP:   plugin_info: <PluginInfo at 7f4acd48f800: <libs.info.plugin.PluginInfo object at 0x7f4acd48f800>>
+#BP:     package_init_file_path: <str at 0x7f4ac36cecb0>: "PosixPath('/home/endavis/bastproxy-py3/plugins/core/commands/__init__.py')"
+#BP:     package_path: <str at 0x7f4ac3691fb0>: "PosixPath('/home/endavis/bastproxy-py3/plugins/core/commands')"
+#BP:     package_import_location: 'plugins.core.commands'
+#BP:     plugin_id: 'plugins.core.commands'
+#BP:     package: 'plugins.core'
+#BP:     plugin_class_import_location: 'plugins.core.commands.plugin'
+#BP:     name: 'Commands'
+#BP:     short_name: 'commands'
+#BP:     author: 'Bast'
+#BP:     purpose: 'Parse and handle commands'
+#BP:     version: 1
+#BP:     is_dev: False
+#BP:     is_required: True
+#BP:     is_plugin: True
+#BP:     is_valid_python_code: True
+#BP:     has_been_reloaded: False
+#BP:     files: <dict at 0x7f4acc33fb80>
+#BP:       plugin: <dict at 0x7f4acc3f0f40>
+#BP:         files: <dict at 0x7f4acc3f2a80>
+#BP:           _commands.py: <dict at 0x7f4acc23dbc0>
+#BP:             contents suppressed (too deep)
+#BP:       libs: <dict at 0x7f4acc23de40>
+#BP:         files: <dict at 0x7f4acc23ddc0>
+#BP:           _utils.py: <dict at 0x7f4acc390e40>
+#BP:             contents suppressed (too deep)
+#BP:           _command.py: <dict at 0x7f4acc3eb680>
+#BP:             contents suppressed (too deep)
+#BP:     data_directory: <str at 0x7f4ac36cecb0>: "PosixPath('/home/endavis/bastproxy-py3/data/plugins/plugins.core.commands')"
+#BP:     last_updated: <str at 0x7f4ac3c305d0>: 'datetime.datetime(2024, 10, 1, 13, 45, 58, 629905, tzinfo=datetime.timezone.utc)'
+#BP:     runtime_info: <PluginRuntimeInfo at 7f4acc557cb0: <libs.info.plugin.PluginRuntimeInfo object at 0x7f4acc557cb0>>
+#BP:       is_loaded: True
+#BP:       is_imported: True
+#BP:       plugin_instance: <CommandsPlugin at 7f4acbf7aab0: <plugins.core.commands.plugin._commands.CommandsPlugin object at 0x7f4acbf7aab0>>
+#BP:         object already seen
+#BP:       imported_time: <str at 0x7f4ac3c305d0>: 'datetime.datetime(2024, 10, 1, 13, 45, 58, 695156, tzinfo=datetime.timezone.utc)'
+#BP:     import_errors: []

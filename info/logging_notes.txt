@@ -22,7 +22,7 @@ libs.records.rtypes.log
 plugins.core.log
     sets the levels of log types in the handlers
 
-plugins.core.records
+plugins.debug.records
     If the message is a LogRecord from libs.records, it is tracked through the system
     to see modifications and can be inspected with #bp.core.records command
 
