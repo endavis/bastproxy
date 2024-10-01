@@ -615,12 +615,16 @@ class PluginLoader:
         find a command from the client
         return bool (found), package. plugin_id, message
         """
-        LogRecord(f"find_plugin: {plugin_id_string}",
+        LogRecord(f"_api_fuzzy_match_plugin_id: attempting to find {plugin_id_string}",
                   level='debug',
                   sources=[__name__])()
 
         psplit = plugin_id_string.split('.', 1)
 
+        LogRecord(f"_api_fuzzy_match_plugin_id: {psplit = }",
+                  level='debug',
+                  sources=[__name__])()
+        
         if len(psplit) not in [2, 3]:
             return '', ''
 
@@ -631,11 +635,15 @@ class PluginLoader:
             tmp_package = f"plugins.{psplit[1]}"
             tmp_plugin = psplit[2]
 
+        LogRecord(f"_api_fuzzy_match_plugin_id: {tmp_package = }, {tmp_plugin = }",
+                  level='debug',
+                  sources=[__name__])()
+
         package_list = self.api(f"{__name__}:get.packages.list")(active_only)
 
         # try and find the package
         new_package = self.api('plugins.core.fuzzy:get.best.match')(tmp_package, tuple(package_list),
-                                                                scorer='token_set_ratio')
+                                                                scorer='token_set_ratio', score_cutoff=90)
 
         if not new_package:
             return '', ''
@@ -650,4 +658,8 @@ class PluginLoader:
                                                                    tuple(loaded_list),
                                                                    scorer='token_set_ratio')
 
+        LogRecord(f"_api_fuzzy_match_plugin_id: {new_package = }, {new_plugin = }",
+                  level='debug',
+                  sources=[__name__])()
+        
         return new_package, new_plugin
