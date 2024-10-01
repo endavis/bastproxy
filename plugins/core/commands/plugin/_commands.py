@@ -667,7 +667,7 @@ class CommandsPlugin(BasePlugin):
             message = [
                 self.api('plugins.core.utils:cap.line')(f'{"-" * (80 - 2)}', '+', color='@B',
                                                             line_length=80, space=False, fullcolor=True),
-                self.api('plugins.core.utils:center.colored.string')(f'@RError - Plugin {plugin_id.replace('plugins.', '')} has no command{f" : {command}" if command else ""}@w',
+                self.api('plugins.core.utils:center.colored.string')(f'@RError - Plugin {plugin_id.replace("plugins.", "")} has no command{f" : {command}" if command else ""}@w',
                                                                  filler_character='-',
                                                                  length=80,
                                                                  filler_color='@B',
