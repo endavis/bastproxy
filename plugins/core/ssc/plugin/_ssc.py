@@ -9,6 +9,7 @@
 # Standard Library
 import os
 import stat
+from pathlib import Path
 
 # 3rd Party
 
@@ -31,7 +32,7 @@ class SSC(object):
         self.api = API(owner_id=f"{plugin_id}:{name}")
         self.plugin_id = plugin_id
         self.data_directory = data_directory
-        self.file_name = os.path.join(self.data_directory, self.name)
+        self.file_name = Path(self.data_directory) /  Path(self.name)
 
         self.default = kwargs.get('default', '')
         self.desc = kwargs.get('desc', 'setting')

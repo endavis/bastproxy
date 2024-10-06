@@ -13,6 +13,7 @@ import sys
 import platform
 import datetime
 import signal
+from pathlib import Path
 
 # 3rd Party
 try:
@@ -369,8 +370,8 @@ class ProxyPlugin(BasePlugin):
         self.api(f"{self.plugin_id}:shutdown")()
 
         time.sleep(5)
-
-        os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
+        
+        os.execv(sys.executable, [Path(sys.executable).name] + sys.argv)
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):

@@ -14,6 +14,7 @@ import zipfile
 import copy
 import datetime
 import contextlib
+from pathlib import Path
 
 # 3rd Party
 
@@ -702,7 +703,7 @@ class Sqldb(object):
 
         try:
             with zipfile.ZipFile(backupzipfile, 'w', zipfile.ZIP_DEFLATED) as myzip:
-                myzip.write(backupfile, arcname=os.path.basename(backupfile))
+                myzip.write(backupfile, arcname=Path(backupfile).name)
             os.remove(backupfile)
             success = True
             LogRecord(f"backupdb - {self.db_file} was backed up to {backupzipfile}",
