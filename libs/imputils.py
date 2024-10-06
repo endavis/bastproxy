@@ -104,7 +104,7 @@ def deletemodule(full_import_location, modules_to_keep=None):
     all_modules_to_keep = ['baseplugin', 'baseconfig']
     if modules_to_keep:
         all_modules_to_keep.extend(modules_to_keep)
-    if keep := [
+    if [
         True for item in all_modules_to_keep if item in full_import_location
     ]:
         return False
