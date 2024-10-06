@@ -66,7 +66,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             self.dependencies.remove(self.plugin_id)
 
         self.version_functions = {}
-        self.summary_template = "%20s : %s"
         self.is_character_active_priority = None
         self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
 

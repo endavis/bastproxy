@@ -477,13 +477,6 @@ class EventsPlugin(BasePlugin):
 
         return True, data or ['No registrations']
 
-    def summarystats(self, _=None):
-        # pylint: disable=unused-argument
-        """
-        return a one line stats summary
-        """
-        return self.summary_template % ('Events', f"Total: {len(self.events)}   Raised: {self.global_raised_count}")
-
     @AddAPI('get.summary.data.for.plugin', description="get summary data for a plugin")
     def _api_get_summary_data_for_plugin(self, plugin_id):
         """
