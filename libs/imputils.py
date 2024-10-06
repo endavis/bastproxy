@@ -14,6 +14,7 @@ import sys
 import pkgutil
 import re
 from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 
 # 3rd Party
@@ -44,22 +45,20 @@ def find_packages_and_plugins(directory, prefix):
         """
         errors[package] = sys.exc_info()
 
-    for loader, name, ispkg in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
-        if ispkg:
-            location = name.replace(prefix, "")
-            parts = location.split('.')
-
-            if tspec := loader.find_spec(name):
+    for module_info in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
+        if module_info.ispkg:
+            if tspec := find_spec(module_info.name):
+                loader_path: str = tspec.loader.path # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
                 if tspec.origin:
                     if is_plugin(tspec.origin):
                         # if the name ends in .plugin, remove it
                         matches['plugins'].append({'plugin_id':re.sub('.plugin$','',tspec.name),
-                                'package_init_file_path':Path(tspec.loader.path),
-                                'package_path':Path(tspec.loader.path).parent,
+                                'package_init_file_path':Path(loader_path),
+                                'package_path':Path(loader_path).parent,
                                 'package_import_location':tspec.name})
                     else:
                         matches['packages'].append({'package_id':tspec.name,
-                                                    'fullpath':Path(tspec.loader.path).parent})
+                                                    'fullpath':Path(loader_path).parent})
 
     return matches['packages'], matches['plugins'], errors
 
