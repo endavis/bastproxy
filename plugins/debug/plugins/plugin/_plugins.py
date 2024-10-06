@@ -26,9 +26,9 @@ class PluginsPlugin(BasePlugin):
                     '--object',
                     help='show an object of the plugin, can be method or variable',
                     default='')
-    @AddArgument('-s',
-                    '--simple',
-                    help='show a simple output',
+    @AddArgument('-d',
+                    '--detailed',
+                    help='show a detailed output',
                     action='store_true')
     def _command_dump(self):
         """
@@ -42,7 +42,7 @@ class PluginsPlugin(BasePlugin):
         if not self.api('libs.pluginloader:is.plugin.id')(args['plugin']):
             return True, [f'Plugin {args["plugin"]} not found']
 
-        return True, self.api(f"{args['plugin']}:dump")(args['object'], args['simple'])[1]
+        return True, self.api(f"{args['plugin']}:dump")(args['object'], args['detailed'])[1]
 
     @AddParser(description='show internal plugin hooks')
     @AddArgument('plugin',

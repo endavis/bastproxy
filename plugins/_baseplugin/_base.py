@@ -268,7 +268,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         return None
 
     @AddAPI('dump', description='dump this plugin or a specific attribute to a string')
-    def _api_dump(self, attribute_name, simple=False):
+    def _api_dump(self, attribute_name, detailed=False):
         """  dump this plugin or a specific attribute to a string
         @Yobj@w    = the object to inspect
         @Ymethod@w = the method to inspect
@@ -281,10 +281,10 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         header = header_color + '-' * line_length + '@x'
 
         if not attribute_name:
-            if simple:
-                tvars = pprint.pformat(vars(self))
-            else:
+            if detailed:
                 tvars = self.dump_object_as_string(self)
+            else:
+                tvars = pprint.pformat(vars(self))
 
             message = [
                 header,
@@ -304,10 +304,10 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
             message = []
 
-            if simple:
-                message.append(pprint.pformat(attr))
-            else:
+            if detailed:
                 message.extend(self.dump_object_as_string(attr).split('\n'))
+            else:
+                message.append(pprint.pformat(attr))
 
             with contextlib.suppress(TypeError):
                 if callable(attr):
