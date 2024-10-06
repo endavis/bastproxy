@@ -67,8 +67,8 @@ class SSC(object):
         """
         args = self.api('plugins.core.commands:get.current.command.args')()
         if args['value']:
-            data_file = open(self.file_name, 'w')
-            data_file.write(args['value'])
+            with open(self.file_name, 'w') as data_file:
+                data_file.write(args['value'])
             os.chmod(self.file_name, stat.S_IRUSR | stat.S_IWUSR)
             return True, [f"{self.desc} saved"]
 
