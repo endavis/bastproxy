@@ -63,20 +63,6 @@ def find_packages_and_plugins(directory, prefix):
 
     return matches['packages'], matches['plugins'], errors
 
-def get_module_name(module_path):
-    """
-    get a module name
-    """
-    file_name = os.path.basename(module_path)
-    directory_name = os.path.dirname(module_path)
-    base_path = directory_name.replace(os.path.sep, '.')
-    if base_path[0] == '.':
-        base_path = base_path[1:]
-    mod = os.path.splitext(file_name)[0]
-    value1 = '.'.join([base_path, mod]) if base_path else '.'.join([mod])
-    value2 = mod
-    return value1, value2
-
 # import a module
 def importmodule(full_import_location):
     """
