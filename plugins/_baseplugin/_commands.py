@@ -6,7 +6,7 @@
 #
 # By: Bast
 # Standard Library
-from typing import TypeVar, Protocol, Generic
+from typing import Protocol, TYPE_CHECKING
 import sys
 
 # 3rd Party
@@ -15,16 +15,20 @@ import sys
 from plugins.core.commands import AddCommand, AddParser, AddArgument, set_command_autoadd
 from ._pluginhooks import RegisterPluginHook
 
-t_Plugin = TypeVar('t_Plugin', bound='Plugin', contravariant=True) # pyright: ignore[reportUndefinedVariable]
+if TYPE_CHECKING:
+    from plugins._baseplugin import Plugin
 
-class Commands(Protocol, Generic[t_Plugin]):
+class Commands(Protocol):
     @RegisterPluginHook('initialize')
-    def _phook_base_post_initialize_add_reset_command(self: t_Plugin):
+    def _phook_base_post_initialize_add_reset_command(self: 'Plugin'):
         """
         add commands to the plugin
         """
         if self.can_reset_f:
-            set_command_autoadd(self._command_reset, True)
+            # can't figure out how to type this correctly
+            # and this method exists in this protocol class
+            # so ignoring the error
+            set_command_autoadd(self._command_reset, True) # pyright: ignore[reportAttributeAccessIssue]
 
     @AddCommand(group='Base')
     @AddParser(description='show help info for this plugin')
@@ -36,7 +40,7 @@ class Commands(Protocol, Generic[t_Plugin]):
                     '--commands',
                     help='show commands in this plugin',
                     action='store_true')
-    def _command_help(self: t_Plugin):
+    def _command_help(self: 'Plugin'):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
@@ -101,7 +105,7 @@ class Commands(Protocol, Generic[t_Plugin]):
 
     @AddCommand(group='Base')
     @AddParser(description='save the plugin state')
-    def _command_save(self: t_Plugin):
+    def _command_save(self: 'Plugin'):
         """
         @G%(name)s@w - @B%(cmdname)s@w
         save plugin state
@@ -112,7 +116,7 @@ class Commands(Protocol, Generic[t_Plugin]):
 
     @AddCommand(group='Base', autoadd=False)
     @AddParser(description='reset the plugin')
-    def _command_reset(self: t_Plugin):
+    def _command_reset(self: 'Plugin'):
         """
         @G%(name)s@w - @B%(cmdname)s@w
           reset the plugin
