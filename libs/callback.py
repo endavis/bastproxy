@@ -6,7 +6,9 @@
 #
 # By: Bast
 """
-This plugin is used to track callbacks
+Holds a class to track callbacks
+It holds the callback name, owner_id, function, enabled status, created time, last raised time, and raised count
+It tracks the number of times the callback has been raised and the last time it was raised
 """
 # Standard Library
 import datetime

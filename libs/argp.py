@@ -8,6 +8,8 @@
 """
 This plugin overrides some default argparse behavior to allow for
 errors to be raised instead of exiting the program.
+It also adds a CustomFormatter to wrap help text at 73 characters
+and print default arguments.
 """
 
 # Standard Library

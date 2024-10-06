@@ -2,7 +2,7 @@
 # Project: bastproxy
 # Filename: libs/reloadutils.py
 #
-# File Description: holds the plugin loading mechanics
+# File Description: adds a cache to support plugin reloading
 # and plugin info
 #
 # By: Bast

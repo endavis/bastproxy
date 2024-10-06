@@ -2,11 +2,11 @@
 # Project: bastproxy
 # Filename: libs/stack.py
 #
-# File Description: a simple queue class
+# File Description: a simple stack class
 #
 # By: Bast
 """
-This plugin has a simple queue class
+This plugin has a simple stack class
 """
 # Standard Library
 

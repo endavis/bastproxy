@@ -2,7 +2,7 @@
 # Project: bastproxy
 # Filename: plugins/core/example/_settings.py
 #
-# File Description: an example plugin
+# File Description: settings plugin
 #
 # By: Bast
 
