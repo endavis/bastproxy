@@ -408,10 +408,9 @@ class API():
             or API_item.tfunction.__self__.is_instantiated_f
         )
 
-    def _api_detail(self, api_location: str, stats_by_plugin: bool = False, stats_by_caller: str | None = None,
-                    show_function_code: bool = False) -> list[str]:     # pylint: disable=too-many-locals,too-many-branches
-        # parsing a function declaration and figuring out where the function
-        # resides is intensive, so disabling pylint warning
+    def _api_detail(self, api_location: str, stats_by_plugin: bool = False,
+                    stats_by_caller: str | None = None,
+                    show_function_code: bool = False) -> list[str]:
         """
         return the detail of an api function
         """
@@ -443,34 +442,67 @@ class API():
                 tmsg.extend(api_instance.detail(show_function_code=show_function_code))
 
             if stats_by_plugin or stats_by_caller:
-                api_data = self._api_data_get(api_location)
-
-                if api_data and api_data.stats:
-                    if stats_by_plugin:
-                        tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center.colored.string')('Stats', '-', 70, '@B'))
-                        tmsg.append('Total Calls: %s' % api_data.stats.count)
-                        tmsg.append('@B' + '-' * 50)
-                        tmsg.append('Stats by caller')
-                        tmsg.append('@B' + '-' * 50)
-                        stats_keys = api_data.stats.calls_by_caller.keys()
-                        stats_keys = sorted(stats_keys)
-                        for i in stats_keys:
-                            tmsg.append(f"{i or 'unknown':<30}: {api_data.stats.calls_by_caller[i]}")
-
-                    if stats_by_caller:
-                        tmsg.append('')
-                        tmsg.append(self('plugins.core.utils:center.colored.string')(f"Stats for {stats_by_caller}", '-', 70, '@B'))
-                        stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
-                        tmsg.append(f"Unique Callers: {len(stats_keys)}")
-                        stats_keys = sorted(stats_keys)
-                        for i in stats_keys:
-                            tmsg.append(f"{i or 'unknown':<22}: {api_data.stats.detailed_calls[i]}")
+                tmsg.extend(self.format_stats(api_location, stats_by_plugin, stats_by_caller))
 
         else:
             tmsg.append(f"{api_location} is not in the api")
 
         return tmsg
+
+    def format_stats(self, api_location, stats_by_plugin, stats_by_caller):
+        """
+        format the stats for an api
+        """
+        api_data = self._api_data_get(api_location)
+
+        if not api_data or not api_data.stats:
+            return []
+
+        tmsg = []
+
+        if stats_by_plugin:
+            self._stats_overall(tmsg, api_data)
+        if stats_by_caller:
+            self._stats_for_specific_caller(tmsg, stats_by_caller, api_data)
+                # tmsg.extend(
+                #     f"{i or 'unknown':<65}: {api_data.stats.detailed_calls[i]}"
+                #     for i in stats_keys
+                # )
+        return tmsg
+
+    def _stats_for_specific_caller(self, tmsg, stats_by_caller, api_data):
+        stats_keys = [k for k in api_data.stats.detailed_calls.keys() if k.startswith(stats_by_caller)]
+        stats_keys = sorted(stats_keys)
+        stats_caller_dict = [
+            {'caller': i, 'count': api_data.stats.detailed_calls[i]}
+            for i in stats_keys
+        ]
+        stats_caller_columns = [
+            {'name': 'Caller', 'key': 'caller', 'width': 20},
+            {'name': 'Count', 'key': 'count', 'width': 11},
+        ]
+        tmsg.extend(
+            [
+                '',
+                *self('plugins.core.utils:convert.data.to.output.table')(f'Stats for {stats_by_caller} (Unique Callers: {len(stats_keys)})', stats_caller_dict, stats_caller_columns),
+            ])
+
+    def _stats_overall(self, tmsg, api_data):
+        stats_keys = api_data.stats.calls_by_caller.keys()
+        stats_keys = sorted(stats_keys)
+        stats_caller_dict = [
+            {'caller': i, 'count': api_data.stats.calls_by_caller[i]}
+            for i in stats_keys
+        ]
+        stats_caller_columns = [
+            {'name': 'Caller', 'key': 'caller', 'width': 20},
+            {'name': 'Count', 'key': 'count', 'width': 11},
+        ]
+        tmsg.extend(
+            [
+                '',
+                *self('plugins.core.utils:convert.data.to.output.table')(f'Callers (Total Calls {api_data.stats.count})', stats_caller_dict, stats_caller_columns),
+            ])
 
     def get_top_level_api_list(self, top_level_api: str) -> list[str]:
         """
