@@ -413,7 +413,7 @@ class ProxyPlugin(BasePlugin):
         column_width = 19
         process = psutil.Process(os.getpid())
         mem_info = process.memory_info()
-        net_connections = process.connections(kind='inet')
+        net_connections = process.net_connections(kind='inet')
         open_files = process.open_files()
 
         uname = platform.uname()

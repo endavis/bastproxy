@@ -1,6 +1,6 @@
-dumper
-rapidfuzz
-telnetlib3
-regex
-psutil
-humanize
+Dumper==1.2.0
+RapidFuzz==3.10.0
+telnetlib3==2.0.4
+regex==2024.9.11
+psutil==6.0.0
+humanize==4.11.0
