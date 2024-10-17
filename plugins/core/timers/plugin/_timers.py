@@ -346,11 +346,11 @@ class TimersPlugin(BasePlugin):
         plugin_id: str = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
 
         if 'plugin_id' in kwargs:
-            plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(kwargs['plugin_id'])
+            plugin_instance = self.api('libs.plugins.loader:get.plugin.instance')(kwargs['plugin_id'])
             plugin_id = plugin_instance.plugin_id
             del kwargs['plugin_id']
 
-        if not plugin_id or not self.api('libs.pluginloader:is.plugin.id')(plugin_id):
+        if not plugin_id or not self.api('libs.plugins.loader:is.plugin.id')(plugin_id):
             LogRecord(f"_api_add_timer: timer {name} has no plugin, not adding",
                       'error', sources=[self.plugin_id])()
             return
@@ -381,7 +381,7 @@ class TimersPlugin(BasePlugin):
         @Yname@w   = the name of the plugin
 
         this function returns no values"""
-        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(name)
+        plugin_instance = self.api('libs.plugins.loader:get.plugin.instance')(name)
         LogRecord(f"removing timers for {name}",
                   level='debug', sources=[self.plugin_id, name])()
         timers_to_remove: list[str] = [

@@ -410,7 +410,7 @@ class API():
 
         # return False for apis in plugins that have not been instantiated
         return bool(
-            not self('libs.pluginloader:is.plugin.id')(API_item.owner_id)
+            not self('libs.plugins.loader:is.plugin.id')(API_item.owner_id)
             or API_item.tfunction.__self__.is_instantiated_f
         )
 

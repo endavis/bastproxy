@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/imputils.py
+# Filename: libs/plugins/imputils.py
 #
 # File Description: import utility functions
 #

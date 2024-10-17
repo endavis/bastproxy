@@ -46,7 +46,7 @@ class EventsPlugin(BasePlugin):
                                 'flag to log savestate events, reduces log spam if False')
 
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api('plugins.core.events:register.to.event')("ev_libs.pluginloader_post_startup_plugins_initialize", self._eventcb_post_startup_plugins_initialize)
+        self.api('plugins.core.events:register.to.event')("ev_libs.plugins.loader_post_startup_plugins_initialize", self._eventcb_post_startup_plugins_initialize)
 
     def _eventcb_post_startup_plugins_initialize(self):
         """
@@ -71,7 +71,7 @@ class EventsPlugin(BasePlugin):
         """
         LogRecord("_register_all_plugin_events: start", level='debug',
                         sources=[self.plugin_id])()
-        for plugin_id in self.api('libs.pluginloader:get.loaded.plugins.list')():
+        for plugin_id in self.api('libs.plugins.loader:get.loaded.plugins.list')():
             LogRecord(f"_register_all_plugin_events: registering events in {plugin_id}", level='debug',
                         sources=[self.plugin_id])()
             self._register_events_for_plugin(plugin_id)
@@ -82,7 +82,7 @@ class EventsPlugin(BasePlugin):
         """
         register all events in a plugin
         """
-        plugin_instance = self.api('libs.pluginloader:get.plugin.instance')(plugin_id)
+        plugin_instance = self.api('libs.plugins.loader:get.plugin.instance')(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
         LogRecord(f"_register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations", level='debug',
                     sources=[self.plugin_id, plugin_id])()

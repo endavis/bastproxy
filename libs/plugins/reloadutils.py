@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/reloadutils.py
+# Filename: libs/plugins/reloadutils.py
 #
 # File Description: adds a cache to support plugin reloading
 # and plugin info

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/dependency.py
+# Filename: libs/plugins/dependency.py
 #
 # File Description: class to resolve plugin dependencies
 #

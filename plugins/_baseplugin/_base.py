@@ -89,12 +89,12 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         self.api('libs.api:add.apis.for.object')(self.plugin_id, self)
 
         # load anything in the reload cache
-        cache = self.api('libs.reloadutils:get.plugin.cache')(self.plugin_id)
+        cache = self.api('libs.plugins.reloadutils:get.plugin.cache')(self.plugin_id)
         for item in cache:
             LogRecord(f"loading {item} from cache", level='debug',
                       sources=[self.plugin_id])()
             self.__setattr__(item, cache[item])
-        self.api('libs.reloadutils:remove.plugin.cache')(self.plugin_id)
+        self.api('libs.plugins.reloadutils:remove.plugin.cache')(self.plugin_id)
 
         self.is_instantiated_f = True
 
@@ -178,7 +178,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         returns:
           the data for the specified datatype, None if not found"""
         if plugin_id:
-            if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
+            if self.api('libs.plugins.loader:is.plugin.id')(plugin_id):
                 return self.api(f"{plugin_id}:data.get")(datatype)
 
         elif datatype in self.data:
@@ -199,7 +199,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             return True
 
         else:
-            if self.api('libs.pluginloader:is.plugin.id')(plugin_id):
+            if self.api('libs.plugins.loader:is.plugin.id')(plugin_id):
                 return self.api(f"{plugin_id}:data.update")(datatype, newdata)
 
         return False
@@ -367,7 +367,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
                                                       prio=self.is_character_active_priority)
 
         self.is_inititalized_f = True
-        self.api('libs.pluginloader:set.plugin.is.loaded')(self.plugin_id)
+        self.api('libs.plugins.loader:set.plugin.is.loaded')(self.plugin_id)
 
         self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_initialized", self.plugin_id,
                                                     description=[f"Raised when {self.plugin_id} is initialized"],
@@ -417,7 +417,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         # save data for reloading
         if self.is_reloading_f:
             for item in self.attributes_to_save_on_reload:
-                self.api('libs.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
+                self.api('libs.plugins.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
 
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_uninitialized", {})
         self.api('plugins.core.events:raise.event')("ev_plugin_uninitialized",

@@ -18,7 +18,7 @@
 
         don't save plugin_instances
             if you need the instance, save the plugin_id
-            and then use the api 'libs.pluginloader:get:plugin:instance'
+            and then use the api 'libs.plugins.loader:get:plugin:instance'
         saving instances could lead to a memory leak and stale plugin instances floating around
 
         # COMPLETE: remove any static imports from a plugin

@@ -31,7 +31,7 @@ from plugins.core.log import formatTime_RFC3339_UTC, formatTime_RFC3339
 
 # The modules below are imported to add their functions to the API
 from libs import timing
-from libs import reloadutils
+from libs.plugins import reloadutils
 
 # set this to True to log in UTC timezone, False to log in local timezone
 BASEAPI.LOG_IN_UTC_TZ = True
@@ -106,7 +106,7 @@ class MudProxy:
         LogRecord('Loading Plugin Loader', level='info', sources=['mudproxy'])()
 
         # instantiate the plugin manager
-        from libs.pluginloader import PluginLoader
+        from libs.plugins.loader import PluginLoader
         plugin_loader = PluginLoader()
 
         LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy'])()

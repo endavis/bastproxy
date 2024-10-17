@@ -173,7 +173,7 @@ class SettingsPlugin(BasePlugin):
 
         if value == 'default':
             value = self.settings_info[plugin_id][setting].default
-        elif self.api('libs.pluginloader:is.plugin.loaded')('plugins.core.utils'):
+        elif self.api('libs.plugins.loader:is.plugin.loaded')('plugins.core.utils'):
             value = self.api('plugins.core.utils:verify.value')(
                         value,
                         self.settings_info[plugin_id][setting].stype)
@@ -375,14 +375,14 @@ class SettingsPlugin(BasePlugin):
         args = self.api('plugins.core.commands:get.current.command.args')()
         line_length = self.api('plugins.core.commands:get.output.line.length')()
         header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
-        loaded_plugins = self.api('libs.pluginloader:get.loaded.plugins.list')()
+        loaded_plugins = self.api('libs.plugins.loader:get.loaded.plugins.list')()
 
         default_message = ['No settings found']
 
         settings = {}
         if args['plugin']:
             default_message = [f"No settings found for {args['plugin']}"]
-            if self.api('libs.pluginloader:is.plugin.loaded')(args['plugin']):
+            if self.api('libs.plugins.loader:is.plugin.loaded')(args['plugin']):
                 settings[args['plugin']] = self.api(f"{self.plugin_id}:get.all.for.plugin")(args['plugin'])
             else:
                 return True, ['Plugin does not exist']

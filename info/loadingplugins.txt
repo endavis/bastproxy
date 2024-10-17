@@ -1,6 +1,6 @@
 Notes:
 Plugin loading at startup
-1) (libs.pluginloader) Load all plugins in plugins.core and plugins.client
+1) (libs.plugins.loader) Load all plugins in plugins.core and plugins.client
     import all plugins
     instantiate all plugins
         for each plugin:

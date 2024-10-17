@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/pluginloader.py
+# Filename: libs/plugins/loader.py
 #
 # File Description: holds the plugin loading mechanics
 # and plugin info
@@ -23,9 +23,9 @@ from functools import partial
 # 3rd Party
 
 # Project
-from libs.dependency import PluginDependencyResolver
+from libs.plugins.dependency import PluginDependencyResolver
 from libs.api import API, AddAPI
-import libs.imputils as imputils
+import libs.plugins.imputils as imputils
 from plugins._baseplugin import BasePlugin, patch
 from libs.records import LogRecord
 from libs.info import PluginInfo
