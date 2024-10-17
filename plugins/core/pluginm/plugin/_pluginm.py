@@ -260,6 +260,7 @@ class PluginManager(BasePlugin):
         if plugins_to_load_setting:
             LogRecord('Loading other plugins', level='info', sources=[self.plugin_id])()
             self.api('libs.plugins.loader:load.plugins')(plugins_to_load_setting)
+            LogRecord('Finished loading other plugins', level='info', sources=[self.plugin_id])()            
 
     @RegisterToEvent(event_name='ev_plugins.core.proxy_shutdown')
     def _eventcb_shutdown(self, _=None):

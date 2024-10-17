@@ -591,7 +591,8 @@ class PluginLoader:
         """
         LogRecord('Loading core and client plugins', level='info', sources=[__name__])()
         self._load_core_and_client_plugins_on_startup()
-
+        LogRecord('Finished Loading core and client plugins', level='info', sources=[__name__])()
+        
         LogRecord(f'ev_{__name__}_post_startup_plugins_initialize: Started', level='debug', sources=[__name__])()
 
         self.api('plugins.core.events:raise.event')(f"ev_{__name__}_post_startup_plugins_initialize")
@@ -606,8 +607,6 @@ class PluginLoader:
                     traceback_message = [item.strip() for item in traceback_message if item and item != '\n']
                     LogRecord([f'Plugin {plugin_info.plugin_id} had an import error: ', *traceback_message],
                                 level='warning', sources=[__name__])()
-
-        LogRecord('Finished Loading core and client plugins', level='info', sources=[__name__])()
 
     @AddAPI('fuzzy.match.plugin.id', description='find a plugin id from a string')
     def _api_fuzzy_match_plugin_id(self, plugin_id_string: str, active_only = False) -> tuple[str, str]:
