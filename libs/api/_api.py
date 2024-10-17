@@ -6,16 +6,23 @@
 #
 # By: Bast
 """
-this module handles the api for all other modules
+this module handles the API for all other modules
 
-Most api functions will go in as a class api.
+Most API functions will go in as a class API that is shared between
+all API instances.
 
-However, some api functions will need to be put in the instance api.
-This has been used for the api functions in the API since those apis need
-to check the instance api for the api there were invoked against.
+However, some API functions will need to be put in the instance api, which
+is not shared between API instances.
 
-class apis are in the class variable "_class_api"
-instance apis are in the instance variable "_instance_api"
+For example, any functions that manipulates the API itself will need
+to be added to the instance because they will need to check the
+specific instance for API data. Otherwise, they could check another
+instance because of APIs being overwritten. 
+
+Therefore, any APIs added by this API class will be added to the instance api.
+
+class APIs are in the class variable "_class_api"
+instance APIs are in the instance variable "_instance_api"
 
 See the BasePlugin class
 """
