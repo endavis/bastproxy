@@ -30,18 +30,17 @@ See the BasePlugin class
 import pprint
 import typing
 import types
+import contextlib
 from pathlib import Path
 from datetime import datetime
 from functools import lru_cache
-import contextlib
 
 # Third Party
 
 # Project
 from ._apistats import APIStatItem
-from ._functools import stackdump
+from ._functools import stackdump, get_caller_owner_id
 from ._apiitem import APIItem
-from ._functools import get_caller_owner_id
 
 APILOCATION = 'libs.api'
 
