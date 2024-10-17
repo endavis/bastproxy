@@ -312,8 +312,8 @@ class PluginManager(BasePlugin):
         tmsg = []
         if plugin_response['loaded_plugins']:
             for plugin_id in plugin_response['loaded_plugins']:
-                self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
-                self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_initialized",
+                self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded", {})
+                self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_loaded",
                                                     {'plugin_id':plugin_id})
             tmsg.extend(
                 (
@@ -399,8 +399,8 @@ class PluginManager(BasePlugin):
 
         loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
         for plugin_id in loaded_plugins:
-            self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_initialized", {})
-            self.api('plugins.core.events:raise.event')("ev_plugin_initialized",
+            self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded", {})
+            self.api('plugins.core.events:raise.event')("ev_plugin_loaded",
                                                 {'plugin_id':plugin_id})
 
         self.api(f"{self.plugin_id}:save.all.plugins.state")()
@@ -418,18 +418,18 @@ class PluginManager(BasePlugin):
                         readonly=True)
 
         self.api('plugins.core.events:add.event')(
-            "ev_plugin_initialized",
+            "ev_plugin_loaded",
             self.plugin_id,
-            description=["Raised when any plugin is initialized"],
+            description=["Raised when any plugin is loaded"],
             arg_descriptions={
                 'plugin': 'The plugin name',
                 'plugin_id': 'The plugin id',
             },
         )
         self.api('plugins.core.events:add.event')(
-            "ev_plugin_uninitialized",
+            "ev_plugin_unloaded",
             self.plugin_id,
-            description=["Raised when any plugin is uninitialized"],
+            description=["Raised when any plugin is unloaded"],
             arg_descriptions={
                 'plugin': 'The plugin name',
                 'plugin_id': 'The plugin id',

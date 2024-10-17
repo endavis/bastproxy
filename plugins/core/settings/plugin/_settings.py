@@ -112,16 +112,16 @@ class SettingsPlugin(BasePlugin):
 
         return returnval
 
-    @RegisterToEvent(event_name='ev_plugin_initialized')
-    def _eventcb_settings_plugin_initialized(self):
+    @RegisterToEvent(event_name='ev_plugin_loaded')
+    def _eventcb_settings_plugin_loaded(self):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
             plugin_id = event_record['plugin_id']
             self.api(f"{self.plugin_id}:raise.event.all.settings")(plugin_id)
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_settings_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_settings_plugin_unloaded(self):
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
@@ -186,9 +186,13 @@ class SettingsPlugin(BasePlugin):
         self.settings_values[plugin_id][setting] = value
         self.settings_values[plugin_id].sync()
 
-        if (self.api(f"{plugin_id}:is.initialized")()
-                or self.api(f"{plugin_id}:is.instantiated")()
-                or self.api("plugins.core.settings:is.setting.hidden")(plugin_id, setting)):
+        if (
+            self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id)
+            #or self.api("libs.plugins.loader:is.plugin.instantiated")(plugin_id)
+            or self.api("plugins.core.settings:is.setting.hidden")(
+                plugin_id, setting
+            )
+        ):
             return True
         if self.api.startup:
             return True

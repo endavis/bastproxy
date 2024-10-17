@@ -1,15 +1,17 @@
 Notes:
 Plugin loading at startup
 1) (libs.plugins.loader) Load all plugins in plugins.core and plugins.client
-    import all plugins
-    instantiate all plugins
+    import all core and base plugins
+    instantiate all core and base plugins
         for each plugin:
             use the "__init__" hook
             it is after the baseplugin __init__ has finished
             @RegisterPluginHook('__init__')
-    initialize all plugins
+    run the initialize method for all core and base plugins
             use the "initialize" hook
             @RegisterPluginHook('initialize')
+2) plugins.core.pluginm
+    load all other plugins in the same fashion
 
 Notes about Plugin reloading
     Patching of the base class is not done on a plugin reload as
@@ -27,9 +29,11 @@ Steps taken when loading a single plugin:
         instantiate all dependencies
         add to dependency list
     4) run initialize function
+    5) plugin is now fully loaded and the loaded event will be raised
 
 Steps taken when unloading a single plugin:
     1) run the uninitialize function
+    2) plugin is now fully unloaded and the unloaded event will be raised
     2) delete instance from plugin_info.runtime_info.
     3) delete all modules in sys.modules that starts with plugin_info.package_import_location and don't have the CANRELOAD flag
     4) resets the internal plugin_info.runtime_info data

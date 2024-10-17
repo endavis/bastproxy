@@ -46,9 +46,9 @@ class EventsPlugin(BasePlugin):
                                 'flag to log savestate events, reduces log spam if False')
 
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api('plugins.core.events:register.to.event')("ev_libs.plugins.loader_post_startup_plugins_initialize", self._eventcb_post_startup_plugins_initialize)
+        self.api('plugins.core.events:register.to.event')("ev_libs.plugins.loader_post_startup_plugins_loaded", self._eventcb_post_startup_plugins_loaded)
 
-    def _eventcb_post_startup_plugins_initialize(self):
+    def _eventcb_post_startup_plugins_loaded(self):
         """
         register all events in all plugins
         """
@@ -93,10 +93,10 @@ class EventsPlugin(BasePlugin):
             for func in event_functions:
                 self.api(f"{self.plugin_id}:register.event.by.func")(func)
 
-    @RegisterToEvent(event_name='ev_plugin_initialized', priority=1)
+    @RegisterToEvent(event_name='ev_plugin_loaded', priority=1)
     def _eventcb_plugin_initialized(self):
         """
-        a plugin was initialized, so load all events
+        a plugin was loaded, so register all events
         """
         if self.api.startup or not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
@@ -134,13 +134,13 @@ class EventsPlugin(BasePlugin):
             prio = item['priority']
             self.api('plugins.core.events:register.to.event')(event_name, func, priority=prio)
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
         """
         if event_record := self.api('plugins.core.events:get.current.event.record')():
-            LogRecord(f"_eventcb_plugin_uninitialized - removing events for {event_record['plugin_id']}",
+            LogRecord(f"_eventcb_plugin_unloaded - removing events for {event_record['plugin_id']}",
                     level='info', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record['plugin_id'])
 

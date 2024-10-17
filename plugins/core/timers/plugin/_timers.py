@@ -134,15 +134,15 @@ class TimersPlugin(BasePlugin):
         # setup the task to check for timers to fire
         self.api('libs.asynch:task.add')(self.check_for_timers_to_fire, 'Timer Plugin task')
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
         """
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
         )():
-            LogRecord(f"_eventcb_plugin_uninitialized - removing timers for plugin {event_record['plugin_id']}",
+            LogRecord(f"_eventcb_plugin_unloaded - removing timers for plugin {event_record['plugin_id']}",
                     'debug', sources=[self.plugin_id, event_record['plugin_id']])()
             self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
 

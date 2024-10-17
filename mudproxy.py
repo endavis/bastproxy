@@ -85,7 +85,8 @@ class MudProxy:
         """
         Run the MudProxy application.
 
-        This function initializes the plugin manager, adds events, and creates listeners.
+        This function instantiates the plugin manager which loads plugins, 
+        adds events, and creates listeners.
         It also sets the necessary settings based on the provided arguments.
         Finally, it starts the async loop and logs the application's exit.
 
@@ -102,7 +103,7 @@ class MudProxy:
         LogRecord(f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
                 level='info', sources=['mudproxy'])()
 
-        # initialize all plugins
+        # Load plugins
         LogRecord('Loading Plugin Loader', level='info', sources=['mudproxy'])()
 
         # instantiate the plugin manager
@@ -111,13 +112,13 @@ class MudProxy:
 
         LogRecord('Plugin Manager - loaded', level='info', sources=['mudproxy'])()
 
-        # initialize the plugin manager which will load plugins
-        plugin_loader.initialize()
+        # load plugins on startup
+        plugin_loader.load_plugins_on_startup()
 
-        LogRecord('Plugin Manager - all plugins initialized and loaded', level='info', sources=['mudproxy'])()
+        LogRecord('Plugin Manager - all plugins loaded', level='info', sources=['mudproxy'])()
 
-        # do any post plugin init actions
-        self.post_plugins_init()
+        # do any post plugin loaded actions
+        self.post_plugins_loaded()
 
         # add events
         self.api.add_events()
@@ -152,7 +153,7 @@ class MudProxy:
 
         LogRecord('__main__ - exiting', level='info', sources=['mudproxy'])()
 
-    def post_plugins_init(self):
+    def post_plugins_loaded(self):
         """
         do any actions that are post plugin init here
         """

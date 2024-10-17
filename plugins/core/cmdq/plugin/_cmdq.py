@@ -30,10 +30,10 @@ class CMDQPlugin(BasePlugin):
 
         self.reload_dependents_f = True
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
         """
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'

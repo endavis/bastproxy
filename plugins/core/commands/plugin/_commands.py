@@ -219,10 +219,10 @@ class CommandsPlugin(BasePlugin):
         LogRecord('_eventcb_add_commands_on_reload: Finish', level='debug',
                     sources=[self.plugin_id])()
 
-    @RegisterToEvent(event_name='ev_plugin_initialized')
-    def _eventcb_plugin_initialized(self):
+    @RegisterToEvent(event_name='ev_plugin_loaded')
+    def _eventcb_plugin_loaded(self):
         """
-        handle the plugin initialized event
+        handle the plugin loaded event
         """
         if not (event_record := self.api('plugins.core.events:get.current.event.record')()):
             return
@@ -230,7 +230,7 @@ class CommandsPlugin(BasePlugin):
         if not self.api.startup and event_record['plugin_id'] == self.plugin_id:
             self._add_commands_for_all_plugins()
         else:
-            LogRecord(f"_eventcb_plugin_initialized: loading commands for {event_record['plugin_id']}", level='debug',
+            LogRecord(f"_eventcb_plugin_loaded: loading commands for {event_record['plugin_id']}", level='debug',
                         sources=[self.plugin_id])()
             self.update_commands_for_plugin(event_record['plugin_id'])
 
@@ -359,12 +359,12 @@ class CommandsPlugin(BasePlugin):
         LogRecord(f"added command {plugin_id}.{command_name}",
                   level='debug', sources=[self.plugin_id, plugin_id])()
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
 
-        registered to the plugin_uninitialized event
+        registered to the plugin_unloaded event
         """
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
@@ -372,7 +372,7 @@ class CommandsPlugin(BasePlugin):
             if event_record['plugin_id'] != self.plugin_id:
                 self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record['plugin_id'])
             else:
-                LogRecord(f"{self.plugin_id}_plugin_uninitialize: {self.plugin_id} is me!", level='debug',
+                LogRecord(f"{self.plugin_id}_plugin_unloaded: {self.plugin_id} is me!", level='debug',
                             sources=[self.plugin_id])()
 
     @AddAPI('get.command.format', description='get a command string formatted for a plugin')

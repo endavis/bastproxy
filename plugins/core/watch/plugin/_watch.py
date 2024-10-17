@@ -32,13 +32,13 @@ class WatchPlugin(BasePlugin):
         self.regex_lookup = {}
         self.watch_data = {}
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
         """
         event_record = self.api('plugins.core.events:get.current.event.record')()
-        LogRecord(f"event_plugin_unitialized - removing watches for plugin {event_record['plugin_id']}",
+        LogRecord(f"event_plugin_unloaded - removing watches for plugin {event_record['plugin_id']}",
                   level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
         self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
 

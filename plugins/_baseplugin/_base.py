@@ -51,8 +51,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         self.api = API(owner_id=self.plugin_id)
 
-        self.is_instantiated_f = False
-        self.is_inititalized_f = False
         self.is_reloading_f = False
         self.can_reload_f = True
         self.can_reset_f = True
@@ -95,8 +93,6 @@ class Plugin: # pylint: disable=too-many-instance-attributes
                       sources=[self.plugin_id])()
             self.__setattr__(item, cache[item])
         self.api('libs.plugins.reloadutils:remove.plugin.cache')(self.plugin_id)
-
-        self.is_instantiated_f = True
 
     def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
         """
@@ -366,28 +362,19 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             self.api('plugins.core.events:register.to.event')('ev_libs.api_character_active', self._eventcb_baseplugin_after_character_is_active,
                                                       prio=self.is_character_active_priority)
 
-        self.is_inititalized_f = True
         self.api('libs.plugins.loader:set.plugin.is.loaded')(self.plugin_id)
 
-        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_initialized", self.plugin_id,
-                                                    description=[f"Raised when {self.plugin_id} is initialized"],
+        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_loaded", self.plugin_id,
+                                                    description=[f"Raised when {self.plugin_id} is finished loading"],
                                                     arg_descriptions={'None': None})
-        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_uninitialized", self.plugin_id,
-                                                    description=[f"Raised when {self.plugin_id} is uninitialized"],
+        self.api('plugins.core.events:add.event')(f"ev_{self.plugin_id}_unloaded", self.plugin_id,
+                                                    description=[f"Raised when {self.plugin_id} is finished unloading"],
                                                     arg_descriptions={'None': None})
 
         if not self.api.startup:
-            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_initialized", {})
-            self.api('plugins.core.events:raise.event')("ev_plugin_initialized",
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_loaded", {})
+            self.api('plugins.core.events:raise.event')("ev_plugin_loaded",
                                                      {'plugin_id':self.plugin_id})
-
-    @AddAPI('is.initialized', description='return True if the plugin is initialized')
-    def _api_is_initializing(self):
-        return not self.is_inititalized_f
-
-    @AddAPI('is.instantiated', description='return True if the plugin is instantiated')
-    def _api_is_instantiating(self):
-        return not self.is_instantiated_f
 
     def _eventcb_baseplugin_disconnect(self):
         """
@@ -419,8 +406,8 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             for item in self.attributes_to_save_on_reload:
                 self.api('libs.plugins.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
 
-        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_uninitialized", {})
-        self.api('plugins.core.events:raise.event')("ev_plugin_uninitialized",
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_unloaded", {})
+        self.api('plugins.core.events:raise.event')("ev_plugin_unloaded",
                                                     {'plugin_id':self.plugin_id})
 
         # remove anything out of the api

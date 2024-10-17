@@ -185,10 +185,23 @@ class PluginLoader:
 
         returns:
           True if the plugin is loaded, False if not"""
-        plugin_instance = self.api(f"{__name__}:get.plugin.instance")(pluginname)
+        if pluginname in self.plugins_info:
+            return self.plugins_info[pluginname].runtime_info.is_loaded
 
-        return bool(plugin_instance and plugin_instance.is_inititalized_f)
+        return False
 
+    @AddAPI('is.plugin.instantiated', description='check if a plugin has an instance')
+    def _api_is_plugin_instantiated(self, pluginname):
+        """  check if a plugin has an instance
+        @Ypluginname@w  = the plugin to check for
+
+        returns:
+          True if the plugin has an instance, False if not"""
+        if pluginname in self.plugins_info:
+            return bool(self.plugins_info[pluginname].runtime_info.plugin_instance)
+
+        return False
+    
     def update_all_plugin_information(self):
         """
         read all plugins and basic info
@@ -339,26 +352,26 @@ class PluginLoader:
 
         return True
 
-    # initialize a plugin
-    def _initialize_single_plugin(self, plugin_id: str, exit_on_error=False):
+    # run the initialize method for a plugin
+    def _run_initialize_single_plugin(self, plugin_id: str, exit_on_error=False):
         """
         run the initialize method for a plugin
 
         arguments:
           required:
-            plugin - the plugin to initialize, the dict from loaded_plugins
+            plugin - the plugin whose initialize method will be ran, the dict from loaded_plugins
 
           optional:
             exit_on_error - if True, the program will exit on an error
 
         returns:
-          True if the plugin was initialized, False otherwise
+          True if the plugin's initialize method was successful, False otherwise
         """
-        # don't do anything if the plugin has already been initialized
+        # don't do anything if the plugin has already had its initialize method ran
         plugin_info = self.plugins_info[plugin_id]
         if plugin_info.runtime_info.is_loaded:
             return True
-        LogRecord(f"{plugin_info.plugin_id:<30} : attempting to initialize ({plugin_info.name})", level='info',
+        LogRecord(f"{plugin_info.plugin_id:<30} : attempting to run initialize method for ({plugin_info.name})", level='info',
                   sources=[__name__, plugin_info.plugin_id])()
 
         if not plugin_info.runtime_info.plugin_instance:
@@ -371,16 +384,16 @@ class PluginLoader:
             plugin_info.runtime_info.plugin_instance.initialize()
 
         except Exception: # pylint: disable=broad-except
-            LogRecord(f"could not run the initialize function for {plugin_info.plugin_id}", level='error',
+            LogRecord(f"could not run the initialize method for {plugin_info.plugin_id}", level='error',
                       sources=[__name__, plugin_info.plugin_id], exc_info=True)()
             if exit_on_error:
-                LogRecord(f"{plugin_info.plugin_id:<30} : DID NOT INITIALIZE", level='error',
+                LogRecord(f"{plugin_info.plugin_id:<30} : INITIALIZE METHOD WAS NOT SUCCESSFUL", level='error',
                           sources=[__name__, plugin_info.plugin_id])()
                 sys.exit(1)
             self.api(f'{__name__}:unload.plugin')(plugin_id)
             return False
 
-        LogRecord(f"{plugin_info.plugin_id:<30} : successfully initialized ({plugin_info.name})", level='info',
+        LogRecord(f"{plugin_info.plugin_id:<30} : successfully ran initialize method ({plugin_info.name})", level='info',
                     sources=[__name__, plugin_info.plugin_id])()
 
         LogRecord(f"{plugin_info.plugin_id:<30} : successfully loaded", level='info',
@@ -432,14 +445,17 @@ class PluginLoader:
 
         plugins_not_loaded = [plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins]
 
-        # initialize plugins
+        # run the initialize method for each plugin
         for plugin_id in plugins_not_loaded:
-            if not self._initialize_single_plugin(plugin_id, exit_on_error=exit_on_error):
+            if not self._run_initialize_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
         loaded_plugins = [plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins]
 
-        # clean up plugins that were not imported, initialized, or instantiated
+        # clean up plugins that 
+        #   were not imported
+        #   their initialize method did not run 
+        #   could not be instantiated
         for plugin_id in plugins_to_load:
             plugin_info = self.plugins_info[plugin_id]
             if not plugin_info.runtime_info.is_loaded:
@@ -470,7 +486,7 @@ class PluginLoader:
             else False
         )
 
-    @AddAPI('set.plugin.is.loaded', 'set the initialized flag for a plugin')
+    @AddAPI('set.plugin.is.loaded', 'set the is_loaded flag for a plugin')
     def _api_set_plugin_is_loaded(self, plugin_id):
         """
         set the is loaded flag for a plugin
@@ -481,7 +497,7 @@ class PluginLoader:
     def _api_unload_plugin(self, plugin_id):
         """
         unload a plugin
-          1) run uninitialize function
+          1) run uninitialize method
           2) destroy instance
           3) remove all files in package from sys.modules
           4) set the appropriate plugin_info.runtime_info attributes to None
@@ -507,12 +523,12 @@ class PluginLoader:
             return False
 
         try:
-            # run the uninitialize function if it exists
+            # run the uninitialize method if it exists
             if plugin_info.runtime_info.plugin_instance:
                 if plugin_info.runtime_info.is_loaded:
                         plugin_info.runtime_info.plugin_instance.uninitialize()
 
-                LogRecord(f"{plugin_info.plugin_id:<30} : successfully unitialized ({plugin_info.name})", level='info',
+                LogRecord(f"{plugin_info.plugin_id:<30} : successfully ran unitialize method ({plugin_info.name})", level='info',
                         sources=[__name__, plugin_info.plugin_id])()
             else:
                 LogRecord(f"{plugin_info.plugin_id:<30} : plugin instance not found ({plugin_info.name})", level='info',
@@ -585,19 +601,19 @@ class PluginLoader:
         # print(f"loading core plugins: {core_plugins}")
         self.api(f"{__name__}:load.plugins")(core_plugins, exit_on_error=True, check_dependencies=False)
 
-    def initialize(self):
+    def load_plugins_on_startup(self):
         """
-        initialize the plugin loader
+        load plugins on startup
         """
         LogRecord('Loading core and client plugins', level='info', sources=[__name__])()
         self._load_core_and_client_plugins_on_startup()
         LogRecord('Finished Loading core and client plugins', level='info', sources=[__name__])()
-        
-        LogRecord(f'ev_{__name__}_post_startup_plugins_initialize: Started', level='debug', sources=[__name__])()
 
-        self.api('plugins.core.events:raise.event')(f"ev_{__name__}_post_startup_plugins_initialize")
+        LogRecord(f'ev_{__name__}_post_startup_plugins_loaded: Started', level='debug', sources=[__name__])()
 
-        LogRecord(f'ev_{__name__}_post_startup_plugins_initialize: Finish', level='debug', sources=[__name__])()
+        self.api('plugins.core.events:raise.event')(f"ev_{__name__}_post_startup_plugins_loaded")
+
+        LogRecord(f'ev_{__name__}_post_startup_plugins_loaded: Finish', level='debug', sources=[__name__])()
 
         # warn about plugins that had import errors
         for plugin_info in self.plugins_info.values():

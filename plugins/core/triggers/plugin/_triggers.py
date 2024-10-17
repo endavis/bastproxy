@@ -131,10 +131,10 @@ class TriggersPlugin(BasePlugin):
                 self.api('plugins.core.events:unregister.from.event')('ev_libs.net.mud_from_mud_event',
                                                             self._eventcb_check_trigger)
 
-    @RegisterToEvent(event_name='ev_plugin_uninitialized')
-    def _eventcb_plugin_uninitialized(self):
+    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    def _eventcb_plugin_unloaded(self):
         """
-        a plugin was uninitialized
+        a plugin was unloaded
         """
         if event_record := self.api(
             'plugins.core.events:get.current.event.record'
