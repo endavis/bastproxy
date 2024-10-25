@@ -5,6 +5,3 @@
 # File Description: a "package" to manage info classes
 #
 # By: Bast
-__all__ = ['PluginInfo']
-
-from libs.info.plugin import PluginInfo

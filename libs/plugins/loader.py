@@ -28,7 +28,7 @@ from libs.api import API, AddAPI
 import libs.plugins.imputils as imputils
 from plugins._baseplugin import BasePlugin, patch
 from libs.records import LogRecord
-from libs.info import PluginInfo
+from libs.plugins.plugininfo import PluginInfo
 
 class PluginLoader:
     """
