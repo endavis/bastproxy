@@ -1,0 +1,117 @@
+Plugin Developer Notes
+-------------------------------------------------------------------------
+- Notes for plugin instances
+    Do not save plugin instances in long term storage, lookup plugin instances at runtime.
+    Plugins can be reloaded and if the old plugin instance is still referenced it
+    will not be garbage collected. The old plugin instance could interfere
+    with the new plugin instance.
+
+- Notes on reloading plugins:
+    Rebuild data when plugin that uses the data is reloaded
+        For example, the Command plugin uses decorators that put specific info on functions
+        in a plugin. If the command plugin is reloaded, it searches all plugins for functions
+        with this info.
+
+    Add data that needs to be saved on a reload to the reload cache with the apis. Be careful,
+        do not store items in the cache that have references to anything in the plugin that will
+        be reloaded
+        libs.plugins.reloadutils:add.cache           | add data to the cache         
+        libs.plugins.reloadutils:get.plugin.cache    | get cache for a plugin        
+        libs.plugins.reloadutils:remove.plugin.cache | remove the cache for a plugin 
+
+    Reloading plugins does not update any objects that have been imported by another plugin.
+    Try to keep imports into other plugins at a minimum or small use cases
+        one such item is a decorator that is used by other plugins, if the module the decorator
+        is defined in is reloaded then all the other modules that have used that decorator
+        will have the old decorator and they will have references to the old module,
+        meaning the old module will never be garbage collected until all the modules
+        with the old reference have been reloaded.
+
+- Plugin folder structure
+    if a file should not be reloaded when a plugin is reloaded
+        add a CANRELOAD = False line to the file
+    Location: plugins.core.events - the main directory
+        a "plugin" directory under the main directory
+            this is the location of the plugin class
+            it is recommended to only include modules that are not statically imported by other modules
+                in this directory
+        a "libs" directory under the main directory
+            best practice is to expose only those things other plugins need
+                in the plugin's main directory/__init__.py
+
+- Adding Commands
+    It must be a Plugin method and the name of the method must start with _command_
+
+    By default, the name of the command will then be anything after _command_
+        E.G. If the method name is "_command_list" then the command will be "list"
+            This can be overridden, see the AddCommand decorator
+
+    3 decorators are then used for various settings on the command
+        import them from plugins.core.commands
+        Note: all 3 are not required, and only one needs to be used for the automated mechanism to add the command
+        @AddCommand decorator:
+            The following arguments can be used in AddCommand (mainly from the arguments for plugins.core.commands.Command.__init__ kwargs)
+                group - to group commands
+                autoadd - automatically add the command
+                    set this to False to programatically add a command at runtime given certain conditions and
+                        bypass the automated method
+                    see the reset command in BasePlugin
+                name - used to set the name of the command, otherwise it is generated from the name of the function
+                    can be used in conjunction with attributes of the Plugin instance that owns the function
+                    see the plugins.core.ssc plugin
+                show_in_history - flag to show in command history, True (default) shows in history, False does not show in history
+                format - flag to format the command, True (default) formats the command, False does not format the command
+                shelp - the short help string
+                    can be used in conjunction with attributes of the class instance that owns the function
+                preamble - flag to include the proxy preamble, True (default) includes the preamble, False does not include the preamble
+
+        @AddParser decorator:
+            These arguments are passed directly to the argparse.ArgumentParser constructor
+            The help and description keywords can be used in conjunction with attributes of the Plugin instance that owns the function
+
+            @AddParser(description='inspect a plugin')
+
+        @AddArgument decorator
+            These arguments are passed directly to the ArgumentParser.add_argument function
+            @AddArgument('-o',
+                            '--object',
+                            help='show an object of the plugin, can be method or variable',
+                            default='')
+            @AddArgument('-s',
+                            '--simple',
+                            help='show a simple output',
+                            action='store_true')
+
+    To retrieve the command arguments inside of the command function do the following:
+        args = self.api('plugins.core.commands:get.current.command.args')()
+
+    The return values for the command is a tuple of two items:
+        bool: flag if the command ran successfully or not
+            if this is False, then the command's help will also be output to the client
+        list[str]: the data to output to the client
+
+- Adding to the API
+    Use the decorator AddAPI from libs.api
+        Note: does not have to be a plugin method or even a Class method, can be a regular function
+        @AddAPI('get.data.directory', description='get the data directory for this plugin')
+        def _api_get_data_directory(self):
+            \""" get the data directory for this plugin \"""
+            return self.plugin_info.data_directory
+
+- Events
+    Registering to an event:
+        Use the decorator RegisterToEvent from plugins.core.events
+            @RegisterToEvent(event_name='ev_plugin_save')
+            def _eventcb_settings_plugin_save(self):
+                if event_record := self.api(
+                    'plugins.core.events:get.current.event.record'
+                )():
+                    plugin_id = event_record['plugin_id']
+                    self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
+    
+    Get the current Event record with the api('plugins.core.events:get.current.event.record')()
+        The record type is EventArgsRecord in libs/records/rtypes/eventargs.py
+        It is a subclass of dict so can be added and modified in the same way as a dict
+
+    Unregister with the api('plugins.core.events:unregister.from.event')
+    

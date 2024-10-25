@@ -37,28 +37,4 @@ Sending data to clients, this will also send it through the interpreter
 -------------------------------------------------------------------------
 1)  use a ToClientRecord and send by calling the record
 
-Plugin Developer Notes
--------------------------------------------------------------------------
-1) Do not save plugin instances in long term storage, lookup plugin instances at runtime.
-    Plugins can be reloaded and if the old plugin instance is still referenced it
-    will not be garbage collected. The old plugin instance could interfere
-    with the new plugin instance.
-2) Location of Data
-    a) Rebuild when plugin that uses the data is reloaded
-        For example, the Command plugin uses decorators that put specific info on functions
-        in a plugin. If the command plugin is reloaded, it searches all plugins for functions
-        with this info.
-    b) Add data that needs to be saved on a reload to the reload cache with the apis. Be careful,
-        do not store items in the cache that have references to anything in the plugin that will
-        be reloaded
-        libs.plugins.reloadutils:add.cache           | add data to the cache         
-        libs.plugins.reloadutils:get.plugin.cache    | get cache for a plugin        
-        libs.plugins.reloadutils:remove.plugin.cache | remove the cache for a plugin 
-3) Notes on reloading plugins:
-    Reloading plugins does not update any objects that have been imported by another plugin.
-    Try to keep imports into other plugins at a minimum or small use cases
-        one such item is a decorator that is used by other plugins, if the module the decorator
-        is defined in is reloaded then all the other modules that have used that decorator
-        will have the old decorator and they will have references to the old module,
-        meaning the old module will never be garbage collected until all the modules
-        with the old reference have been reloaded.
+

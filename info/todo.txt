@@ -103,7 +103,9 @@
         triggers for specific plugin
         apis for specific plugin
         etc
-    # TODO: move pluginloader, info/plugins, , dependency, imputils, reloadutils into libs/plugin
+    # TODO: rename plugin hooks initialize???
+    # TODO: reconfigure _baseplugin to have a libs dir like other plugins
+        put _pluginhooks, _patch in libs
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
@@ -370,7 +372,7 @@
             # DONE: all commands that are from the plugin
             # DONE: all timers that are from the plugin
        # DONE:  move to plugins.debug.plugins
-
+    # COMPLETE: move pluginloader, info/plugins, , dependency, imputils, reloadutils into libs/plugin
 
 # REJECTED/OLD
     # OLD: plugin reloading
