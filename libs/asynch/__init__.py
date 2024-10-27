@@ -144,9 +144,9 @@ class TaskItem:
         )
         LogRecord(f"(Task) {self.name} : {self.task}", level='debug', sources=[__name__])()
         if self.startstring:
-            LogRecord(f"(Task) {self.name} : Created - {self.startstring}", level='info', sources=[__name__])()
+            LogRecord(f"(Task) {self.name} : Created - {self.startstring}", level='debug', sources=[__name__])()
         else:
-            LogRecord(f"(Task) {self.name} : Created", level='info', sources=[__name__])()
+            LogRecord(f"(Task) {self.name} : Created", level='debug', sources=[__name__])()
         return self.task
 
 class QueueManager:
