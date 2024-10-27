@@ -509,7 +509,7 @@ class ProxyPlugin(BasePlugin):
             ]
 
             open_files_dicts = [
-                {'path': file.path, 'mode': file.mode} for file in open_files
+                {'path': file.path, 'mode': file.mode} for file in open_files # pyright: ignore[reportAttributeAccessIssue]
             ]
 
             msg.extend(

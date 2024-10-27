@@ -151,10 +151,10 @@ class Plugin: # pylint: disable=too-many-instance-attributes
                 continue
             if (isinstance(item, types.MethodType)
                 and hasattr(item, 'plugin_hooks')
-                and plugin_hook in item.plugin_hooks):  # pyright: ignore[reportGeneralTypeIssues]
-                    if item.plugin_hooks[plugin_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues]
-                        function_list[item.plugin_hooks[plugin_hook]] = [] # pyright: ignore[reportGeneralTypeIssues]
-                    function_list[item.plugin_hooks[plugin_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues]
+                and plugin_hook in item.plugin_hooks):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                    if item.plugin_hooks[plugin_hook] not in function_list: # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                        function_list[item.plugin_hooks[plugin_hook]] = [] # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                    function_list[item.plugin_hooks[plugin_hook]].append(item) # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
 
         return function_list
 
