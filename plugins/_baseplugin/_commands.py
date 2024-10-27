@@ -26,7 +26,7 @@ class Commands(Protocol):
         """
         if self.can_reset_f:
             # can't figure out how to type this correctly
-            # and this method exists in this protocol class
+            # and this exists in the 'Plugin' class
             # so ignoring the error
             set_command_autoadd(self._command_reset, True) # pyright: ignore[reportAttributeAccessIssue]
 
