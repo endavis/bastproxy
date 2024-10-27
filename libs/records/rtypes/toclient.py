@@ -86,7 +86,7 @@ class ToClientRecord(BaseListRecord):
         return the message without ansi codes
         """
         newmessage: list[str] = [
-            self.api('plugins.core.colors:strip.ansi')(item) for item in self.data
+            self.api('plugins.core.colors:ansicode.strip')(item) for item in self.data
         ]
         return newmessage
 
