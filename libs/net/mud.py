@@ -200,8 +200,6 @@ class MudConnection:
         LogRecord(f"Mud Connection opened - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
         self.reader = reader
         self.writer = writer
-        print(f'{type(self.reader) = }')
-        print(f'{type(self.writer) = }')
 
         tasks: list[asyncio.Task] = [
             TaskItem(self.mud_read(),
