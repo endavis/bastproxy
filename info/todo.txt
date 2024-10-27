@@ -87,10 +87,6 @@
     # TODO: update commands to use tables
         plugins.c.pluginm.list
     # TODO: get rid of all calls to the plugins.core.commands:run api
-    # TODO: plugin_id class?
-        has package, plugin attributes
-        __str__, __repr__ returns package.plugin
-        will need to be able to hash it for dictionary keys
     # TODO: create a command to show basic stats for a plugin
         For things:
             all triggers that are from the plugin
@@ -106,6 +102,7 @@
     # TODO: rename plugin hooks initialize???
     # TODO: reconfigure _baseplugin to have a libs dir like other plugins
         put _pluginhooks, _patch in libs
+    # TODO: move all records under their owning plugin, only keep base types in libs.records
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
@@ -120,6 +117,10 @@
     # TODO: check on plac instead of ArgumentParser
         see if it can do both + and - as arguments
             ++openfile vs --openfiles for proxy.resources
+    # TODO: plugin_id class?
+        has package, plugin attributes
+        __str__, __repr__ returns package.plugin
+        will need to be able to hash it for dictionary keys
 
 # DONE
     # COMPLETE: libs.api
