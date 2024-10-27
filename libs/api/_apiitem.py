@@ -41,9 +41,9 @@ class APIItem:
         if not description:
             comments = inspect.getcomments(self.tfunction)
             comments = comments[2:].strip() if comments else ''
-            description = comments.split('\n')
+            description = comments.splitlines()
         elif isinstance(description, str):
-            description = description.split('\n')
+            description = description.splitlines()
 
         self.description: list = description
 

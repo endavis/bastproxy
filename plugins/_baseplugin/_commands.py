@@ -63,7 +63,7 @@ class Commands(Protocol):
         import_location = self.plugin_info.package_import_location
 
         if doc := sys.modules[import_location].__doc__:
-            msg.extend(doc.split('\n'))
+            msg.extend(doc.splitlines() if doc else [''])
 
         if msg[-1] == '' and msg[-2] == '':
             msg.pop()

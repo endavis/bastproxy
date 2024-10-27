@@ -55,7 +55,7 @@ class UpdateRecord(object):
         new_stack = []
         # don't need the last 2 lines
         for line in stack:
-            new_stack.extend(line.split('\n'))
+            new_stack.extend(line.splitlines() if line else [])
             if 'addupdate' in line:
                 break
         return new_stack
@@ -105,7 +105,7 @@ class UpdateRecord(object):
             else:
                 data = self.data
             tmsg.append(f"{'Data':<15} :")
-            tmsg.extend(f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).split('\n'))
+            tmsg.extend(f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).splitlines())
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<15} :")
             tmsg.extend([f"{'':<15} {line}" for line in self.stack if line.strip()])

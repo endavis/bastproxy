@@ -359,7 +359,7 @@ class Sqldb(object):
         columnumnsbykeys = {}
         columnumn_defaults = {}
         if self.tables[tablename]:
-            sql_statement_list = self.tables[tablename]['createsql'].split('\n')
+            sql_statement_list = self.tables[tablename]['createsql'].splitlines()
             for sql_line in sql_statement_list:
                 sql_line = sql_line.strip()
                 if (

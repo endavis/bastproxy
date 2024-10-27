@@ -1032,7 +1032,7 @@ class CommandsPlugin(BasePlugin):
         output_header_color = self.api('plugins.core.settings:get')('plugins.core.commands', 'output_header_color')
         for i in command_list:
             if i != 'default' and i.arg_parser.description:
-                    tlist = i.arg_parser.description.split('\n')
+                    tlist = i.arg_parser.description.splitlines()
                     if not tlist[0]:
                         tlist.pop(0)
                     message.append(f"  {output_header_color}{i.name.replace('plugins.', ''):<10}@w : {tlist[0]}")
@@ -1132,7 +1132,7 @@ class CommandsPlugin(BasePlugin):
 
         if plugin_commands := self.command_data[plugin_id]:
             if command and command in plugin_commands:
-                help_message = plugin_commands[command].arg_parser.format_help().split('\n')
+                help_message = plugin_commands[command].arg_parser.format_help().splitlines()
                 message.extend(help_message)
             else:
                 message.extend(self.api(f'{self.plugin_id}:list.commands.formatted')(plugin_id))

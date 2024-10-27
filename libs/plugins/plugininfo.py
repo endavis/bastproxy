@@ -191,7 +191,7 @@ class PluginInfo():
         """
         contents = self.package_init_file_path.read_text()
 
-        for tline in contents.split('\n'):
+        for tline in contents.splitlines():
 
             if not self.name and (name_match := NAMERE.match(tline)):
                 self.is_plugin = True

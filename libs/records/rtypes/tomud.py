@@ -85,7 +85,7 @@ class ToMudRecord(BaseListRecord):
             line = item.strip()
 
             # split the line along newlines
-            lines = line.split('\r\n')
+            lines = line.splitlines() if line else ['']
             if len(lines) > 1:
                 self.addupdate('Info', "split (CRLF)", f"{actor}:prepare",
                                extra={'line':line, 'newlines':lines,

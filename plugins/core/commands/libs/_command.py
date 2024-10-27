@@ -62,7 +62,7 @@ class CommandClass:
                              command = self.full_cmd)
 
         if args['help']:
-            message.extend(self.arg_parser.format_help().split('\n'))
+            message.extend(self.arg_parser.format_help().splitlines())
             return self.run_finish(True, message, 'help', format=format)
 
         self.current_args = args
@@ -89,7 +89,7 @@ class CommandClass:
         if retval is False:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append('')
-            message.extend(self.arg_parser.format_help().split('\n'))
+            message.extend(self.arg_parser.format_help().splitlines())
             return self.run_finish(False, message, 'function returned False', format=format)
 
         return self.run_finish(True, message, 'command ran successfully', format=format)
@@ -121,7 +121,7 @@ class CommandClass:
             except ValueError as exc:
                 actor = f"{self.plugin_id}:run_command:shell_parse_error"
                 fail_message = [f"@RError: Could not parse arguments: {exc.args[0]}@w", '']
-                fail_message.extend(self.arg_parser.format_help().split('\n'))
+                fail_message.extend(self.arg_parser.format_help().splitlines())
                 LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.args[0]}",
                         level='info', sources=[self.plugin_id, 'plugins.core.commands'])(actor)
                 return False, args, fail_message
@@ -132,7 +132,7 @@ class CommandClass:
         except argp.ArgumentError as exc:
             actor = f"{self.plugin_id}:{self.name}:run_command:argparse_error"
             fail_message = [f"@RError: {exc.message}@w", '']
-            fail_message.extend(self.arg_parser.format_help().split('\n'))
+            fail_message.extend(self.arg_parser.format_help().splitlines())
             LogRecord(f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.message}",
                     level='info', sources=[self.plugin_id, 'plugins.core.commands'])()
             return False, args, fail_message

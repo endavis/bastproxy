@@ -300,7 +300,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             message = []
 
             if detailed:
-                message.extend(self.dump_object_as_string(attr).split('\n'))
+                message.extend(self.dump_object_as_string(attr).splitlines())
             else:
                 message.append(pprint.pformat(attr))
 

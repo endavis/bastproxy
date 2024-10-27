@@ -122,7 +122,7 @@ class BaseRecord:
         new_stack = []
         # don't need the last 2 lines
         for line in stack:
-            new_stack.extend([nline for nline in line.split('\n') if nline])
+            new_stack.extend([nline for nline in line.splitlines() if nline])
         return new_stack
 
     def get_attributes_to_format(self):
@@ -154,7 +154,7 @@ class BaseRecord:
                 attr = getattr(self, item_attr)
                 if isinstance(attr, (list, dict)):
                     msg.append(f"{item_string:<{self.column_width}} : ")
-                    msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).split('\n'))
+                    msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).splitlines())
                 else:
                     msg.append(f"{item_string:<{self.column_width}} : {attr}")
 
@@ -338,11 +338,7 @@ class BaseListRecord(UserList, BaseRecord):
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
             if isinstance(line, str):
-                if '\n' in line:
-                    tlist = line.split('\n')
-                    new_message.extend(tline.rstrip('\r').rstrip('\n') for tline in tlist)
-                else:
-                    new_message.append(line.rstrip('\r').rstrip('\n'))
+                new_message.extend(line.splitlines() if line else [''])
             else:
                 from libs.records.rtypes.log import LogRecord
                 LogRecord(f"clean - {self.uuid} Message.clean: line is not a string: {line}",

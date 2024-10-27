@@ -60,7 +60,7 @@ class CustomFormatter(HelpFormatter):
           returns a string of lines separated by newlines
         """
         text = _textwrap.dedent(text)
-        lines = text.split('\n')
+        lines = text.splitlines() if text else ['']
         multiline_text = ''
         for line in lines:
             wrapped_line = _textwrap.fill(line, 73)

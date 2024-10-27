@@ -100,7 +100,7 @@ class ColorsPlugin(BasePlugin):
         """
         convert colorcodes to html
         """
-        tinput = sinput.split('\n')
+        tinput = sinput.splitlines()
 
         olist = []
         lastchar = ''
