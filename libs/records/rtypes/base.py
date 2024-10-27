@@ -180,7 +180,7 @@ class BaseRecord:
             else:
                 msg.extend(["Related Records :",
                     *[
-                    f"{'':<5} : {record.__class__.__name__:<15} {record.uuid}"
+                    f"{'':<5} : {record.__class__.__name__:<20} {record.uuid} {record.one_line_summary()}"
                     for record in self.get_all_related_records(update_filter)
                     ],
                 ])
@@ -247,12 +247,17 @@ class BaseListRecord(UserList, BaseRecord):
         """
         get a one line summary of the record
         """
+        if len(self.original_data) == 1 and not self.original_data[0].strip():
+            return repr(self.original_data[0])
+
         first_str = ''
         index = 0
-        while not first_str:
-            first_str = self.original_data[index].strip()
+        while not first_str and index < len(self.original_data):
+            first_str = repr(self.original_data[index])
             index += 1
-        return f"{first_str}"
+
+        return first_str or 'No data found'
+
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
