@@ -14,9 +14,35 @@ Holds the client record type
 
 # Project
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.base import BaseListRecord
+from libs.records.rtypes.base import BaseListRecord, BaseRecord
 
 SETUPEVENTS = False
+
+class ToClientLine(BaseRecord):
+    def __init__(self, line, sendtoclient=True, internal=False):
+        BaseRecord.__init__(self, f"{self.__class__.__name__}:{line}")
+        self._attributes_to_monitor.append('line')
+        self._attributes_to_monitor.append('sendtoclient')
+        self.line = line
+        self.original_line = line
+        self.sendtoclient = sendtoclient
+        self.internal = internal
+        self.modified = False
+        self.noansi = self.api('plugins.core.colors:ansicode.strip')(line)
+        self.color = self.api('plugins.core.colors:ansicode.to.colorcode')(line)
+
+    def _onchange_line(self, original_value, new_value):
+        self.modified = True
+        print('Adding update record for line')
+
+    def _onchange_sendtoclient(self, original_value, new_value):
+        print(f"{self.__class__.__name__}: sendtoclient changed from {original_value} to {new_value}")
+
+    def _onchange__all(self, name, original_value, new_value):
+        print(f"{self.__class__.__name__}: {name} changed from {original_value} to {new_value}")
+
+    def one_line_summary(self):
+        return repr(self.line)
 
 class ToClientRecord(BaseListRecord):
     """
@@ -168,12 +194,13 @@ class ToClientRecord(BaseListRecord):
 
     def format(self, actor=''):
         """
-        format the message only if it is an internal message and is an IO message
+        format the message
         """
-        if self.internal and self.is_io:
-            self.clean(actor=actor)
-            self.add_preamble(actor=actor)
-            self.color_lines(actor=actor)
+        if self.is_io:
+            if self.internal:
+                self.clean(actor=actor)
+                self.add_preamble(actor=actor)
+                self.color_lines(actor=actor)
             self.add_line_endings(actor=actor)
 
     def _exec_(self, actor=''):
@@ -193,19 +220,19 @@ class ToClientRecord(BaseListRecord):
             self.clean(actor=actor)
             tmessage = []
             for line in self.data:
-                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'line': line,
-                                                                                                        'internal': self.internal,
-                                                                                                        'sendtoclient': True})
+                data_line = ToClientLine(line)
+                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'data_line': data_line})
 
-                if event_args['line'] != line:
+                if event_args['data_line'].modified:
                     self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args},
                                     savedata=False)
                     self.add_related_record(event_args)
 
-                if event_args['sendtoclient']:
-                    tmessage.append(event_args['line'])
+                if event_args['data_line'].sendtoclient:
+                    tmessage.append(event_args['data_line'].line)
+
                 else:
                     self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
