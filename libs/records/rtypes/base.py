@@ -153,7 +153,10 @@ class BaseRecord(AttributeMonitor):
         attributes = self.get_attributes_to_format()
         for level in attributes:
             for item_string, item_attr in attributes[level]:
-                attr = getattr(self, item_attr)
+                if isinstance(item_attr, str):
+                    attr = getattr(self, item_attr) if hasattr(self, item_attr) else item_attr
+                else:
+                    attr = item_attr
                 if isinstance(attr, (list, dict)):
                     msg.append(f"{item_string:<{self.column_width}} : ")
                     msg.extend(f"{'':<15} : {line}" for line in pprint.pformat(attr, width=120).splitlines())
