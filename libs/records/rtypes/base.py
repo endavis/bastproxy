@@ -22,12 +22,14 @@ from libs.api import API
 from libs.records.rtypes.update import UpdateRecord
 from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
+from libs.tracking.utils.attributes import AttributeMonitor
 
-class BaseRecord:
+class BaseRecord(AttributeMonitor):
     def __init__(self, owner_id: str = '', track_record=True):
         """
         initialize the class
         """
+        AttributeMonitor.__init__(self)
         # create a unique id for this message
         self.uuid = uuid4().hex
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
