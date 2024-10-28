@@ -27,19 +27,21 @@ class ToClientLine(BaseRecord):
         self.original_line = line
         self.sendtoclient = sendtoclient
         self.internal = internal
-        self.modified = False
+        self.line_modified = False
         self.noansi = self.api('plugins.core.colors:ansicode.strip')(line)
         self.color = self.api('plugins.core.colors:ansicode.to.colorcode')(line)
 
-    def _onchange_line(self, original_value, new_value):
-        self.modified = True
-        print('Adding update record for line')
-
-    def _onchange_sendtoclient(self, original_value, new_value):
-        print(f"{self.__class__.__name__}: sendtoclient changed from {original_value} to {new_value}")
-
-    def _onchange__all(self, name, original_value, new_value):
-        print(f"{self.__class__.__name__}: {name} changed from {original_value} to {new_value}")
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        for item in self._attributes_to_monitor:
+            orig_value = self._am_get_original_value(item)
+            if orig_value == getattr(self, item):
+                attributes[0].append((f"{item}", item))
+            else:
+                attributes[0].append((item, f"changed from '{self._am_get_original_value(item)}' to '{getattr(self, item)}'"))
+        attributes[0].append(('Line Modified', 'line_modified'))
+        attributes[0].append(('Internal Flag', 'internal'))
+        return attributes
 
     def one_line_summary(self):
         return repr(self.line)
@@ -223,7 +225,7 @@ class ToClientRecord(BaseListRecord):
                 data_line = ToClientLine(line)
                 event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'data_line': data_line})
 
-                if event_args['data_line'].modified:
+                if event_args['data_line'].line_modified:
                     self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args},
