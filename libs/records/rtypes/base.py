@@ -78,7 +78,7 @@ class BaseRecord:
         if record not in self.related_records:
             self.related_records.append(record)
 
-    def addupdate(self, flag: str, action: str, actor:str , extra: dict | None = None):
+    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -350,7 +350,7 @@ class BaseListRecord(UserList, BaseRecord):
                           level='error', sources=[__name__])()
         self.replace(new_message, actor=f"{actor}:clean", extra={'msg':'clean each item'})
 
-    def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
+    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -397,7 +397,7 @@ class BaseDictRecord(UserDict, BaseRecord):
 
         return attributes
 
-    def addupdate(self, flag: str, action: str, actor: str, extra: dict | None = None, savedata: bool = True):
+    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
