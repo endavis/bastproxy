@@ -52,6 +52,15 @@ class BaseRecord(AttributeMonitor):
             current_active_record.add_related_record(self)
         RMANAGER.add(self)
 
+    def _onchange__all(self, name, original_value, new_value):
+        """
+        Track changes to attributes, works in conjunction with the AttributeMonitor class
+        """
+        self.addupdate('Modify', name, extra={'original':original_value, 'new':new_value})
+        if name == 'line':
+            self.line_modified = True
+        print(f'Adding update record {self.__class__.__name__}:{self.uuid} - attribute {name}')
+
     def one_line_summary(self):
         """
         get a one line summary of the record
