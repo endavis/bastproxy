@@ -172,8 +172,6 @@ class ToClientData(BaseRecord):
 
                 self.addupdate('Info', f'After event {self.modify_data_event_name}', actor)
 
-                self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line})
-
             if self.send_to_clients and line.send:
                 line.format(preamble=self.preamble, color=self.color_for_all_lines)
 
@@ -186,6 +184,9 @@ class ToClientData(BaseRecord):
                     else:
                         LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
                                 level='debug', sources=[__name__])()
+
+                if line.is_io:
+                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line.line})
 
         self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send")
         self.sending = False

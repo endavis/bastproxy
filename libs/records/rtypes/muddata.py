@@ -123,13 +123,14 @@ class ToMudData(BaseRecord):
             # If it came from the proxy and it is not a telnet command,
             # pass each line through the event system to allow plugins to see what
             # data is being sent to the mud
-            if line.is_io:
-                self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line})
 
             if line.send:
                 line.format()
                 if mud_connection := self.api('plugins.core.proxy:get.mud.connection')():
                     mud_connection.send_to(line)
+
+                if line.is_io:
+                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line.line})
 
         self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send")
         self.sending = False
