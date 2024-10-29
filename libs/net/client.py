@@ -25,7 +25,7 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
 from libs.net import telnet
 from libs.asynch import TaskItem
 from libs.api import API
-from libs.records import ToClientData, LogRecord, ToMudRecord, NetworkDataLine, NetworkData
+from libs.records import ToClientData, LogRecord, ToMudData, NetworkDataLine, NetworkData
 
 
 class ClientConnection:
@@ -205,10 +205,9 @@ class ClientConnection:
                 ToClientData(networkdata,
                                 clients=[self.uuid])()
             else:
-                # this is where we start with ToMudRecord
-                ToMudRecord(inp,
-                            internal=False,
-                            client_id=self.uuid)('libs.net.client:client_read')
+                # this is where we start with ToMudData
+                ToMudData(NetworkData(NetworkDataLine(inp.strip(), originated='client'), owner_id=f"client:{self.uuid}"),
+                          client_id=self.uuid)()
 
         LogRecord(f"client_read - Ending coroutine for {self.uuid}",
                   level='debug',

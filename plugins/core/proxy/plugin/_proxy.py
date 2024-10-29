@@ -33,7 +33,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.net.mud import MudConnection
-from libs.records import LogRecord, ToMudRecord, ToClientData, NetworkData
+from libs.records import LogRecord, ToMudData, ToClientData, NetworkData
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
@@ -148,10 +148,10 @@ class ProxyPlugin(BasePlugin):
         connects to the mud
         """
         if self.api('plugins.core.settings:get')(self.plugin_id, 'username') != '':
-            ToMudRecord(self.api('plugins.core.settings:get')(self.plugin_id, 'username'), internal=True, show_in_history=False)()
+            ToMudData(NetworkData(self.api('plugins.core.settings:get')(self.plugin_id, 'username')), show_in_history=False)()
             pasw = self.api(f"{self.plugin_id}:ssc.mudpw")()
             if pasw != '':
-                ToMudRecord([pasw, '\n'], internal=True, show_in_history=False)()
+                ToMudData(NetworkData(pasw), show_in_history=False)()
 
     @AddParser(description='list proxy info')
     def _command_info(self):

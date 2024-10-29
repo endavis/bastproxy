@@ -12,7 +12,7 @@ import re
 # 3rd Party
 
 # Project
-from libs.records import LogRecord, ToMudRecord
+from libs.records import LogRecord, ToMudData, NetworkData
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddParser
 from plugins.core.events import RegisterToEvent
@@ -122,7 +122,7 @@ class CMDQPlugin(BasePlugin):
 
         self.current_command = cmdt
         self.api('plugins.core.events:raise.event')(f"cmd_{self.current_command['ctype']}_send")
-        ToMudRecord(cmd, internal=True, show_in_history=False)()
+        ToMudData(NetworkData(cmd), show_in_history=False)()
 
     def checkinqueue(self, cmd):
         """

@@ -11,7 +11,7 @@ The public record types ones are:
     ToClientData - send data to the client
     NetworkData - build data to send
     LogRecord - data to log
-    ToMudRecord - data to send to the mud
+    ToMudData - data to send to the mud
     EventArgsRecord - data to send to event callbacks
 
 The public manager is RMANAGER, which manages records or all types
@@ -21,19 +21,19 @@ There are also some private classes that are used to manage records
     ChangeRecord - a record that holds a change to a record
     ChangeManager - a manager that manages changes to records
 """
-__all__ = ['LogRecord', 'ToMudRecord',
+__all__ = ['LogRecord',
            'RMANAGER', 'EventArgsRecord', 'CmdArgsRecord',
            'RaisedEventRecord', 'NetworkDataLine',
-           'NetworkData', 'ToClientData']
+           'NetworkData', 'ToClientData', 'ToMudData']
 
 from libs.records.rtypes.base import BaseRecord # import to resolve circular import
 from libs.records.rtypes.clientdata import ToClientData
-from libs.records.rtypes.tomud import ToMudRecord
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.events import EventArgsRecord, RaisedEventRecord
 from libs.records.rtypes.cmdargs import CmdArgsRecord
 from libs.records.managers.records import RMANAGER
 from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
+from libs.records.rtypes.muddata import ToMudData
 
 
 

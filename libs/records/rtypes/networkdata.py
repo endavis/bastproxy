@@ -10,6 +10,7 @@ Holds the data line record
 """
 # Standard Library
 from collections import UserList
+import re
 
 # 3rd Party
 
@@ -123,15 +124,30 @@ class NetworkDataLine(BaseRecord):
                 self.line = f"{color}{self.line}@w"
         self.line = self.api('plugins.core.colors:colorcode.to.ansicode')(self.line)
 
-    def format(self, preamble: bool, color: str = ''):
+    def fix_double_command_seperator(self):
+        """
+        fix double command seperators
+
+        take out double command seperators and replaces them with a single one before
+        sending the data to the mud
+        """
+        if isinstance(self.line, str):
+            current_line = self.line.replace('||', '|')
+            if current_line != self.line:
+                self.line = current_line
+
+    def format(self, preamble: bool = False, color: str = '') -> None:
         """
         format the message
         """
         if self.is_io:
-            if self.internal:
+            if self.internal: # generated from the proxy
                 if preamble:
                     self.add_preamble()
-                self.color_line(color)
+            else: # generated from a client
+                self.fix_double_command_seperator()
+
+            self.color_line(color)
             self.add_line_endings()
 
     def strip(self):

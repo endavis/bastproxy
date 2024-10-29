@@ -23,7 +23,7 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ToClientData, LogRecord, ToMudRecord, NetworkDataLine
+from libs.records import ToClientData, LogRecord, ToMudData, NetworkDataLine
 from libs.records import NetworkData as NetworkData
 from libs.net.networkdata import NetworkData as OldNetworkData
 from libs.asynch import TaskItem
@@ -50,7 +50,7 @@ class MudConnection:
         #self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
         self.connected = True
-        self.send_queue: asyncio.Queue[OldNetworkData] = asyncio.Queue()
+        self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader = None
         self.writer = None
@@ -76,21 +76,22 @@ class MudConnection:
         """
         self.connected = False
 
-    def send_to(self, data: ToMudRecord) -> None:
+    def send_to(self, data: NetworkDataLine) -> None:
         """
         add data to the queue
         """
         if not self.connected:
-            LogRecord('send_to - Mud is not connected', level='debug', sources=[__name__])()
+            LogRecord("send_to - Not connected to the mud, cannot send data",
+                      level='debug',
+                      sources=[__name__])()
             return
         loop = asyncio.get_event_loop()
-        if data.is_io:
-            message = OldNetworkData(data.message_type, message=''.join(data))
-            loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
+        if not isinstance(data, NetworkDataLine):
+            LogRecord(f"client: send_to - {self.uuid} got a type that is not NetworkDataLine : {type(data)}",
+                      level='error', stack_info=True,
+                      sources=[__name__])()
         else:
-            for i in data:
-                message = OldNetworkData(data.message_type, message=i)
-                loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
+            loop.call_soon_threadsafe(self.send_queue.put_nowait, data)
 
     async def setup_mud(self) -> None:
         """
@@ -102,13 +103,15 @@ class MudConnection:
         if features := telnet.advertise_features():
             LogRecord(
                 "setup_mud - Sending telnet features",
-                level='debug',
+                level='info',
                 sources=[__name__],
             )()
-            ToMudRecord([features], message_type='COMMAND-TELNET')('libs.net.client:setup_client')
+            networkdata = NetworkData([], owner_id="mud:setup_mud")
+            networkdata.append(NetworkDataLine(features, originated='internal', line_type="COMMAND-TELNET"))
+            ToMudData(networkdata)()
             LogRecord(
                 "setup_mud - telnet features sent",
-                level='debug',
+                level='info',
                 sources=[__name__],
             )()
 
@@ -123,7 +126,7 @@ class MudConnection:
         """
         LogRecord(
             "mud_read - Starting coroutine for mud",
-            level='debug',
+            level='info',
             sources=[__name__],
         )()
 
@@ -138,11 +141,11 @@ class MudConnection:
                 return
 
             # this is where we start with ToClientData
-            ToClientData(NetworkData(NetworkDataLine(inp.strip(), originated='mud')))('libs.net.mud:mud_read')
+            ToClientData(NetworkData(NetworkDataLine(inp.strip(), originated='mud')))()
 
         LogRecord(
             "mud_read - Ending coroutine",
-            level='debug',
+            level='info',
             sources=[__name__]
         )()
 
@@ -158,37 +161,37 @@ class MudConnection:
             level='debug',
             sources=[__name__],
         )()
-        while self.connected and self.writer:
-            msg_obj: OldNetworkData = await self.send_queue.get()
+        while self.connected and self.writer and not self.writer.connection_closed:
+            msg_obj: NetworkDataLine = await self.send_queue.get()
             if msg_obj.is_io:
-                if msg_obj.msg:
-                    LogRecord(f"client_write - Writing message to mud: {msg_obj.msg}", level='debug', sources=[__name__])()
-                    LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug', sources=[__name__])()
-                    self.writer.write(msg_obj.msg)  # type: ignore
-                    logging.getLogger("data.mud").info(f"{'to_mud':<12} : {msg_obj.msg}")
-                    if msg_obj.is_prompt:
-                        self.writer.write(telnet.go_ahead())
-                        logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.goahead()}")  # type: ignore
+                if msg_obj.line:
+                    LogRecord(f"mud_write - Writing message to mud: {msg_obj.line}",
+                            level='debug',
+                            sources=[__name__])()
+                    LogRecord(f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
+                            level='debug',
+                            sources=[__name__])()
+                    self.writer.write(msg_obj.line)
+                    logging.getLogger("data.mud").info(f"{'to_mud':<12} : {msg_obj.line}")
                 else:
                     LogRecord(
                         "client_write - No message to write to client.",
                         level='debug',
                         sources=[__name__],
                     )()
-
             elif msg_obj.is_command_telnet:
-                LogRecord(f"client_write - Writing telnet option to mud: {msg_obj.msg}", level='debug', sources=[__name__])()
-                LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.msg)}", level='debug', sources=[__name__])()
-                self.writer.send_iac(msg_obj.msg)  # type: ignore
-                logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.msg}")
+                LogRecord(f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
+                        level='debug',
+                        sources=[__name__])()
+                LogRecord(f"mud_write - Writing telnet option mud: {repr(msg_obj.line)}",
+                            level='debug',
+                            sources=[__name__])()
+                self.writer.send_iac(msg_obj.line)
+                logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.line}")
 
-            self.api('libs.asynch:task.add')(self.writer.drain, name="mud.write.drain")
-
-        LogRecord(
-            "client_write - Ending coroutine",
-            level='debug',
-            sources=[__name__]
-        )()
+        LogRecord("mud_write - Ending coroutine",
+                  level='debug',
+                  sources=[__name__])()
 
     async def mud_telnet_handler(self, reader, writer) -> None:
         """

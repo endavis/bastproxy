@@ -16,7 +16,7 @@ import copy
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
-from libs.records import LogRecord, ToMudRecord, ToClientData, NetworkData
+from libs.records import LogRecord, ToMudData, ToClientData, NetworkData
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
@@ -590,7 +590,7 @@ class CommandsPlugin(BasePlugin):
         ):
             return
 
-        original_command = event_record['line']
+        original_command = event_record['line'].line
 
         # if the command is the same as the last command, do antispam checks
         if original_command == self.api('plugins.core.settings:get')(self.plugin_id, 'lastcmd'):
@@ -606,8 +606,8 @@ class CommandsPlugin(BasePlugin):
                                         f"{self.plugin_id}:pass_through_command_from_event", savedata = False)
                 LogRecord(f"sending antspam command: {self.api('plugins.core.settings:get')('plugins.core.commands', 'antispamcommand')}",
                           level='debug', sources=[self.plugin_id])()
-                ToMudRecord(self.api('plugins.core.settings:get')(self.plugin_id, 'antispamcommand'),
-                            show_in_history=False)(f"{self.plugin_id}:pass_through_command_event")
+                ToMudData(NetworkData(self.api('plugins.core.settings:get')(self.plugin_id, 'antispamcommand')),
+                            show_in_history=False)()
 
                 self.api('plugins.core.settings:change')(self.plugin_id, 'cmdcount', 0)
                 return
@@ -618,7 +618,7 @@ class CommandsPlugin(BasePlugin):
                 event_record.addupdate('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
                                         f"{self.plugin_id}:pass_through_command_from_event", savedata = False)
 
-                event_record['sendtomud'] = False
+                event_record['line'].send = False
                 return
         else:
             # the command does not match the last command
@@ -700,7 +700,7 @@ class CommandsPlugin(BasePlugin):
 
         message.extend([
             *self.api(f'{self.plugin_id}:format.output.header')(f'Available Plugins in {package}'),
-            self.api('plugins.core.utils:format.list.into.columns')(
+            *self.api('plugins.core.utils:format.list.into.columns')(
                     plugins, cols=3, columnwise=False, gap=6
                 ),
         ])
@@ -862,9 +862,9 @@ class CommandsPlugin(BasePlugin):
             return
         clients = [event_record['client_id']] if event_record['client_id'] else None
 
-        event_record['sendtomud'] = False
+        event_record['line'].send = False
 
-        command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
+        command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'].line)
 
         if message:
             if isinstance(message, list):
@@ -988,14 +988,14 @@ class CommandsPlugin(BasePlugin):
 
         self.current_input_event = event_record
 
-        if event_record['line'].startswith(commandprefix):
+        if event_record['line'].line.startswith(commandprefix):
             self.run_internal_command_from_event()
 
         else:
             self.pass_through_command_from_event()
 
-        if event_record['showinhistory'] and not event_record['internal']:
-            self.add_command_to_history(event_record['line'])
+        if event_record['showinhistory'] and not event_record['line'].internal:
+            self.add_command_to_history(event_record['line'].line)
 
         self.current_input_event = None
 
@@ -1098,11 +1098,9 @@ class CommandsPlugin(BasePlugin):
             plugin_id_list = [item.replace('plugins.', '') for item in self.api('libs.plugins.loader:get.loaded.plugins.list')()]
 
         if plugin_id_list := sorted(plugin_id_list):
-            return [
-                self.api('plugins.core.utils:format.list.into.columns')(
+            return self.api('plugins.core.utils:format.list.into.columns')(
                     plugin_id_list, cols=3, columnwise=False, gap=6
-                ),
-            ]
+                )
         else:
             return  ['No plugins found']
 
