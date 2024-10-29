@@ -9,11 +9,12 @@
 Holds the base record type
 """
 # Standard Library
-from collections import UserList, UserDict
-from uuid import uuid4
 import datetime
 import traceback
 import pprint
+from collections import UserList, UserDict
+from uuid import uuid4
+from typing import TYPE_CHECKING
 
 # 3rd Party
 
@@ -23,6 +24,9 @@ from libs.records.rtypes.update import UpdateRecord
 from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
 from libs.tracking.utils.attributes import AttributeMonitor
+
+if TYPE_CHECKING:
+    from libs.records.rtypes.networkdata import NetworkDataLine
 
 class BaseRecord(AttributeMonitor):
     def __init__(self, owner_id: str = '', track_record=True):
@@ -82,7 +86,7 @@ class BaseRecord(AttributeMonitor):
             records.extend(record.get_all_related_records(update_filter))
         return [i for n, i in enumerate(records) if i not in records[:n]]
 
-    def add_related_record(self, record):
+    def add_related_record(self, record: 'BaseRecord'):
         """
         add a related record
         """

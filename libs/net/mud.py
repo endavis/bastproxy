@@ -23,7 +23,8 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ToClientRecord, LogRecord, ToMudRecord
+from libs.records import ToClientData, LogRecord, ToMudRecord, NetworkDataLine
+from libs.records import NetworkData as BaseNetworkDataRecord
 from libs.net.networkdata import NetworkData
 from libs.asynch import TaskItem
 
@@ -137,7 +138,7 @@ class MudConnection:
                 return
 
             # this is where we start with ToClientRecord
-            ToClientRecord(inp, internal=False)('libs.net.mud:mud_read')
+            ToClientData(BaseNetworkDataRecord(NetworkDataLine(inp.strip(), originated='mud')))('libs.net.mud:mud_read')
 
         LogRecord(
             "mud_read - Ending coroutine",
