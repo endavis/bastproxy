@@ -58,9 +58,7 @@ class UtilsPlugin(BasePlugin):
             if len(plist[-1]) != number_of_columns:
                 plist[-1].extend(['']*(len(list_of_strings) - len(plist[-1])))
             plist = zip(*plist)
-        return '\n'.join(
-            [''.join([c.ljust(max_len + gap) for c in p]) for p in plist]
-        )
+        return [''.join([c.ljust(max_len + gap) for c in p]) for p in plist]
 
     @AddAPI('convert.timedelta.to.string', description='take two times and return a string of the difference')
     def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
