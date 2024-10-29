@@ -135,7 +135,7 @@ class CustomClientHandler(logging.Handler):
             )
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
-            new_message = NetworkData(formatted_message, owner_id=f'{__name__}:CustomClientHandler:emit')
+            new_message = NetworkData(formatted_message.splitlines(), owner_id=f'{__name__}:CustomClientHandler:emit')
             if type(record.msg) == LogRecord:
                 if self.api('libs.api:has')('plugins.core.log:get.level.color'):
                     color = self.api('plugins.core.log:get.level.color')(record.levelno)
