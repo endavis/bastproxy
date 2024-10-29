@@ -66,21 +66,21 @@ class NetworkDataLine(BaseRecord):
         A shortcut property to determine if this message is normal I/O.
         """
         return self.line_type == "IO"
-    
+
     @property
     def internal(self):
         """
         A shortcut property to determine if this message is internal
         """
         return self.originated == 'internal'
-    
+
     @property
     def fromclient(self):
         """
         A shortcut property to determine if this message is from a client
         """
         return self.originated == 'client'
-    
+
     @property
     def frommud(self):
         """
@@ -139,7 +139,7 @@ class NetworkDataLine(BaseRecord):
         strip the line of carriage returns and line feeds
         """
         return self.line.strip()
-    
+
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
         for item in self._attributes_to_monitor:
@@ -150,15 +150,15 @@ class NetworkDataLine(BaseRecord):
                 attributes[0].append((item, f"changed from '{self._am_get_original_value(item)}' to '{getattr(self, item)}'"))
         attributes[0].append(('Line Modified', 'line_modified'))
         attributes[0].append(('Originated', 'originated'))
-        attributes[0].append(('Type', 'line_type'))        
+        attributes[0].append(('Type', 'line_type'))
         return attributes
 
     def one_line_summary(self):
         return repr(self.line)
-    
+
     def __str__(self):
         return self.line
-    
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.uuid} {self.originated} {repr(self.original_line.strip())})'
 
@@ -194,11 +194,11 @@ class NetworkData(UserList, BaseRecord):
         UserList.__init__(self, new_message)
         BaseRecord.__init__(self, owner_id, track_record=track_record)
         for item in new_message:
-            self.add_related_record(item)        
+            self.add_related_record(item)
         self.owner_id = owner_id
         # This is a flag to prevent the message from being sent  more than once
         self.sending = False
-        self.addupdate('Modify', 'original input', extra={'list':f"{new_message}"})  
+        self.addupdate('Modify', 'original input', extra={'list':f"{new_message}"})
 
     def one_line_summary(self):
         """
@@ -227,7 +227,7 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().__setitem__(index, item)
-        self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})         
+        self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})
 
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """
@@ -239,7 +239,7 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().insert(index, item)
-        self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})           
+        self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})
 
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
         """
@@ -251,7 +251,7 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().append(item)
-        self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})            
+        self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})
 
     def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
         """
@@ -266,4 +266,4 @@ class NetworkData(UserList, BaseRecord):
             self.add_related_record(item)
             new_list.append(item)
         super().extend(new_list)
-        self.addupdate('Modify', 'extended list', extra={'new_list':f"{new_list}"})         
+        self.addupdate('Modify', 'extended list', extra={'new_list':f"{new_list}"})
