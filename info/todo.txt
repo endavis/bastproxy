@@ -103,13 +103,6 @@
     # TODO: reconfigure _baseplugin to have a libs dir like other plugins
         put _pluginhooks, _patch in libs
     # TODO: move all records under their owning plugin, only keep base types in libs.records
-    # TODO: create a OutputLine/DataLine Record
-         - based on ToClientLine
-         - add all formatting to this record
-         - cast every line that is to go to a client or to the mud in this record
-                - Look at command output which goes through ToClientRecord
-                - Look at ToMudRecord
-                - Maybe do this at the net level?
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
@@ -387,6 +380,13 @@
             # DONE: all timers that are from the plugin
        # DONE:  move to plugins.debug.plugins
     # COMPLETE: move pluginloader, info/plugins, , dependency, imputils, reloadutils into libs/plugin
+    # COMPLETE: (see NetworkData and NetworkDataLine) create a OutputLine/DataLine Record
+         - based on ToClientLine
+         - add all formatting to this record
+         - cast every line that is to go to a client or to the mud in this record
+                - Look at command output which goes through ToClientRecord
+                - Look at ToMudRecord
+                - Maybe do this at the net level?
 
 # REJECTED/OLD
     # OLD: plugin reloading
