@@ -22,29 +22,29 @@ class NetworkDataLine(BaseRecord):
     A record to hold a line of data that will be sent to the clients
     or the mud
     """
-    def __init__(self, line, originated='internal', line_type='IO'):
-        BaseRecord.__init__(self, f"{self.__class__.__name__}:{line}")
+    def __init__(self, line: str | bytes | bytearray, originated: str = 'internal', line_type: str = 'IO'):
+        BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
         if (isinstance(line, str) and ('\n' in line or '\r' in line)) or \
-           (isinstance(line, bytes) and (b'\n' in line or b'\r' in line)):
-            LogRecord(f"LogRecord: {self.uuid} {line} has is multi line with \\n and/or \\r",
+               (isinstance(line, (bytes, bytearray)) and (b'\n' in line or b'\r' in line)):
+            LogRecord(f"LogRecord: {self.uuid} {line} is multi line with \\n and/or \\r",
                                 level='error', stack_info=True, sources=[__name__])()
         self.line_type = line_type # IO, COMMAND-TELNET
         self.originated = originated # mud, client, internal
-        if isinstance(line, bytes) and not self.is_command_telnet:
-            line = line.decode('utf-8')        
-        self.line: str | bytes = line
-        self.original_line = line
-        self.send = True
-        self.line_modified = False
-        self.is_prompt = False
+        if (isinstance(line, (bytes, bytearray))) and not self.is_command_telnet:
+            line = line.decode('utf-8')
+        self.line: str | bytes | bytearray = line
+        self.original_line: str | bytes | bytearray = line
+        self.send: bool = True
+        self.line_modified: bool = False
+        self.is_prompt: bool = False
         if self.is_io:
-            self.noansi = self.api('plugins.core.colors:ansicode.strip')(line)
-            self.color = self.api('plugins.core.colors:ansicode.to.colorcode')(line)
+            self.noansi: str = self.api('plugins.core.colors:ansicode.strip')(line)
+            self.color: str = self.api('plugins.core.colors:ansicode.to.colorcode')(line)
         else:
-            self.noansi = ''
-            self.color = ''
+            self.noansi: str = ''
+            self.color: str = ''
 
     def _onchange_line(self, orig_value, new_value):
         """
@@ -95,7 +95,7 @@ class NetworkDataLine(BaseRecord):
         if self.is_io:
             self.line = f"{self.line}\n\r"
 
-    def color_line(self, color: str, actor=''):
+    def color_line(self, color: str = ''):
         """
         color the message and convert all colors to ansicodes
 
@@ -105,11 +105,11 @@ class NetworkDataLine(BaseRecord):
         """
         if not self.is_io:
             return
-        
+
         if not self.api('libs.api:has')('plugins.core.colors:colorcode.to.ansicode'):
             return
-        
-        if color:
+
+        if color and isinstance(self.line, str):
             if '@w' in self.line:
                 line_list = self.line.split('@w')
                 new_line_list = []
@@ -123,7 +123,7 @@ class NetworkDataLine(BaseRecord):
                 self.line = f"{color}{self.line}@w"
         self.line = self.api('plugins.core.colors:colorcode.to.ansicode')(self.line)
 
-    def format(self, preamble, color: str = ''):
+    def format(self, preamble: bool, color: str = ''):
         """
         format the message
         """
@@ -160,9 +160,9 @@ class NetworkDataLine(BaseRecord):
         return self.line
     
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.uuid} {self.originated} {self.original_line.strip()})'
-    
-    def add_preamble(self, error=False):
+        return f'{self.__class__.__name__}({self.uuid} {self.originated} {repr(self.original_line.strip())})'
+
+    def add_preamble(self, error: bool = False):
         """
         add the preamble to the line only if it is from internal and is an IO message
         """
@@ -175,16 +175,16 @@ class NetworkData(UserList, BaseRecord):
     """
     this is a base record of a list of NetworkDataLine records
     """
-    def __init__(self, message: NetworkDataLine | str| bytes | list[NetworkDataLine | str | bytes], owner_id: str='',
-                 track_record=True):
+    def __init__(self, message: NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes],
+                 owner_id: str='', track_record=True):
         """
         initialize the class
         """
         if not isinstance(message, list):
-            message = [message]
+            message = [message] # type: ignore
 
         new_message = []
-        for item in message:
+        for item in message: # type: ignore
             if not (isinstance(item, (NetworkDataLine, str, bytes))):
                 raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
             if isinstance(item, (str, bytes)):
@@ -217,51 +217,51 @@ class NetworkData(UserList, BaseRecord):
 
         return attributes
 
-    def __setitem__(self, index, item: NetworkDataLine | str):
+    def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """
         set the item
         """
-        if not (isinstance(item, (NetworkDataLine, str, bytes))):
-            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
-        if isinstance(item, (str, bytes)):
+        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
+        if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().__setitem__(index, item)
         self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})         
 
-    def insert(self, index, item: NetworkDataLine | str | bytes):
+    def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """
         insert an item
         """
-        if not (isinstance(item, (NetworkDataLine, str, bytes))):
-            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
-        if isinstance(item, (str, bytes)):
+        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
+        if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().insert(index, item)
         self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})           
 
-    def append(self, item: NetworkDataLine | str | bytes):
+    def append(self, item: NetworkDataLine | str | bytes | bytearray):
         """
         append an item
         """
-        if not (isinstance(item, (NetworkDataLine, str, bytes))):
-            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
-        if isinstance(item, (str, bytes)):
+        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
+        if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().append(item)
         self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})            
 
-    def extend(self, items):
+    def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
         """
         extend the list
         """
         new_list = []
         for item in items:
-            if not (isinstance(item, (NetworkDataLine, str, bytes))):
-                raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
-            if isinstance(item, (str, bytes)):
+            if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+                raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
+            if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)
             self.add_related_record(item)
             new_list.append(item)
