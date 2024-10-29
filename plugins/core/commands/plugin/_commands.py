@@ -16,7 +16,7 @@ import copy
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
-from libs.records import ToClientRecord, LogRecord, ToMudRecord
+from libs.records import LogRecord, ToMudRecord, ToClientData, NetworkData
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
@@ -867,7 +867,9 @@ class CommandsPlugin(BasePlugin):
         command_item, command_args, show_in_history, notes, message = self.find_command(event_record['line'])
 
         if message:
-            ToClientRecord(message, clients=clients)()
+            if isinstance(message, list):
+                message = NetworkData(message, owner_id='run_internal_command_from_event')
+            ToClientData(message, clients=clients)()
 
         if event_record['showinhistory'] != show_in_history:
             event_record['showinhistory'] = show_in_history
@@ -881,7 +883,6 @@ class CommandsPlugin(BasePlugin):
         if command_item:
             LogRecord(f"found command {command_item.plugin_id}.{command_item.name}",
                     level='debug', sources=[self.plugin_id])(actor = f"{self.plugin_id}:run_internal_command_from_event")
-            #ToClientRecord(f"Running command {command_item.plugin_id}.{command_item.name}")()
 
             success, message, error = command_item.run(command_args, format=True)
 
@@ -898,7 +899,9 @@ class CommandsPlugin(BasePlugin):
                                     savedata = False)
 
             if message:
-                ToClientRecord(message, clients=clients)()
+                if isinstance(message, list):
+                    message = NetworkData(message, owner_id='run_internal_command_from_event')
+                ToClientData(message, clients=clients)()
 
     @AddAPI('get.summary.data.for.plugin', description="get summary data for a plugin")
     def _api_get_summary_data_for_plugin(self, plugin_id):
@@ -1166,10 +1169,10 @@ class CommandsPlugin(BasePlugin):
         else:
             command = self.command_history_data[args['number']]
 
-        ToClientRecord(f"Commands: rerunning command {command}")(
+        ToClientData(NetworkData([f"Commands: rerunning command {command}"], owner_id='run_history'))(
             f'{self.plugin_id}:_command_run_history'
         )
-        ToClientRecord(command)()
+        ToClientData(NetworkData([f"{command}"], owner_id='run_history'))()
 
         return True, []
 

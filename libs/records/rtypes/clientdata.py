@@ -30,7 +30,7 @@ class ToClientData(BaseRecord):
 
     The message format is a NetworkData object
     """
-    def __init__(self, message: NetworkData,
+    def __init__(self, message: 'NetworkData',
                  clients: list|None=None, exclude_clients: list|None=None, preamble=True,
                  prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
@@ -68,18 +68,17 @@ class ToClientData(BaseRecord):
                               ('Clients', 'clients'), ('Exclude Clients', 'exclude_clients'),
                               ('Color For All Lines', 'color_for_all_lines')])
         return attributes
-    
+
     def setup_events(self):
         global SETUPEVENTS
         if not SETUPEVENTS:
             SETUPEVENTS = True
             self.api('plugins.core.events:add.event')(self.modify_data_event_name, __name__,
                                                 description=['An event to modify data before it is sent to the client'],
-                                                arg_descriptions={'line': 'The line to modify',
-                                                                  'sendtoclient': 'A flag to determine if this line should be sent to the client'})
+                                                arg_descriptions={'line': 'The line to modify, a NetworkDataLine object'})
             self.api('plugins.core.events:add.event')(self.read_data_event_name, __name__,
                                                 description=['An event to see data that was sent to the client'],
-                                                arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
+                                                arg_descriptions={'line': 'The line to modify, a NetworkDataLine object'})
 
     @property
     def noansi(self):
@@ -154,7 +153,7 @@ class ToClientData(BaseRecord):
         self.addupdate('Info', f"{'Start':<8}: send", actor)
 
         for line in self.message:
-            # If it came from the mud and it is not a telnet command, 
+            # If it came from the mud and it is not a telnet command,
             # pass each line through the event system to allow plugins to modify it
             if line.frommud and line.is_io:
                 event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'line': line})

@@ -55,7 +55,7 @@ class TriggerItem:
         raise an event for this trigger
         """
         if self.omit:
-            args['data_line'].sendtoclients = False
+            args['line'].sendtoclients = False
 
         args['trigger_name'] = self.trigger_name
         args['trigger_id'] = self.trigger_id
@@ -498,7 +498,7 @@ class TriggersPlugin(BasePlugin):
         Returns:
             None
         """
-        args = {'data_line': data_line}
+        args = {'line': data_line}
         LogRecord(f"_eventcb_check_trigger - line {data_line.color} matched the following regexes {regex_match_data}",
                     level='debug', sources=[self.plugin_id])()
         for regex_id in regex_match_data:
@@ -537,7 +537,7 @@ class TriggersPlugin(BasePlugin):
             return
 
         # don't check internal data
-        line = event_record['data_line']
+        line = event_record['line']
         if line.internal:
             return
 
@@ -559,7 +559,7 @@ class TriggersPlugin(BasePlugin):
                 match_groups = {}
 
             if regex_match_data := match_groups.keys():
-                self.process_match(event_record['data_line'], regex_match_data)
+                self.process_match(event_record['line'], regex_match_data)
             else:
                 LogRecord(f"_eventcb_check_trigger - line {data} did not match any regexes",
                           level='debug', sources=[self.plugin_id])()

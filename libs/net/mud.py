@@ -24,8 +24,8 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 from libs.net import telnet
 from libs.api import API
 from libs.records import ToClientData, LogRecord, ToMudRecord, NetworkDataLine
-from libs.records import NetworkData as BaseNetworkDataRecord
-from libs.net.networkdata import NetworkData
+from libs.records import NetworkData as NetworkData
+from libs.net.networkdata import NetworkData as OldNetworkData
 from libs.asynch import TaskItem
 
 
@@ -50,7 +50,7 @@ class MudConnection:
         #self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
         self.connected = True
-        self.send_queue: asyncio.Queue[NetworkData] = asyncio.Queue()
+        self.send_queue: asyncio.Queue[OldNetworkData] = asyncio.Queue()
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader = None
         self.writer = None
@@ -85,11 +85,11 @@ class MudConnection:
             return
         loop = asyncio.get_event_loop()
         if data.is_io:
-            message = NetworkData(data.message_type, message=''.join(data))
+            message = OldNetworkData(data.message_type, message=''.join(data))
             loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
         else:
             for i in data:
-                message = NetworkData(data.message_type, message=i)
+                message = OldNetworkData(data.message_type, message=i)
                 loop.call_soon_threadsafe(self.send_queue.put_nowait, message)
 
     async def setup_mud(self) -> None:
@@ -137,8 +137,8 @@ class MudConnection:
                 self.connected = False
                 return
 
-            # this is where we start with ToClientRecord
-            ToClientData(BaseNetworkDataRecord(NetworkDataLine(inp.strip(), originated='mud')))('libs.net.mud:mud_read')
+            # this is where we start with ToClientData
+            ToClientData(NetworkData(NetworkDataLine(inp.strip(), originated='mud')))('libs.net.mud:mud_read')
 
         LogRecord(
             "mud_read - Ending coroutine",
@@ -159,7 +159,7 @@ class MudConnection:
             sources=[__name__],
         )()
         while self.connected and self.writer:
-            msg_obj: NetworkData = await self.send_queue.get()
+            msg_obj: OldNetworkData = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.msg:
                     LogRecord(f"client_write - Writing message to mud: {msg_obj.msg}", level='debug', sources=[__name__])()

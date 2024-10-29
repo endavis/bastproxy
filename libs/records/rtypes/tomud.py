@@ -62,11 +62,10 @@ class ToMudRecord(BaseListRecord):
             SETUPEVENTS = True
             self.api('plugins.core.events:add.event')(self.modify_data_event_name, __name__,
                                                 description=['An event to modify data before it is sent to the mud'],
-                                                arg_descriptions={'line': 'The line to modify',
-                                                                  'sendtoclient': 'A flag to determine if this line should be sent to the mud'})
+                                                arg_descriptions={})
             self.api('plugins.core.events:add.event')(self.read_data_event_name, __name__,
                                                 description=['An event to see data that was sent to the mud'],
-                                                arg_descriptions={'ToClientRecord': 'A libs.records.ToClientRecord object'})
+                                                arg_descriptions={})
 
     def prepare(self, actor):
         """

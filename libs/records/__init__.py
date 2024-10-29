@@ -8,7 +8,8 @@
 """
 This "package"" has classes for various record types and record managers
 The public record types ones are:
-    ToClientRecord - data to send to the client
+    ToClientData - send data to the client
+    NetworkData - build data to send
     LogRecord - data to log
     ToMudRecord - data to send to the mud
     EventArgsRecord - data to send to event callbacks
@@ -20,13 +21,12 @@ There are also some private classes that are used to manage records
     ChangeRecord - a record that holds a change to a record
     ChangeManager - a manager that manages changes to records
 """
-__all__ = ['LogRecord', 'ToClientRecord', 'ToMudRecord',
+__all__ = ['LogRecord', 'ToMudRecord',
            'RMANAGER', 'EventArgsRecord', 'CmdArgsRecord',
            'RaisedEventRecord', 'NetworkDataLine',
            'NetworkData', 'ToClientData']
 
 from libs.records.rtypes.base import BaseRecord # import to resolve circular import
-from libs.records.rtypes.toclient import ToClientRecord
 from libs.records.rtypes.clientdata import ToClientData
 from libs.records.rtypes.tomud import ToMudRecord
 from libs.records.rtypes.log import LogRecord
