@@ -22,15 +22,18 @@ There are also some private classes that are used to manage records
 """
 __all__ = ['LogRecord', 'ToClientRecord', 'ToMudRecord',
            'RMANAGER', 'EventArgsRecord', 'CmdArgsRecord',
-           'RaisedEventRecord']
+           'RaisedEventRecord', 'NetworkDataLine',
+           'NetworkData', 'ToClientData']
 
 from libs.records.rtypes.base import BaseRecord # import to resolve circular import
 from libs.records.rtypes.toclient import ToClientRecord
+from libs.records.rtypes.clientdata import ToClientData
 from libs.records.rtypes.tomud import ToMudRecord
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.events import EventArgsRecord, RaisedEventRecord
 from libs.records.rtypes.cmdargs import CmdArgsRecord
 from libs.records.managers.records import RMANAGER
+from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
 
 
 
