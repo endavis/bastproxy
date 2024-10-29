@@ -61,9 +61,6 @@ class BaseRecord(AttributeMonitor):
         Track changes to attributes, works in conjunction with the AttributeMonitor class
         """
         self.addupdate('Modify', name, extra={'original':original_value, 'new':new_value})
-        if name == 'line':
-            self.line_modified = True
-        print(f'Adding update record {self.__class__.__name__}:{self.uuid} - attribute {name}')
 
     def one_line_summary(self):
         """
@@ -242,8 +239,7 @@ class BaseRecord(AttributeMonitor):
 
 class BaseListRecord(UserList, BaseRecord):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
-                 message_type: str = 'IO', internal: bool=True, owner_id: str='',
-                 add_related_event_record=True, track_record=True):
+                 message_type: str = 'IO', internal: bool=True, owner_id: str='', track_record=True):
         """
         initialize the class
         """
@@ -316,7 +312,7 @@ class BaseListRecord(UserList, BaseRecord):
             data = [data]
         if data != self.data:
             self.data = data
-            self.addupdate('Modify', 'replace', actor, extra=extra)
+            self.addupdate('Modify', 'replace', actor, extra=extra, savedata=True)
 
     def color_lines(self, color: str, actor=''):
         """
@@ -386,8 +382,7 @@ class BaseListRecord(UserList, BaseRecord):
         self.updates.add(change)
 
 class BaseDictRecord(UserDict, BaseRecord):
-    def __init__(self, owner_id: str = '', data: dict | None = None,
-                 add_related_event_record=True, track_record=True):
+    def __init__(self, owner_id: str = '', data: dict | None = None, track_record=True):
         """
         initialize the class
         """
