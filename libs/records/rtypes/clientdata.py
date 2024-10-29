@@ -9,13 +9,16 @@
 Holds the client record type
 """
 # Standard Library
+import typing
 
 # 3rd Party
 
 # Project
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.base import BaseListRecord, BaseRecord
-from libs.records.rtypes.networkdata import NetworkData
+from libs.records.rtypes.base import BaseRecord
+
+if typing.TYPE_CHECKING:
+    from libs.records.rtypes.networkdata import NetworkData
 
 SETUPEVENTS = False
 
@@ -25,9 +28,9 @@ class ToClientData(BaseRecord):
     data from the mud will immediately be transformed into this type of record
     will not neccesarily end up going to the client
 
-    The message format is a list of NetworkDataLine objects
+    The message format is a NetworkData object
     """
-    def __init__(self, message: BaseNetworkDataRecord,
+    def __init__(self, message: NetworkData,
                  clients: list|None=None, exclude_clients: list|None=None, preamble=True,
                  prelogin: bool=False, error: bool=False, color_for_all_lines=None):
         """
