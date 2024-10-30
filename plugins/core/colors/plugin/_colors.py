@@ -206,6 +206,23 @@ class ColorsPlugin(BasePlugin):
         tstr = re.sub('\0', '@', tstr)    # put @ back in
         return tstr
 
+    @AddAPI('colorcode.escape', description='escape colorcodes so they are not interpreted')
+    def _api_colorcode_escape(self, tstr):
+        """
+        escape colorcodes
+        """
+        tinput = tstr.splitlines()
+
+        olist = []
+        for line in tinput:
+            line = line.replace('@@', '\0')
+            line = line.replace('@', '@@')
+            line = line.replace('\0', '@@@@')
+
+            olist.append(line)
+
+        return '\n'.join(olist)
+
     @AddAPI('ansicode.to.colorcode', description='convert ansi color escape sequences to @@ colors')
     def _api_ansicode_to_colorcode(self, text):
         # pylint: disable=no-self-use
