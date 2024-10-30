@@ -7,6 +7,7 @@
 # By: Bast
 
 # Standard Library
+import os
 
 # 3rd Party
 
@@ -98,6 +99,11 @@ class RecordPlugin(BasePlugin):
                     help='include_updates in the detail',
                     action='store_false',
                     default=True)
+    @AddArgument('-d',
+                    '--dump',
+                    help='include_updates in the detail',
+                    action='store_true',
+                    default=False)
     def _command_detail(self):
         """
         get the details of a specific record
@@ -124,8 +130,21 @@ class RecordPlugin(BasePlugin):
         else:
             showlogrecords = self.api('plugins.core.settings:get')(self.plugin_id, 'showLogRecords')
             update_filter = [] if showlogrecords else ['LogRecord']
-            tmsg.extend(record.get_formatted_details(update_filter=update_filter,
+            data = record.get_formatted_details(update_filter=update_filter,
                                                      full_related_records=args['full_related_records'],
-                                                     include_updates=args['include_updates']))
+                                                     include_updates=args['include_updates'])
+
+            if args['dump']:
+                save_path = self.api.BASEDATAPATH / 'dumps'
+                save_path.mkdir(parents=True, exist_ok=True)
+                file_path = save_path / f"{args['uid']}.txt"
+                if file_path.exists():
+                    os.remove(file_path)
+                with open(file_path, 'w') as f:
+                    f.write('\n'.join(data))
+
+                tmsg.append(f"Record dumped to {file_path}")
+            else:
+                tmsg.extend(data)
 
         return True, tmsg
