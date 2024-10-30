@@ -80,25 +80,25 @@ class ToClientData(BaseRecord):
                                                 description=['An event to see data that was sent to the client'],
                                                 arg_descriptions={'line': 'The line to modify, a NetworkDataLine object'})
 
-    @property
-    def noansi(self):
-        """
-        return the message without ansi codes
-        """
-        newmessage: list[str] = [
-            item.noansi for item in self.message
-        ]
-        return newmessage
+    # @property
+    # def noansi(self):
+    #     """
+    #     return the message without ansi codes
+    #     """
+    #     newmessage: list[str] = [
+    #         item.noansi for item in self.message
+    #     ]
+    #     return newmessage
 
-    @property
-    def color(self):
-        """
-        return the message with ansi codes converted to @ color codes
-        """
-        newmessage: list[str] = [
-            item.color for item in self.message
-        ]
-        return newmessage
+    # @property
+    # def color(self):
+    #     """
+    #     return the message with ansi codes converted to @ color codes
+    #     """
+    #     newmessage: list[str] = [
+    #         item.colorcoded for item in self.message
+    #     ]
+    #     return newmessage
 
     def add_client(self, client_uuid: str):
         """
