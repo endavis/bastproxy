@@ -15,7 +15,7 @@ import re
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseRecord
+from libs.records.rtypes.base import BaseRecord, TrackedUserList
 from libs.records.rtypes.log import LogRecord
 
 class NetworkDataLine(BaseRecord):
