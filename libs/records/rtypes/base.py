@@ -144,10 +144,19 @@ class BaseRecord(AttributeMonitor):
         1 is the middle section
         3 is the bottom section
         """
-        return {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
+        default_attributes = {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
                       ('Creation Time', 'created')],
                 1:[],
                 2:[]}
+
+        for item in self._attributes_to_monitor:
+            orig_value = self._am_get_original_value(item)
+            if orig_value == getattr(self, item):
+                default_attributes[0].append((f"{item}", item))
+            else:
+                default_attributes[0].append((item, f"changed from '{repr(self._am_get_original_value(item))}' to '{repr(getattr(self, item))}'"))
+
+        return default_attributes
 
     def get_formatted_details(self, full_related_records=False,
                               include_updates=True, update_filter=None,

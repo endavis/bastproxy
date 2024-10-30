@@ -158,12 +158,6 @@ class NetworkDataLine(BaseRecord):
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
-        for item in self._attributes_to_monitor:
-            orig_value = self._am_get_original_value(item)
-            if orig_value == getattr(self, item):
-                attributes[0].append((f"{item}", item))
-            else:
-                attributes[0].append((item, f"changed from '{self._am_get_original_value(item)}' to '{getattr(self, item)}'"))
         attributes[0].append(('Line Modified', 'line_modified'))
         attributes[0].append(('Originated', 'originated'))
         attributes[0].append(('Type', 'line_type'))
