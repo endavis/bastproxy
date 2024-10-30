@@ -40,12 +40,23 @@ class NetworkDataLine(BaseRecord):
         self.send: bool = True
         self.line_modified: bool = False
         self.is_prompt: bool = False
-        if self.is_io:
-            self.noansi: str = self.api('plugins.core.colors:ansicode.strip')(line)
-            self.color: str = self.api('plugins.core.colors:ansicode.to.colorcode')(line)
-        else:
-            self.noansi: str = ''
-            self.color: str = ''
+
+    @property
+    def noansi(self):
+        if self.is_command_telnet:
+            return self.line
+        return self.api('plugins.core.colors:ansicode.strip')(self.line)
+
+    @property
+    def colorcoded(self):
+        if self.is_command_telnet:
+            return self.line
+        return self.api('plugins.core.colors:ansicode.to.colorcode')(self.line)
+
+    def escapecolor(self):
+        if self.is_command_telnet:
+            return self.line
+        return self.api('plugins.core.colors:colorcode.escape')(self.line)
 
     def _onchange_line(self, orig_value, new_value):
         """
@@ -150,12 +161,6 @@ class NetworkDataLine(BaseRecord):
             self.color_line(color)
             self.add_line_endings()
 
-    def strip(self):
-        """
-        strip the line of carriage returns and line feeds
-        """
-        return self.line.strip()
-
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
         attributes[0].append(('Line Modified', 'line_modified'))
@@ -164,13 +169,13 @@ class NetworkDataLine(BaseRecord):
         return attributes
 
     def one_line_summary(self):
-        return repr(self.line)
+        return repr(self.original_line)
 
     def __str__(self):
         return self.line
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.uuid} {self.originated} {repr(self.original_line.strip())})'
+        return f'{self.__class__.__name__}({self.uuid} {self.originated} {self.one_line_summary()})'
 
     def add_preamble(self, error: bool = False):
         """
