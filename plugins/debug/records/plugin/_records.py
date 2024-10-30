@@ -61,7 +61,7 @@ class RecordPlugin(BasePlugin):
         tmsg = [f"Last {args['count']} records of type {args['recordtype']}:",
                 header_color + line_length * '-' + '@w']
         if records := RMANAGER.get_records(args['recordtype'], count=args['count']):
-            tmsg.extend([f"{record.uuid} - {record.one_line_summary()} ..." for record in records])
+            tmsg.extend([record.one_line_summary() for record in records])
         else:
             tmsg.append('No records found')
 
