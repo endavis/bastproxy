@@ -542,7 +542,6 @@ class TriggersPlugin(BasePlugin):
             return
 
         data = line.noansi
-        colored_data = line.color
         self.triggers[self.beall_id].raisetrigger(event_record)
 
         if data == '':
