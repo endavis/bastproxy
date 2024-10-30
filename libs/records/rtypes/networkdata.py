@@ -27,9 +27,9 @@ class NetworkDataLine(BaseRecord):
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
-        if (isinstance(line, str) and ('\n' in line or '\r' in line)) or \
-               (isinstance(line, (bytes, bytearray)) and (b'\n' in line or b'\r' in line)):
-            LogRecord(f"LogRecord: {self.uuid} {line} is multi line with \\n and/or \\r",
+        if originated != 'internal' and ((isinstance(line, str) and ('\n' in line or '\r' in line)) or \
+                        (isinstance(line, (bytes, bytearray)) and (b'\n' in line or b'\r' in line))):
+            LogRecord(f"NetworkDataLine: {self.uuid} {line} is multi line with \\n and/or \\r",
                                 level='error', stack_info=True, sources=[__name__])()
         self.line_type = line_type # IO, COMMAND-TELNET
         self.originated = originated # mud, client, internal
