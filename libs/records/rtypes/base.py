@@ -195,7 +195,7 @@ class BaseRecord(AttributeMonitor):
             else:
                 msg.extend(["Related Records :",
                     *[
-                    f"{'':<5} : {record.__class__.__name__:<20} {record.uuid} {record.one_line_summary()}"
+                    f"{'':<5} : {repr(record)}"
                     for record in self.get_all_related_records(update_filter)
                     ],
                 ])
@@ -225,6 +225,9 @@ class BaseRecord(AttributeMonitor):
         override this in the derived classes if needed
         """
         raise NotImplementedError
+
+    def __repr__(self):
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.one_line_summary()}"
 
     def __call__(self, actor='Unknown'):
         """
