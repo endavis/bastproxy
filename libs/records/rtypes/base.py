@@ -249,6 +249,63 @@ class BaseRecord(AttributeMonitor):
         else:
             self._exec_(actor)
 
+class TrackedUserList(UserList, BaseRecord):
+    """
+    this is a Userlist whose updates are tracked
+    """
+    def __init__(self, data: list | None = None,
+                 owner_id: str='', track_record=True):
+        """
+        initialize the class
+        """
+        if data is None:
+            data = []
+
+        UserList.__init__(self, data)
+        BaseRecord.__init__(self, owner_id, track_record=track_record)
+        self.owner_id = owner_id
+        self.addupdate('Modify', 'original input', extra={'data':f"{repr(data)}"})
+
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return repr(self[0]) if len(self) > 1 else "No data found"
+
+    def get_attributes_to_format(self):
+        attributes = super().get_attributes_to_format()
+        attributes[2].append(('Data', 'data'))
+
+        return attributes
+
+    def __setitem__(self, index, item):
+        """
+        set the item
+        """
+        super().__setitem__(index, item)
+        self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})
+
+    def insert(self, index, item):
+        """
+        insert an item
+        """
+        super().insert(index, item)
+        self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})
+
+    def append(self, item):
+        """
+        append an item
+        """
+        super().append(item)
+        self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})
+
+    def extend(self, items: list):
+        """
+        extend the list
+        """
+        super().extend(items)
+        self.addupdate('Modify', 'extended list', extra={'new_list':f"{[repr(item) for item in items]}"})
+
 class BaseListRecord(UserList, BaseRecord):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
                  message_type: str = 'IO', internal: bool=True, owner_id: str='', track_record=True):

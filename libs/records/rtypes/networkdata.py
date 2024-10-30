@@ -181,7 +181,7 @@ class NetworkDataLine(BaseRecord):
             preambletext = self.api('plugins.core.proxy:preamble.get')()
             self.line = f"{preamblecolor}{preambletext}@w: {self.line}"
 
-class NetworkData(UserList, BaseRecord):
+class NetworkData(TrackedUserList):
     """
     this is a base record of a list of NetworkDataLine records
     """
@@ -201,31 +201,24 @@ class NetworkData(UserList, BaseRecord):
                 item = NetworkDataLine(item)
             new_message.append(item)
 
-        UserList.__init__(self, new_message)
-        BaseRecord.__init__(self, owner_id, track_record=track_record)
+        super().__init__(new_message)
         for item in new_message:
             self.add_related_record(item)
         self.owner_id = owner_id
-        # This is a flag to prevent the message from being sent  more than once
-        self.sending = False
-        self.addupdate('Modify', 'original input', extra={'list':f"{new_message}"})
 
     def one_line_summary(self):
         """
         get a one line summary of the record
         """
-        first_str = ''
-        for networkdataitem in self:
-            if networkdataitem.line:
-                first_str = networkdataitem.original_line
-
-        return first_str or 'No data found'
-
-    def get_attributes_to_format(self):
-        attributes = super().get_attributes_to_format()
-        attributes[2].append(('Data', 'data'))
-
-        return attributes
+        return next(
+            (
+                networkline.one_line_summary()
+                for networkline in self
+                if networkline.original_line
+                not in ['#BP', b'#BP', "", b"", "''", b"''"]
+            ),
+            'No data found',
+        )
 
     def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """
@@ -237,7 +230,6 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().__setitem__(index, item)
-        self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})
 
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """
@@ -249,7 +241,6 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().insert(index, item)
-        self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})
 
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
         """
@@ -261,7 +252,6 @@ class NetworkData(UserList, BaseRecord):
             item = NetworkDataLine(item)
         self.add_related_record(item)
         super().append(item)
-        self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})
 
     def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
         """
@@ -276,4 +266,3 @@ class NetworkData(UserList, BaseRecord):
             self.add_related_record(item)
             new_list.append(item)
         super().extend(new_list)
-        self.addupdate('Modify', 'extended list', extra={'new_list':f"{new_list}"})
