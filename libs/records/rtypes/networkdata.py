@@ -169,13 +169,13 @@ class NetworkDataLine(BaseRecord):
         return attributes
 
     def one_line_summary(self):
-        return repr(self.original_line)
+        return f'{self.__class__.__name__:<20} {self.uuid} {self.originated} {repr(self.original_line)}'
 
     def __str__(self):
         return self.line
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.uuid} {self.originated} {self.one_line_summary()})'
+        return self.one_line_summary()
 
     def add_preamble(self, error: bool = False):
         """
@@ -211,19 +211,26 @@ class NetworkData(TrackedUserList):
             self.add_related_record(item)
         self.owner_id = owner_id
 
+    def get_first_line(self):
+        return (
+            'No data found'
+            if len(self) == 0
+            else next(
+                (
+                    networkline.original_line
+                    for networkline in self
+                    if networkline.original_line
+                    not in ['#BP', b'#BP', "", b"", "''", b"''"]
+                ),
+                '',
+            )
+        )
+
     def one_line_summary(self):
         """
         get a one line summary of the record
         """
-        return next(
-            (
-                networkline.one_line_summary()
-                for networkline in self
-                if networkline.original_line
-                not in ['#BP', b'#BP', "", b"", "''", b"''"]
-            ),
-            'No data found',
-        )
+        return f'{self.__class__.__name__:<20} {self.uuid} {len(self)} {repr(self.get_first_line())}'
 
     def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """

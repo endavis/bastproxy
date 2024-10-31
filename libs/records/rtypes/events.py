@@ -28,7 +28,7 @@ class EventArgsRecord(BaseDictRecord):
         """
         get a one line summary of the record
         """
-        return f"{self.event_name}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.event_name}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
@@ -48,7 +48,7 @@ class RaisedEventRecord(BaseRecord):
         """
         get a one line summary of the record
         """
-        return f"{self.event_name}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.event_name}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

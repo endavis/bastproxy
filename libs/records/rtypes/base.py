@@ -60,13 +60,13 @@ class BaseRecord(AttributeMonitor):
         """
         Track changes to attributes, works in conjunction with the AttributeMonitor class
         """
-        self.addupdate('Modify', name, extra={'original':original_value, 'new':new_value})
+        self.addupdate('Modify', f"{name} attribute changed", extra={'original':original_value, 'new':new_value})
 
     def one_line_summary(self):
         """
         get a one line summary of the record
         """
-        return f"{self.owner_id}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
     def get_all_related_records(self, update_filter=None) -> list:
         """
@@ -204,7 +204,7 @@ class BaseRecord(AttributeMonitor):
             else:
                 msg.extend(["Related Records :",
                     *[
-                    f"{'':<5} : {repr(record)}"
+                    f"{'':<5} : {record.one_line_summary()}"
                     for record in self.get_all_related_records(update_filter)
                     ],
                 ])
@@ -234,9 +234,6 @@ class BaseRecord(AttributeMonitor):
         override this in the derived classes if needed
         """
         raise NotImplementedError
-
-    def __repr__(self):
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.one_line_summary()}"
 
     def __call__(self, actor='Unknown'):
         """
@@ -270,7 +267,7 @@ class TrackedUserList(UserList, BaseRecord):
         """
         get a one line summary of the record
         """
-        return repr(self[0]) if len(self) > 1 else "No data found"
+        return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else "No data found"}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
@@ -331,16 +328,15 @@ class BaseListRecord(UserList, BaseRecord):
         get a one line summary of the record
         """
         if len(self.original_data) == 1 and not self.original_data[0].strip():
-            return repr(self.original_data[0])
+            first_str = self.original_data[0]
+        else:
+            first_str = ''
+            index = 0
+            while not first_str and index < len(self.original_data):
+                first_str = self.original_data[index]
+                index += 1
 
-        first_str = ''
-        index = 0
-        while not first_str and index < len(self.original_data):
-            first_str = repr(self.original_data[index])
-            index += 1
-
-        return first_str or 'No data found'
-
+        return f"{self.__class__.__name__:<20} {self.uuid} {repr(first_str)}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
@@ -469,7 +465,7 @@ class BaseDictRecord(UserDict, BaseRecord):
         """
         get a one line summary of the record
         """
-        return f"{self.original_data[list(self.original_data.keys())[0]].strip()}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[list(self.original_data.keys())[0]].strip()}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

@@ -100,6 +100,12 @@ class ToClientData(BaseRecord):
     #     ]
     #     return newmessage
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f'{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {repr(self.message.get_first_line())}'
+
     def add_client(self, client_uuid: str):
         """
         add a client to the list of clients to send to

@@ -17,10 +17,7 @@ import typing
 # Project
 from libs.records.rtypes.base import BaseRecord
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.networkdata import NetworkDataLine
-
-if typing.TYPE_CHECKING:
-    from libs.records.rtypes.networkdata import NetworkData
+from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
 
 SETUPEVENTS = False
 
@@ -60,6 +57,12 @@ class ToMudData(BaseRecord):
                               ('Client ID', 'client_id')])
         return attributes
 
+    def one_line_summary(self):
+        """
+        get a one line summary of the record
+        """
+        return f'{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {repr(self.message.get_first_line())}'
+
     def setup_events(self):
         global SETUPEVENTS
         if not SETUPEVENTS:
@@ -74,7 +77,7 @@ class ToMudData(BaseRecord):
                                                 arg_descriptions={'line': 'The line to modify, a NetworkDataLine instance'})
 
     def seperate_commands(self):
-        new_message = []
+        new_message = NetworkData([])
         for line in self.message:
             if line.is_io and isinstance(line.line, str):
                 if self.api.command_split_regex:
