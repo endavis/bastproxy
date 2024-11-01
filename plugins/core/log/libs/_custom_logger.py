@@ -36,8 +36,6 @@ def update_type_counts(name, level):
         logger_name = get_toplevel(name)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower() # type: ignore
-        if 'telnetlib3' in name:
-            print(f"add.log.count: {name = } {level = } {logger_name = }")
         if logger_name not in type_counts:
             type_counts[logger_name] = {
                 'debug': 0,
