@@ -133,8 +133,10 @@ class BaseRecord(AttributeMonitor):
                 return record
 
     def fix_stack(self, stack):
+        """
+        turn the stack into a list of lines
+        """
         new_stack = []
-        # don't need the last 2 lines
         for line in stack:
             new_stack.extend([nline for nline in line.splitlines() if nline])
         return new_stack
