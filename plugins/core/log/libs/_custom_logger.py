@@ -16,6 +16,7 @@ import logging
 import logging.handlers
 import sys
 import traceback
+import numbers
 
 # Third Party
 
@@ -24,9 +25,30 @@ from libs.api import API
 from plugins.core.colors import ALLCONVERTCOLORS
 from libs.records import LogRecord, ToClientData, NetworkData
 from .tz import formatTime_RFC3339_UTC, formatTime_RFC3339
+from .utils import get_toplevel
 
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
+
+type_counts = {}
+
+def update_type_counts(name, level):
+        logger_name = get_toplevel(name)
+        if isinstance(level, numbers.Number):
+            level = logging.getLevelName(level).lower() # type: ignore
+        if 'telnetlib3' in name:
+            print(f"add.log.count: {name = } {level = } {logger_name = }")
+        if logger_name not in type_counts:
+            type_counts[logger_name] = {
+                'debug': 0,
+                'info': 0,
+                'warning': 0,
+                'error': 0,
+                'critical': 0,
+            }
+        if level not in type_counts[logger_name]:
+            type_counts[logger_name][level] = 0
+        type_counts[logger_name][level] += 1
 
 class CustomColorFormatter(logging.Formatter):
     """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629"""
@@ -77,6 +99,7 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
+        update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
                 not self.api('libs.api:has')('plugins.core.log:can.log.to.console')
@@ -101,6 +124,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
+        update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
                 not self.api('libs.api:has')('plugins.core.log:can.log.to.file')
@@ -129,6 +153,8 @@ class CustomClientHandler(logging.Handler):
 
         if not self.api('libs.api:has')('plugins.core.log:can.log.to.client'):
             return
+
+        update_type_counts(record.name, record.levelno)
 
         canlog = self.api('plugins.core.log:can.log.to.client')(
                 record.name, record.levelno

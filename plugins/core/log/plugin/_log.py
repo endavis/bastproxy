@@ -19,13 +19,8 @@ from libs.records import LogRecord, RMANAGER
 from plugins.core.commands import AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
-from ..libs._custom_logger import setup_loggers
-
-def get_toplevel(logger_name):
-    """
-    get the toplevel logger from a name
-    """
-    return logger_name.split(':')[0] if ":" in logger_name else logger_name
+from ..libs._custom_logger import setup_loggers, type_counts
+from plugins.core.log import get_toplevel
 
 class LogPlugin(BasePlugin):
     """
@@ -40,7 +35,7 @@ class LogPlugin(BasePlugin):
         self.log_directory = self.api.BASEDATAPATH / 'logs'
         self.logtype_col_length = 35
 
-        self.type_counts = {}
+        self.type_counts = type_counts
 
         self.handlers = {}
         self.handlers['client'] = PersistentDict(self.plugin_id,
@@ -74,24 +69,6 @@ class LogPlugin(BasePlugin):
                                 'the color for debug messages')
         self.api('plugins.core.settings:add')(self.plugin_id, 'color_critical', '@r', 'color',
                                 'the color for critical messages')
-
-    @AddAPI('add.log.count', description='add a log count')
-    def _api_add_log_count(self, logtype, level):
-        """
-        add a log count
-        """
-        logger_name = get_toplevel(logtype)
-        if logger_name not in self.type_counts:
-            self.type_counts[logger_name] = {
-                'debug': 0,
-                'info': 0,
-                'warning': 0,
-                'error': 0,
-                'critical': 0,
-            }
-        if level not in self.type_counts[logger_name]:
-            self.type_counts[logger_name][level] = 0
-        self.type_counts[logger_name][level] += 1
 
     @AddAPI('get.level.color', description='get the color for a log level')
     def _api_get_level_color(self, level):
@@ -411,8 +388,6 @@ class LogPlugin(BasePlugin):
         types.extend(self.handlers['file'].keys())
         types = sorted(set(types))
         tmsg = [
-            'Statistics are only tracked after the log plugin is loaded',
-            'so they will not be accurate for all log types.',
             '-' * 79,
         ]
         match = args['match']

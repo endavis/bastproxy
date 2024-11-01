@@ -73,14 +73,8 @@ class LogRecord(BaseListRecord):
         """
         try:
             self.format(actor)
-            add_log_count_func: typing.Callable | None = None
-            if self.api('libs.api:has')('plugins.core.log:add.log.count'):
-                add_log_count_func = self.api('plugins.core.log:add.log.count')
             for i in self.sources:
                 if i:
-                    if add_log_count_func:
-                        with contextlib.suppress(AttributeError):
-                            add_log_count_func(i, self.level)
                     logger = logging.getLogger(i)
                     loggingfunc = getattr(logger, self.level)
                     loggingfunc(self, **self.kwargs)
