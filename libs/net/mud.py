@@ -25,7 +25,6 @@ from libs.net import telnet
 from libs.api import API
 from libs.records import ToClientData, LogRecord, ToMudData, NetworkDataLine
 from libs.records import NetworkData as NetworkData
-from libs.net.networkdata import NetworkData as OldNetworkData
 from libs.asynch import TaskItem
 
 
