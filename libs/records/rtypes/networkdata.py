@@ -204,6 +204,7 @@ class NetworkData(TrackedUserList):
                 raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
             if isinstance(item, (str, bytes)):
                 item = NetworkDataLine(item)
+            item.parent = self
             new_message.append(item)
 
         super().__init__(new_message)
@@ -240,6 +241,7 @@ class NetworkData(TrackedUserList):
             raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
+            item.parent = self
         self.add_related_record(item)
         super().__setitem__(index, item)
 
@@ -251,6 +253,7 @@ class NetworkData(TrackedUserList):
             raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
+            item.parent = self
         self.add_related_record(item)
         super().insert(index, item)
 
@@ -262,6 +265,7 @@ class NetworkData(TrackedUserList):
             raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
+            item.parent = self
         self.add_related_record(item)
         super().append(item)
 
@@ -275,6 +279,7 @@ class NetworkData(TrackedUserList):
                 raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)} {repr(item)}")
             if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)
+            item.parent = self
             self.add_related_record(item)
             new_list.append(item)
         super().extend(new_list)

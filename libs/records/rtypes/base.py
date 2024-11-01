@@ -44,6 +44,7 @@ class BaseRecord(AttributeMonitor):
         self.related_records: list[BaseRecord] = []
         self.track_record = track_record
         self.column_width = 15
+        self.parent = None
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
         if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
@@ -54,6 +55,7 @@ class BaseRecord(AttributeMonitor):
         current_active_record = RMANAGER.get_latest_record()
         if current_active_record is not None:
             current_active_record.add_related_record(self)
+            self.parent = current_active_record
         RMANAGER.add(self)
 
     def _onchange__all(self, name, original_value, new_value):
@@ -145,7 +147,7 @@ class BaseRecord(AttributeMonitor):
         3 is the bottom section
         """
         default_attributes = {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
-                      ('Creation Time', 'created')],
+                      ('Creation Time', 'created'), ('Parent', 'parent')],
                 1:[],
                 2:[]}
 

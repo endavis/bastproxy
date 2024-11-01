@@ -42,6 +42,42 @@ class RecordManager(object):
     def get_latest_record(self):
         return self.active_record_stack.peek()
 
+    def get_all_related_records(self, record_uuid, recfilter=None):
+        if recfilter is None:
+            recfilter = ['LogRecprd']
+        record = self.get_record(record_uuid)
+        related_records = record.related_records()
+        for related_record in related_records:
+                record = self.get_record(related_record.uuid)
+                if record.__class__.__name__ not in filter:
+                    related_records.extend(self.get_all_related_records(related_record.uuid, recfilter))
+        related_records = list(set(related_records))
+        return related_records
+
+    def get_children(self, record_uuid):
+        record = self.get_record(record_uuid)
+        return [rec.uuid for rec in self.record_instances.values() if rec.parent and rec.parent.uuid == record.uuid and rec.__class__.__name__ != 'LogRecord']
+
+    def get_all_children(self, record_uuid):
+        children = self.get_children(record_uuid)
+        return {child: self.get_all_children(child) for child in children}
+
+    def format_all_children(self, record_uuid):
+        children = self.get_all_children(record_uuid)
+        return [f"{'       ' * 0}{self.get_record(record_uuid).one_line_summary()}",
+                *self.format_all_children_helper(children, 0)]
+
+    def format_all_children_helper(self, children, indent = 0, emptybars = 0, output = None):
+        output = output or []
+        all_children = list(children.keys())
+        for child in children:
+            all_children.pop(all_children.index(child))
+            output.append(f"{'    ' * emptybars}{' |  ' * (indent - emptybars)} |-> {self.get_record(child).one_line_summary()}")
+            if not all_children:
+                emptybars += 1
+            self.format_all_children_helper(children[child], indent + 1, emptybars, output)
+        return output
+
     def add(self, record):
         queuename = record.__class__.__name__
         if queuename not in self.records:

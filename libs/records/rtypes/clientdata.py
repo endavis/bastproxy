@@ -38,6 +38,7 @@ class ToClientData(BaseRecord):
         """
         super().__init__()
         self.message = message
+        message.parent = self
         self.add_related_record(message)
         # flag to include preamble when sending to client
         self.preamble: bool = preamble

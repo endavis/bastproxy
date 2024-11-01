@@ -284,13 +284,14 @@ class Event:
             LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
                       level='debug', sources=[calledfrom, self.created_by])()
 
-        event_data = RaisedEventRecord(self.name, called_from=calledfrom)
-        self.raised_data.enqueue(event_data)
+        raised_event_record = RaisedEventRecord(self.name, called_from=calledfrom)
+        self.raised_data.enqueue(raised_event_record)
 
         # convert a dict to an EventArgsRecord object
         if not isinstance(data, EventArgsRecord):
             data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
-        event_data.arg_data = data
+        data.parent = raised_event_record
+        raised_event_record.arg_data = data
 
         # This checks each priority seperately and executes the functions in order of priority
         # A while loop is used to ensure that if a function is added to the event during the execution of the same event
