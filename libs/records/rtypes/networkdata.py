@@ -23,7 +23,8 @@ class NetworkDataLine(BaseRecord):
     A record to hold a line of data that will be sent to the clients
     or the mud
     """
-    def __init__(self, line: str | bytes | bytearray, originated: str = 'internal', line_type: str = 'IO'):
+    def __init__(self, line: str | bytes | bytearray, originated: str = 'internal', line_type: str = 'IO',
+                 had_line_endings: bool = True):
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
@@ -40,6 +41,7 @@ class NetworkDataLine(BaseRecord):
         self.send: bool = True
         self.line_modified: bool = False
         self.is_prompt: bool = False
+        self.had_line_endings: bool = had_line_endings
 
     @property
     def noansi(self):
@@ -104,7 +106,7 @@ class NetworkDataLine(BaseRecord):
         """
         add line endings to the message
         """
-        if self.is_io:
+        if self.is_io and self.had_line_endings:
             self.line = f"{self.line}\n\r"
 
     def color_line(self, color: str = ''):
