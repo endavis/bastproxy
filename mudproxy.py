@@ -25,7 +25,6 @@ from pathlib import Path
 # Project
 from libs.records import LogRecord
 from libs.api import API as BASEAPI
-from libs.net.listeners import Listeners
 from libs.asynch import run_asynch
 from plugins.core.log import formatTime_RFC3339_UTC, formatTime_RFC3339
 
@@ -85,7 +84,7 @@ class MudProxy:
         """
         Run the MudProxy application.
 
-        This function instantiates the plugin manager which loads plugins, 
+        This function instantiates the plugin manager which loads plugins,
         adds events, and creates listeners.
         It also sets the necessary settings based on the provided arguments.
         Finally, it starts the async loop and logs the application's exit.
@@ -145,6 +144,7 @@ class MudProxy:
 
         self.api('plugins.core.events:raise.event')('ev_bastproxy_proxy_ready', calledfrom='mudproxy')
 
+        from libs.net.listeners import Listeners
         Listeners().create_listeners()
 
         LogRecord('__main__ - Launching async loop', level='info', sources=['mudproxy'])()
