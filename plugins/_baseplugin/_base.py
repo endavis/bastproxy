@@ -16,14 +16,6 @@ import types
 import datetime
 
 # 3rd Party
-try:
-    import dumper
-    dumper.instance_dump = 'all'
-    dumps = dumper.dumps
-except ImportError:
-    print('Please install required libraries. dumper is missing.')
-    print('From the root of the project: pip(3) install -r requirements.txt')
-    sys.exit(1)
 
 # Project
 from libs.api import API, AddAPI
@@ -162,7 +154,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
     # don't have to worry about importing dumper everywhere
     def dump_object_as_string(self, object):
         """ dump an object as a string """
-        return dumps(object)
+        return self.api('plugins.core.utils:dump.object.as.string')(object)
 
 
     @AddAPI('data.get', description='get the data for a specific datatype')
