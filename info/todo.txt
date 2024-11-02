@@ -53,25 +53,27 @@
     # TODO: plugins.core.cmdq
         rename to mudcmds????
     # TODO: create other records for tracking things
-        can we combine events and records to make things easier to track?
-            records are used to track data
-            events are used to track workflow
+        can we combine workflows and data to make things easier to track?
         create a record tree
-            ToMudRecord
+            ToMudData
                     |-> EventRecord('ev_to_mud_data_modify')
                         |-> CommandRecord(command)
                             |-> ToClientRecord(command_output)
                     |-> EventRecord('ev_to_mud_data_read')
-            ToClientRecord
+            ToClientData
                     |-> EventRecord('ev_to_client_data_modify')
                             |-> TriggerRecord()
                                 |-> SubstitionRecord
                     |-> EventRecord('ev_to_client_data_read')
         refactor to libs.tracking
-            with data and process?
-            libs.tracking.data.LogRecord
+            with data and workflows?
+            libs.tracking.data
+                uses trackeduserlist (exists) or trackeduserdict (doesn't exist yet) or a singleton like NeworkDataLine
+                NetworkDataLine, NetworkData, EventArgsRecord
             libs.tracking.workflow.event
-                could track events, command, triggers, etc
+                could track raising events, running commands, triggers, etc
+                has an __exec__ method
+                RaiseEvent, ToClientData
         ???: records are for tracking data changes, should tracking flows
             be added?
         the event itself, commands, triggers, timers
@@ -103,6 +105,15 @@
     # TODO: reconfigure _baseplugin to have a libs dir like other plugins
         put _pluginhooks, _patch in libs
     # TODO: move all records under their owning plugin, only keep base types in libs.records
+            move baserecord to just under records, get everything out of rtypes
+    # TODO: create an internal webserver to get large command output
+            such as record details
+    # TODO: in ClientConnection, use the telnet_server.duration and .idle for connected time and idle times
+    # TODO: command to see all tasks in the asyncio event queue
+    # TODO: command to see details about clients and the mud
+        like negotiated telnet options
+        idle time
+        how many lines, how much data
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
@@ -114,6 +125,9 @@
         PLUGIN_PURPOSE = 'testing triggers'
         PLUGIN_AUTHOR = 'Bast'
         PLUGIN_VERSION = 1
+    # BUG: evennia intro command doesn't seem to take number, works with regular telnet
+    # BUG: mud connections are not being cleaned up (or new ones are being used)
+    # BUG: plugins that are reloaded are not automatically loaded on next start
 
 # REVISIT:
     # TODO: libs.timing
@@ -127,6 +141,13 @@
         has package, plugin attributes
         __str__, __repr__ returns package.plugin
         will need to be able to hash it for dictionary keys
+    # TODO: chop off extraneous stack items in an function stack
+        #BP:                      File "/home/endavis/bastproxy-py3/libs/tracking/utils/attributes.py", line 17, in __setattr__
+        #BP:                        self._attribute_set(name, original_value, value)
+        #BP:                      File "/home/endavis/bastproxy-py3/libs/tracking/utils/attributes.py", line 29, in _attribute_set
+        #BP:                        self._onchange__all(name, original_value, new_value)
+        #BP:                      File "/home/endavis/bastproxy-py3/libs/records/rtypes/base.py", line 73, in _onchange__all
+        #BP:                        self.addupdate('Modify', f"{name} attribute changed", extra={'original':original_value, 'new':new_value})
 
 # DONE
     # COMPLETE: libs.api
