@@ -66,6 +66,7 @@ class ClientConnection:
         self.writer: TelnetWriterUnicode = writer
         self.telnet_server: 'TelnetServer | None' = self.writer.protocol
         self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
+        self.max_lines_to_process = 15
 
     @property
     def connected_length(self) -> str:
@@ -228,6 +229,8 @@ class ClientConnection:
         LogRecord(f"client_write - Starting coroutine for {self.uuid}",
                   level='debug',
                   sources=[__name__])()
+
+        count = 0
         while self.connected and not self.writer.connection_closed:
             msg_obj: NetworkDataLine = await self.send_queue.get()
             if msg_obj.is_io:
@@ -258,6 +261,11 @@ class ClientConnection:
                             sources=[__name__])()
                 self.writer.send_iac(msg_obj.line)
                 self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
+
+            count = count + 1
+            if count == self.max_lines_to_process:
+                await asyncio.sleep(0)
+                count = 0
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
