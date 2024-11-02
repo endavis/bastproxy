@@ -58,6 +58,15 @@ class BaseRecord(AttributeMonitor):
             self.parent = current_active_record
         RMANAGER.add(self)
 
+    def __hash__(self):
+        return hash(self.uuid)
+
+    def __eq__(self, other):
+        if not hasattr(self, 'uuid') and isinstance(self, BaseRecord):
+            print(f"{self.__class__.__name__} does not have a uuid attribute")
+            print(self.__dict__)
+        return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
+
     def _onchange__all(self, name, original_value, new_value):
         """
         Track changes to attributes, works in conjunction with the AttributeMonitor class
