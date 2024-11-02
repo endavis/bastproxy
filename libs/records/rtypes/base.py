@@ -59,9 +59,6 @@ class BaseRecord(AttributeMonitor):
         return hash(self.uuid)
 
     def __eq__(self, other):
-        if not hasattr(self, 'uuid') and isinstance(self, BaseRecord):
-            print(f"{self.__class__.__name__} does not have a uuid attribute")
-            print(self.__dict__)
         return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
 
     def __repr__(self):
