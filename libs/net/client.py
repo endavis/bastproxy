@@ -184,7 +184,6 @@ class ClientConnection:
                                    clients=[self.uuid],
                                    prelogin=True)()
                     self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
-                    continue
 
                 elif self.login_attempts < 3:
                     self.login_attempts = self.login_attempts + 1
@@ -192,7 +191,6 @@ class ClientConnection:
                     ToClientData(networkdata,
                                    clients=[self.uuid],
                                    prelogin=True)()
-                    continue
 
                 else:
                     networkdata = NetworkData('Too many login attempts. Goodbye.', owner_id=f"client:{self.uuid}")
@@ -203,7 +201,7 @@ class ClientConnection:
                               level='warning',
                               sources=[__name__])()
                     self.api('plugins.core.clients:client.banned.add')(self.uuid)
-                    continue
+                continue
 
             elif self.view_only:
                 networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
