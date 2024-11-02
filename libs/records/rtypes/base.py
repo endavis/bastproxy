@@ -42,6 +42,7 @@ class BaseRecord(AttributeMonitor):
         self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
+        self.execute_time_taken = -1
         self.track_record = track_record
         self.column_width = 15
         stack = traceback.format_stack(limit=10)
@@ -74,7 +75,10 @@ class BaseRecord(AttributeMonitor):
         """
         get a one line summary of the record
         """
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
+        if self.execute_time_taken > 0:
+            return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id} {self.execute_time_taken:.2f}ms"
+        else:
+            return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
     def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None):
         """
@@ -135,7 +139,8 @@ class BaseRecord(AttributeMonitor):
         3 is the bottom section
         """
         default_attributes = {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
-                      ('Creation Time', 'created'), ('Parent', 'parent')],
+                      ('Creation Time', 'created'), ('Parent', 'parent'),
+                      ('Exec Time (ms)', 'execute_time_taken')],
                 1:[],
                 2:[]}
 
@@ -227,9 +232,11 @@ class BaseRecord(AttributeMonitor):
         Enable tracking of the class execution
         """
         if self.track_record:
+            tracking_uuid = self.api('libs.timing:start')(f'{self.__class__.__name__}:{self.uuid}.__call__')
             RMANAGER.start(self)
             self._exec_(actor)
             RMANAGER.end(self)
+            self.execute_time_taken = self.api('libs.timing:finish')(tracking_uuid)
         else:
             self._exec_(actor)
 

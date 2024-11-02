@@ -61,7 +61,7 @@ class ToMudData(BaseRecord):
         """
         get a one line summary of the record
         """
-        return f'{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {repr(self.message.get_first_line())}'
+        return f'{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {repr(self.message.get_first_line())}'
 
     def setup_events(self):
         global SETUPEVENTS
