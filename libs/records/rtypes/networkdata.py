@@ -193,26 +193,23 @@ class NetworkData(TrackedUserList):
     this is a base record of a list of NetworkDataLine records
     """
     def __init__(self, message: NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes],
-                 owner_id: str='', track_record=True):
+                 owner_id: str=''):
         """
         initialize the class
         """
         if not isinstance(message, list):
             message = [message] # type: ignore
 
-        new_message = []
-        for item in message: # type: ignore
+        TrackedUserList.__init__(self, message, owner_id=owner_id) # type: ignore
+
+        for item in self:
+            old_item = item
             if not (isinstance(item, (NetworkDataLine, str, bytes))):
                 raise ValueError(f"item must be a NetworkDataLine object or a string, not {type(item)}")
             if isinstance(item, (str, bytes)):
                 item = NetworkDataLine(item)
+                self[self.index(old_item)] = item
             item.parent = self
-            new_message.append(item)
-
-        super().__init__(new_message)
-        for item in new_message:
-            self.add_related_record(item)
-        self.owner_id = owner_id
 
     def get_first_line(self):
         return (
@@ -244,7 +241,6 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
-        self.add_related_record(item)
         super().__setitem__(index, item)
 
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
@@ -256,7 +252,6 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
-        self.add_related_record(item)
         super().insert(index, item)
 
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
@@ -268,7 +263,6 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
-        self.add_related_record(item)
         super().append(item)
 
     def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
@@ -282,6 +276,5 @@ class NetworkData(TrackedUserList):
             if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)
             item.parent = self
-            self.add_related_record(item)
             new_list.append(item)
         super().extend(new_list)

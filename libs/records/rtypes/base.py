@@ -34,6 +34,7 @@ class BaseRecord(AttributeMonitor):
         initialize the class
         """
         AttributeMonitor.__init__(self)
+        self._attributes_to_monitor.append('parent')
         # create a unique id for this message
         self.uuid = uuid4().hex
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
@@ -41,10 +42,8 @@ class BaseRecord(AttributeMonitor):
         self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
-        self.related_records: list[BaseRecord] = []
         self.track_record = track_record
         self.column_width = 15
-        self.parent = None
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
         if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
@@ -53,9 +52,7 @@ class BaseRecord(AttributeMonitor):
             self.event_stack = ['No event stack available']
 
         current_active_record = RMANAGER.get_latest_record()
-        if current_active_record is not None:
-            current_active_record.add_related_record(self)
-            self.parent = current_active_record
+        self.parent = current_active_record or None
         RMANAGER.add(self)
 
     def __hash__(self):
@@ -82,28 +79,6 @@ class BaseRecord(AttributeMonitor):
         """
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
-    def get_all_related_records(self, update_filter=None) -> list:
-        """
-        get all related records
-
-        filter should be a list of record types to filter out
-        filter out "LogRecord"s by default
-        """
-        update_filter = update_filter or []
-        records = []
-        for record in self.related_records:
-            if record.__class__.__name__ not in update_filter:
-                records.append(record)
-            records.extend(record.get_all_related_records(update_filter))
-        return [i for n, i in enumerate(records) if i not in records[:n]]
-
-    def add_related_record(self, record: 'BaseRecord'):
-        """
-        add a related record
-        """
-        if record not in self.related_records:
-            self.related_records.append(record)
-
     def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None):
         """
         add a change event for this record
@@ -126,8 +101,9 @@ class BaseRecord(AttributeMonitor):
         """
         updates = []
         update_filter = update_filter or []
-        for record in self.get_all_related_records():
-            updates.extend(record for record in record.updates if record.parent['type'] not in update_filter)
+        for record_uuid in RMANAGER.get_all_children_list(self.uuid, record_filter=update_filter):
+            record = RMANAGER.get_record(record_uuid)
+            updates.extend(update for update in record.updates if update.parent.__class__.__name__ not in update_filter)
         updates.extend(self.updates)
 
         updates.sort(key=lambda x: x.time_taken)
@@ -140,8 +116,9 @@ class BaseRecord(AttributeMonitor):
         if record := self.updates.get_update(uuid):
             return record
 
-        for related_record in self.get_all_related_records():
-            if record := related_record.updates.get_update(uuid):
+        for child_record_uuid in RMANAGER.get_all_children_list(self.uuid):
+            child_record = RMANAGER.get_record(child_record_uuid)
+            if child_record.updates.get_update(uuid):
                 return record
 
     def fix_stack(self, stack):
@@ -174,9 +151,9 @@ class BaseRecord(AttributeMonitor):
 
         return default_attributes
 
-    def get_formatted_details(self, full_related_records=False,
+    def get_formatted_details(self, full_children_records=False,
                               include_updates=True, update_filter=None,
-                              include_related_records=True) -> list[str]:
+                              include_children_records=True) -> list[str]:
         """
         get a formatted detail string
         """
@@ -206,23 +183,20 @@ class BaseRecord(AttributeMonitor):
                 *[f"    {line}" for line in self.stack_at_creation if line],
             ]
         )
-        if include_related_records:
-            if full_related_records:
-                related_records = self.get_all_related_records(update_filter)
-                msg.extend(["Related Records :",
+        if include_children_records:
+            if full_children_records:
+                children_records = RMANAGER.get_all_children_dict(self.uuid, record_filter=update_filter)
+                msg.extend(["Children Records :",
                             '---------------------------------------'])
-                for record in related_records:
-                    msg.extend(f"     {line}" for line in record.get_formatted_details(full_related_records=False,
+                for record in children_records:
+                    msg.extend(f"     {line}" for line in record.get_formatted_details(full_children_records=False,
                                                             include_updates=False,
                                                             update_filter=update_filter,
-                                                            include_related_records=False))
+                                                            include_children_records=False))
                     msg.append('---------------------------------------')
             else:
-                msg.extend(["Related Records :",
-                    *[
-                    f"{'':<5} : {record.one_line_summary()}"
-                    for record in self.get_all_related_records(update_filter)
-                    ],
+                msg.extend(["Children Records :",
+                    *RMANAGER.format_all_children(self.uuid, record_filter=update_filter),
                 ])
         if include_updates:
             msg.extend(["Updates :",
@@ -262,21 +236,19 @@ class BaseRecord(AttributeMonitor):
         else:
             self._exec_(actor)
 
-class TrackedUserList(UserList, BaseRecord):
+class TrackedUserList(BaseRecord, UserList):
     """
     this is a Userlist whose updates are tracked
     """
     def __init__(self, data: list | None = None,
-                 owner_id: str='', track_record=True):
+                 owner_id: str=''):
         """
         initialize the class
         """
         if data is None:
             data = []
-
         UserList.__init__(self, data)
-        BaseRecord.__init__(self, owner_id, track_record=track_record)
-        self.owner_id = owner_id
+        BaseRecord.__init__(self, owner_id, track_record=False)
         self.addupdate('Modify', 'original input', extra={'data':f"{repr(data)}"})
 
     def one_line_summary(self):

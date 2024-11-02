@@ -39,7 +39,6 @@ class ToClientData(BaseRecord):
         super().__init__()
         self.message = message
         message.parent = self
-        self.add_related_record(message)
         # flag to include preamble when sending to client
         self.preamble: bool = preamble
         # flag to send to client before login
@@ -169,13 +168,11 @@ class ToClientData(BaseRecord):
                     self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line, 'event_args':event_args})
-                    self.add_related_record(event_args)
 
                 if not event_args['line'].send:
                     self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
                                     f"{actor}:send:{self.modify_data_event_name}",
                                     extra={'line':line})
-                    self.add_related_record(event_args)
 
                 self.addupdate('Info', f'After event {self.modify_data_event_name}', actor)
 

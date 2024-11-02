@@ -9,12 +9,16 @@
 This module holds a manager that handles records of all types
 """
 # Standard Library
+import typing
 
 # 3rd Party
 
 # Project
 from libs.api import API as BASEAPI
 from libs.stack import SimpleStack
+
+if typing.TYPE_CHECKING:
+    from libs.records.rtypes.update import UpdateRecord
 
 class RecordManager(object):
     def __init__(self):
@@ -27,6 +31,8 @@ class RecordManager(object):
         self.api = BASEAPI(owner_id=__name__)
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
+        # don't show these records in detailed output
+        self.default_filter = ['LogRecord']
 
     def start(self, record):
         self.active_record_stack.push(record)
@@ -42,32 +48,54 @@ class RecordManager(object):
     def get_latest_record(self):
         return self.active_record_stack.peek()
 
-    def get_all_related_records(self, record_uuid, recfilter=None):
-        if recfilter is None:
-            recfilter = ['LogRecprd']
+    def get_children(self, record_uuid, record_filter=None):
+        if not record_filter:
+            record_filter = []
+        rfilter = self.default_filter[:]
+        rfilter.extend(record_filter)
         record = self.get_record(record_uuid)
-        related_records = record.related_records()
-        for related_record in related_records:
-                record = self.get_record(related_record.uuid)
-                if record.__class__.__name__ not in filter:
-                    related_records.extend(self.get_all_related_records(related_record.uuid, recfilter))
-        related_records = list(set(related_records))
-        return related_records
+        return [rec.uuid for rec in self.record_instances.values() if rec.parent and rec.parent.uuid == record.uuid and rec.__class__.__name__ not in rfilter]
 
-    def get_children(self, record_uuid):
-        record = self.get_record(record_uuid)
-        return [rec.uuid for rec in self.record_instances.values() if rec.parent and rec.parent.uuid == record.uuid and rec.__class__.__name__ != 'LogRecord']
-
-    def get_all_children(self, record_uuid):
+    def get_all_children_dict(self, record_uuid, record_filter=None):
+        if not record_filter:
+            record_filter = []
+        rfilter = self.default_filter[:]
+        rfilter.extend(record_filter)
         children = self.get_children(record_uuid)
-        return {child: self.get_all_children(child) for child in children}
+        return {child: self.get_all_children_dict(child, rfilter) for child in children if self.get_record(child).__class__.__name__ not in rfilter}
 
-    def format_all_children(self, record_uuid):
-        children = self.get_all_children(record_uuid)
+    def get_all_children_list(self, record_uuid, record_filter=None):
+        if not record_filter:
+            record_filter = []
+        rfilter = self.default_filter[:]
+        rfilter.extend(record_filter)
+        children = self.get_all_children_dict(record_uuid, record_filter)
+        return self.api('plugins.core.utils:get.keys.from.dict')(children)
+
+    def flatten_keys(self, d, parent_key='', sep='.'):
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(self.flatten_keys(v, new_key, sep=sep))
+            else:
+                items.append(new_key)
+        return items
+
+    def format_all_children(self, record_uuid, record_filter=None):
+        if not record_filter:
+            record_filter = []
+        rfilter = self.default_filter[:]
+        rfilter.extend(record_filter)
+        children = self.get_all_children_dict(record_uuid, rfilter)
         return [f"{'       ' * 0}{self.get_record(record_uuid).one_line_summary()}",
-                *self.format_all_children_helper(children, 0)]
+                *self.format_all_children_helper(children, 0, record_filter=rfilter)]
 
-    def format_all_children_helper(self, children, indent = 0, emptybars = 0, output = None):
+    def format_all_children_helper(self, children, indent = 0, emptybars = 0, output = None, record_filter=None):
+        if not record_filter:
+            record_filter = []
+        rfilter = self.default_filter[:]
+        rfilter.extend(record_filter)
         output = output or []
         all_children = list(children.keys())
         for child in children:
@@ -75,7 +103,7 @@ class RecordManager(object):
             output.append(f"{'    ' * emptybars}{' |  ' * (indent - emptybars)} |-> {self.get_record(child).one_line_summary()}")
             if not all_children:
                 emptybars += 1
-            self.format_all_children_helper(children[child], indent + 1, emptybars, output)
+            self.format_all_children_helper(children[child], indent + 1, emptybars, output, rfilter)
         return output
 
     def add(self, record):

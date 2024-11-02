@@ -90,8 +90,8 @@ class RecordPlugin(BasePlugin):
                     action='store_false',
                     default=True)
     @AddArgument('-sfr',
-                    '--full_related_records',
-                    help='show the full related record (without updates)',
+                    '--full_children_records',
+                    help='show the full children records (without updates)',
                     action='store_true',
                     default=False)
     @AddArgument('-iu',
@@ -131,7 +131,7 @@ class RecordPlugin(BasePlugin):
             showlogrecords = self.api('plugins.core.settings:get')(self.plugin_id, 'showLogRecords')
             update_filter = [] if showlogrecords else ['LogRecord']
             data = record.get_formatted_details(update_filter=update_filter,
-                                                     full_related_records=args['full_related_records'],
+                                                     full_children_records=args['full_children_records'],
                                                      include_updates=args['include_updates'])
 
             if args['dump']:
@@ -148,3 +148,22 @@ class RecordPlugin(BasePlugin):
                 tmsg.extend(data)
 
         return True, tmsg
+
+    @AddParser(description='get a list of children of a specific record')
+    @AddArgument('uid', help='the uid of the record',
+                    default='', nargs='?')
+    def _command_children(self):
+        """
+        get the children of a specific record
+        """
+        args = self.api('plugins.core.commands:get.current.command.args')()
+        tmsg = []
+        if not args['uid']:
+            return True, ['No record id provided']
+
+        record = RMANAGER.get_record(args['uid'])
+        if not record:
+            return True, [f"Record {args['uid']} not found"]
+
+        child_records_formatted = RMANAGER.format_all_children(record.uuid)
+        return True, child_records_formatted
