@@ -12,8 +12,17 @@ import datetime
 import math
 import time
 import fnmatch
+import sys
 
 # 3rd Party
+try:
+    import dumper
+    dumper.instance_dump = 'all'
+    dumps = dumper.dumps
+except ImportError:
+    print('Please install required libraries. dumper is missing.')
+    print('From the root of the project: pip(3) install -r requirements.txt')
+    sys.exit(1)
 
 # Project
 from plugins._baseplugin import BasePlugin
@@ -59,6 +68,20 @@ class UtilsPlugin(BasePlugin):
                 plist[-1].extend(['']*(len(list_of_strings) - len(plist[-1])))
             plist = zip(*plist)
         return [''.join([c.ljust(max_len + gap) for c in p]) for p in plist]
+
+    @AddAPI('dump.object.as.string', description='dump an object as a string')
+    def _api_dump_object_as_string(self, object):
+        """ dump an object as a string """
+        return dumps(object)
+
+    @AddAPI('get.keys.from.dict', description='get all keys from a dictionary and any nested dictionaries')
+    def _api_get_keys_from_dict(self, d):
+        keys = []
+        for k, v in d.items():
+            keys.append(k)
+            if isinstance(v, dict):
+                keys.extend(self._api_get_keys_from_dict(v))
+        return keys
 
     @AddAPI('convert.timedelta.to.string', description='take two times and return a string of the difference')
     def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
