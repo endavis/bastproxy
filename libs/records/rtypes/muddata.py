@@ -90,7 +90,7 @@ class ToMudData(BaseRecord):
                     new_message.append(line)
                     new_message.extend(
                         NetworkDataLine(newline, line_type=line.line_type, originated=line.originated)
-                        for newline in split_data
+                        for newline in split_data # type: ignore
                     )
                 else:
                     new_message.append(line)
