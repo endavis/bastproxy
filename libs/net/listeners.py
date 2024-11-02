@@ -114,6 +114,7 @@ class Listeners:
                     shell=libs.net.client.client_telnet_handler,
                     connect_maxwait=0.5,
                     timeout=3600,
+                    encoding='utf8'
                 ), self.ipv4_taskname, startstring=f"{ipv4_address}:{listen_port}")
 
         # add IPv6 listener
@@ -125,6 +126,7 @@ class Listeners:
                     shell=libs.net.client.client_telnet_handler,
                     connect_maxwait=0.5,
                     timeout=3600,
+                    encoding='utf8'
                 ), self.ipv6_taskname, startstring=f"{ipv6_address}:{listen_port}")
 
     def create_listeners(self):

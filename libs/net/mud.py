@@ -53,6 +53,7 @@ class MudConnection:
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader = None
         self.writer = None
+        self.lines_to_read = 15
         self.term_type = 'bastproxy'
         #print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
@@ -64,7 +65,8 @@ class MudConnection:
         """
         # create a mud connection through telnetlib3
         await open_connection(self.addr, int(self.port),
-                             term=self.term_type, shell=self.mud_telnet_handler)
+                             term=self.term_type, shell=self.mud_telnet_handler,
+                             encoding='utf8')
         # print(f'{type(self.reader) = }')
         # print(f'{type(self.writer) = }')
         #await self.mud_telnet_handler(self.reader, self.writer)
@@ -130,17 +132,38 @@ class MudConnection:
         )()
 
         while self.connected and self.reader:
-            inp: str = await self.reader.readline()
-            LogRecord(f"client_read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
-            LogRecord(f"client_read - inp type = {type(inp)}", level='debug', sources=[__name__])()
-            logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
+            # print('mud_read - waiting for data')
+            inp: str = ''
 
-            if not inp:  # This is an EOF.  Hard disconnect.
+            data = NetworkData([], owner_id="mud_read")
+            while True:
+                inp = await self.reader.readline()
+                if not inp:
+                    print('no data from readline')
+                    break
+                LogRecord(f"client_read - readline - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
+                LogRecord(f"client_read - readline - inp type = {type(inp)}", level='debug', sources=[__name__])()
+                data.append(NetworkDataLine(inp.rstrip(), originated='mud'))
+                logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
+                if len(self.reader._buffer) <= 0 or b'\n' not in self.reader._buffer or len(data) == self.lines_to_read:
+                    break
+
+            if len(self.reader._buffer) > 0 and b'\n' not in self.reader._buffer:
+                inp: str = await self.reader.read(len(self.reader._buffer))
+                LogRecord(f"client_read - read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
+                LogRecord(f"client_read - read - inp type = {type(inp)}", level='debug', sources=[__name__])()
+                data.append(NetworkDataLine(inp, originated='mud', had_line_endings=False))
+                logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
+
+            if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
                 self.connected = False
                 return
 
             # this is where we start with ToClientData
-            ToClientData(NetworkData(NetworkDataLine(inp.strip(), originated='mud')))()
+            ToClientData(data)()
+
+            # this is so we don't hog the asyncio loop
+            await asyncio.sleep(0)
 
         LogRecord(
             "mud_read - Ending coroutine",
@@ -203,6 +226,7 @@ class MudConnection:
         LogRecord(f"Mud Connection opened - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
         self.reader = reader
         self.writer = writer
+        self.reader.readline = unicode_readline_monkeypatch.__get__(reader)
 
         tasks: list[asyncio.Task] = [
             TaskItem(self.mud_read(),
@@ -227,3 +251,87 @@ class MudConnection:
 
         await asyncio.sleep(1)
 
+async def unicode_readline_monkeypatch(self):
+    r"""
+    Read one line.
+
+    Where "line" is a sequence of characters ending with CR LF, LF,
+    or CR NUL. This readline function is a strict interpretation of
+    Telnet Protocol :rfc:`854`.
+
+    The sequence "CR LF" must be treated as a single "new line" character
+    and used whenever their combined action is intended; The sequence "CR
+    NUL" must be used where a carriage return alone is actually desired;
+    and the CR character must be avoided in other contexts.
+
+    And therefor, a line does not yield for a stream containing a
+    CR if it is not succeeded by NUL or LF.
+
+    ================= =====================
+    Given stream      readline() yields
+    ================= =====================
+    ``--\r\x00---``   ``--\r``, ``---`` *...*
+    ``--\r\n---``     ``--\r\n``, ``---`` *...*
+    ``--\n---``       ``--\n``, ``---`` *...*
+    ``--\r---``       ``--\r``, ``---`` *...*
+    ================= =====================
+
+    If EOF is received before the termination of a line, the method will
+    yield the partially read string.
+
+    Note: this is a monkey-patch of the TelnetReaderUnicode.readline method
+    to support \n\r line endings.
+    """
+    if self._exception is not None:
+        raise self._exception
+
+    line = bytearray()
+    not_enough = True
+
+    while not_enough:
+        while self._buffer and not_enough:
+            search_results_pos_kind = (
+                (self._buffer.find(b"\r\n"), b"\r\n"),
+                (self._buffer.find(b"\n\r"), b"\n\r"),
+                (self._buffer.find(b"\r\x00"), b"\r\x00"),
+                (self._buffer.find(b"\r"), b"\r"),
+                (self._buffer.find(b"\n"), b"\n"),
+            )
+
+            # sort by (position, length * -1), so that the
+            # smallest sorted value is the longest-match,
+            # preferring '\r\n' over '\r', for example.
+            matches = [
+                (_pos, len(_kind) * -1, _kind)
+                for _pos, _kind in search_results_pos_kind
+                if _pos != -1
+            ]
+
+            if not matches:
+                line.extend(self._buffer)
+                self._buffer.clear()
+                continue
+
+            # position is nearest match,
+            pos, _, kind = min(matches)
+            if kind == b"\r\x00":
+                # trim out '\x00'
+                begin, end = pos + 1, pos + 2
+            elif kind in [b"\r\n", b"\n\r"]:
+                begin = end = pos + 2
+            else:
+                # '\r' or '\n'
+                begin = end = pos + 1
+            line.extend(self._buffer[:begin])
+            del self._buffer[:end]
+            not_enough = False
+
+        if self._eof:
+            break
+
+        if not_enough:
+            await self._wait_for_data("readline")
+
+    self._maybe_resume_transport()
+    buf = bytes(line)
+    return self.decode(buf)

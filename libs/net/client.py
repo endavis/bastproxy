@@ -16,10 +16,13 @@ import asyncio
 import contextlib
 import logging
 import datetime
+import typing
 from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
+if typing.TYPE_CHECKING:
+    from telnetlib3 import TelnetServer
 
 # Project
 from libs.net import telnet
@@ -61,6 +64,8 @@ class ClientConnection:
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader: TelnetReaderUnicode = reader
         self.writer: TelnetWriterUnicode = writer
+        self.telnet_server: 'TelnetServer | None' = self.writer.protocol
+        self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
 
     @property
     def connected_length(self) -> str:
@@ -153,7 +158,7 @@ class ClientConnection:
             LogRecord(f"client_read - inp type = {type(inp)}",
                       level='debug',
                       sources=[__name__])()
-            logging.getLogger(f"data.{self.uuid}").info(f"{'from_client':<12} : {inp}")
+            self.data_logger.info(f"{'client_read':<12} : {inp}")
 
             if not inp:  # This is an EOF.  Hard disconnect.
                 self.connected = False
@@ -234,7 +239,7 @@ class ClientConnection:
                             level='debug',
                             sources=[__name__])()
                     self.writer.write(msg_obj.line)
-                    logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.line}")
+                    self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
                 else:
                     LogRecord(
                         "client_write - No message to write to client.",
@@ -243,7 +248,7 @@ class ClientConnection:
                     )()
                 if msg_obj.is_prompt:
                     self.writer.write(telnet.go_ahead())
-                    logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {telnet.go_ahead()}")
+                    self.data_logger.info(f"{'client_write':<12} : {telnet.go_ahead()}")
             elif msg_obj.is_command_telnet:
                 LogRecord(f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",
                         level='debug',
@@ -252,7 +257,7 @@ class ClientConnection:
                             level='debug',
                             sources=[__name__])()
                 self.writer.send_iac(msg_obj.line)
-                logging.getLogger(f"data.{self.uuid}").info(f"{'to_client':<12} : {msg_obj.line}")
+                self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
 
         LogRecord(f"client_write - Ending coroutine for {self.uuid}",
                   level='debug',
@@ -301,7 +306,7 @@ async def unregister_client(connection) -> None:
               sources=[__name__])()
 
 
-async def client_telnet_handler(reader, writer) -> None:
+async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWriterUnicode) -> None:
     """
     This handler is for telnet client connections. Upon a client connection this handler is
     the starting point for creating the tasks necessary to handle the client.
