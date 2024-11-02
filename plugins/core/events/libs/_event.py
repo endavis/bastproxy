@@ -48,18 +48,6 @@ class Event:
         self.raised_data = SimpleQueue(length=10)
         self.current_callback = None
 
-    def copy(self, newclass):
-        """
-        copy the event to a new event with a new baseclass
-        """
-        newrecord = newclass(self.name, self.created_by, self.description, self.arg_descriptions, copy=True)
-        newrecord.priority_dictionary = self.priority_dictionary
-        newrecord.raised_count = self.raised_count
-        newrecord.current_record = self.current_record
-        newrecord.raised_data = self.raised_data
-        newrecord.current_callback = self.current_callback
-        return newrecord
-
     def count(self) -> int:
         """
         return the number of functions registered to this event

@@ -18,7 +18,7 @@ CANRELOAD = False
 
 class RegisterToEvent:
     """
-    a class to decorate a function with to register it to an event
+    a class to decorate a function to register it to an event
     """
     def __init__(self, **kwargs):
         """
