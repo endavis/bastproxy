@@ -438,7 +438,7 @@ class BaseListRecord(UserList, BaseRecord):
 
         self.updates.add(change)
 
-class BaseDictRecord(UserDict, BaseRecord):
+class BaseDictRecord(BaseRecord, UserDict):
     def __init__(self, owner_id: str = '', data: dict | None = None, track_record=True):
         """
         initialize the class
