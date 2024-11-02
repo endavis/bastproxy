@@ -67,6 +67,9 @@ class BaseRecord(AttributeMonitor):
             print(self.__dict__)
         return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}:{self.uuid})"
+
     def _onchange__all(self, name, original_value, new_value):
         """
         Track changes to attributes, works in conjunction with the AttributeMonitor class
