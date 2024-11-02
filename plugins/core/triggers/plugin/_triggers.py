@@ -499,7 +499,7 @@ class TriggersPlugin(BasePlugin):
             None
         """
         args = {'line': data_line}
-        LogRecord(f"_eventcb_check_trigger - line {data_line.color} matched the following regexes {regex_match_data}",
+        LogRecord(f"_eventcb_check_trigger - line {data_line.colorcoded} matched the following regexes {regex_match_data}",
                     level='debug', sources=[self.plugin_id])()
         for regex_id in regex_match_data:
             match = None
@@ -513,7 +513,7 @@ class TriggersPlugin(BasePlugin):
                 if not self.triggers[trigger_id].enabled:
                     continue
                 if self.triggers[trigger_id].matchcolor:
-                    match = self.triggers[trigger_id].original_regex_compiled.match(data_line.color)
+                    match = self.triggers[trigger_id].original_regex_compiled.match(data_line.colorcoded)
                 else:
                     match = self.triggers[trigger_id].original_regex_compiled.match(data_line.noansi)
                 if match:
