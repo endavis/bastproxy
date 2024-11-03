@@ -91,7 +91,7 @@ class ProcessDataToMud(BaseRecord):
                 new_message.append(line)
         self.message = new_message
 
-    def _exec_(self, *args, **kwargs):
+    def _exec_(self):
         """
         send the record to the mud
         """
@@ -134,7 +134,7 @@ class SendDataDirectlyToMud(BaseRecord):
                                                 description=['An event to see data that was sent to the mud'],
                                                 arg_descriptions={'line': 'The line to modify, a NetworkDataLine instance'})
 
-    def _exec_(self, *args, **kwargs):
+    def _exec_(self):
         """
         send the data to the mud
         """
