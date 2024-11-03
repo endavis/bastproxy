@@ -80,6 +80,7 @@ class ToMudData(BaseRecord):
         new_message = NetworkData([])
         for line in self.message:
             if line.is_io and isinstance(line.line, str):
+                split_data = []
                 if self.api.command_split_regex:
                     split_data = re.split(self.api.command_split_regex, line.line)
                 if len(split_data) > 1:
