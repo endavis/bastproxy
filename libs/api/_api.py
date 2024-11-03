@@ -17,7 +17,7 @@ is not shared between API instances.
 For example, any functions that manipulates the API itself will need
 to be added to the instance because they will need to check the
 specific instance for API data. Otherwise, they could check another
-instance because of APIs being overwritten. 
+instance because of APIs being overwritten.
 
 Therefore, any APIs added by this API class will be added to the instance api.
 
