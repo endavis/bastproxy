@@ -153,5 +153,5 @@ class SendDataDirectlyToMud(BaseRecord):
         # If the line is not a telnet command,
         # pass each line through the event system to allow plugins to see what
         # data is being sent to the mud
-        if data_for_event := [line.line for line in self.message]:
+        if data_for_event := [line.line for line in self.message if line.send]:
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, data_list=data_for_event, key_name='line')
