@@ -248,19 +248,19 @@ class Event:
 
         return found
 
-    def raise_event(self, data: dict | EventArgsRecord, calledfrom: str) -> EventArgsRecord | None:
+    def raise_event(self, data: dict | EventArgsRecord, actor: str) -> EventArgsRecord | None:
         """
         raise this event
         """
         self.raised_count = self.raised_count + 1
 
         # if the created_by is not set, set it to the calledfrom argument
-        if calledfrom and not self.created_by:
-            self.created_by = calledfrom
+        if actor and not self.created_by:
+            self.created_by = actor
 
-        self.active_event = ProcessRaisedEvent(self, data, calledfrom)
+        self.active_event = ProcessRaisedEvent(self, data, actor)
         uuid = self.active_event.uuid
         self.raised_events[uuid] = self.active_event
-        self.active_event()
+        self.active_event(actor)
         self.active_event = None
         return self.raised_events[uuid]
