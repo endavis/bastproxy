@@ -23,7 +23,7 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ToClientData, LogRecord, ToMudData, NetworkDataLine
+from libs.records import ToClientData, LogRecord, SendDataDirectlyToMud, NetworkDataLine
 from libs.records import NetworkData as NetworkData
 from libs.asynch import TaskItem
 
@@ -109,7 +109,7 @@ class MudConnection:
             )()
             networkdata = NetworkData([], owner_id="mud:setup_mud")
             networkdata.append(NetworkDataLine(features, originated='internal', line_type="COMMAND-TELNET"))
-            ToMudData(networkdata)()
+            SendDataDirectlyToMud(networkdata)()
             LogRecord(
                 "setup_mud - telnet features sent",
                 level='info',

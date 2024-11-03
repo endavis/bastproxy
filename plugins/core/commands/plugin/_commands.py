@@ -16,7 +16,7 @@ import copy
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
-from libs.records import LogRecord, ToMudData, ToClientData, NetworkData
+from libs.records import LogRecord, SendDataDirectlyToMud, ToClientData, NetworkData
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
@@ -606,7 +606,7 @@ class CommandsPlugin(BasePlugin):
                                         f"{self.plugin_id}:pass_through_command_from_event", savedata = False)
                 LogRecord(f"sending antspam command: {self.api('plugins.core.settings:get')('plugins.core.commands', 'antispamcommand')}",
                           level='debug', sources=[self.plugin_id])()
-                ToMudData(NetworkData(self.api('plugins.core.settings:get')(self.plugin_id, 'antispamcommand')),
+                SendDataDirectlyToMud(NetworkData(self.api('plugins.core.settings:get')(self.plugin_id, 'antispamcommand')),
                             show_in_history=False)()
 
                 self.api('plugins.core.settings:change')(self.plugin_id, 'cmdcount', 0)
