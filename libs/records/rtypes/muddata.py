@@ -99,10 +99,11 @@ class ToMudData(BaseRecord):
                 new_message.append(line)
         self.message = new_message
 
-    def _exec_(self, actor):
+    def _exec_(self, *args, **kwargs):
         """
         send the record to the mud
         """
+        actor = kwargs.get('actor', f'{self.__class__.__name__}:{self.uuid}')
         line: 'NetworkDataLine'
         for line in self.message:
             # If it came from a client and it is not a telnet command,

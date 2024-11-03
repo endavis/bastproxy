@@ -222,7 +222,7 @@ class BaseRecord(AttributeMonitor):
     # def __str__(self):
     #     return f"{self.__class__.__name__}:{self.uuid})"
 
-    def _exec_(self, **kwargs):
+    def _exec_(self, *args, **kwargs):
         """
         override this in the derived classes if needed
         """

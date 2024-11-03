@@ -146,10 +146,11 @@ class ToClientData(BaseRecord):
                 return True
         return False
 
-    def _exec_(self, actor=''):
+    def _exec_(self, *args, **kwargs):
         """
         send the message
         """
+        actor = kwargs.get('actor', f'{self.__class__.__name__}:{self.uuid}')
         for line in self.message:
             # If it came from the mud and it is not a telnet command,
             # pass each line through the event system to allow plugins to modify it
