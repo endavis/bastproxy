@@ -55,6 +55,7 @@ class BaseRecord(AttributeMonitor):
         current_active_record = RMANAGER.get_latest_record()
         self.parent = current_active_record or None
         RMANAGER.add(self)
+        self.executing = False
 
     def __hash__(self):
         return hash(self.uuid)
@@ -221,24 +222,36 @@ class BaseRecord(AttributeMonitor):
     # def __str__(self):
     #     return f"{self.__class__.__name__}:{self.uuid})"
 
-    def _exec_(self, actor):
+    def _exec_(self, **kwargs):
         """
         override this in the derived classes if needed
         """
         raise NotImplementedError
 
-    def __call__(self, actor='Unknown'):
+    def __call__(self, *args, **kwargs):
         """
         Enable tracking of the class execution
         """
+        actor = kwargs.get('actor', 'Unknown')
+        if self.executing:
+            self.addupdate('Info', f'{self.__class__.__name__} already executing', extra={'actor':actor})
+            return
+
+        self.executing = True
+
+        self.addupdate('Info', f'{self.__class__.__name__} _exec_ start')
+
         if self.track_record:
             tracking_uuid = self.api('libs.timing:start')(f'{self.__class__.__name__}:{self.uuid}.__call__')
             RMANAGER.start(self)
-            self._exec_(actor)
+            self._exec_(*args, **kwargs)
             RMANAGER.end(self)
             self.execute_time_taken = self.api('libs.timing:finish')(tracking_uuid)
         else:
-            self._exec_(actor)
+            self._exec_(*args, **kwargs)
+
+        self.addupdate('Info', f'{self.__class__.__name__} _exec_ finish')
+        self.executing = False
 
 class TrackedUserList(BaseRecord, UserList):
     """

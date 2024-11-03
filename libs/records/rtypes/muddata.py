@@ -103,16 +103,6 @@ class ToMudData(BaseRecord):
         """
         send the record to the mud
         """
-        if self.sending:
-            LogRecord(f"LogRecord: {self.uuid} is already sending",
-                                level='debug', stack_info=True, sources=[__name__])()
-            return
-
-        self.sending = True
-        self.addupdate('Info', f"{'Start':<8}: send", actor)
-
-        self.seperate_commands()
-
         line: 'NetworkDataLine'
         for line in self.message:
             # If it came from a client and it is not a telnet command,
@@ -135,6 +125,3 @@ class ToMudData(BaseRecord):
 
                 if line.is_io:
                     self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line.line})
-
-        self.addupdate('Info', f"{'Complete':<8}: send", f"{actor}:send")
-        self.sending = False
