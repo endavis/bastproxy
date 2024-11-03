@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from libs.records.rtypes.networkdata import NetworkDataLine
 
 class BaseRecord(AttributeMonitor):
-    def __init__(self, owner_id: str = '', track_record=True):
+    def __init__(self, owner_id: str = '', track_record=True, parent=None):
         """
         initialize the class
         """
@@ -52,8 +52,9 @@ class BaseRecord(AttributeMonitor):
         else:
             self.event_stack = ['No event stack available']
 
-        current_active_record = RMANAGER.get_latest_record()
-        self.parent = current_active_record or None
+        if not parent:
+            parent = RMANAGER.get_latest_record()
+        self.parent = parent
         RMANAGER.add(self)
         self.executing = False
 
