@@ -115,7 +115,7 @@ class ClientConnection:
                       sources=[__name__])()
             ToClientData(networkdata,
                            clients=[self.uuid],
-                           prelogin=True)('libs.net.client:setup_client')
+                           prelogin=True)(actor='libs.net.client:setup_client')
             LogRecord(f"setup_client - telnet features sent to {self.uuid}",
                       level='debug',
                       sources=[__name__])()
@@ -240,6 +240,7 @@ class ClientConnection:
                             level='debug',
                             sources=[__name__])()
                     self.writer.write(msg_obj.line)
+                    msg_obj.was_sent = True
                     self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
                 else:
                     LogRecord(
@@ -258,6 +259,7 @@ class ClientConnection:
                             level='debug',
                             sources=[__name__])()
                 self.writer.send_iac(msg_obj.line)
+                msg_obj.was_sent = True
                 self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
 
             count = count + 1

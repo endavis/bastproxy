@@ -194,6 +194,7 @@ class MudConnection:
                             level='debug',
                             sources=[__name__])()
                     self.writer.write(msg_obj.line)
+                    msg_obj.was_sent = True
                     logging.getLogger("data.mud").info(f"{'to_mud':<12} : {msg_obj.line}")
                 else:
                     LogRecord(
@@ -209,6 +210,7 @@ class MudConnection:
                             level='debug',
                             sources=[__name__])()
                 self.writer.send_iac(msg_obj.line)
+                msg_obj.was_sent = True
                 logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.line}")
 
         LogRecord("mud_write - Ending coroutine",
