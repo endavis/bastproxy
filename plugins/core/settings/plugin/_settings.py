@@ -204,7 +204,7 @@ class SettingsPlugin(BasePlugin):
         if self.api('libs.api:has')('plugins.core.events:raise.event'):
                 self.api('plugins.core.events:raise.event')(
                     event_name,
-                    {'var':setting,
+                    event_args={'var':setting,
                     'newvalue':new_value,
                     'oldvalue':old_value})
 
@@ -287,7 +287,7 @@ class SettingsPlugin(BasePlugin):
 
             self.api('plugins.core.events:raise.event')(
                 event_name,
-                {'var':i,
+                event_args={'var':i,
                 'newvalue':new_value,
                 'oldvalue':old_value})
 

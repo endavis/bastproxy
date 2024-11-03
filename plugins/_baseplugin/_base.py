@@ -364,9 +364,9 @@ class Plugin: # pylint: disable=too-many-instance-attributes
                                                     arg_descriptions={'None': None})
 
         if not self.api.startup:
-            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_loaded", {})
+            self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_loaded")
             self.api('plugins.core.events:raise.event')("ev_plugin_loaded",
-                                                     {'plugin_id':self.plugin_id})
+                                                     event_args={'plugin_id':self.plugin_id})
 
     def _eventcb_baseplugin_disconnect(self):
         """
@@ -398,9 +398,9 @@ class Plugin: # pylint: disable=too-many-instance-attributes
             for item in self.attributes_to_save_on_reload:
                 self.api('libs.plugins.reloadutils:add.cache')(self.plugin_id, item, self.__getattribute__(item))
 
-        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_unloaded", {})
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_unloaded")
         self.api('plugins.core.events:raise.event')("ev_plugin_unloaded",
-                                                    {'plugin_id':self.plugin_id})
+                                                    event_args={'plugin_id':self.plugin_id})
 
         # remove anything out of the api
         self.api('libs.api:remove')(self.plugin_id)
@@ -433,16 +433,16 @@ class Plugin: # pylint: disable=too-many-instance-attributes
         save the state of the plugin
         """
         self._process_plugin_hook('save')
-        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_save", {})
+        self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_save")
         self.api('plugins.core.events:raise.event')("ev_plugin_save",
-                                                    {'plugin_id':self.plugin_id})
+                                                    event_args={'plugin_id':self.plugin_id})
 
     @AddAPI('reset', 'reset the plugin')
     def _api_reset(self):
         """
         reset the plugin
         """
-        event_record = self.api('plugins.core.events:raise.event')("ev_plugin_reset", args={'plugin_id':self.plugin_id,
+        event_record = self.api('plugins.core.events:raise.event')("ev_plugin_reset", event_args={'plugin_id':self.plugin_id,
                                                                                    'plugins_that_acted': []})
 
         return event_record['plugins_that_acted']

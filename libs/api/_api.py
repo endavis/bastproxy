@@ -205,11 +205,11 @@ class API():
 
         if flag:
             self('plugins.core.events:raise.event')('ev_libs.api_character_active',
-                                            args={'is_character_active':self.is_character_active},
+                                            event_args={'is_character_active':self.is_character_active},
                                             calledfrom=APILOCATION)
         else:
             self('plugins.core.events:raise.event')('ev_libs.api_character_inactive',
-                                            args={'is_character_active':self.is_character_active},
+                                            event_args={'is_character_active':self.is_character_active},
                                             calledfrom=APILOCATION)
 
     def _api_data_get(self, api_name: str, base: bool = False) -> APIItem | None:

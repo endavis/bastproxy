@@ -111,7 +111,7 @@ class ToMudData(BaseRecord):
 
             if not line.internal and line.is_io:
                 self.api('plugins.core.events:raise.event')(self.modify_data_event_name,
-                                                             {'line':line,
+                                                             event_args={'line':line,
                                                              'showinhistory':self.show_in_history,
                                                              'client_id':self.client_id,})
 
@@ -125,4 +125,4 @@ class ToMudData(BaseRecord):
                     mud_connection.send_to(line)
 
                 if line.is_io:
-                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line.line})
+                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})

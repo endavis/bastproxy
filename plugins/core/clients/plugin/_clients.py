@@ -213,7 +213,7 @@ class ClientPlugin(BasePlugin):
                       level='warning', sources=[self.plugin_id])()
 
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in",
-                                        {'client_uuid':client_connection.uuid})
+                                        event_args={'client_uuid':client_connection.uuid})
 
     @AddAPI('client.logged.in.view.only', description='set a client as logged in for view only')
     def _api_client_logged_in_view_only(self, client_uuid):
@@ -229,7 +229,7 @@ class ClientPlugin(BasePlugin):
                       level='warning', sources=[self.plugin_id])()
 
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_logged_in_view_only",
-                                        {'client_uuid':client_connection.uuid})
+                                        event_args={'client_uuid':client_connection.uuid})
 
     @AddAPI('client.add', description='add a connected client')
     def _api_client_add(self, client_connection):
@@ -240,7 +240,7 @@ class ClientPlugin(BasePlugin):
             LogRecord(f"Client {client_connection.uuid} already exists", level='warning', sources=[self.plugin_id])()
         self.clients[client_connection.uuid] = client_connection
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_connected",
-                                                    {'client_uuid' : client_connection.uuid})
+                                                    event_args={'client_uuid' : client_connection.uuid})
 
     @AddAPI('client.remove', description='remove a connected client')
     def _api_client_remove(self, client_connection):
@@ -250,7 +250,7 @@ class ClientPlugin(BasePlugin):
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
             self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_client_disconnected",
-                                                        {'client_uuid' : client_connection.uuid})
+                                                        event_args={'client_uuid' : client_connection.uuid})
             LogRecord(f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
                       level='warning', sources=[self.plugin_id])()
 

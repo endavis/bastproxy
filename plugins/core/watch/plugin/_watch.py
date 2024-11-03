@@ -205,4 +205,4 @@ class WatchPlugin(BasePlugin):
                 match_args['data'] = client_data
                 LogRecord(f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
                         level='debug', sources=[self.plugin_id])()
-                self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], match_args)
+                self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], event_args=match_args)

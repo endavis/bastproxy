@@ -60,7 +60,7 @@ class TriggerItem:
         args['trigger_name'] = self.trigger_name
         args['trigger_id'] = self.trigger_id
 
-        args = self.api('plugins.core.events:raise.event')(self.event_name, args)
+        args = self.api('plugins.core.events:raise.event')(self.event_name, event_args=args)
         LogRecord(f"raisetrigger - trigger {self.trigger_id} raised event {self.event_name} with args {args}",
                   level='debug', sources=[self.owner_id, 'plugins.core.triggers'])()
 

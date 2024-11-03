@@ -155,7 +155,7 @@ class ToClientData(BaseRecord):
             # If it came from the mud and it is not a telnet command,
             # pass each line through the event system to allow plugins to modify it
             if line.frommud and line.is_io:
-                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, args={'line': line})
+                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, event_args={'line': line})
 
                 if event_args['line'].line_modified:
                     self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
@@ -183,4 +183,4 @@ class ToClientData(BaseRecord):
                                 level='debug', sources=[__name__])()
 
                 if line.is_io:
-                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, args={'line': line.line})
+                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})

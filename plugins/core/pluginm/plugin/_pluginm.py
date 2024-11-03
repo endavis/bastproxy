@@ -312,9 +312,9 @@ class PluginManager(BasePlugin):
         tmsg = []
         if plugin_response['loaded_plugins']:
             for plugin_id in plugin_response['loaded_plugins']:
-                self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded", {})
+                self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded")
                 self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_plugin_loaded",
-                                                    {'plugin_id':plugin_id})
+                                                    event_args={'plugin_id':plugin_id})
             tmsg.extend(
                 (
                     "Loaded the following plugins",
@@ -399,9 +399,9 @@ class PluginManager(BasePlugin):
 
         loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
         for plugin_id in loaded_plugins:
-            self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded", {})
+            self.api('plugins.core.events:raise.event')(f"ev_{plugin_id}_loaded")
             self.api('plugins.core.events:raise.event')("ev_plugin_loaded",
-                                                {'plugin_id':plugin_id})
+                                                event_args={'plugin_id':plugin_id})
 
         self.api(f"{self.plugin_id}:save.all.plugins.state")()
         self.api('plugins.core.timers:add.timer')('global_save', self._api_save_all_plugins_state, 60, unique=True, log=False)

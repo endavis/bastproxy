@@ -304,7 +304,7 @@ class EventsPlugin(BasePlugin):
         ]
 
     @AddAPI('raise.event', description='raise an event')
-    def _api_raise_event(self, event_name, args=None, calledfrom=None):
+    def _api_raise_event(self, event_name, *args, event_args=None, calledfrom=None):
         # pylint: disable=too-many-nested-blocks
         """  raise an event with args
         @Yevent_name@w   = The event to raise
@@ -331,7 +331,7 @@ class EventsPlugin(BasePlugin):
         self.active_event_stack.push(event.name)
         self.all_event_stack.enqueue(event.name)
 
-        raised_event = event.raise_event(args, calledfrom)
+        raised_event = event.raise_event(event_args, calledfrom)
 
         # pop it back off
         self.active_event_stack.pop()
