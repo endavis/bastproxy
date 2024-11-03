@@ -103,26 +103,20 @@ class ToMudData(BaseRecord):
         """
         send the record to the mud
         """
-        actor = kwargs.get('actor', f'{self.__class__.__name__}:{self.uuid}')
-        line: 'NetworkDataLine'
+        # If the line came from a client and it is not a telnet command,
+        # pass each line through the event system to allow plugins to modify it
+        if data_for_event := [line for line in self.message if line.fromclient and line.is_io]:
+            self.api('plugins.core.events:raise.event')(self.modify_data_event_name, event_args = {'showinhistory': self.show_in_history, 'client_id': self.client_id},
+                                                        data_list=data_for_event, key_name='line')
+
         for line in self.message:
-            # If it came from a client and it is not a telnet command,
-            # pass each line through the event system to allow plugins to modify it
-
-            if not line.internal and line.is_io:
-                self.api('plugins.core.events:raise.event')(self.modify_data_event_name,
-                                                             event_args={'line':line,
-                                                             'showinhistory':self.show_in_history,
-                                                             'client_id':self.client_id,})
-
-            # If it came from the proxy and it is not a telnet command,
-            # pass each line through the event system to allow plugins to see what
-            # data is being sent to the mud
-
             if line.send:
                 line.format()
                 if mud_connection := self.api('plugins.core.proxy:get.mud.connection')():
                     mud_connection.send_to(line)
 
-                if line.is_io:
-                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})
+        # If the line is not a telnet command,
+        # pass each line through the event system to allow plugins to see what
+        # data is being sent to the mud
+        if data_for_event := [line for line in self.message if line.is_io]:
+            self.api('plugins.core.events:raise.event')(self.read_data_event_name, data_list=data_for_event, key_name='line')
