@@ -24,7 +24,8 @@ class NetworkDataLine(BaseRecord):
     or the mud
     """
     def __init__(self, line: str | bytes | bytearray, originated: str = 'internal', line_type: str = 'IO',
-                 had_line_endings: bool = True, preamble: bool = False, prelogin: bool = False):
+                 had_line_endings: bool = True, preamble: bool = True, prelogin: bool = False,
+                 color: str = ''):
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
@@ -44,9 +45,17 @@ class NetworkDataLine(BaseRecord):
         self.is_prompt: bool = False
         self.had_line_endings: bool = had_line_endings
         self.was_sent: bool = False
+        self.color = color
+
+        # preamble defaults to True because a large percentage
+        # of the data that is internal will need it
+        # it is not used if the data is not internal
         self.preamble = preamble
+
+        # prelogin defaults to False because a large percentage
+        # of the data that is internal will not need it
+        # because not much data is sent to a client before login
         self.prelogin = prelogin
-        self.color = ''
 
     @property
     def noansi(self):

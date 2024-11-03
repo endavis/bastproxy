@@ -123,9 +123,9 @@ class ClientConnection:
         LogRecord(f"setup_client - Sending welcome message to {self.uuid}",
                   level='debug',
                   sources=[__name__])()
-        networkdata = NetworkData([NetworkDataLine('Welcome to Bastproxy.', prelogin=True, preamble=True)],
+        networkdata = NetworkData([NetworkDataLine('Welcome to Bastproxy.', prelogin=True)],
                                   owner_id=f"client:{self.uuid}")
-        networkdata.append(NetworkDataLine('Please enter your password.', prelogin=True, preamble=True))
+        networkdata.append(NetworkDataLine('Please enter your password.', prelogin=True))
         SendDataDirectlyToClient(networkdata,
                        clients=[self.uuid])()
         self.login_attempts += 1
@@ -169,27 +169,27 @@ class ClientConnection:
                 if inp.strip() == dpw:
                     networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
                                               owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine('You are now logged in.', preamble=True, prelogin=True))
+                    networkdata.append(NetworkDataLine('You are now logged in.', prelogin=True))
                     SendDataDirectlyToClient(networkdata,
                                    clients=[self.uuid])()
                     self.api('plugins.core.clients:client.logged.in')(self.uuid)
                 elif inp.strip() == vpw:
                     networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
                                               owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine('You are now logged in as view only user.', preamble=True, prelogin=True))
+                    networkdata.append(NetworkDataLine('You are now logged in as view only user.', prelogin=True))
                     SendDataDirectlyToClient(networkdata,
                                    clients=[self.uuid])()
                     self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
 
                 elif self.login_attempts < 3:
                     self.login_attempts = self.login_attempts + 1
-                    networkdata = NetworkData([NetworkDataLine('Invalid password. Please try again.', prelogin=True, preamble=True)],
+                    networkdata = NetworkData([NetworkDataLine('Invalid password. Please try again.', prelogin=True)],
                                               owner_id=f"client:{self.uuid}")
                     SendDataDirectlyToClient(networkdata,
                                    clients=[self.uuid])()
 
                 else:
-                    networkdata = NetworkData([NetworkDataLine('Too many login attempts. Goodbye.', prelogin=True, preamble=True)],
+                    networkdata = NetworkData([NetworkDataLine('Too many login attempts. Goodbye.', prelogin=True)],
                                               owner_id=f"client:{self.uuid}")
                     SendDataDirectlyToClient(networkdata,
                                    clients=[self.uuid])()
@@ -200,7 +200,7 @@ class ClientConnection:
                 continue
 
             elif self.view_only:
-                networkdata = NetworkData([NetworkDataLine('As a view only user, you cannot enter commands', preamble=True)],
+                networkdata = NetworkData([NetworkDataLine('As a view only user, you cannot enter commands')],
                                           owner_id=f"client:{self.uuid}")
                 SendDataDirectlyToClient(networkdata,
                                 clients=[self.uuid])()
