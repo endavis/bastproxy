@@ -28,7 +28,7 @@ if typing.TYPE_CHECKING:
 from libs.net import telnet
 from libs.asynch import TaskItem
 from libs.api import API
-from libs.records import ToClientData, LogRecord, ProcessDataToMud, NetworkDataLine, NetworkData
+from libs.records import ToClientData, LogRecord, ProcessDataToMud, NetworkDataLine, NetworkData, SendDataDirectlyToClient
 
 
 class ClientConnection:
@@ -101,21 +101,19 @@ class ClientConnection:
                   level='debug',
                   sources=[__name__])()
         # We send an IAC+WILL+ECHO to the client so that it won't locally echo the password.
-        networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
-        networkdata.append(NetworkDataLine(telnet.echo_on(), originated='internal', line_type="COMMAND-TELNET"))
-        ToClientData(networkdata,
-                       clients=[self.uuid],
-                       prelogin=True)()
+        networkdata = NetworkData([NetworkDataLine(telnet.echo_on(), line_type="COMMAND-TELNET", prelogin=True)],
+                                  owner_id=f"client:{self.uuid}")
+        SendDataDirectlyToClient(networkdata,
+                                 clients=[self.uuid])()
 
         if features := telnet.advertise_features():
-            networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
-            networkdata.append(NetworkDataLine(features, originated='internal', line_type="COMMAND-TELNET"))
+            networkdata = NetworkData([NetworkDataLine(features, line_type="COMMAND-TELNET", prelogin=True)],
+                                          owner_id=f"client:{self.uuid}")
             LogRecord(f"setup_client - Sending telnet features to {self.uuid}",
                       level='debug',
                       sources=[__name__])()
-            ToClientData(networkdata,
-                           clients=[self.uuid],
-                           prelogin=True)(actor='libs.net.client:setup_client')
+            SendDataDirectlyToClient(networkdata,
+                           clients=[self.uuid])()
             LogRecord(f"setup_client - telnet features sent to {self.uuid}",
                       level='debug',
                       sources=[__name__])()
@@ -125,11 +123,11 @@ class ClientConnection:
         LogRecord(f"setup_client - Sending welcome message to {self.uuid}",
                   level='debug',
                   sources=[__name__])()
-        networkdata = NetworkData('Welcome to Bastproxy.', owner_id=f"client:{self.uuid}")
-        networkdata.append('Please enter your password.')
-        ToClientData(networkdata,
-                       clients=[self.uuid],
-                       prelogin=True)()
+        networkdata = NetworkData([NetworkDataLine('Welcome to Bastproxy.', prelogin=True, preamble=True)],
+                                  owner_id=f"client:{self.uuid}")
+        networkdata.append(NetworkDataLine('Please enter your password.', prelogin=True, preamble=True))
+        SendDataDirectlyToClient(networkdata,
+                       clients=[self.uuid])()
         self.login_attempts += 1
         LogRecord(f"setup_client - welcome message sent to {self.uuid}",
                   level='debug',
@@ -169,34 +167,32 @@ class ClientConnection:
                 dpw = self.api('plugins.core.proxy:ssc.proxypw')()
                 vpw = self.api('plugins.core.proxy:ssc.proxypwview')()
                 if inp.strip() == dpw:
-                    networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine(telnet.echo_off(), originated='internal', line_type="COMMAND-TELNET"))
-                    networkdata.append('You are now logged in.')
-                    ToClientData(networkdata,
-                                   clients=[self.uuid],
-                                   prelogin=True)()
+                    networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                                              owner_id=f"client:{self.uuid}")
+                    networkdata.append(NetworkDataLine('You are now logged in.', preamble=True, prelogin=True))
+                    SendDataDirectlyToClient(networkdata,
+                                   clients=[self.uuid])()
                     self.api('plugins.core.clients:client.logged.in')(self.uuid)
                 elif inp.strip() == vpw:
-                    networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine(telnet.echo_off(), originated='internal', line_type="COMMAND-TELNET"))
-                    networkdata.append('You are now logged in as view only user.')
-                    ToClientData(networkdata,
-                                   clients=[self.uuid],
-                                   prelogin=True)()
+                    networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                                              owner_id=f"client:{self.uuid}")
+                    networkdata.append(NetworkDataLine('You are now logged in as view only user.', preamble=True, prelogin=True))
+                    SendDataDirectlyToClient(networkdata,
+                                   clients=[self.uuid])()
                     self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
 
                 elif self.login_attempts < 3:
                     self.login_attempts = self.login_attempts + 1
-                    networkdata = NetworkData('Invalid password. Please try again.', owner_id=f"client:{self.uuid}")
-                    ToClientData(networkdata,
-                                   clients=[self.uuid],
-                                   prelogin=True)()
+                    networkdata = NetworkData([NetworkDataLine('Invalid password. Please try again.', prelogin=True, preamble=True)],
+                                              owner_id=f"client:{self.uuid}")
+                    SendDataDirectlyToClient(networkdata,
+                                   clients=[self.uuid])()
 
                 else:
-                    networkdata = NetworkData('Too many login attempts. Goodbye.', owner_id=f"client:{self.uuid}")
-                    ToClientData(networkdata,
-                                   clients=[self.uuid],
-                                   prelogin=True)()
+                    networkdata = NetworkData([NetworkDataLine('Too many login attempts. Goodbye.', prelogin=True, preamble=True)],
+                                              owner_id=f"client:{self.uuid}")
+                    SendDataDirectlyToClient(networkdata,
+                                   clients=[self.uuid])()
                     LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.",
                               level='warning',
                               sources=[__name__])()
@@ -204,12 +200,12 @@ class ClientConnection:
                 continue
 
             elif self.view_only:
-                networkdata = NetworkData([], owner_id=f"client:{self.uuid}")
-                networkdata.append('You are now logged in as view only user.')
-                ToClientData(networkdata,
+                networkdata = NetworkData([NetworkDataLine('As a view only user, you cannot enter commands', preamble=True)],
+                                          owner_id=f"client:{self.uuid}")
+                SendDataDirectlyToClient(networkdata,
                                 clients=[self.uuid])()
             else:
-                # this is where we start processing data from the client
+                # this is where we start processing data
                 ProcessDataToMud(NetworkData(NetworkDataLine(inp.strip(), originated='client'),
                                                   owner_id=f"client:{self.uuid}"),
                                         client_id=self.uuid)()

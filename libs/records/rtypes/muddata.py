@@ -42,6 +42,7 @@ class ProcessDataToMud(BaseRecord):
         """
         super().__init__(parent=parent)
         self.message = message
+        self.message.parent = self
         self.show_in_history = show_in_history
         self.client_id = client_id
         self.modify_data_event_name = 'ev_to_mud_data_modify'
@@ -69,7 +70,7 @@ class ProcessDataToMud(BaseRecord):
                                                                   'client_id': 'The client id it came from'})
 
     def seperate_commands(self):
-        new_message = NetworkData([])
+        new_message = NetworkData()
         for line in self.message:
             if line.is_io and isinstance(line.line, str):
                 split_data = []
@@ -102,7 +103,11 @@ class ProcessDataToMud(BaseRecord):
                                                         event_args = {'showinhistory': self.show_in_history, 'client_id': self.client_id},
                                                         data_list=data_for_event, key_name='line')
 
-        SendDataDirectlyToMud(self.message, client_id=self.client_id, parent=self)()
+        new_data = NetworkData()
+        for line in self.message:
+            new_data.append(line)
+
+        SendDataDirectlyToMud(new_data, client_id=self.client_id, parent=self)()
 
 
 class SendDataDirectlyToMud(BaseRecord):
@@ -112,7 +117,7 @@ class SendDataDirectlyToMud(BaseRecord):
 
     The message format is NetworkData instance
 
-    line endings will be added to each line before sending to the mud
+    line endings will be added to each line of io before sending to the mud
     """
 
     _SETUP_EVENTS = False
@@ -124,6 +129,7 @@ class SendDataDirectlyToMud(BaseRecord):
         """
         super().__init__(parent=parent)
         self.message = message
+        self.message.parent = self
         self.read_data_event_name = 'ev_to_mud_data_read'
         self.setup_events()
 
@@ -147,5 +153,5 @@ class SendDataDirectlyToMud(BaseRecord):
         # If the line is not a telnet command,
         # pass each line through the event system to allow plugins to see what
         # data is being sent to the mud
-        if data_for_event := [line for line in self.message if line.is_io]:
+        if data_for_event := [line.line for line in self.message]:
             self.api('plugins.core.events:raise.event')(self.read_data_event_name, data_list=data_for_event, key_name='line')

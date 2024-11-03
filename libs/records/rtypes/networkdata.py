@@ -24,7 +24,7 @@ class NetworkDataLine(BaseRecord):
     or the mud
     """
     def __init__(self, line: str | bytes | bytearray, originated: str = 'internal', line_type: str = 'IO',
-                 had_line_endings: bool = True):
+                 had_line_endings: bool = True, preamble: bool = False, prelogin: bool = False):
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
@@ -44,6 +44,9 @@ class NetworkDataLine(BaseRecord):
         self.is_prompt: bool = False
         self.had_line_endings: bool = had_line_endings
         self.was_sent: bool = False
+        self.preamble = preamble
+        self.prelogin = prelogin
+        self.color = ''
 
     @property
     def noansi(self):
@@ -111,7 +114,7 @@ class NetworkDataLine(BaseRecord):
         if self.is_io and self.had_line_endings:
             self.line = f"{self.line}\n\r"
 
-    def color_line(self, color: str = ''):
+    def color_line(self):
         """
         color the message and convert all colors to ansicodes
 
@@ -125,18 +128,18 @@ class NetworkDataLine(BaseRecord):
         if not self.api('libs.api:has')('plugins.core.colors:colorcode.to.ansicode'):
             return
 
-        if color and isinstance(self.line, str):
+        if self.color and isinstance(self.line, str):
             if '@w' in self.line:
                 line_list = self.line.split('@w')
                 new_line_list = []
                 for item in line_list:
                     if item:
-                        new_line_list.append(f"{color}{item}")
+                        new_line_list.append(f"{self.color}{item}")
                     else:
                         new_line_list.append(item)
-                self.line = f"@w{color}".join(new_line_list)
+                self.line = f"@w{self.color}".join(new_line_list)
             if self.line:
-                self.line = f"{color}{self.line}@w"
+                self.line = f"{self.color}{self.line}@w"
         self.line = self.api('plugins.core.colors:colorcode.to.ansicode')(self.line)
 
     def fix_double_command_seperator(self):
@@ -157,12 +160,12 @@ class NetworkDataLine(BaseRecord):
         """
         if self.is_io:
             if self.internal: # generated from the proxy
-                if preamble:
+                if self.preamble:
                     self.add_preamble()
             else: # generated from a client
                 self.fix_double_command_seperator()
 
-            self.color_line(color)
+            self.color_line()
             self.add_line_endings()
 
     def get_attributes_to_format(self):
