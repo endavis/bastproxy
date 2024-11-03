@@ -14,19 +14,21 @@ import typing
 # 3rd Party
 
 # Project
-from libs.records import BaseRecord, LogRecord, EventArgsRecord
+from libs.records import BaseRecord, LogRecord
 
 if typing.TYPE_CHECKING:
     from _event import Event
+    from libs.records import EventArgsRecord
 
 class ProcessRaisedEvent(BaseRecord):
-    def __init__(self, event: 'Event', args=None, called_from=''):
+    def __init__(self, event: 'Event', event_data: 'EventArgsRecord', called_from=''):
         BaseRecord.__init__(self)
         self.event = event
         self.called_from = called_from
         self.event_name = event.name
-        self.arg_data = args
-        self.current_arg_data = None
+        self.event_data = event_data
+        self.event_data.parent = self
+        self.times_invoked = 0
         self.id = f"{__name__}:{self.event.name}:{self.created}"
         self.addupdate('Info', 'Init', f"{self.id}:init")
 
@@ -34,57 +36,38 @@ class ProcessRaisedEvent(BaseRecord):
         """
         get a one line summary of the record
         """
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms {self.event_name} "
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms {self.event_name} {self.times_invoked}"
 
-    def _exec_(self, actor, **kwargs):
+    def _exec_(self, actor, *args, **kwargs):
         """
         process the event
         """
         if 'data_list' in kwargs and kwargs['data_list'] and 'key_name' in kwargs:
-            self._exec_multi(actor, **kwargs)
+            self._exec_multi(actor, *args, **kwargs)
         else:
-            self._exec_once(actor, **kwargs)
+            self._exec_once(actor, *args, **kwargs)
 
     def _exec_multi(self, *args, **kwargs):
         """
         process the event
         """
         for item in kwargs['data_list']:
-            self.arg_data = {kwargs['key_name']: item}
+            self.event_data[kwargs['key_name']] = item
             self._exec_once(*args, **kwargs)
 
     def _exec_once(self, actor, **kwargs):
         """
         exec it with self.arg_data
         """
-        # Any standard dictionary will be converted to a EventArgsRecord object
-        if not self.arg_data:
-            self.arg_data = {}
-
-        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
-        if not isinstance(self.arg_data, EventArgsRecord) and not isinstance(self.arg_data, dict):
-            LogRecord(f"raise_event - event {self.event_name} raised by {self.called_from} did not pass a dict or EventArgsRecord object",
-                        level='error', sources=[self.called_from, self.event.created_by, 'plugins.core.events'])()
-            LogRecord(
-                "The event will not be processed",
-                level='error',
-                sources=[self.called_from, self.event.created_by, 'plugins.core.events'],
-            )()
-            return None
-
-        if not isinstance(self.arg_data, EventArgsRecord):
-            data = EventArgsRecord(owner_id=self.called_from, event_name=self.event_name, data=self.arg_data)
-        else:
-            data = self.arg_data
-        self.current_arg_data = data
-        data.parent = self
+        self.times_invoked += 1
+        self.addupdate('Info', 'Invoked', f"ProcessEvent:{self.uuid}", extra={'data':f"{self.event_data.data}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('plugins.core.settings:get')('plugins.core.events', 'log_savestate')
         log: bool = True if log_savestate else not self.event_name.endswith('_savestate')
 
         if log:
-            LogRecord(f"raise_event - event {self.event_name} raised by {self.called_from} with data {data}",
+            LogRecord(f"raise_event - event {self.event_name} raised by {self.called_from} with data {self.event_data}",
                       level='debug', sources=[self.called_from, self.event.created_by])()
 
         # convert a dict to an EventArgsRecord object
@@ -117,8 +100,6 @@ class ProcessRaisedEvent(BaseRecord):
         self.current_callback = None
         self.event.reset_event()
 
-        return data
-
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
         attributes[0].extend([('Event Name', 'event_name'), ('Called From', 'called_from'),
@@ -136,7 +117,7 @@ class ProcessRaisedEvent(BaseRecord):
                 ),
                 f"Called from : {self.called_from:<13}@w",
                 f"Timestamp   : {self.created}@w",
-                f"Data        : {self.arg_data}@w"
+                f"Data        : {self.event_data}@w"
             ]
 
         message.append(self.api('plugins.core.utils:center.colored.string')(f'{subheader_color}Event Stack@w', '-', 40, filler_color=subheader_color))

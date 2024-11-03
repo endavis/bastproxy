@@ -254,6 +254,20 @@ class Event:
         """
         self.raised_count = self.raised_count + 1
 
+        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
+        if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
+            LogRecord(f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventArgsRecord object",
+                        level='error', sources=[self.created_by, 'plugins.core.events'])()
+            LogRecord(
+                "The event will not be processed",
+                level='error',
+                sources=[self.created_by, 'plugins.core.events'],
+            )()
+            return None
+
+        if not isinstance(data, EventArgsRecord):
+            data = EventArgsRecord(owner_id=actor, event_name=self.name, data=data)
+
         # if the created_by is not set, set it to the calledfrom argument
         if actor and not self.created_by:
             self.created_by = actor

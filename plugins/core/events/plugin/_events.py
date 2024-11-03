@@ -158,7 +158,7 @@ class EventsPlugin(BasePlugin):
         """
         if last_event := self.active_event_stack.peek():
             event = self.api(f"{self.plugin_id}:get.event")(last_event)
-            return event.get_active_event().current_arg_data
+            return event.get_active_event().event_data
         return None
 
     @AddAPI('get.event.stack', description='return the current event stack')
