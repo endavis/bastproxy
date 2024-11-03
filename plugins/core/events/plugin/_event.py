@@ -248,7 +248,7 @@ class Event:
 
         return found
 
-    def raise_event(self, data: dict | EventArgsRecord, actor: str) -> EventArgsRecord | None:
+    def raise_event(self, data: dict | EventArgsRecord, actor: str, data_list=None, key_name=None) -> EventArgsRecord | None:
         """
         raise this event
         """
@@ -261,6 +261,6 @@ class Event:
         self.active_event = ProcessRaisedEvent(self, data, actor)
         uuid = self.active_event.uuid
         self.raised_events[uuid] = self.active_event
-        self.active_event(actor)
+        self.active_event(actor, data_list=data_list, key_name=key_name)
         self.active_event = None
         return self.raised_events[uuid]

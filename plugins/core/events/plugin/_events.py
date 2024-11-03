@@ -304,14 +304,14 @@ class EventsPlugin(BasePlugin):
         ]
 
     @AddAPI('raise.event', description='raise an event')
-    def _api_raise_event(self, event_name, *args, event_args=None, calledfrom=None):
+    def _api_raise_event(self, event_name, event_args=None, calledfrom=None, data_list=None, key_name=None):
         # pylint: disable=too-many-nested-blocks
         """  raise an event with args
         @Yevent_name@w   = The event to raise
         @Yargs@w         = A dict or libs.records.EventArgsRecord of arguments
         """
-        if not args:
-            args = {}
+        if not event_args:
+            event_args = {}
 
         if not calledfrom:
             calledfrom = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
@@ -319,9 +319,6 @@ class EventsPlugin(BasePlugin):
         if not calledfrom:
             LogRecord(f"event {event_name} raised with unknown caller",
                       level='warning', sources=[self.plugin_id])()
-
-        if not args:
-            args = {}
 
         event = self.api(f"{self.plugin_id}:get.event")(event_name)
 
@@ -331,7 +328,7 @@ class EventsPlugin(BasePlugin):
         self.active_event_stack.push(event.name)
         self.all_event_stack.enqueue(event.name)
 
-        raised_event = event.raise_event(event_args, calledfrom)
+        raised_event = event.raise_event(event_args, calledfrom, data_list=data_list, key_name=key_name)
 
         # pop it back off
         self.active_event_stack.pop()

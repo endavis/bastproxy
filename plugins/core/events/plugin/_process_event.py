@@ -40,7 +40,7 @@ class ProcessRaisedEvent(BaseRecord):
         """
         process the event
         """
-        if 'data_list' in kwargs:
+        if 'data_list' in kwargs and kwargs['data_list'] and 'key_name' in kwargs:
             self._exec_multi(actor, **kwargs)
         else:
             self._exec_once(actor, **kwargs)
@@ -50,7 +50,7 @@ class ProcessRaisedEvent(BaseRecord):
         process the event
         """
         for item in kwargs['data_list']:
-            self.current_arg_data = item
+            self.arg_data = {kwargs['key_name']: item}
             self._exec_once(*args, **kwargs)
 
     def _exec_once(self, actor, **kwargs):
