@@ -23,7 +23,7 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ToClientData, LogRecord, SendDataDirectlyToMud, NetworkDataLine
+from libs.records import ProcessDataToClient, LogRecord, SendDataDirectlyToMud, NetworkDataLine
 from libs.records import NetworkData as NetworkData
 from libs.asynch import TaskItem
 
@@ -159,8 +159,8 @@ class MudConnection:
                 self.connected = False
                 return
 
-            # this is where we start with ToClientData
-            ToClientData(data)()
+            # this is where we start with process data
+            ProcessDataToClient(data)()
 
             # this is so we don't hog the asyncio loop
             await asyncio.sleep(0)

@@ -8,7 +8,8 @@
 """
 This "package"" has classes for various record types and record managers
 The public record types ones are:
-    ToClientData - send data to the client
+    SendDataDirectlyToClient - send data to the client
+    ProcessDataToClient - process data to send to the client
     NetworkData - build data to send
     LogRecord - data to log
     SendDataDirectlyToMud - send data to the mud
@@ -25,10 +26,10 @@ There are also some private classes that are used to manage records
 __all__ = ['LogRecord', 'BaseDictRecord', 'BaseRecord',
            'RMANAGER', 'CmdArgsRecord',
            'NetworkDataLine', 'ProcessDataToMud', 'SendDataDirectlyToMud',
-           'NetworkData', 'ToClientData', 'SendDataDirectlyToClient']
+           'NetworkData', 'ProcessDataToClient', 'SendDataDirectlyToClient']
 
 from libs.records.rtypes.base import BaseRecord, BaseDictRecord # import to resolve circular import
-from libs.records.rtypes.clientdata import ToClientData, SendDataDirectlyToClient
+from libs.records.rtypes.clientdata import ProcessDataToClient, SendDataDirectlyToClient
 from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.cmdargs import CmdArgsRecord
 from libs.records.managers.records import RMANAGER

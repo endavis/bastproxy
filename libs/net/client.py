@@ -28,7 +28,7 @@ if typing.TYPE_CHECKING:
 from libs.net import telnet
 from libs.asynch import TaskItem
 from libs.api import API
-from libs.records import ToClientData, LogRecord, ProcessDataToMud, NetworkDataLine, NetworkData, SendDataDirectlyToClient
+from libs.records import LogRecord, ProcessDataToMud, NetworkDataLine, NetworkData, SendDataDirectlyToClient
 
 
 class ClientConnection:

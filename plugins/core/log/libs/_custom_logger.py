@@ -23,7 +23,7 @@ import numbers
 # Project
 from libs.api import API
 from plugins.core.colors import ALLCONVERTCOLORS
-from libs.records import LogRecord, ToClientData, NetworkData
+from libs.records import LogRecord, SendDataDirectlyToClient, NetworkData, NetworkDataLine
 from .tz import formatTime_RFC3339_UTC, formatTime_RFC3339
 from .utils import get_toplevel
 
@@ -159,17 +159,19 @@ class CustomClientHandler(logging.Handler):
             )
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
-            new_message = NetworkData(formatted_message.splitlines(), owner_id=f'{__name__}:CustomClientHandler:emit')
             if type(record.msg) == LogRecord:
                 if self.api('libs.api:has')('plugins.core.log:get.level.color'):
                     color = self.api('plugins.core.log:get.level.color')(record.levelno)
                 else:
                     color = None
                 if not record.msg.wasemitted['client']:
+                    new_message = NetworkData(owner_id=f'{__name__}:CustomClientHandler:emit')
+                    [new_message.append(NetworkDataLine(line, color=color or '')) for line in formatted_message.splitlines()]
                     record.msg.wasemitted['client'] = True
-                    ToClientData(new_message, color_for_all_lines=color)()
+                    SendDataDirectlyToClient(new_message)()
             else:
-                ToClientData(new_message)()
+                new_message = NetworkData(formatted_message.splitlines(), owner_id=f'{__name__}:CustomClientHandler:emit')
+                SendDataDirectlyToClient(new_message)()
 
 def reset_logging():
     """

@@ -33,7 +33,7 @@ except ImportError:
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.net.mud import MudConnection
-from libs.records import LogRecord, SendDataDirectlyToMud, ToClientData, NetworkData
+from libs.records import LogRecord, SendDataDirectlyToMud, SendDataDirectlyToClient, NetworkData, NetworkDataLine
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
@@ -247,7 +247,8 @@ class ProxyPlugin(BasePlugin):
         """
         self.api.__class__.shutdown = True
         LogRecord('Proxy: shutdown started', level='info', sources=[self.plugin_id, 'shutdown'])()
-        ToClientData(NetworkData(['Shutting down proxy'], owner_id=f'{self.plugin_id}:_api_shutdown'))()
+        SendDataDirectlyToClient(NetworkData([NetworkDataLine('Shutting down proxy')],
+                                 owner_id=f'{self.plugin_id}:_api_shutdown'))()
         self.api('plugins.core.events:raise.event')(f"ev_{self.plugin_id}_shutdown")
         LogRecord('Proxy: shutdown complete', level='info', sources=[self.plugin_id, 'shutdown'])()
 
@@ -342,7 +343,7 @@ class ProxyPlugin(BasePlugin):
 
         if tmsg:
             new_message = NetworkData(tmsg, owner_id=f'{self.plugin_id}:_eventcb_client_logged_in')
-            ToClientData(new_message)()
+            SendDataDirectlyToClient(new_message)()
 
     @AddAPI('restart', description='restart the proxy')
     def _api_restart(self, restart_in=None):
@@ -352,7 +353,7 @@ class ProxyPlugin(BasePlugin):
         restart_in = restart_in or 10
         listen_port = self.api('plugins.core.settings:get')(self.plugin_id, 'listenport')
 
-        ToClientData(NetworkData([f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"],
+        SendDataDirectlyToClient(NetworkData([f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"],
                                  owner_id=f'{self.plugin_id}:_api_restart'))()
         LogRecord(f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds", level='warning', sources=[self.plugin_id])()
 

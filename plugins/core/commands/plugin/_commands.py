@@ -16,7 +16,7 @@ import copy
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
-from libs.records import LogRecord, SendDataDirectlyToMud, ToClientData, NetworkData
+from libs.records import LogRecord, SendDataDirectlyToMud, SendDataDirectlyToClient, NetworkData
 import libs.argp as argp
 from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins.core.events import RegisterToEvent
@@ -869,7 +869,7 @@ class CommandsPlugin(BasePlugin):
         if message:
             if isinstance(message, list):
                 message = NetworkData(message, owner_id='run_internal_command_from_event')
-            ToClientData(message, clients=clients)()
+            SendDataDirectlyToClient(message, clients=clients)()
 
         if event_record['showinhistory'] != show_in_history:
             event_record['showinhistory'] = show_in_history
@@ -901,7 +901,7 @@ class CommandsPlugin(BasePlugin):
             if message:
                 if isinstance(message, list):
                     message = NetworkData(message, owner_id='run_internal_command_from_event')
-                ToClientData(message, clients=clients)()
+                SendDataDirectlyToClient(message, clients=clients)()
 
     @AddAPI('get.summary.data.for.plugin', description="get summary data for a plugin")
     def _api_get_summary_data_for_plugin(self, plugin_id):
@@ -1167,10 +1167,10 @@ class CommandsPlugin(BasePlugin):
         else:
             command = self.command_history_data[args['number']]
 
-        ToClientData(NetworkData([f"Commands: rerunning command {command}"], owner_id='run_history'))(
+        SendDataDirectlyToClient(NetworkData([f"Commands: rerunning command {command}"], owner_id='run_history'))(
             f'{self.plugin_id}:_command_run_history'
         )
-        ToClientData(NetworkData([f"{command}"], owner_id='run_history'))()
+        SendDataDirectlyToClient(NetworkData([f"{command}"], owner_id='run_history'))()
 
         return True, []
 
