@@ -360,6 +360,10 @@ class PluginManager(BasePlugin):
             return True, [f"Plugin {plugin_id} is not loaded"]
 
         if self.api('libs.plugins.loader:unload.plugin')(plugin_id):
+            plugins_to_load_setting = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
+            if plugin_id in plugins_to_load_setting:
+                plugins_to_load_setting.remove(plugin_id)
+                self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load_setting)
             return True, [f"Plugin {plugin_id} unloaded"]
 
         return False, [f"Plugin {plugin_id} not unloaded, please check logs"]
@@ -384,10 +388,18 @@ class PluginManager(BasePlugin):
 
         self.api(f'{args["plugin"]}:set.reload')()
 
-        if self.api('libs.plugins.loader:reload.plugin')(args['plugin']):
-            return True, [f'{args["plugin"]} reloaded']
-        else:
+        plugins_to_load_setting = self.api('plugins.core.settings:get')(self.plugin_id, 'pluginstoload')
+        if not self.api('libs.plugins.loader:reload.plugin')(args['plugin']):
+            if args['plugin'] in plugins_to_load_setting:
+                plugins_to_load_setting.remove(args['plugin'])
+                self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load_setting)
             return False, [f'{args["plugin"]} not reloaded, please check logs']
+
+        # add the loaded plugins to the pluginstoload setting
+        if args['plugin'] not in plugins_to_load_setting:
+            plugins_to_load_setting.append(args['plugin'])
+        self.api('plugins.core.settings:change')(self.plugin_id, 'pluginstoload', plugins_to_load_setting)
+        return True, [f'{args["plugin"]} reloaded']
 
     @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self):
