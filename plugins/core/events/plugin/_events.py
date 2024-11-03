@@ -14,7 +14,7 @@ import types
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
-from ..libs._event import Event
+from ._event import Event
 from libs.stack import SimpleStack
 from libs.queue import SimpleQueue
 from plugins.core.commands import AddParser, AddArgument
@@ -158,7 +158,7 @@ class EventsPlugin(BasePlugin):
         """
         if last_event := self.active_event_stack.peek():
             event = self.api(f"{self.plugin_id}:get.event")(last_event)
-            return event.current_record
+            return event.get_active_event().current_arg_data
         return None
 
     @AddAPI('get.event.stack', description='return the current event stack')
@@ -331,12 +331,12 @@ class EventsPlugin(BasePlugin):
         self.active_event_stack.push(event.name)
         self.all_event_stack.enqueue(event.name)
 
-        success = event.raise_event(args, calledfrom)
+        raised_event = event.raise_event(args, calledfrom)
 
         # pop it back off
         self.active_event_stack.pop()
 
-        return success
+        return raised_event
 
     @AddAPI('get.event.detail', description='get the details of an event')
     def _api_get_event_detail(self, event_name):

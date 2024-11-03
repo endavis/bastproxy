@@ -19,9 +19,9 @@ import typing
 
 # Project
 from libs.api import API
-from libs.records import LogRecord, EventArgsRecord, RaisedEventRecord
+from libs.records import LogRecord, EventArgsRecord
 from libs.callback import Callback
-from libs.queue import SimpleQueue
+from ._process_event import ProcessRaisedEvent
 
 class Event:
     """
@@ -44,9 +44,17 @@ class Event:
         self.api = API(owner_id=self.owner_id)
         self.priority_dictionary = {}
         self.raised_count = 0
-        self.current_record: EventArgsRecord | None = None
-        self.raised_data = SimpleQueue(length=10)
+        # NOTE : this is an unbound dictionary, may need to limit the size
+        #           because of how many events will be raised
+        self.raised_events = {}
         self.current_callback = None
+        self.active_event = None
+
+    def get_active_event(self):
+        """
+        get the active event
+        """
+        return self.active_event
 
     def count(self) -> int:
         """
@@ -192,14 +200,14 @@ class Event:
             message.append('Unknown')
         message.append(header_color + '-' * 60 + '@w')
 
-        if self.raised_data:
-            message.append('')
-            message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Raised Events@w', '-', 60, filler_color=header_color))
-            for i, data in enumerate(self.raised_data.get()):
-                if i > 0:
-                    message.append('')
-                message.extend(data.format_simple())
-            message.append(header_color + '-' * 60 + '@w')
+        # if self.raised_data:
+        #     message.append('')
+        #     message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Raised Events@w', '-', 60, filler_color=header_color))
+        #     for i, data in enumerate(self.raised_data.get()):
+        #         if i > 0:
+        #             message.append('')
+        #         message.extend(data.format_simple())
+        #     message.append(header_color + '-' * 60 + '@w')
 
         return message
 
@@ -250,63 +258,9 @@ class Event:
         if calledfrom and not self.created_by:
             self.created_by = calledfrom
 
-        # Any standard dictionary will be converted to a EventArgsRecord object
-        if not data:
-            data = {}
-
-        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
-        if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
-            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} did not pass a dict or EventArgsRecord object",
-                        level='error', sources=[calledfrom, self.created_by, 'plugins.core.events'])()
-            LogRecord(
-                "The event will not be processed",
-                level='error',
-                sources=[calledfrom, self.created_by, 'plugins.core.events'],
-            )()
-            return None
-
-        # log the event if the log_savestate setting is True or if the event is not a _savestate event
-        log_savestate = self.api('plugins.core.settings:get')('plugins.core.events', 'log_savestate')
-        log: bool = True if log_savestate else not self.name.endswith('_savestate')
-        if log:
-            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} with data {data}",
-                      level='debug', sources=[calledfrom, self.created_by])()
-
-        raised_event_record = RaisedEventRecord(self.name, called_from=calledfrom)
-        self.raised_data.enqueue(raised_event_record)
-
-        # convert a dict to an EventArgsRecord object
-        if not isinstance(data, EventArgsRecord):
-            data = EventArgsRecord(owner_id=calledfrom, event_name=self.name, data=data)
-        data.parent = raised_event_record
-        raised_event_record.arg_data = data
-
-        # This checks each priority seperately and executes the functions in order of priority
-        # A while loop is used to ensure that if a function is added to the event during the execution of the same event
-        # it will be processed in the same order as the other functions
-        # This means that any registration added during the execution of the event will be processed
-        priorities_done = []
-
-        self.current_record = data
-        found_callbacks = True
-        count = 0
-        while found_callbacks:
-            count = count + 1
-            found_callbacks = False
-            if keys := list(self.priority_dictionary.keys()):
-                keys = sorted(keys)
-                if len(keys) < 1:
-                    found_callbacks = False
-                    continue
-                for priority in keys:
-                    found_callbacks = self.raise_priority(priority, priority in priorities_done)
-                    priorities_done.append(priority)
-
-        if count > 2: # the minimum number of times through the loop is 2
-            LogRecord(f"raise_event - event {self.name} raised by {calledfrom} was processed {count} times",
-                        level='warning', sources=[self.created_by])()
-
-        self.current_record = None
-        self.current_callback = None
-        self.reset_event()
-        return data
+        self.active_event = ProcessRaisedEvent(self, data, calledfrom)
+        uuid = self.active_event.uuid
+        self.raised_events[uuid] = self.active_event
+        self.active_event()
+        self.active_event = None
+        return self.raised_events[uuid]
