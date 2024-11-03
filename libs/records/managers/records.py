@@ -89,21 +89,25 @@ class RecordManager(object):
         rfilter.extend(record_filter)
         children = self.get_all_children_dict(record_uuid, rfilter)
         return [f"{'       ' * 0}{self.get_record(record_uuid).one_line_summary()}",
-                *self.format_all_children_helper(children, 0, record_filter=rfilter)]
+                *self.format_all_children_helper(children, record_filter=rfilter)]
 
-    def format_all_children_helper(self, children, indent = 0, emptybars = 0, output = None, record_filter=None):
+    def format_all_children_helper(self, children, indent = 0, emptybar = None, output = None, record_filter=None):
+        if not emptybar:
+            emptybar = {}
+        emptybar[indent] = False
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
         output = output or []
         all_children = list(children.keys())
+        pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(indent))
         for child in children:
             all_children.pop(all_children.index(child))
-            output.append(f"{'    ' * emptybars}{' |  ' * (indent - emptybars)} |-> {self.get_record(child).one_line_summary()}")
+            output.append(f"{pre_string} |-> {self.get_record(child).one_line_summary()}")
             if not all_children:
-                emptybars += 1
-            self.format_all_children_helper(children[child], indent + 1, emptybars, output, rfilter)
+                emptybar[indent] = True
+            self.format_all_children_helper(children[child], indent + 1, emptybar, output, rfilter)
         return output
 
     def add(self, record):
