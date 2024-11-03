@@ -23,7 +23,7 @@ from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ProcessDataToClient, LogRecord, SendDataDirectlyToMud, NetworkDataLine
+from libs.records import ProcessDataToClient, LogRecord, SendDataDirectlyToMud, NetworkDataLine, SendDataDirectlyToClient
 from libs.records import NetworkData as NetworkData
 from libs.asynch import TaskItem
 
@@ -250,6 +250,7 @@ class MudConnection:
         self.connected = False
 
         LogRecord(f"Mud Connection closed - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
+        SendDataDirectlyToClient(NetworkData(["Connection to the mud has been closed."]))()
 
         await asyncio.sleep(1)
 
