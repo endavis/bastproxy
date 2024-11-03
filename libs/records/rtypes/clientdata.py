@@ -146,29 +146,14 @@ class ToClientData(BaseRecord):
                 return True
         return False
 
-    def _exec_(self, *args, **kwargs):
+    def _exec_(self):
         """
         send the message
         """
-        actor = kwargs.get('actor', f'{self.__class__.__name__}:{self.uuid}')
+        if data_for_event := [line for line in self.message if line.frommud and line.is_io]:
+            self.api('plugins.core.events:raise.event')(self.modify_data_event_name, data_list=data_for_event, key_name='line')
+
         for line in self.message:
-            # If it came from the mud and it is not a telnet command,
-            # pass each line through the event system to allow plugins to modify it
-            if line.frommud and line.is_io:
-                event_args = self.api('plugins.core.events:raise.event')(self.modify_data_event_name, event_args={'line': line})
-
-                if event_args['line'].line_modified:
-                    self.addupdate('Modify', f"line modified by {self.modify_data_event_name}",
-                                    f"{actor}:send:{self.modify_data_event_name}",
-                                    extra={'line':line, 'event_args':event_args})
-
-                if not event_args['line'].send:
-                    self.addupdate('Modify', f"line removed because sendtoclient was set to False from {self.modify_data_event_name}",
-                                    f"{actor}:send:{self.modify_data_event_name}",
-                                    extra={'line':line})
-
-                self.addupdate('Info', f'After event {self.modify_data_event_name}', actor)
-
             if self.send_to_clients and line.send:
                 line.format(preamble=self.preamble, color=self.color_for_all_lines)
 
@@ -182,5 +167,5 @@ class ToClientData(BaseRecord):
                         LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
                                 level='debug', sources=[__name__])()
 
-                if line.is_io:
-                    self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})
+        if data_for_event := [line for line in self.message if line.is_io]:
+            self.api('plugins.core.events:raise.event')(self.read_data_event_name, data_list=data_for_event, key_name='line')
