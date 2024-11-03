@@ -201,7 +201,7 @@ class PluginLoader:
             return bool(self.plugins_info[pluginname].runtime_info.plugin_instance)
 
         return False
-    
+
     def update_all_plugin_information(self):
         """
         read all plugins and basic info
@@ -452,9 +452,9 @@ class PluginLoader:
 
         loaded_plugins = [plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins]
 
-        # clean up plugins that 
+        # clean up plugins that
         #   were not imported
-        #   their initialize method did not run 
+        #   their initialize method did not run
         #   could not be instantiated
         for plugin_id in plugins_to_load:
             plugin_info = self.plugins_info[plugin_id]
@@ -639,7 +639,7 @@ class PluginLoader:
         LogRecord(f"_api_fuzzy_match_plugin_id: {psplit = }",
                   level='debug',
                   sources=[__name__])()
-        
+
         if len(psplit) not in [2, 3]:
             return '', ''
 
@@ -676,5 +676,5 @@ class PluginLoader:
         LogRecord(f"_api_fuzzy_match_plugin_id: {new_package = }, {new_plugin = }",
                   level='debug',
                   sources=[__name__])()
-        
+
         return new_package, new_plugin
