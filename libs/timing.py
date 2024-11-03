@@ -72,7 +72,7 @@ class Timing(object):
             self.timing[uid] = {'name': timername, 'start': default_timer(),
                                 'owner_id': owner_id, 'args': args}
             LogRecord(f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
-                      level='info', sources=[__name__, owner_id])()
+                      level='debug', sources=[__name__, owner_id])()
             return uid
         return None
 
@@ -88,10 +88,10 @@ class Timing(object):
                 time_taken = (timerfinish - self.timing[uid]['start']) * 1000.0
                 if args := self.timing[uid]['args']:
                     LogRecord(f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms - with args {args}",
-                            level='info', sources=[__name__, self.timing[uid]['owner_id']])()
+                            level='debug', sources=[__name__, self.timing[uid]['owner_id']])()
                 else:
                     LogRecord(f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms",
-                            level='info', sources=[__name__, self.timing[uid]['owner_id']])()
+                            level='debug', sources=[__name__, self.timing[uid]['owner_id']])()
                 del self.timing[uid]
                 return time_taken
             else:
