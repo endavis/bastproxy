@@ -19,10 +19,9 @@ import typing
 
 # Project
 from libs.api import API
-from libs.records import LogRecord
+from libs.records import LogRecord, EventArgsRecord
 from libs.callback import Callback
-from plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
-from plugins.core.events.libs.data._event import EventDataRecord
+from ._process_event import ProcessRaisedEvent
 
 class Event:
     """
@@ -228,7 +227,7 @@ class Event:
         for call_back in list(self.priority_dictionary[priority].keys()):
             try:
                 # A callback should call the api 'plugins.core.events:get:current:event'
-                # which returns event_name, EventDataRecord
+                # which returns event_name, EventArgsRecord
                 # If the registered event changes the data, it should snapshot it with addupdate
                 if call_back in self.priority_dictionary[priority] \
                         and not self.priority_dictionary[priority][call_back] \
@@ -249,15 +248,15 @@ class Event:
 
         return found
 
-    def raise_event(self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None) -> EventDataRecord | None:
+    def raise_event(self, data: dict | EventArgsRecord, actor: str, data_list=None, key_name=None) -> EventArgsRecord | None:
         """
         raise this event
         """
         self.raised_count = self.raised_count + 1
 
-        # If data is not a dict or EventDataRecord object, log an error and the event will not be processed
-        if not isinstance(data, EventDataRecord) and not isinstance(data, dict):
-            LogRecord(f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventDataRecord object",
+        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
+        if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
+            LogRecord(f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventArgsRecord object",
                         level='error', sources=[self.created_by, 'plugins.core.events'])()
             LogRecord(
                 "The event will not be processed",
@@ -266,14 +265,14 @@ class Event:
             )()
             return None
 
-        if not isinstance(data, EventDataRecord):
-            data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
+        if not isinstance(data, EventArgsRecord):
+            data = EventArgsRecord(owner_id=actor, event_name=self.name, data=data)
 
         # if the created_by is not set, set it to the calledfrom argument
         if actor and not self.created_by:
             self.created_by = actor
 
-        self.active_event = ProcessRaisedEvent(self, data, actor) # type: ignore
+        self.active_event = ProcessRaisedEvent(self, data, actor)
         uuid = self.active_event.uuid
         self.raised_events[uuid] = self.active_event
         self.active_event(actor, data_list=data_list, key_name=key_name)

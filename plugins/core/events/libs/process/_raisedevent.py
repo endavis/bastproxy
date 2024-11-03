@@ -17,7 +17,7 @@ import typing
 from libs.records import BaseRecord, LogRecord
 
 if typing.TYPE_CHECKING:
-    from plugins.core.events.libs._event import Event
+    from _event import Event
     from plugins.core.events.libs.data._event import EventDataRecord
 
 class ProcessRaisedEvent(BaseRecord):

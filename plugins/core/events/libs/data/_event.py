@@ -13,10 +13,10 @@ Holds the log record type
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseDictRecord, BaseRecord
+from libs.records.rtypes.base import BaseDictRecord
 
 
-class EventArgsRecord(BaseDictRecord):
+class EventDataRecord(BaseDictRecord):
     def __init__(self, owner_id: str = '', event_name: str = 'unknown', data: dict | None = None):
         """
         initialize the class

@@ -308,7 +308,7 @@ class EventsPlugin(BasePlugin):
         # pylint: disable=too-many-nested-blocks
         """  raise an event with args
         @Yevent_name@w   = The event to raise
-        @Yargs@w         = A dict or libs.records.EventArgsRecord of arguments
+        @Yargs@w         = A dict or EventDataRecord of arguments
         """
         if not event_args:
             event_args = {}
