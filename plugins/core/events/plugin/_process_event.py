@@ -34,7 +34,7 @@ class ProcessRaisedEvent(BaseRecord):
         """
         get a one line summary of the record
         """
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.event_name}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms {self.event_name} "
 
     def _exec_(self, actor, **kwargs):
         """
