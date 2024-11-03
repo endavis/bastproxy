@@ -194,11 +194,13 @@ class NetworkData(TrackedUserList):
     """
     this is a base record of a list of NetworkDataLine records
     """
-    def __init__(self, message: NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes],
+    def __init__(self, message: NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes] | None = None,
                  owner_id: str=''):
         """
         initialize the class
         """
+        if message is None:
+            message = []
         if not isinstance(message, list):
             message = [message] # type: ignore
 
