@@ -75,16 +75,6 @@ class RecordManager(object):
         children = self.get_all_children_dict(record_uuid, record_filter)
         return self.api('plugins.core.utils:get.keys.from.dict')(children)
 
-    def flatten_keys(self, d, parent_key='', sep='.'):
-        items = []
-        for k, v in d.items():
-            new_key = f"{parent_key}{sep}{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.extend(self.flatten_keys(v, new_key, sep=sep))
-            else:
-                items.append(new_key)
-        return items
-
     def format_all_children(self, record_uuid, record_filter=None):
         if not record_filter:
             record_filter = []
