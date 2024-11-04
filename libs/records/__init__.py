@@ -24,14 +24,13 @@ There are also some private classes that are used to manage records
     ChangeManager - a manager that manages changes to records
 """
 __all__ = ['LogRecord', 'BaseDictRecord', 'BaseRecord',
-           'RMANAGER', 'CmdArgsRecord',
-           'NetworkDataLine', 'ProcessDataToMud', 'SendDataDirectlyToMud',
-           'NetworkData', 'ProcessDataToClient', 'SendDataDirectlyToClient']
+           'RMANAGER',   'NetworkDataLine', 'NetworkData',
+           'ProcessDataToMud', 'SendDataDirectlyToMud',
+           'ProcessDataToClient', 'SendDataDirectlyToClient']
 
 from libs.records.rtypes.base import BaseRecord, BaseDictRecord # import to resolve circular import
 from libs.records.rtypes.clientdata import ProcessDataToClient, SendDataDirectlyToClient
 from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.cmdargs import CmdArgsRecord
 from libs.records.managers.records import RMANAGER
 from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
 from libs.records.rtypes.muddata import ProcessDataToMud, SendDataDirectlyToMud
