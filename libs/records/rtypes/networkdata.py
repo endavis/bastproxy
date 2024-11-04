@@ -29,6 +29,11 @@ class NetworkDataLine(BaseRecord):
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{repr(line)}")
         self._attributes_to_monitor.append('line')
         self._attributes_to_monitor.append('send')
+        self._attributes_to_monitor.append('is_prompt')
+        self._attributes_to_monitor.append('had_line_endings')
+        self._attributes_to_monitor.append('prelogin')
+        self._attributes_to_monitor.append('preamble')
+        self._attributes_to_monitor.append('color')
         self._attributes_to_monitor.append('was_sent')
         if originated != 'internal' and ((isinstance(line, str) and ('\n' in line or '\r' in line)) or \
                         (isinstance(line, (bytes, bytearray)) and (b'\n' in line or b'\r' in line))):
