@@ -27,10 +27,11 @@ class SimpleQueue(object):
         id_field is the dictionary key to use for id lookups
         """
         self.len = length
-        self.items = []
+        self.items: list = []
         self.snapshot = None
         self.id_key = id_key
         self.id_lookup = {}
+        self.last_automatically_removed_item = None
 
     def isempty(self):
         """
@@ -44,7 +45,7 @@ class SimpleQueue(object):
         """
         self.items.append(item)
         while len(self.items) > self.len:
-            self.items.pop(0)
+            self.last_automatically_removed_item = self.items.pop(0)
 
     def dequeue(self):
         """
@@ -79,6 +80,12 @@ class SimpleQueue(object):
         """
         return self.items[:]
 
+    def get_last_x(self, count):
+        """
+        get the last x items in the queue
+        """
+        return self.items[-count:]
+
     def get_by_id(self, item_id):
         """
         get an item by id
@@ -89,3 +96,9 @@ class SimpleQueue(object):
                     return item
 
         return None
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
