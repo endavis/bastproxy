@@ -67,6 +67,12 @@ class BaseRecord(AttributeMonitor):
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.uuid}"
 
+    def _am_locked_attribute_update(self, name, value):
+        """
+        called when a locked attribute is attempted to be updated
+        """
+        self.addupdate('Info', f"Attempted to update a locked attribute {name} with value '{value}'")
+
     def _am_onchange__all(self, name, original_value, new_value):
         """
         Track changes to attributes, works in conjunction with the AttributeMonitor class
