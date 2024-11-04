@@ -23,10 +23,10 @@ if typing.TYPE_CHECKING:
 class RecordManager(object):
     def __init__(self):
         """
-        Keep the last 1000 records of each type
+        Keep the last max_records of each type
         track the active record
         """
-        self.max_records: int = 1000
+        self.max_records: int = 5000
         self.records: dict[str, list] = {}
         self.api = BASEAPI(owner_id=__name__)
         self.record_instances = {}
