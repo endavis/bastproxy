@@ -229,6 +229,7 @@ class SendDataDirectlyToClient(BaseRecord):
         """
         send the message
         """
+        self.message.lock()
         for line in self.message:
             if line.send:
                 line.format()

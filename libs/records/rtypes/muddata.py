@@ -144,6 +144,7 @@ class SendDataDirectlyToMud(BaseRecord):
         """
         send the data to the mud
         """
+        self.message.lock()
         if mud_connection := self.api('plugins.core.proxy:get.mud.connection')():
             for line in self.message:
                 if line.send:

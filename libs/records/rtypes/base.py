@@ -273,6 +273,7 @@ class TrackedUserList(BaseRecord, UserList):
             data = []
         UserList.__init__(self, data)
         BaseRecord.__init__(self, owner_id, track_record=False)
+        self.locked = False
         self.addupdate('Modify', 'original input', extra={'data':f"{repr(data)}"})
 
     def one_line_summary(self):
@@ -280,6 +281,10 @@ class TrackedUserList(BaseRecord, UserList):
         get a one line summary of the record
         """
         return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else "No data found"}"
+
+    def lock(self):
+        self.locked = True
+        self._am_lock_attribute('data')
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
@@ -291,6 +296,9 @@ class TrackedUserList(BaseRecord, UserList):
         """
         set the item
         """
+        if self.locked:
+            self.addupdate('Info', f"Attempted to update a locked data list at index {index} with value '{repr(item)}'")
+            return
         super().__setitem__(index, item)
         self.addupdate('Modify', f'set item at position {index}', extra={'item':f"{repr(item)}"})
 
@@ -298,6 +306,9 @@ class TrackedUserList(BaseRecord, UserList):
         """
         insert an item
         """
+        if self.locked:
+            self.addupdate('Info', f"Attempted to insert into a locked data list at index {index} with value '{repr(item)}'")
+            return
         super().insert(index, item)
         self.addupdate('Modify', f'inserted item into position {index}', extra={'item':f"{repr(item)}"})
 
@@ -305,6 +316,9 @@ class TrackedUserList(BaseRecord, UserList):
         """
         append an item
         """
+        if self.locked:
+            self.addupdate('Info', f"Attempted to append to a locked data list at index with value '{repr(item)}'")
+            return
         super().append(item)
         self.addupdate('Modify', f'Appended item into position {len(self) - 1}', extra={'item':f"{repr(item)}"})
 
@@ -312,8 +326,11 @@ class TrackedUserList(BaseRecord, UserList):
         """
         extend the list
         """
+        if self.locked:
+            self.addupdate('Info', f"Attempted to extend a locked data list '{[repr(item) for item in items]}'")
+            return
         super().extend(items)
-        self.addupdate('Modify', 'extended list', extra={'new_list':f"{[repr(item) for item in items]}"})
+        self.addupdate('Modify', 'extended list', extra={'added_list':f"{[repr(item) for item in items]}"})
 
 class BaseListRecord(UserList, BaseRecord):
     def __init__(self, message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
