@@ -17,7 +17,7 @@ import datetime
 # Project
 from libs.api import API
 from libs.records import LogRecord
-from data.cmdargs import CmdArgsRecord
+from .data.cmdargs import CmdArgsRecord
 import libs.argp as argp
 
 class CommandClass:
