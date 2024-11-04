@@ -59,7 +59,7 @@ class BaseRecord(AttributeMonitor):
         self.executing = False
 
     def __hash__(self):
-        return hash(self.uuid)
+        return hash(f"{self.__class__.__name__}:{self.uuid}")
 
     def __eq__(self, other):
         return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
