@@ -15,17 +15,17 @@ class AttributeMonitor:
                 self._attribute_set(name, original_value, value)
 
     def _attribute_set(self, name, original_value, new_value):
-        change_func = getattr(self, f"_onchange_{name}", None)
+        change_func = getattr(self, f"_am_onchange_{name}", None)
         if original_value == '#!NotSet':
             with contextlib.suppress(Exception):
                 self._am_original_values[name] = original_value
         if original_value not in ["#!NotSet", new_value]:
-            self._onchange__all(name, original_value, new_value)
+            self._am_onchange__all(name, original_value, new_value)
             if change_func:
                 change_func(original_value, new_value)
 
     def _am_get_original_value(self, name):
         return self._am_original_values.get(name, None)
 
-    def _onchange__all(self, name, original_value, new_value):
+    def _am_onchange__all(self, name, original_value, new_value):
         pass

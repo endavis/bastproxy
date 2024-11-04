@@ -74,7 +74,7 @@ class NetworkDataLine(BaseRecord):
             return self.line
         return self.api('plugins.core.colors:colorcode.escape')(self.line)
 
-    def _onchange_line(self, orig_value, new_value):
+    def _am_onchange_line(self, orig_value, new_value):
         """
         set the line_modified flag if the line changes
         """
