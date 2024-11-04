@@ -148,6 +148,7 @@ class SendDataDirectlyToMud(BaseRecord):
             for line in self.message:
                 if line.send:
                     line.format()
+                    line.lock()
                     mud_connection.send_to(line)
 
         # If the line is not a telnet command,

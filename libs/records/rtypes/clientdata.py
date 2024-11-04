@@ -232,6 +232,7 @@ class SendDataDirectlyToClient(BaseRecord):
         for line in self.message:
             if line.send:
                 line.format()
+                line.lock()
 
                 clients = self.clients or self.api(
                     'plugins.core.clients:get.all.clients'

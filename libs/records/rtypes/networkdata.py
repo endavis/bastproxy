@@ -69,6 +69,9 @@ class NetworkDataLine(BaseRecord):
             return self.line
         return self.api('plugins.core.colors:ansicode.to.colorcode')(self.line)
 
+    def lock(self):
+        self._am_lock_attribute('line')
+
     def escapecolor(self):
         if self.is_command_telnet:
             return self.line
