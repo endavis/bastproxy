@@ -57,6 +57,8 @@ class NetworkDataLine(BaseRecord):
         # because not much data is sent to a client before login
         self.prelogin = prelogin
 
+        self.addupdate('Modify', 'original input', extra={'data':f"{repr(line)}"})
+
     @property
     def noansi(self):
         if self.is_command_telnet:
