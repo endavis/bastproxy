@@ -8,6 +8,8 @@
 """
 This module holds a manager that handles records of all types
 """
+
+import contextlib
 # Standard Library
 import typing
 
@@ -16,6 +18,7 @@ import typing
 # Project
 from libs.api import API as BASEAPI
 from libs.stack import SimpleStack
+from libs.queue import SimpleQueue
 
 if typing.TYPE_CHECKING:
     from libs.records.rtypes.update import UpdateRecord
@@ -27,7 +30,7 @@ class RecordManager(object):
         track the active record
         """
         self.max_records: int = 5000
-        self.records: dict[str, list] = {}
+        self.records: dict[str, SimpleQueue] = {}
         self.api = BASEAPI(owner_id=__name__)
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
@@ -113,24 +116,23 @@ class RecordManager(object):
     def add(self, record):
         queuename = record.__class__.__name__
         if queuename not in self.records:
-            self.records[queuename] = []
+            self.records[queuename] = SimpleQueue(self.max_records)
         if record.uuid in self.record_instances:
             from libs.records import LogRecord
             LogRecord(f"Record UUID collision {record.uuid} already exists in the record manager", level='error')()
-        self.records[queuename].append(record)
+        self.records[queuename].enqueue(record)
         self.record_instances[record.uuid] = record
 
-        # check if we need to pop an item off the front
-        if len(self.records[queuename]) > self.max_records:
-            poppeditem = self.records[queuename].pop(0)
-            del self.record_instances[poppeditem.uuid]
+        if last_record := self.records[queuename].last_automatically_removed_item:
+            with contextlib.suppress(KeyError):
+                del self.record_instances[last_record.uuid]
 
     def get_types(self):
-        return [(key, len(self.records[key])) for key in self.records.keys()]
+        return [(key, self.records[key].size()) for key in self.records.keys()]
 
     def get_records(self, recordtype, count=10):
-        records = self.records.get(recordtype, [])
-        return records[-count:]
+        records = self.records.get(recordtype, None)
+        return records.get_last_x(count) if records else records
 
     def get_record(self, recordid):
         return self.record_instances.get(recordid, None)
