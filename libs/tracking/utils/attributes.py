@@ -18,7 +18,7 @@ class AttributeMonitor:
         change_func = getattr(self, f"_am_onchange_{name}", None)
         if original_value == '#!NotSet':
             with contextlib.suppress(Exception):
-                self._am_original_values[name] = original_value
+                self._am_original_values[name] = new_value
         if original_value not in ["#!NotSet", new_value]:
             self._am_onchange__all(name, original_value, new_value)
             if change_func:
