@@ -37,7 +37,7 @@ class UpdateRecord(object):
         self.time_taken = datetime.datetime.now(datetime.timezone.utc)
         self.parent = parent
         self.flag = flag
-        self.api = API(owner_id=f"UpdateRecord:{self.uuid}")
+        self.api = API(owner_id=f"{self.__class__.__name__}:{self.uuid}")
         self.action = action
         self.extra = {}
         if extra:
@@ -76,7 +76,7 @@ class UpdateRecord(object):
         return found_actor
 
     def __str__(self):
-        return f"{self.flag} - {self.action} - {self.data} - {self.extra})"
+        return f"{self.flag} - {self.action} - {self.data} - {self.extra}"
 
     def format(self):
         """

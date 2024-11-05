@@ -39,7 +39,7 @@ class BaseRecord(AttributeMonitor):
         self.uuid = uuid4().hex
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
         # Add an API
-        self.api = API(owner_id=self.owner_id)
+        self.api = API(owner_id=self.owner_id or f"{self.__class__.__name__}:{self.uuid}")
         self.created = datetime.datetime.now(datetime.timezone.utc)
         self.updates = UpdateManager()
         self.execute_time_taken = -1
