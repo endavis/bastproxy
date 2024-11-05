@@ -83,6 +83,16 @@ class UtilsPlugin(BasePlugin):
                 keys.extend(self._api_get_keys_from_dict(v))
         return keys
 
+    @AddAPI('dedent.list.of.strings', description='dedent a list of strings')
+    def _api_dedent_list_of_strings(self, list_of_strings):
+        """
+        dedent a list of strings
+        """
+        new_data = [list_of_strings[0].lstrip()]
+        diff = len(list_of_strings[0]) - len(new_data[0])
+        new_data.extend(line[diff:] for line in list_of_strings[1:])
+        return new_data
+
     @AddAPI('convert.timedelta.to.string', description='take two times and return a string of the difference')
     def _api_convert_timedelta_to_string(self, start_time, end_time, fmin=False, colorn='',
                                          colors='', nosec=False):
