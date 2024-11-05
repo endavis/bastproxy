@@ -602,8 +602,7 @@ class CommandsPlugin(BasePlugin):
             if self.api('plugins.core.settings:get')(self.plugin_id, 'cmdcount') == \
                                     self.api('plugins.core.settings:get')(self.plugin_id, 'spamcount'):
 
-                event_record.addupdate('Modify', "Antispam Command sent",
-                                        f"{self.plugin_id}:pass_through_command_from_event", savedata = False)
+                event_record.addupdate('Modify', "Antispam Command sent", savedata = False)
                 LogRecord(f"sending antspam command: {self.api('plugins.core.settings:get')('plugins.core.commands', 'antispamcommand')}",
                           level='debug', sources=[self.plugin_id])()
                 SendDataDirectlyToMud(NetworkData(self.api('plugins.core.settings:get')(self.plugin_id, 'antispamcommand')),
@@ -616,7 +615,7 @@ class CommandsPlugin(BasePlugin):
             # swallow it
             if original_command in self.no_multiple_commands:
                 event_record.addupdate('Modify', 'this command has been flagged to only be sent once, sendtomud set to False',
-                                        f"{self.plugin_id}:pass_through_command_from_event", savedata = False)
+                                        savedata = False)
 
                 event_record['line'].send = False
                 return
@@ -874,10 +873,9 @@ class CommandsPlugin(BasePlugin):
         if event_record['showinhistory'] != show_in_history:
             event_record['showinhistory'] = show_in_history
             event_record.addupdate('Modify', "show_in_history set to {show_in_history}",
-                                f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command", savedata = False)
+                                savedata = False)
 
         event_record.addupdate('Info', f"find_command returned {notes}, arg string: '{command_args}'",
-                            f"{self.plugin_id}:_event_mud_data_modify_check_command:find_command",
                             savedata = False)
 
         if command_item:
@@ -890,12 +888,10 @@ class CommandsPlugin(BasePlugin):
                 event_record.addupdate(
                     'Info',
                     "run_command returned success",
-                    f"{self.plugin_id}:_event_mud_data_modify_check_command:run_command",
                     savedata=False,
                 )
             else:
                 event_record.addupdate('Info', f"run_command returned error: {error}",
-                                    f"{self.plugin_id}:_event_mud_data_modify_check_command:run_command",
                                     savedata = False)
 
             if message:
