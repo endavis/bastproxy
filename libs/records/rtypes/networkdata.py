@@ -64,6 +64,15 @@ class NetworkDataLine(BaseRecord):
 
         self.addupdate('Modify', 'original input', extra={'data':f"{repr(line)}"})
 
+    def add_parent(self, parent, reset=True):
+        """
+        add a parent to this record
+        """
+        if reset:
+            self.parents = []
+        if parent.__class__.__name__ == 'NetworkData':
+            self.parents.append(parent)
+
     @property
     def noansi(self):
         if self.is_command_telnet:
@@ -236,6 +245,7 @@ class NetworkData(TrackedUserList):
                 item = NetworkDataLine(item)
                 self[self.index(old_item)] = item
             item.parent = self
+            item.add_parent(self)
 
     def get_first_line(self):
         return (
@@ -267,6 +277,7 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
+            item.add_parent(self)
         super().__setitem__(index, item)
 
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
@@ -278,6 +289,7 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
+            item.add_parent(self)
         super().insert(index, item)
 
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
@@ -289,6 +301,7 @@ class NetworkData(TrackedUserList):
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
+            item.add_parent(self)
         super().append(item)
 
     def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):

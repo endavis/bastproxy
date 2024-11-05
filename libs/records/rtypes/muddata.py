@@ -43,6 +43,7 @@ class ProcessDataToMud(BaseRecord):
         super().__init__(parent=parent)
         self.message = message
         self.message.parent = self
+        self.message.add_parent(self, reset=True)
         self.show_in_history = show_in_history
         self.client_id = client_id
         self.modify_data_event_name = 'ev_to_mud_data_modify'
@@ -103,11 +104,7 @@ class ProcessDataToMud(BaseRecord):
                                                         event_args = {'showinhistory': self.show_in_history, 'client_id': self.client_id},
                                                         data_list=data_for_event, key_name='line')
 
-        new_data = NetworkData()
-        for line in self.message:
-            new_data.append(line)
-
-        SendDataDirectlyToMud(new_data, client_id=self.client_id, parent=self)()
+        SendDataDirectlyToMud(self.message, client_id=self.client_id, parent=self)()
 
 
 class SendDataDirectlyToMud(BaseRecord):
@@ -130,6 +127,7 @@ class SendDataDirectlyToMud(BaseRecord):
         super().__init__(parent=parent)
         self.message = message
         self.message.parent = self
+        self.message.add_parent(self)
         self.read_data_event_name = 'ev_to_mud_data_read'
         self.setup_events()
 

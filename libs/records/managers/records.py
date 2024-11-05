@@ -51,37 +51,45 @@ class RecordManager(object):
     def get_latest_record(self):
         return self.active_record_stack.peek()
 
-    def get_children(self, record_uuid, record_filter=None):
+    def get_children(self, record, record_filter=None):
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
-        record = self.get_record(record_uuid)
-        return [rec.uuid for rec in self.record_instances.values() if rec.parent and rec.parent.uuid == record.uuid and rec.__class__.__name__ not in rfilter]
+        return list(
+            {
+                rec
+                for rec in self.record_instances.values()
+                for parent in rec.parents
+                if parent.uuid == record.uuid
+                and rec.__class__.__name__ not in rfilter
+            }
+        )
 
-    def get_all_children_dict(self, record_uuid, record_filter=None):
+    def get_all_children_dict(self, record, record_filter=None):
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
-        children = self.get_children(record_uuid)
-        return {child: self.get_all_children_dict(child, rfilter) for child in children if self.get_record(child).__class__.__name__ not in rfilter}
+        children = self.get_children(record, record_filter)
+        children.sort()
+        return {child: self.get_all_children_dict(child, rfilter) for child in children if child.__class__.__name__ not in rfilter}
 
-    def get_all_children_list(self, record_uuid, record_filter=None):
+    def get_all_children_list(self, record, record_filter=None):
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
-        children = self.get_all_children_dict(record_uuid, record_filter)
+        children = self.get_all_children_dict(record, record_filter)
         return self.api('plugins.core.utils:get.keys.from.dict')(children)
 
-    def format_all_children(self, record_uuid, record_filter=None):
+    def format_all_children(self, record, record_filter=None):
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
-        children = self.get_all_children_dict(record_uuid, rfilter)
-        return [f"{'       ' * 0}{self.get_record(record_uuid).one_line_summary()}",
+        children = self.get_all_children_dict(record, rfilter)
+        return [f"{'       ' * 0}{record.one_line_summary()}",
                 *self.format_all_children_helper(children, record_filter=rfilter)]
 
     def format_all_children_helper(self, children, indent = 0, emptybar = None, output = None, record_filter=None):
@@ -97,7 +105,7 @@ class RecordManager(object):
         pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(indent))
         for child in children:
             all_children.pop(all_children.index(child))
-            output.append(f"{pre_string} |-> {self.get_record(child).one_line_summary()}")
+            output.append(f"{pre_string} |-> {child.one_line_summary()}")
             if not all_children:
                 emptybar[indent] = True
             self.format_all_children_helper(children[child], indent + 1, emptybar, output, rfilter)

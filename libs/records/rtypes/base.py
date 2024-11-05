@@ -34,7 +34,7 @@ class BaseRecord(AttributeMonitor):
         initialize the class
         """
         AttributeMonitor.__init__(self)
-        self._attributes_to_monitor.append('parent')
+        self._attributes_to_monitor.append('parents')
         # create a unique id for this message
         self.uuid = uuid4().hex
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
@@ -55,8 +55,21 @@ class BaseRecord(AttributeMonitor):
         if not parent:
             parent = RMANAGER.get_latest_record()
         self.parent = parent
+        self.parents = []
+        if parent:
+            self.add_parent(parent)
+
         RMANAGER.add(self)
         self.executing = False
+
+    def add_parent(self, parent, reset=False):
+        """
+        add a parent to this record
+        """
+        if reset:
+            self.parents = []
+        if parent not in self.parents:
+            self.parents.append(parent)
 
     def __hash__(self):
         return hash(f"{self.__class__.__name__}:{self.uuid}")
@@ -113,8 +126,7 @@ class BaseRecord(AttributeMonitor):
         """
         updates = []
         update_filter = update_filter or []
-        for record_uuid in RMANAGER.get_all_children_list(self.uuid, record_filter=update_filter):
-            record = RMANAGER.get_record(record_uuid)
+        for record in RMANAGER.get_all_children_list(self, record_filter=update_filter):
             updates.extend(update for update in record.updates if update.parent.__class__.__name__ not in update_filter)
         updates.extend(self.updates)
 
@@ -128,8 +140,7 @@ class BaseRecord(AttributeMonitor):
         if record := self.updates.get_update(uuid):
             return record
 
-        for child_record_uuid in RMANAGER.get_all_children_list(self.uuid):
-            child_record = RMANAGER.get_record(child_record_uuid)
+        for child_record in RMANAGER.get_all_children_list(self.uuid):
             if child_record.updates.get_update(uuid):
                 return record
 
@@ -150,7 +161,7 @@ class BaseRecord(AttributeMonitor):
         3 is the bottom section
         """
         default_attributes = {0:[('UUID', 'uuid'), ('Owner ID', 'owner_id'),
-                      ('Creation Time', 'created'), ('Parent', 'parent'),
+                      ('Creation Time', 'created'), ('Parent', 'parent'), ('Parents', 'parents'),
                       ('Exec Time (ms)', 'execute_time_taken')],
                 1:[],
                 2:[]}
@@ -198,7 +209,7 @@ class BaseRecord(AttributeMonitor):
         )
         if include_children_records:
             if full_children_records:
-                children_records = RMANAGER.get_all_children_dict(self.uuid, record_filter=update_filter)
+                children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
                 msg.extend(["Children Records :",
                             '---------------------------------------'])
                 for record in children_records:
@@ -209,7 +220,7 @@ class BaseRecord(AttributeMonitor):
                     msg.append('---------------------------------------')
             else:
                 msg.extend(["Children Records :",
-                    *RMANAGER.format_all_children(self.uuid, record_filter=update_filter),
+                    *RMANAGER.format_all_children(self, record_filter=update_filter),
                 ])
         if include_updates:
             msg.extend(["Updates :",

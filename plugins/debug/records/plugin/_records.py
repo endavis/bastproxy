@@ -165,5 +165,6 @@ class RecordPlugin(BasePlugin):
         if not record:
             return True, [f"Record {args['uid']} not found"]
 
-        child_records_formatted = RMANAGER.format_all_children(record.uuid)
+        child_records_formatted = RMANAGER.format_all_children(record)
+
         return True, child_records_formatted

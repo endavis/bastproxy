@@ -36,6 +36,7 @@ class ProcessDataToClient(BaseRecord):
         super().__init__()
         self.message = message
         self.message.parent = self
+        self.message.add_parent(self, reset=True)
         # flag to include preamble when sending to client
         self.preamble: bool = preamble
         # flag to send to client before login
@@ -149,15 +150,7 @@ class ProcessDataToClient(BaseRecord):
             self.api('plugins.core.events:raise.event')(self.modify_data_event_name, data_list=data_for_event, key_name='line')
 
         if self.send_to_clients:
-            new_data = NetworkData([])
-
-            for line in self.message:
-                line.preamble = self.preamble
-                line.prelogin = self.prelogin
-                line.color = self.color_for_all_lines
-                new_data.append(line)
-
-            SendDataDirectlyToClient(new_data, exclude_clients=self.exclude_clients,
+            SendDataDirectlyToClient(self.message, exclude_clients=self.exclude_clients,
                                      clients=self.clients)()
 
 class SendDataDirectlyToClient(BaseRecord):
@@ -180,6 +173,7 @@ class SendDataDirectlyToClient(BaseRecord):
         super().__init__()
         self.message = message
         self.message.parent = self
+        self.message.add_parent(self)
         # clients to send to, a list of client uuids
         # if this list is empty, it goes to all clients
         self.clients: list[str] = clients or []
