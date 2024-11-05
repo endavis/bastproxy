@@ -95,6 +95,7 @@ class NetworkDataLine(BaseRecord):
         self._am_lock_attribute('preamble')
         self._am_lock_attribute('color')
         self._am_lock_attribute('line_modified')
+        self.addupdate('Modify', 'locked')
 
     def escapecolor(self):
         if self.is_command_telnet:
