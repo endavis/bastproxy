@@ -77,7 +77,7 @@ class ProcessDataToMud(BaseRecord):
                 if self.api.command_split_regex:
                     split_data = re.split(self.api.command_split_regex, line.line)
                 if len(split_data) > 1:
-                    self.addupdate('Info', "split (Split_Char)", f"{self.__class__.__name__}:{self.uuid}:prepare",
+                    self.addupdate('Info', "split (Split_Char)",
                                     extra={'line':line, 'newlines':split_data,
                                             'msg': 'split the data along the command seperator'})
                     line.line = split_data.pop(0)

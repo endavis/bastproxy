@@ -30,7 +30,7 @@ class ProcessRaisedEvent(BaseRecord):
         self.event_data.parent = self
         self.times_invoked = 0
         self.id = f"{__name__}:{self.event.name}:{self.created}"
-        self.addupdate('Info', 'Init', f"{self.id}:init")
+        self.addupdate('Info', 'Init')
 
     def one_line_summary(self):
         """
@@ -60,7 +60,7 @@ class ProcessRaisedEvent(BaseRecord):
         exec it with self.arg_data
         """
         self.times_invoked += 1
-        self.addupdate('Info', 'Invoked', f"ProcessEvent:{self.uuid}", extra={'data':f"{self.event_data.data}"})
+        self.addupdate('Info', 'Invoked', extra={'data':f"{self.event_data.data}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api('plugins.core.settings:get')('plugins.core.events', 'log_savestate')

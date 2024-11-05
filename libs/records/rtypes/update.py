@@ -32,14 +32,13 @@ class UpdateRecord(object):
 
     will automatically add the time and last 5 stack frames
     """
-    def __init__(self, parent, flag: str, action: str, actor: str = '', extra: dict | None = None, data=None):
+    def __init__(self, parent, flag: str, action: str, extra: dict | None = None, data=None):
         self.uuid = uuid4().hex
         self.time_taken = datetime.datetime.now(datetime.timezone.utc)
         self.parent = parent
         self.flag = flag
         self.api = API(owner_id=f"UpdateRecord:{self.uuid}")
         self.action = action
-        self.actor = actor
         self.extra = {}
         if extra:
             self.extra |= extra
@@ -61,18 +60,18 @@ class UpdateRecord(object):
         return new_stack
 
     def __str__(self):
-        return f"{self.actor} - {self.flag} - {self.action} - {self.data} - {self.extra})"
+        return f"{self.flag} - {self.action} - {self.data} - {self.extra})"
 
     def format(self):
         """
         format the change record
         """
         if self.flag == 'Modify':
-            return f"{self.actor} updated {self.action}"
+            return f"updated {self.action}"
         if self.flag == 'Set Flag':
-            return f"{self.actor} set {self.action} to {self.data}"
+            return f"set {self.action} to {self.data}"
         if self.flag == 'Info':
-            return f"{self.actor} {self.action}"
+            return f"{self.action}"
 
     def format_detailed(self, show_data: bool = False, show_stack: bool = False,
                         data_lines_to_show: int = 10):
@@ -90,7 +89,6 @@ class UpdateRecord(object):
         tmsg =  [
             f"{'UUID':<15} : {self.uuid}",
             f"{'Record':<15} : {self.parent.__class__.__name__}:{self.parent.uuid}",
-            f"{'Actor':<15} : {self.actor}",
             f"{'Flag':<15} : {self.flag}",
             f"{'Action':<15} : {self.action}",
             f"{'Time Taken':<15} : {self.time_taken}"]

@@ -76,7 +76,7 @@ class CustomColorFormatter(logging.Formatter):
             formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
             if isinstance(record.msg, LogRecord):
                 record.msg.extend(formatted_exc_no_newline)
-                record.msg.addupdate('Modify', 'add traceback', 'CustomColorFormatter')
+                record.msg.addupdate('Modify', 'add traceback')
                 record.msg.format()
             elif isinstance(record.msg, str):
                 record.msg += '\n'.join(formatted_exc_no_newline)

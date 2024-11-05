@@ -91,7 +91,7 @@ class BaseRecord(AttributeMonitor):
         else:
             return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
-    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None):
+    def addupdate(self, flag: str, action: str, extra: dict | None = None):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -103,7 +103,7 @@ class BaseRecord(AttributeMonitor):
             after modification
             when it ends up at it's destination
         """
-        change = UpdateRecord(self, flag, action, actor, extra)
+        change = UpdateRecord(self, flag, action, extra=extra)
 
         self.updates.add(change)
 
@@ -353,7 +353,7 @@ class BaseListRecord(UserList, BaseRecord):
         self.sending = False
         # copy the original data
         self.original_data = message[:]
-        self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
+        self.addupdate('Info', 'Init', savedata=True)
 
     def one_line_summary(self):
         """
@@ -409,7 +409,7 @@ class BaseListRecord(UserList, BaseRecord):
             data = [data]
         if data != self.data:
             self.data = data
-            self.addupdate('Modify', 'replace', actor, extra=extra, savedata=True)
+            self.addupdate('Modify', 'replace', extra=extra, savedata=True)
 
     def color_lines(self, color: str, actor=''):
         """
@@ -461,7 +461,7 @@ class BaseListRecord(UserList, BaseRecord):
                           level='error', sources=[__name__])()
         self.replace(new_message, actor=f"{actor}:clean", extra={'msg':'clean each item'})
 
-    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None, savedata: bool = True):
+    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -474,7 +474,7 @@ class BaseListRecord(UserList, BaseRecord):
             when it ends up at it's destination
         """
         data = self.data[:] if savedata else None
-        change = UpdateRecord(self, flag, action, actor, extra, data)
+        change = UpdateRecord(self, flag, action, extra, data)
 
         self.updates.add(change)
 
@@ -491,7 +491,7 @@ class BaseDictRecord(BaseRecord, UserDict):
         UserDict.__init__(self, data)
         BaseRecord.__init__(self, owner_id, track_record=track_record)
         self.original_data = data.copy()
-        self.addupdate('Info', 'Init', f"{self.__class__.__name__}:init", savedata=True)
+        self.addupdate('Info', 'Init', savedata=True)
 
     def one_line_summary(self):
         """
@@ -507,7 +507,7 @@ class BaseDictRecord(BaseRecord, UserDict):
 
         return attributes
 
-    def addupdate(self, flag: str, action: str, actor: str = '', extra: dict | None = None, savedata: bool = True):
+    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
         """
         add a change event for this record
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -520,6 +520,6 @@ class BaseDictRecord(BaseRecord, UserDict):
             when it ends up at it's destination
         """
         data = self.copy() if savedata else None
-        change = UpdateRecord(self, flag, action, actor, extra, data)
+        change = UpdateRecord(self, flag, action, extra, data)
 
         self.updates.add(change)
