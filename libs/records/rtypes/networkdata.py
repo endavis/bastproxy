@@ -45,6 +45,7 @@ class NetworkDataLine(BaseRecord):
             line = line.decode('utf-8')
         self.line: str | bytes | bytearray = line
         self.original_line: str | bytes | bytearray = line
+        self._am_lock_attribute('original_line')
         self.send: bool = True
         self.line_modified: bool = False
         self.is_prompt: bool = False
@@ -87,6 +88,13 @@ class NetworkDataLine(BaseRecord):
 
     def lock(self):
         self._am_lock_attribute('line')
+        self._am_lock_attribute('send')
+        self._am_lock_attribute('is_prompt')
+        self._am_lock_attribute('had_line_endings')
+        self._am_lock_attribute('prelogin')
+        self._am_lock_attribute('preamble')
+        self._am_lock_attribute('color')
+        self._am_lock_attribute('line_modified')
 
     def escapecolor(self):
         if self.is_command_telnet:
