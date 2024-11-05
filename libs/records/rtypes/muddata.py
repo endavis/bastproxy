@@ -95,7 +95,7 @@ class ProcessDataToMud(BaseRecord):
 
     def _exec_(self):
         """
-        send the record to the mud
+        process the data before sending to the mud
         """
         # If the line came from a client and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
@@ -150,7 +150,6 @@ class SendDataDirectlyToMud(BaseRecord):
                     line.lock()
                     mud_connection.send_to(line)
 
-        # If the line is not a telnet command,
         # pass each line through the event system to allow plugins to see what
         # data is being sent to the mud
         if data_for_event := [line.line for line in self.message if line.send]:
