@@ -45,6 +45,7 @@ class UpdateRecord(object):
         self.data = data
         # Extract the last 10 stack frames
         self.stack = self.fix_stack(traceback.format_stack(limit=10))
+        self.actor = self.find_relevant_actor(self.stack)
         self.event_stack = []
         with contextlib.suppress(Exception):
             if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
@@ -55,9 +56,15 @@ class UpdateRecord(object):
         # don't need the last 2 lines
         for line in stack:
             new_stack.extend(line.splitlines() if line else [])
-            if 'addupdate' in line:
-                break
-        return new_stack
+        return new_stack[:-2]
+
+    def find_relevant_actor(self, stack):
+        not_relevant = ['libs/records/', 'libs/data', 'libs/process', 'tracking/utils']
+        found_actor = ''
+        for line in [line for line in stack if 'File' in line]:
+            if all((line.find(actor) == -1) for actor in not_relevant) and 'addupdate' not in stack[stack.index(line)+1]:
+                    found_actor = [line, stack[stack.index(line)+1]]
+        return found_actor
 
     def __str__(self):
         return f"{self.flag} - {self.action} - {self.data} - {self.extra})"
@@ -86,10 +93,14 @@ class UpdateRecord(object):
         if 'data_lines_to_show' in args:
             data_lines_to_show = int(args['data_lines_to_show'])
 
+        actor = self.api('plugins.core.utils:dedent.list.of.strings')(self.actor)
+
         tmsg =  [
             f"{'UUID':<15} : {self.uuid}",
             f"{'Record':<15} : {self.parent.__class__.__name__}:{self.parent.uuid}",
             f"{'Flag':<15} : {self.flag}",
+            f"{'Actor':<15} : {actor[0]}",
+            f"{'':<15} : {actor[1]}",
             f"{'Action':<15} : {self.action}",
             f"{'Time Taken':<15} : {self.time_taken}"]
         if self.extra:
