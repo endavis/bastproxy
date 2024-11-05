@@ -323,5 +323,6 @@ class NetworkData(TrackedUserList):
             if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)
             item.parent = self
+            item.add_parent(self)
             new_list.append(item)
         super().extend(new_list)
