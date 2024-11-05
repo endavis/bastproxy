@@ -67,6 +67,9 @@ class BaseRecord(AttributeMonitor):
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.uuid}"
 
+    def __lt__(self, other):
+        return self.created < other.created
+
     def _am_locked_attribute_update(self, name, value):
         """
         called when a locked attribute is attempted to be updated
