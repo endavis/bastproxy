@@ -129,9 +129,7 @@ class BaseRecord(AttributeMonitor):
         for record in RMANAGER.get_all_children_list(self, record_filter=update_filter):
             updates.extend(update for update in record.updates if update.parent.__class__.__name__ not in update_filter)
         updates.extend(self.updates)
-
-        updates.sort(key=lambda x: x.time_taken)
-        return updates
+        return sorted(set(updates))
 
     def get_update(self, uuid):
         """

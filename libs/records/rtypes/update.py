@@ -51,6 +51,15 @@ class UpdateRecord(object):
             if self.api('libs.api:has')('plugins.core.events:get.event.stack'):
                 self.event_stack = self.api('plugins.core.events:get.event.stack')()
 
+    def __hash__(self):
+        return hash(f"{self.__class__.__name__}:{self.uuid}")
+
+    def __eq__(self, value: object) -> bool:
+        return self.uuid == value.uuid if isinstance(value, UpdateRecord) else False
+
+    def __lt__(self, other):
+        return self.time_taken < other.time_taken
+
     def fix_stack(self, stack):
         new_stack = []
         # don't need the last 2 lines
