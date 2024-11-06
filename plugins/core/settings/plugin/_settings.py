@@ -459,24 +459,20 @@ class SettingsPlugin(BasePlugin):
                 plugin_id, setting_name
             )
         ):
-            if setting_info.hidden:
-                return True, [f"plugin setting {setting_name} does not exist"]
-            if setting_info.readonly:
-                return True, [f"{setting_name} is a readonly setting"]
+            return True, [f"plugin setting {plugin_id} {setting_name} does not exist"]
+        if setting_info.hidden:
+            return True, [f"plugin setting {plugin_id} {setting_name} does not exist"]
+        if setting_info.readonly:
+            return True, [f"{setting_name} is a readonly setting"]
 
-            val = args['value']
-            try:
-                self.api("plugins.core.settings:change")(plugin_id, setting_name, val)
-                tsetting_name = self.format_setting_for_print(plugin_id, setting_name)
-                tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
-                if setting_info.aftersetmessage:
-                    tmsg.extend(['\n',setting_info.aftersetmessage])
-                return True, tmsg
-            except ValueError:
-                msg = [f"Cannot convert {val} to {setting_info.stype}"]
-                return True, msg
-
-        else:
-            msg = [f"plugin setting {plugin_id} {setting_name} does not exist"]
-
-        return False, ['How did you get here?']
+        val = args['value']
+        try:
+            self.api("plugins.core.settings:change")(plugin_id, setting_name, val)
+            tsetting_name = self.format_setting_for_print(plugin_id, setting_name)
+            tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
+            if setting_info.aftersetmessage:
+                tmsg.extend(['\n',setting_info.aftersetmessage])
+            return True, tmsg
+        except ValueError:
+            msg = [f"Cannot convert {val} to {setting_info.stype}"]
+            return True, msg
