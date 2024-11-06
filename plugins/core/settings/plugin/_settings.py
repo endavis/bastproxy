@@ -454,8 +454,10 @@ class SettingsPlugin(BasePlugin):
 
         plugin_id = args['plugin'] or self.settings_map[setting_name]
 
-        if setting_info := self.api('plugins.core.settings:get.setting.info')(
-            plugin_id, setting_name
+        if not (
+            setting_info := self.api('plugins.core.settings:get.setting.info')(
+                plugin_id, setting_name
+            )
         ):
             if setting_info.hidden:
                 return True, [f"plugin setting {setting_name} does not exist"]
