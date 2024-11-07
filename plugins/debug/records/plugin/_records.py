@@ -101,7 +101,7 @@ class RecordPlugin(BasePlugin):
                     default=True)
     @AddArgument('-d',
                     '--dump',
-                    help='include_updates in the detail',
+                    help='dump the record to a file',
                     action='store_true',
                     default=False)
     def _command_detail(self):
