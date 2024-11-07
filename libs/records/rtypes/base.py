@@ -173,6 +173,24 @@ class BaseRecord(AttributeMonitor):
 
         return default_attributes
 
+    def format_children(self, full_children_records=False, update_filter=None):
+        msg = []
+        if full_children_records:
+            children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
+            msg.extend(["Children Records :",
+                        '---------------------------------------'])
+            for record in children_records:
+                msg.extend(f"     {line}" for line in record.get_formatted_details(full_children_records=False,
+                                                        include_updates=False,
+                                                        update_filter=update_filter,
+                                                        include_children_records=False))
+                msg.append('---------------------------------------')
+        else:
+            msg.extend(["Children Records :",
+                *RMANAGER.format_all_children(self, record_filter=update_filter),
+            ])
+        return msg
+
     def get_formatted_details(self, full_children_records=False,
                               include_updates=True, update_filter=None,
                               include_children_records=True) -> list[str]:
@@ -206,20 +224,7 @@ class BaseRecord(AttributeMonitor):
             ]
         )
         if include_children_records:
-            if full_children_records:
-                children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
-                msg.extend(["Children Records :",
-                            '---------------------------------------'])
-                for record in children_records:
-                    msg.extend(f"     {line}" for line in record.get_formatted_details(full_children_records=False,
-                                                            include_updates=False,
-                                                            update_filter=update_filter,
-                                                            include_children_records=False))
-                    msg.append('---------------------------------------')
-            else:
-                msg.extend(["Children Records :",
-                    *RMANAGER.format_all_children(self, record_filter=update_filter),
-                ])
+            msg.extend(self.format_children(full_children_records, update_filter))
         if include_updates:
             msg.extend(["Updates :",
                         '-------------------------',
