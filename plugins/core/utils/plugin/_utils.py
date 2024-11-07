@@ -88,6 +88,8 @@ class UtilsPlugin(BasePlugin):
         """
         dedent a list of strings
         """
+        if len(list_of_strings) == 0:
+            return list_of_strings
         new_data = [list_of_strings[0].lstrip()]
         diff = len(list_of_strings[0]) - len(new_data[0])
         new_data.extend(line[diff:] for line in list_of_strings[1:])
