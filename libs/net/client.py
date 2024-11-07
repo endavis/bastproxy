@@ -187,9 +187,11 @@ class ClientConnection:
                   level='debug',
                   sources=[__name__])()
 
+        count = 0
         while self.connected:
             try:
                 inp: str = await self.reader.readline()
+                count += 1
             except BrokenPipeError:
                 self.connected = False
                 continue
@@ -216,6 +218,10 @@ class ClientConnection:
                 ProcessDataToMud(NetworkData(NetworkDataLine(inp.strip(), originated='client'),
                                                   owner_id=f"client:{self.uuid}"),
                                         client_id=self.uuid)()
+
+            if count > self.max_lines_to_process:
+                await asyncio.sleep(0)
+                count = 0
 
         LogRecord(f"client_read - Ending coroutine for {self.uuid}",
                   level='debug',

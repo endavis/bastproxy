@@ -53,7 +53,7 @@ class MudConnection:
         self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
         self.reader = None
         self.writer = None
-        self.lines_to_read = 15
+        self.max_lines_to_process = 15
         self.term_type = 'bastproxy'
         #print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
@@ -145,7 +145,7 @@ class MudConnection:
                 LogRecord(f"client_read - readline - inp type = {type(inp)}", level='debug', sources=[__name__])()
                 data.append(NetworkDataLine(inp.rstrip(), originated='mud'))
                 logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
-                if len(self.reader._buffer) <= 0 or b'\n' not in self.reader._buffer or len(data) == self.lines_to_read:
+                if len(self.reader._buffer) <= 0 or b'\n' not in self.reader._buffer or len(data) == self.max_lines_to_process:
                     break
 
             if len(self.reader._buffer) > 0 and b'\n' not in self.reader._buffer:
@@ -183,8 +183,10 @@ class MudConnection:
             level='debug',
             sources=[__name__],
         )()
+        count = 0
         while self.connected and self.writer and not self.writer.connection_closed:
             msg_obj: NetworkDataLine = await self.send_queue.get()
+            count += 1
             if msg_obj.is_io:
                 if msg_obj.line:
                     LogRecord(f"mud_write - Writing message to mud: {msg_obj.line}",
@@ -212,6 +214,10 @@ class MudConnection:
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
                 logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.line}")
+
+            if count >= self.max_lines_to_process:
+                await asyncio.sleep(0)
+                count = 0
 
         LogRecord("mud_write - Ending coroutine",
                   level='debug',
