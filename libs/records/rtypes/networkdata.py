@@ -234,7 +234,7 @@ class NetworkDataLine(BaseRecord):
         return attributes
 
     def one_line_summary(self):
-        return f'{self.__class__.__name__:<20} {self.uuid} {self.originated} {repr(self.original_line)}'
+        return f'{self.__class__.__name__:<20} {self.uuid} {self.originated} {repr(self.line)}'
 
     def __str__(self):
         return self.line
