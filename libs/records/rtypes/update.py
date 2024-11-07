@@ -102,14 +102,18 @@ class UpdateRecord(object):
         if 'data_lines_to_show' in args:
             data_lines_to_show = int(args['data_lines_to_show'])
 
-        actor = self.api('plugins.core.utils:dedent.list.of.strings')(self.actor)
+        actor_msg = []
+        if self.actor:
+            actor = self.api('plugins.core.utils:dedent.list.of.strings')(self.actor)
+            actor_msg.extend((f"{'Actor':<15} : {actor[0]}", f"{'':<15} : {actor[1]}"))
+        else:
+            actor_msg.append(f"{'Actor':<15} : Unknown")
 
         tmsg =  [
             f"{'UUID':<15} : {self.uuid}",
             f"{'Record':<15} : {self.parent.__class__.__name__}:{self.parent.uuid}",
             f"{'Flag':<15} : {self.flag}",
-            f"{'Actor':<15} : {actor[0]}",
-            f"{'':<15} : {actor[1]}",
+            *actor_msg,
             f"{'Action':<15} : {self.action}",
             f"{'Time Taken':<15} : {self.time_taken}"]
         if self.extra:
