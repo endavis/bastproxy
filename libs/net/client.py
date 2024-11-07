@@ -135,6 +135,48 @@ class ClientConnection:
 
         await self.writer.drain()
 
+    def process_data_from_not_logged_in_client(self, inp):
+        # sourcery skip: extract-duplicate-method
+        dpw = self.api('plugins.core.proxy:ssc.proxypw')()
+        vpw = self.api('plugins.core.proxy:ssc.proxypwview')()
+        if inp.strip() == dpw:
+            networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                                        owner_id=f"client:{self.uuid}")
+            networkdata.append(NetworkDataLine('You are now logged in.', prelogin=True))
+            SendDataDirectlyToClient(networkdata,
+                            clients=[self.uuid])()
+            self.api('plugins.core.clients:client.logged.in')(self.uuid)
+        elif inp.strip() == vpw:
+            networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                                        owner_id=f"client:{self.uuid}")
+            networkdata.append(NetworkDataLine('You are now logged in as view only user.', prelogin=True))
+            SendDataDirectlyToClient(networkdata,
+                            clients=[self.uuid])()
+            self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
+
+        elif self.login_attempts < 3:
+            self.login_attempts = self.login_attempts + 1
+            networkdata = NetworkData([NetworkDataLine('Invalid password. Please try again.', prelogin=True)],
+                                        owner_id=f"client:{self.uuid}")
+            SendDataDirectlyToClient(networkdata,
+                            clients=[self.uuid])()
+
+        else:
+            networkdata = NetworkData([NetworkDataLine('Too many login attempts. Goodbye.', prelogin=True)],
+                                        owner_id=f"client:{self.uuid}")
+            SendDataDirectlyToClient(networkdata,
+                            clients=[self.uuid])()
+            LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.",
+                        level='warning',
+                        sources=[__name__])()
+            self.api('plugins.core.clients:client.banned.add')(self.uuid)
+
+    def process_data_from_view_only_client(self, inp):
+            networkdata = NetworkData([NetworkDataLine('As a view only user, you cannot enter commands')],
+                                        owner_id=f"client:{self.uuid}")
+            SendDataDirectlyToClient(networkdata,
+                            clients=[self.uuid])()
+
     async def client_read(self) -> None:
         """
             Utilized by the Telnet client_handler.
@@ -164,46 +206,11 @@ class ClientConnection:
                 return
 
             if not self.state['logged in']:
-                dpw = self.api('plugins.core.proxy:ssc.proxypw')()
-                vpw = self.api('plugins.core.proxy:ssc.proxypwview')()
-                if inp.strip() == dpw:
-                    networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
-                                              owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine('You are now logged in.', prelogin=True))
-                    SendDataDirectlyToClient(networkdata,
-                                   clients=[self.uuid])()
-                    self.api('plugins.core.clients:client.logged.in')(self.uuid)
-                elif inp.strip() == vpw:
-                    networkdata = NetworkData([NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
-                                              owner_id=f"client:{self.uuid}")
-                    networkdata.append(NetworkDataLine('You are now logged in as view only user.', prelogin=True))
-                    SendDataDirectlyToClient(networkdata,
-                                   clients=[self.uuid])()
-                    self.api('plugins.core.clients:client.logged.in.view.only')(self.uuid)
-
-                elif self.login_attempts < 3:
-                    self.login_attempts = self.login_attempts + 1
-                    networkdata = NetworkData([NetworkDataLine('Invalid password. Please try again.', prelogin=True)],
-                                              owner_id=f"client:{self.uuid}")
-                    SendDataDirectlyToClient(networkdata,
-                                   clients=[self.uuid])()
-
-                else:
-                    networkdata = NetworkData([NetworkDataLine('Too many login attempts. Goodbye.', prelogin=True)],
-                                              owner_id=f"client:{self.uuid}")
-                    SendDataDirectlyToClient(networkdata,
-                                   clients=[self.uuid])()
-                    LogRecord(f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login attempts. Disconnecting.",
-                              level='warning',
-                              sources=[__name__])()
-                    self.api('plugins.core.clients:client.banned.add')(self.uuid)
+                self.process_data_from_not_logged_in_client(inp)
                 continue
 
             elif self.view_only:
-                networkdata = NetworkData([NetworkDataLine('As a view only user, you cannot enter commands')],
-                                          owner_id=f"client:{self.uuid}")
-                SendDataDirectlyToClient(networkdata,
-                                clients=[self.uuid])()
+                self.process_data_from_view_only_client(inp)
             else:
                 # this is where we start processing data
                 ProcessDataToMud(NetworkData(NetworkDataLine(inp.strip(), originated='client'),
