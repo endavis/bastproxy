@@ -52,6 +52,7 @@ class NetworkDataLine(BaseRecord):
         self.had_line_endings: bool = had_line_endings
         self.was_sent: bool = False
         self.color = color
+        self.split_from = None
 
         # preamble defaults to True because a large percentage
         # of the data that is internal will need it
@@ -152,6 +153,24 @@ class NetworkDataLine(BaseRecord):
         """
         if self.is_io and self.had_line_endings:
             self.line = f"{self.line}\n\r"
+
+    def copy_attributes(self, new_line):
+        """
+        copy the attributes from the current line to a new line
+        """
+        new_line.line_type = self.line_type
+        new_line.originated = self.originated
+        new_line._am_unlock_attribute('original_line')
+        new_line.original_line = self.original_line
+        new_line._am_lock_attribute('original_line')
+        new_line.preamble = self.preamble
+        new_line.had_line_endings = self.had_line_endings
+        new_line.prelogin = self.prelogin
+        new_line.color = self.color
+        # for item in self.parents:
+        #     new_line.add_parent(item, reset=False)
+        new_line.add_parent(self)
+        new_line.split_from = self
 
     def color_line(self):
         """
