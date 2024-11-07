@@ -71,7 +71,9 @@ class NetworkDataLine(BaseRecord):
         """
         if reset:
             self.parents = []
-        if parent.__class__.__name__ == 'NetworkData':
+        if parent in self.parents:
+            return
+        if parent.__class__.__name__ in ['NetworkData', 'NetworkDataLine']:
             self.parents.append(parent)
 
     @property
