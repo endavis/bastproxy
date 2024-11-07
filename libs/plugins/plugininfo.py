@@ -193,23 +193,23 @@ class PluginInfo():
 
         for tline in contents.splitlines():
 
-            if not self.name and (name_match := NAMERE.match(tline)):
+            if name_match := NAMERE.match(tline):
                 self.is_plugin = True
                 gdict = name_match.groupdict()
                 self.name = gdict['value']
                 continue
 
-            if not self.purpose and (purpose_match := PURPOSERE.match(tline)):
+            if purpose_match := PURPOSERE.match(tline):
                 gdict = purpose_match.groupdict()
                 self.purpose = gdict['value']
                 continue
 
-            if not self.author and (author_match := AUTHORRE.match(tline)):
+            if author_match := AUTHORRE.match(tline):
                 gdict = author_match.groupdict()
                 self.author = gdict['value']
                 continue
 
-            if self.version == -1 and (version_match := VERSIONRE.match(tline)):
+            if version_match := VERSIONRE.match(tline):
                 gdict = version_match.groupdict()
                 self.version = int(gdict['value'])
                 continue

@@ -270,6 +270,7 @@ class PluginLoader:
         # import the plugin
         LogRecord(f"{plugin_id:<30} : attempting import", level='info', sources=[__name__])()
         plugin_info = self.plugins_info[plugin_id]
+        plugin_info.update_from_init()
         return_info = \
               imputils.importmodule(plugin_info.plugin_class_import_location)
         if (not return_info['success']
