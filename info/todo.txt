@@ -54,7 +54,7 @@
         rename to mudcmds????
     # TODO: create other records for tracking things
         can we combine workflows and data to make things easier to track?
-        create a record tree
+        # COMPLETE: create a record tree
             ToMudData
                     |-> EventRecord('ev_to_mud_data_modify')
                         |-> CommandRecord(command)
@@ -65,21 +65,53 @@
                             |-> TriggerRecord()
                                 |-> SubstitionRecord
                     |-> EventRecord('ev_to_client_data_read')
-        refactor to libs.tracking
-            with data and workflows?
-            libs.tracking.data
+        refactor to libs.tracking and libs.records
+            with data and workflows (processes)?
+            refactor BaseRecord to 3 classes BaseRecord, BaseData, BaseProcess
+            libs.tracking.data.BaseData
                 uses trackeduserlist (exists) or trackeduserdict (doesn't exist yet) or a singleton like NeworkDataLine
                 NetworkDataLine, NetworkData, EventArgsRecord
-            libs.tracking.workflow.event
+            libs.tracking.process.BaseProcess
                 could track raising events, running commands, triggers, etc
                 has an __exec__ method
-                RaiseEvent, ToClientData
-        ???: records are for tracking data changes, should tracking flows
-            be added?
-        the event itself, commands, triggers, timers
+                ToClientData, ToMudData currently are
+                add trigger, command, event process
+                the event itself, commands, triggers, timers, callbacks
+                the mud itself - a startup global Process that is the default parent?
         could add errors to the record
             for a command, the exception
             for an event, the function that errored with the exception
+        COMPLETE: ProcessDataFromMud, ProcessDataFromClient
+            ProcessDataFromClient
+                will be ToClientData without SendDataToclient
+                will only be called from client_read
+                SendDataToClient
+                    if self.send_to_clients and line.send:
+                        line.format(preamble=self.preamble, color=self.color_for_all_lines)
+
+                        clients = self.clients or self.api(
+                            'plugins.core.clients:get.all.clients'
+                        )(uuid_only=True)
+                        for client_uuid in clients:
+                            if self.can_send_to_client(client_uuid, line.internal):
+                                self.api('plugins.core.clients:send.to.client')(client_uuid, line)
+                            else:
+                                LogRecord(f"## NOTE: Client {client_uuid} cannot receive message {str(self.uuid)}",
+                                        level='debug', sources=[__name__])()
+
+                        if line.is_io:
+                            self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})
+            ProcessDataFromMud
+                will be ToMudData without SendDataToMud
+                will only be called from mud_read
+                SendDataToMud
+                    if line.send:
+                        line.format()
+                        if mud_connection := self.api('plugins.core.proxy:get.mud.connection')():
+                            mud_connection.send_to(line)
+
+                        if line.is_io:
+                            self.api('plugins.core.events:raise.event')(self.read_data_event_name, event_args={'line': line.line})
     # TODO: create a help plugin
                 for how to use as well as to develop for
     # TODO: can I use the humanize library anywhere?
@@ -104,12 +136,9 @@
     # TODO: rename plugin hooks initialize???
     # TODO: reconfigure _baseplugin to have a libs dir like other plugins
         put _pluginhooks, _patch in libs
-    # TODO: move all records under their owning plugin, only keep base types in libs.records
-            move baserecord to just under records, get everything out of rtypes
     # TODO: create an internal webserver to get large command output
             such as record details
     # TODO: in ClientConnection, use the telnet_server.duration and .idle for connected time and idle times
-    # TODO: command to see all tasks in the asyncio event queue
     # TODO: command to see details about clients and the mud
         like negotiated telnet options
         idle time
@@ -126,8 +155,6 @@
         PLUGIN_AUTHOR = 'Bast'
         PLUGIN_VERSION = 1
     # BUG: evennia intro command doesn't seem to take number, works with regular telnet
-    # BUG: mud connections are not being cleaned up (or new ones are being used)
-    # BUG: plugins that are reloaded are not automatically loaded on next start
 
 # REVISIT:
     # TODO: libs.timing
@@ -408,6 +435,32 @@
                 - Look at command output which goes through ToClientRecord
                 - Look at ToMudRecord
                 - Maybe do this at the net level?
+    # COMPLETE: BUG: plugins that are reloaded are not automatically loaded on next start
+    # COMPLETE: BUG: mud connections are not being cleaned up (or new ones are being used)
+    # COMPLETE: TODO: command to see all tasks in the asyncio event queue
+            see plugins.debug.async.tasks
+    # COMPLETE: TODO: records.get_all_children use object instead of uuid_string to build
+        also use the actual record object instead of the uuid_string in the returned dict
+        get_all_children_dict
+        get_children
+    # COMPLETE: TODO: move all records under their owning plugin, only keep base types in libs.records
+            move baserecord to just under records, get everything out of rtypes
+    # COMPLETE: TODO: in add update, find relevant code entry
+        not relevant:
+            addupdate
+            AttributeMonitor stuff
+            TrackedUserList stuff
+    # COMPLETE: BUG: get_all_records not return all records
+        fixed when parents were refactored
+    # COMPLETE: refactor sending/receiving
+        client
+            COMPLETE: modify client.write to only send x # of lines before doing an asyncio.sleep(0)
+            COMPLETE: modify client.read to read x # of lines like mud.read
+                Still process 1 at a time, just do a sleep when we've processed max_lines_to_process
+        mud
+            COMLETE: modify mud.write to only send x # of lines before doing an asyncio.sleep(0)
+            COMPLETE: modify mud.read to read x # of lines
+
 
 # REJECTED/OLD
     # OLD: plugin reloading
