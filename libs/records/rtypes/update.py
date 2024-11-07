@@ -43,8 +43,8 @@ class UpdateRecord(object):
         if extra:
             self.extra |= extra
         self.data = data
-        # Extract the last 10 stack frames
-        self.stack = self.fix_stack(traceback.format_stack(limit=10))
+        # Extract the last 15 stack frames
+        self.stack = self.fix_stack(traceback.format_stack(limit=15))
         self.actor = self.find_relevant_actor(self.stack)
         self.event_stack = []
         with contextlib.suppress(Exception):
