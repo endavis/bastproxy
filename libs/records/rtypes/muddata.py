@@ -71,8 +71,9 @@ class ProcessDataToMud(BaseRecord):
                                                                   'client_id': 'The client id it came from'})
 
     def seperate_commands(self):
-        new_message = NetworkData()
-        for line in self.message:
+        index = 0
+        while index < len(self.message):
+            line = self.message[index]
             if line.is_io and isinstance(line.line, str):
                 split_data = []
                 if self.api.command_split_regex:
@@ -81,17 +82,18 @@ class ProcessDataToMud(BaseRecord):
                     self.addupdate('Info', "split (Split_Char)",
                                     extra={'line':line, 'newlines':split_data,
                                             'msg': 'split the data along the command seperator'})
-                    line.line = split_data.pop(0)
-                    new_message.append(line)
-                    new_message.extend(
-                        NetworkDataLine(newline, line_type=line.line_type, originated=line.originated)
-                        for newline in split_data # type: ignore
-                    )
+                    replacement_line = NetworkDataLine(split_data.pop(0), line_type=line.line_type, originated=line.originated)
+                    line.copy_attributes(replacement_line)
+                    self.message[index] = replacement_line
+                    for newline in split_data:
+                        index += 1
+                        newdataline = NetworkDataLine(newline, line_type=line.line_type, originated=line.originated)
+                        line.copy_attributes(newdataline)
+                        self.message.insert(index, newdataline)
                 else:
-                    new_message.append(line)
+                    index += 1
             else:
-                new_message.append(line)
-        self.message = new_message
+                index += 1
 
     def _exec_(self):
         """
@@ -99,6 +101,8 @@ class ProcessDataToMud(BaseRecord):
         """
         # If the line came from a client and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
+        self.seperate_commands()
+
         if data_for_event := [line for line in self.message if line.fromclient and line.is_io]:
             self.api('plugins.core.events:raise.event')(self.modify_data_event_name,
                                                         event_args = {'showinhistory': self.show_in_history, 'client_id': self.client_id},
