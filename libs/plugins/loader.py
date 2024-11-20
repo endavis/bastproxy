@@ -47,7 +47,7 @@ class PluginLoader:
 
         self.api('libs.api:add.apis.for.object')(__name__, self)
 
-    @AddAPI('get.unloaded.plugins.in.memory', description='get all plugins')
+    @AddAPI('get.unloaded.plugins.in.memory', description='get all stale plugin modules in memory')
     def _api_get_unloaded_plugins_in_memory(self):
         """
         get a list of unloaded plugins that have not been garbage collected
@@ -60,7 +60,7 @@ class PluginLoader:
         """
         old_object = weakref_obj()
         if not old_object and not self.api.shutdown:
-            LogRecord(f"{module_import_path} was garbage collected", level='info', sources=[__name__])()
+            LogRecord(f"garbage collect stale module {module_import_path}", level='info', sources=[__name__])()
             if module_import_path in self.weak_references_to_modules:
                 del self.weak_references_to_modules[module_import_path]
 
