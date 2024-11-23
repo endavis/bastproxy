@@ -31,7 +31,7 @@ class TrackBase:
         self._tracking_child_tracked_items = {}
         self._tracking_delimiter = '.'
 
-        ChangeLogEntry(self.__class__.__name__, self._tracking_uuid, name=self._tracking_name,
+        ChangeLogEntry(self._tracking_uuid, change_type=is_trackable(self), name=self._tracking_name,
                        action='init', locked=self._tracking_locked,
                        related_uuid=self._tracking_auto_converted_in)
         self._tracking_convert_all_values()
@@ -87,7 +87,9 @@ class TrackBase:
         """
         if 'locked' not in kwargs:
             kwargs['locked'] = self._tracking_locked
-        change_log_entry = ChangeLogEntry(is_trackable(self), self._tracking_uuid,
+        if 'type' not in kwargs:
+            kwargs['type'] = is_trackable(self)
+        change_log_entry = ChangeLogEntry(self._tracking_uuid,
                                             **kwargs)
         self._tracking_changes.append(change_log_entry)
         self._tracking_notify_observers(change_log_entry)

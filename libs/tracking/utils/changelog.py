@@ -57,7 +57,7 @@ def fix_header(header_name):
     return header_name.replace('_', ' ').title()
 
 class ChangeLogEntry:
-    def __init__(self, change_type, tracked_item_uuid, **kwargs):
+    def __init__(self, item_uuid, **kwargs):
         """
         change_type: one of 'attribute', 'list', 'dict'
         name: the name of the attribute, list, or dict
@@ -65,8 +65,8 @@ class ChangeLogEntry:
         """
 #        print(f"ChangeLogEntry: {change_type=} {tracked_item_uuid=} {kwargs=}")
         self.uuid = uuid4().hex
-        self.type = change_type
-        self.tracked_item_uuid = tracked_item_uuid
+        self.tracked_item_uuid = item_uuid
+        self.type = kwargs.pop('type', 'unknown')
         self.action = kwargs.pop('action', 'unknown')
 #       print(f"ChangeLogEntry: {self.action=}")
         self.method = kwargs.pop('method', '')
@@ -101,12 +101,13 @@ class ChangeLogEntry:
     def __lt__(self, value: object) -> bool:
         return self.created_time < value.created_time if hasattr(value, 'created_time') else False # type: ignore
 
-    def copy(self, new_type, new_tracked_item_uuid):
+    def copy(self, new_type, new_item_uuid):
         extra = self.extra.copy()
         extra['action'] = self.action
         extra['method'] = self.method
         extra['location'] = self.location
-        new_log = ChangeLogEntry(new_type, new_tracked_item_uuid, **extra)
+        extra['type'] = new_type
+        new_log = ChangeLogEntry(new_item_uuid, **extra)
         new_log.created_time = self.created_time
         new_log.stack = self.stack
         return new_log
