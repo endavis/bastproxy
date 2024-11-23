@@ -73,7 +73,7 @@ class ChangeLogEntry:
         self.location = kwargs.pop('location', '')
         self.extra = kwargs
         self.header_column_width = 17
-        self.created = datetime.datetime.now(datetime.timezone.utc)
+        self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.stack = self.get_stack()
         for item in self.extra:
             if not isinstance(self.extra[item], str):
@@ -93,13 +93,13 @@ class ChangeLogEntry:
         return new_stack[:-2]
 
     def __repr__(self) -> str:
-        return f"ChangeLogEntry: {self.created} {self.type} {self.tracked_item_uuid} {self.action} {self.method} '{self.location}' {self.extra}"
+        return f"ChangeLogEntry: {self.created_time} {self.type} {self.tracked_item_uuid} {self.action} {self.method} '{self.location}' {self.extra}"
 
     def __eq__(self, value: object) -> bool:
         return self.uuid == value.uuid if isinstance(value, ChangeLogEntry) else False
 
     def __lt__(self, value: object) -> bool:
-        return self.created < value.created if isinstance(value, ChangeLogEntry) else False
+        return self.created_time < value.created_time if hasattr(value, 'created_time') else False # type: ignore
 
     def copy(self, new_type, new_tracked_item_uuid):
         extra = self.extra.copy()
@@ -107,7 +107,7 @@ class ChangeLogEntry:
         extra['method'] = self.method
         extra['location'] = self.location
         new_log = ChangeLogEntry(new_type, new_tracked_item_uuid, **extra)
-        new_log.created = self.created
+        new_log.created_time = self.created_time
         new_log.stack = self.stack
         return new_log
 
