@@ -71,21 +71,24 @@ class CustomColorFormatter(logging.Formatter):
         }
 
     def format(self, record: logging.LogRecord):
-        if 'exc_info' in record.__dict__ and record.exc_info:
-            formatted_exc = traceback.format_exception(record.exc_info[1])
-            formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
-            if isinstance(record.msg, LogRecord):
-                record.msg.extend(formatted_exc_no_newline)
-                record.msg.addupdate('Modify', 'add traceback')
-                record.msg.format()
-            elif isinstance(record.msg, str):
-                record.msg += '\n'.join(formatted_exc_no_newline)
-            record.exc_info = None
-            record.exc_text = None
-        if self.api('libs.api:has')('plugins.core.log:get.level.color') and (color := self.api('plugins.core.log:get.level.color')(record.levelno)):
-            log_fmt = f"\x1b[{ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
+        if record.name != 'root':
+            if 'exc_info' in record.__dict__ and record.exc_info:
+                formatted_exc = traceback.format_exception(record.exc_info[1])
+                formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
+                if isinstance(record.msg, LogRecord):
+                    record.msg.extend(formatted_exc_no_newline)
+                    record.msg.addupdate('Modify', 'add traceback')
+                    record.msg.format()
+                elif isinstance(record.msg, str):
+                    record.msg += '\n'.join(formatted_exc_no_newline)
+                record.exc_info = None
+                record.exc_text = None
+            if self.api('libs.api:has')('plugins.core.log:get.level.color') and (color := self.api('plugins.core.log:get.level.color')(record.levelno)):
+                log_fmt = f"\x1b[{ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
+            else:
+                log_fmt = self.FORMATS.get(record.levelno)
         else:
-            log_fmt = self.FORMATS.get(record.levelno)
+            log_fmt = ''
 
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
