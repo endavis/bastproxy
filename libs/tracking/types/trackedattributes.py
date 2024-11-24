@@ -103,3 +103,22 @@ class TrackedAttributes(TrackBase):
             super().__setattr__(attribute_name, value)
 
         self._tracking_attribute_change(sys._getframe().f_code.co_name, attribute_name, original_value, value)
+
+    def _tracking_known_uuids_tree(self, level=0, attribute_name=None):
+        known_uuids = []
+        indent = level * 4
+        if attribute_name:
+            value = getattr(self, attribute_name)
+            known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
+                               f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+                               f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
+            known_uuids.extend(value._tracking_known_uuids_tree(level + 1))
+        else:
+            for attribute_name in self._tracking_attributes_to_monitor:
+                value = getattr(self, attribute_name)
+                if is_trackable(value):
+                    known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
+                                       f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+                                       f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
+                    known_uuids.extend(value._tracking_known_uuids_tree(level + 1))
+        return known_uuids

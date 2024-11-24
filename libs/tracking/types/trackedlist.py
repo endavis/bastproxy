@@ -273,3 +273,14 @@ class TrackedList(TrackBase, UserList):
         new_list = convert_to_untrackable(self) if untracked else super().copy()
         self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
         return new_list
+
+    def _tracking_known_uuids_tree(self, level=0):
+        uuids = []
+        indent = level * 4
+        for item in self:
+            if is_trackable(item):
+                uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
+                             f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+                             f"Location: {self.index(item)} Item: {is_trackable(item)}:{item._tracking_uuid}")
+                uuids.extend(item._tracking_known_uuids_tree(level + 1))
+        return uuids

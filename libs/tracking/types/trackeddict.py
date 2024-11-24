@@ -113,3 +113,14 @@ class TrackedDict(TrackBase, dict):
         new_dict = convert_to_untrackable(self) if untracked else super().copy()
         self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
         return new_dict
+
+    def _tracking_known_uuids_tree(self, level=0):
+        known_uuids = []
+        indent = level * 4
+        for item in self:
+            if is_trackable(self[item]):
+                known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
+                                   f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+                                   f"Location: {item} Item: {is_trackable(self[item])}:{self[item]._tracking_uuid}")
+                known_uuids.extend(self[item]._tracking_known_uuids_tree(level + 1))
+        return known_uuids
