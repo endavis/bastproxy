@@ -148,7 +148,8 @@ class ChangeLogEntry:
             for item in self.extra:
                 if item in item_order or item == 'tree':
                     continue
-            tmsg.extend(self.format_data(item, data_lines_to_show))
+
+                tmsg.extend(self.format_data(item, data_lines_to_show))
 
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<{self.header_column_width}} :")
