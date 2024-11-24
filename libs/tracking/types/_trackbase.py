@@ -23,7 +23,7 @@ class TrackBase:
         self._tracking_name = tracking_name
         self._tracking_auto_converted_in = tracking_auto_converted_in
         self._tracking_uuid = uuid4().hex
-        self._tracking_observers = []
+        self._tracking_observers = {}
         self._tracking_changes: list[ChangeLogEntry] = []
         self._tracking_locked = False
         self._tracking_auto_convert = tracking_auto_convert
@@ -57,22 +57,28 @@ class TrackBase:
     def _tracking_convert_all_values(self):
         raise NotImplementedError
 
-    def tracking_add_observer(self, observer):
-        if observer not in self._tracking_observers and observer != self._tracking_notify_observers:
-            self._tracking_observers.append(observer)
+    def tracking_add_observer(self, observer, priority=50):
+        if priority not in self._tracking_observers:
+            self._tracking_observers[priority] = []
+        if observer not in self._tracking_observers[priority] and observer != self._tracking_notify_observers:
+            self._tracking_observers[priority].append(observer)
 
     def tracking_remove_observer(self, observer):
         """
         remove an observer
         """
-        self._tracking_observers.remove(observer)
+        for priority in self._tracking_observers:
+            if observer in self._tracking_observers[priority]:
+                self._tracking_observers[priority].remove(observer)
 
     def _tracking_notify_observers(self, change_log_entry):
         """
         notify all observers
         """
-        for observer in self._tracking_observers:
-            observer(change_log_entry)
+        priority_list = sorted(self._tracking_observers.keys())
+        for priority in priority_list:
+            for observer in self._tracking_observers[priority]:
+                observer(change_log_entry)
 
     def tracking_add_change(self, change_log_entry):
         """
