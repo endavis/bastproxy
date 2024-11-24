@@ -31,7 +31,7 @@ class TrackBase:
         self._tracking_child_tracked_items = {}
         self._tracking_delimiter = '.'
 
-        ChangeLogEntry(self._tracking_uuid, change_type=is_trackable(self), name=self._tracking_name,
+        ChangeLogEntry(self._tracking_uuid, type=is_trackable(self), name=self._tracking_name,
                        action='init', locked=self._tracking_locked,
                        related_uuid=self._tracking_auto_converted_in)
         self._tracking_convert_all_values()

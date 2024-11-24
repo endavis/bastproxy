@@ -71,11 +71,7 @@ class ChangeLogEntry:
 #        print(f"ChangeLogEntry: {change_type=} {tracked_item_uuid=} {kwargs=}")
         self.uuid = uuid4().hex
         self.tracked_item_uuid = item_uuid
-        self.type = kwargs.pop('type', 'unknown')
-        self.action = kwargs.pop('action', 'unknown')
 #       print(f"ChangeLogEntry: {self.action=}")
-        self.method = kwargs.pop('method', '')
-        self.location = kwargs.pop('location', '')
         self.extra = kwargs
         self.header_column_width = 17
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
@@ -106,7 +102,7 @@ class ChangeLogEntry:
         return new_stack[:-2]
 
     def __repr__(self) -> str:
-        return f"ChangeLogEntry: {self.created_time} {self.type} {self.tracked_item_uuid} {self.action} {self.method} '{self.location}' {self.extra}"
+        return f"ChangeLogEntry: {self.created_time} {self.tracked_item_uuid} {self.extra}"
 
     def __eq__(self, value: object) -> bool:
         return self.uuid == value.uuid if isinstance(value, ChangeLogEntry) else False
@@ -116,9 +112,6 @@ class ChangeLogEntry:
 
     def copy(self, new_type, new_item_uuid):
         extra = self.extra.copy()
-        extra['action'] = self.action
-        extra['method'] = self.method
-        extra['location'] = self.location
         extra['type'] = new_type
         new_log = ChangeLogEntry(new_item_uuid, **extra)
         new_log.created_time = self.created_time

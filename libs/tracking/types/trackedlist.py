@@ -52,9 +52,13 @@ class TrackedList(TrackBase, UserList):
         notify all observers
         """
         if change_log_entry.tracked_item_uuid != self._tracking_uuid and change_log_entry.tracked_item_uuid in self._tracking_child_tracked_items:
-            new_change = change_log_entry.copy(change_log_entry.type, self._tracking_uuid)
-            delimiter = self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]['item']._tracking_delimiter
-            new_change.location = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}{delimiter}{new_change.location}'
+            new_change = change_log_entry.copy(change_log_entry.extra['type'], self._tracking_uuid)
+            if 'location' in new_change.extra:
+                delimiter = self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]['item']._tracking_delimiter
+                new_change.extra['location'] = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}{delimiter}{new_change.extra['location']}'
+            else:
+                new_change.extra['location'] = f'.{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
+
             change_log_entry = new_change
 
         if change_log_entry not in self._tracking_changes:

@@ -46,8 +46,12 @@ class TrackedAttributes(TrackBase):
             for item in self._tracking_attributes_to_monitor:
                 value = getattr(self, item)
                 if is_trackable(value) and value._tracking_uuid == change_log_entry.tracked_item_uuid:
-                    new_change = change_log_entry.copy(change_log_entry.type, self._tracking_uuid)
-                    new_change.location = f'.{item}{value._tracking_delimiter}{new_change.location}'
+                    new_change = change_log_entry.copy(change_log_entry.extra['type'], self._tracking_uuid)
+                    if 'location' in new_change.extra:
+                        new_change.extra['location'] = f'.{item}{value._tracking_delimiter}{new_change.extra['location']}'
+                    else:
+                        new_change.extra['location'] = f'.{item}'
+
                     change_log_entry = new_change
                     break
 
