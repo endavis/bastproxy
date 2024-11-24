@@ -95,7 +95,7 @@ class ChangeLogEntry:
         return found_actor
 
     def get_stack(self):
-        stack = traceback.format_stack(limit=15)
+        stack = traceback.format_stack()
         new_stack = []
         # don't need the last 2 lines
         for line in stack:
