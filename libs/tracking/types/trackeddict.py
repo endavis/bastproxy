@@ -20,15 +20,17 @@ from ._trackbase import TrackBase
 # TODO: overload copy, popitem, update, setdefault
 
 class TrackedDict(TrackBase, dict):
-    def __init__(self, *args, tracking_auto_converted_in=None, tracking_auto_convert=False, **kwargs):
+    def __init__(self, *args, tracking_auto_converted_in=None, tracking_auto_convert=False,
+                 tracking_parent=None, tracking_location=None, **kwargs):
         dict.__init__(self, *args, **kwargs)
         TrackBase.__init__(self, tracking_auto_converted_in=tracking_auto_converted_in,
                            tracking_auto_convert=tracking_auto_convert,
+                           tracking_parent=tracking_parent, tracking_location=tracking_location,
                            tracking_delimiter=':')
 
     def _tracking_convert_all_values(self):
         for key, value in self.items():
-            self[key] = self._tracking_convert_value(value)
+            self[key] = self._tracking_convert_value(value, key)
 
     def _tracking_notify_observers(self, change_log_entry):
         """
@@ -40,7 +42,7 @@ class TrackedDict(TrackBase, dict):
                 delimiter = self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]['item']._tracking_delimiter
                 new_change.extra['location'] = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}{delimiter}{new_change.extra['location']}'
             else:
-                new_change.extra['location'] = f'.{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
+                new_change.extra['location'] = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
 
             change_log_entry = new_change
             change_log_entry.add_to_tree(f"{is_trackable(self)}:{self._tracking_uuid}")
@@ -66,10 +68,8 @@ class TrackedDict(TrackBase, dict):
         extra = {'data_pre_change': repr(self)}
         action = 'update' if key in self else 'add'
         if not self._tracking_locked:
-            value = self._tracking_convert_value(value)
+            value = self._tracking_convert_value(value, key)
             super().__setitem__(key, value)
-            if is_trackable(value):
-                self._tracking_add_child_tracked_item(key, value)
 
         extra['data_post_change'] = repr(self)
         self.tracking_create_change(action=action, method=sys._getframe().f_code.co_name, location=key,

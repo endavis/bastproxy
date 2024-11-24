@@ -9,10 +9,13 @@
 Holds a class that monitors attributes
 """
 # Standard Library
+import typing
 
 # 3rd Party
 
 # Project
+if typing.TYPE_CHECKING:
+    from ..types._trackbase import TrackBase
 
 def is_trackable(obj):
     """
@@ -30,7 +33,8 @@ def is_trackable(obj):
         return 'TrackedAttributes'
     return False
 
-def convert_to_trackable(obj, tracking_auto_converted_in=None, tracking_auto_convert=False):
+def convert_to_trackable(obj, tracking_auto_converted_in=None, tracking_auto_convert=False,
+                         tracking_parent: 'TrackBase | None' = None, tracking_location=None):
     """
     convert the object to a trackable object
     """
@@ -39,11 +43,13 @@ def convert_to_trackable(obj, tracking_auto_converted_in=None, tracking_auto_con
     if isinstance(obj, dict):
         return TrackedDict(obj,
                            tracking_auto_converted_in=tracking_auto_converted_in,
-                           tracking_auto_convert=tracking_auto_convert)
+                           tracking_auto_convert=tracking_auto_convert,
+                           tracking_parent=tracking_parent, tracking_location=tracking_location)
     if isinstance(obj, list):
         return TrackedList(obj,
                            tracking_auto_converted_in=tracking_auto_converted_in,
-                           tracking_auto_convert=tracking_auto_convert)
+                           tracking_auto_convert=tracking_auto_convert,
+                           tracking_parent=tracking_parent, tracking_location=tracking_location)
     return obj
 
 def convert_to_untrackable(obj):

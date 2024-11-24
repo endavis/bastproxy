@@ -31,7 +31,8 @@ class TrackedList(TrackBase, UserList):
         5. the lock flag
     """
     def __init__(self, data: list | None = None,
-                 tracking_auto_converted_in=None, tracking_auto_convert=False):
+                 tracking_auto_converted_in=None, tracking_auto_convert=False,
+                 tracking_parent=None, tracking_location=None):
         """
         initialize the class
         """
@@ -41,11 +42,12 @@ class TrackedList(TrackBase, UserList):
         TrackBase.__init__(self,
                            tracking_auto_converted_in=tracking_auto_converted_in,
                            tracking_auto_convert=tracking_auto_convert,
+                           tracking_parent=tracking_parent, tracking_location=tracking_location,
                            tracking_delimiter='|')
 
     def _tracking_convert_all_values(self):
         for index, value in enumerate(self):
-            self[index] = self._tracking_convert_value(value)
+            self[index] = self._tracking_convert_value(value, index)
 
     def _tracking_notify_observers(self, change_log_entry):
         """
@@ -57,7 +59,7 @@ class TrackedList(TrackBase, UserList):
                 delimiter = self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]['item']._tracking_delimiter
                 new_change.extra['location'] = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}{delimiter}{new_change.extra['location']}'
             else:
-                new_change.extra['location'] = f'.{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
+                new_change.extra['location'] = f'{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
 
             change_log_entry = new_change
             change_log_entry.add_to_tree(f"{is_trackable(self)}:{self._tracking_uuid}")
@@ -77,11 +79,8 @@ class TrackedList(TrackBase, UserList):
         # TODO: figure out how to handle slices
         if not self._tracking_locked:
             olditem = self[index]
-            item = self._tracking_convert_value(item)
+            item = self._tracking_convert_value(item, index)
             super().__setitem__(index, item)
-            if is_trackable(item):
-                self._tracking_child_tracked_items[item._tracking_uuid] = {'index':index, 'item':item}
-                item.tracking_add_observer(self._tracking_notify_observers)
             if is_trackable(olditem):
                     # ChangeLogEntry(is_trackable(olditem), olditem._tracking_uuid,
                     #             action='removed', removed_from=self.__class__.__name__,
@@ -123,11 +122,9 @@ class TrackedList(TrackBase, UserList):
         extra = {'data_pre_change': repr(self)}
 
         if not self._tracking_locked:
-            item = self._tracking_convert_value(item)
+            index = len(self)
+            item = self._tracking_convert_value(item, index)
             super().append(item)
-            index = self.index(item)
-            if is_trackable(item):
-                self._tracking_add_child_tracked_item(self.index(item), item)
 
         extra['data_post_change'] = repr(self)
         self.tracking_create_change(action='add', method=sys._getframe().f_code.co_name,
@@ -143,10 +140,8 @@ class TrackedList(TrackBase, UserList):
             new_list = []
             count = len(self)
             for item in items:
-                new_item = self._tracking_convert_value(item)
+                new_item = self._tracking_convert_value(item, count)
                 new_list.append(new_item)
-                if is_trackable(new_item):
-                    self._tracking_add_child_tracked_item(count, item)
                 count += 1
             super().extend(new_list)
         else:
@@ -169,10 +164,8 @@ class TrackedList(TrackBase, UserList):
         extra = {'data_pre_change': repr(self)}
 
         if not self._tracking_locked:
-            item = self._tracking_convert_value(item)
+            item = self._tracking_convert_value(item, index)
             super().insert(index, item)
-            if is_trackable(item):
-                self._tracking_add_child_tracked_item(index, item)
 
         extra['data_post_change'] = repr(self)
         self.tracking_create_change(action='add', method=sys._getframe().f_code.co_name,

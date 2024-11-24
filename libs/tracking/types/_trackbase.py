@@ -21,7 +21,7 @@ from ..utils.trackable import is_trackable, convert_to_trackable
 
 class TrackBase:
     def __init__(self, tracking_name=None, tracking_auto_converted_in=None, tracking_auto_convert=False,
-                 tracking_delimiter='+', **kwargs):
+                 tracking_parent=None, tracking_location=None, tracking_delimiter='+', **kwargs):
         self._tracking_name = tracking_name
         self._tracking_auto_converted_in = tracking_auto_converted_in
         self._tracking_uuid = uuid4().hex
@@ -33,19 +33,19 @@ class TrackBase:
         self._tracking_child_tracked_items = {}
         self._tracking_delimiter = tracking_delimiter
         self._tracking_debug_flag = False
+        if tracking_parent:
+            tracking_parent._tracking_add_child_tracked_item(tracking_location, self)
 
-        ChangeLogEntry(self._tracking_uuid, type=is_trackable(self), name=self._tracking_name,
-                       action='init', locked=self._tracking_locked,
-                       related_uuid=self._tracking_auto_converted_in)
+        self.tracking_create_change(action='init',
+                                    init_data=f"{self}")
         self._tracking_convert_all_values()
 
-    def _tracking_convert_value(self, value):
+    def _tracking_convert_value(self, value, location=None):
         if hasattr(self, '_tracking_auto_convert') and self._tracking_auto_convert:
             value = convert_to_trackable(value,
                                          tracking_auto_converted_in=self._tracking_uuid,
-                                         tracking_auto_convert=self._tracking_auto_convert)
-            if is_trackable(value):
-                value.tracking_add_observer(self._tracking_notify_observers)
+                                         tracking_auto_convert=self._tracking_auto_convert,
+                                         tracking_parent=self, tracking_location=location)
         return value
 
     def _tracking_debug(self, message):

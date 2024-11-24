@@ -21,8 +21,10 @@ from ..types._trackbase import TrackBase
 # TODO: create LOCKEDEXCEPTION when trying to update a locked attribute, list, or dict
 
 class TrackedAttributes(TrackBase):
-    def __init__(self, tracking_auto_convert=True):
+    def __init__(self, tracking_auto_convert=True,
+                 tracking_parent=None, tracking_location=None):
         TrackBase.__init__(self, tracking_auto_convert=tracking_auto_convert,
+                           tracking_parent=tracking_parent, tracking_location=tracking_location,
                            tracking_delimiter='.')
         self._tracking_attributes_to_monitor = []
         self._tracking_locked_attributes = []
@@ -65,7 +67,7 @@ class TrackedAttributes(TrackBase):
         if hasattr(self, attribute_name) and attribute_name not in self._tracking_attributes_to_monitor:
             self._tracking_attributes_to_monitor.append(attribute_name)
             original_value = value = getattr(self, attribute_name)
-            value = self._tracking_convert_value(value)
+            value = self._tracking_convert_value(value, attribute_name)
             super().__setattr__(attribute_name, value)
             self.tracking_create_change(action='start monitoring', location=f".{attribute_name}", value=original_value)
 
