@@ -77,6 +77,7 @@ class ChangeLogEntry:
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.stack = self.get_stack()
         self.actor = self.find_relevant_actor(self.stack)
+        self.tree = [f"{self.extra['type']}:{self.tracked_item_uuid}"]
         for item in self.extra:
             if not isinstance(self.extra[item], str):
                 self.extra[item] = repr(self.extra[item])
@@ -117,6 +118,7 @@ class ChangeLogEntry:
         new_log.created_time = self.created_time
         new_log.stack = self.stack
         new_log.actor = self.actor
+        new_log.tree = self.tree
         return new_log
 
     def format_detailed(self, show_stack: bool = False,
@@ -142,9 +144,16 @@ class ChangeLogEntry:
         for item in item_order:
             tmsg.extend(self.format_data(item, data_lines_to_show))
 
+
+        tmsg.append(f"{'Tree':<{self.header_column_width}} : {self.tree[0]}")
+        indent = 2
+        for item in self.tree[1:]:
+            tmsg.append(f"{'':<{self.header_column_width}} : {' ' * indent}|->{item}")
+            indent += 4
+
         if self.extra:
             for item in self.extra:
-                if item in item_order:
+                if item in item_order or item == 'tree':
                     continue
             tmsg.extend(self.format_data(item, data_lines_to_show))
 
@@ -179,3 +188,7 @@ class ChangeLogEntry:
         if len(testdata_string) > data_lines_to_show:
             tmsg.append(f"{'':<{self.header_column_width}} : ...")
         return tmsg
+
+    def add_to_tree(self, uuid):
+        # if uuid not in self.tree:
+            self.tree.insert(0, uuid)

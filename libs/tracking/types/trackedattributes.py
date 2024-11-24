@@ -53,6 +53,8 @@ class TrackedAttributes(TrackBase):
                         new_change.extra['location'] = f'.{item}'
 
                     change_log_entry = new_change
+                    change_log_entry.add_to_tree(f"{is_trackable(self)}:{self._tracking_uuid}")
+
                     break
 
         if change_log_entry not in self._tracking_changes:

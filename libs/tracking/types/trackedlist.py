@@ -60,6 +60,7 @@ class TrackedList(TrackBase, UserList):
                 new_change.extra['location'] = f'.{self._tracking_child_tracked_items[change_log_entry.tracked_item_uuid]["location"]}'
 
             change_log_entry = new_change
+            change_log_entry.add_to_tree(f"{is_trackable(self)}:{self._tracking_uuid}")
 
         if change_log_entry not in self._tracking_changes:
             self._tracking_changes.append(change_log_entry)
