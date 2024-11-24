@@ -19,7 +19,8 @@ from ..utils.changelog import ChangeLogEntry
 from ..utils.trackable import is_trackable, convert_to_trackable
 
 class TrackBase:
-    def __init__(self, tracking_name=None, tracking_auto_converted_in=None, tracking_auto_convert=False, **kwargs):
+    def __init__(self, tracking_name=None, tracking_auto_converted_in=None, tracking_auto_convert=False,
+                 tracking_delimiter='+', **kwargs):
         self._tracking_name = tracking_name
         self._tracking_auto_converted_in = tracking_auto_converted_in
         self._tracking_uuid = uuid4().hex
@@ -29,7 +30,7 @@ class TrackBase:
         self._tracking_auto_convert = tracking_auto_convert
         self._tracking_created = datetime.datetime.now()
         self._tracking_child_tracked_items = {}
-        self._tracking_delimiter = '.'
+        self._tracking_delimiter = tracking_delimiter
 
         ChangeLogEntry(self._tracking_uuid, type=is_trackable(self), name=self._tracking_name,
                        action='init', locked=self._tracking_locked,

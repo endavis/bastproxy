@@ -40,8 +40,8 @@ class TrackedList(TrackBase, UserList):
         UserList.__init__(self, data)
         TrackBase.__init__(self,
                            tracking_auto_converted_in=tracking_auto_converted_in,
-                           tracking_auto_convert=tracking_auto_convert)
-        self._tracking_delimiter = '|'
+                           tracking_auto_convert=tracking_auto_convert,
+                           tracking_delimiter='|')
 
     def _tracking_convert_all_values(self):
         for index, value in enumerate(self):

@@ -23,8 +23,8 @@ class TrackedDict(TrackBase, dict):
     def __init__(self, *args, tracking_auto_converted_in=None, tracking_auto_convert=False, **kwargs):
         dict.__init__(self, *args, **kwargs)
         TrackBase.__init__(self, tracking_auto_converted_in=tracking_auto_converted_in,
-                           tracking_auto_convert=tracking_auto_convert)
-        self._tracking_delimiter = ':'
+                           tracking_auto_convert=tracking_auto_convert,
+                           tracking_delimiter=':')
 
     def _tracking_convert_all_values(self):
         for key, value in self.items():

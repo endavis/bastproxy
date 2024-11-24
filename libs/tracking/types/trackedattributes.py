@@ -22,11 +22,11 @@ from ..types._trackbase import TrackBase
 
 class TrackedAttributes(TrackBase):
     def __init__(self, tracking_auto_convert=True):
-        TrackBase.__init__(self, tracking_auto_convert=tracking_auto_convert)
+        TrackBase.__init__(self, tracking_auto_convert=tracking_auto_convert,
+                           tracking_delimiter='.')
         self._tracking_attributes_to_monitor = []
         self._tracking_locked_attributes = []
         self._tracking_original_values = {}
-        self._tracking_delimiter = '.'
 
     def _tracking_is_tracking_attribute(self, attribute_name):
         if not hasattr(self, '_tracking_attributes_to_monitor'):
