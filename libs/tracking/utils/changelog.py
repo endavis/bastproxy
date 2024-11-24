@@ -126,13 +126,6 @@ class ChangeLogEntry:
         """
         format the change record
         """
-        # args = self.api('plugins.core.commands:get.current.command.args')()
-        # if 'show_data' in args:
-        #     show_data = args['show_data']
-        # if 'show_stack' in args:
-        #     show_stack = args['show_stack']
-        # if 'data_lines_to_show' in args:
-        #     data_lines_to_show = int(args['data_lines_to_show'])
         item_order = ['created_time', 'type', 'actor', 'location', 'action', 'sub_command', 'method',
                             'passed_index', 'locked', 'value', 'data_pre_change',
                             'data_post_change']
