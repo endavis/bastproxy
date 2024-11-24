@@ -107,21 +107,32 @@ class TrackedAttributes(TrackBase):
         if self._tracking_is_tracking_attribute(attribute_name):
             self._tracking_attribute_change(sys._getframe().f_code.co_name, attribute_name, original_value, value)
 
-    def _tracking_known_uuids_tree(self, level=0, attribute_name=None):
+    def _tracking_known_uuids_tree(self, level=0, attribute_name=None, emptybar=None):
+        if emptybar is None:
+            emptybar = {}
         known_uuids = []
-        indent = level * 4
+        if level == 0:
+            emptybar[level] = True
+            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            level += 1
         if attribute_name:
+            emptybar[level] = True
+            pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(level))
             value = getattr(self, attribute_name)
-            known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
-                               f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+            known_uuids.append(f"{pre_string} |-> " \
                                f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
-            known_uuids.extend(value._tracking_known_uuids_tree(level + 1))
+            known_uuids.extend(value._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         else:
+            emptybar[level] = False
+            left = self._tracking_attributes_to_monitor[:]
+            pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(level))
             for attribute_name in self._tracking_attributes_to_monitor:
+                left.remove(attribute_name)
+                if not left:
+                    emptybar[level] = True
                 value = getattr(self, attribute_name)
                 if is_trackable(value):
-                    known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
-                                       f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
+                    known_uuids.append(f"{pre_string} |-> " \
                                        f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
-                    known_uuids.extend(value._tracking_known_uuids_tree(level + 1))
+                    known_uuids.extend(value._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids

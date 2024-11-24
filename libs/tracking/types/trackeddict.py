@@ -114,13 +114,23 @@ class TrackedDict(TrackBase, dict):
         self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
         return new_dict
 
-    def _tracking_known_uuids_tree(self, level=0):
+    def _tracking_known_uuids_tree(self, level=0, emptybar=None):
+        if emptybar is None:
+            emptybar = {}
         known_uuids = []
-        indent = level * 4
-        for item in self:
-            if is_trackable(self[item]):
-                known_uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
-                                   f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
-                                   f"Location: {item} Item: {is_trackable(self[item])}:{self[item]._tracking_uuid}")
-                known_uuids.extend(self[item]._tracking_known_uuids_tree(level + 1))
+        if level == 0:
+            emptybar[level] = True
+            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            level += 1
+        left = list(self.keys())
+        emptybar[level] = False
+        pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(level))
+        for key in self:
+            left.remove(key)
+            if not left:
+                emptybar[level] = True
+            if is_trackable(self[key]):
+                known_uuids.append(f"{pre_string} |-> " \
+                                   f"Location: ['{key}'] Item: {is_trackable(self[key])}:{self[key]._tracking_uuid}")
+                known_uuids.extend(self[key]._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids

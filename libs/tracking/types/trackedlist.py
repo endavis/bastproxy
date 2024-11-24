@@ -266,13 +266,23 @@ class TrackedList(TrackBase, list):
         self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
         return new_list
 
-    def _tracking_known_uuids_tree(self, level=0):
-        uuids = []
-        indent = level * 4
+    def _tracking_known_uuids_tree(self, level=0, emptybar=None):
+        if emptybar is None:
+            emptybar = {}
+        known_uuids = []
+        if level == 0:
+            emptybar[level] = True
+            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            level += 1
+        left = list(range(len(self)))
+        emptybar[level] = False
+        pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(level))
         for item in self:
+            left.remove(self.index(item))
+            if not left:
+                emptybar[level] = True
             if is_trackable(item):
-                uuids.append(f"{' ' * indent}{'|->' if indent > 0 else ''}" \
-                             f"Container: {is_trackable(self)}:{self._tracking_uuid} " \
-                             f"Location: {self.index(item)} Item: {is_trackable(item)}:{item._tracking_uuid}")
-                uuids.extend(item._tracking_known_uuids_tree(level + 1))
-        return uuids
+                known_uuids.append(f"{pre_string} |-> " \
+                             f"Location: [{self.index(item)}] Item: {is_trackable(item)}:{item._tracking_uuid}")
+                known_uuids.extend(item._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
+        return known_uuids
