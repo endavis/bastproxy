@@ -14,6 +14,11 @@ from uuid import uuid4
 import traceback
 import pprint
 
+ignore_in_stack = []
+
+def add_to_ignore_in_stack(list):
+    ignore_in_stack.extend(list)
+
 # 3rd Party
 
 # Project
@@ -75,6 +80,7 @@ class ChangeLogEntry:
         self.header_column_width = 17
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.stack = self.get_stack()
+        self.actor = self.find_relevant_actor(self.stack)
         for item in self.extra:
             if not isinstance(self.extra[item], str):
                 self.extra[item] = repr(self.extra[item])
@@ -83,6 +89,13 @@ class ChangeLogEntry:
         #     for item in self.stack:
         #         print(f"### {item=}")
         #     print('E ACTION =============== unknown')
+
+    def find_relevant_actor(self, stack):
+        found_actor = ''
+        for line in [line for line in stack if 'File' in line]:
+            if all((line.find(actor) == -1) for actor in ignore_in_stack) and 'addupdate' not in stack[stack.index(line)+1]:
+                    found_actor = [line, stack[stack.index(line)+1]]
+        return found_actor
 
     def get_stack(self):
         stack = traceback.format_stack(limit=15)
@@ -110,6 +123,7 @@ class ChangeLogEntry:
         new_log = ChangeLogEntry(new_item_uuid, **extra)
         new_log.created_time = self.created_time
         new_log.stack = self.stack
+        new_log.actor = self.actor
         return new_log
 
     def format_detailed(self, show_stack: bool = False,
@@ -124,7 +138,7 @@ class ChangeLogEntry:
         #     show_stack = args['show_stack']
         # if 'data_lines_to_show' in args:
         #     data_lines_to_show = int(args['data_lines_to_show'])
-        item_order = ['created', 'type', 'location', 'action', 'sub_command', 'method',
+        item_order = ['created_time', 'type', 'actor', 'location', 'action', 'sub_command', 'method',
                             'passed_index', 'locked', 'value', 'data_pre_change',
                             'data_post_change']
 
