@@ -31,6 +31,7 @@ class TrackBase:
         self._tracking_created = datetime.datetime.now()
         self._tracking_child_tracked_items = {}
         self._tracking_delimiter = tracking_delimiter
+        self._tracking_debug_flag = False
 
         ChangeLogEntry(self._tracking_uuid, type=is_trackable(self), name=self._tracking_name,
                        action='init', locked=self._tracking_locked,
@@ -45,6 +46,10 @@ class TrackBase:
             if is_trackable(value):
                 value.tracking_add_observer(self._tracking_notify_observers)
         return value
+
+    def _tracking_debug(self, message):
+        if self._tracking_debug_flag:
+            logging.info(f"{self._tracking_name} - {message}")
 
     def _tracking_add_child_tracked_item(self, location, trackable_item):
         self._tracking_child_tracked_items[trackable_item._tracking_uuid] = {'location':location,
