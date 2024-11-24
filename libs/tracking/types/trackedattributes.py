@@ -102,7 +102,8 @@ class TrackedAttributes(TrackBase):
                 value = self._tracking_convert_value(value)
             super().__setattr__(attribute_name, value)
 
-        self._tracking_attribute_change(sys._getframe().f_code.co_name, attribute_name, original_value, value)
+        if self._tracking_is_tracking_attribute(attribute_name):
+            self._tracking_attribute_change(sys._getframe().f_code.co_name, attribute_name, original_value, value)
 
     def _tracking_known_uuids_tree(self, level=0, attribute_name=None):
         known_uuids = []
