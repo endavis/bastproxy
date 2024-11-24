@@ -69,7 +69,6 @@ class TrackedAttributes(TrackBase):
             super().__setattr__(attribute_name, value)
             self.tracking_create_change(action='start monitoring', location=f".{attribute_name}", value=original_value)
 
-
     def _tracking_attribute_change(self, method, attribute_name, original_value, new_value):
         if original_value == '#!NotSet':
             with contextlib.suppress(Exception):

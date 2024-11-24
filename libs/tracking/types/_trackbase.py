@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # Project: bastproxy
-# Filename: libs/records/rtypes/__init__.py
+# Filename: libs/tracking/types/_trackbase.py
 #
-# File Description: Holds the base record type
+# File Description: Holds
 #
 # By: Bast
 """
-Holds the base record type
+Holds a base trackable class
 """
 # Standard Library
 from uuid import uuid4
@@ -16,7 +16,7 @@ import datetime
 
 # Project
 from ..utils.changelog import ChangeLogEntry
-from ..utils.trackable import is_trackable, convert_to_trackable, convert_to_untrackable
+from ..utils.trackable import is_trackable, convert_to_trackable
 
 class TrackBase:
     def __init__(self, tracking_name=None, tracking_auto_converted_in=None, tracking_auto_convert=False, **kwargs):
