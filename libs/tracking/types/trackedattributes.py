@@ -101,7 +101,7 @@ class TrackedAttributes(TrackBase):
             except AttributeError:
                 original_value = '#!NotSet'
             if self._tracking_is_tracking_attribute(attribute_name):
-                value = self._tracking_convert_value(value)
+                value = self._tracking_convert_value(value, attribute_name)
             super().__setattr__(attribute_name, value)
 
         if self._tracking_is_tracking_attribute(attribute_name):
