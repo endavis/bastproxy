@@ -9,7 +9,6 @@
 Holds the base record type
 """
 # Standard Library
-from collections import UserList
 import sys
 
 # 3rd Party
@@ -18,7 +17,7 @@ import sys
 from ..utils.trackable import is_trackable, convert_to_untrackable
 from ._trackbase import TrackBase
 
-class TrackedList(TrackBase, UserList):
+class TrackedList(TrackBase, list):
     """
     this is a Userlist whose updates are tracked
 
@@ -38,7 +37,7 @@ class TrackedList(TrackBase, UserList):
         """
         if data is None:
             data = []
-        UserList.__init__(self, data)
+        list.__init__(self, data)
         TrackBase.__init__(self,
                            tracking_auto_converted_in=tracking_auto_converted_in,
                            tracking_auto_convert=tracking_auto_convert,
