@@ -176,3 +176,11 @@ class TrackedDict(TrackBase, dict):
                                    f"Location: ['{key}'] Item: {is_trackable(self[key])}:{self[key]._tracking_uuid}")
                 known_uuids.extend(self[key]._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids
+
+    def __ior__(self, other):
+        """
+        don't implement this because it creates
+        a new dict instead of updating the current one
+        and tracking information is lost
+        """
+        raise NotImplementedError('The |= operator is not supported for TrackedDict')
