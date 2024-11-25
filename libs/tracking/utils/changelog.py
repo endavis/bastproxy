@@ -23,41 +23,6 @@ def add_to_ignore_in_stack(list):
 
 # Project
 
-# class ChangeManager:
-#     def __init__(self):
-#         # TODO: add a way to limit the number of changes stored per object
-#         self._cm_changes = {}
-#         #self._cm_tracked_items = {}
-
-#     def add_change(self, change: 'ChangeLogEntry'):
-#         if change.tracked_item_uuid not in self._cm_changes:
-#             self._cm_changes[change.tracked_item_uuid] = []
-#         self._cm_changes[change.tracked_item_uuid].append(change)
-
-#     def get_changes(self, uuid):
-#         return sorted(self._cm_changes[uuid])
-
-#     def get_all_changes(self, uuid):
-#         new_list = []
-#         if uuid in self._cm_changes:
-#             new_list.extend(self._cm_changes[uuid])
-#         for uuid in self._cm_changes:
-#             new_list.extend(
-#                 change
-#                 for change in self._cm_changes[uuid]
-#                 if change.extra.get('related_uuid') == uuid
-#             )
-#         new_list.sort()
-#         return new_list
-
-    # def add_tracked_item(self, item):
-    #     self._cm_tracked_items[item._tracking_uuid] = item
-
-    # def get_tracked_item(self, uuid):
-    #     return self._cm_tracked_items.get(uuid, None)
-
-# CHANGEMANAGER = ChangeManager()
-
 def fix_header(header_name):
     return header_name.replace('_', ' ').title()
 
@@ -68,10 +33,8 @@ class ChangeLogEntry:
         name: the name of the attribute, list, or dict
         kwargs: any other info about the change
         """
-#        print(f"ChangeLogEntry: {change_type=} {tracked_item_uuid=} {kwargs=}")
         self.uuid = uuid4().hex
         self.tracked_item_uuid = item_uuid
-#       print(f"ChangeLogEntry: {self.action=}")
         self.extra = kwargs
         self.header_column_width = 17
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
@@ -81,11 +44,6 @@ class ChangeLogEntry:
         for item in self.extra:
             if not isinstance(self.extra[item], str):
                 self.extra[item] = repr(self.extra[item])
-        # if self.action == 'unknown':
-        #     print('S ACTION =============== unknown')
-        #     for item in self.stack:
-        #         print(f"### {item=}")
-        #     print('E ACTION =============== unknown')
 
     def find_relevant_actor(self, stack):
         found_actor = ''
