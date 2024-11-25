@@ -17,8 +17,6 @@ import sys
 from ..utils.trackable import is_trackable, convert_to_untrackable
 from ._trackbase import TrackBase
 
-# TODO: overload copy, popitem, update, setdefault
-
 class TrackedDict(TrackBase, dict):
     def __init__(self, *args, tracking_auto_converted_in=None, tracking_auto_convert=False,
                  tracking_parent=None, tracking_location=None, **kwargs):
@@ -87,6 +85,50 @@ class TrackedDict(TrackBase, dict):
         extra['data_post_change'] = repr(self)
         self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
                                     location=key, value=value, **extra)
+
+    def popitem(self):
+        extra = {'data_pre_change': repr(self)}
+
+        key, value = None, None
+
+        if not self._tracking_locked:
+            key, value = super().popitem()
+            if is_trackable(value):
+                self._tracking_remove_child_tracked_item(value)
+
+        extra['data_post_change'] = repr(self)
+        self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
+                                    location=key, value=value, **extra)
+
+        return key, value
+
+    def update(self, *args, **kwargs):
+        extra = {'data_pre_change': repr(self)}
+
+        if not self._tracking_locked:
+            new_dict = {}
+            for key, value in dict(*args, **kwargs).items():
+                new_dict[key] = self._tracking_convert_value(value, key)
+            super().update(new_dict)
+
+        extra['data_post_change'] = repr(self)
+        self.tracking_create_change(action='update', method=sys._getframe().f_code.co_name,
+                                    **extra, value=new_dict)
+
+    def setdefault(self, key, default=None):
+        extra = {'data_pre_change': repr(self)}
+        original_default = default
+
+        if not self._tracking_locked:
+            if key not in self:
+                default = self._tracking_convert_value(default, key)
+            default = super().setdefault(key, default)
+
+        extra['data_post_change'] = repr(self)
+        self.tracking_create_change(action='update', method=sys._getframe().f_code.co_name,
+                                    location=key, default=original_default,
+                                    return_value=default, **extra)
+        return default
 
     def clear(self):
         """
