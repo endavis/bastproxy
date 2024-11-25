@@ -111,7 +111,7 @@ class ChangeLogEntry:
 
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<{self.header_column_width}} :")
-            tmsg.extend([f"{'':<{self.header_column_width}} {line}" for line in self.stack if line.strip()])
+            tmsg.extend([f"{'':<{self.header_column_width}} {line}" for line in self.stack[-40:] if line.strip()])
 
         return tmsg
 
