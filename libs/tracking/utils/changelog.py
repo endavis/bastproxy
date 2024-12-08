@@ -163,11 +163,16 @@ class ChangeLogEntry:
         Raises:
             None
         """
-        found_actor = ''
-        for line in [line for line in stack if 'File' in line]:
-            if all((line.find(actor) == -1) for actor in ignore_in_stack) and 'addupdate' not in stack[stack.index(line)+1]:
-                    found_actor = [line, stack[stack.index(line)+1]]
-        return found_actor
+        stack_copy = stack.copy()
+        stack_copy.reverse()
+        return next(
+            (
+                line.strip()
+                for line in (line for line in stack_copy if 'File' in line)
+                if all(actor not in line for actor in ignore_in_stack)
+            ),
+            '',
+        )
 
     def get_stack(self):
         """
