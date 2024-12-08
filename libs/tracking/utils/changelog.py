@@ -190,11 +190,7 @@ class ChangeLogEntry:
             None
         """
         stack = traceback.format_stack()
-        new_stack = []
-        # don't need the last 2 lines
-        for line in stack:
-            new_stack.extend(line.splitlines() if line else [])
-        return new_stack[:-2]
+        return [line for line in stack[:-2] if line.strip()]
 
     def __repr__(self) -> str:
         """
