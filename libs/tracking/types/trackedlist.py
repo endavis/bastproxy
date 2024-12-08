@@ -131,7 +131,7 @@ class TrackedList(TrackBase, list):
     def extend(self, items: list):
         """
         extend the list
-
+        """
         if not self._tracking_locked:
             new_list = []
             count = len(self)
