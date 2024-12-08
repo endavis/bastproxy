@@ -38,7 +38,7 @@ import ast
 # Globals
 ignore_in_stack = []
 
-def add_to_ignore_in_stack(list):
+def add_to_ignore_in_stack(tlist: list):
     """
     Adds specified items to the ignore list for the call stack.
 
@@ -57,7 +57,7 @@ def add_to_ignore_in_stack(list):
     Raises:
         None
     """
-    ignore_in_stack.extend(list)
+    ignore_in_stack.extend(tlist)
 
 # 3rd Party
 
