@@ -50,7 +50,7 @@ class TrackBase:
 
     def _tracking_debug(self, message):
         if self._tracking_debug_flag:
-            logging.info(f"{self._tracking_name} - {message}")
+            logging.info(f"{self._tracking_uuid[:4]}..{self._tracking_uuid[-4:]} - {message}")
 
     def _tracking_add_child_tracked_item(self, location, trackable_item):
         self._tracking_child_tracked_items[trackable_item._tracking_uuid] = {'location':location,
