@@ -143,18 +143,15 @@
         like negotiated telnet options
         idle time
         how many lines, how much data
+    # TODO: create a save record API, save a record if there is any indication of an error, especially with a process
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
 
 # BUGS:
-    # BUG: reloading a plugin does not reload __init__.py so the below are not updated
-        # these 4 are required
-        PLUGIN_NAME = 'Trigger testing'
-        PLUGIN_PURPOSE = 'testing triggers'
-        PLUGIN_AUTHOR = 'Bast'
-        PLUGIN_VERSION = 1
     # BUG: evennia intro command doesn't seem to take number, works with regular telnet
+    # BUG: commands aren't removed on reload?
+        removed commands from plugins.test.newmon and then reloaded and still show same commands
 
 # REVISIT:
     # TODO: libs.timing
@@ -460,7 +457,14 @@
         mud
             COMLETE: modify mud.write to only send x # of lines before doing an asyncio.sleep(0)
             COMPLETE: modify mud.read to read x # of lines
-
+    # COMPLETE: BUG: reloading a plugin does not reload __init__.py so the below are not updated
+        # these 4 are required
+        PLUGIN_NAME = 'Trigger testing'
+        PLUGIN_PURPOSE = 'testing triggers'
+        PLUGIN_AUTHOR = 'Bast'
+        PLUGIN_VERSION = 1
+    # COMPLETE: TODO: use a decorated function to overload tracked methods?
+        will it be slower because of the decorator?
 
 # REJECTED/OLD
     # OLD: plugin reloading
@@ -481,6 +485,9 @@
         put it on the function that actually raises the event
         kinda hard to do for a function/method that raises a dynamically named event since
             the function will be in every plugin
+
+        something that raises f"ev_{self.plugin_id}_savestate", but this was done with commands
+
     # REJECTED: plugin reloading
         I am leaning away from doing this, it's just easier to restart the proxy and reconnect
             do we just have reload and start from scratch but keep connections?
