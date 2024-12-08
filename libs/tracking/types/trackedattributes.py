@@ -15,7 +15,6 @@ import sys
 # 3rd Party
 
 # Project
-from ..utils.trackable import is_trackable
 from ..types._trackbase import TrackBase
 
 # TODO: create LOCKEDEXCEPTION when trying to update a locked attribute, list, or dict
