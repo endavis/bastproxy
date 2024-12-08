@@ -19,7 +19,7 @@ from ..types._trackbase import TrackBase, track_changes, check_lock
 
 # TODO: create LOCKEDEXCEPTION when trying to update a locked attribute, list, or dict
 
-class TrackedAttributes(TrackBase):
+class TrackedAttr(TrackBase):
     def __init__(self, tracking_auto_convert=True,
                  tracking_parent=None, tracking_location=None):
         TrackBase.__init__(self, tracking_auto_convert=tracking_auto_convert,
