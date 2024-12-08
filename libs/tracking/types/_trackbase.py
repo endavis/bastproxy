@@ -101,6 +101,10 @@ class TrackBase:
     def _tracking_add_child_tracked_item(self, location, trackable_item):
         self._tracking_child_tracked_items[trackable_item._tracking_uuid] = {'location':location,
                                                                    'item':trackable_item}
+        if self._tracking_locked:
+            trackable_item.lock()
+        else:
+            trackable_item.unlock()
         trackable_item.tracking_add_observer(self._tracking_notify_observers)
 
     def _tracking_remove_child_tracked_item(self, trackable_item):
