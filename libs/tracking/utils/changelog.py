@@ -59,10 +59,6 @@ def add_to_ignore_in_stack(tlist: list):
     """
     ignore_in_stack.extend(tlist)
 
-# 3rd Party
-
-# Project
-
 def fix_header(header_name):
     """
     Converts a header name from snake_case to Title Case.
