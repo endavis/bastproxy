@@ -14,7 +14,6 @@ import sys
 # 3rd Party
 
 # Project
-from ..utils.trackable import is_trackable, convert_to_untrackable
 from ._trackbase import TrackBase, track_changes, check_lock
 
 class TrackedDict(TrackBase, dict):

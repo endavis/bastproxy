@@ -46,7 +46,7 @@ class TrackedAttributes(TrackBase):
         if change_log_entry.tracked_item_uuid != self._tracking_uuid:
             for item in self._tracking_attributes_to_monitor:
                 value = getattr(self, item)
-                if is_trackable(value) and value._tracking_uuid == change_log_entry.tracked_item_uuid:
+                if self._tracking_is_trackable(value) and value._tracking_uuid == change_log_entry.tracked_item_uuid:
                     new_change = change_log_entry.copy(change_log_entry.extra['type'], self._tracking_uuid)
                     new_change.add_to_tree(self._tracking_format_tree_location(item))
                     if 'location' in new_change.extra:
@@ -179,9 +179,9 @@ class TrackedAttributes(TrackBase):
                 if not left:
                     emptybar[level] = True
                 value = getattr(self, attribute_name)
-                if is_trackable(value):
+                if self._tracking_is_trackable(value):
                     known_uuids.append(f"{pre_string} |-> " \
-                                       f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
+                                       f"Location: {attribute_name} Item: {self._tracking_is_trackable(value)}:{value._tracking_uuid}")
                     known_uuids.extend(value._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids
 
