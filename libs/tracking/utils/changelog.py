@@ -88,7 +88,7 @@ class ChangeLogEntry:
         """
         item_order = ['created_time', 'type', 'actor', 'location', 'action', 'sub_command', 'method',
                             'passed_index', 'locked', 'value', 'data_pre_change',
-                            'data_post_change']
+                            'data_post_change', 'removed_items']
 
         tmsg =  [
             f"{'Change UUID':<{self.header_column_width}} : {self.uuid}",

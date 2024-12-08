@@ -10,6 +10,7 @@ Holds a base trackable class
 """
 # Standard Library
 from uuid import uuid4
+from functools import wraps
 import datetime
 import logging
 
@@ -17,7 +18,51 @@ import logging
 
 # Project
 from ..utils.changelog import ChangeLogEntry
-from ..utils.trackable import is_trackable, convert_to_trackable
+
+exception_on_lock_error = True
+
+def check_lock(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if hasattr(self, '_tracking_locked') and self._tracking_locked:
+            raise RuntimeError(f"{self.__class__.__name__} is locked and cannot be modified.")
+        return func(self, *args, **kwargs)
+    return wrapper
+
+def track_changes(method):
+    """Decorator to ensure the object is not locked before performing a method and to track changes."""
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # reset the tracking context
+        if self._tracking_is_trackable(self) in ['TrackedDict', 'TrackedList']:
+            data_pre_change = repr(self)
+
+        self._tracking_context = {}
+
+        # Call the original method
+        result = method(self, *args, **kwargs)
+
+        # Check if the object has a tracking_context attribute (for tracking changes)
+        if self._tracking_context and 'action' in self._tracking_context:
+
+            if 'removed_items' in self._tracking_context:
+                for olditem in self._tracking_context['removed_items']:
+                    if self._tracking_is_trackable(olditem):
+                        if olditem._tracking_uuid in self._tracking_child_tracked_items:
+                            del self._tracking_child_tracked_items[olditem._tracking_uuid]
+                        olditem.tracking_remove_observer(self._tracking_notify_observers)
+
+            if self._tracking_is_trackable(self) in ['TrackedDict', 'TrackedList']:
+                self._tracking_context['data_pre_change'] = data_pre_change
+                self._tracking_context['data_post_change'] = repr(self)
+            self._tracking_context['method'] = method.__name__
+            self.tracking_create_change(**self._tracking_context)
+
+        self._tracking_context = {}
+
+        return result
+
+    return wrapper
 
 class TrackBase:
     def __init__(self, tracking_name=None, tracking_auto_converted_in=None, tracking_auto_convert=False,
@@ -26,6 +71,7 @@ class TrackBase:
         self._tracking_auto_converted_in = tracking_auto_converted_in
         self._tracking_uuid = uuid4().hex
         self._tracking_observers = {}
+        self._tracking_context = {}
         self._tracking_changes: list[ChangeLogEntry] = []
         self._tracking_locked = False
         self._tracking_auto_convert = tracking_auto_convert

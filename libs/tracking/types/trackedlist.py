@@ -14,7 +14,7 @@ import sys
 # 3rd Party
 
 # Project
-from ._trackbase import TrackBase
+from ._trackbase import TrackBase, track_changes, check_lock
 
 class TrackedList(TrackBase, list):
     """
@@ -67,73 +67,70 @@ class TrackedList(TrackBase, list):
             self._tracking_changes.append(change_log_entry)
         super()._tracking_notify_observers(change_log_entry)
 
+    @check_lock
+    @track_changes
     def __setitem__(self, index : int, item):
         """
         set the item
         """
         if not isinstance(index, int):
             raise TypeError(f"Tracked list index must be an int, not {type(index)}")
-        extra = {'data_pre_change': repr(self)}
 
-        # TODO: figure out how to handle slices
+        try:
+            old_item = self[index]
+        except IndexError:
+            old_item = None
+
+        item = self._tracking_convert_value(item, index)
         if not self._tracking_locked:
-            olditem = self[index]
-            item = self._tracking_convert_value(item, index)
             super().__setitem__(index, item)
-            if is_trackable(olditem):
-                    # ChangeLogEntry(is_trackable(olditem), olditem._tracking_uuid,
-                    #             action='removed', removed_from=self.__class__.__name__,
-                    #             method='setitem',
-                    #             item=index, related_uuid=self._tracking_uuid)
-                    if olditem._tracking_uuid in self._tracking_child_tracked_items:
-                        del self._tracking_child_tracked_items[olditem._tracking_uuid]
-                    olditem.tracking_remove_observer(self._tracking_notify_observers)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='update', method=sys._getframe().f_code.co_name,
-                                          location=index, value=item, **extra)
+        if old_item:
+            self._tracking_context.setdefault('removed_items', []).append(old_item)
+        self._tracking_context['action'] = 'update'
+        self._tracking_context['value'] = item
+        self._tracking_context['location'] = index
 
+    @check_lock
+    @track_changes
     def __delitem__(self, index: int) -> None:
         """
         delete an item
         """
-        extra = {'data_pre_change': repr(self)}
-
         if not isinstance(index, int):
             raise TypeError(f"Tracked list index must be an int, not {type(index)}")
 
-        # TODO: figure out how to handle slices
-        orig_item = self[index]
+        old_item = self[index]
         if not self._tracking_locked:
             super().__delitem__(index)
-            if is_trackable(orig_item):
-                self._tracking_remove_child_tracked_item(orig_item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
-                                          location=index, value=orig_item, **extra)
+        self._tracking_context.setdefault('removed_items', []).append(old_item)
+        self._tracking_context['action'] = 'update'
+        self._tracking_context['value'] = old_item
+        self._tracking_context['location'] = index
 
+    @check_lock
+    @track_changes
     def append(self, item):
         """
         append an item
         """
         index = 'none'
-        extra = {'data_pre_change': repr(self)}
 
         if not self._tracking_locked:
             index = len(self)
             item = self._tracking_convert_value(item, index)
             super().append(item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='add', method=sys._getframe().f_code.co_name,
-                                          location=index, value=item, **extra)
+        self._tracking_context['action'] = 'add'
+        self._tracking_context['value'] = item
+        self._tracking_context['location'] = index
 
+    @check_lock
+    @track_changes
     def extend(self, items: list):
         """
         extend the list
-        """
-        extra = {'data_pre_change': repr(self)}
 
         if not self._tracking_locked:
             new_list = []
@@ -152,117 +149,118 @@ class TrackedList(TrackBase, list):
         locations = [str(i - 1) for i in range(current_leng - 1, current_leng - 1 + extend_length)]
         location = ','.join(locations)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='add', method=sys._getframe().f_code.co_name,
-                                          location=location, value=items, **extra)
+        self._tracking_context['action'] = 'add'
+        self._tracking_context['value'] = items
+        self._tracking_context['location'] = location
 
+    @check_lock
+    @track_changes
     def insert(self, index, item):
         """
         insert an item
         """
-        extra = {'data_pre_change': repr(self)}
-
         if not self._tracking_locked:
             item = self._tracking_convert_value(item, index)
             super().insert(index, item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='add', method=sys._getframe().f_code.co_name,
-                                          location=index, value=item, **extra)
+        self._tracking_context['action'] = 'add'
+        self._tracking_context['value'] = item
+        self._tracking_context['location'] = index
 
+    @check_lock
+    @track_changes
     def remove(self, item):
         """
         remove an item
         """
-        extra = {'data_pre_change': repr(self)}
+        try:
+            index = super().index(item)
+        except ValueError:
+            index = None
 
-        index = super().index(item)
         if not self._tracking_locked:
             super().remove(item)
-            if is_trackable(item):
-                self._tracking_remove_child_tracked_item(item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
-                                          location=index, value=item, **extra)
+        if index:
+            self._tracking_context.setdefault('removed_items', []).append(item)
 
+        self._tracking_context['action'] = 'remove'
+        self._tracking_context['value'] = item
+        self._tracking_context['location'] = index
+
+    @check_lock
+    @track_changes
     def pop(self, index=-1):
         """
         pop an item
         """
-        extra = {'data_pre_change': repr(self)}
+        passed_index = index
         actual_index = index
-        if index == -1:
-            actual_index = len(self) - 1
-            extra['passed_index'] = str(-1)
 
+        if passed_index == -1:
+            actual_index = len(self) - 1
+
+        item = '###^$^@$^$default###^$^@$^'
         if not self._tracking_locked:
             item = super().pop(index)
-            if is_trackable(item):
-                # ChangeLogEntry(is_trackable(item), item._tracking_uuid,
-                #                    action='remove', removed_from = self.__class__.__name__,
-                #                    method='pop', related_uuid=self._tracking_uuid)
-                self._tracking_remove_child_tracked_item(item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
-                                          location=actual_index, value=item,
-                                          **extra)
+        if item != '###^$^@$^$default###^$^@$^':
+            self._tracking_context.setdefault('removed_items', []).append(item)
+        self._tracking_context['action'] = 'remove'
+        self._tracking_context['value'] = None if item == '###^$^@$^$default###^$^@$^' else item
+        self._tracking_context['location'] = actual_index
+        self._tracking_context['passed_index'] = passed_index
 
         return item
 
+    @check_lock
+    @track_changes
     def clear(self):
         """
         clear the list
         """
-        extra = {'data_pre_change': repr(self)}
         if not self._tracking_locked:
             for item in self:
-                if is_trackable(item):
-                    # ChangeLogEntry(item.__class__.__name__, item._tracking_uuid,
-                    #                action='removed', removed_from = self.__class__.__name__,
-                    #                method='clear', related_uuid=self._tracking_uuid)
-                    self._tracking_remove_child_tracked_item(item)
+                self._tracking_context.setdefault('removed_items', []).append(item)
 
             super().clear()
 
-        extra['data_post_change'] = repr([])
-        self.tracking_create_change(action='remove', method=sys._getframe().f_code.co_name,
-                                     **extra)
+        self._tracking_context['action'] = 'remove'
 
+    @check_lock
+    @track_changes
     def sort(self, key=None, reverse=False):
         """
         sort the list
         """
-        extra = {'data_pre_change': repr(self)}
         if not self._tracking_locked:
             super().sort(key=key, reverse=reverse)
             for item in self._tracking_child_tracked_items:
                 self._tracking_child_tracked_items[item]['index'] = self.index(item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='update', method=sys._getframe().f_code.co_name,
-                                    **extra)
+        self._tracking_context['action'] = 'update'
 
+    @check_lock
+    @track_changes
     def reverse(self):
         """
         reverse the list
         """
-        extra = {'data_pre_change': repr(self)}
         if not self._tracking_locked:
             super().reverse()
             for item in self._tracking_child_tracked_items:
                 self._tracking_child_tracked_items[item]['index'] = self.index(item)
 
-        extra['data_post_change'] = repr(self)
-        self.tracking_create_change(action='update', method=sys._getframe().f_code.co_name,
-                                    **extra)
+        self._tracking_context['action'] = 'update'
 
+    @check_lock
+    @track_changes
     def copy(self, untracked=True):
         """
         copy the list
         """
         new_list = self._tracking_convert_to_untrackable(self) if untracked else super().copy()
+        self._tracking_context['action'] = 'copy'
         return new_list
 
     def _tracking_known_uuids_tree(self, level=0, emptybar=None):

@@ -15,7 +15,7 @@ import sys
 # 3rd Party
 
 # Project
-from ..types._trackbase import TrackBase
+from ..types._trackbase import TrackBase, track_changes, check_lock
 
 # TODO: create LOCKEDEXCEPTION when trying to update a locked attribute, list, or dict
 
@@ -87,18 +87,67 @@ class TrackedAttributes(TrackBase):
     def _tracking_get_original_value(self, attribute_name):
         return self._tracking_original_values.get(attribute_name, None)
 
+    @track_changes
     def _tracking_lock_attribute(self, attribute_name):
+        if not hasattr(self, attribute_name):
+            return
+
         self._tracking_locked_attributes.append(attribute_name)
+        value = getattr(self, attribute_name)
+        if self._tracking_is_trackable(value):
+            value.lock()
+
+        self._tracking_context['action'] = 'lock'
+        self._tracking_context['attribute_name'] = attribute_name
+        self._tracking_context['attribute_locked'] = self._tracking_is_locked_attribute(attribute_name)
 
     def _tracking_unlock_attribute(self, attribute_name):
-        self._tracking_locked_attributes.remove(attribute_name)
+        if not hasattr(self, attribute_name):
+            return
+
+        if attribute_name in self._tracking_locked_attributes:
+            value = getattr(self, attribute_name)
+            if self._tracking_is_trackable(value):
+                value.unlock()
+
+            self._tracking_locked_attributes.remove(attribute_name)
+            self.tracking_create_change(action='unlock', attribute_name=attribute_name,
+                                        attribute_locked=self._tracking_is_locked_attribute(attribute_name))
+
+    @track_changes
+    def lock(self, attribute_name=None):
+        if attribute_name:
+            self._tracking_lock_attribute(attribute_name)
+        else:
+            for attribute in self._tracking_attributes_to_monitor:
+                self._tracking_lock_attribute(attribute)
+            self._tracking_locked = True
+
+            # self.tracking_create_change(action='lock')
+            self._tracking_context['action'] = 'lock'
+
+    def unlock(self, attribute_name=None):
+        if attribute_name:
+            self._tracking_unlock_attribute(attribute_name)
+        else:
+            self._tracking_locked = False
+            for attribute in self._tracking_attributes_to_monitor:
+                self._tracking_unlock_attribute(attribute)
+
+            self.tracking_create_change(action='unlock')
 
     def __setattr__(self, attribute_name, value):
-        if not(self._tracking_is_locked_attribute(attribute_name) or (hasattr(self, '_tracking_locked') and self._tracking_locked)):
-            try:
-                original_value = getattr(self, attribute_name)
-            except AttributeError:
-                original_value = '#!NotSet'
+        if self._tracking_is_locked_attribute(attribute_name):
+            raise RuntimeError(f"{self.__class__.__name__}.{attribute_name} is locked and cannot be modified.")
+
+        try:
+            original_value = getattr(self, attribute_name)
+        except AttributeError:
+            original_value = '#!NotSet'
+
+        if not self._tracking_is_tracking_attribute(attribute_name) \
+           or not(self._tracking_is_locked_attribute(attribute_name)) \
+           and (hasattr(self, '_tracking_locked') and not self._tracking_locked):
             if self._tracking_is_tracking_attribute(attribute_name):
                 value = self._tracking_convert_value(value, attribute_name)
             super().__setattr__(attribute_name, value)
