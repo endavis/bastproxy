@@ -104,8 +104,15 @@ class TrackBase:
             kwargs['type'] = self._tracking_is_trackable(self)
         change_log_entry = ChangeLogEntry(self._tracking_uuid,
                                             **kwargs)
+        change_log_entry.add_to_tree(self._tracking_format_tree_location(change_log_entry.extra.get('location', None)))
         self._tracking_changes.append(change_log_entry)
         self._tracking_notify_observers(change_log_entry)
+
+    def _tracking_format_tree_location(self, location=None):
+        # return {'type': self._tracking_is_trackable(self), 'uuid': self._tracking_uuid, 'location': f"{self._tracking_delimiter}{location}"}
+        if location is not None:
+            return {'type': self._tracking_is_trackable(self), 'uuid': self._tracking_uuid, 'location': f"{self._tracking_delimiter}{location}"}
+        return {'type': self._tracking_is_trackable(self), 'uuid': self._tracking_uuid}
 
     def lock(self):
         self._tracking_locked = True

@@ -48,13 +48,13 @@ class TrackedAttributes(TrackBase):
                 value = getattr(self, item)
                 if is_trackable(value) and value._tracking_uuid == change_log_entry.tracked_item_uuid:
                     new_change = change_log_entry.copy(change_log_entry.extra['type'], self._tracking_uuid)
+                    new_change.add_to_tree(self._tracking_format_tree_location(item))
                     if 'location' in new_change.extra:
-                        new_change.extra['location'] = f'.{item}{value._tracking_delimiter}{new_change.extra['location']}'
+                        new_change.extra['location'] = f'{item}{value._tracking_delimiter}{new_change.extra['location']}'
                     else:
-                        new_change.extra['location'] = f'.{item}'
+                        new_change.extra['location'] = f'{item}'
 
                     change_log_entry = new_change
-                    change_log_entry.add_to_tree(f"{is_trackable(self)}:{self._tracking_uuid}")
 
                     break
 
@@ -68,15 +68,15 @@ class TrackedAttributes(TrackBase):
             original_value = value = getattr(self, attribute_name)
             value = self._tracking_convert_value(value, attribute_name)
             super().__setattr__(attribute_name, value)
-            self.tracking_create_change(action='start monitoring', location=f".{attribute_name}", value=original_value)
+            self.tracking_create_change(action='start monitoring', location=f"{attribute_name}", value=original_value)
 
     def _tracking_attribute_change(self, method, attribute_name, original_value, new_value):
         if original_value == '#!NotSet':
             with contextlib.suppress(Exception):
                 self._tracking_original_values[attribute_name] = new_value
         if original_value not in ["#!NotSet", new_value]:
-            extra = {'data_pre_change': original_value, 'data_post_change': new_value}
-            self.tracking_create_change(action='update', method=method, location=f".{attribute_name}",
+            extra = {'data_pre_change': original_value, 'data_post_change': getattr(self, attribute_name)}
+            self.tracking_create_change(action='update', method=method, location=f"{attribute_name}",
                                      value=new_value,
                                      locked=self._tracking_is_locked_attribute(attribute_name),
                                      **extra)
@@ -135,3 +135,11 @@ class TrackedAttributes(TrackBase):
                                        f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
                     known_uuids.extend(value._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids
+
+    def _tracking_format_tree_location(self, location=None):
+        if location is not None:
+            return {'type': self._tracking_is_trackable(self), 'uuid': self._tracking_uuid, 'location': f".{location}"}
+        return {'type': self._tracking_is_trackable(self), 'uuid': self._tracking_uuid}
+        # if location is not None:
+        #     return f"{self._tracking_is_trackable(self)}({self._tracking_uuid}).{location}"
+        # return f"{self._tracking_is_trackable(self)}({self._tracking_uuid})"

@@ -40,8 +40,10 @@ class ChangeLogEntry:
         self.created_time = datetime.datetime.now(datetime.timezone.utc)
         self.stack = self.get_stack()
         self.actor = self.find_relevant_actor(self.stack)
-        self.tree = [f"{self.extra['type']}:{self.tracked_item_uuid}"]
+        self.tree = []
         for item in self.extra:
+            if item == 'location':
+                continue
             if not isinstance(self.extra[item], str):
                 self.extra[item] = repr(self.extra[item])
 
@@ -96,11 +98,13 @@ class ChangeLogEntry:
             tmsg.extend(self.format_data(item, data_lines_to_show))
 
 
-        tmsg.append(f"{'Tree':<{self.header_column_width}} : {self.tree[0]}")
-        indent = 2
-        for item in self.tree[1:]:
-            tmsg.append(f"{'':<{self.header_column_width}} : {' ' * indent}|->{item}")
-            indent += 4
+        if self.tree:
+            item = self.tree[0]
+            tmsg.append(f"{'Tree':<{self.header_column_width}} : {item['type']}({item['uuid']}){' ' + item["location"] if 'location' in item else ''}")
+            indent = 2
+            for item in self.tree[1:]:
+                tmsg.append(f"{'':<{self.header_column_width}} : {' ' * indent}|-> {item['type']}({item['uuid']}){' ' + item["location"] if 'location' in item else ''}")
+                indent += 4
 
         if self.extra:
             for item in self.extra:
