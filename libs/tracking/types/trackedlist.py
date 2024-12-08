@@ -14,7 +14,6 @@ import sys
 # 3rd Party
 
 # Project
-from ..utils.trackable import is_trackable, convert_to_untrackable
 from ._trackbase import TrackBase
 
 class TrackedList(TrackBase, list):
@@ -262,8 +261,7 @@ class TrackedList(TrackBase, list):
         """
         copy the list
         """
-        new_list = convert_to_untrackable(self) if untracked else super().copy()
-        self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
+        new_list = self._tracking_convert_to_untrackable(self) if untracked else super().copy()
         return new_list
 
     def _tracking_known_uuids_tree(self, level=0, emptybar=None):
@@ -272,7 +270,7 @@ class TrackedList(TrackBase, list):
         known_uuids = []
         if level == 0:
             emptybar[level] = True
-            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            known_uuids.append(f"{self._tracking_is_trackable(self)}:{self._tracking_uuid}")
             level += 1
         left = list(range(len(self)))
         emptybar[level] = False
@@ -281,8 +279,8 @@ class TrackedList(TrackBase, list):
             left.remove(self.index(item))
             if not left:
                 emptybar[level] = True
-            if is_trackable(item):
+            if self._tracking_is_trackable(item):
                 known_uuids.append(f"{pre_string} |-> " \
-                             f"Location: [{self.index(item)}] Item: {is_trackable(item)}:{item._tracking_uuid}")
+                             f"Location: [{self.index(item)}] Item: {self._tracking_is_trackable(item)}:{item._tracking_uuid}")
                 known_uuids.extend(item._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids

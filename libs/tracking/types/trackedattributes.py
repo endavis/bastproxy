@@ -113,14 +113,14 @@ class TrackedAttributes(TrackBase):
         known_uuids = []
         if level == 0:
             emptybar[level] = True
-            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            known_uuids.append(f"{self._tracking_is_trackable(self)}:{self._tracking_uuid}")
             level += 1
         if attribute_name:
             emptybar[level] = True
             pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(level))
             value = getattr(self, attribute_name)
             known_uuids.append(f"{pre_string} |-> " \
-                               f"Location: {attribute_name} Item: {is_trackable(value)}:{value._tracking_uuid}")
+                               f"Location: {attribute_name} Item: {self._tracking_is_trackable(value)}:{value._tracking_uuid}")
             known_uuids.extend(value._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         else:
             emptybar[level] = False

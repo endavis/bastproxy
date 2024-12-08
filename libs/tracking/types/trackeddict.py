@@ -152,7 +152,7 @@ class TrackedDict(TrackBase, dict):
         """
         copy the dict
         """
-        new_dict = convert_to_untrackable(self) if untracked else super().copy()
+        new_dict = self._tracking_convert_to_untrackable(self) if untracked else super().copy()
         self.tracking_create_change(action='copy', method=sys._getframe().f_code.co_name)
         return new_dict
 
@@ -162,7 +162,7 @@ class TrackedDict(TrackBase, dict):
         known_uuids = []
         if level == 0:
             emptybar[level] = True
-            known_uuids.append(f"{is_trackable(self)}:{self._tracking_uuid}")
+            known_uuids.append(f"{self._tracking_is_trackable(self)}:{self._tracking_uuid}")
             level += 1
         left = list(self.keys())
         emptybar[level] = False
@@ -171,9 +171,9 @@ class TrackedDict(TrackBase, dict):
             left.remove(key)
             if not left:
                 emptybar[level] = True
-            if is_trackable(self[key]):
+            if self._tracking_is_trackable(self[key]):
                 known_uuids.append(f"{pre_string} |-> " \
-                                   f"Location: ['{key}'] Item: {is_trackable(self[key])}:{self[key]._tracking_uuid}")
+                                   f"Location: ['{key}'] Item: {self._tracking_is_trackable(self[key])}:{self[key]._tracking_uuid}")
                 known_uuids.extend(self[key]._tracking_known_uuids_tree(level + 1, emptybar=emptybar))
         return known_uuids
 

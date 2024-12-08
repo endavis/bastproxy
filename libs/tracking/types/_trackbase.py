@@ -42,7 +42,7 @@ class TrackBase:
 
     def _tracking_convert_value(self, value, location=None):
         if hasattr(self, '_tracking_auto_convert') and self._tracking_auto_convert:
-            value = convert_to_trackable(value,
+            value = self._tracking_convert_to_trackable(value,
                                          tracking_auto_converted_in=self._tracking_uuid,
                                          tracking_auto_convert=self._tracking_auto_convert,
                                          tracking_parent=self, tracking_location=location)
@@ -101,7 +101,7 @@ class TrackBase:
         if 'locked' not in kwargs:
             kwargs['locked'] = self._tracking_locked
         if 'type' not in kwargs:
-            kwargs['type'] = is_trackable(self)
+            kwargs['type'] = self._tracking_is_trackable(self)
         change_log_entry = ChangeLogEntry(self._tracking_uuid,
                                             **kwargs)
         self._tracking_changes.append(change_log_entry)
@@ -129,3 +129,51 @@ class TrackBase:
             t_list.extend(item.format_detailed())
         t_list.append('--------------------------------------')
         return t_list
+
+    def _tracking_convert_to_trackable(self, obj, tracking_auto_converted_in=None, tracking_auto_convert=False,
+                            tracking_parent: 'TrackBase | None' = None, tracking_location=None):
+        """
+        convert the object to a trackable object
+        """
+        if isinstance(obj, dict) and not self._tracking_is_trackable(obj):
+            from .trackeddict import TrackedDict
+            return TrackedDict(obj,
+                            tracking_auto_converted_in=tracking_auto_converted_in,
+                            tracking_auto_convert=tracking_auto_convert,
+                            tracking_parent=tracking_parent, tracking_location=tracking_location)
+        if isinstance(obj, list) and not self._tracking_is_trackable(obj):
+            from .trackedlist import TrackedList
+            return TrackedList(obj,
+                            tracking_auto_converted_in=tracking_auto_converted_in,
+                            tracking_auto_convert=tracking_auto_convert,
+                            tracking_parent=tracking_parent, tracking_location=tracking_location)
+        return obj
+
+    def _tracking_is_trackable(self, obj):
+        """
+        check if the object is trackable
+        returns the type of trackable object or False
+        """
+        from .trackeddict import TrackedDict
+        from .trackedlist import TrackedList
+        from .trackedattributes import TrackedAttr
+        if isinstance(obj, TrackedDict):
+            return 'TrackedDict'
+        elif isinstance(obj, TrackedList):
+            return 'TrackedList'
+        elif isinstance(obj, TrackedAttr):
+            return 'TrackedAttr'
+        return False
+
+    def _tracking_convert_to_untrackable(self, obj):
+        """
+        convert the object to a normal object
+        """
+        from ..types.trackeddict import TrackedDict
+        from ..types.trackedlist import TrackedList
+        if self._tracking_is_trackable(obj):
+            if isinstance(obj, TrackedDict):
+                return {item: self._tracking_convert_to_untrackable(obj[item]) for item in obj}
+            if isinstance(obj, TrackedList):
+                return [self._tracking_convert_to_untrackable(item) for item in obj]
+        return obj
