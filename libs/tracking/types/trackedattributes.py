@@ -78,7 +78,7 @@ class TrackedAttributes(TrackBase):
             extra = {'data_pre_change': original_value, 'data_post_change': getattr(self, attribute_name)}
             self.tracking_create_change(action='update', method=method, location=f"{attribute_name}",
                                      value=new_value,
-                                     locked=self._tracking_is_locked_attribute(attribute_name),
+                                     attribute_locked=self._tracking_is_locked_attribute(attribute_name),
                                      **extra)
 
     def _tracking_convert_all_values(self):
