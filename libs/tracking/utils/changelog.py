@@ -29,6 +29,7 @@ import datetime
 from uuid import uuid4
 import traceback
 import pprint
+import ast
 
 # 3rd Party
 
@@ -352,7 +353,7 @@ class ChangeLogEntry:
 
         header = fix_header(name)
         try:
-            testdata = eval(data)
+            testdata = ast.literal_eval(data)
         except Exception as e:
             testdata = data
 
