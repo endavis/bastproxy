@@ -29,8 +29,6 @@ def fix_header(header_name):
 class ChangeLogEntry:
     def __init__(self, item_uuid, **kwargs):
         """
-        change_type: one of 'attribute', 'list', 'dict'
-        name: the name of the attribute, list, or dict
         kwargs: any other info about the change
         """
         self.uuid = uuid4().hex
