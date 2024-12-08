@@ -15,9 +15,9 @@ as convert lists and dicts to TrackedList and TrackedDict
 
 __all__ = ['AttributeMonitor', 'TrackedDict', 'TrackedList',
            'TrackedAttr', 'ChangeLogEntry',
-           'add_to_ignore_in_stack', 'exception_on_lock_error']
+           'add_to_ignore_in_stack']
 
-from .types._trackbase import TrackBase, exception_on_lock_error
+from .types._trackbase import TrackBase
 from .types.trackeddict import TrackedDict
 from .types.trackedlist import TrackedList
 from .types.trackedattributes import TrackedAttr

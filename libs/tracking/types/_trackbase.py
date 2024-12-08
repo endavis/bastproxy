@@ -19,8 +19,6 @@ import logging
 # Project
 from ..utils.changelog import ChangeLogEntry
 
-exception_on_lock_error = True
-
 def check_lock(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
