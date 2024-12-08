@@ -20,6 +20,7 @@ import logging
 from ..utils.changelog import ChangeLogEntry
 
 def check_lock(method):
+    """Decorator to check that a method is not called on a locked object."""
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         if hasattr(self, '_tracking_locked') and self._tracking_locked:
@@ -28,7 +29,7 @@ def check_lock(method):
     return wrapper
 
 def track_changes(method):
-    """Decorator to ensure the object is not locked before performing a method and to track changes."""
+    """Decorator to track changes."""
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         # reset the tracking context
