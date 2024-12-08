@@ -19,12 +19,12 @@ import logging
 # Project
 from ..utils.changelog import ChangeLogEntry
 
-def check_lock(func):
-    @wraps(func)
+def check_lock(method):
+    @wraps(method)
     def wrapper(self, *args, **kwargs):
         if hasattr(self, '_tracking_locked') and self._tracking_locked:
             raise RuntimeError(f"{self.__class__.__name__} is locked and cannot be modified.")
-        return func(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
     return wrapper
 
 def track_changes(method):
