@@ -241,11 +241,12 @@ class ChangeLogEntry:
         return self.uuid == value.uuid if isinstance(value, ChangeLogEntry) else False
 
     def __lt__(self, value: object) -> bool:
-        """Compare two ChangeLogEntry instances based on their creation time.
+        """Compare two objects based on their creation time.
 
         This method determines if the current ChangeLogEntry was created before
         another instance by comparing their creation timestamps. It ensures that
-        the comparison is only performed if the other object has a creation time.
+        the comparison is only performed if the other object has a creation time
+        attribute.
 
         Args:
             value (object): The object to compare against.
