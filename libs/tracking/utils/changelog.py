@@ -5,8 +5,7 @@
 # File Description: Holds items for change tracking
 #
 # By: Bast
-"""
-Module that holds a class for monitoring attributes and recording changes.
+"""Module that holds a class for monitoring attributes and recording changes.
 
 This module provides the ChangeLogEntry class, which is designed to track
 changes to specific attributes, capturing relevant information such as the
@@ -23,13 +22,12 @@ Functions:
                                    for the call stack.
     fix_header(header_name): Converts a header name from snake_case to Title Case.
 """
-
 # Standard Library
 import datetime
-from uuid import uuid4
 import traceback
 import pprint
 import ast
+from uuid import uuid4
 
 # 3rd Party
 
@@ -38,9 +36,9 @@ import ast
 # Globals
 ignore_in_stack = []
 
-def add_to_ignore_in_stack(tlist: list):
-    """
-    Adds specified items to the ignore list for the call stack.
+
+def add_to_ignore_in_stack(tlist: list) -> None:
+    """Add specified items to the ignore list for the call stack.
 
     This function takes a list of items and appends them to the global
     ignore_in_stack list, which is used to filter out specific entries
@@ -49,19 +47,20 @@ def add_to_ignore_in_stack(tlist: list):
     change tracking.
 
     Args:
-        list (list): A list of items to be added to the ignore list.
+        tlist (list): A list of items to be added to the ignore list.
 
     Returns:
         None
 
     Raises:
         None
+
     """
     ignore_in_stack.extend(tlist)
 
-def fix_header(header_name):
-    """
-    Converts a header name from snake_case to Title Case.
+
+def fix_header(header_name: str) -> str:
+    """Convert a header name from snake_case to Title Case.
 
     This function takes a string formatted in snake_case and transforms it
     into a more readable format by replacing underscores with spaces and
@@ -76,14 +75,18 @@ def fix_header(header_name):
 
     Raises:
         None
+
     """
-    return header_name.replace('_', ' ').title()
+    return header_name.replace("_", " ").title()
+
 
 class ChangeLogEntry:
-    """
-    Holds a class that monitors attributes and records changes to them.
+    """A class that monitors attributes and records changes to them.
 
-    The ChangeLogEntry class is designed to track changes to specific attributes, capturing relevant information such as the time of change, the actor responsible, and the context of the change. It provides methods to format and represent this information in a structured manner.
+    The ChangeLogEntry class is designed to track changes to specific attributes,
+    capturing relevant information such as the time of change, the actor
+    responsible, and the context of the change. It provides methods to format and
+    represent this information in a structured manner.
 
     Attributes:
         uuid (str): A unique identifier for the change log entry.
@@ -122,10 +125,24 @@ class ChangeLogEntry:
 
         add_to_tree(uuid):
             Adds a new entry to the change tree.
+
     """
-    def __init__(self, item_uuid, **kwargs):
-        """
-        kwargs: any other info about the change
+
+    def __init__(self, item_uuid: str, **kwargs) -> None:
+        """Initialize a new instance of the ChangeLogEntry class.
+
+        This constructor sets up the instance by generating a unique UUID, storing
+        the provided item UUID, and processing any additional keyword arguments. It
+        also initializes various attributes related to the instance's state,
+        including the creation time and relevant actor information.
+
+        Args:
+            item_uuid (str): The UUID of the item being tracked.
+            **kwargs: Additional keyword arguments for extra information.
+
+        Returns:
+            None
+
         """
         self.uuid = uuid4().hex
         self.tracked_item_uuid = item_uuid
@@ -136,43 +153,42 @@ class ChangeLogEntry:
         self.actor = self.find_relevant_actor(self.stack)
         self.tree = []
         for item in self.extra:
-            if item == 'location':
+            if item == "location":
                 continue
             if not isinstance(self.extra[item], str):
                 self.extra[item] = repr(self.extra[item])
 
-    def find_relevant_actor(self, stack):
-        """
-        Identifies the actor responsible for the change based on the call stack.
+    def find_relevant_actor(self, stack: list[str]) -> str:
+        """Identify the actor responsible for the change based on the call stack.
 
-        This method analyzes the provided stack trace to find the first relevant actor
-        that is not in the ignore list. It returns the actor's information, which includes
-        the file and function where the change occurred.
+        This method analyzes the provided stack trace to find the first relevant
+        actor that is not in the ignore list. It returns the actor's information,
+        which includes the file and function where the change occurred.
 
         Args:
             stack (list): The call stack to analyze for identifying the actor.
 
         Returns:
-            list: A list containing the file and function of the relevant actor,
-                or an empty list if no actor is found.
+            str: A string containing the file and function of the relevant actor,
+                or an empty string if no actor is found.
 
         Raises:
             None
+
         """
         stack_copy = stack.copy()
         stack_copy.reverse()
         return next(
             (
                 line.strip()
-                for line in (line for line in stack_copy if 'File' in line)
+                for line in (line for line in stack_copy if "File" in line)
                 if all(actor not in line for actor in ignore_in_stack)
             ),
-            '',
+            "",
         )
 
-    def get_stack(self):
-        """
-        Retrieves the current call stack, excluding the last two lines.
+    def get_stack(self) -> list:
+        """Retrieve the current call stack, excluding the last two lines.
 
         This method captures the stack trace at the point of invocation and formats it
         into a list of strings, omitting the last two lines which are typically not
@@ -184,13 +200,13 @@ class ChangeLogEntry:
 
         Raises:
             None
+
         """
         stack = traceback.format_stack()
         return [line for line in stack[:-2] if line.strip()]
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of the ChangeLogEntry.
+        """Return a string representation of the ChangeLogEntry.
 
         This method provides a concise summary of the ChangeLogEntry instance,
         including the creation time, tracked item UUID, and any additional
@@ -199,12 +215,14 @@ class ChangeLogEntry:
 
         Returns:
             str: A formatted string representing the ChangeLogEntry instance.
+
         """
-        return f"ChangeLogEntry: {self.created_time} {self.tracked_item_uuid} {self.extra}"
+        return (
+            f"ChangeLogEntry: {self.created_time} {self.tracked_item_uuid} {self.extra}"
+        )
 
     def __eq__(self, value: object) -> bool:
-        """
-        Compares two ChangeLogEntry instances for equality.
+        """Compare two ChangeLogEntry instances for equality.
 
         This method checks if the UUIDs of two ChangeLogEntry instances are the same,
         indicating that they represent the same change log entry. It ensures that the
@@ -219,12 +237,12 @@ class ChangeLogEntry:
 
         Raises:
             None
+
         """
         return self.uuid == value.uuid if isinstance(value, ChangeLogEntry) else False
 
     def __lt__(self, value: object) -> bool:
-        """
-        Compares two ChangeLogEntry instances based on their creation time.
+        """Compare two ChangeLogEntry instances based on their creation time.
 
         This method determines if the current ChangeLogEntry was created before
         another instance by comparing their creation timestamps. It ensures that
@@ -239,12 +257,16 @@ class ChangeLogEntry:
 
         Raises:
             None
-        """
-        return self.created_time < value.created_time if hasattr(value, 'created_time') else False # type: ignore
 
-    def copy(self, new_type, new_item_uuid):
         """
-        Creates a copy of the current ChangeLogEntry with a new type and UUID.
+        return (
+            self.created_time < value.created_time  # type: ignore
+            if hasattr(value, "created_time")
+            else False
+        )
+
+    def copy(self, new_type: str, new_item_uuid: str) -> "ChangeLogEntry":
+        """Create a copy of the current ChangeLogEntry with a new type and UUID.
 
         This method allows for the duplication of a ChangeLogEntry while modifying
         its type and UUID. The new entry retains the original's attributes, such as
@@ -260,9 +282,10 @@ class ChangeLogEntry:
 
         Raises:
             None
+
         """
         extra = self.extra.copy()
-        extra['type'] = new_type
+        extra["type"] = new_type
         new_log = ChangeLogEntry(new_item_uuid, **extra)
         new_log.created_time = self.created_time
         new_log.stack = self.stack
@@ -270,9 +293,10 @@ class ChangeLogEntry:
         new_log.tree = self.tree
         return new_log
 
-    def format_detailed(self, show_stack: bool = False, data_lines_to_show: int = 10):
-        """
-        Formats the change record for detailed output.
+    def format_detailed(
+        self, show_stack: bool = False, data_lines_to_show: int = 10
+    ) -> list[str]:
+        """Format the change record for detailed output.
 
         This method generates a structured representation of the ChangeLogEntry,
         including relevant attributes such as creation time, type, actor, and
@@ -289,43 +313,68 @@ class ChangeLogEntry:
 
         Raises:
             None
-        """
-        item_order = ['created_time', 'type', 'actor', 'location', 'action', 'sub_command', 'method',
-                            'passed_index', 'locked', 'value', 'data_pre_change',
-                            'data_post_change', 'removed_items']
 
-        tmsg =  [
+        """
+        item_order = [
+            "created_time",
+            "type",
+            "actor",
+            "location",
+            "action",
+            "sub_command",
+            "method",
+            "passed_index",
+            "locked",
+            "value",
+            "data_pre_change",
+            "data_post_change",
+            "removed_items",
+        ]
+
+        tmsg = [
             f"{'Change UUID':<{self.header_column_width}} : {self.uuid}",
-            f"{'Object UUID':<{self.header_column_width}} : {self.tracked_item_uuid}"]
+            f"{'Object UUID':<{self.header_column_width}} : {self.tracked_item_uuid}",
+        ]
 
         for item in item_order:
             tmsg.extend(self.format_data(item, data_lines_to_show))
 
-
         if self.tree:
             item = self.tree[0]
-            tmsg.append(f"{'Tree':<{self.header_column_width}} : {item['type']}({item['uuid']}){' ' + item["location"] if 'location' in item else ''}")
+            tmsg.append(
+                f"{'Tree':<{self.header_column_width}} : {item['type']}({item['uuid']})"
+                f"{' ' + item['location'] if 'location' in item else ''}"
+            )
             indent = 2
             for item in self.tree[1:]:
-                tmsg.append(f"{'':<{self.header_column_width}} : {' ' * indent}|-> {item['type']}({item['uuid']}){' ' + item["location"] if 'location' in item else ''}")
+                tmsg.append(
+                    f"{'':<{self.header_column_width}} : {' ' * indent}|-> "
+                    f"{item['type']}({item['uuid']})"
+                    f"{' ' + item['location'] if 'location' in item else ''}"
+                )
                 indent += 4
 
         if self.extra:
             for item in self.extra:
-                if item in item_order or item == 'tree':
+                if item in item_order or item == "tree":
                     continue
 
                 tmsg.extend(self.format_data(item, data_lines_to_show))
 
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<{self.header_column_width}} :")
-            tmsg.extend([f"{'':<{self.header_column_width}} {line}" for line in self.stack[-40:] if line.strip()])
+            tmsg.extend(
+                [
+                    f"{'':<{self.header_column_width}} {line}"
+                    for line in self.stack[-40:]
+                    if line.strip()
+                ]
+            )
 
         return tmsg
 
-    def format_data(self, name, data_lines_to_show):
-        """
-        Formats specific data for output based on the provided name.
+    def format_data(self, name: str, data_lines_to_show: int) -> list[str]:
+        """Format specific data for output based on the provided name.
 
         This method retrieves the value associated with the given attribute name
         and formats it for display. It handles various data types and ensures that
@@ -342,19 +391,24 @@ class ChangeLogEntry:
 
         Raises:
             None
-        """
-        data = getattr(self, name) if hasattr(self, name) else self.extra[name] if name in self.extra else '-#@$%##$'
 
-        if data == '-#@$%##$':
+        """
+        data = (
+            getattr(self, name)
+            if hasattr(self, name)
+            else self.extra[name] if name in self.extra else "-#@$%##$"
+        )
+
+        if data == "-#@$%##$":
             return []
 
         header = fix_header(name)
         try:
             testdata = ast.literal_eval(data)
-        except Exception as e:
+        except Exception:
             testdata = data
 
-        if testdata in [None, 'None', '']:
+        if testdata in [None, "None", ""]:
             return []
 
         testdata_string = pprint.pformat(testdata, width=80).splitlines()
@@ -363,14 +417,16 @@ class ChangeLogEntry:
             return [f"{header:<{self.header_column_width}} : {testdata}"]
 
         tmsg = [f"{header:<{self.header_column_width}} : {testdata_string[0]}"]
-        tmsg.extend(f"{'':<{self.header_column_width}} : {line}" for line in testdata_string[1:data_lines_to_show])
+        tmsg.extend(
+            f"{'':<{self.header_column_width}} : {line}"
+            for line in testdata_string[1:data_lines_to_show]
+        )
         if len(testdata_string) > data_lines_to_show:
             tmsg.append(f"{'':<{self.header_column_width}} : ...")
         return tmsg
 
-    def add_to_tree(self, uuid):
-        """
-        Adds a new entry to the change tree.
+    def add_to_tree(self, uuid: str) -> None:
+        """Add a new entry to the change tree.
 
         This method inserts the specified UUID at the beginning of the tree list,
         allowing for the tracking of related changes in a hierarchical manner.
@@ -384,5 +440,6 @@ class ChangeLogEntry:
 
         Raises:
             None
+
         """
         self.tree.insert(0, uuid)
