@@ -166,7 +166,7 @@ class ChangeLogEntry:
         which includes the file and function where the change occurred.
 
         Args:
-            stack (list): The call stack to analyze for identifying the actor.
+            stack (list[str]): The call stack to analyze for identifying the actor.
 
         Returns:
             str: A string containing the file and function of the relevant actor,
