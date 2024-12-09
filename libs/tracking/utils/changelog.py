@@ -176,13 +176,12 @@ class ChangeLogEntry:
             None
 
         """
-        stack_copy = stack.copy()
-        stack_copy.reverse()
         return next(
             (
                 line.strip()
-                for line in (line for line in stack_copy if "File" in line)
-                if all(actor not in line for actor in ignore_in_stack)
+                for line in reversed(stack)
+                if "File" in line
+                and all(actor not in line for actor in ignore_in_stack)
             ),
             "",
         )
@@ -393,11 +392,7 @@ class ChangeLogEntry:
             None
 
         """
-        data = (
-            getattr(self, name)
-            if hasattr(self, name)
-            else self.extra[name] if name in self.extra else "-#@$%##$"
-        )
+        data = getattr(self, name, self.extra.get(name, "-#@$%##$"))
 
         if data == "-#@$%##$":
             return []
