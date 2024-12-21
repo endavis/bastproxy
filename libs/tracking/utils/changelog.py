@@ -4,23 +4,37 @@
 #
 # File Description: Holds items for change tracking
 #
+# Docstrings last checked and updated: 12/19/2024
+#
 # By: Bast
-"""Module that holds a class for monitoring attributes and recording changes.
+r"""Change logging functionality for tracking modifications in data structures.
 
-This module provides the ChangeLogEntry class, which is designed to track
-changes to specific attributes, capturing relevant information such as the
-time of change, the actor responsible, and the context of the change. It
-includes methods for formatting and representing this information in a
-structured manner.
+This module provides utilities for tracking and logging changes in data structures,
+with a focus on maintaining detailed records of modifications, their origins, and
+their relationships.
 
-Classes:
-    ChangeLogEntry: A class that represents a change log entry, including
-                    methods for tracking and formatting changes.
+Key Components:
+    - ChangeLogEntry: Core class for recording individual changes
+    - Stack trace management for identifying change origins
+    - Hierarchical change tracking with parent-child relationships
+    - Detailed formatting utilities for change visualization
+
+Features:
+    - Unique identifiers for each change entry
+    - Timestamp tracking for change sequencing
+    - Actor identification from call stack
+    - Hierarchical change relationships
+    - Detailed and summary change formatting
+    - Stack trace filtering
+    - Custom data formatting
 
 Functions:
-    add_to_ignore_in_stack(list): Adds specified items to the ignore list
-                                   for the call stack.
-    fix_header(header_name): Converts a header name from snake_case to Title Case.
+    add_to_ignore_in_stack: Add items to stack trace filter
+    fix_header: Convert snake_case to Title Case for display
+
+Classes:
+    ChangeLogEntry: Main class for tracking individual changes
+
 """
 # Standard Library
 import datetime
@@ -34,114 +48,66 @@ from uuid import uuid4
 # Project
 
 # Globals
-ignore_in_stack = []
+_IGNORE_IN_STACK = []
 
 
-def add_to_ignore_in_stack(tlist: list) -> None:
-    """Add specified items to the ignore list for the call stack.
+def add_to_ignore_in_stack(tlist: list[str]) -> None:
+    """Add entries to the list of items to ignore when processing stack traces.
 
-    This function takes a list of items and appends them to the global
-    ignore_in_stack list, which is used to filter out specific entries
-    from the call stack when identifying the relevant actor. This helps
-    in managing which parts of the stack should be considered during
-    change tracking.
+    Extends the global _IGNORE_IN_STACK list with new entries that should be filtered
+    out when analyzing call stacks for change tracking purposes.
 
     Args:
-        tlist (list): A list of items to be added to the ignore list.
-
-    Returns:
-        None
-
-    Raises:
-        None
+        tlist: List of strings to add to the ignore list. Each string represents a
+            pattern that will be excluded from stack trace analysis.
+            Note: this is not a regex pattern, the string will be used as is
 
     """
-    ignore_in_stack.extend(tlist)
+    _IGNORE_IN_STACK.extend(tlist)
 
 
 def fix_header(header_name: str) -> str:
-    """Convert a header name from snake_case to Title Case.
+    """Convert a header name from snake_case to Title Case format.
 
-    This function takes a string formatted in snake_case and transforms it
-    into a more readable format by replacing underscores with spaces and
-    capitalizing the first letter of each word. It is useful for formatting
-    headers in a user-friendly manner.
+    Takes a string in snake_case format and converts it to Title Case by replacing
+    underscores with spaces and capitalizing each word.
 
     Args:
-        header_name (str): The header name in snake_case format.
+        header_name: String to convert from snake_case to Title Case
 
     Returns:
-        str: The formatted header name in Title Case.
-
-    Raises:
-        None
+        The formatted string in Title Case with spaces instead of underscores
 
     """
     return header_name.replace("_", " ").title()
 
 
 class ChangeLogEntry:
-    """A class that monitors attributes and records changes to them.
+    """Represents an entry in the change log for tracking modifications.
 
-    The ChangeLogEntry class is designed to track changes to specific attributes,
-    capturing relevant information such as the time of change, the actor
-    responsible, and the context of the change. It provides methods to format and
-    represent this information in a structured manner.
-
-    Attributes:
-        uuid (str): A unique identifier for the change log entry.
-        tracked_item_uuid (str): The UUID of the item being tracked.
-        extra (dict): Additional information about the change.
-        header_column_width (int): The width for formatting headers in output.
-        created_time (datetime): The timestamp when the entry was created.
-        stack (list): The call stack at the time of the change.
-        actor (list): Information about the actor responsible for the change.
-        tree (list): A hierarchical representation of related changes.
-
-    Methods:
-        find_relevant_actor(stack):
-            Identifies the actor responsible for the change based on the call stack.
-
-        get_stack():
-            Retrieves the current call stack, excluding the last two lines.
-
-        __repr__():
-            Returns a string representation of the ChangeLogEntry.
-
-        __eq__(value):
-            Compares two ChangeLogEntry instances for equality based on their UUIDs.
-
-        __lt__(value):
-            Compares two ChangeLogEntry instances based on their creation time.
-
-        copy(new_type, new_item_uuid):
-            Creates a copy of the current ChangeLogEntry with a new type and UUID.
-
-        format_detailed(show_stack=False, data_lines_to_show=10):
-            Formats the change record for detailed output.
-
-        format_data(name, data_lines_to_show):
-            Formats specific data for output based on the provided name.
-
-        add_to_tree(uuid):
-            Adds a new entry to the change tree.
+    This class is used to create and manage a change log entry, which
+    records detailed information about modifications to data structures. Each
+    entry includes metadata such as timestamps, stack traces, and actor
+    identification, and supports hierarchical relationships between changes.
 
     """
 
     def __init__(self, item_uuid: str, **kwargs) -> None:
-        """Initialize a new instance of the ChangeLogEntry class.
+        """Initialize a new ChangeLogEntry instance.
 
-        This constructor sets up the instance by generating a unique UUID, storing
-        the provided item UUID, and processing any additional keyword arguments. It
-        also initializes various attributes related to the instance's state,
-        including the creation time and relevant actor information.
+        Creates a new change log entry with a unique identifier and metadata. Sets up
+        tracking information including timestamps, stack traces, and actor
+        identification.
 
         Args:
-            item_uuid (str): The UUID of the item being tracked.
-            **kwargs: Additional keyword arguments for extra information.
-
-        Returns:
-            None
+            item_uuid: Identifier for the item being tracked
+            **kwargs: Additional metadata to store about the change.
+                Common keys include:
+                    - type: The type of change (e.g., "update", "add", "remove")
+                    - value: The new value associated with the change
+                    - location: Where in the data structure the change occurred
+                    - action: The action that triggered the change
+                    - method: The method name that caused the change
 
         """
         self.uuid = uuid4().hex
@@ -159,21 +125,17 @@ class ChangeLogEntry:
                 self.extra[item] = repr(self.extra[item])
 
     def find_relevant_actor(self, stack: list[str]) -> str:
-        """Identify the actor responsible for the change based on the call stack.
+        """Find the most relevant actor from the stack trace that caused the change.
 
-        This method analyzes the provided stack trace to find the first relevant
-        actor that is not in the ignore list. It returns the actor's information,
-        which includes the file and function where the change occurred.
+        Searches through the stack trace in reverse order to find the first line
+        containing 'File' that isn't in the ignore list. This helps identify where the
+        change originated from.
 
         Args:
-            stack (list[str]): The call stack to analyze for identifying the actor.
+            stack: List of stack trace strings to search through
 
         Returns:
-            str: A string containing the file and function of the relevant actor,
-                or an empty string if no actor is found.
-
-        Raises:
-            None
+            The first relevant stack trace line found, or empty string if none found
 
         """
         return next(
@@ -181,24 +143,21 @@ class ChangeLogEntry:
                 line.strip()
                 for line in reversed(stack)
                 if "File" in line
-                and all(actor not in line for actor in ignore_in_stack)
+                and all(actor not in line for actor in _IGNORE_IN_STACK)
             ),
             "",
         )
 
-    def get_stack(self) -> list:
-        """Retrieve the current call stack, excluding the last two lines.
+    def get_stack(self) -> list[str]:
+        """Retrieve the current stack trace, excluding the last two entries.
 
-        This method captures the stack trace at the point of invocation and formats it
-        into a list of strings, omitting the last two lines which are typically not
-        relevant to the change being logged.
+        This method captures the current stack trace and filters out the last two
+        entries, which typically correspond to the call to this method and its
+        immediate caller. The resulting stack trace is used for tracking the origin
+        of changes.
 
         Returns:
-            list: A list of strings representing the formatted call stack,
-                excluding the last two lines.
-
-        Raises:
-            None
+            A list of strings representing the filtered stack trace.
 
         """
         stack = traceback.format_stack()
@@ -207,13 +166,12 @@ class ChangeLogEntry:
     def __repr__(self) -> str:
         """Return a string representation of the ChangeLogEntry.
 
-        This method provides a concise summary of the ChangeLogEntry instance,
-        including the creation time, tracked item UUID, and any additional
-        information stored in the extra attribute. It is useful for debugging
-        and logging purposes.
+        This method provides a concise summary of the ChangeLogEntry instance, including
+        the creation time, tracked item UUID, and any additional information stored in
+        the extra attribute. It is useful for debugging and logging purposes.
 
         Returns:
-            str: A formatted string representing the ChangeLogEntry instance.
+            A formatted string representing the ChangeLogEntry instance
 
         """
         return (
@@ -221,42 +179,32 @@ class ChangeLogEntry:
         )
 
     def __eq__(self, value: object) -> bool:
-        """Compare two ChangeLogEntry instances for equality.
+        """Compare this ChangeLogEntry with another for equality.
 
-        This method checks if the UUIDs of two ChangeLogEntry instances are the same,
-        indicating that they represent the same change log entry. It ensures that the
-        comparison is only performed between instances of ChangeLogEntry.
+        Determines if two ChangeLogEntry instances are equal by comparing their UUIDs.
+        Returns False if the other object is not a ChangeLogEntry instance.
 
         Args:
-            value (object): The object to compare against.
+            value: The object to compare with this ChangeLogEntry
 
         Returns:
-            bool: True if the UUIDs are equal and both objects are instances of
-                ChangeLogEntry; otherwise, False.
-
-        Raises:
-            None
+            True if both objects are ChangeLogEntries with the same UUID, False
+            otherwise
 
         """
         return self.uuid == value.uuid if isinstance(value, ChangeLogEntry) else False
 
     def __lt__(self, value: object) -> bool:
-        """Compare two objects based on their creation time.
+        """Compare if this ChangeLogEntry is less than another by creation time.
 
-        This method determines if the current ChangeLogEntry was created before
-        another instance by comparing their creation timestamps. It ensures that
-        the comparison is only performed if the other object has a creation time
-        attribute.
+        Compares the created_time attributes of two entries. Returns False if the other
+        object doesn't have a created_time attribute.
 
         Args:
-            value (object): The object to compare against.
+            value: The object to compare with this ChangeLogEntry
 
         Returns:
-            bool: True if the current instance was created before the other instance;
-                otherwise, False.
-
-        Raises:
-            None
+            True if this entry was created earlier than the other, False otherwise
 
         """
         return (
@@ -266,22 +214,17 @@ class ChangeLogEntry:
         )
 
     def copy(self, new_type: str, new_item_uuid: str) -> "ChangeLogEntry":
-        """Create a copy of the current ChangeLogEntry with a new type and UUID.
+        """Create a copy of this ChangeLogEntry with a new type and UUID.
 
-        This method allows for the duplication of a ChangeLogEntry while modifying
-        its type and UUID. The new entry retains the original's attributes, such as
-        the creation time, stack trace, actor information, and change tree.
+        Creates a new ChangeLogEntry instance with copied metadata but different type
+        and UUID. Maintains the original timestamps, stack traces, and tree structure.
 
         Args:
-            new_type (str): The new type to assign to the copied entry.
-            new_item_uuid (str): The UUID for the new copied entry.
+            new_type: The type to assign to the new entry
+            new_item_uuid: The UUID to assign to the new entry
 
         Returns:
-            ChangeLogEntry: A new instance of ChangeLogEntry with the updated type
-                            and UUID, preserving other attributes from the original.
-
-        Raises:
-            None
+            A new ChangeLogEntry instance with copied data and new identifiers
 
         """
         extra = self.extra.copy()
@@ -296,23 +239,17 @@ class ChangeLogEntry:
     def format_detailed(
         self, show_stack: bool = False, data_lines_to_show: int = 10
     ) -> list[str]:
-        """Format the change record for detailed output.
+        r"""Generate a detailed formatted representation of the change entry.
 
-        This method generates a structured representation of the ChangeLogEntry,
-        including relevant attributes such as creation time, type, actor, and
-        additional information. It can also display the call stack if requested.
+        Creates a list of formatted strings containing all relevant information about
+        the change, including UUIDs, timestamps, values, and optionally stack traces.
 
         Args:
-            show_stack (bool, optional): Indicates whether to include the call stack
-                                        in the output. Defaults to False.
-            data_lines_to_show (int, optional): The maximum number of lines to show
-                                                for data attributes. Defaults to 10.
+            show_stack: Whether to include stack trace in output
+            data_lines_to_show: Maximum number of lines to show for each data field
 
         Returns:
-            list: A list of formatted strings representing the detailed change record.
-
-        Raises:
-            None
+            List of formatted strings representing the change entry details
 
         """
         item_order = [
@@ -374,23 +311,18 @@ class ChangeLogEntry:
         return tmsg
 
     def format_data(self, name: str, data_lines_to_show: int) -> list[str]:
-        """Format specific data for output based on the provided name.
+        """Format the data for a given attribute or extra metadata.
 
-        This method retrieves the value associated with the given attribute name
-        and formats it for display. It handles various data types and ensures that
-        the output is structured and readable, including options for limiting the
-        number of lines shown.
+        Retrieves the value of the specified attribute or extra metadata, formats it
+        for display, and returns a list of formatted strings. Handles multi-line data
+        and limits the number of lines shown.
 
         Args:
-            name (str): The name of the attribute or key to format.
-            data_lines_to_show (int): The maximum number of lines to display for
-                                    the formatted data.
+            name: The name of the attribute or extra metadata to format.
+            data_lines_to_show: Maximum number of lines to show for each data field.
 
         Returns:
-            list: A list of formatted strings representing the specified data.
-
-        Raises:
-            None
+            A list of formatted strings representing the data.
 
         """
         data = getattr(self, name, self.extra.get(name, "-#@$%##$"))
@@ -421,21 +353,20 @@ class ChangeLogEntry:
             tmsg.append(f"{'':<{self.header_column_width}} : ...")
         return tmsg
 
-    def add_to_tree(self, uuid: str) -> None:
+    def add_to_tree(self, info: dict[str, str]) -> None:
         """Add a new entry to the change tree.
 
-        This method inserts the specified UUID at the beginning of the tree list,
-        allowing for the tracking of related changes in a hierarchical manner.
-        It helps maintain the order of changes as they are recorded.
+        This method inserts a dictionary containing information about a change at
+        the beginning of the tree structure. It allows for the organization of
+        changes in a hierarchical manner, facilitating easy tracking of related
+        changes.
 
         Args:
-            uuid (str): The UUID of the change entry to add to the tree.
+            info: A dictionary containing information about the
+                change to be added to the tree.
 
         Returns:
             None
 
-        Raises:
-            None
-
         """
-        self.tree.insert(0, uuid)
+        self.tree.insert(0, info)
