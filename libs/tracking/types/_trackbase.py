@@ -130,6 +130,7 @@ def track_changes(method: Callable[..., Any]) -> Callable[..., Any]:
 
         """
         # reset the tracking context
+        data_pre_change = None
         if self._tracking_is_trackable(self) in ["TrackedDict", "TrackedList"]:
             data_pre_change = repr(self)
 
