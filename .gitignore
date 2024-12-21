@@ -46,3 +46,7 @@ teststuff/
 .python*
 .flake8
 evennia
+pydatatracker
+uv.lock
+.venv
+
