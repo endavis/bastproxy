@@ -144,6 +144,12 @@
         idle time
         how many lines, how much data
     # TODO: create a save record API, save a record if there is any indication of an error, especially with a process
+    # TODO: figure out how to handle slices in TrackedList (__delitem__, __setitem__)
+    # TODO: look at removing tracking_location attribute from tracked items, I don't think it is used any longer
+    # TODO: remove checks for locks in all internal tracking functions, the decorator now handles that
+    # TODO: cache API stuff that can be cached (lookups mainly)
+        # clear cache after a plugin reload
+    # TODO: tracking base, add method to check if self
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
