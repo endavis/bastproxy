@@ -5,7 +5,32 @@
 # File Description: holds the functionality to track api stats
 #
 # By: Bast
-"""Implementation of the StatsManager class to track API stats.
+"""Module for tracking API call statistics.
+
+This module provides classes to track the number of times specific APIs are called
+by different callers. It includes functionality to log detailed call information
+and manage statistics for multiple APIs.
+
+Key Components:
+    - APIStatItem: A class to track the number of calls to a specific API.
+    - StatsManager: A class to manage statistics for multiple APIs.
+
+Features:
+    - Track the number of calls to specific APIs.
+    - Log detailed call information, including caller IDs.
+    - Manage statistics for multiple APIs.
+
+Usage:
+    - Instantiate `APIStatItem` to track calls to a specific API.
+    - Use `StatsManager` to manage statistics for multiple APIs.
+    - Add calls to the statistics using `add_call` methods.
+    - Retrieve statistics using `get_all_stats` and `get_stats` methods.
+
+Classes:
+    - `APIStatItem`: Represents a class that tracks the number of calls to a specific
+        API.
+    - `StatsManager`: Represents a class that manages statistics for multiple APIs.
+
 """
 # Standard Library
 
@@ -16,18 +41,13 @@ from ._functools import stackdump
 
 
 class APIStatItem:
-    """This class is used to track the number of times that a particular
-    API has been called by a particular caller.  The full_api_name is
-    the full name of the API, including the full package, module,
-    and name of the function, and the caller_id is the ID of
-    the object/function that is making the call.
-    """
+    """Tracks the number of calls to a specific API."""
 
     def __init__(self, full_api_name: str) -> None:
-        """Initializes an APIStatItem object.
+        """Initialize an APIStatItem object.
 
         Args:
-            full_api_name (str): Full name of the API, including the full package,
+            full_api_name: Full name of the API, including the full package,
                 module, and name of the function.
 
         """
@@ -37,16 +57,29 @@ class APIStatItem:
         self.count: int = 0  # Total number of calls to this API
 
     def add_call(self, caller_id: str) -> None:
-        """Adds a call to the APIStatItem object.
+        """Add a call to the APIStatItem object.
+
+        This method increments the call count for the API and logs detailed call
+        information, including the caller ID. If the caller ID is unknown, a stack
+        trace is logged.
 
         Args:
-            caller_id (str): ID of the caller
+            caller_id: ID of the caller making the API call.
+
+        Returns:
+            None
+
+        Raises:
+            None
 
         """
         self.count += 1
         if not caller_id or caller_id == "unknown":
             stack = stackdump(
-                msg=f"------------ Unknown caller_id for API call: {self.full_api_name} -----------------"
+                msg=(
+                    "------------ Unknown caller_id for API call: "
+                    f"{self.full_api_name} -----------------"
+                )
             )
             stack.insert(0, "\n")
             try:
@@ -68,19 +101,34 @@ class APIStatItem:
 
 
 class StatsManager:
-    """Holds the stats for all API items."""
+    """Manages statistics for multiple APIs."""
 
     def __init__(self) -> None:
-        """Initializes a StatsManager object."""
+        """Initialize a StatsManager object.
+
+        This method initializes a StatsManager object, which manages statistics
+        for multiple APIs.
+
+        """
         self.stats: dict[str, APIStatItem] = {}
 
     def add_call(self, full_api_name: str, caller_id: str) -> None:
-        """Adds a call to the StatsManager object.
+        """Add a call to the statistics for a specific API.
+
+        This method increments the call count for the specified API and logs
+        detailed call information, including the caller ID. If the caller ID is
+        unknown, a stack trace is logged.
 
         Args:
-            full_api_name (str): Full name of the API, including the full package,
+            full_api_name: Full name of the API, including the full package,
                 module, and name of the function.
-            caller_id (str): Id of what object is calling the function
+            caller_id: ID of the caller making the API call.
+
+        Returns:
+            None
+
+        Raises:
+            None
 
         """
         if full_api_name not in self.stats:
@@ -88,26 +136,45 @@ class StatsManager:
         self.stats[full_api_name].add_call(caller_id)
 
     def get_all_stats(self) -> dict[str, APIStatItem]:
-        """Returns the stats held in the StatsManager object.
+        """Retrieve statistics for all APIs.
+
+        This method returns a dictionary containing statistics for all tracked APIs.
+        Each key in the dictionary is the full name of an API, and the corresponding
+        value is an `APIStatItem` object that tracks the number of calls to that API.
 
         Returns:
-            dict: A dictionary of the stats held in the object.
+            A dictionary containing `APIStatItem` objects for all tracked APIs.
+
+        Raises:
+            None
 
         """
         return self.stats
 
-    def get_stats(self, full_api_name) -> APIStatItem | None:
-        """Returns the stats for a specific API.
+    def get_stats(self, full_api_name: str) -> APIStatItem:
+        """Retrieve statistics for a specific API.
+
+        This method returns an `APIStatItem` object that tracks the number of calls
+        to the specified API. If the API is not already tracked, a new `APIStatItem`
+        object is created and added to the statistics.
 
         Args:
-            full_api_name (str): Full name of the API, including the full package,
+            full_api_name: Full name of the API, including the full package,
                 module, and name of the function.
 
         Returns:
-            dict: A dictionary of the stats for the API.
+            An `APIStatItem` object that tracks the number of calls to the specified
+                API.
+
+        Raises:
+            None
 
         """
-        return self.stats.get(full_api_name, None)
+        if full_api_name not in self.stats:
+            self.stats[full_api_name] = APIStatItem(full_api_name)
+        return self.stats.get(full_api_name)
 
+
+# return self.stats.setdefault(full_api_name, APIStatItem(full_api_name))
 
 STATS_MANAGER = StatsManager()

@@ -5,22 +5,65 @@
 # File Description: holds items related to functions and call stacks
 #
 # By: Bast
-"""tools to work with functions and call stacks
+"""Module for handling function-related utilities and call stack operations.
+
+This module provides utilities for working with function call stacks and
+retrieving function arguments. It includes methods for dumping the current
+stack trace, identifying the caller's owner ID, and extracting function
+arguments.
+
+Key Components:
+    - stackdump: Function to dump the current stack trace.
+    - get_caller_owner_id: Function to get the owner ID of the caller.
+    - get_args: Function to retrieve the arguments of a given function.
+
+Features:
+    - Stack trace dumping with optional message and ID.
+    - Identification of the caller's owner ID, with support for ignoring
+        specific owner IDs.
+    - Retrieval of function arguments from the function declaration.
+
+Usage:
+    - Use `stackdump` to get a formatted stack trace.
+    - Use `get_caller_owner_id` to find the owner ID of the caller.
+    - Use `get_args` to get the arguments of a given function.
+
+Functions:
+    - `stackdump`: Dumps the current stack trace.
+    - `get_caller_owner_id`: Returns the owner ID of the caller.
+    - `get_args`: Retrieves the arguments of a given function.
+
 """
 # Standard Library
 import traceback
 import inspect
 import logging
-import typing
 from functools import lru_cache
 from itertools import chain
+from typing import Callable
 
 # Third Party
 
 # Project
 
 
-def stackdump(id="", msg="") -> list[str]:
+def stackdump(id: str = "", msg: str = "") -> list[str]:
+    """Dump the current stack trace.
+
+    This function extracts and formats the current stack trace, optionally
+    appending a message and an ID to the output.
+
+    Args:
+        id: An optional identifier to append to the stack trace.
+        msg: An optional message to append to the stack trace.
+
+    Returns:
+        A list of strings representing the formatted stack trace.
+
+    Raises:
+        None
+
+    """
     raw_tb = traceback.extract_stack()
     entries: list[str] = traceback.format_list(raw_tb)
 
@@ -40,17 +83,19 @@ def stackdump(id="", msg="") -> list[str]:
 
 
 def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
-    """Returns the owner ID of the plugin that called the current function.
+    """Return the owner ID of the caller.
 
-    It goes through the stack and checks each frame for one of the following:
-        an owner_id attribute
-        an api attribute and gets the owner_id from that
+    This function inspects the call stack to determine the owner ID of the caller,
+    ignoring any owner IDs specified in the ignore list.
 
     Args:
-        ignore_owner_list (list[str]): A list of owner IDs to ignore if they are on the stack.
+        ignore_owner_list: A list of owner IDs to ignore.
 
     Returns:
-        str: The owner ID of the plugin on the stack.
+        The owner ID of the caller.
+
+    Raises:
+        None
 
     """
     ignore_list = ignore_owner_list or []
@@ -90,18 +135,21 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
 
 
 @lru_cache(maxsize=128)
-def get_args(api_function: typing.Callable) -> str:
-    """Get the arguments of a given function from a it's function declaration.
+def get_args(api_function: Callable) -> str:
+    """Retrieve the arguments of a given function.
 
-    Parameters
-    ----------
-    api_function : Callable
-        The function to get the arguments for.
+    This function inspects the signature of the provided function and extracts
+    its arguments, excluding 'self'. The arguments are formatted and returned
+    as a string.
 
-    Returns
-    -------
-    str
-        A string containing the function arguments.
+    Args:
+        api_function: The function whose arguments are to be retrieved.
+
+    Returns:
+        A string representing the formatted arguments of the function.
+
+    Raises:
+        None
 
     """
     sig = inspect.signature(api_function)

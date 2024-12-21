@@ -5,16 +5,32 @@
 # File Description: hold the decorator to add items to the api
 #
 # By: Bast
-'''Use this decorator to add a function to the api
+"""Module for adding API metadata to functions using a decorator.
 
-Example:
-    @AddAPI('get.data.directory', description='get the data directory for this plugin')
-    def _api_get_data_directory(self):
-        """ get the data directory for this plugin """
-        return self.plugin_info.data_directory
+This module provides the `AddAPI` class, which allows users to annotate functions
+with API metadata, including the API name, description, and instance flag. This
+metadata can be used for documentation or management tasks, making it easier to
+track and manage API endpoints within an application.
 
-'''
+Key Components:
+    - AddAPI: A decorator class that attaches metadata to functions to create API
+        endpoints.
+
+Features:
+    - Annotate functions with API name, description, and instance flag.
+    - Access API metadata for documentation or management tasks.
+    - Bind API metadata to instance methods if needed.
+
+Usage:
+    - Use the `AddAPI` decorator to annotate functions with API metadata.
+    - Access the metadata through the decorated function's attributes.
+
+Classes:
+    - `AddAPI`: Represents a decorator class that attaches metadata to functions.
+
+"""
 # Standard Library
+from typing import Callable
 
 # Third Party
 
@@ -22,55 +38,59 @@ Example:
 
 
 class AddAPI:
-    """A decorator class that attaches metadata to functions to create API endpoints.
+    """Decorator class for attaching API metadata to functions.
 
-    This class allows users to annotate functions with an API name and description.
-    The API can be bound to an API instance or to a the Global API.
-    The metadata can be accessed later for documentation or management tasks.
-
-    Args:
-        api (str): The name of the API.
-        description (str, optional): A brief description of the API. Defaults to an empty string.
-        instance (bool, optional): Indicates if the API needs to be bound to the instance.
-                                        Defaults to False.
-
-    Examples:
-        @AddAPI('my_api', 'This is my API', instance=True)
-        def my_function():
-            pass
+    This class allows users to annotate functions with metadata such as the API name,
+    description, and instance flag. The metadata can be used for documentation or
+    management tasks, making it easier to track and manage API endpoints within an
+    application.
 
     """
 
-    def __init__(self, api: str, description="", instance=False):
-        """This constructor sets up the API name, an optional description,
-        and a flag indicating whether the API should be bound to an instance.
+    def __init__(self, api: str, description: str = "", instance: bool = False) -> None:
+        """Initialize the AddAPI decorator with metadata.
 
-        These attributes are used to annotate functions later when the instance is called as a decorator.
+        This method initializes the decorator with the provided API name, description,
+        and instance flag. These values are stored as attributes of the decorator
+        instance and will be attached to the decorated function.
 
         Args:
-            api (str): The name of the API.
-            description (str, optional): A brief description of the API. Defaults to an empty string.
-            instance (bool, optional): Indicates if the API is an instance method. Defaults to False.
+            api: The name of the API.
+            description: A brief description of the API.
+            instance: A flag indicating whether the API should be bound to the API
+                instance instead of the class.
 
         """
         self.api_name = api
         self.description = description
         self.instance = instance
 
-    def __call__(self, func):
-        """Decorates a function by adding API metadata to it.
+    def __call__(self, func: Callable) -> Callable:
+        """Attach API metadata to the decorated function.
 
-        This method attaches the API name, description, instance flag,
-        and an empty dictionary for additional information to the function being decorated.
+        This method attaches the API name, description, and instance flag as metadata
+        to the decorated function. The metadata is stored in a dictionary and can be
+        accessed through the function's `api` attribute.
 
         Args:
-            func (callable): The function to be decorated with API metadata.
+            func: The function to be decorated.
 
         Returns:
-            callable: The original function with the added API metadata.
+            The decorated function with attached API metadata.
+
+        Raises:
+            None
+
+        Example:
+            >>> @AddAPI(api="example", description="An example API", instance=True)
+            ... def example_function():
+            ...     pass
+            >>> example_function.api
+            {'name': 'example', 'description': 'An example API', 'instance': True,
+             'addedin': {}}
 
         """
-        func.api = {
+        func.api = {  # type: ignore
             "name": self.api_name,
             "description": self.description,
             "instance": self.instance,

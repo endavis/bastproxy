@@ -5,34 +5,42 @@
 # File Description: create an api for use by plugins and modules
 #
 # By: Bast
-"""this module handles the API for all other modules
+"""Module for creating an API for use by plugins and modules.
 
-Most API functions will go in as a class API that is shared between
-all API instances.
+This module provides the `API` class, which allows for the creation and management
+of an API that can be used by plugins and modules. It includes methods for adding,
+removing, and querying API functions, as well as tracking API usage statistics.
 
-However, some API functions will need to be put in the instance api, which
-is not shared between API instances.
+Key Components:
+    - API: A class that provides an API for plugins and modules.
+    - Methods for adding, removing, and querying API functions.
+    - Utility methods for handling API function calls and tracking statistics.
 
-For example, any functions that manipulates the API itself will need
-to be added to the instance because they will need to check the
-specific instance for API data. Otherwise, they could check another
-instance because of APIs being overwritten.
+Features:
+    - Dynamic addition and removal of API functions.
+    - Management of instance-specific and class-wide API functions.
+    - Tracking and logging of API function calls and usage statistics.
+    - Support for events related to the API state.
 
-Therefore, any APIs added by this API class will be added to the instance api.
+Usage:
+    - Instantiate the `API` class to create an API object.
+    - Use the `add` method to add functions to the API.
+    - Query the API using the `get` and `has` methods.
+    - Remove API functions using the `remove` method.
+    - Track API usage statistics and details using provided methods.
 
-class APIs are in the class variable "_class_api"
-instance APIs are in the instance variable "_instance_api"
+Classes:
+    - `API`: Represents a class that provides an API for plugins and modules.
 
-See the BasePlugin class
 """
 # Standard Library
 import pprint
-import typing
 import types
 import contextlib
 from pathlib import Path
 from datetime import datetime
 from functools import lru_cache
+from typing import Any, Callable
 
 # Third Party
 
@@ -45,7 +53,6 @@ APILOCATION = "libs.api"
 
 
 class API:
-    """A class that exports an api for plugins and modules to use"""
 
     # where the main api resides
     _class_api: dict[str, APIItem] = {}
@@ -82,7 +89,21 @@ class API:
     is_character_active: bool = False
 
     def __init__(self, owner_id: str | None = None) -> None:
-        """Initialize the class"""
+        """Initialize the API instance.
+
+        This method initializes the API instance by setting up instance-specific
+        attributes and adding default API callables to the instance.
+
+        Args:
+            owner_id: The identifier of the owner of this API instance.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         # apis that have been add to this specific instance
         self._instance_api: dict[str, APIItem] = {}
 
@@ -194,8 +215,24 @@ class API:
             description="return a stackdump",
         )
 
-    def _api_add_apis_for_object(self, toplevel, item):
-        """Scan an object for api decorated functions"""
+    def _api_add_apis_for_object(self, toplevel, item) -> None:
+        """Add APIs for an object to a top-level API.
+
+        This method adds all API callables found in the given object to the specified
+        top-level API. It logs the addition of each API callable and ensures that
+        callables are not added multiple times.
+
+        Args:
+            toplevel: The top-level API to which the callables should be added.
+            item: The object containing the API callable to add.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         from libs.records import LogRecord
 
         LogRecord(
@@ -205,7 +242,8 @@ class API:
         )()
         api_functions = self.get_api_functions_in_object(item)
         LogRecord(
-            f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions",
+            f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} "
+            "api functions",
             level=self.log_level,
             sources=[__name__, toplevel],
         )()
@@ -217,21 +255,21 @@ class API:
                 sources=[__name__, toplevel],
             )()
             for func in api_functions:
-                if toplevel not in func.api["addedin"]:
-                    func.api["addedin"][toplevel] = []
-                api_name = func.api["name"].format(**func.__self__.__dict__)
-                if api_name not in func.api["addedin"][toplevel]:
+                if toplevel not in func.api["addedin"]:  # type: ignore
+                    func.api["addedin"][toplevel] = []  # type: ignore
+                api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
+                if api_name not in func.api["addedin"][toplevel]:  # type: ignore
                     LogRecord(
                         f"Adding API {toplevel}:{api_name} with {func.__name__}",
                         level=self.log_level,
                         sources=[__name__, toplevel],
                     )()
-                    description = func.api["description"].format(
+                    description = func.api["description"].format(  # type: ignore
                         **func.__self__.__dict__
                     )
-                    instance = func.api["instance"]
+                    instance = func.api["instance"]  # type: ignore
                     if not instance:
-                        func.api["addedin"][toplevel].append(api_name)
+                        func.api["addedin"][toplevel].append(api_name)  # type: ignore
                     self(f"{APILOCATION}:add")(
                         toplevel,
                         api_name,
@@ -246,9 +284,24 @@ class API:
                         sources=[__name__, toplevel],
                     )()
 
-    def get_api_functions_in_object(self, base, recurse=True):
-        """Recursively search for functions that are commands in a plugin instance
-        and it's attributes
+    def get_api_functions_in_object(
+        self, base: Any, recurse: bool = True
+    ) -> list[types.MethodType]:
+        """Get API functions in an object.
+
+        This method retrieves all API callables found in the given object. It can
+        optionally recurse into nested objects to find additional API callables.
+
+        Args:
+            base: The object to search for API callables.
+            recurse: Whether to recurse into nested objects.
+
+        Returns:
+            A list of API callables found in the object.
+
+        Raises:
+            None
+
         """
         if not recurse and base == self:
             return []
@@ -274,11 +327,28 @@ class API:
         return function_list
 
     def add_events(self) -> None:
-        """Add events for the api"""
+        """Add events related to the character's active state.
+
+        This method adds event to the API that are related to the character's
+        active state. These events can be used to notify other parts of the
+        system when the character becomes active or inactive.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         self("plugins.core.events:add.event")(
             "ev_libs.api_character_active",
             APILOCATION,
-            description="An event for when the character is active and ready for commands",
+            description=(
+                "An event for when the character is active and ready for commands"
+            ),
             arg_descriptions={
                 "is_character_active": "The state of the is_character_active flag"
             },
@@ -286,18 +356,49 @@ class API:
         self("plugins.core.events:add.event")(
             "ev_libs.api_character_inactive",
             APILOCATION,
-            description="An event for when the character is inactive and not ready for commands",
+            description=(
+                "An event for when the character is inactive and not ready for commands"
+            ),
             arg_descriptions={
                 "is_character_active": "The state of the is_character_active flag"
             },
         )
 
     def _api_is_character_active_get(self) -> bool:
-        """Returns the is_character_active flag"""
+        """Return the is_character_active flag.
+
+        This method returns the current state of the is_character_active flag,
+        indicating whether the character is active and ready for commands.
+
+        Args:
+            None
+
+        Returns:
+            The state of the is_character_active flag.
+
+        Raises:
+            None
+
+        """
         return self.is_character_active
 
     def _api_is_character_active_set(self, flag: bool) -> None:
-        """Set the is_character_active flag"""
+        """Set the is_character_active flag.
+
+        This method sets the is_character_active flag to the given value and raises
+        events to notify other parts of the system about the change in the character's
+        active state.
+
+        Args:
+            flag: The new state of the is_character_active flag.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         self.__class__.is_character_active = flag
 
         if flag:
@@ -314,7 +415,23 @@ class API:
             )
 
     def _api_data_get(self, api_name: str, base: bool = False) -> APIItem | None:
-        """Return the data for an api"""
+        """Return the data for an API.
+
+        This method retrieves the data associated with the specified API name. It
+        checks both the instance-specific and class-wide APIs to find the requested
+        data.
+
+        Args:
+            api_name: The name of the API to retrieve data for.
+            base: Whether to retrieve data from the base class API.
+
+        Returns:
+            The APIItem associated with the specified API name, or None if not found.
+
+        Raises:
+            None
+
+        """
         if api_name in self._instance_api and not base:
             return self._instance_api[api_name]
         elif api_name in self._class_api:
@@ -326,22 +443,32 @@ class API:
         self,
         top_level_api: str,
         name: str,
-        tfunction: typing.Callable,
+        tfunction: Callable,
         instance: bool = False,
         force: bool = False,
         description="",
     ) -> bool:
-        """Add a function to the api
-        @Ytop_level_api@w  = the toplevel that the api should be under
-        @Yname@w  = the name of the api
-        @Yfunction@w  = the function
-        @Yinstance@w  = bool, True to add to instance api, false to add to class api
+        """Add a function to the API.
 
-        the function is added as toplevel.name into the api
+        This method adds a callable to the API, either to the instance-specific API
+        or the class-wide API. It ensures that callables are not added multiple times
+        unless forced.
 
-        if the api already exists, it is added to the instance api
+        Args:
+            top_level_api: The top-level API to which the callable should be added.
+            name: The name of the callable to add.
+            tfunction: The callable to add to the API.
+            instance: Whether to add the callable to the instance-specific API.
+            force: Whether to force the addition of the callable, overwriting existing
+                callables if necessary.
+            description: A description of the callable being added.
 
-        this function returns no values
+        Returns:
+            True if the callable was added successfully, False otherwise.
+
+        Raises:
+            None
+
         """
         full_api_name: str = f"{top_level_api}:{name}"
 
@@ -364,7 +491,8 @@ class API:
 
                     added_in = self._class_api[api_item.full_api_name].owner_id
                     LogRecord(
-                        f"libs.api:add - {api_item.full_api_name} already exists from plugin {added_in}",
+                        f"libs.api:add - {api_item.full_api_name} already exists from "
+                        f"plugin {added_in}",
                         level="error",
                         sources=[__name__, self.owner_id],
                     )()
@@ -377,12 +505,23 @@ class API:
         return True
 
     def _api_instance(self, api_item: APIItem, force: bool = False) -> bool:
-        """Add a function to the instance api
-        @Yapi_data@w  = the api data dictionary
+        """Add a callable to the instance-specific API.
 
-        the function is added as api_data['full_api_name'] into the instance api
+        This method adds an APIItem to the instance-specific API. It ensures that
+        the callable represented by the APIITem is not added multiple times unless
+        forced.
 
-        this function returns True if added, False otherwise
+        Args:
+            api_item: The APIItem representing the callable to add.
+            force: Whether to force the addition of the callable, overwriting
+            existing callables if necessary.
+
+        Returns:
+            True if the callable was added successfully, False otherwise.
+
+        Raises:
+            None
+
         """
         if api_item.full_api_name in self._instance_api:
             if (
@@ -400,7 +539,8 @@ class API:
                     from libs.records import LogRecord
 
                     LogRecord(
-                        f"libs.api:instance - {api_item.full_api_name} already exists from plugin: {api_item.owner_id}",
+                        f"libs.api:instance - {api_item.full_api_name} already exists "
+                        f"from plugin: {api_item.owner_id}",
                         level="error",
                         sources=[__name__, api_item.owner_id],
                     )()
@@ -419,39 +559,62 @@ class API:
 
     # find the caller of this api
     def _api_get_caller_owner(self, ignore_owner_list: list[str] | None = None) -> str:
-        """Find the caller of this api by gettting the plugin on
-        the top of the frame stack
-        @Yignore_plugin_list@w  = ignore the plugins (by plugin_id) in this list if they are on the stack
+        """Get the plugin on the top of the frame stack.
 
-        check to see if the caller is a plugin, if so return the plugin id
+        This method retrieves the owner identifier of the caller at the top of the
+        frame stack, ignoring any owners specified in the ignore_owner_list.
 
-        this is so plugins can figure out who gave them data and keep up with it.
+        Args:
+            ignore_owner_list: A list of owner identifiers to ignore.
 
-        it will return the first plugin found when going through the stack
-            it checks for a BasePlugin instance of self
-            if it doesn't find that, it checks for an attribute of plugin
+        Returns:
+            The owner identifier of the caller at the top of the frame stack.
 
-        returns the plugin_id of the plugin on the stack
+        Raises:
+            None
+
         """
         return get_caller_owner_id(ignore_owner_list)
 
     @lru_cache(maxsize=128)
-    def _api_get_function_owner_plugin(self, function: typing.Callable) -> str:
-        """Get the plugin_id of the plugin that owns the function
-        @Yfunction@w  = the function
+    def _api_get_function_owner_plugin(self, tcallable: Callable) -> str:
+        """Get the plugin ID of the plugin that owns the function.
 
-        this function returns the plugin_id of the plugin that owns the function
+        This method retrieves the plugin identifier of the plugin that owns the
+        specified callable. It suppresses any AttributeError that might occur
+        during the retrieval process.
+
+        Args:
+            tcallable: The callable whose owning plugin's ID is to be retrieved.
+
+        Returns:
+            The plugin ID of the plugin that owns the callable.
+
+        Raises:
+            None
+
         """
         plugin_id = "unknown"
         with contextlib.suppress(AttributeError):
-            plugin_id = function.__self__.plugin_id
+            plugin_id = tcallable.__self__.plugin_id  # type: ignore
         return plugin_id
 
     def _api_remove(self, top_level_api: str) -> None:
-        """Remove a toplevel api
-        @Ytop_level_api@w  = the toplevel of the api to remove
+        """Remove a top-level API.
 
-        this function returns no values
+        This method removes all API callables associated with the specified top-level
+        API from both the instance-specific and class-wide APIs. It ensures that
+        callables are properly cleaned up and logs the removal process.
+
+        Args:
+            top_level_api: The top-level API to remove.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
         from libs.records import LogRecord
 
@@ -472,10 +635,10 @@ class API:
         )()
         for i in class_keys:
             func = self._class_api[i].tfunction
-            api_name = func.api["name"].format(**func.__self__.__dict__)
+            api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
             # clean up decorated functions so that subclasses APIs can be reloaded
             # this affects apis that are part of a subclass, such as the baseplugin APIs
-            self._class_api[i].tfunction.api["addedin"][top_level_api].remove(api_name)
+            self._class_api[i].tfunction.api["addedin"][top_level_api].remove(api_name)  # type: ignore
             del self._class_api[i]
 
         instance_keys = [
@@ -488,18 +651,31 @@ class API:
         )()
         for i in instance_keys:
             func = self._instance_api[i].tfunction
-            api_name = func.api["name"].format(**func.__self__.__dict__)
+            api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
             # clean up decorated functions so that subclasses APIs can be reloaded
             # this affects apis that are part of a subclass, such as the baseplugin APIs
-            self._instance_api[i].tfunction.api["addedin"][top_level_api].remove(
+            self._instance_api[i].tfunction.api["addedin"][top_level_api].remove(  # type: ignore
                 api_name
             )
             del self._instance_api[i]
 
-    def get(self, api_location: str, get_class: bool = False) -> typing.Callable:
-        """Get an api function
+    def get(self, api_location: str, get_class: bool = False) -> APIItem:
+        """Get a callable from the API.
 
-        get_class = get the class instance
+        This method retrieves a callable from the API based on the specified
+        API location. It checks both the instance-specific and class-wide APIs
+        to find the requested callable.
+
+        Args:
+            api_location: The location of the API to retrieve.
+            get_class: Whether to retrieve the callable from the class-wide API.
+
+        Returns:
+            The callable associated with the specified API location.
+
+        Raises:
+            AttributeError: If the API location is not found in the API.
+
         """
         # check overloaded api
         if (
@@ -518,7 +694,22 @@ class API:
     __call__ = get
 
     def _api_get_children(self, parent_api: str) -> list[str]:
-        """Return a list of apis in a toplevel api"""
+        """Return a list of APIs in a top-level API.
+
+        This method retrieves a list of all API callables that are part of the
+        specified top-level API. It checks both the instance-specific and class-wide
+        APIs to find the relevant callables.
+
+        Args:
+            parent_api: The top-level API to search for child APIs.
+
+        Returns:
+            A list of API names that are part of the specified top-level API.
+
+        Raises:
+            None
+
+        """
         if parent_api[-1] != ":":
             parent_api += ":"
 
@@ -536,7 +727,22 @@ class API:
         return list(set(api_list))
 
     def _api_has(self, api_location: str) -> bool:
-        """See if something exists in the api"""
+        """Check if an API location exists.
+
+        This method checks whether the specified API location exists in the API.
+        It verifies the presence of the API location in both the instance-specific
+        and class-wide APIs.
+
+        Args:
+            api_location: The location of the API to check.
+
+        Returns:
+            True if the API location exists, False otherwise.
+
+        Raises:
+            None
+
+        """
         try:
             API_item = self.get(api_location)
         except AttributeError:
@@ -555,10 +761,28 @@ class API:
         self,
         api_location: str,
         stats_by_plugin: bool = False,
-        stats_by_caller: str | None = None,
+        stats_by_caller: str = "",
         show_function_code: bool = False,
     ) -> list[str]:
-        """Return the detail of an api function"""
+        """Return the detail of an API item.
+
+        This method retrieves detailed information about the specified API item,
+        including its class and instance details, and optionally its usage statistics
+        and function code.
+
+        Args:
+            api_location: The location of the API Item to retrieve details for.
+            stats_by_plugin: Whether to include usage statistics by plugin.
+            stats_by_caller: Whether to include usage statistics by caller.
+            show_function_code: Whether to include the function code in the details.
+
+        Returns:
+            A list of strings containing the detailed information about the API item.
+
+        Raises:
+            None
+
+        """
         tmsg: list[str] = []
         api_class = None
         api_instance = None
@@ -596,8 +820,26 @@ class API:
 
         return tmsg
 
-    def format_stats(self, api_location, stats_by_plugin, stats_by_caller):
-        """Format the stats for an api"""
+    def format_stats(
+        self, api_location: str, stats_by_plugin: bool, stats_by_caller: str
+    ) -> list[str]:
+        """Format the statistics for an API location.
+
+        This method formats the statistics for the specified API location, including
+        overall statistics and statistics for specific callers if requested.
+
+        Args:
+            api_location: The location of the API to format statistics for.
+            stats_by_plugin: Whether to include usage statistics by plugin.
+            stats_by_caller: The caller identifier to include usage statistics for.
+
+        Returns:
+            A list of strings containing the formatted statistics.
+
+        Raises:
+            None
+
+        """
         api_data = self._api_data_get(api_location)
 
         if not api_data or not api_data.stats:
@@ -615,7 +857,27 @@ class API:
             # )
         return tmsg
 
-    def _stats_for_specific_caller(self, tmsg, stats_by_caller, api_data):
+    def _stats_for_specific_caller(
+        self, tmsg: list[str], stats_by_caller: str, api_data: APIItem
+    ) -> None:
+        """Format statistics for a specific caller.
+
+        This method formats the statistics for a specific caller, including the
+        number of times the caller has invoked the API. It generates a table
+        representation of the statistics for easy viewing.
+
+        Args:
+            tmsg: The list to which the formatted statistics will be appended.
+            stats_by_caller: The caller identifier to include usage statistics for.
+            api_data: The API data containing the statistics.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         stats_keys = [
             k
             for k in api_data.stats.detailed_calls.keys()
@@ -640,7 +902,7 @@ class API:
             ]
         )
 
-    def _stats_overall(self, tmsg, api_data):
+    def _stats_overall(self, tmsg: list[str], api_data: APIItem) -> None:
         stats_keys = api_data.stats.calls_by_caller.keys()
         stats_keys = sorted(stats_keys)
         stats_caller_dict = [
@@ -663,7 +925,22 @@ class API:
         )
 
     def get_top_level_api_list(self, top_level_api: str) -> list[str]:
-        """Build a list of apis in toplevel"""
+        """Get a list of APIs in a top-level API.
+
+        This method retrieves a list of all API callables that are part of the
+        specified top-level API. It checks both the instance-specific and class-wide
+        APIs to find the relevant callables.
+
+        Args:
+            top_level_api: The top-level API to search for child APIs.
+
+        Returns:
+            A list of API names that are part of the specified top-level API.
+
+        Raises:
+            None
+
+        """
         api_list: list[str] = [
             i for i in self._class_api if i.startswith(top_level_api)
         ]
@@ -674,7 +951,21 @@ class API:
         return list(set(api_list))
 
     def get_full_api_list(self) -> list[str]:
-        """Build a list of all apis"""
+        """Get a list of all APIs.
+
+        This method retrieves a list of all API callables, including both
+        instance-specific and class-wide APIs.
+
+        Args:
+            None
+
+        Returns:
+            A list of all API names.
+
+        Raises:
+            None
+
+        """
         api_list: list[str] = []
         api_list.extend(self._class_api.keys())
         api_list.extend(self._instance_api.keys())
@@ -682,7 +973,24 @@ class API:
         return sorted(set(api_list))
 
     def _api_list_data(self, top_level_api: str = "") -> list[dict]:
-        """Return a dict of api data"""
+        """Return a dict of API data.
+
+        This method retrieves a dictionary containing data for all API callables,
+        either for a specified top-level API or for all APIs if no top-level API
+        is specified. The data includes the top-level API name, the API name,
+        the full API name, the number of times the API has been called, and the
+        description of the API.
+
+        Args:
+            top_level_api: The top-level API to retrieve data for.
+
+        Returns:
+            A list of dictionaries containing data for each API callable.
+
+        Raises:
+            None
+
+        """
         all_api_data = []
         api_list = (
             self.get_top_level_api_list(top_level_api)
@@ -706,7 +1014,23 @@ class API:
         return all_api_data
 
     def _api_list(self, top_level_api: str = "") -> list[str]:
-        """Return a formatted list of functions in an api"""
+        """Return a formatted list of functions in an API.
+
+        This method retrieves a list of all API callables, either for a specified
+        top-level API or for all APIs if no top-level API is specified. The list
+        includes the API name, the number of times the API has been called, and
+        the description of the API.
+
+        Args:
+            top_level_api: The top-level API to retrieve functions for.
+
+        Returns:
+            A list of strings containing the formatted list of functions in the API.
+
+        Raises:
+            None
+
+        """
         tmsg: list[str] = []
         api_list = (
             self.get_top_level_api_list(top_level_api)
@@ -736,20 +1060,35 @@ class API:
 
 
 def test():
-    """Do some testing for the api"""
+    """Test the API class functionality.
+
+    This function tests various functionalities of the API class, including adding,
+    querying, and removing API callables, as well as checking the presence of API
+    locations and retrieving detailed information about API items.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+
+    """
 
     # some generic description
-    def testapi(msg):
-        """A test class api"""
+    def testapi(msg: str) -> str:
+        """Test the class api."""
         return f"{msg} (class)"
 
-    def instancetestapi(msg):
-        """A test instance api"""
+    def instancetestapi(msg: str) -> str:
+        """Test the instance api."""
         return f"{msg} (instance)"
 
-    def instancetestapi2(msg):
-        """A 1nd test instance api"""
-        return f"{msg} (instance)"
+    def instancetestapi2(msg: str):
+        """TEst the instance api 2nd version."""
+        return f"{msg} (instance (2))"
 
     print("-" * 80)
     api = API()
