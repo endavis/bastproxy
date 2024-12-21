@@ -380,11 +380,7 @@ class TrackedList(TrackBase, list):
 
         """
         passed_index = index
-        actual_index = index
-
-        if passed_index == -1:
-            actual_index = len(self) - 1
-
+        actual_index = len(self) - 1 if passed_index == -1 else index
         item = "###^$^@$^$default###^$^@$^"
         if not self._tracking_locked:
             item = super().pop(index)
