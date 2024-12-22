@@ -5,114 +5,196 @@
 # File Description: Client connection handling.
 #
 # By: Bast/Jubelo
-"""
-    Housing the Class(es) and coroutines for accepting and maintaining connections from clients
-    via Telnet, Secure Telnet and SSH.
+"""Module for handling client connections to a MUD server.
 
-    We do not register to events here, but we do fire events.
+This module provides the `MudConnection` class, which manages the connection
+to a MUD server, including reading from and writing to the server, handling
+telnet options, and managing the connection state.
+
+Key Components:
+    - MudConnection: A class that manages the connection to a MUD server.
+    - Methods for connecting, disconnecting, reading, and writing to the MUD server.
+    - Utility methods for handling telnet options and managing the connection state.
+
+Features:
+    - Asynchronous connection handling using asyncio.
+    - Telnet option negotiation and handling.
+    - Queue-based message sending to the MUD server.
+    - Comprehensive logging of connection events and data transmission.
+
+Usage:
+    - Instantiate MudConnection with the server address and port.
+    - Use `connect_to_mud` to establish the connection.
+    - Use `disconnect_from_mud` to close the connection.
+    - Use `send_to` to send data to the MUD server.
+    - The `mud_read` and `mud_write` methods handle reading from and writing to the
+        server.
+
+Classes:
+    - `MudConnection`: Manages the connection to a MUD server.
 """
 
 # Standard Library
 import asyncio
 import logging
 import datetime
+from typing import TYPE_CHECKING
 
 # Third Party
-from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode, open_connection
+from telnetlib3 import open_connection
 
 # Project
 from libs.net import telnet
 from libs.api import API
-from libs.records import ProcessDataToClient, LogRecord, SendDataDirectlyToMud, NetworkDataLine, SendDataDirectlyToClient
+from libs.records import (
+    ProcessDataToClient,
+    LogRecord,
+    SendDataDirectlyToMud,
+    NetworkDataLine,
+    SendDataDirectlyToClient,
+)
 from libs.records import NetworkData as NetworkData
 from libs.asynch import TaskItem
 
+if TYPE_CHECKING:
+    from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
+
 
 class MudConnection:
-    """
-        Each connection when created in async handle_client will instantiate this class.
+    """Manage the connection to a MUD server."""
 
-        Instance variables:
-            self.addr is the IP address portion of the client
-            self.port is the port portion of the client
-            self.conn_type is the type of client connection
-                close connection on 3 failed attempts
-            self.state is the current state of the client connection
-            self.reader is the asyncio.StreamReader for the connection
-            self.writer is the asyncio.StreamWriter for the connection
+    def __init__(self, addr: str, port: str) -> None:
+        """Initialize the connection with the server address and port.
 
-    """
-    def __init__(self, addr, port):
+        This constructor sets up the initial state of the connection, including the
+        server address, port, API instance, connection status, send queue, connection
+        time, and other relevant attributes.
+
+        Args:
+            addr: The server address to connect to.
+            port: The port number to connect to.
+
+        """
         self.addr: str = addr
         self.port: str = port
         self.api = API(owner_id=f"{__name__}")
-        #self.conn_type: str = conn_type
+        # self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
         self.connected = True
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
-        self.connected_time =  datetime.datetime.now(datetime.timezone.utc)
-        self.reader = None
-        self.writer = None
+        self.connected_time = datetime.datetime.now(datetime.timezone.utc)
+        self.reader: TelnetReaderUnicode | None = None
+        self.writer: TelnetWriterUnicode | None = None
         self.max_lines_to_process = 15
-        self.term_type = 'bastproxy'
-        #print(self.writer.protocol._extra)  # type: ignore
+        self.term_type = "bastproxy"
+        # print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
         # term = self.writer.protocol._extra['TERM']
 
-    async def connect_to_mud(self):
-        """
-        connect to a mud
+    async def connect_to_mud(self) -> None:
+        """Establish a connection to the MUD server.
+
+        This method initiates a connection to the MUD server using the provided
+        address and port. It sets up the reader and writer streams for communication
+        and starts the telnet handler for managing the connection.
+
+        Returns:
+            None
+
+        Raises:
+            ConnectionError: If the connection to the MUD server fails.
+
         """
         # create a mud connection through telnetlib3
-        await open_connection(self.addr, int(self.port),
-                             term=self.term_type, shell=self.mud_telnet_handler,
-                             encoding='utf8')
-        # print(f'{type(self.reader) = }')
-        # print(f'{type(self.writer) = }')
-        #await self.mud_telnet_handler(self.reader, self.writer)
+        await open_connection(
+            self.addr,
+            int(self.port),
+            term=self.term_type,
+            shell=self.mud_telnet_handler,
+            encoding="utf8",
+        )
 
-    def disconnect_from_mud(self):
-        """
-        disconnect from a mud
+    def disconnect_from_mud(self) -> None:
+        """Disconnect from the MUD server.
+
+        This method updates the connection status to indicate that the client is no
+        longer connected.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
         self.connected = False
 
     def send_to(self, data: NetworkDataLine) -> None:
-        """
-        add data to the queue
+        """Send data to the MUD server.
+
+        This method places the provided data into the send queue for transmission
+        to the MUD server. If the connection is not active, it logs an error message
+        and does not send the data.
+
+        Args:
+            data: The data to send to the MUD server.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
         if not self.connected:
-            LogRecord("send_to - Not connected to the mud, cannot send data",
-                      level='debug',
-                      sources=[__name__])()
+            LogRecord(
+                "send_to - Not connected to the mud, cannot send data",
+                level="debug",
+                sources=[__name__],
+            )()
             return
         loop = asyncio.get_event_loop()
         if not isinstance(data, NetworkDataLine):
-            LogRecord(f"client: send_to - {self.uuid} got a type that is not NetworkDataLine : {type(data)}",
-                      level='error', stack_info=True,
-                      sources=[__name__])()
+            LogRecord(
+                "client: send_to - got a type that is not NetworkDataLine: "
+                f"{type(data)}",
+                level="error",
+                stack_info=True,
+                sources=[__name__],
+            )()
         else:
             loop.call_soon_threadsafe(self.send_queue.put_nowait, data)
 
     async def setup_mud(self) -> None:
-        """
-        send telnet options
-        send welcome message to client
-        ask for password
-        """
+        """Set up the MUD connection with initial configurations.
 
+        This method advertises telnet features to the MUD server and sends them
+        using the `SendDataDirectlyToMud` method. It also ensures that the writer
+        stream is properly drained after sending the features.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         if features := telnet.advertise_features():
             LogRecord(
                 "setup_mud - Sending telnet features",
-                level='info',
+                level="info",
                 sources=[__name__],
             )()
             networkdata = NetworkData([], owner_id="mud:setup_mud")
-            networkdata.append(NetworkDataLine(features, originated='internal', line_type="COMMAND-TELNET"))
+            networkdata.append(
+                NetworkDataLine(
+                    features, originated="internal", line_type="COMMAND-TELNET"
+                )
+            )
             SendDataDirectlyToMud(networkdata)()
             LogRecord(
                 "setup_mud - telnet features sent",
-                level='info',
+                level="info",
                 sources=[__name__],
             )()
 
@@ -120,39 +202,70 @@ class MudConnection:
             await self.writer.drain()
 
     async def mud_read(self) -> None:
-        """
-            Utilized by the Telnet mud_handler.
+        """Read data from the MUD server.
 
-            We want this coroutine to run while the mud is connected, so we begin with a while loop
+        This method continuously reads data from the MUD server while the connection
+        is active. It processes the received data, logs it, and handles end-of-file
+        conditions. The method ensures that the data is read in chunks and processed
+        appropriately, including handling partial lines and EOF scenarios.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
         LogRecord(
             "mud_read - Starting coroutine for mud",
-            level='info',
+            level="info",
             sources=[__name__],
         )()
 
         while self.connected and self.reader:
             # print('mud_read - waiting for data')
-            inp: str = ''
+            inp: str = ""
 
             data = NetworkData([], owner_id="mud_read")
             while True:
                 inp = await self.reader.readline()
                 if not inp:
-                    print('no data from readline')
+                    print("no data from readline")
                     break
-                LogRecord(f"client_read - readline - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
-                LogRecord(f"client_read - readline - inp type = {type(inp)}", level='debug', sources=[__name__])()
-                data.append(NetworkDataLine(inp.rstrip(), originated='mud'))
+                LogRecord(
+                    f"client_read - readline - Raw received data in mud_read : {inp}",
+                    level="debug",
+                    sources=[__name__],
+                )()
+                LogRecord(
+                    f"client_read - readline - inp type = {type(inp)}",
+                    level="debug",
+                    sources=[__name__],
+                )()
+                data.append(NetworkDataLine(inp.rstrip(), originated="mud"))
                 logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
-                if len(self.reader._buffer) <= 0 or b'\n' not in self.reader._buffer or len(data) == self.max_lines_to_process:
+                if (
+                    len(self.reader._buffer) <= 0
+                    or b"\n" not in self.reader._buffer
+                    or len(data) == self.max_lines_to_process
+                ):
                     break
 
-            if len(self.reader._buffer) > 0 and b'\n' not in self.reader._buffer:
+            if len(self.reader._buffer) > 0 and b"\n" not in self.reader._buffer:
                 inp: str = await self.reader.read(len(self.reader._buffer))
-                LogRecord(f"client_read - read - Raw received data in mud_read : {inp}", level='debug', sources=[__name__])()
-                LogRecord(f"client_read - read - inp type = {type(inp)}", level='debug', sources=[__name__])()
-                data.append(NetworkDataLine(inp, originated='mud', had_line_endings=False))
+                LogRecord(
+                    f"client_read - read - Raw received data in mud_read : {inp}",
+                    level="debug",
+                    sources=[__name__],
+                )()
+                LogRecord(
+                    f"client_read - read - inp type = {type(inp)}",
+                    level="debug",
+                    sources=[__name__],
+                )()
+                data.append(
+                    NetworkDataLine(inp, originated="mud", had_line_endings=False)
+                )
                 logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
@@ -165,22 +278,28 @@ class MudConnection:
             # this is so we don't hog the asyncio loop
             await asyncio.sleep(0)
 
-        LogRecord(
-            "mud_read - Ending coroutine",
-            level='info',
-            sources=[__name__]
-        )()
+        LogRecord("mud_read - Ending coroutine", level="info", sources=[__name__])()
 
     async def mud_write(self) -> None:
-        """
-            Utilized by the Telnet and SSH client_handlers.
+        """Write data to the MUD server.
 
-            We want this coroutine to run while the client is connected, so we begin with a while loop
-            We await for any messages from the game to this client, then write and drain it.
+        This method continuously retrieves data from the send queue and writes it to
+        the MUD server while the connection is active. It handles different types of
+        messages, including regular data and telnet commands, and ensures that the
+        writer stream is properly managed. The method also includes a mechanism to
+        prevent overloading the asyncio loop by limiting the number of lines processed
+        in each iteration.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
         LogRecord(
             "client_write - Starting coroutine for mud_write",
-            level='debug',
+            level="debug",
             sources=[__name__],
         )()
         count = 0
@@ -189,58 +308,86 @@ class MudConnection:
             count += 1
             if msg_obj.is_io:
                 if msg_obj.line:
-                    LogRecord(f"mud_write - Writing message to mud: {msg_obj.line}",
-                            level='debug',
-                            sources=[__name__])()
-                    LogRecord(f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
-                            level='debug',
-                            sources=[__name__])()
+                    LogRecord(
+                        f"mud_write - Writing message to mud: {msg_obj.line}",
+                        level="debug",
+                        sources=[__name__],
+                    )()
+                    LogRecord(
+                        f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
+                        level="debug",
+                        sources=[__name__],
+                    )()
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
-                    logging.getLogger("data.mud").info(f"{'to_mud':<12} : {msg_obj.line}")
+                    logging.getLogger("data.mud").info(
+                        f"{'to_mud':<12} : {msg_obj.line}"
+                    )
                 else:
                     LogRecord(
                         "client_write - No message to write to client.",
-                        level='debug',
+                        level="debug",
                         sources=[__name__],
                     )()
             elif msg_obj.is_command_telnet:
-                LogRecord(f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
-                        level='debug',
-                        sources=[__name__])()
-                LogRecord(f"mud_write - Writing telnet option mud: {repr(msg_obj.line)}",
-                            level='debug',
-                            sources=[__name__])()
+                LogRecord(
+                    f"mud_write - type of msg_obj.msg = {type(msg_obj.line)}",
+                    level="debug",
+                    sources=[__name__],
+                )()
+                LogRecord(
+                    f"mud_write - Writing telnet option mud: {repr(msg_obj.line)}",
+                    level="debug",
+                    sources=[__name__],
+                )()
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
-                logging.getLogger("data.mud").info(f"{'to_client':<12} : {msg_obj.line}")
+                logging.getLogger("data.mud").info(
+                    f"{'to_client':<12} : {msg_obj.line}"
+                )
 
             if count >= self.max_lines_to_process:
                 await asyncio.sleep(0)
                 count = 0
 
-        LogRecord("mud_write - Ending coroutine",
-                  level='debug',
-                  sources=[__name__])()
+        LogRecord("mud_write - Ending coroutine", level="debug", sources=[__name__])()
 
-    async def mud_telnet_handler(self, reader, writer) -> None:
+    async def mud_telnet_handler(
+        self, reader: TelnetReaderUnicode, writer: TelnetWriterUnicode
+    ) -> None:
+        """Handle the telnet connection for the MUD server.
+
+        This method sets up the telnet connection by initializing the reader and
+        writer streams, setting up the necessary tasks for reading and writing data,
+        and configuring the telnet handler. It also manages the connection lifecycle,
+        including handling connection opening and closing events.
+
+        Args:
+            reader: The stream reader for the telnet connection.
+            writer: The stream writer for the telnet connection.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
-        This handler is for the mud connection and is the starting point for
-        creating the tasks necessary to handle the mud connection.
-        """
-        client_details: str = writer.get_extra_info('peername')
+        client_details: str = writer.get_extra_info("peername")
 
         _, _, *rest = client_details
-        LogRecord(f"Mud Connection opened - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
+        LogRecord(
+            f"Mud Connection opened - {self.addr} : {self.port} : {rest}",
+            level="warning",
+            sources=[__name__],
+        )()
         self.reader = reader
         self.writer = writer
         self.reader.readline = unicode_readline_monkeypatch.__get__(reader)
 
         tasks: list[asyncio.Task] = [
-            TaskItem(self.mud_read(),
-                                name="mud telnet read").create(),
-            TaskItem(self.mud_write(),
-                                name="mud telnet write").create(),
+            TaskItem(self.mud_read(), name="mud telnet read").create(),
+            TaskItem(self.mud_write(), name="mud telnet write").create(),
         ]
 
         if current_task := asyncio.current_task():
@@ -248,21 +395,27 @@ class MudConnection:
 
         await self.setup_mud()
 
-        _, rest = await asyncio.wait(tasks, return_when='FIRST_COMPLETED')
+        _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
 
         for task in rest:
             task.cancel()
 
         self.connected = False
 
-        LogRecord(f"Mud Connection closed - {self.addr} : {self.port} : {rest}", level='warning', sources=[__name__])()
-        SendDataDirectlyToClient(NetworkData(["Connection to the mud has been closed."]))()
+        LogRecord(
+            f"Mud Connection closed - {self.addr} : {self.port} : {rest}",
+            level="warning",
+            sources=[__name__],
+        )()
+        SendDataDirectlyToClient(
+            NetworkData(["Connection to the mud has been closed."])
+        )()
 
         await asyncio.sleep(1)
 
-async def unicode_readline_monkeypatch(self):
-    r"""
-    Read one line.
+
+async def unicode_readline_monkeypatch(self) -> str:
+    r"""Read one line.
 
     Where "line" is a sequence of characters ending with CR LF, LF,
     or CR NUL. This readline function is a strict interpretation of
