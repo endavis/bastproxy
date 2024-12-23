@@ -28,11 +28,6 @@
         Raises:
             KeyError: If the key is not found in the dictionary.
 
-        Example:
-            >>> tracked = TrackedDict({'a': 1, 'b': 2})
-            >>> del tracked['a']  # Deletion is tracked
-            >>> del tracked['c']  # Raises KeyError
-
         """
 - in classes, an attribute starting with the character _ is not a public attribute
 - The first line of a docstring should be a single sentence of no more than 75 characters
