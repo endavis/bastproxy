@@ -100,11 +100,10 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
 
     """
     new = {}
-    for i in tdict:
+    for i, ndata in tdict.items():
         nkey = i
         with contextlib.suppress(ValueError):
             nkey = int(i)
-        ndata = tdict[i]
         if isinstance(tdict[i], dict):
             ndata = convert_keys_to_int(tdict[i])
         new[nkey] = ndata
