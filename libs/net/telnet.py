@@ -283,7 +283,7 @@ main_negotiations: tuple = (WILL, WONT, DO, DONT)
 
 
 # Primary function for decoding and handling received opcodes.
-async def handle(opcodes: bytes, writer: TelnetWriterUnicode) -> None:
+async def handle(opcodes: bytes, writer: "TelnetWriterUnicode") -> None:
     """Decode and handle received Telnet opcodes.
 
     This function processes the received Telnet opcodes and handles them according

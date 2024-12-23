@@ -353,7 +353,7 @@ class MudConnection:
         LogRecord("mud_write - Ending coroutine", level="debug", sources=[__name__])()
 
     async def mud_telnet_handler(
-        self, reader: TelnetReaderUnicode, writer: TelnetWriterUnicode
+        self, reader: "TelnetReaderUnicode", writer: "TelnetWriterUnicode"
     ) -> None:
         """Handle the telnet connection for the MUD server.
 

@@ -128,7 +128,7 @@ class PersistentDict(dict):
     def __init__(
         self,
         owner_id: str,
-        file_name: Path,
+        file_name: "Path",
         flag: str = "c",
         mode: str | None = None,
         tformat: str = "json",
@@ -254,7 +254,7 @@ class PersistentDict(dict):
         """
         self.close()
 
-    def dump(self, file_object: Path) -> None:
+    def dump(self, file_object: "Path") -> None:
         """Dump the dictionary to a file.
 
         This method serializes the in-memory dictionary and writes it to the specified
