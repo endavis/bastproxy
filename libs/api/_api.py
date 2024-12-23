@@ -52,7 +52,7 @@ from ._apiitem import APIItem
 APILOCATION = "libs.api"
 
 
-class API:
+class API:  # sourcery skip: upper-camel-case-classes
     """Provide an API for plugins and modules.
 
     This class allows for the creation and management of an API that can be used
@@ -1081,7 +1081,7 @@ class API:
         return tmsg
 
 
-def test() -> None:
+def test() -> None:  # sourcery skip: no-long-functions
     """Test the API class functionality.
 
     This function tests various functionalities of the API class, including adding,
