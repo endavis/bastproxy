@@ -53,6 +53,13 @@ APILOCATION = "libs.api"
 
 
 class API:
+    """Provide an API for plugins and modules.
+
+    This class allows for the creation and management of an API that can be used
+    by plugins and modules. It includes methods for adding, removing, and querying
+    API functions, as well as tracking API usage statistics.
+
+    """
 
     # where the main api resides
     _class_api: dict[str, APIItem] = {}
@@ -305,7 +312,7 @@ class API:
         """
         if not recurse and base == self:
             return []
-        function_list = []
+        functions: list = []
         for item in dir(base):
             if item.startswith("__"):
                 continue
@@ -318,13 +325,11 @@ class API:
                 and item.__name__.startswith("_api_")
                 and hasattr(item, "api")
             ):
-                function_list.append(item)
+                functions.append(item)
             elif recurse:
-                function_list.extend(
-                    self.get_api_functions_in_object(item, recurse=False)
-                )
+                functions.extend(self.get_api_functions_in_object(item, recurse=False))
 
-        return function_list
+        return functions
 
     def add_events(self) -> None:
         """Add events related to the character's active state.
@@ -446,7 +451,7 @@ class API:
         tfunction: Callable,
         instance: bool = False,
         force: bool = False,
-        description="",
+        description: str = "",
     ) -> bool:
         """Add a function to the API.
 
@@ -714,7 +719,7 @@ class API:
             parent_api += ":"
 
         tkeys = sorted(self._class_api.keys())
-        api_list: list[str] = [
+        api_data: list[str] = [
             full_api_name[len(parent_api) :]
             for full_api_name in tkeys
             if full_api_name.startswith(parent_api)
@@ -722,9 +727,9 @@ class API:
         tkeys = sorted(self._instance_api.keys())
         for full_api_name in tkeys:
             if full_api_name.startswith(parent_api):
-                api_list.append(full_api_name[len(parent_api) :])
+                api_data.append(full_api_name[len(parent_api) :])
 
-        return list(set(api_list))
+        return list(set(api_data))
 
     def _api_has(self, api_location: str) -> bool:
         """Check if an API location exists.
@@ -884,7 +889,7 @@ class API:
             if k.startswith(stats_by_caller)
         ]
         stats_keys = sorted(stats_keys)
-        stats_caller_dict = [
+        stats_caller_data = [
             {"caller": i, "count": api_data.stats.detailed_calls[i]} for i in stats_keys
         ]
         stats_caller_columns = [
@@ -896,16 +901,33 @@ class API:
                 "",
                 *self("plugins.core.utils:convert.data.to.output.table")(
                     f"Stats for {stats_by_caller} (Unique Callers: {len(stats_keys)})",
-                    stats_caller_dict,
+                    stats_caller_data,
                     stats_caller_columns,
                 ),
             ]
         )
 
     def _stats_overall(self, tmsg: list[str], api_data: APIItem) -> None:
+        """Format overall statistics for an API location.
+
+        This method formats the overall statistics for the specified API location,
+        including the total number of calls and a breakdown of calls by caller.
+        It generates a table representation of the statistics for easy viewing.
+
+        Args:
+            tmsg: The list to which the formatted statistics will be appended.
+            api_data: The API data containing the statistics.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
         stats_keys = api_data.stats.calls_by_caller.keys()
         stats_keys = sorted(stats_keys)
-        stats_caller_dict = [
+        stats_caller_data = [
             {"caller": i, "count": api_data.stats.calls_by_caller[i]}
             for i in stats_keys
         ]
@@ -918,7 +940,7 @@ class API:
                 "",
                 *self("plugins.core.utils:convert.data.to.output.table")(
                     f"Callers (Total Calls {api_data.stats.count})",
-                    stats_caller_dict,
+                    stats_caller_data,
                     stats_caller_columns,
                 ),
             ]
@@ -941,14 +963,14 @@ class API:
             None
 
         """
-        api_list: list[str] = [
+        api_data: list[str] = [
             i for i in self._class_api if i.startswith(top_level_api)
         ]
         for i in self._instance_api:
             if i.startswith(top_level_api):
-                api_list.append(i)
+                api_data.append(i)
 
-        return list(set(api_list))
+        return list(set(api_data))
 
     def get_full_api_list(self) -> list[str]:
         """Get a list of all APIs.
@@ -966,11 +988,11 @@ class API:
             None
 
         """
-        api_list: list[str] = []
-        api_list.extend(self._class_api.keys())
-        api_list.extend(self._instance_api.keys())
+        api_data: list[str] = []
+        api_data.extend(self._class_api.keys())
+        api_data.extend(self._instance_api.keys())
 
-        return sorted(set(api_list))
+        return sorted(set(api_data))
 
     def _api_list_data(self, top_level_api: str = "") -> list[dict]:
         """Return a dict of API data.
@@ -992,12 +1014,12 @@ class API:
 
         """
         all_api_data = []
-        api_list = (
+        api_data = (
             self.get_top_level_api_list(top_level_api)
             if top_level_api
             else self.get_full_api_list()
         )
-        for i in api_list:
+        for i in api_data:
             toplevel, api_name = i.split(":", 1)
             if api_data := self._api_data_get(i):
                 all_api_data.append(
@@ -1032,16 +1054,16 @@ class API:
 
         """
         tmsg: list[str] = []
-        api_list = (
+        api_data = (
             self.get_top_level_api_list(top_level_api)
             if top_level_api
             else self.get_full_api_list()
         )
 
-        api_list.sort()
+        api_data.sort()
 
         top_levels: list[str] = []
-        for i in api_list:
+        for i in api_data:
             toplevel, _ = i.split(":", 1)
             if toplevel not in top_levels:
                 if top_levels:
@@ -1059,7 +1081,7 @@ class API:
         return tmsg
 
 
-def test():
+def test() -> None:
     """Test the API class functionality.
 
     This function tests various functionalities of the API class, including adding,
@@ -1086,7 +1108,7 @@ def test():
         """Test the instance api."""
         return f"{msg} (instance)"
 
-    def instancetestapi2(msg: str):
+    def instancetestapi2(msg: str) -> str:
         """TEst the instance api 2nd version."""
         return f"{msg} (instance (2))"
 

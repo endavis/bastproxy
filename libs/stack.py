@@ -130,7 +130,7 @@ class SimpleStack(object):
         """
         return self.items.pop()
 
-    def remove(self, item) -> None:
+    def remove(self, item: Any) -> None:
         """Remove an item from the stack.
 
         This method removes a specified item from the stack. If the item is not found,
