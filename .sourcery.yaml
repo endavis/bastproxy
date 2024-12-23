@@ -39,7 +39,7 @@ rule_settings:
   enable:
   - default
   - gpsg
-  disable: []  # A list of rule IDs Sourcery will never suggest.
+  disable: ['no-relative-imports']  # A list of rule IDs Sourcery will never suggest.
   rule_types:
   - refactoring
   - suggestion
