@@ -150,6 +150,7 @@
     # TODO: cache API stuff that can be cached (lookups mainly)
         # clear cache after a plugin reload
     # TODO: tracking base, add method to check if self
+    # TODO: change typing to "import typing as T" instead of using from typing import ...
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
