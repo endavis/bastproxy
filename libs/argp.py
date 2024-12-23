@@ -36,7 +36,6 @@ Classes:
 """
 
 # Standard Library
-import sys
 import argparse
 import textwrap as _textwrap
 from typing import NoReturn
@@ -49,7 +48,7 @@ from typing import NoReturn
 class ArgumentParser(argparse.ArgumentParser):
     """A subclass of argparse.ArgumentParser that raises an error instead of exiting."""
 
-    def error(self, message) -> NoReturn:
+    def error(self, message: str) -> NoReturn:
         """Raise an error instead of exiting.
 
         This method overrides the default error handling behavior of
@@ -62,9 +61,7 @@ class ArgumentParser(argparse.ArgumentParser):
             ArgumentError: If there is an error in the arguments.
 
         """
-        if exc := sys.exc_info()[1]:
-            exc.add_note(message)
-            raise exc
+        raise argparse.ArgumentError(None, message)
 
 
 RawDescriptionHelpFormatter = argparse.RawDescriptionHelpFormatter
