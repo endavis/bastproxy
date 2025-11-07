@@ -119,7 +119,7 @@ class CustomConsoleHandler(logging.StreamHandler):
                     record.name, record.levelno
                 )
             )
-            if type(record.msg) == LogRecord:
+            if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["console"]:
                     record.msg.wasemitted["console"] = True
                     super().emit(record)
@@ -156,7 +156,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
                     record.name, record.levelno
                 )
             )
-            if type(record.msg) == LogRecord:
+            if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["file"]:
                     record.msg.wasemitted["file"] = True
                     super().emit(record)
@@ -186,7 +186,7 @@ class CustomClientHandler(logging.Handler):
         )
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
-            if type(record.msg) == LogRecord:
+            if isinstance(record.msg, LogRecord):
                 if self.api("libs.api:has")("plugins.core.log:get.level.color"):
                     color = self.api("plugins.core.log:get.level.color")(record.levelno)
                 else:

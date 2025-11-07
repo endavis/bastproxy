@@ -439,16 +439,17 @@ class TriggersPlugin(BasePlugin):
             )()
             return False
 
-        if event := self.api("plugins.core.events:get.event")(
-            self.triggers[trigger_id].event_name
-        ):
-            if not event.isempty() and not force:
-                LogRecord(
-                    f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
-                    level="error",
-                    sources=[self.plugin_id, owner_id],
-                )()
-                return False
+        if (
+            event := self.api("plugins.core.events:get.event")(
+                self.triggers[trigger_id].event_name
+            )
+        ) and not event.isempty() and not force:
+            LogRecord(
+                f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
+                level="error",
+                sources=[self.plugin_id, owner_id],
+            )()
+            return False
 
         regex = self.regexes[self.triggers[trigger_id].regex_id]
         need_rebuild = False

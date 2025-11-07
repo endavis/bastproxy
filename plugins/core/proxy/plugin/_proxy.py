@@ -352,9 +352,7 @@ class ProxyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self):
         """Check for mud settings."""
-        if not (
-            event_record := self.api("plugins.core.events:get.current.event.record")()
-        ):
+        if not self.api("plugins.core.events:get.current.event.record")():
             return
         tmsg = []
         divider = "@R------------------------------------------------@w"

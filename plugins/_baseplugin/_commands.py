@@ -120,12 +120,11 @@ class Commands(Protocol):
             )
             msg.extend(cmd_output)
             msg.extend(("@G" + "-" * 60 + "@w", ""))
-        if args["api"]:
-            if api_list := self.api("libs.api:list")(self.plugin_id):
-                msg.extend(
-                    (f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w")
-                )
-                msg.extend(api_list)
+        if args["api"] and (api_list := self.api("libs.api:list")(self.plugin_id)):
+            msg.extend(
+                (f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w")
+            )
+            msg.extend(api_list)
         return True, msg
 
     @AddCommand(group="Base")

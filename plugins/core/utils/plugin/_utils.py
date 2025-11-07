@@ -253,8 +253,8 @@ class UtilsPlugin(BasePlugin):
         """Verify a time like 0830 or 1850."""
         try:
             time.strptime(mtime, "%H%M")
-        except:
-            raise ValueError
+        except Exception as e:
+            raise ValueError from e
 
         return mtime
 

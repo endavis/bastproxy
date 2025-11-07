@@ -560,11 +560,10 @@ class CommandsPlugin(BasePlugin):
         """
         # get the command data for the plugin
 
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
-            if command_data := self.get_command_data_from_plugin(
-                plugin_id, command_name
-            ):
-                return command_data.arg_parser.format_help()
+        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id) and (
+            command_data := self.get_command_data_from_plugin(plugin_id, command_name)
+        ):
+            return command_data.arg_parser.format_help()
 
         return ""
 
@@ -672,10 +671,11 @@ class CommandsPlugin(BasePlugin):
           None if not found, the command data dict if found
         """
         # find the instance
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
-            if data := self.command_data[plugin_id]:
-                # return the command
-                return data.get(command, None)
+        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id) and (
+            data := self.command_data[plugin_id]
+        ):
+            # return the command
+            return data.get(command, None)
 
         return None
 

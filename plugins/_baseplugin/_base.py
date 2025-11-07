@@ -116,18 +116,19 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 item = getattr(self, item)
             except AttributeError:
                 continue
-            if isinstance(item, types.MethodType):
-                if item_plugin_hooks := getattr(item, "plugin_hooks", None):
-                    for plugin_hook in item_plugin_hooks:
-                        if plugin_hook not in function_list:
-                            function_list[plugin_hook] = {}
-                        if (
+            if isinstance(item, types.MethodType) and (
+                item_plugin_hooks := getattr(item, "plugin_hooks", None)
+            ):
+                for plugin_hook in item_plugin_hooks:
+                    if plugin_hook not in function_list:
+                        function_list[plugin_hook] = {}
+                    if (
+                        item_plugin_hooks[plugin_hook]
+                        not in function_list[plugin_hook]
+                    ):
+                        function_list[plugin_hook][
                             item_plugin_hooks[plugin_hook]
-                            not in function_list[plugin_hook]
-                        ):
-                            function_list[plugin_hook][
-                                item_plugin_hooks[plugin_hook]
-                            ] = []
+                        ] = []
                         function_list[plugin_hook][
                             item_plugin_hooks[plugin_hook]
                         ].append(item)
