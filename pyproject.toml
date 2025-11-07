@@ -128,6 +128,8 @@ dev = [
     "pre-commit>=3.5.0",
     "ruff>=0.1.0",
     "black>=23.0.0",
+    "bandit>=1.7.0",
+    "safety>=3.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -306,4 +308,20 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = 88
+
+[tool.bandit]
+# Exclude directories from scanning
+exclude_dirs = [
+    "tests/",
+    ".venv/",
+    "venv/",
+    "evennia/",
+    "data/",
+    "teststuff/",
+]
+
+# Skip these security checks:
+# B401: telnet module - MUD proxy intentionally uses telnet protocol for game communication
+# B604: shell parameter - telnetlib3 library uses 'shell' as parameter name for connection handlers (not OS shell)
+skips = ["B401", "B604"]
 

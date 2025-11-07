@@ -1,0 +1,27 @@
+# Bandit security scanner configuration for BastProxy
+#
+# This configuration excludes certain checks that are false positives
+# for a MUD proxy application that intentionally uses Telnet protocol.
+
+[bandit]
+# Exclude test directories and virtual environments
+exclude_dirs = [
+    '/tests/',
+    '/.venv/',
+    '/venv/',
+    '/evennia/',
+    '/data/',
+    '/teststuff/',
+]
+
+# Skip these tests:
+# B401: telnet module - MUD proxy requires telnet for game server communication
+# B604: shell parameter - telnetlib3 uses 'shell' parameter for connection handlers (not shell commands)
+skips = ['B401', 'B604']
+
+# Report only medium and high severity issues
+# Low severity issues are informational and don't need to block CI
+# severity = MEDIUM,HIGH
+
+# Only report high confidence issues to reduce false positives
+# confidence = HIGH
