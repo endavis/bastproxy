@@ -39,6 +39,7 @@ import os
 import pickle
 import shutil
 import stat
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
 # Third Party
@@ -47,7 +48,7 @@ from libs.api import API
 from libs.records import LogRecord
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 
 def convert(tinput: Any) -> Any:
