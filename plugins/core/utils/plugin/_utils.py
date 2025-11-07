@@ -394,14 +394,18 @@ class UtilsPlugin(BasePlugin):
         converted_minutes = (
             int(minutes[:-1])
             if minutes.endswith("m")
-            else int(minutes) if minutes else 0
+            else int(minutes)
+            if minutes
+            else 0
         )
 
         seconds = timelength_match_groups["seconds"]
         converted_seconds = (
             int(seconds[:-1])
             if seconds.endswith("s")
-            else int(seconds) if seconds else 0
+            else int(seconds)
+            if seconds
+            else 0
         )
 
         return (
@@ -439,7 +443,7 @@ class UtilsPlugin(BasePlugin):
         template_strings = [
             "{" + item["key"] + ":<" + str(item["width"]) + "}" for item in columns
         ]
-        template_string = f'{f" {output_color}|{color_end} ".join(template_strings)}'
+        template_string = f"{f' {output_color}|{color_end} '.join(template_strings)}"
 
         # build the header dict
         header_dict = {item["key"]: item["name"] for item in columns}
@@ -471,7 +475,7 @@ class UtilsPlugin(BasePlugin):
                 subheader_msg, "|", color=output_color, line_length=line_length
             ),
             self.api("plugins.core.utils:cap.line")(
-                f'{"-" * (line_length - 2)}',
+                f"{'-' * (line_length - 2)}",
                 "+",
                 color=output_color,
                 line_length=line_length,
@@ -485,7 +489,7 @@ class UtilsPlugin(BasePlugin):
                 for line in data_msg
             ],
             self.api("plugins.core.utils:cap.line")(
-                f'{"-" * (line_length - 2)}',
+                f"{'-' * (line_length - 2)}",
                 "+",
                 color=output_color,
                 line_length=line_length,
@@ -517,4 +521,4 @@ class UtilsPlugin(BasePlugin):
 
         missing = line_length - len(noncolored_string)
 
-        return f'{color}{capchar}{"" if fullcolor else color_end}{spacechar}{line}{" " * missing}{spacechar}{color}{capchar}{color_end}'
+        return f"{color}{capchar}{'' if fullcolor else color_end}{spacechar}{line}{' ' * missing}{spacechar}{color}{capchar}{color_end}"

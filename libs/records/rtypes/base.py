@@ -370,7 +370,7 @@ class TrackedUserList(BaseRecord, UserList):
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else "No data found"}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else 'No data found'}"
 
     def lock(self):
         """Lock the data list to prevent modifications."""

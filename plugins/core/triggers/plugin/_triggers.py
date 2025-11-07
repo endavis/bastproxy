@@ -302,9 +302,7 @@ class TriggersPlugin(BasePlugin):
         return regex_id
 
     @AddAPI("trigger.add", description="add a trigger")
-    def _api_trigger_add(
-        self, trigger_name, regex, owner_id=None, **kwargs
-    ):  # pylint: disable=too-many-branches
+    def _api_trigger_add(self, trigger_name, regex, owner_id=None, **kwargs):  # pylint: disable=too-many-branches
         """Add a trigger.
 
         @Ytrigger_name@w   = The trigger name

@@ -34,7 +34,7 @@ class PluginsPlugin(BasePlugin):
             return False, ["Please enter a plugin id"]
 
         if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
-            return True, [f'Plugin {args["plugin"]} not found']
+            return True, [f"Plugin {args['plugin']} not found"]
 
         return (
             True,
@@ -56,11 +56,11 @@ class PluginsPlugin(BasePlugin):
 
         tmsg = []
 
-        hooks = self.api(f'{args["plugin"]}:get.plugin.hooks')()
+        hooks = self.api(f"{args['plugin']}:get.plugin.hooks")()
 
         tmsg.extend(
             self.api("plugins.core.commands:format.output.header")(
-                f'Plugin Hooks for {args["plugin"]}'
+                f"Plugin Hooks for {args['plugin']}"
             )
         )
 
@@ -102,7 +102,7 @@ class PluginsPlugin(BasePlugin):
         for plugin, plugin_data in data.items():
             tmsg.extend(
                 self.api("plugins.core.commands:format.output.header")(
-                    f'{plugin}: data for {args["plugin"]}'
+                    f"{plugin}: data for {args['plugin']}"
                 )
             )
             tmsg.extend(plugin_data)
@@ -136,7 +136,7 @@ class PluginsPlugin(BasePlugin):
         for plugin, plugin_data in data.items():
             tmsg.extend(
                 self.api("plugins.core.commands:format.output.header")(
-                    f'{plugin}: data for {args["plugin"]}'
+                    f"{plugin}: data for {args['plugin']}"
                 )
             )
             tmsg.extend(plugin_data)

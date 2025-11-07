@@ -458,7 +458,7 @@ class EventsPlugin(BasePlugin):
 
         return True, message
 
-    @AddParser(description="list events and the " "owners registered with them")
+    @AddParser(description="list events and the owners registered with them")
     @AddArgument(
         "match",
         help="list only events that have this argument in their name",

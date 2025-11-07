@@ -427,7 +427,7 @@ class PluginManager(BasePlugin):
         if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
-        self.api(f'{args["plugin"]}:set.reload')()
+        self.api(f"{args['plugin']}:set.reload")()
 
         plugins_to_load_setting = self.api("plugins.core.settings:get")(
             self.plugin_id, "pluginstoload"
@@ -438,7 +438,7 @@ class PluginManager(BasePlugin):
                 self.api("plugins.core.settings:change")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
-            return False, [f'{args["plugin"]} not reloaded, please check logs']
+            return False, [f"{args['plugin']} not reloaded, please check logs"]
 
         # add the loaded plugins to the pluginstoload setting
         if args["plugin"] not in plugins_to_load_setting:
@@ -446,7 +446,7 @@ class PluginManager(BasePlugin):
         self.api("plugins.core.settings:change")(
             self.plugin_id, "pluginstoload", plugins_to_load_setting
         )
-        return True, [f'{args["plugin"]} reloaded']
+        return True, [f"{args['plugin']} reloaded"]
 
     @RegisterToEvent(
         event_name="ev_plugins.core.events_all_events_registered", priority=1

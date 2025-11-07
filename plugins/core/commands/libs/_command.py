@@ -220,7 +220,7 @@ class CommandClass:
         if include_date:
             newmessage.append(
                 self.api("plugins.core.utils:center.colored.string")(
-                    f'Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else "Unknown"}',
+                    f"Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else 'Unknown'}",
                     "-",
                     line_length,
                     filler_color=preamble_color,
@@ -278,7 +278,7 @@ class CommandClass:
         if include_date:
             newmessage.append(
                 self.api("plugins.core.utils:center.colored.string")(
-                    f'Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else "Unknown"}',
+                    f"Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else 'Unknown'}",
                     "-",
                     line_length,
                     filler_color=preamble_color,

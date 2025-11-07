@@ -490,7 +490,7 @@ class PluginLoader:
         # go through the plugins and read information from them
         for found_plugin in plugins:
             LogRecord(
-                f'{found_plugin["plugin_id"]:<30} : Reading plugin information',
+                f"{found_plugin['plugin_id']:<30} : Reading plugin information",
                 level="info",
                 sources=[__name__],
             )()

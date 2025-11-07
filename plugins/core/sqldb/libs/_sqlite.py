@@ -167,7 +167,7 @@ class Sqldb:
                     return True, [f"Table {args['table']} does not exist"]
                 if self.db_connection:
                     cursor = self.db_connection.cursor()
-                    cursor.execute(f'PRAGMA table_info({args["table"]})')
+                    cursor.execute(f"PRAGMA table_info({args['table']})")
                     desc = cursor.fetchall()
                     cursor.close()
                     message.extend((f"Fields in table {args['table']}:", "-" * 40))

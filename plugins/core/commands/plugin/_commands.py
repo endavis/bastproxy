@@ -77,7 +77,7 @@ class CommandsPlugin(BasePlugin):
             "spamcount",
             20,
             int,
-            "the # of times a command can " "be run before an antispam command",
+            "the # of times a command can be run before an antispam command",
         )
         self.api("plugins.core.settings:add")(
             self.plugin_id,
@@ -229,7 +229,7 @@ class CommandsPlugin(BasePlugin):
         ):
             return [
                 self.api("plugins.core.utils:cap.line")(
-                    f'{"-" * (line_length - 2)}',
+                    f"{'-' * (line_length - 2)}",
                     "+",
                     color=color,
                     line_length=line_length,
@@ -240,7 +240,7 @@ class CommandsPlugin(BasePlugin):
                     header_text, " ", line_length, filler_color=color, endcaps=True
                 ),
                 self.api("plugins.core.utils:cap.line")(
-                    f'{"-" * (line_length - 2)}',
+                    f"{'-' * (line_length - 2)}",
                     "+",
                     color=color,
                     line_length=line_length,
@@ -392,9 +392,7 @@ class CommandsPlugin(BasePlugin):
             return
 
         if hasattr(func, "__self__") and hasattr(func.__self__, "plugin_id"):
-            plugin_id = (
-                func.__self__.plugin_id
-            )  # pyright: ignore reportGeneralTypeIssues
+            plugin_id = func.__self__.plugin_id  # pyright: ignore reportGeneralTypeIssues
         else:
             LogRecord(
                 f"Function does not have a plugin: {func.__name__}",
@@ -403,9 +401,7 @@ class CommandsPlugin(BasePlugin):
             )()
             return
 
-        command_data = copy.deepcopy(
-            func.command_data
-        )  # pyright: ignore reportGeneralTypeIssues
+        command_data = copy.deepcopy(func.command_data)  # pyright: ignore reportGeneralTypeIssues
         if not command_data.command["autoadd"] and not force:
             LogRecord(
                 f"Command {func.__name__} in {plugin_id} will not be added, autoadd set to False",
@@ -509,7 +505,7 @@ class CommandsPlugin(BasePlugin):
             returns:
                #bp.core.proxy.info
         """
-        return f"{self.api('plugins.core.commands:get.command.prefix')()}.{plugin_id.replace('plugins.','')}.{command}"
+        return f"{self.api('plugins.core.commands:get.command.prefix')()}.{plugin_id.replace('plugins.', '')}.{command}"
 
     @AddAPI(
         "get.current.command.args",
@@ -841,7 +837,7 @@ class CommandsPlugin(BasePlugin):
         if command:
             message = [
                 self.api("plugins.core.utils:cap.line")(
-                    f'{"-" * (80 - 2)}',
+                    f"{'-' * (80 - 2)}",
                     "+",
                     color="@B",
                     line_length=80,
@@ -849,7 +845,7 @@ class CommandsPlugin(BasePlugin):
                     fullcolor=True,
                 ),
                 self.api("plugins.core.utils:center.colored.string")(
-                    f'@RError - Plugin {plugin_id.replace("plugins.", "")} has no command{f" : {command}" if command else ""}@w',
+                    f"@RError - Plugin {plugin_id.replace('plugins.', '')} has no command{f' : {command}' if command else ''}@w",
                     filler_character="-",
                     length=80,
                     filler_color="@B",
@@ -876,7 +872,7 @@ class CommandsPlugin(BasePlugin):
         if plugin_id:
             message = [
                 self.api("plugins.core.utils:cap.line")(
-                    f'{"-" * (80 - 2)}',
+                    f"{'-' * (80 - 2)}",
                     "+",
                     color="@B",
                     line_length=80,
@@ -884,7 +880,7 @@ class CommandsPlugin(BasePlugin):
                     fullcolor=True,
                 ),
                 self.api("plugins.core.utils:center.colored.string")(
-                    f'@RError - Unknown plugin{f" : {plugin_id}" if plugin_id else ""}@w',
+                    f"@RError - Unknown plugin{f' : {plugin_id}' if plugin_id else ''}@w",
                     filler_character="-",
                     length=80,
                     filler_color="@B",
@@ -913,7 +909,7 @@ class CommandsPlugin(BasePlugin):
         """Package not found."""
         message = [
             self.api("plugins.core.utils:cap.line")(
-                f'{"-" * (80 - 2)}',
+                f"{'-' * (80 - 2)}",
                 "+",
                 color="@B",
                 line_length=80,
@@ -921,7 +917,7 @@ class CommandsPlugin(BasePlugin):
                 fullcolor=True,
             ),
             self.api("plugins.core.utils:center.colored.string")(
-                f'@RError - Unknown package{f" : {package}" if package else ""}@w',
+                f"@RError - Unknown package{f' : {package}' if package else ''}@w",
                 filler_character="-",
                 length=80,
                 filler_color="@B",
@@ -1347,7 +1343,7 @@ class CommandsPlugin(BasePlugin):
         commands: dict[str, CommandClass] = self.command_data[plugin_id]
 
         message = self.api(f"{self.plugin_id}:format.output.header")(
-            f'Available Commands in {plugin_id.replace("plugins.", "")}'
+            f"Available Commands in {plugin_id.replace('plugins.', '')}"
         )
 
         groups = {}
