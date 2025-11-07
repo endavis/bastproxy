@@ -13,7 +13,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
     or when the event is raised and a calledfrom argument is passed and created_by is not already been set
 """
 # Standard Library
-import typing
+from typing import Callable
 
 # 3rd Party
 
@@ -80,7 +80,7 @@ class Event:
             for priority in self.priority_dictionary
         )
 
-    def register(self, func: typing.Callable, func_owner_id: str, prio: int = 50) -> bool:
+    def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
         """
         register a function to this event container
         """

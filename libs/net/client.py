@@ -41,13 +41,13 @@ import asyncio
 import contextlib
 import logging
 import datetime
-import typing
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
 
 # Project

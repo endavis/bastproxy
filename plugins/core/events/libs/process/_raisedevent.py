@@ -9,14 +9,14 @@
 Holds the log record type
 """
 # Standard Library
-import typing
+from typing import TYPE_CHECKING, Callable
 
 # 3rd Party
 
 # Project
 from libs.records import BaseRecord, LogRecord
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from _event import Event
     from plugins.core.events.libs.data._event import EventDataRecord
 

@@ -12,7 +12,7 @@ import datetime
 import sys
 import asyncio
 import math
-import typing
+from typing import Callable
 
 # 3rd Party
 
@@ -330,7 +330,7 @@ class TimersPlugin(BasePlugin):
             return None
 
     @AddAPI('add.timer', description='add a timer')
-    def _api_add_timer(self, name: str, func: typing.Callable, seconds: int, **kwargs) -> Timer | None:
+    def _api_add_timer(self, name: str, func: Callable, seconds: int, **kwargs) -> Timer | None:
         """  add a timer
         @Yname@w   = The timer name
         @Yfunc@w  = the function to call when firing the timer

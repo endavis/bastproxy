@@ -36,9 +36,12 @@ Classes:
     - `APIItem`: Represents an API function with tracking and descriptive capabilities.
 
 """
-# Standard Library
-import typing
+import re
 import inspect
+import textwrap
+from typing import Callable
+
+# Local import typing
 
 # Third Party
 
@@ -60,7 +63,7 @@ class APIItem:
     def __init__(
         self,
         full_api_name: str,
-        tfunction: typing.Callable,
+        tfunction: Callable,
         owner_id: str | None,
         description: list | str = "",
     ) -> None:
@@ -87,7 +90,7 @@ class APIItem:
         """
         self.full_api_name: str = full_api_name
         self.owner_id: str = owner_id or "unknown"
-        self.tfunction: typing.Callable = tfunction
+        self.tfunction: Callable = tfunction
         self.instance: bool = False
         self.overwritten_api: APIItem | None = None
         if not description:

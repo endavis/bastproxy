@@ -11,7 +11,7 @@ Holds the tomud record type
 """
 # Standard Library
 import re
-import typing
+from typing import TYPE_CHECKING, Callable
 
 # 3rd Party
 

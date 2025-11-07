@@ -11,7 +11,7 @@ This module holds a manager that handles records of all types
 
 import contextlib
 # Standard Library
-import typing
+from typing import TYPE_CHECKING, Callable
 
 # 3rd Party
 
@@ -20,7 +20,7 @@ from libs.api import API as BASEAPI
 from libs.stack import SimpleStack
 from libs.queue import SimpleQueue
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from libs.records.rtypes.update import UpdateRecord
 
 class RecordManager(object):

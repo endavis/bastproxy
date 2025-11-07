@@ -9,7 +9,7 @@
 # Standard Library
 from __future__ import print_function
 import shlex
-import typing
+from typing import TYPE_CHECKING, Callable
 import datetime
 
 # 3rd Party
@@ -21,7 +21,7 @@ from .data.cmdargs import CmdArgsRecord
 import libs.argp as argp
 
 class CommandClass:
-    def __init__(self, plugin_id: str, name: str, function: typing.Callable,
+    def __init__(self, plugin_id: str, name: str, function: Callable,
                  arg_parser: argp.ArgumentParser, format: bool = True,
                  group: str | None = None, preamble: bool = True,
                  show_in_history: bool = True, shelp: str = ''):

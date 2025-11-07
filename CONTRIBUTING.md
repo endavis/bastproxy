@@ -296,6 +296,43 @@ class YourPlugin(BasePlugin):
 - Handle errors gracefully
 - Clean up resources in plugin unload
 
+### API Naming Conventions
+
+When adding new APIs with `@AddAPI`, follow these naming patterns:
+
+1. **Verb-First for Actions** (most common):
+   - Pattern: `<verb>.<noun>[.<modifier>]`
+   - Examples: `add.timer`, `get.plugin.info`, `remove.timer`, `set.reload`
+   - Verbs: `add`, `get`, `remove`, `set`, `update`, `change`
+
+2. **Noun-First for Resource Operations**:
+   - Pattern: `<resource>.<verb>[.<modifier>]`
+   - Examples: `client.add`, `timer.remove`, `plugin.get`
+   - Use when grouping APIs by resource type
+
+3. **Domain-First for Utilities/Converters**:
+   - Pattern: `<domain>.<operation>`
+   - Examples: `colorcode.to.html`, `format.time`, `convert.seconds.to.dhms`
+   - Use for conversion, formatting, and utility functions
+
+4. **Boolean Checks**:
+   - Pattern: `is.<condition>` or `<resource>.is.<condition>`
+   - Examples: `is.plugin.loaded`, `timer.is.enabled`
+   - Avoid: `has.*`, `does.*`, `can.*` (use `is.*` consistently)
+
+5. **Dot Notation**:
+   - Use dots to create hierarchies: `plugin.dependency.add`
+   - Keep API names concise but descriptive
+   - Maximum 3-4 levels deep
+
+**Examples:**
+```python
+@AddAPI('timer.add', description='add a timer')
+@AddAPI('is.timer.exists', description='check if a timer exists')
+@AddAPI('colorcode.to.ansicode', description='convert color codes')
+@AddAPI('get.plugin.info', description='get plugin information')
+```
+
 ## Questions?
 
 - Open an issue for bugs or feature requests

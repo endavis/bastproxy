@@ -10,7 +10,7 @@ Holds the log record type
 """
 # Standard Library
 import logging
-import typing
+from typing import TYPE_CHECKING, Callable
 import contextlib
 
 # 3rd Party
