@@ -154,6 +154,11 @@
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
+    # IDEA: Use Pydantic Models to pass around data and parameters over dicts or numerous function parameters
+        This a data processing pipeline that has a bunch of environment variables
+        that get looked up once and never change. Just define a pydantic
+        class and boom, you have error handling, type checking, and can pass that around as a single
+        argument to functions.
 
 # BUGS:
     # BUG: evennia intro command doesn't seem to take number, works with regular telnet
