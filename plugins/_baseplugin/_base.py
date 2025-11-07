@@ -115,11 +115,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         function_list = {}
         for item in dir(self):
             try:
-                item = getattr(self, item)
+                attr = getattr(self, item)
             except AttributeError:
                 continue
-            if isinstance(item, types.MethodType) and (
-                item_plugin_hooks := getattr(item, "plugin_hooks", None)
+            if isinstance(attr, types.MethodType) and (
+                item_plugin_hooks := getattr(attr, "plugin_hooks", None)
             ):
                 for plugin_hook in item_plugin_hooks:
                     if plugin_hook not in function_list:
@@ -128,7 +128,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                         function_list[plugin_hook][item_plugin_hooks[plugin_hook]] = []
                         function_list[plugin_hook][
                             item_plugin_hooks[plugin_hook]
-                        ].append(item)
+                        ].append(attr)
 
         return function_list
 
@@ -142,22 +142,22 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             if not item.startswith("_phook_"):
                 continue
             try:
-                item = getattr(self, item)
+                attr = getattr(self, item)
             except AttributeError:
                 continue
             if (
-                isinstance(item, types.MethodType)
-                and hasattr(item, "plugin_hooks")
-                and plugin_hook in item.plugin_hooks
+                isinstance(attr, types.MethodType)
+                and hasattr(attr, "plugin_hooks")
+                and plugin_hook in attr.plugin_hooks
             ):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
                 if (
-                    item.plugin_hooks[plugin_hook] not in function_list
+                    attr.plugin_hooks[plugin_hook] not in function_list
                 ):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                    function_list[item.plugin_hooks[plugin_hook]] = (
+                    function_list[attr.plugin_hooks[plugin_hook]] = (
                         []
                     )  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                function_list[item.plugin_hooks[plugin_hook]].append(
-                    item
+                function_list[attr.plugin_hooks[plugin_hook]].append(
+                    attr
                 )  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
 
         return function_list

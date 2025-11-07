@@ -100,12 +100,12 @@ class ColorsPlugin(BasePlugin):
         lastchar = ""
         for line in tinput:
             lastchar = "\n" if line and line[-1] == "\n" else ""
-            line = line.rstrip()
+            stripped_line = line.rstrip()
             # line = fixstring(line)
-            if "@@" in line:
-                line = line.replace("@@", "\0")
+            if "@@" in stripped_line:
+                stripped_line = stripped_line.replace("@@", "\0")
             tlist = re.split(
-                r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", line
+                r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", stripped_line
             )
 
             nlist = []
@@ -216,11 +216,11 @@ class ColorsPlugin(BasePlugin):
 
         olist = []
         for line in tinput:
-            line = line.replace("@@", "\0")
-            line = line.replace("@", "@@")
-            line = line.replace("\0", "@@@@")
+            escaped_line = line.replace("@@", "\0")
+            escaped_line = escaped_line.replace("@", "@@")
+            escaped_line = escaped_line.replace("\0", "@@@@")
 
-            olist.append(line)
+            olist.append(escaped_line)
 
         return "\n".join(olist)
 

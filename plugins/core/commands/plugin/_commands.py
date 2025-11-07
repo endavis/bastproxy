@@ -345,18 +345,18 @@ class CommandsPlugin(BasePlugin):
             if item.startswith("__"):
                 continue
             try:
-                item = getattr(base, item)
+                attr = getattr(base, item)
             except AttributeError:
                 continue
             if (
-                isinstance(item, types.MethodType)
-                and item.__name__.startswith("_command_")
-                and hasattr(item, "command_data")
+                isinstance(attr, types.MethodType)
+                and attr.__name__.startswith("_command_")
+                and hasattr(attr, "command_data")
             ):
-                function_list.append(item)
+                function_list.append(attr)
             elif recurse:
                 function_list.extend(
-                    self.get_command_functions_in_object(item, recurse=False)
+                    self.get_command_functions_in_object(attr, recurse=False)
                 )
 
         return function_list

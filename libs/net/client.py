@@ -366,7 +366,7 @@ class ClientConnection:
                 level="debug",
                 sources=[__name__],
             )()
-            self.data_logger.info(f"{'client_read':<12} : {inp}")
+            self.data_logger.info("%-12s : %s", "client_read", inp)
 
             if not inp:  # This is an EOF.  Hard disconnect.
                 self.connected = False
@@ -437,7 +437,7 @@ class ClientConnection:
                     )()
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
-                    self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
+                    self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
                 else:
                     LogRecord(
                         "client_write - No message to write to client.",
@@ -446,7 +446,7 @@ class ClientConnection:
                     )()
                 if msg_obj.is_prompt:
                     self.writer.write(telnet.go_ahead())
-                    self.data_logger.info(f"{'client_write':<12} : {telnet.go_ahead()}")
+                    self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
             elif msg_obj.is_command_telnet:
                 LogRecord(
                     f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",
@@ -461,7 +461,7 @@ class ClientConnection:
                 )()
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
-                self.data_logger.info(f"{'client_write':<12} : {msg_obj.line}")
+                self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
 
             count = count + 1
             if count == self.max_lines_to_process:

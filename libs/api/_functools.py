@@ -129,7 +129,7 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
 
     if caller_id == "unknown":
         logger = logging.getLogger(__name__)
-        logger.warning(f"Unknown caller_id for API call: {inspect.stack()[1][3]}")
+        logger.warning("Unknown caller_id for API call: %s", inspect.stack()[1][3])
 
     return caller_id
 

@@ -547,6 +547,7 @@ class BaseListRecord(UserList, BaseRecord):
         if not self.api("libs.api:has")("plugins.core.colors:colorcode.to.ansicode"):
             return
         for line in self.data:
+            colored_line = line
             if color:
                 if "@w" in line:
                     line_list = line.split("@w")
@@ -556,11 +557,11 @@ class BaseListRecord(UserList, BaseRecord):
                             new_line_list.append(f"{color}{item}")
                         else:
                             new_line_list.append(item)
-                    line = f"@w{color}".join(new_line_list)
-                if line:
-                    line = f"{color}{line}@w"
+                    colored_line = f"@w{color}".join(new_line_list)
+                if colored_line:
+                    colored_line = f"{color}{colored_line}@w"
             new_message.append(
-                self.api("plugins.core.colors:colorcode.to.ansicode")(line)
+                self.api("plugins.core.colors:colorcode.to.ansicode")(colored_line)
             )
 
         self.replace(
@@ -580,10 +581,11 @@ class BaseListRecord(UserList, BaseRecord):
         """
         new_message: list[str] = []
         for line in self.data:
+            decoded_line = line
             if isinstance(line, bytes):
-                line = line.decode("utf-8")
-            if isinstance(line, str):
-                new_message.extend(line.splitlines() if line else [""])
+                decoded_line = line.decode("utf-8")
+            if isinstance(decoded_line, str):
+                new_message.extend(decoded_line.splitlines() if decoded_line else [""])
             else:
                 from libs.records.rtypes.log import LogRecord
 

@@ -49,6 +49,9 @@ from typing import Optional
 from libs.api import API as BASEAPI
 from libs.records import LogRecord
 
+# Module-level set to store background tasks and prevent garbage collection
+_BACKGROUND_TASKS: set[asyncio.Task] = set()
+
 
 def _handle_task_result(
     task: asyncio.Task,
@@ -57,7 +60,7 @@ def _handle_task_result(
 ) -> None:
     """Handle the result of an asyncio task.
 
-    This function is called when an asyncio task completes. It logs any exceptions
+    This function is called when an asyncio.Task completes. It logs any exceptions
     that occur during the execution of the task.
 
     Args:
@@ -385,9 +388,15 @@ def run_asynch() -> None:
             task_item: TaskItem = TaskItem(
                 func=shutdown(sig, loop), name=f"{sig.name} shutdown handler"
             )
-        loop.add_signal_handler(sig, lambda: task_item.create())
+        # Capture task_item in closure using default argument
+        loop.add_signal_handler(sig, lambda ti=task_item: ti.create())
 
-    loop.create_task(QUEUEMANAGER.task_check_for_new_tasks(), name="New Task Checker")
+    # Store reference to prevent garbage collection
+    task_checker = loop.create_task(
+        QUEUEMANAGER.task_check_for_new_tasks(), name="New Task Checker"
+    )
+    _BACKGROUND_TASKS.add(task_checker)
+    task_checker.add_done_callback(_BACKGROUND_TASKS.discard)
 
     LogRecord("__main__ - run_forever", level="debug", sources=["mudproxy"])()
     loop.run_forever()

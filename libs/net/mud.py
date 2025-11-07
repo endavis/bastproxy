@@ -241,7 +241,7 @@ class MudConnection:
                     sources=[__name__],
                 )()
                 data.append(NetworkDataLine(inp.rstrip(), originated="mud"))
-                logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
+                logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
                 if (
                     len(self.reader._buffer) <= 0
                     or b"\n" not in self.reader._buffer
@@ -264,7 +264,7 @@ class MudConnection:
                 data.append(
                     NetworkDataLine(inp, originated="mud", had_line_endings=False)
                 )
-                logging.getLogger("data.mud").info(f"{'from_mud':<12} : {inp}")
+                logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
                 self.connected = False
@@ -319,7 +319,7 @@ class MudConnection:
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
                     logging.getLogger("data.mud").info(
-                        f"{'to_mud':<12} : {msg_obj.line}"
+                        "%-12s : %s", "to_mud", msg_obj.line
                     )
                 else:
                     LogRecord(
@@ -341,7 +341,7 @@ class MudConnection:
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
                 logging.getLogger("data.mud").info(
-                    f"{'to_client':<12} : {msg_obj.line}"
+                    "%-12s : %s", "to_client", msg_obj.line
                 )
 
             if count >= self.max_lines_to_process:

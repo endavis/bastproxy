@@ -263,8 +263,12 @@ ignore = [
     "PLR0912", # Too many branches
     "PLR0915", # Too many statements
     "PLR2004", # Magic value used in comparison
+    "PLR0911", # Too many returns (early returns for error handling)
     "ISC001",  # Conflicts with formatter
     "ERA001",  # Commented-out code (false positives on file headers)
+    "B019",    # lru_cache on methods (intentional for API methods)
+    "ARG001",  # Unused function arguments (interface conformance)
+    "ARG002",  # Unused method arguments (interface conformance)
     # Temporarily ignored - to be fixed incrementally
     "D205",    # missing-blank-line-after-summary (104 occurrences)
     "D415",    # missing-terminal-punctuation (557 occurrences)

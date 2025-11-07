@@ -272,9 +272,9 @@ class TimersPlugin(BasePlugin):
         message: list[str] = []
         if args["timers"]:
             columnwidth: int = 13
-            for timer in args["timers"]:
-                if timer in self.timer_lookup:
-                    timer = self.timer_lookup[timer]
+            for timer_name in args["timers"]:
+                if timer_name in self.timer_lookup:
+                    timer = self.timer_lookup[timer_name]
                     message.extend(
                         (
                             f"{'Name':<{columnwidth}} : {timer.name}",
@@ -302,7 +302,7 @@ class TimersPlugin(BasePlugin):
                         )
                     )
                 else:
-                    message.append(f"Timer {timer} does not exist")
+                    message.append(f"Timer {timer_name} does not exist")
 
         else:
             message.append("Please specify a timer name")

@@ -327,14 +327,14 @@ class Sqldb:
         if self.tables[tablename]:
             sql_statement_list = self.tables[tablename]["createsql"].splitlines()
             for sql_line in sql_statement_list:
-                sql_line = sql_line.strip()
+                stripped_sql_line = sql_line.strip()
                 if (
-                    sql_line
-                    and sql_line[:2] != "--"
-                    and "CREATE" not in sql_line
-                    and ")" not in sql_line
+                    stripped_sql_line
+                    and stripped_sql_line[:2] != "--"
+                    and "CREATE" not in stripped_sql_line
+                    and ")" not in stripped_sql_line
                 ):
-                    sql_line_split_list = sql_line.split(" ")
+                    sql_line_split_list = stripped_sql_line.split(" ")
                     column = sql_line_split_list[0]
                     columnumns.append(column)
                     columnumnsbykeys[column] = True

@@ -130,18 +130,18 @@ class EventsPlugin(BasePlugin):
             if item.startswith("__"):
                 continue
             try:
-                item = getattr(base, item)
+                attr = getattr(base, item)
             except AttributeError:
                 continue
             if (
-                isinstance(item, types.MethodType)
-                and item.__name__.startswith("_eventcb_")
-                and hasattr(item, "event_registration")
+                isinstance(attr, types.MethodType)
+                and attr.__name__.startswith("_eventcb_")
+                and hasattr(attr, "event_registration")
             ):
-                function_list.append(item)
+                function_list.append(attr)
             elif recurse:
                 function_list.extend(
-                    self.get_event_registration_functions_in_object(item, recurse=False)
+                    self.get_event_registration_functions_in_object(attr, recurse=False)
                 )
 
         return function_list

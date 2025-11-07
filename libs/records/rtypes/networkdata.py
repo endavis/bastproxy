@@ -330,10 +330,12 @@ class NetworkData(TrackedUserList):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)}"
                 raise TypeError(msg)
             if isinstance(item, (str, bytes)):
-                item = NetworkDataLine(item)
-                self[self.index(old_item)] = item
-            item.parent = self
-            item.add_parent(self)
+                converted_item = NetworkDataLine(item)
+                self[self.index(old_item)] = converted_item
+            else:
+                converted_item = item
+            converted_item.parent = self
+            converted_item.add_parent(self)
 
     def get_first_line(self):
         """Get the first non-empty line from the network data.
@@ -401,8 +403,10 @@ class NetworkData(TrackedUserList):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
                 raise TypeError(msg)
             if isinstance(item, (str, bytes, bytearray)):
-                item = NetworkDataLine(item)
-            item.parent = self
-            item.add_parent(self)
-            new_list.append(item)
+                converted_item = NetworkDataLine(item)
+            else:
+                converted_item = item
+            converted_item.parent = self
+            converted_item.add_parent(self)
+            new_list.append(converted_item)
         super().extend(new_list)
