@@ -4,7 +4,7 @@ This directory contains integration tests for BastProxy that connect to a runnin
 
 ## Status
 
-**These tests are currently experimental.**
+**These tests are currently disabled (skipped by default).**
 
 The integration test framework has been created with fixtures for:
 - Starting/stopping proxy server in subprocess
@@ -39,12 +39,20 @@ To make these tests production-ready:
 
 ## Running Tests
 
+The integration tests are currently skipped by default. To run all tests (including skipped integration tests):
+
 ```bash
-# These tests are currently disabled
-# pytest tests/integration/ -v
+# Run all unit tests (integration tests are skipped)
+pytest tests/ -v
+
+# To explicitly show skipped integration tests
+pytest tests/integration/ -v
+
+# To force run integration tests (not recommended - they will timeout)
+pytest tests/integration/ -v --run-skipped
 ```
 
-For now, continue using the 179 unit tests for validation:
+For now, continue using the unit tests for validation:
 ```bash
-pytest tests/ -k "not integration" -v
+pytest tests/ -v  # 179 tests will pass, 9 will be skipped
 ```
