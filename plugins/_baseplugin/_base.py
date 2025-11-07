@@ -9,9 +9,9 @@
 import contextlib
 import datetime
 import inspect
-import os
 import pprint
 import types
+from pathlib import Path
 
 # 3rd Party
 # Project
@@ -56,7 +56,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.is_character_active_priority = None
         self.loaded_time = datetime.datetime.now(datetime.UTC)
 
-        os.makedirs(self.plugin_info.data_directory, exist_ok=True)
+        Path(self.plugin_info.data_directory).mkdir(parents=True, exist_ok=True)
 
         self.data = {}
 

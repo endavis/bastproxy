@@ -99,16 +99,16 @@ for colorc in CONVERTCOLORS:
 
 # xterm colors
 for xtn in range(256):
-    CONVERTANSI["38;5;%d" % xtn] = "x%d" % xtn
-    CONVERTANSI["48;5;%d" % xtn] = "z%d" % xtn
+    CONVERTANSI[f"38;5;{xtn}"] = f"x{xtn}"
+    CONVERTANSI[f"48;5;{xtn}"] = f"z{xtn}"
 
 # backgrounds
 for acn in range(40, 48):
-    CONVERTANSI[f"{acn}"] = CONVERTANSI["48;5;%d" % (acn - 40)]
+    CONVERTANSI[f"{acn}"] = CONVERTANSI[f"48;5;{acn - 40}"]
 
 # foregrounds
 for abn in range(30, 38):
-    CONVERTANSI[f"{abn}"] = CONVERTANSI["0;%d" % abn]
+    CONVERTANSI[f"{abn}"] = CONVERTANSI[f"0;{abn}"]
 
 ALLCONVERTCOLORS = CONVERTCOLORS.copy()
 for item in CONVERTANSI:

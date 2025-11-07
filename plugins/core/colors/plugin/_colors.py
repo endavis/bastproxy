@@ -204,7 +204,7 @@ class ColorsPlugin(BasePlugin):
                     )
 
             if tstr2:
-                tstr = tstr2 + "%c[0m" % chr(27)
+                tstr = tstr2 + f"{chr(27)}[0m"
         return re.sub("\0", "@", tstr)  # put @ back in
 
     @AddAPI(
@@ -238,10 +238,10 @@ class ColorsPlugin(BasePlugin):
             tstr = ""
             tstr += argsdict["arg_1"]
             if argsdict["arg_2"]:
-                tstr = tstr + ";%d" % int(argsdict["arg_2"])
+                tstr = tstr + f";{int(argsdict['arg_2'])}"
 
             if argsdict["arg_3"]:
-                tstr = tstr + ";%d" % int(argsdict["arg_3"])
+                tstr = tstr + f";{int(argsdict['arg_3'])}"
 
             try:
                 return f"@{CONVERTANSI[tstr]}"

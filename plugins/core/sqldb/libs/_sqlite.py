@@ -9,7 +9,6 @@
 import contextlib
 import copy
 import datetime
-import os
 import shutil
 import sqlite3
 import zipfile
@@ -41,7 +40,7 @@ class Sqldb:
         self.database_data_directory = self.api.BASEPATH / "data" / "db"
         if "dbdir" in kwargs:
             self.database_data_directory = kwargs["dbdir"]
-        os.makedirs(self.database_data_directory, exist_ok=True)
+        Path(self.database_data_directory).mkdir(parents=True, exist_ok=True)
 
         self.db_file = self.database_data_directory / f"{self.database_name}.sqlite"
         self.turnonpragmas()
@@ -667,7 +666,7 @@ class Sqldb:
             self.close()
 
         archivedir = self.database_data_directory / "archive"
-        os.makedirs(archivedir, exist_ok=True)
+        archivedir.mkdir(parents=True, exist_ok=True)
 
         backupzip_filename = self.backup_template % postname + ".zip"
         backupzipfile = archivedir / backupzip_filename
@@ -687,7 +686,7 @@ class Sqldb:
         try:
             with zipfile.ZipFile(backupzipfile, "w", zipfile.ZIP_DEFLATED) as myzip:
                 myzip.write(backupfile, arcname=Path(backupfile).name)
-            os.remove(backupfile)
+            Path(backupfile).unlink()
             success = True
             LogRecord(
                 f"backupdb - {self.db_file} was backed up to {backupzipfile}",

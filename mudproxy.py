@@ -37,7 +37,6 @@ Classes:
 # Standard Library
 import datetime
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -84,9 +83,9 @@ BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / "plugins"
 BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / "logs"
 BASEAPI.BASEPLUGINPATH = BASEAPI.BASEPATH / "plugins"
 
-os.makedirs(BASEAPI.BASEDATAPATH, exist_ok=True)
-os.makedirs(BASEAPI.BASEDATALOGPATH, exist_ok=True)
-os.makedirs(BASEAPI.BASEDATAPLUGINPATH, exist_ok=True)
+BASEAPI.BASEDATAPATH.mkdir(parents=True, exist_ok=True)
+BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True)
+BASEAPI.BASEDATAPLUGINPATH.mkdir(parents=True, exist_ok=True)
 
 
 class MudProxy:
@@ -286,7 +285,7 @@ def main() -> None:
                 [",".join(line.rstrip().split(None, 5)) for line in result.split("\n")]
             )
             # save it to disk
-            with open("profile.csv", "w+") as f:
+            with Path("profile.csv").open("w+") as f:
                 f.write(result)
     else:
         MP.run(args)

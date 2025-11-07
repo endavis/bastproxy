@@ -6,7 +6,6 @@
 # By: Bast
 
 # Standard Library
-import os
 
 from libs.records import RMANAGER
 
@@ -153,8 +152,8 @@ class RecordPlugin(BasePlugin):
                 save_path.mkdir(parents=True, exist_ok=True)
                 file_path = save_path / f"{args['uid']}.txt"
                 if file_path.exists():
-                    os.remove(file_path)
-                with open(file_path, "w") as f:
+                    file_path.unlink()
+                with file_path.open("w") as f:
                     f.write("\n".join(data))
 
                 tmsg.append(f"Record dumped to {file_path}")

@@ -233,7 +233,7 @@ def setup_loggers(log_level: int):
     rootlogger.setLevel(log_level)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
-    os.makedirs(API.BASEDATALOGPATH / "networkdata", exist_ok=True)
+    (API.BASEDATALOGPATH / "networkdata").mkdir(parents=True, exist_ok=True)
     data_logger_log_file_path = (
         API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
     )

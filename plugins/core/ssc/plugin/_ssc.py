@@ -6,7 +6,6 @@
 # By: Bast
 
 # Standard Library
-import os
 import stat
 from pathlib import Path
 
@@ -37,7 +36,7 @@ class SSC:
         """Read the secret from a file."""
         first_line = ""
         try:
-            with open(self.file_name) as fileo:
+            with Path(self.file_name).open() as fileo:
                 first_line = fileo.readline()
 
             return first_line.strip()
@@ -58,9 +57,9 @@ class SSC:
         """Set the secret."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         if args["value"]:
-            with open(self.file_name, "w") as data_file:
+            with Path(self.file_name).open("w") as data_file:
                 data_file.write(args["value"])
-            os.chmod(self.file_name, stat.S_IRUSR | stat.S_IWUSR)
+            Path(self.file_name).chmod(stat.S_IRUSR | stat.S_IWUSR)
             return True, [f"{self.desc} saved"]
 
         return True, [f"Please enter the {self.desc}"]

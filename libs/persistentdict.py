@@ -192,12 +192,12 @@ class PersistentDict(dict):
         try:
             self.dump(temp_name)
         except Exception:
-            os.remove(temp_name)
+            Path(temp_name).unlink()
             raise
         finally:
             shutil.move(temp_name, self.file_name)  # atomic commit
         if self.mode is not None:
-            os.chmod(self.file_name, self.mode)
+            Path(self.file_name).chmod(self.mode)
 
     def close(self) -> None:
         """Close the dictionary and synchronize with the file on disk.
