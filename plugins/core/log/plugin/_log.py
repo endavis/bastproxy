@@ -52,7 +52,9 @@ class LogPlugin(BasePlugin):
         )
 
     @RegisterPluginHook("__init__", priority=99)
-    def _phook_log_post_init_custom_logging(self):  # pyright: ignore[reportInvalidTypeVarUse]
+    def _phook_log_post_init_custom_logging(
+        self,
+    ):  # pyright: ignore[reportInvalidTypeVarUse]
         # setup file logging and network data logging
         LogRecord(
             "setting up custom logging", level="debug", sources=[self.plugin_id]

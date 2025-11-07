@@ -36,9 +36,10 @@ class PluginsPlugin(BasePlugin):
         if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
             return True, [f'Plugin {args["plugin"]} not found']
 
-        return True, self.api(f"{args['plugin']}:dump")(
-            args["object"], args["detailed"]
-        )[1]
+        return (
+            True,
+            self.api(f"{args['plugin']}:dump")(args["object"], args["detailed"])[1],
+        )
 
     @AddParser(description="show internal plugin hooks")
     @AddArgument("plugin", help="the plugin to show the hooks for", default="")

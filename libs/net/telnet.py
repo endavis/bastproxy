@@ -176,7 +176,9 @@ def split_opcode_from_input(data: bytes) -> tuple[bytes, str]:
         None
 
     """
-    logging.getLogger(__name__).debug("Received raw data (len=%d of: %s", len(data), data)
+    logging.getLogger(__name__).debug(
+        "Received raw data (len=%d of: %s", len(data), data
+    )
     opcodes = b""
     inp = ""
     for position, _ in enumerate(data):

@@ -20,12 +20,13 @@ CANRELOAD = False
 @AddCommand(group="Base", name="set", show_in_history=False)
 @AddParser(
     formatter_class=argp.RawDescriptionHelpFormatter,
-    description=textwrap.dedent("""
+    description=textwrap.dedent(
+        """
             change a setting in the plugin
 
             if there are no arguments or 'list' is the first argument then
-            it will list the settings for the plugin"""),
-
+            it will list the settings for the plugin"""
+    ),
 )
 @AddArgument("name", help="the setting name", default="list", nargs="?")
 @AddArgument("value", help="the new value of the setting", default="", nargs="?")

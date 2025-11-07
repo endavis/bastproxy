@@ -446,7 +446,9 @@ class ClientConnection:
                     )()
                 if msg_obj.is_prompt:
                     self.writer.write(telnet.go_ahead())
-                    self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
+                    self.data_logger.info(
+                        "%-12s : %s", "client_write", telnet.go_ahead()
+                    )
             elif msg_obj.is_command_telnet:
                 LogRecord(
                     f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",

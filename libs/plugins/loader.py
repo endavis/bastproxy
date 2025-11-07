@@ -327,7 +327,6 @@ class PluginLoader:
 
         return list(set(packages))
 
-
     @AddAPI(
         "get.plugins.in.package",
         description="get the list of plugins in a package that have been loaded",
