@@ -147,11 +147,11 @@ class PluginManager(BasePlugin):
             )
         )
         del packages["plugins.core"]
-        for package in packages:
-            if packages[package]:
+        for plugins_list in packages.values():
+            if plugins_list:
                 msg.extend(
                     self._command_helper_format_plugin_list(
-                        packages[package], required_color_line=False, columnheader=False
+                        plugins_list, required_color_line=False, columnheader=False
                     )
                 )
 

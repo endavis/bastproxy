@@ -429,11 +429,11 @@ class SettingsPlugin(BasePlugin):
             header_color + "-" * line_length + "@w",
         ]
         plugin_message = []
-        for plugin_id in settings:
-            for setting_name in settings[plugin_id]:
+        for plugin_id, plugin_settings in settings.items():
+            for setting_name in plugin_settings:
                 if args["search"] and args["search"] not in setting_name:
                     continue
-                if settings[plugin_id][setting_name].readonly:
+                if plugin_settings[setting_name].readonly:
                     continue
                 if setting_format := self.api(f"{self.plugin_id}:format.setting")(
                     plugin_id, setting_name

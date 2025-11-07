@@ -98,13 +98,13 @@ class PluginsPlugin(BasePlugin):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []
-        for plugin in data:
+        for plugin, plugin_data in data.items():
             tmsg.extend(
                 self.api("plugins.core.commands:format.output.header")(
                     f'{plugin}: data for {args["plugin"]}'
                 )
             )
-            tmsg.extend(data[plugin])
+            tmsg.extend(plugin_data)
             tmsg.append("")
 
         return True, tmsg
@@ -132,13 +132,13 @@ class PluginsPlugin(BasePlugin):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []
-        for plugin in data:
+        for plugin, plugin_data in data.items():
             tmsg.extend(
                 self.api("plugins.core.commands:format.output.header")(
                     f'{plugin}: data for {args["plugin"]}'
                 )
             )
-            tmsg.extend(data[plugin])
+            tmsg.extend(plugin_data)
             tmsg.append("")
 
         return True, tmsg

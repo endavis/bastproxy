@@ -40,10 +40,10 @@ mud_protocols = {
     "GMCP": bytes([201]),
 }
 
-for item in mud_protocols:
+for item, value in mud_protocols.items():
     if not hasattr(telnetlib3.telopt, item):
         LogRecord(
             f"Adding {item} to telnetlib3.telopt", level="debug", sources=[__name__]
         )()
-        setattr(telnetlib3.telopt, item, mud_protocols[item])
-        telnetlib3.telopt._DEBUG_OPTS[mud_protocols[item]] = item  # type: ignore
+        setattr(telnetlib3.telopt, item, value)
+        telnetlib3.telopt._DEBUG_OPTS[value] = item  # type: ignore[assignment]

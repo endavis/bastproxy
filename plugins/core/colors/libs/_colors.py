@@ -95,8 +95,8 @@ def build_color_table():
 
 build_color_table()
 
-for colorc in CONVERTCOLORS:
-    CONVERTANSI[CONVERTCOLORS[colorc]] = colorc
+for colorc, ansi_code in CONVERTCOLORS.items():
+    CONVERTANSI[ansi_code] = colorc
 
 # xterm colors
 for xtn in range(256):
@@ -112,6 +112,6 @@ for abn in range(30, 38):
     CONVERTANSI[f"{abn}"] = CONVERTANSI[f"0;{abn}"]
 
 ALLCONVERTCOLORS = CONVERTCOLORS.copy()
-for item in CONVERTANSI:
-    ALLCONVERTCOLORS[CONVERTANSI[item]] = item
-    ALLCONVERTCOLORS[f"@{CONVERTANSI[item]}"] = item
+for item, ansi_code in CONVERTANSI.items():
+    ALLCONVERTCOLORS[ansi_code] = item
+    ALLCONVERTCOLORS[f"@{ansi_code}"] = item
