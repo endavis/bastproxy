@@ -550,7 +550,8 @@ class BaseDictRecord(BaseRecord, UserDict):
         """Initialize the class."""
         if data:
             if not isinstance(data, dict):
-                raise TypeError(f"data must be a dict not {type(data)}")
+                msg = f"data must be a dict not {type(data)}"
+                raise TypeError(msg)
         else:
             data = {}
         UserDict.__init__(self, data)
@@ -560,7 +561,7 @@ class BaseDictRecord(BaseRecord, UserDict):
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[list(self.original_data.keys())[0]].strip()}"
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[next(iter(self.original_data.keys()))].strip()}"
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

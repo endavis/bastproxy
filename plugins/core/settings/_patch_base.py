@@ -45,7 +45,7 @@ def _command_settings_plugin_set(self):
         )
 
     arg_string = f"-p {self.plugin_id} {args.arg_string}"
-    retval, return_string = self.api("plugins.core.commands:run")(
+    _retval, return_string = self.api("plugins.core.commands:run")(
         "plugins.core.settings", "pset", argument_string=arg_string
     )
 

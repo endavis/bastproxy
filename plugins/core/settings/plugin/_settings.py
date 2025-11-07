@@ -20,8 +20,7 @@ from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddArgument, AddCommand, AddParser
 from plugins.core.events import RegisterToEvent
-
-from ..libs._settinginfo import SettingInfo
+from plugins.core.settings.libs._settinginfo import SettingInfo
 
 
 class SettingsPlugin(BasePlugin):

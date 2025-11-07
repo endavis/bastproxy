@@ -102,7 +102,7 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
         nkey = i
         with contextlib.suppress(ValueError):
             nkey = int(i)
-        if isinstance(tdict[i], dict):
+        if isinstance(ndata, dict):
             ndata = convert_keys_to_int(tdict[i])
         new[nkey] = ndata
     return new
@@ -276,7 +276,8 @@ class PersistentDict(dict):
             with file_object.open(mode="wb") as f:
                 pickle.dump(dict(self), f, 2)
         else:
-            raise NotImplementedError(f"Unknown format: {self.format!r}")
+            msg = f"Unknown format: {self.format!r}"
+            raise NotImplementedError(msg)
 
     def pload(self) -> None:
         """Load the dictionary from the file on disk.
@@ -347,7 +348,8 @@ class PersistentDict(dict):
                 exc_info=True,
             )()
 
-        raise ValueError("File not in a supported format")
+        msg = "File not in a supported format"
+        raise ValueError(msg)
 
     def __setitem__(self, key: Any, val: Any) -> None:
         """Set the value for a given key in the dictionary.

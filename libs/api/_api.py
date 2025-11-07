@@ -695,7 +695,8 @@ class API:  # sourcery skip: upper-camel-case-classes
         if self._class_api.get(api_location):
             return self._class_api[api_location]
 
-        raise AttributeError(f"{self.owner_id} : {api_location} is not in the api")
+        msg = f"{self.owner_id} : {api_location} is not in the api"
+        raise AttributeError(msg)
 
     __call__ = get
 

@@ -153,7 +153,7 @@ class UtilsPlugin(BasePlugin):
     def _api_convert_to_readable_number(self, num, places=2):
         """Convert a number to a shorter readable number."""
         converted_string = ""
-        nform = "%00.0{}f".format(places)
+        nform = f"%00.0{places}f"
         if not num:
             return 0
         if num >= 1000000000000:

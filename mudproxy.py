@@ -173,7 +173,7 @@ class MudProxy:
             "plugins.core.proxy", "ipv4address"
         )
 
-        if args_listen_port != -1 and plugin_listen_port != args_listen_port:
+        if args_listen_port not in (-1, plugin_listen_port):
             self.api("plugins.core.settings:change")(
                 "plugins.core.proxy", "listenport", args_listen_port
             )

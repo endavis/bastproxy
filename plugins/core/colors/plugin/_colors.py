@@ -11,11 +11,11 @@ import re
 from libs.api import AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddArgument, AddParser
 
 # 3rd Party
 # Project
-from ..libs._colors import COLORTABLE, CONVERTANSI, CONVERTCOLORS
+from plugins.core.colors.libs._colors import COLORTABLE, CONVERTANSI, CONVERTCOLORS
+from plugins.core.commands import AddArgument, AddParser
 
 XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
 ANSI_COLOR_REGEX = re.compile(

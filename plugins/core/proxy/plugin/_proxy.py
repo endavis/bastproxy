@@ -454,7 +454,7 @@ class ProxyPlugin(BasePlugin):
 
         time.sleep(5)
 
-        os.execv(sys.executable, [Path(sys.executable).name] + sys.argv)
+        os.execv(sys.executable, [Path(sys.executable).name, *sys.argv])
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):

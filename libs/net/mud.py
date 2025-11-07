@@ -49,12 +49,12 @@ from libs.asynch import TaskItem
 from libs.net import telnet
 from libs.records import (
     LogRecord,
+    NetworkData,
     NetworkDataLine,
     ProcessDataToClient,
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
 )
-from libs.records import NetworkData as NetworkData
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode

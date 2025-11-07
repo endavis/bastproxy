@@ -232,7 +232,8 @@ class SimpleQueue:
 
         """
         if count < 0:
-            raise ValueError("Count must be non-negative")
+            msg = "Count must be non-negative"
+            raise ValueError(msg)
         return self.items[-count:]
 
     def get_by_id(self, item_id: str) -> Any:

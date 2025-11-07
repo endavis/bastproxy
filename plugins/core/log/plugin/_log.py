@@ -19,8 +19,7 @@ from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
 from plugins.core.log import get_toplevel
-
-from ..libs._custom_logger import setup_loggers, type_counts
+from plugins.core.log.libs._custom_logger import setup_loggers, type_counts
 
 
 class LogPlugin(BasePlugin):

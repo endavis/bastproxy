@@ -23,9 +23,8 @@ from libs.records import (
 )
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddArgument, AddCommand, AddParser
+from plugins.core.commands.libs._command import CommandClass
 from plugins.core.events import RegisterToEvent
-
-from ..libs._command import CommandClass
 
 
 class CommandsPlugin(BasePlugin):

@@ -268,8 +268,9 @@ class NetworkData(TrackedUserList):
         for item in self:
             old_item = item
             if not (isinstance(item, (NetworkDataLine, str, bytes))):
+                msg = f"item must be a NetworkDataLine object or a string, not {type(item)}"
                 raise ValueError(
-                    f"item must be a NetworkDataLine object or a string, not {type(item)}"
+                    msg
                 )
             if isinstance(item, (str, bytes)):
                 item = NetworkDataLine(item)
@@ -299,8 +300,9 @@ class NetworkData(TrackedUserList):
     def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """Set the item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
             raise ValueError(
-                f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                msg
             )
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
@@ -311,8 +313,9 @@ class NetworkData(TrackedUserList):
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
         """Insert an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
             raise ValueError(
-                f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                msg
             )
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
@@ -323,8 +326,9 @@ class NetworkData(TrackedUserList):
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
         """Append an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
             raise ValueError(
-                f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                msg
             )
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
@@ -337,8 +341,9 @@ class NetworkData(TrackedUserList):
         new_list = []
         for item in items:
             if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
+                msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
                 raise ValueError(
-                    f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                    msg
                 )
             if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)

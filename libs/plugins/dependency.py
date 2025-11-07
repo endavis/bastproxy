@@ -145,9 +145,12 @@ class PluginDependencyResolver:
             if edge_plugin and plugin.plugin_id != edge_plugin.plugin_id:
                 if edge_plugin.plugin_id not in self.resolved:
                     if edge_plugin.plugin_id in self.unresolved:
-                        raise Exception(
+                        msg = (
                             f"Circular reference detected: {plugin.plugin_id} -> "
                             f"{plugin.plugin_id}"
+                        )
+                        raise Exception(
+                            msg
                         )
                     self.resolve_helper(edge_plugin)
         self.resolved.append(plugin.plugin_id)
