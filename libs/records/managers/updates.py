@@ -26,8 +26,23 @@ class UpdateManager(deque):
         self.uid_mapping = {}
 
     def add(self, update):
+        """Add an update to the list and UUID mapping.
+
+        Args:
+            update: The update record to add.
+
+        """
         self.append(update)
         self.uid_mapping[update.uuid] = update
 
     def get_update(self, uuid):
+        """Retrieve an update by its UUID.
+
+        Args:
+            uuid: The UUID of the update to retrieve.
+
+        Returns:
+            The update record if found, None otherwise.
+
+        """
         return self.uid_mapping.get(uuid, None)

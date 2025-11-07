@@ -27,6 +27,14 @@ if TYPE_CHECKING:
 
 
 class BaseRecord(AttributeMonitor):
+    """Base class for all record types with tracking and monitoring.
+
+    This class provides common functionality for all record types including
+    unique identification, parent-child relationships, attribute monitoring,
+    and update tracking.
+
+    """
+
     def __init__(self, owner_id: str = "", track_record=True, parent=None):
         """Initialize the class."""
         AttributeMonitor.__init__(self)
@@ -68,15 +76,45 @@ class BaseRecord(AttributeMonitor):
             self.parents.append(parent)
 
     def __hash__(self):
+        """Return hash based on class name and UUID.
+
+        Returns:
+            Hash value for the record.
+
+        """
         return hash(f"{self.__class__.__name__}:{self.uuid}")
 
     def __eq__(self, other):
+        """Check equality based on UUID.
+
+        Args:
+            other: The other object to compare with.
+
+        Returns:
+            True if UUIDs match, False otherwise.
+
+        """
         return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
 
     def __repr__(self):
+        """Return string representation of the record.
+
+        Returns:
+            String in format ClassName:UUID.
+
+        """
         return f"{self.__class__.__name__}:{self.uuid}"
 
     def __lt__(self, other):
+        """Compare records by creation time.
+
+        Args:
+            other: The other record to compare with.
+
+        Returns:
+            True if this record was created before the other.
+
+        """
         return self.created < other.created
 
     def _am_locked_attribute_update(self, name, value):
@@ -179,6 +217,16 @@ class BaseRecord(AttributeMonitor):
         return default_attributes
 
     def format_children(self, full_children_records=False, update_filter=None):
+        """Format children records as a string representation.
+
+        Args:
+            full_children_records: Include full record details if True.
+            update_filter: Optional filter for update types to include.
+
+        Returns:
+            A list of formatted strings representing child records.
+
+        """
         msg = []
         if full_children_records:
             children_records = RMANAGER.get_all_children_dict(
@@ -392,6 +440,13 @@ class TrackedUserList(BaseRecord, UserList):
 
 
 class BaseListRecord(UserList, BaseRecord):
+    """Base class for list-based records with tracking.
+
+    Combines Python's UserList with BaseRecord to provide a list that tracks
+    changes and supports record management features.
+
+    """
+
     def __init__(
         self,
         message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
@@ -546,6 +601,13 @@ class BaseListRecord(UserList, BaseRecord):
 
 
 class BaseDictRecord(BaseRecord, UserDict):
+    """Base class for dictionary-based records with tracking.
+
+    Combines Python's UserDict with BaseRecord to provide a dictionary that
+    tracks changes and supports record management features.
+
+    """
+
     def __init__(self, owner_id: str = "", data: dict | None = None, track_record=True):
         """Initialize the class."""
         if data:
