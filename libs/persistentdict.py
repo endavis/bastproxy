@@ -103,8 +103,10 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
         with contextlib.suppress(ValueError):
             nkey = int(i)
         if isinstance(ndata, dict):
-            ndata = convert_keys_to_int(tdict[i])
-        new[nkey] = ndata
+            converted_ndata = convert_keys_to_int(ndata)
+        else:
+            converted_ndata = ndata
+        new[nkey] = converted_ndata
     return new
 
 

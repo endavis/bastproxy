@@ -318,17 +318,17 @@ class API:  # sourcery skip: upper-camel-case-classes
             if item.startswith("__"):
                 continue
             try:
-                item = getattr(base, item)
+                attr = getattr(base, item)
             except AttributeError:
                 continue
             if (
-                isinstance(item, types.MethodType)
-                and item.__name__.startswith("_api_")
-                and hasattr(item, "api")
+                isinstance(attr, types.MethodType)
+                and attr.__name__.startswith("_api_")
+                and hasattr(attr, "api")
             ):
-                functions.append(item)
+                functions.append(attr)
             elif recurse:
-                functions.extend(self.get_api_functions_in_object(item, recurse=False))
+                functions.extend(self.get_api_functions_in_object(attr, recurse=False))
 
         return functions
 
