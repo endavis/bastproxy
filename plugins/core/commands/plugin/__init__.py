@@ -4,7 +4,7 @@
 # File Description: a plugin for handling command parsing and execution
 #
 # By: Bast
-"""This plugin handles commands and parsing input
+"""This plugin handles commands and parsing input.
 
 All commands are #bp.[package].[plugin].[command] or #bp.[plugin].[command]
 

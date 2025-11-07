@@ -46,4 +46,4 @@ class AttributeMonitor:
         self._locked_attributes.remove(name)
 
     def _am_locked_attribute_update(self, name, value):
-        """Called when a locked attribute is attempted to be updated"""
+        """Called when a locked attribute is attempted to be updated."""

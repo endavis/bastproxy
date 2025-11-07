@@ -23,7 +23,7 @@ modules_patched = []
 
 
 def patch(full_import_location, override=False):
-    """Patch the base class with any function in the specified module"""
+    """Patch the base class with any function in the specified module."""
     added = False
     if full_import_location not in sys.modules:
         try:

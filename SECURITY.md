@@ -22,22 +22,22 @@ BastProxy uses automated security scanning tools:
 ## Known Issues and Exceptions
 
 ### Telnet Protocol (B401)
-**Status**: Accepted Risk  
-**Reason**: BastProxy is a MUD (Multi-User Dungeon) proxy that must use the Telnet protocol to communicate with game servers. MUDs use Telnet as their standard protocol.  
-**Mitigation**: 
+**Status**: Accepted Risk
+**Reason**: BastProxy is a MUD (Multi-User Dungeon) proxy that must use the Telnet protocol to communicate with game servers. MUDs use Telnet as their standard protocol.
+**Mitigation**:
 - Only connects to user-specified MUD servers
 - Does not accept arbitrary telnet connections from untrusted sources
 - Client connections can be restricted by IP
 
 ### Shell Parameter (B604)
-**Status**: False Positive  
-**Reason**: The `shell` parameter in telnetlib3 refers to a connection handler function, not OS shell commands.  
+**Status**: False Positive
+**Reason**: The `shell` parameter in telnetlib3 refers to a connection handler function, not OS shell commands.
 **Mitigation**: N/A - Not actually a shell command execution risk
 
 ### eval() in Test Plugins (B307)
-**Status**: Accepted - Test Code Only  
-**Location**: `plugins/test/newmon/`  
-**Reason**: Test plugin for development purposes, not loaded in production  
+**Status**: Accepted - Test Code Only
+**Location**: `plugins/test/newmon/`
+**Reason**: Test plugin for development purposes, not loaded in production
 **Mitigation**: Test plugins should not be loaded in production environments
 
 ## Security Best Practices
@@ -60,7 +60,7 @@ When developing for BastProxy:
 # Run Bandit only
 bandit -r libs/ plugins/ --skip B401,B604 -ll
 
-# Run Safety only  
+# Run Safety only
 safety scan
 ```
 

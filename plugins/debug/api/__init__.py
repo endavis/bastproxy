@@ -4,7 +4,7 @@
 # File Description: a plugin to show api functions and details
 #
 # By: Bast
-"""This plugin will show api functions and details"""
+"""This plugin will show api functions and details."""
 
 # these 4 are required
 PLUGIN_NAME = "API debugging"

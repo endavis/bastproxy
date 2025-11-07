@@ -4,7 +4,7 @@
 # File Description: Holds the change record type
 #
 # By: Bast
-"""Holds the change record type"""
+"""Holds the change record type."""
 
 # Standard Library
 import contextlib
@@ -24,7 +24,7 @@ class UpdateRecord:
     action: a description of what was updated
     actor: the item that send the update (likely a plugin)
     extra: any extra info about this update
-    data: the new data
+    data: the new data.
 
     will automatically add the time and last 5 stack frames
     """
@@ -81,7 +81,7 @@ class UpdateRecord:
         return f"{self.flag} - {self.action} - {self.data} - {self.extra}"
 
     def format(self):
-        """Format the change record"""
+        """Format the change record."""
         if self.flag == "Modify":
             return f"updated {self.action}"
         if self.flag == "Set Flag":
@@ -95,7 +95,7 @@ class UpdateRecord:
         show_stack: bool = False,
         data_lines_to_show: int = 10,
     ):
-        """Format the change record"""
+        """Format the change record."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         if "show_data" in args:
             show_data = args["show_data"]

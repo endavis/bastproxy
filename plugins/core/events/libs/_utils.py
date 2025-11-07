@@ -15,12 +15,12 @@ CANRELOAD = False
 
 
 class RegisterToEvent:
-    """a class to decorate a function to register it to an event"""
+    """a class to decorate a function to register it to an event."""
 
     def __init__(self, **kwargs):
         """kwargs:
         event_name: the event to register to
-        priority: the priority to register the function with (Default: 50)
+        priority: the priority to register the function with (Default: 50).
         """
         self.registration_args = {"event_name": "", "priority": 50} | kwargs
 

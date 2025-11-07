@@ -45,11 +45,11 @@ from plugins.core.events import RegisterToEvent
 
 
 class ProxyPlugin(BasePlugin):
-    """a plugin to show connection information"""
+    """a plugin to show connection information."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.api(f"{self.plugin_id}:dependency.add")("core.ssc")
 
         self.proxypw = None
@@ -60,7 +60,7 @@ class ProxyPlugin(BasePlugin):
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         restartproxymessage = (
             "@RPlease restart the proxy for the changes to take effect.@w"
         )
@@ -178,22 +178,22 @@ class ProxyPlugin(BasePlugin):
 
     @AddAPI("is.mud.connected", description="get the mud connection")
     def _api_is_mud_connected(self) -> bool:
-        """Get the mud connection"""
+        """Get the mud connection."""
         return bool(self.mud_connection and self.mud_connection.connected)
 
     @AddAPI("get.mud.connection", description="get the mud connection")
     def _api_get_mud_connection(self) -> MudConnection | None:
-        """Get the mud connection"""
+        """Get the mud connection."""
         return self.mud_connection
 
     @AddAPI("preamble.get", description="get the preamble")
     def _api_preamble_get(self):
-        """Get the preamble"""
+        """Get the preamble."""
         return self.api("plugins.core.settings:get")(self.plugin_id, "preamble")
 
     @AddAPI("preamble.color.get", description="get the preamble color")
     def _api_preamble_color_get(self, error=False):
-        """Get the preamble color"""
+        """Get the preamble color."""
         if error:
             return self.api("plugins.core.settings:get")(
                 self.plugin_id, "preambleerrorcolor"
@@ -203,7 +203,7 @@ class ProxyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
     def _eventcb_sendusernameandpw(self):
         """If username and password are set, then send them when the proxy
-        connects to the mud
+        connects to the mud.
         """
         if self.api("plugins.core.settings:get")(self.plugin_id, "username") != "":
             SendDataDirectlyToMud(
@@ -218,7 +218,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddParser(description="list proxy info")
     def _command_info(self):
-        """Show info about the proxy"""
+        """Show info about the proxy."""
         template = "%-15s : %s"
         started = "Unknown"
         if self.api.proxy_start_time:
@@ -277,7 +277,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddParser(description="disconnect from the mud")
     def _command_disconnect(self):
-        """Disconnect from the mud"""
+        """Disconnect from the mud."""
         if self.mud_connection and self.mud_connection.connected:
             self.mud_connection.disconnect_from_mud()
             self.mud_connection = None
@@ -287,7 +287,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddParser(description="connect to the mud")
     def _command_connect(self):
-        """Connect to the mud"""
+        """Connect to the mud."""
         if self.mud_connection and self.mud_connection.connected:
             return True, ["The proxy is currently connected to the mud"]
 
@@ -304,7 +304,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddAPI("shutdown", description="shutdown the proxy")
     def _api_shutdown(self):
-        """Shutdown the proxy"""
+        """Shutdown the proxy."""
         self.api.__class__.shutdown = True
         LogRecord(
             "Proxy: shutdown started",
@@ -326,7 +326,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddParser(description="shutdown the proxy")
     def _command_shutdown(self):
-        """Shutdown the proxy"""
+        """Shutdown the proxy."""
         signal.raise_signal(signal.SIGINT)
 
     @AddCommand(format=False)
@@ -339,7 +339,7 @@ class ProxyPlugin(BasePlugin):
         help="# of seconds to wait before restart",
     )
     def _command_restart(self):
-        """Restart the proxy"""
+        """Restart the proxy."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         listen_port = self.api("plugins.core.settings:get")(
             self.plugin_id, "listenport"
@@ -351,7 +351,7 @@ class ProxyPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self):
-        """Check for mud settings"""
+        """Check for mud settings."""
         if not (
             event_record := self.api("plugins.core.events:get.current.event.record")()
         ):
@@ -422,7 +422,7 @@ class ProxyPlugin(BasePlugin):
 
     @AddAPI("restart", description="restart the proxy")
     def _api_restart(self, restart_in=None):
-        """Restart the proxy after 10 seconds"""
+        """Restart the proxy after 10 seconds."""
         restart_in = restart_in or 10
         listen_port = self.api("plugins.core.settings:get")(
             self.plugin_id, "listenport"
@@ -447,7 +447,7 @@ class ProxyPlugin(BasePlugin):
         )
 
     def timer_restart(self):
-        """A function to restart the proxy after a timer"""
+        """A function to restart the proxy after a timer."""
         self.api("plugins.core.pluginm:save.all.plugins.state")()
 
         self.api(f"{self.plugin_id}:shutdown")()
@@ -458,7 +458,7 @@ class ProxyPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):
-        """Update the command regex"""
+        """Update the command regex."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             newsep = event_record["newvalue"]
 
@@ -487,7 +487,7 @@ class ProxyPlugin(BasePlugin):
         "-p", "--ports", help="show network ports", action="store_false", default=True
     )
     def _command_resource(self):
-        """Output proxy resource usage"""
+        """Output proxy resource usage."""
         args = self.api("plugins.core.commands:get.current.command.args")()
 
         cpu_percent = psutil.cpu_percent()

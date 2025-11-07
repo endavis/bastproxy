@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class Commands(Protocol):
     @RegisterPluginHook("initialize")
     def _phook_base_post_initialize_add_reset_command(self: "Plugin"):
-        """Add commands to the plugin"""
+        """Add commands to the plugin."""
         if self.can_reset_f:
             # can't figure out how to type this correctly
             # and this exists in the 'Plugin' class
@@ -47,7 +47,7 @@ class Commands(Protocol):
     def _command_help(self: "Plugin"):
         """@G%(name)s@w - @B%(cmdname)s@w
         show the help for this plugin
-        @CUsage@w: help
+        @CUsage@w: help.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         width = 25
@@ -133,7 +133,7 @@ class Commands(Protocol):
     def _command_save(self: "Plugin"):
         """@G%(name)s@w - @B%(cmdname)s@w
         save plugin state
-        @CUsage@w: save
+        @CUsage@w: save.
         """
         self.api(f"{self.plugin_id}:save.state")()
         return True, ["Plugin settings saved"]
@@ -143,7 +143,7 @@ class Commands(Protocol):
     def _command_reset(self: "Plugin"):
         """@G%(name)s@w - @B%(cmdname)s@w
         reset the plugin
-        @CUsage@w: reset
+        @CUsage@w: reset.
         """
         if self.can_reset_f:
             plugins_that_acted = self.api(f"{self.plugin_id}:reset")()

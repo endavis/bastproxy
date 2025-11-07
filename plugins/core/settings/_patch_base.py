@@ -35,7 +35,7 @@ def _command_settings_plugin_set(self):
         @Yname@w    = The setting to set
         @Yvalue@w   = The value to set it to
         if there are no arguments or 'list' is the first argument then
-        it will list the settings for the plugin
+        it will list the settings for the plugin.
     """
     args = self.api("plugins.core.commands:get.current.command.args")()
 
@@ -54,7 +54,7 @@ def _command_settings_plugin_set(self):
 
 @RegisterPluginHook("initialize", priority=75)
 def _phook_settings_post_initialize(self):
-    """Setup the settings for the plugin"""
+    """Setup the settings for the plugin."""
     self.reset_f = False
 
     self.api("plugins.core.settings:initialize.plugin.settings")(self.plugin_id)

@@ -4,7 +4,7 @@
 # File Description: a plugin to watch for commands from the client
 #
 # By: Bast
-"""This plugin will handle watching for commands coming from the client"""
+"""This plugin will handle watching for commands coming from the client."""
 
 # these 4 are required
 PLUGIN_NAME = "Command Watch"

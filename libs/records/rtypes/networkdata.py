@@ -4,7 +4,7 @@
 # File Description: Holds the records for network data
 #
 # By: Bast
-"""Holds the data line record"""
+"""Holds the data line record."""
 # Standard Library
 
 # 3rd Party
@@ -15,7 +15,7 @@ from libs.records.rtypes.log import LogRecord
 
 class NetworkDataLine(BaseRecord):
     """A record to hold a line of data that will be sent to the clients
-    or the mud
+    or the mud.
     """
 
     def __init__(
@@ -78,7 +78,7 @@ class NetworkDataLine(BaseRecord):
         self.addupdate("Modify", "original input", extra={"data": f"{line!r}"})
 
     def add_parent(self, parent, reset=True):
-        """Add a parent to this record"""
+        """Add a parent to this record."""
         if reset:
             self.parents = []
         if parent in self.parents:
@@ -115,7 +115,7 @@ class NetworkDataLine(BaseRecord):
         return self.api("plugins.core.colors:colorcode.escape")(self.line)
 
     def _am_onchange_line(self, orig_value, new_value):
-        """Set the line_modified flag if the line changes"""
+        """Set the line_modified flag if the line changes."""
         if orig_value != new_value:
             self.line_modified = True
 
@@ -131,26 +131,26 @@ class NetworkDataLine(BaseRecord):
 
     @property
     def internal(self):
-        """A shortcut property to determine if this message is internal"""
+        """A shortcut property to determine if this message is internal."""
         return self.originated == "internal"
 
     @property
     def fromclient(self):
-        """A shortcut property to determine if this message is from a client"""
+        """A shortcut property to determine if this message is from a client."""
         return self.originated == "client"
 
     @property
     def frommud(self):
-        """A shortcut property to determine if this message is from the mud"""
+        """A shortcut property to determine if this message is from the mud."""
         return self.originated == "mud"
 
     def add_line_endings(self, actor=""):
-        """Add line endings to the message"""
+        """Add line endings to the message."""
         if self.is_io and self.had_line_endings:
             self.line = f"{self.line}\n\r"
 
     def copy_attributes(self, new_line):
-        """Copy the attributes from the current line to a new line"""
+        """Copy the attributes from the current line to a new line."""
         new_line.line_type = self.line_type
         new_line.originated = self.originated
         new_line._am_unlock_attribute("original_line")
@@ -166,7 +166,7 @@ class NetworkDataLine(BaseRecord):
         new_line.split_from = self
 
     def color_line(self):
-        """Color the message and convert all colors to ansicodes
+        """Color the message and convert all colors to ansicodes.
 
         color is the color for all lines
 
@@ -193,7 +193,7 @@ class NetworkDataLine(BaseRecord):
         self.line = self.api("plugins.core.colors:colorcode.to.ansicode")(self.line)
 
     def fix_double_command_seperator(self):
-        """Fix double command seperators
+        """Fix double command seperators.
 
         take out double command seperators and replaces them with a single one before
         sending the data to the mud
@@ -204,7 +204,7 @@ class NetworkDataLine(BaseRecord):
                 self.line = current_line
 
     def format(self, preamble: bool = False, color: str = "") -> None:
-        """Format the message"""
+        """Format the message."""
         if self.is_io:
             if self.internal:  # generated from the proxy
                 if self.preamble:
@@ -234,7 +234,7 @@ class NetworkDataLine(BaseRecord):
         return self.one_line_summary()
 
     def add_preamble(self, error: bool = False):
-        """Add the preamble to the line only if it is from internal and is an IO message"""
+        """Add the preamble to the line only if it is from internal and is an IO message."""
         if self.internal and self.is_io:
             preamblecolor = self.api("plugins.core.proxy:preamble.color.get")(
                 error=error
@@ -244,7 +244,7 @@ class NetworkDataLine(BaseRecord):
 
 
 class NetworkData(TrackedUserList):
-    """this is a base record of a list of NetworkDataLine records"""
+    """this is a base record of a list of NetworkDataLine records."""
 
     def __init__(
         self,
@@ -257,7 +257,7 @@ class NetworkData(TrackedUserList):
         | None = None,
         owner_id: str = "",
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         if message is None:
             message = []
         if not isinstance(message, list):
@@ -293,11 +293,11 @@ class NetworkData(TrackedUserList):
         )
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self)} {self.get_first_line()!r}"
 
     def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
-        """Set the item"""
+        """Set the item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             raise ValueError(
                 f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
@@ -309,7 +309,7 @@ class NetworkData(TrackedUserList):
         super().__setitem__(index, item)
 
     def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
-        """Insert an item"""
+        """Insert an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             raise ValueError(
                 f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
@@ -321,7 +321,7 @@ class NetworkData(TrackedUserList):
         super().insert(index, item)
 
     def append(self, item: NetworkDataLine | str | bytes | bytearray):
-        """Append an item"""
+        """Append an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             raise ValueError(
                 f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
@@ -333,7 +333,7 @@ class NetworkData(TrackedUserList):
         super().append(item)
 
     def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
-        """Extend the list"""
+        """Extend the list."""
         new_list = []
         for item in items:
             if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):

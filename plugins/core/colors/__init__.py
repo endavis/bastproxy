@@ -4,7 +4,7 @@
 # File Description: a plugin to handle ansi and xterm colors
 #
 # By: Bast
-"""This plugin handles colors
+"""This plugin handles colors.
 
 ## Color Codes
 ### Ansi

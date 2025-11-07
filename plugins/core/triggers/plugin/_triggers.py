@@ -43,7 +43,7 @@ class TriggerItem:
         event_name=None,
         original_regex_compiled=None,
     ) -> None:
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
         self.enabled = enabled
         self.owner_id = owner_id
@@ -63,7 +63,7 @@ class TriggerItem:
         self.event_name = f"event_{self.trigger_id}"
 
     def raisetrigger(self, args):
-        """Raise an event for this trigger"""
+        """Raise an event for this trigger."""
         if self.omit:
             args["line"].sendtoclients = False
 
@@ -83,11 +83,11 @@ class TriggerItem:
 
 
 class TriggersPlugin(BasePlugin):
-    """a plugin to handle internal triggers"""
+    """a plugin to handle internal triggers."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.can_reload_f = False
         self.latest_regex_id = 0
 
@@ -118,7 +118,7 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         self.api("plugins.core.settings:add")(
             self.plugin_id, "enabled", "True", bool, "enable triggers"
         )
@@ -135,7 +135,7 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self):
-        """Setup the plugin on setting change"""
+        """Setup the plugin on setting change."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             change = event_record["newvalue"]
             if change:
@@ -151,14 +151,14 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
-        """A plugin was unloaded"""
+        """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             self.api(f"{self.plugin_id}:remove.data.for.owner")(
                 event_record["plugin_id"]
             )
 
     def rebuild_regexes(self):
-        """Rebuild a regex for priority
+        """Rebuild a regex for priority.
 
         will need a colored and a noncolored regex for each priority
         """
@@ -185,17 +185,17 @@ class TriggersPlugin(BasePlugin):
 
     @staticmethod
     def create_trigger_id(name, owner_id):
-        """Get a unique name for a trigger"""
+        """Get a unique name for a trigger."""
         return f"t_{owner_id}_{name}"
 
     def create_regex_id(self):
-        """Get an id for a regex"""
+        """Get an id for a regex."""
         self.latest_regex_id = self.latest_regex_id + 1
         return f"reg_{self.latest_regex_id}"
 
     @AddAPI("trigger.register", description="register a function to a trigger")
     def _api_trigger_register(self, trigger_name, function, **kwargs):
-        """Register a function to a trigger"""
+        """Register a function to a trigger."""
         if trigger_name not in self.triggers:
             owner_id = self.api("libs.api:get.caller.owner")(
                 ignore_owner_list=[self.plugin_id]
@@ -207,7 +207,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.unregister", description="unregister a function from a trigger")
     def _api_trigger_unregister(self, trigger_name, function):
-        """Unregister a function from a trigger"""
+        """Unregister a function from a trigger."""
         if trigger_name not in self.triggers:
             owner_id = self.api("libs.api:get.caller.owner")(
                 ignore_owner_list=[self.plugin_id]
@@ -219,7 +219,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.update", description="update a trigger without deleting it")
     def _api_trigger_update(self, trigger_name, trigger_data):
-        """Update a trigger without deleting it"""
+        """Update a trigger without deleting it."""
         owner_id = self.api("libs.api:get.caller.owner")(
             ignore_owner_list=[self.plugin_id]
         )
@@ -284,7 +284,7 @@ class TriggersPlugin(BasePlugin):
                 )
 
     def find_regex_id(self, regex):
-        """Look for a regex, if not create one"""
+        """Look for a regex, if not create one."""
         regex_id = None
         if regex not in self.regex_lookup_to_id:
             regex_id = self.create_regex_id()
@@ -316,7 +316,7 @@ class TriggersPlugin(BasePlugin):
           @Ypriority@w = (optional) the priority of the trigger, default is 100
           @Ymatchcolor@w = (optional) match with color
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
-                                  trigger is matched
+                                  trigger is matched.
 
         this function returns no values
         """
@@ -411,7 +411,7 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_name@w   = The trigger name
         @Yforce@w         = True to remove it even if other functions
                                   are registered
-           (default: False)
+           (default: False).
 
         this function returns True if the trigger was removed,
                                   False if it wasn't
@@ -478,7 +478,7 @@ class TriggersPlugin(BasePlugin):
     @AddAPI("trigger.get", description="get a trigger")
     def _api_trigger_get(self, trigger_name, owner_id=None):
         """Get a trigger
-        @Ytrigger_name@w   = The trigger name
+        @Ytrigger_name@w   = The trigger name.
         """
         if not owner_id:
             owner_id = self.api("libs.api:get.caller.owner")(
@@ -493,7 +493,7 @@ class TriggersPlugin(BasePlugin):
     )
     def _api_remove_data_for_owner(self, owner_id):
         """Remove all triggers related to a owner
-        @Yowner_id@w   = The owner id
+        @Yowner_id@w   = The owner id.
 
         this function returns no values
         """
@@ -514,7 +514,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):
         """Toggle a trigger
         @Ytrigger_name@w = The trigger name
-        @Yflag@w        = (optional) True to enable, False otherwise
+        @Yflag@w        = (optional) True to enable, False otherwise.
 
         this function returns no values
         """
@@ -548,7 +548,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_toggle_omit(self, trigger_name, flag, owner_id=None):
         """Toggle a trigger
         @Ytrigger_name@w = The trigger name
-        @Yflag@w        = (optional) True to omit the line, False otherwise
+        @Yflag@w        = (optional) True to omit the line, False otherwise.
 
         this function returns no values
         """
@@ -571,7 +571,7 @@ class TriggersPlugin(BasePlugin):
     def _api_group_toggle_enable(self, trigger_group, flag):
         """Toggle a trigger group
         @Ytrigger_group@w = The triggergroup name
-        @Yflag@w        = (optional) True to enable, False otherwise
+        @Yflag@w        = (optional) True to enable, False otherwise.
 
         this function returns no values
         """
@@ -639,7 +639,7 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self):  # pylint: disable=too-many-branches
-        """Check a line of text from the mud to see if it matches any triggers"""
+        """Check a line of text from the mud to see if it matches any triggers."""
         if not (
             event_record := self.api("plugins.core.events:get.current.event.record")()
         ):
@@ -689,7 +689,7 @@ class TriggersPlugin(BasePlugin):
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         list triggers and the plugins they are defined in
-        @CUsage@w: list
+        @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         trigger_ids = self.triggers.keys()
@@ -720,7 +720,7 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_triggers_ev_plugins_stats(self):
-        """Return stats for the plugin"""
+        """Return stats for the plugin."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             overall_hit_count = 0
             total_enabled_triggers = 0
@@ -760,7 +760,7 @@ class TriggersPlugin(BasePlugin):
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         list the details of a trigger
-        @CUsage@w: detail
+        @CUsage@w: detail.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         message = []

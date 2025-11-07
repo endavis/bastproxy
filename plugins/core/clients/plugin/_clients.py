@@ -59,11 +59,11 @@ class BanRecord:
 
 
 class ClientPlugin(BasePlugin):
-    """a plugin to show connection information"""
+    """a plugin to show connection information."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         self.attributes_to_save_on_reload = ["clients", "banned"]
 
         self.clients: dict[str, ClientConnection] = {}
@@ -71,7 +71,7 @@ class ClientPlugin(BasePlugin):
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         self.api("plugins.core.settings:add")(
             self.plugin_id,
             "permbanips",
@@ -121,23 +121,23 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.count", description="return the # of clients connected")
     def _api_client_count(self):
-        """Return the # of clients connected"""
+        """Return the # of clients connected."""
         return len(self.clients)
 
     @AddAPI("get.client", description="get a client by uuid")
     def _api_get_client(self, client_uuid):
-        """Get a client by uuid"""
+        """Get a client by uuid."""
         return self.clients[client_uuid] if client_uuid in self.clients else None
 
     @AddAPI("send.to.client", description="send data to a client")
     def _api_send_to_client(self, client_uuid, data):
-        """Send data to a client"""
+        """Send data to a client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].send_to(data)
 
     @AddAPI("client.banned.add", description="add a banned client")
     def _api_client_banned_add(self, client_uuid, how_long=600):
-        """Add a banned client"""
+        """Add a banned client."""
         self.clients[client_uuid].connected = False
         return self.api(f"{self.plugin_id}:client.banned.add.by.ip")(
             self.clients[client_uuid].addr, how_long
@@ -145,7 +145,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.banned.add.by.ip", description="add a banned ip")
     def _api_client_banned_add_by_ip(self, ip_address, how_long):
-        """Add a banned ip"""
+        """Add a banned ip."""
         if how_long == -1:
             permbanips = self.api("plugins.core.settings:get")(
                 self.plugin_id, "permbanips"
@@ -175,7 +175,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.banned.check", description="check if a client is banned")
     def _api_checkbanned(self, clientip):
-        """Check if a client is banned
+        """Check if a client is banned.
 
         required
           clientip - the client ip to check
@@ -185,7 +185,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.banned.remove", description="remove a banned ip")
     def _api_client_banned_remove(self, addr, auto=False):
-        """Remove a banned ip"""
+        """Remove a banned ip."""
         if auto:
             msg = f"{addr} : ban has timed out and is no longer banned."
         else:
@@ -209,7 +209,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.is.view.client", description="check if a client is a view client")
     def _api_is_client_view_client(self, client_uuid):
-        """Check if a client is a view client"""
+        """Check if a client is a view client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].view_only
 
@@ -217,14 +217,14 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.is.logged.in", description="check if a client is logged in")
     def _api_client_is_logged_in(self, client_uuid):
-        """Check if a client is logged in"""
+        """Check if a client is logged in."""
         return bool(
             client_uuid in self.clients and self.clients[client_uuid].state["logged in"]
         )
 
     @AddAPI("client.logged.in", description="set a client as logged in")
     def _api_client_logged_in(self, client_uuid):
-        """Set a client as logged in"""
+        """Set a client as logged in."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
             client_connection.state["logged in"] = True
@@ -244,7 +244,7 @@ class ClientPlugin(BasePlugin):
         description="set a client as logged in for view only",
     )
     def _api_client_logged_in_view_only(self, client_uuid):
-        """Set a client as logged in for view only"""
+        """Set a client as logged in for view only."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
             client_connection.state["logged in"] = True
@@ -263,7 +263,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.add", description="add a connected client")
     def _api_client_add(self, client_connection):
-        """Add a connected client"""
+        """Add a connected client."""
         if client_connection.uuid in self.clients:
             LogRecord(
                 f"Client {client_connection.uuid} already exists",
@@ -278,7 +278,7 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.remove", description="remove a connected client")
     def _api_client_remove(self, client_connection):
-        """Remove a connected client"""
+        """Remove a connected client."""
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
             self.api("plugins.core.events:raise.event")(
@@ -294,13 +294,13 @@ class ClientPlugin(BasePlugin):
     @AddAPI("get.all.clients", description="get all clients")
     def _api_get_all_clients(self, uuid_only=False):
         """Return a dictionary of clients
-        two keys: view, active
+        two keys: view, active.
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
     @AddParser(description="list clients that are connected")
     def _command_show(self):
-        """Show all clients"""
+        """Show all clients."""
         tmsg = []
 
         color = self.api("plugins.core.settings:get")(
@@ -368,7 +368,7 @@ class ClientPlugin(BasePlugin):
     )
     def _command_ban(self):
         """required
-          ips - a list of IPs to ban or remove (this is a toggle)
+          ips - a list of IPs to ban or remove (this is a toggle).
 
         if the ip is already banned, it will be unbanned
         otherwise, it will be permanently banned

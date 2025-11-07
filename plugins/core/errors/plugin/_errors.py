@@ -18,16 +18,16 @@ from plugins.core.events import RegisterToEvent
 
 
 class ErrorPlugin(BasePlugin):
-    """a plugin to handle errors"""
+    """a plugin to handle errors."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.errors = []
 
     @RegisterToEvent(event_name="ev_bastproxy_proxy_ready")
     def _eventcb_proxy_ready(self):
-        """Show all errors that happened during startup"""
+        """Show all errors that happened during startup."""
         if errors := self.api("plugins.core.errors:get")():
             msg = ["The following errors happened during startup:", "Proxy Errors"]
             for i in errors:
@@ -36,7 +36,7 @@ class ErrorPlugin(BasePlugin):
 
     @AddAPI("add", description="add an error")
     def _api_add(self, timestamp, error):
-        """Add an error
+        """Add an error.
 
         this function adds an error to the list
         """
@@ -44,7 +44,7 @@ class ErrorPlugin(BasePlugin):
 
     @AddAPI("get", description="get all errors")
     def _api_get(self):
-        """Get errors
+        """Get errors.
 
         this function has no arguments
 
@@ -54,7 +54,7 @@ class ErrorPlugin(BasePlugin):
 
     @AddAPI("clear.all.errors", description="clear all errors")
     def _api_clear_all_errors(self):
-        """Clear errors
+        """Clear errors.
 
         this function has no arguments
 
@@ -69,7 +69,7 @@ class ErrorPlugin(BasePlugin):
     def _command_show(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         show the error queue
-        @CUsage@w: show
+        @CUsage@w: show.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         msg = []
@@ -94,7 +94,7 @@ class ErrorPlugin(BasePlugin):
 
     @AddParser(description="clear errors")
     def _command_clear(self):
-        """Clear errors"""
+        """Clear errors."""
         self.api("errors.clear")()
 
         return True, ["Errors cleared"]

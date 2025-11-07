@@ -19,11 +19,11 @@ from plugins.core.events import RegisterToEvent
 
 
 class WatchPlugin(BasePlugin):
-    """a plugin to watch for commands coming from the client"""
+    """a plugin to watch for commands coming from the client."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.can_reload_f = False
 
         self.regex_lookup = {}
@@ -31,7 +31,7 @@ class WatchPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
-        """A plugin was unloaded"""
+        """A plugin was unloaded."""
         event_record = self.api("plugins.core.events:get.current.event.record")()
         LogRecord(
             f"event_plugin_unloaded - removing watches for plugin {event_record['plugin_id']}",
@@ -50,7 +50,7 @@ class WatchPlugin(BasePlugin):
         nargs="?",
     )
     def _command_list(self):
-        """List watches"""
+        """List watches."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         watches = self.watch_data.keys()
         watches = sorted(watches)
@@ -72,7 +72,7 @@ class WatchPlugin(BasePlugin):
     @AddParser(description="get details of a watch")
     @AddArgument("watch", help="the trigger to detail", default=[], nargs="*")
     def _command_detail(self):
-        """List the details of a watch"""
+        """List the details of a watch."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         message = []
         if args["watch"]:
@@ -106,7 +106,7 @@ class WatchPlugin(BasePlugin):
         @Yregex@w    = the regular expression that matches this command
         @Yplugin@w   = the plugin this comes from
         @Ykeyword args@w arguments:
-          None as of now
+          None as of now.
 
         this function returns no values
         """
@@ -168,7 +168,7 @@ class WatchPlugin(BasePlugin):
     def _api_watch_remove(self, watch_name, force=False):
         """Remove a command watch
         @Ywatch_name@w   = The watch name
-        @Yforce@w       = force removal if functions are registered
+        @Yforce@w       = force removal if functions are registered.
 
         this function returns no values
         """
@@ -201,7 +201,7 @@ class WatchPlugin(BasePlugin):
     @AddAPI("remove.all.data.for.plugin", description="remove all watches for a plugin")
     def _api_remove_all_data_for_plugin(self, plugin):
         """Remove all watches related to a plugin
-        @Yplugin@w   = The plugin
+        @Yplugin@w   = The plugin.
 
         this function returns no values
         """
@@ -217,7 +217,7 @@ class WatchPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_command(self):
-        """Check input from the client and see if we are watching for it"""
+        """Check input from the client and see if we are watching for it."""
         if not (
             event_record := self.api("plugins.core.events:get.current.event.record")()
         ):

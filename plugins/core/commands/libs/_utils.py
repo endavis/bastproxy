@@ -4,7 +4,7 @@
 # File Description: holds command utilities
 #
 # By: Bast
-"""This plugin hold command utilities
+"""This plugin hold command utilities.
 
 see info/add_commands.txt for more info
 """
@@ -33,7 +33,7 @@ class CommandFuncData:
 
 
 class AddCommand:
-    """a class to decorate a function with command data"""
+    """a class to decorate a function with command data."""
 
     def __init__(self, *args, **kwargs):
         self.name = None
@@ -60,7 +60,7 @@ class AddCommand:
 
 
 class AddParser:
-    """a class to decorate a function with argparse data"""
+    """a class to decorate a function with argparse data."""
 
     def __init__(self, *args, **kwargs):
         self.argparse_args = args
@@ -76,7 +76,7 @@ class AddParser:
 
 
 class AddArgument:
-    """a class to decorate a function with argument data"""
+    """a class to decorate a function with argument data."""
 
     def __init__(self, *args, **kwargs):
         self.args = args

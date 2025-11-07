@@ -15,7 +15,7 @@ from plugins.core.commands import AddArgument, AddParser
 
 
 class PluginsPlugin(BasePlugin):
-    """a plugin to debug other plugins"""
+    """a plugin to debug other plugins."""
 
     @AddParser(description="dump the internals of a plugin")
     @AddArgument("plugin", help="the plugin to inspect", default="")
@@ -27,7 +27,7 @@ class PluginsPlugin(BasePlugin):
     )
     @AddArgument("-d", "--detailed", help="show a detailed output", action="store_true")
     def _command_dump(self):
-        """Dump a plugin object or attribute"""
+        """Dump a plugin object or attribute."""
         args = self.api("plugins.core.commands:get.current.command.args")()
 
         if not args["plugin"]:
@@ -45,7 +45,7 @@ class PluginsPlugin(BasePlugin):
     def _command_hooks(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         show internal plugin hooks
-        @CUsage@w: hooks
+        @CUsage@w: hooks.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
 
@@ -79,7 +79,7 @@ class PluginsPlugin(BasePlugin):
     def _command_summary(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         show a summary of what data a plugin has
-        @CUsage@w: stats
+        @CUsage@w: stats.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
 
@@ -112,7 +112,7 @@ class PluginsPlugin(BasePlugin):
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         show stats, memory, profile, etc.. for this plugin
-        @CUsage@w: stats
+        @CUsage@w: stats.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
 

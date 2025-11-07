@@ -4,7 +4,7 @@
 # File Description: a command queue plugin
 #
 # By: Bast
-"""this plugin creates a command queue
+"""this plugin creates a command queue.
 
 see the aardwolf eq plugin for examples of how to use it
 """

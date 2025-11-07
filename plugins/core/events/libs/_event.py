@@ -4,7 +4,7 @@
 # File Description: Holds base classes for event items
 #
 # By: Bast
-"""Holds base classes for an event to raise
+"""Holds base classes for an event to raise.
 
 The created_by attribute is the name of the plugin or module that created the event
 It can be updated in two ways, by using the api plugins.core.events:add:event
@@ -24,7 +24,7 @@ from ._process_event import ProcessRaisedEvent
 
 
 class Event:
-    """Base class for an event"""
+    """Base class for an event."""
 
     def __init__(
         self,
@@ -36,7 +36,7 @@ class Event:
         """name: the name of the event
         created_by: it should be the __name__ of the module or the plugin id for easy identification
         description: a list of strings that describe the event
-        arg_descriptions: a dictionary of argument names and descriptions
+        arg_descriptions: a dictionary of argument names and descriptions.
         """
         self.name: str = name
         # it should be the __name__ of the module or the plugin id for easy identification
@@ -55,28 +55,28 @@ class Event:
         self.active_event = None
 
     def get_active_event(self):
-        """Get the active event"""
+        """Get the active event."""
         return self.active_event
 
     def count(self) -> int:
-        """Return the number of functions registered to this event"""
+        """Return the number of functions registered to this event."""
         return sum(len(v) for v in self.priority_dictionary.values())
 
     def isregistered(self, func) -> bool:
-        """Check if a function is registered to this event"""
+        """Check if a function is registered to this event."""
         return any(
             func in self.priority_dictionary[priority]
             for priority in self.priority_dictionary
         )
 
     def isempty(self) -> bool:
-        """Check if an event has no functions registered"""
+        """Check if an event has no functions registered."""
         return not any(
             self.priority_dictionary[priority] for priority in self.priority_dictionary
         )
 
     def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
-        """Register a function to this event container"""
+        """Register a function to this event container."""
         priority = prio or 50
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = {}
@@ -100,7 +100,7 @@ class Event:
         return False
 
     def unregister(self, func) -> bool:
-        """Unregister a function from this event container"""
+        """Unregister a function from this event container."""
         for priority in self.priority_dictionary:
             for call_back in self.priority_dictionary[priority]:
                 if call_back == func:
@@ -130,7 +130,7 @@ class Event:
         return registrations
 
     def removeowner(self, owner_id):
-        """Remove all functions related to a owner"""
+        """Remove all functions related to a owner."""
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
             plugins_to_unregister.extend(
@@ -144,7 +144,7 @@ class Event:
             )
 
     def detail(self) -> list[str]:
-        """Format a detail of the event"""
+        """Format a detail of the event."""
         header_color = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "output_header_color"
         )
@@ -205,13 +205,13 @@ class Event:
         return message
 
     def reset_event(self):
-        """Reset the event"""
+        """Reset the event."""
         for priority in self.priority_dictionary:
             for call_back in self.priority_dictionary[priority]:
                 self.priority_dictionary[priority][call_back] = False
 
     def raise_priority(self, priority, already_done: bool) -> bool:
-        """Raise the event at a specific priority"""
+        """Raise the event at a specific priority."""
         found = False
         for call_back in list(self.priority_dictionary[priority].keys()):
             try:
@@ -252,7 +252,7 @@ class Event:
     def raise_event(
         self, data: dict | EventArgsRecord, actor: str, data_list=None, key_name=None
     ) -> EventArgsRecord | None:
-        """Raise this event"""
+        """Raise this event."""
         self.raised_count = self.raised_count + 1
 
         # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed

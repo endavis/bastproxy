@@ -4,7 +4,7 @@
 # File Description: holds the plugin manager
 #
 # By: Bast
-"""manages all plugins"""
+"""manages all plugins."""
 
 # these 4 are required
 PLUGIN_NAME = "Plugin Manager"

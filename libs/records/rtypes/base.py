@@ -4,7 +4,7 @@
 # File Description: Holds the base record type
 #
 # By: Bast
-"""Holds the base record type"""
+"""Holds the base record type."""
 
 # Standard Library
 import datetime
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class BaseRecord(AttributeMonitor):
     def __init__(self, owner_id: str = "", track_record=True, parent=None):
-        """Initialize the class"""
+        """Initialize the class."""
         AttributeMonitor.__init__(self)
         self._attributes_to_monitor.append("parents")
         # create a unique id for this message
@@ -61,7 +61,7 @@ class BaseRecord(AttributeMonitor):
         self.executing = False
 
     def add_parent(self, parent, reset=False):
-        """Add a parent to this record"""
+        """Add a parent to this record."""
         if reset:
             self.parents = []
         if parent not in self.parents:
@@ -80,14 +80,14 @@ class BaseRecord(AttributeMonitor):
         return self.created < other.created
 
     def _am_locked_attribute_update(self, name, value):
-        """Called when a locked attribute is attempted to be updated"""
+        """Called when a locked attribute is attempted to be updated."""
         self.addupdate(
             "Info",
             f"Attempted to update a locked attribute {name} with value '{value}'",
         )
 
     def _am_onchange__all(self, name, original_value, new_value):
-        """Track changes to attributes, works in conjunction with the AttributeMonitor class"""
+        """Track changes to attributes, works in conjunction with the AttributeMonitor class."""
         self.addupdate(
             "Modify",
             f"{name} attribute changed",
@@ -95,7 +95,7 @@ class BaseRecord(AttributeMonitor):
         )
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         if self.execute_time_taken > 0:
             return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id} {self.execute_time_taken:.2f}ms"
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
@@ -109,14 +109,14 @@ class BaseRecord(AttributeMonitor):
         a message should create a change event at the following times:
             when it is created
             after modification
-            when it ends up at it's destination
+            when it ends up at it's destination.
         """
         change = UpdateRecord(self, flag, action, extra=extra)
 
         self.updates.add(change)
 
     def get_all_updates(self, update_filter=None) -> list[UpdateRecord]:
-        """Get all updates for this record"""
+        """Get all updates for this record."""
         updates = []
         update_filter = update_filter or []
         for record in RMANAGER.get_all_children_list(self, record_filter=update_filter):
@@ -129,7 +129,7 @@ class BaseRecord(AttributeMonitor):
         return sorted(set(updates))
 
     def get_update(self, uuid):
-        """Get the last update for this record"""
+        """Get the last update for this record."""
         if record := self.updates.get_update(uuid):
             return record
 
@@ -138,7 +138,7 @@ class BaseRecord(AttributeMonitor):
                 return record
 
     def fix_stack(self, stack):
-        """Turn the stack into a list of lines"""
+        """Turn the stack into a list of lines."""
         new_stack = []
         for line in stack:
             new_stack.extend([nline for nline in line.splitlines() if nline])
@@ -148,7 +148,7 @@ class BaseRecord(AttributeMonitor):
         """Attributes to format in the details
         0 will be the top section
         1 is the middle section
-        3 is the bottom section
+        3 is the bottom section.
         """
         default_attributes = {
             0: [
@@ -213,7 +213,7 @@ class BaseRecord(AttributeMonitor):
         update_filter=None,
         include_children_records=True,
     ) -> list[str]:
-        """Get a formatted detail string"""
+        """Get a formatted detail string."""
         column_width = 15
         msg = [
             f"{'Type':<{column_width}} : {self.__class__.__name__}",
@@ -262,7 +262,7 @@ class BaseRecord(AttributeMonitor):
         return msg
 
     def check_for_change(self, flag: str, action: str):
-        """Check if there is a change with the given flag and action"""
+        """Check if there is a change with the given flag and action."""
         return any(
             update["flag"] == flag and update["action"] == action
             for update in self.updates
@@ -272,11 +272,11 @@ class BaseRecord(AttributeMonitor):
     #     return f"{self.__class__.__name__}:{self.uuid})"
 
     def _exec_(self, *args, **kwargs):
-        """Override this in the derived classes if needed"""
+        """Override this in the derived classes if needed."""
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
-        """Enable tracking of the class execution"""
+        """Enable tracking of the class execution."""
         actor = kwargs.get("actor", "Unknown")
         if self.executing:
             self.addupdate(
@@ -306,10 +306,10 @@ class BaseRecord(AttributeMonitor):
 
 
 class TrackedUserList(BaseRecord, UserList):
-    """this is a Userlist whose updates are tracked"""
+    """this is a Userlist whose updates are tracked."""
 
     def __init__(self, data: list | None = None, owner_id: str = ""):
-        """Initialize the class"""
+        """Initialize the class."""
         if data is None:
             data = []
         UserList.__init__(self, data)
@@ -318,7 +318,7 @@ class TrackedUserList(BaseRecord, UserList):
         self.addupdate("Modify", "original input", extra={"data": f"{data!r}"})
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else "No data found"}"
 
     def lock(self):
@@ -332,7 +332,7 @@ class TrackedUserList(BaseRecord, UserList):
         return attributes
 
     def __setitem__(self, index, item):
-        """Set the item"""
+        """Set the item."""
         if self.locked:
             self.addupdate(
                 "Info",
@@ -345,7 +345,7 @@ class TrackedUserList(BaseRecord, UserList):
         )
 
     def insert(self, index, item):
-        """Insert an item"""
+        """Insert an item."""
         if self.locked:
             self.addupdate(
                 "Info",
@@ -360,7 +360,7 @@ class TrackedUserList(BaseRecord, UserList):
         )
 
     def append(self, item):
-        """Append an item"""
+        """Append an item."""
         if self.locked:
             self.addupdate(
                 "Info",
@@ -375,7 +375,7 @@ class TrackedUserList(BaseRecord, UserList):
         )
 
     def extend(self, items: list):
-        """Extend the list"""
+        """Extend the list."""
         if self.locked:
             self.addupdate(
                 "Info",
@@ -399,7 +399,7 @@ class BaseListRecord(UserList, BaseRecord):
         owner_id: str = "",
         track_record=True,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         if not isinstance(message, list):
             message = [message]
         UserList.__init__(self, message)
@@ -415,7 +415,7 @@ class BaseListRecord(UserList, BaseRecord):
         self.addupdate("Info", "Init", savedata=True)
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         if len(self.original_data) == 1 and not self.original_data[0].strip():
             first_str = self.original_data[0]
         else:
@@ -449,7 +449,7 @@ class BaseListRecord(UserList, BaseRecord):
         return self.message_type == "IO"
 
     def add_line_endings(self, actor=""):
-        """Add line endings to the message"""
+        """Add line endings to the message."""
         new_message = [f"{item}\n\r" for item in self.data]
         self.replace(
             new_message,
@@ -458,7 +458,7 @@ class BaseListRecord(UserList, BaseRecord):
         )
 
     def replace(self, data, actor="", extra: dict | None = None):
-        """Replace the data in the message"""
+        """Replace the data in the message."""
         if not isinstance(data, list):
             data = [data]
         if data != self.data:
@@ -466,7 +466,7 @@ class BaseListRecord(UserList, BaseRecord):
             self.addupdate("Modify", "replace", extra=extra, savedata=True)
 
     def color_lines(self, color: str, actor=""):
-        """Color the message and convert all colors to ansicodes
+        """Color the message and convert all colors to ansicodes.
 
         color is the color for all lines
 
@@ -499,7 +499,7 @@ class BaseListRecord(UserList, BaseRecord):
         )
 
     def clean(self, actor: str = ""):
-        """Clean the message
+        """Clean the message.
 
         actor is the item that ran the clean function
 
@@ -536,7 +536,7 @@ class BaseListRecord(UserList, BaseRecord):
         a message should create a change event at the following times:
             when it is created
             after modification
-            when it ends up at it's destination
+            when it ends up at it's destination.
         """
         data = self.data[:] if savedata else None
         change = UpdateRecord(self, flag, action, extra, data)
@@ -546,7 +546,7 @@ class BaseListRecord(UserList, BaseRecord):
 
 class BaseDictRecord(BaseRecord, UserDict):
     def __init__(self, owner_id: str = "", data: dict | None = None, track_record=True):
-        """Initialize the class"""
+        """Initialize the class."""
         if data:
             if not isinstance(data, dict):
                 raise TypeError(f"data must be a dict not {type(data)}")
@@ -558,7 +558,7 @@ class BaseDictRecord(BaseRecord, UserDict):
         self.addupdate("Info", "Init", savedata=True)
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[list(self.original_data.keys())[0]].strip()}"
 
     def get_attributes_to_format(self):
@@ -580,7 +580,7 @@ class BaseDictRecord(BaseRecord, UserDict):
         a message should create a change event at the following times:
             when it is created
             after modification
-            when it ends up at it's destination
+            when it ends up at it's destination.
         """
         data = self.copy() if savedata else None
         change = UpdateRecord(self, flag, action, extra, data)

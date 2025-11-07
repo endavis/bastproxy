@@ -4,7 +4,7 @@
 # File Description: Holds the client record type
 #
 # By: Bast
-"""Holds the client record type"""
+"""Holds the client record type."""
 # Standard Library
 
 # 3rd Party
@@ -18,7 +18,7 @@ from libs.records.rtypes.networkdata import NetworkData
 class ProcessDataToClient(BaseRecord):
     """a record to a client, this can originate with the mud or internally
     data from the mud will immediately be transformed into this type of record
-    will not neccesarily end up going to the client
+    will not neccesarily end up going to the client.
 
     The message format is a NetworkData object
     """
@@ -35,7 +35,7 @@ class ProcessDataToClient(BaseRecord):
         error: bool = False,
         color_for_all_lines=None,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         super().__init__()
         self.message = message
         self.message.parent = self
@@ -110,25 +110,25 @@ class ProcessDataToClient(BaseRecord):
     #     return newmessage
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
 
     def add_client(self, client_uuid: str):
-        """Add a client to the list of clients to send to"""
+        """Add a client to the list of clients to send to."""
         if client_uuid in self.exclude_clients:
             self.exclude_clients.remove(client_uuid)
         if client_uuid not in self.clients:
             self.clients.append(client_uuid)
 
     def exclude_client(self, client_uuid):
-        """Add a client to the list of clients to exclude"""
+        """Add a client to the list of clients to exclude."""
         if client_uuid in self.clients:
             self.clients.remove(client_uuid)
         if client_uuid not in self.exclude_clients:
             self.exclude_clients.append(client_uuid)
 
     def can_send_to_client(self, client_uuid, internal):
-        """Returns true if this message can be sent to the client"""
+        """Returns true if this message can be sent to the client."""
         if client_uuid:
             # Exclude takes precedence over everything else
             if client_uuid in self.exclude_clients:
@@ -151,7 +151,7 @@ class ProcessDataToClient(BaseRecord):
         return False
 
     def _exec_(self):
-        """Send the message"""
+        """Send the message."""
         # If a line came from the mud and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
         if data_for_event := [
@@ -169,7 +169,7 @@ class ProcessDataToClient(BaseRecord):
 
 class SendDataDirectlyToClient(BaseRecord):
     """send data directly to a client
-    this bypasses any processing and sends directly to the client
+    this bypasses any processing and sends directly to the client.
 
     The message format is NetworkData instance
 
@@ -184,7 +184,7 @@ class SendDataDirectlyToClient(BaseRecord):
         clients: list | None = None,
         exclude_clients: list | None = None,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         super().__init__()
         self.message = message
         self.message.parent = self
@@ -212,11 +212,11 @@ class SendDataDirectlyToClient(BaseRecord):
             )
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
 
     def can_send_to_client(self, client_uuid, line):
-        """Returns true if this message can be sent to the client"""
+        """Returns true if this message can be sent to the client."""
         if client_uuid:
             # Exclude takes precedence over everything else
             if client_uuid in self.exclude_clients:
@@ -240,7 +240,7 @@ class SendDataDirectlyToClient(BaseRecord):
         return False
 
     def _exec_(self):
-        """Send the message"""
+        """Send the message."""
         self.message.lock()
         for line in self.message:
             if line.send:

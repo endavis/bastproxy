@@ -25,11 +25,11 @@ from ..libs._settinginfo import SettingInfo
 
 
 class SettingsPlugin(BasePlugin):
-    """a test plugin"""
+    """a test plugin."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance through common __init__ method"""
+        """Initialize the instance through common __init__ method."""
         # a map of setting names to plugins
         # this is used to check for conflicts
         self.settings_map = {}
@@ -53,7 +53,7 @@ class SettingsPlugin(BasePlugin):
           @Ynocolor@w    = if True, don't parse colors when showing value
           @Yreadonly@w   = if True, can't be changed by a client
           @Yhidden@w     = if True, don't show in @Ysettings@w command
-          @Yaftersetmessage@w = message to send to client after setting is changed
+          @Yaftersetmessage@w = message to send to client after setting is changed.
         """
         LogRecord(
             f"setting {plugin_id}.{setting_name} {default} {stype} {help} {kwargs}",
@@ -105,7 +105,7 @@ class SettingsPlugin(BasePlugin):
     def _api_setting_get(self, plugin_id, setting):
         """Get the value of a setting
         @Ysetting@w = the setting value to get
-        @Yplugin@w = the plugin to get the setting from (optional)
+        @Yplugin@w = the plugin to get the setting from (optional).
 
         Returns:
           the value of the setting, None if not found
@@ -154,7 +154,7 @@ class SettingsPlugin(BasePlugin):
         "reset", description="reset all settings for a plugin to their default values"
     )
     def _api_reset(self, plugin_id):
-        """Reset all settings for a plugin to their default values"""
+        """Reset all settings for a plugin to their default values."""
         self.settings_values[plugin_id].clear()
         for i in self.settings_info[plugin_id]:
             self.settings_values[plugin_id][i] = self.settings_info[plugin_id][
@@ -167,7 +167,7 @@ class SettingsPlugin(BasePlugin):
         """Change a setting
         @Yplugin_id@w     = the plugin_id of the owner of the setting
         @Ysetting@w    = the name of the setting to change
-        @Yvalue@w      = the value to set it as
+        @Yvalue@w      = the value to set it as.
 
         Returns:
           True if the value was changed, False otherwise
@@ -220,7 +220,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("get.setting.info", description="get the info for a setting")
     def _api_get_setting_info(self, plugin_id, setting):
-        """Get the info for a setting"""
+        """Get the info for a setting."""
         if plugin_id not in self.settings_info:
             return None
         if setting not in self.settings_info[plugin_id]:
@@ -231,7 +231,7 @@ class SettingsPlugin(BasePlugin):
         "initialize.plugin.settings", description="initialize the settings for a plugin"
     )
     def _api_initialize_plugin_settings(self, plugin_id):
-        """Initialize the settings for a plugin"""
+        """Initialize the settings for a plugin."""
         LogRecord(
             f"initializing settings for {plugin_id}",
             level="debug",
@@ -256,7 +256,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("remove.plugin.settings", description="remove the settings for a plugin")
     def _api_remove_plugin_settings(self, plugin_id):
-        """Removing the settings for a plugin"""
+        """Removing the settings for a plugin."""
         LogRecord(
             f"Removing settings for {plugin_id}",
             level="debug",
@@ -276,7 +276,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("save.plugin", description="save the settings for a plugin")
     def _api_save_plugin(self, plugin_id):
-        """Save the settings for a plugin"""
+        """Save the settings for a plugin."""
         LogRecord(
             f"{self.plugin_id} : Saving settings for {plugin_id}",
             level="debug",
@@ -286,12 +286,12 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("get.all.for.plugin", description="get all settings for a plugin")
     def _api_get_all_for_plugin(self, plugin_id):
-        """Get all settings info for a plugin"""
+        """Get all settings info for a plugin."""
         return self.settings_info[plugin_id]
 
     @AddAPI("raise.event.all.settings", description="raise an event for all settings")
     def _api_raise_event_all_settings(self, plugin_id):
-        """Raise an event for all settings"""
+        """Raise an event for all settings."""
         LogRecord(
             f"Raising events for all settings in {plugin_id}",
             level="debug",
@@ -313,12 +313,12 @@ class SettingsPlugin(BasePlugin):
         "is.setting.hidden", description="check if a plugin setting is flagged hidden"
     )
     def _api_is_setting_hidden(self, plugin_id, setting):
-        """Check if a plugin setting is hidden"""
+        """Check if a plugin setting is hidden."""
         return self.settings_info[plugin_id][setting].hidden
 
     @AddAPI("add.setting.to.map", description="add a setting to the settings map")
     def _api_add_setting_to_map(self, plugin_id, setting_name):
-        """Add a setting to the settings map"""
+        """Add a setting to the settings map."""
         if setting_name in self.settings_map:
             LogRecord(
                 f"setting {plugin_id}.{setting_name} conflicts {self.settings_map[setting_name]}:{setting_name}",
@@ -328,7 +328,7 @@ class SettingsPlugin(BasePlugin):
         self.settings_map[setting_name] = plugin_id
 
     def format_setting_for_print(self, plugin_id, setting_name):
-        """Format a setting for printing"""
+        """Format a setting for printing."""
         value = self.api(f"{self.plugin_id}:get")(plugin_id, setting_name)
         setting_info = self.api(f"{self.plugin_id}:get.setting.info")(
             plugin_id, setting_name
@@ -346,7 +346,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("format.setting", description="format a setting")
     def _api_format_setting(self, plugin_id, setting_name):
-        """Format a setting"""
+        """Format a setting."""
         val = self.api(f"{self.plugin_id}:get")(plugin_id, setting_name)
         info = self.api(f"{self.plugin_id}:get.setting.info")(plugin_id, setting_name)
 
@@ -365,7 +365,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("get.all.settings.formatted", description="get all settings formatted")
     def _api_get_all_settings_formatted(self, plugin_id):
-        """Get all settings formatted"""
+        """Get all settings formatted."""
         tmsg = []
         if not self.settings_info[plugin_id]:
             return [f"There are no settings defined in {plugin_id}"]
@@ -394,7 +394,7 @@ class SettingsPlugin(BasePlugin):
         nargs="?",
     )
     def _command_list(self):
-        """List all settings"""
+        """List all settings."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         line_length = self.api("plugins.core.commands:get.output.line.length")()
         header_color = self.api("plugins.core.settings:get")(
@@ -459,7 +459,7 @@ class SettingsPlugin(BasePlugin):
         "-p", "--plugin", help="the plugin of the setting", default="", nargs="?"
     )
     def _command_settings_plugin_sets(self):
-        """Command to set a plugin setting"""
+        """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:get.current.command.args")()
 
         if not args["value"]:

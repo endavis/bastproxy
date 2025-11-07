@@ -4,7 +4,7 @@
 # File Description: a plugin to create a sqlite3 interface
 #
 # By: Bast
-"""this module is a sqlite3 interface
+"""this module is a sqlite3 interface.
 
 ## Using
 See the source for [aardwolf.statdb](/bastproxy/plugins/aardwolf/statdb.html)

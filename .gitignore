@@ -62,3 +62,4 @@ uv.lock
 .venv
 
 bandit-report.txt
+tmp/

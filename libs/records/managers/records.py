@@ -4,7 +4,7 @@
 # File Description: a manager that handles records of all types
 #
 # By: Bast
-"""This module holds a manager that handles records of all types"""
+"""This module holds a manager that handles records of all types."""
 
 import contextlib
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class RecordManager:
     def __init__(self):
         """Keep the last max_records of each type
-        track the active record
+        track the active record.
         """
         self.max_records: int = 5000
         self.records: dict[str, SimpleQueue] = {}

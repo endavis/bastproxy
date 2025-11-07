@@ -265,6 +265,11 @@ ignore = [
     "PLR2004", # Magic value used in comparison
     "ISC001",  # Conflicts with formatter
     "ERA001",  # Commented-out code (false positives on file headers)
+    # Temporarily ignored - to be fixed incrementally
+    "D205",    # missing-blank-line-after-summary (104 occurrences)
+    "D415",    # missing-terminal-punctuation (557 occurrences)
+    "T201",    # print statements (69 occurrences - debug code)
+    "PLC0415", # import-outside-top-level (24 occurrences - test fixtures)
 ]
 
 # Allow fix for all enabled rules (when `--fix` is provided)

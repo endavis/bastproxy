@@ -4,7 +4,7 @@
 # File Description: a plugin to inspect records
 #
 # By: Bast
-"""This plugin will allow you to inspect records"""
+"""This plugin will allow you to inspect records."""
 
 # these 4 are required
 PLUGIN_NAME = "Inspect Proxy Records"

@@ -4,7 +4,7 @@
 # File Description: a plugin to handle timers
 #
 # By: Bast
-"""this plugin has a timer interface for internal timers"""
+"""this plugin has a timer interface for internal timers."""
 
 # these 4 are required
 PLUGIN_NAME = "timers"

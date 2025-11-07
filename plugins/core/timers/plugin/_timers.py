@@ -25,7 +25,7 @@ from plugins.core.events import RegisterToEvent
 
 
 class Timer(Callback):
-    """a class for a timer"""
+    """a class for a timer."""
 
     def __init__(self, name, func, seconds, plugin_id, enabled=True, **kwargs):
         """Initialize the class. Time should be in military format, e.g.,"1430".
@@ -99,16 +99,16 @@ class Timer(Callback):
         return next_fire
 
     def __str__(self) -> str:
-        """Return a string representation of the timer"""
+        """Return a string representation of the timer."""
         return f"Timer {self.name:<10} : {self.owner_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime(self.api.time_format)}"
 
 
 class TimersPlugin(BasePlugin):
-    """a plugin to handle timers"""
+    """a plugin to handle timers."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.can_reload_f: bool = False
 
         self.timer_events: dict[int, list[Timer]] = {}
@@ -118,7 +118,7 @@ class TimersPlugin(BasePlugin):
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         LogRecord(
             f"initialize - lasttime:  {self.time_last_checked}",
             "debug",
@@ -132,7 +132,7 @@ class TimersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
-        """A plugin was unloaded"""
+        """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             LogRecord(
                 f"_eventcb_plugin_unloaded - removing timers for plugin {event_record['plugin_id']}",
@@ -146,7 +146,7 @@ class TimersPlugin(BasePlugin):
     @AddParser(description="toggle log flag for a timer")
     @AddArgument("timername", help="the timer name", default="", nargs="?")
     def _command_log(self) -> tuple[bool, list[str]]:
-        """Change the log flag for a timer"""
+        """Change the log flag for a timer."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         message: list[str] = []
         if args["timername"] in self.timer_lookup:
@@ -165,7 +165,7 @@ class TimersPlugin(BasePlugin):
     # def _phook_timer_stats(self, **kwargs):
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_timers_ev_plugins_stats(self):
-        """Return stats for the plugin"""
+        """Return stats for the plugin."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             disabled = 0
             enabled = 0
@@ -187,7 +187,7 @@ class TimersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_stats")
     def _eventcb_event_get_stats_for_plugin(self) -> None:
-        """Get stats for a plugin"""
+        """Get stats for a plugin."""
         if not (
             event_record := self.api("plugins.core.events:get.current.event.record")()
         ):
@@ -221,7 +221,7 @@ class TimersPlugin(BasePlugin):
     def _command_list(self) -> tuple[bool, list[str]]:
         """@G%(name)s@w - @B%(cmdname)s@w
         list timers and the plugins they are defined in
-        @CUsage@w: list
+        @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         output_header_color = self.api("plugins.core.settings:get")(
@@ -264,7 +264,7 @@ class TimersPlugin(BasePlugin):
     def _command_detail(self) -> tuple[bool, list[str]]:
         """@G%(name)s@w - @B%(cmdname)s@w
         list the details of a timer
-        @CUsage@w: detail
+        @CUsage@w: detail.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         message: list[str] = []
@@ -310,7 +310,7 @@ class TimersPlugin(BasePlugin):
     @AddAPI("has.timer", description="check if a timer exists")
     def _api_has_timer(self, name: str):
         """Check if a timer exists
-        @Yname@w   = the name of the timer to check
+        @Yname@w   = the name of the timer to check.
 
         returns True if the timer exists, False otherwise
         """
@@ -319,7 +319,7 @@ class TimersPlugin(BasePlugin):
     @AddAPI("get.timer.next.fire", description="get the next fire time for a timer")
     def _api_get_timer_next_fire(self, name: str) -> datetime.datetime | None:
         """Get the next fire time for a timer
-        @Yname@w   = the name of the timer to check
+        @Yname@w   = the name of the timer to check.
 
         returns the next fire time for the timer, or None if the timer does not exist
         """
@@ -340,7 +340,7 @@ class TimersPlugin(BasePlugin):
                                         False otherwise
           @Yonetime@w   = True for a onetime timer, False otherwise
           @Yenabled@w   = True if enabled, False otherwise
-          @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM
+          @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM.
 
         returns an Event instance
         """
@@ -398,7 +398,7 @@ class TimersPlugin(BasePlugin):
     @AddAPI("remove.data.for.plugin", description="remove all data for a plugin")
     def _api_remove_data_for_plugin(self, name: str):
         """Remove all timers associated with a plugin
-        @Yname@w   = the name of the plugin
+        @Yname@w   = the name of the plugin.
 
         this function returns no values
         """
@@ -417,7 +417,7 @@ class TimersPlugin(BasePlugin):
     @AddAPI("remove.timer", description="remove a timer")
     def _api_remove_timer(self, name: str):
         """Remove a timer
-        @Yname@w   = the name of the timer to remove
+        @Yname@w   = the name of the timer to remove.
 
         this function returns no values
         """
@@ -442,7 +442,7 @@ class TimersPlugin(BasePlugin):
     def _api_toggle_timer(self, name: str, flag: bool):
         """Toggle a timer to be enabled/disabled
         @Yname@w   = the name of the timer to toggle
-        @Yflag@w   = True to enable, False to disable
+        @Yflag@w   = True to enable, False to disable.
 
         this function returns no values
         """
@@ -450,7 +450,7 @@ class TimersPlugin(BasePlugin):
             self.timer_lookup[name].enabled = flag
 
     def _add_timer_internal(self, timer: Timer):
-        """Internally add a timer"""
+        """Internally add a timer."""
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if timer_next_time_to_fire != -1:
             if timer_next_time_to_fire not in self.timer_events:
@@ -459,7 +459,7 @@ class TimersPlugin(BasePlugin):
         self.timer_lookup[timer.name] = timer
 
     def _remove_timer_internal(self, timer: Timer):
-        """Internally remove a timer"""
+        """Internally remove a timer."""
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if (
             timer_next_time_to_fire != -1
@@ -524,7 +524,7 @@ class TimersPlugin(BasePlugin):
     async def check_for_timers_to_fire(self):
         # this is a callback, so disable unused-argument
         # pylint: disable=unused-argument,too-many-nested-blocks
-        """Check all timers"""
+        """Check all timers."""
         firstrun: bool = True
         keepgoing: bool = True
         while keepgoing:

@@ -4,7 +4,7 @@
 # File Description: Holds the record type for event arguments
 #
 # By: Bast
-"""Holds the log record type"""
+"""Holds the log record type."""
 
 # Standard Library
 from typing import TYPE_CHECKING
@@ -33,24 +33,24 @@ class ProcessRaisedEvent(BaseRecord):
         self.addupdate("Info", "Init")
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms {self.event_name} {self.times_invoked}"
 
     def _exec_(self, actor, *args, **kwargs):
-        """Process the event"""
+        """Process the event."""
         if "data_list" in kwargs and kwargs["data_list"] and "key_name" in kwargs:
             self._exec_multi(actor, *args, **kwargs)
         else:
             self._exec_once(actor, *args, **kwargs)
 
     def _exec_multi(self, *args, **kwargs):
-        """Process the event"""
+        """Process the event."""
         for item in kwargs["data_list"]:
             self.event_data[kwargs["key_name"]] = item
             self._exec_once(*args, **kwargs)
 
     def _exec_once(self, actor, **kwargs):
-        """Exec it with self.arg_data"""
+        """Exec it with self.arg_data."""
         self.times_invoked += 1
         self.addupdate("Info", "Invoked", extra={"data": f"{self.event_data.data}"})
 

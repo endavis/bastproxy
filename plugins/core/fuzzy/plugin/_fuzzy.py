@@ -24,7 +24,7 @@ from plugins._baseplugin import BasePlugin
 
 
 def sort_fuzzy_result(result):
-    """Sort a result from extract"""
+    """Sort a result from extract."""
     newdict = {}
     for i in result:
         if i[1] not in newdict:
@@ -34,7 +34,7 @@ def sort_fuzzy_result(result):
 
 
 class FuzzyPlugin(BasePlugin):
-    """a plugin to test command parsing"""
+    """a plugin to test command parsing."""
 
     @lru_cache(maxsize=128)
     @AddAPI(
@@ -50,7 +50,7 @@ class FuzzyPlugin(BasePlugin):
     ) -> str:
         """Get the best match for a string in a list of strings
         @Yitem_to_match@w  = the string to find the closest match for
-        @Ylist_to_match@w  = the list of strings to match against
+        @Ylist_to_match@w  = the list of strings to match against.
 
         scorer can be ratio, partial_ratio, token_sort_ratio,
                 token_set_ratio, partial_token_sort_ratio,
@@ -122,7 +122,7 @@ class FuzzyPlugin(BasePlugin):
     ) -> list:
         """Scorer can be ratio, partial_ratio, token_sort_ratio,
                         token_set_ratio, partial_token_sort_ratio,
-                        partial_token_set_ratio
+                        partial_token_set_ratio.
 
         get the top fuzzy matches for a string
         """

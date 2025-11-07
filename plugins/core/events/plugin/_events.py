@@ -23,7 +23,7 @@ from ._event import Event
 
 
 class EventsPlugin(BasePlugin):
-    """a class to manage events"""
+    """a class to manage events."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
@@ -39,7 +39,7 @@ class EventsPlugin(BasePlugin):
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the plugin"""
+        """Initialize the plugin."""
         self.api("plugins.core.settings:add")(
             self.plugin_id,
             "log_savestate",
@@ -55,7 +55,7 @@ class EventsPlugin(BasePlugin):
         )
 
     def _eventcb_post_startup_plugins_loaded(self):
-        """Register all events in all plugins"""
+        """Register all events in all plugins."""
         self._register_all_plugin_events()
         self.api("plugins.core.events:raise.event")(
             f"ev_{self.plugin_id}_all_events_registered"
@@ -63,14 +63,14 @@ class EventsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_baseplugin_patched")
     def _eventcb_baseplugin_patched(self):
-        """A plugin was patched, so reload all events"""
+        """A plugin was patched, so reload all events."""
         if self.api.startup:
             return
 
         self._register_all_plugin_events()
 
     def _register_all_plugin_events(self):
-        """Add commands on startup"""
+        """Add commands on startup."""
         LogRecord(
             "_register_all_plugin_events: start",
             level="debug",
@@ -90,7 +90,7 @@ class EventsPlugin(BasePlugin):
         )()
 
     def _register_events_for_plugin(self, plugin_id):
-        """Register all events in a plugin"""
+        """Register all events in a plugin."""
         plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(
             plugin_instance
@@ -112,7 +112,7 @@ class EventsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_loaded", priority=1)
     def _eventcb_plugin_initialized(self):
-        """A plugin was loaded, so register all events"""
+        """A plugin was loaded, so register all events."""
         if self.api.startup or not (
             event_record := self.api("plugins.core.events:get.current.event.record")()
         ):
@@ -122,7 +122,7 @@ class EventsPlugin(BasePlugin):
 
     def get_event_registration_functions_in_object(self, base, recurse=True):
         """Recursively search for functions that are commands in a plugin instance
-        and it's attributes
+        and it's attributes.
         """
         function_list = []
         for item in dir(base):
@@ -150,7 +150,7 @@ class EventsPlugin(BasePlugin):
         description="register a decorated function to an event",
     )
     def _api_register_event_by_func(self, func):
-        """Register a decorated function as an event"""
+        """Register a decorated function as an event."""
         for item in func.event_registration:
             event_name = item["event_name"]
             event_name = event_name.format(**func.__self__.__dict__)
@@ -161,7 +161,7 @@ class EventsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
-        """A plugin was unloaded"""
+        """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             LogRecord(
                 f"_eventcb_plugin_unloaded - removing events for {event_record['plugin_id']}",
@@ -174,12 +174,12 @@ class EventsPlugin(BasePlugin):
 
     @AddAPI("get.current.event.name", description="return the current event name")
     def _api_get_current_event_name(self):
-        """Return the current event name"""
+        """Return the current event name."""
         return self.active_event_stack.peek()
 
     @AddAPI("get.current.event.record", description="return the current event record")
     def _api_get_current_event_record(self):
-        """Return the current event record"""
+        """Return the current event record."""
         if last_event := self.active_event_stack.peek():
             event = self.api(f"{self.plugin_id}:get.event")(last_event)
             return event.get_active_event().event_data
@@ -187,7 +187,7 @@ class EventsPlugin(BasePlugin):
 
     @AddAPI("get.event.stack", description="return the current event stack")
     def _api_get_event_stack(self):
-        """Return the current event stack"""
+        """Return the current event stack."""
         return self.active_event_stack.getstack()
 
     @AddAPI("add.event", description="add an event for this plugin to track")
@@ -198,7 +198,7 @@ class EventsPlugin(BasePlugin):
         description: list | None = None,
         arg_descriptions: dict[str, str] | None = None,
     ):
-        """Add an event for this plugin to track"""
+        """Add an event for this plugin to track."""
         event = self.api(f"{self.plugin_id}:get.event")(event_name)
         event.created_by = created_by
         event.description = description or []
@@ -207,7 +207,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("get.event", description="return the event")
     def _api_get_event(self, event_name):
         """Return an event
-        @Yevent_name@w   = the event to return
+        @Yevent_name@w   = the event to return.
 
         this function returns an Event object
         """
@@ -219,7 +219,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("has.event", description="return the event")
     def _api_has_event(self, event_name):
         """Check if an event exists
-        @Yevent_name@w   = the event to check for
+        @Yevent_name@w   = the event to check for.
 
         this function returns True if found, False otherwise
         """
@@ -232,7 +232,7 @@ class EventsPlugin(BasePlugin):
     def _api_is_registered_to_event(self, event_name, func):
         """Check if a function is registered to an event
         @Yevent_name@w   = the event to check
-        @Yfunc@w        = the function to check for
+        @Yfunc@w        = the function to check for.
 
         this function returns True if found, False otherwise
         """
@@ -247,7 +247,7 @@ class EventsPlugin(BasePlugin):
         @Yevent_name@w   = The event to register with
         @Yfunc@w        = The function to register
         keyword arguments:
-          prio          = the priority of the function (default: 50)
+          prio          = the priority of the function (default: 50).
 
         this function returns no values
         """
@@ -275,7 +275,7 @@ class EventsPlugin(BasePlugin):
         # pylint: disable=unused-argument
         """Unregister a function from an event
         @Yevent_name@w   = The event to unregister with
-        @Yfunc@w        = The function to unregister
+        @Yfunc@w        = The function to unregister.
 
         this function returns no values
         """
@@ -295,7 +295,7 @@ class EventsPlugin(BasePlugin):
     def _api_remove_events_for_owner(self, owner_id):
         """Remove all registered functions that are specific to a owner_id
         @Yowner_id@w   = The owner to remove events for
-        this function returns no values
+        this function returns no values.
         """
         LogRecord(
             f"_api_remove_events_for_owner - removing events for {owner_id}",
@@ -310,7 +310,7 @@ class EventsPlugin(BasePlugin):
         "get.detailed.data.for.plugin", description="get detailed data for a plugin"
     )
     def _api_get_detailed_data_for_plugin(self, owner_name):
-        """Return all events for an owner"""
+        """Return all events for an owner."""
         owner_events = {}
         for event in self.events.values():
             if registrations := event.getownerregistrations(owner_name):
@@ -357,7 +357,7 @@ class EventsPlugin(BasePlugin):
         # pylint: disable=too-many-nested-blocks
         """Raise an event with args
         @Yevent_name@w   = The event to raise
-        @Yargs@w         = A dict or EventDataRecord of arguments
+        @Yargs@w         = A dict or EventDataRecord of arguments.
         """
         if not event_args:
             event_args = {}
@@ -394,7 +394,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("get.event.detail", description="get the details of an event")
     def _api_get_event_detail(self, event_name):
         """Get the details of an event
-        @Yevent_name@w = The event name
+        @Yevent_name@w = The event name.
 
         this function returns a list of strings for the info
         """
@@ -412,7 +412,7 @@ class EventsPlugin(BasePlugin):
         """@G%(name)s@w - @B%(cmdname)s@w
         raise an event - only works for events with no arguments
         @CUsage@w: raise @Y<event_name>@w
-          @Yevent_name@w  = the event_name to raise
+          @Yevent_name@w  = the event_name to raise.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         message = []
@@ -432,7 +432,7 @@ class EventsPlugin(BasePlugin):
         """@G%(name)s@w - @B%(cmdname)s@w
         list events and the owner ids registered with them
         @CUsage@w: detail show @Y<event_name>@w
-          @Yevent_name@w  = the event_name to get info for
+          @Yevent_name@w  = the event_name to get info for.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         message = []
@@ -485,7 +485,7 @@ class EventsPlugin(BasePlugin):
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         list events and the owner_ids registered with them
-        @CUsage@w: list
+        @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         match = args["match"]
@@ -531,7 +531,7 @@ class EventsPlugin(BasePlugin):
         nargs="?",
     )
     def _command_owner(self):
-        """Show all registrations for a specific owner"""
+        """Show all registrations for a specific owner."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         if not args["owner"]:
             return False, ["Please provide an owner"]
@@ -544,7 +544,7 @@ class EventsPlugin(BasePlugin):
 
     @AddAPI("get.summary.data.for.plugin", description="get summary data for a plugin")
     def _api_get_summary_data_for_plugin(self, plugin_id):
-        """Return a summary of the data in this plugin for a specific plugin_id"""
+        """Return a summary of the data in this plugin for a specific plugin_id."""
         msg = []
         if plugin_id == self.plugin_id:
             msg.extend(

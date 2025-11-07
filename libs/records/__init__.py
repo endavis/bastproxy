@@ -12,7 +12,7 @@ The public record types ones are:
     LogRecord - data to log
     SendDataDirectlyToMud - send data to the mud
     ProcessDataToMud - process data to send to the mud
-    EventArgsRecord - data to send to event callbacks
+    EventArgsRecord - data to send to event callbacks.
 
 The public manager is RMANAGER, which manages records or all types
 

@@ -4,7 +4,7 @@
 # File Description: a plugin to change logging settings
 #
 # By: Bast
-"""This module handles changing logging settings
+"""This module handles changing logging settings.
 
 see info/logging_notes.txt for more information about logging
 """
@@ -55,7 +55,7 @@ def update_type_counts(name, level):
 
 
 class CustomColorFormatter(logging.Formatter):
-    """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629"""
+    """Logging colored formatter, adapted from https://stackoverflow.com/a/56944256/3638629."""
 
     error = f"\x1b[{ALLCONVERTCOLORS['@x136']}m"
     warning = f"\x1b[{ALLCONVERTCOLORS['@y']}m"
@@ -210,7 +210,7 @@ class CustomClientHandler(logging.Handler):
 
 
 def reset_logging():
-    """Reset logging handlers and filters"""
+    """Reset logging handlers and filters."""
     rootlogger = logging.getLogger()
     while rootlogger.hasHandlers():
         try:

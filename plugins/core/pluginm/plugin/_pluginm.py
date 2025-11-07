@@ -5,7 +5,7 @@
 # File Description: holds the plugin manager
 #
 # By: Bast
-"""manages all plugins"""
+"""manages all plugins."""
 # Standard Library
 
 # 3rd Party
@@ -18,11 +18,11 @@ from plugins.core.events import RegisterToEvent
 
 
 class PluginManager(BasePlugin):
-    """a class to manage plugins"""
+    """a class to manage plugins."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.can_reload_f: bool = False
 
         self.plugin_info_line_format = (
@@ -36,7 +36,7 @@ class PluginManager(BasePlugin):
     def _command_helper_format_plugin_list(
         self, plugins, header="", columnheader=True, required_color_line=True
     ) -> list[str]:
-        """Format a list of loaded plugins to return to client
+        """Format a list of loaded plugins to return to client.
 
         plugins = a list of plugin_info objects
         """
@@ -88,7 +88,7 @@ class PluginManager(BasePlugin):
 
     # get a message of plugins in a package
     def _get_package_plugins(self, package):
-        """Create a message of loaded plugins in a package
+        """Create a message of loaded plugins in a package.
 
         Arguments:
           required:
@@ -129,7 +129,7 @@ class PluginManager(BasePlugin):
 
     # create a message of all plugins
     def _build_all_plugins_message(self):
-        """Create a message of all plugins
+        """Create a message of all plugins.
 
         Returns:
           a list of strings
@@ -158,7 +158,7 @@ class PluginManager(BasePlugin):
 
     # get plugins that are change on disk
     def _get_changed_plugins(self):
-        """Create a message of loaded plugins that are changed on disk"""
+        """Create a message of loaded plugins that are changed on disk."""
         loaded_plugins_by_id = self.api("libs.plugins.loader:get.loaded.plugins.list")()
 
         msg = []
@@ -176,7 +176,7 @@ class PluginManager(BasePlugin):
         return msg or ["No plugins are changed on disk."]
 
     def _get_invalid_plugins(self):
-        """Create a message of plugins that are invalid python code"""
+        """Create a message of plugins that are invalid python code."""
         all_plugins_by_id = self.api("libs.plugins.loader:get.all.plugins")()
         msg = []
         if list_to_format := [
@@ -194,7 +194,7 @@ class PluginManager(BasePlugin):
 
     # get all not loaded plugins
     def _get_not_loaded_plugins(self):
-        """Create a message of all not loaded plugins"""
+        """Create a message of all not loaded plugins."""
         msg = []
         not_loaded_plugins = self.api("libs.plugins.loader:get.not.loaded.plugins")()
         msg = self._command_helper_format_plugin_list(
@@ -228,7 +228,7 @@ class PluginManager(BasePlugin):
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
         List plugins
-        @CUsage@w: list
+        @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         msg = []
@@ -247,7 +247,7 @@ class PluginManager(BasePlugin):
 
     def _load_other_plugins_after_core_and_client_plugins(self):
         """Load plugins after core and client plugins have been loaded
-        from the pluginstoload setting
+        from the pluginstoload setting.
         """
         plugins_to_load_setting = self.api("plugins.core.settings:get")(
             self.plugin_id, "pluginstoload"
@@ -298,12 +298,12 @@ class PluginManager(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
     def _eventcb_shutdown(self, _=None):
-        """Do tasks on shutdown"""
+        """Do tasks on shutdown."""
         self.api(f"{self.plugin_id}:save.all.plugins.state")()
 
     # save all plugins
     def _api_save_all_plugins_state(self, _=None):
-        """Save all plugins"""
+        """Save all plugins."""
         for plugin_id in self.api("libs.plugins.loader:get.loaded.plugins.list")():
             self.api(f"{plugin_id}:save.state")()
 
@@ -319,7 +319,7 @@ class PluginManager(BasePlugin):
           Load a plugin
           @CUsage@w: load @Yplugin@w
             @Yplugin@w    = the id of the plugin to load,
-                            example: core.example.timerex
+                            example: core.example.timerex.
 
         will load the plugin and all of its dependencies
         """
@@ -382,7 +382,7 @@ class PluginManager(BasePlugin):
         unload a plugin
         @CUsage@w: unload @Yplugin@w
           @Yplugin@w    = the id of the plugin to unload,
-                          example: example.timerex
+                          example: example.timerex.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
 
@@ -414,7 +414,7 @@ class PluginManager(BasePlugin):
         reload a plugin
         @CUsage@w: reload @Yplugin@w
           @Yplugin@w    = the id of the plugin to reload,
-                          example: example.timerex
+                          example: example.timerex.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
 
@@ -447,7 +447,7 @@ class PluginManager(BasePlugin):
     )
     def _eventcb_all_events_registered(self):
         """This resends all the different plugin initialization events,
-        saves all plugin states, and adds the save plugin timer
+        saves all plugin states, and adds the save plugin timer.
         """
         self._load_other_plugins_after_core_and_client_plugins()
 
@@ -466,7 +466,7 @@ class PluginManager(BasePlugin):
     # initialize this plugin
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize plugin"""
+        """Initialize plugin."""
         self.api("plugins.core.settings:add")(
             self.plugin_id,
             "pluginstoload",

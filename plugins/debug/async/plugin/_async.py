@@ -15,11 +15,11 @@ from plugins.core.commands import AddParser
 
 
 class AsyncPlugin(BasePlugin):
-    """a plugin to inspect records"""
+    """a plugin to inspect records."""
 
     @AddParser(description="get a list of asyncio tasks")
     def _command_tasks(self):
-        """List records of a specific type"""
+        """List records of a specific type."""
         line_length = self.api("plugins.core.commands:get.output.line.length")()
         header_color = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "output_header_color"

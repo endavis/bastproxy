@@ -56,7 +56,7 @@ class CommandClass:
     def run(
         self, arg_string: str = "", format=False
     ) -> tuple[bool | None, list[str], str]:
-        """Run the command"""
+        """Run the command."""
         self.last_run_start_time = datetime.datetime.now(datetime.UTC)
         self.current_arg_string = arg_string
         message: list[str] = []
@@ -124,7 +124,7 @@ class CommandClass:
     def run_finish(
         self, success: bool, message: list[str], return_value: str, format=False
     ) -> tuple[bool, list[str], str]:
-        """Run the command finisher"""
+        """Run the command finisher."""
         oldmessage = message[:]
         self.last_run_end_time = datetime.datetime.now(datetime.UTC)
         if format:
@@ -135,7 +135,7 @@ class CommandClass:
         return success, message, return_value
 
     def parse_args(self, arg_string):
-        """Parse an argument string for this command"""
+        """Parse an argument string for this command."""
         # split it with shlex
         split_args_list = []
         args = {}
@@ -174,7 +174,7 @@ class CommandClass:
         return True, args, ""
 
     def format_return_message(self, message):
-        """Format a return message
+        """Format a return message.
 
         Arguments:
           required:

@@ -4,7 +4,7 @@
 # File Description: a plugin to hold information about clients
 #
 # By: Bast
-"""This plugin will show information about clients connected to the proxy"""
+"""This plugin will show information about clients connected to the proxy."""
 
 # these 4 are required
 PLUGIN_NAME = "Clients"

@@ -4,7 +4,7 @@
 # File Description: a plugin to handle internal triggers
 #
 # By: Bast
-"""This plugin handles internal triggers for the proxy"""
+"""This plugin handles internal triggers for the proxy."""
 
 # these 4 are required
 PLUGIN_NAME = "triggers"

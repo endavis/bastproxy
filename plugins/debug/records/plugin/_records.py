@@ -17,11 +17,11 @@ from plugins.core.commands import AddArgument, AddParser
 
 
 class RecordPlugin(BasePlugin):
-    """a plugin to inspect records"""
+    """a plugin to inspect records."""
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
-        """Initialize the instance"""
+        """Initialize the instance."""
         self.api("plugins.core.settings:add")(
             self.plugin_id,
             "showLogRecords",
@@ -32,7 +32,7 @@ class RecordPlugin(BasePlugin):
 
     @AddParser(description="return the list of record types")
     def _command_types(self):
-        """List the types of records"""
+        """List the types of records."""
         tmsg = ["Record Types:"]
         tmsg.extend(f"{rtype:<25} - {count}" for rtype, count in RMANAGER.get_types())
         return True, tmsg
@@ -48,7 +48,7 @@ class RecordPlugin(BasePlugin):
         type=int,
     )
     def _command_list(self):
-        """List records of a specific type"""
+        """List records of a specific type."""
         line_length = self.api("plugins.core.commands:get.output.line.length")()
         header_color = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "output_header_color"
@@ -115,7 +115,7 @@ class RecordPlugin(BasePlugin):
         default=False,
     )
     def _command_detail(self):
-        """Get the details of a specific record"""
+        """Get the details of a specific record."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         tmsg = []
 
@@ -166,9 +166,8 @@ class RecordPlugin(BasePlugin):
     @AddParser(description="get a list of children of a specific record")
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
     def _command_children(self):
-        """Get the children of a specific record"""
+        """Get the children of a specific record."""
         args = self.api("plugins.core.commands:get.current.command.args")()
-        tmsg = []
         if not args["uid"]:
             return True, ["No record id provided"]
 

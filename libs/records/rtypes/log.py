@@ -4,7 +4,7 @@
 # File Description: Holds the log record type
 #
 # By: Bast
-"""Holds the log record type"""
+"""Holds the log record type."""
 
 # Standard Library
 import logging
@@ -15,7 +15,7 @@ from libs.records.rtypes.base import BaseListRecord
 
 
 class LogRecord(BaseListRecord):
-    """a simple message record for logging, this may end up sent to a client"""
+    """a simple message record for logging, this may end up sent to a client."""
 
     def __init__(
         self,
@@ -24,7 +24,7 @@ class LogRecord(BaseListRecord):
         sources: list | None = None,
         **kwargs,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         super().__init__(message, internal=True, track_record=False)
         # The type of message
         self.level: str = level
@@ -38,12 +38,12 @@ class LogRecord(BaseListRecord):
         }
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         tstr = super().one_line_summary()
         return f"{self.level}:{tstr}"
 
     def color_lines(self, actor: str = ""):
-        """Color the message
+        """Color the message.
 
         actor is the item that ran the color function
         """
@@ -53,7 +53,7 @@ class LogRecord(BaseListRecord):
         super().color_lines(color, actor)
 
     def add_source(self, source: str):
-        """Add a source to the message"""
+        """Add a source to the message."""
         if source not in self.sources:
             self.sources.append(source)
 
@@ -62,7 +62,7 @@ class LogRecord(BaseListRecord):
         self.color_lines(actor)
 
     def _exec_(self, actor: str = ""):
-        """Send the message to the logger"""
+        """Send the message to the logger."""
         try:
             self.format(actor)
             for i in self.sources:
@@ -76,5 +76,5 @@ class LogRecord(BaseListRecord):
             loggingfunc(self, **self.kwargs)
 
     def __str__(self):
-        """Return the message as a string"""
+        """Return the message as a string."""
         return "\n".join(self.data)

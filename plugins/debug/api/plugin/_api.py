@@ -4,7 +4,7 @@
 # File Description: a plugin to show api functions and details
 #
 # By: Bast
-"""this plugin can be used to inspect and call functions in the api"""
+"""this plugin can be used to inspect and call functions in the api."""
 
 # Standard Library
 import traceback
@@ -17,7 +17,7 @@ from plugins.core.commands import AddArgument, AddParser
 
 
 class APIPlugin(BasePlugin):
-    """a plugin to show api information"""
+    """a plugin to show api information."""
 
     @AddParser(description="detail a function in the API")
     @AddArgument(
@@ -44,7 +44,7 @@ class APIPlugin(BasePlugin):
         """@G%(name)s@w - @B%(cmdname)s@w
         detail a function in the api
           @CUsage@w: detail @Y<api>@w
-          @Yapi@w = (optional) the api to detail
+          @Yapi@w = (optional) the api to detail.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         tmsg = []
@@ -80,7 +80,7 @@ class APIPlugin(BasePlugin):
         """@G%(name)s@w - @B%(cmdname)s@w
         List functions in the api
           @CUsage@w: list @Y<apiname>@w
-          @Yapiname@w = (optional) the toplevel api to show
+          @Yapiname@w = (optional) the toplevel api to show.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         tmsg = []
@@ -114,7 +114,7 @@ class APIPlugin(BasePlugin):
         Call an API
           @CUsage@w: call @Y<apiname>@w
           -a @Yapiname@w  = the api to call
-            @Yarguments@w = (optional) arguments to the api
+            @Yarguments@w = (optional) arguments to the api.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         api = args["api"]

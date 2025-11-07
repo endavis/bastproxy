@@ -4,7 +4,7 @@
 # File Description: a plugin to change logging settings
 #
 # By: Bast
-"""This plugin handles changing logging settings
+"""This plugin handles changing logging settings.
 
 see info/logging_notes.txt for more information about logging
 """

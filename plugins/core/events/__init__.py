@@ -5,7 +5,7 @@
 #
 # By: Bast
 """This plugin handles events.
-  You can register/unregister with events, raise events
+  You can register/unregister with events, raise events.
 
 ## Using
 ### Registering an event from a plugin

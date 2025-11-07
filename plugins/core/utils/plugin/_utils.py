@@ -37,7 +37,7 @@ TIMELENGTH_REGEXP = re.compile(
 
 
 class UtilsPlugin(BasePlugin):
-    """a plugin to handle ansi colors"""
+    """a plugin to handle ansi colors."""
 
     @AddAPI(
         "format.list.into.columns",
@@ -79,7 +79,7 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("dump.object.as.string", description="dump an object as a string")
     def _api_dump_object_as_string(self, object):
-        """Dump an object as a string"""
+        """Dump an object as a string."""
         return dumps(object)
 
     @AddAPI(
@@ -96,7 +96,7 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("dedent.list.of.strings", description="dedent a list of strings")
     def _api_dedent_list_of_strings(self, list_of_strings):
-        """Dedent a list of strings"""
+        """Dedent a list of strings."""
         if len(list_of_strings) == 0:
             return list_of_strings
         new_data = [list_of_strings[0].lstrip()]
@@ -112,7 +112,7 @@ class UtilsPlugin(BasePlugin):
         self, start_time, end_time, fmin=False, colorn="", colors="", nosec=False
     ):
         """Take two times and return a string of the difference
-        in the form ##d:##h:##m:##s
+        in the form ##d:##h:##m:##s.
         """
         # convert start_time to seconds
         if isinstance(start_time, time.struct_time):
@@ -154,7 +154,7 @@ class UtilsPlugin(BasePlugin):
         description="convert a number to a shorter readable number",
     )
     def _api_convert_to_readable_number(self, num, places=2):
-        """Convert a number to a shorter readable number"""
+        """Convert a number to a shorter readable number."""
         converted_string = ""
         nform = "%%00.0%sf" % places
         if not num:
@@ -176,7 +176,7 @@ class UtilsPlugin(BasePlugin):
         description="convert seconds to years, days, hours, mins, secs",
     )
     def _api_convert_seconds_to_dhms(self, seconds):
-        """Convert seconds to years, days, hours, mins, secs"""
+        """Convert seconds to years, days, hours, mins, secs."""
         seconds = int(seconds)
         converted_time = {"years": 0, "days": 0, "hours": 0, "mins": 0, "secs": 0}
         if seconds == 0:
@@ -195,7 +195,7 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("format.time", description="format a length of time into a string")
     def _api_format_time(self, length, nosec=False):
-        """Format a length of time into a string"""
+        """Format a length of time into a string."""
         message = []
         converted_time = self.api(f"{self.plugin_id}:convert.seconds.to.dhms")(length)
         years = False
@@ -229,7 +229,7 @@ class UtilsPlugin(BasePlugin):
 
     # verify a value to be a boolean
     def verify_bool(self, value):
-        """Convert a value to a bool, also converts some string and numbers"""
+        """Convert a value to a bool, also converts some string and numbers."""
         if value in [0, "0"]:
             return False
         if value in [1, "1"]:
@@ -245,7 +245,7 @@ class UtilsPlugin(BasePlugin):
 
     # verify a value to contain an @ color
     def verify_color(self, value):
-        """Verify an @ color"""
+        """Verify an @ color."""
         if self.api("plugins.core.colors:colorcode.is.valid")(value):
             return value
 
@@ -253,7 +253,7 @@ class UtilsPlugin(BasePlugin):
 
     # verify a time to be military
     def verify_miltime(self, mtime):
-        """Verify a time like 0830 or 1850"""
+        """Verify a time like 0830 or 1850."""
         try:
             time.strptime(mtime, "%H%M")
         except:
@@ -263,7 +263,7 @@ class UtilsPlugin(BasePlugin):
 
     # verfiy a time to be valid
     def verify_timelength(self, usertime):
-        """Verify a user time length"""
+        """Verify a user time length."""
         ttime = None
 
         try:
@@ -277,7 +277,7 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("verify.value", description="verify that a value is of a certain type")
     def _api_verify_value(self, value, vtype):
-        """Verify values"""
+        """Verify values."""
         vtab = {
             bool: self.verify_bool,
             "color": self.verify_color,
@@ -296,7 +296,7 @@ class UtilsPlugin(BasePlugin):
         endcaps=False,
         capchar="|",
     ):
-        """Center a string with color codes"""
+        """Center a string with color codes."""
         converted_colors_string = self.api("plugins.core.colors:colorcode.to.ansicode")(
             string_to_center
         )
@@ -339,7 +339,7 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("check.list.for.match", description="check a list for a match of arg")
     def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
-        """Check a list for a match of arg"""
+        """Check a list for a match of arg."""
         string_to_match = str(arg)
         match = f"{string_to_match}*"
         matches = {"partofstring": [], "frontofstring": []}
@@ -361,7 +361,7 @@ class UtilsPlugin(BasePlugin):
         "convert.timelength.to.secs", description="converts a time length to seconds"
     )
     def _api_convert_timelength_to_secs(self, timel):
-        """Converts a time length to seconds
+        """Converts a time length to seconds.
 
         Format is 1d:2h:30m:40s, any part can be missing
         """
@@ -426,7 +426,7 @@ class UtilsPlugin(BasePlugin):
         dict format:
             'name'  : string for the column name,
             'key'   : dictionary key,
-            'width' : the width of the column
+            'width' : the width of the column.
         """
         line_length_default = self.api("plugins.core.settings:get")(
             "plugins.core.proxy", "linelen"
@@ -503,7 +503,7 @@ class UtilsPlugin(BasePlugin):
     def _api_cap_line(
         self, line, capchar="|", color="", line_length=None, space=True, fullcolor=False
     ):
-        """Cap a line with delimiters"""
+        """Cap a line with delimiters."""
         color_end = "@w" if color else ""
 
         spacechar = " " if space else ""

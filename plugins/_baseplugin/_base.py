@@ -22,14 +22,14 @@ from ._pluginhooks import RegisterPluginHook
 
 
 class Plugin:  # pylint: disable=too-many-instance-attributes
-    """a base class for plugins"""
+    """a base class for plugins."""
 
     def __init__(self, plugin_id, plugin_info):
         """Initialize the instance
         The only things that should be done are:
               initializing class variables and initializing the class
               only use libs.api:add
-              anything that needs to be done so another plugin can interact with this plugin
+              anything that needs to be done so another plugin can interact with this plugin.
 
         Arguments and examples:
           plugin_id : 'plugins.core.commands' - guaranteed to be unique
@@ -66,7 +66,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @RegisterPluginHook("__init__", priority=1)
     def _phook_base_init_add_apis(self):
-        """Load any apis that were added in the __init__ method"""
+        """Load any apis that were added in the __init__ method."""
         self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
 
     @RegisterPluginHook("__init__", priority=75)
@@ -83,7 +83,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("libs.plugins.reloadutils:remove.plugin.cache")(self.plugin_id)
 
     def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
-        """Process a loading hook"""
+        """Process a loading hook."""
         LogRecord(
             f"_process_plugin_hook: {plugin_hook}",
             level="debug",
@@ -108,7 +108,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _get_all_plugin_hook_functions(self) -> dict:
         """Recursively search for functions that are commands in a plugin instance
-        and it's attributes that are registered to a load hook
+        and it's attributes that are registered to a load hook.
         """
         function_list = {}
         for item in dir(self):
@@ -136,7 +136,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
         """Recursively search for functions that are commands in a plugin instance
-        and it's attributes that are registered to a load hook
+        and it's attributes that are registered to a load hook.
         """
         function_list = {}
         for item in dir(obj):
@@ -160,14 +160,14 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     # add a dump_object method that is just dumps
     # don't have to worry about importing dumper everywhere
     def dump_object_as_string(self, object):
-        """Dump an object as a string"""
+        """Dump an object as a string."""
         return self.api("plugins.core.utils:dump.object.as.string")(object)
 
     @AddAPI("data.get", description="get the data for a specific datatype")
     def _api_data_get(self, datatype, plugin_id=None):
         """Get the data of a specific type from this plugin
         @Ydatatype@w = the datatype to get
-        @Yplugin@w   = the plugin to get the data from (optional)
+        @Yplugin@w   = the plugin to get the data from (optional).
 
         Returns:
           the data for the specified datatype, None if not found
@@ -185,7 +185,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _api_data_update(self, datatype, newdata, plugin_id=None):
         """Get the data of a specific type from this plugin
         @Ydatatype@w = the datatype to get
-        @Yplugin@w   = the plugin to get the data from (optional)
+        @Yplugin@w   = the plugin to get the data from (optional).
 
         Returns:
           True if updated, False if not
@@ -202,28 +202,28 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("dependency.add", description="add a dependency for this plugin")
     def _api_dependency_add(self, dependency):
         """Add a depencency
-        @Ydependency@w    = the name of the plugin that will be a dependency
+        @Ydependency@w    = the name of the plugin that will be a dependency.
         """
         if dependency not in self.dependencies:
             self.dependencies.append(dependency)
 
     @AddAPI("get.data.directory", description="get the data directory for this plugin")
     def _api_get_data_directory(self):
-        """Get the data directory for this plugin"""
+        """Get the data directory for this plugin."""
         return self.plugin_info.data_directory
 
     @AddAPI("set.reload", description="set the reload flag")
     def _api_set_reload(self):
-        """Set the reload flag"""
+        """Set the reload flag."""
         self.is_reloading_f = True
 
     @AddAPI("get.plugin.hooks", description="get the plugin hooks for this plugin")
     def _api_get_plugin_hooks(self):
-        """Get the plugin hooks for this plugin"""
+        """Get the plugin hooks for this plugin."""
         return self._get_all_plugin_hook_functions()
 
     def _find_attribute(self, attribute_name):
-        """Find an attribute of this plugin and dump it as a string
+        """Find an attribute of this plugin and dump it as a string.
 
         attr.some_attr_or_dict_key.child_attr_or_dict_key
 
@@ -265,7 +265,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _api_dump(self, attribute_name, detailed=False):
         """Dump this plugin or a specific attribute to a string
         @Yobj@w    = the object to inspect
-        @Ymethod@w = the method to inspect
+        @Ymethod@w = the method to inspect.
 
         Returns:
           the object or method
@@ -319,7 +319,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @RegisterPluginHook("initialize", priority=90)
     def _phook_base_post_initialize_update_version(self):
-        """Update plugin data
+        """Update plugin data.
 
         Arguments:
           required:
@@ -359,7 +359,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @RegisterPluginHook("initialize", priority=91)
     def _phook_base_post_initialize_setup(self):
-        """Do something after the initialize function is run"""
+        """Do something after the initialize function is run."""
         # add newly created api functions, this will happen if the plugin (in its
         # initialize function) creates new objects that have apis
         # an example is the plugins.core.proxy plugin initialziing
@@ -400,7 +400,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             )
 
     def _eventcb_baseplugin_disconnect(self):
-        """re-register to character active event on disconnect"""
+        """re-register to character active event on disconnect."""
         LogRecord(
             f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}",
             level="debug",
@@ -412,7 +412,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         )
 
     def _eventcb_baseplugin_after_character_is_active(self):
-        """Tasks to do after character is active"""
+        """Tasks to do after character is active."""
         LogRecord(
             f"ev_after_character_is_active: baseplugin.{self.plugin_id}",
             level="debug",
@@ -429,7 +429,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @RegisterPluginHook("uninitialize", priority=100)
     def _phook_base_unitialize_hook(self):
-        """Unitialize the plugin
+        """Unitialize the plugin.
 
         should be the last thing done in uninitialize
         """
@@ -452,12 +452,12 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("libs.api:remove")(self.plugin_id)
 
     def uninitialize(self, _=None):
-        """Uninitialize stuff"""
+        """Uninitialize stuff."""
         self._process_plugin_hook("uninitialize")
 
     @RegisterPluginHook("initialize", priority=1)
     def _phook_base_initialize(self):
-        """Initialize the plugin, do most things here"""
+        """Initialize the plugin, do most things here."""
         self.api("plugins.core.settings:add")(
             self.plugin_id, "_version", 1, int, "The version of the plugin", hidden=True
         )
@@ -478,7 +478,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @AddAPI("save.state", "Save the state of the plugin")
     def _api_save_state(self):
-        """Save the state of the plugin"""
+        """Save the state of the plugin."""
         self._process_plugin_hook("save")
         self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_save")
         self.api("plugins.core.events:raise.event")(
@@ -487,7 +487,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     @AddAPI("reset", "reset the plugin")
     def _api_reset(self):
-        """Reset the plugin"""
+        """Reset the plugin."""
         event_record = self.api("plugins.core.events:raise.event")(
             "ev_plugin_reset",
             event_args={"plugin_id": self.plugin_id, "plugins_that_acted": []},

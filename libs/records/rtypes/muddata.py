@@ -5,7 +5,7 @@
 #               and the SendDataDirectlyToMud process
 #
 # By: Bast
-"""Holds the tomud record type"""
+"""Holds the tomud record type."""
 
 # Standard Library
 import re
@@ -19,7 +19,7 @@ from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 class ProcessDataToMud(BaseRecord):
     """process data being sent to the mud
     data from a client will be immediately passed through this process
-    internal data can use this if it needs to be processed before being sent to the mud
+    internal data can use this if it needs to be processed before being sent to the mud.
 
     it will go through the event system through an event that can
     modify the data before it is sent to the mud
@@ -37,7 +37,7 @@ class ProcessDataToMud(BaseRecord):
         client_id=None,
         parent=None,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         super().__init__(parent=parent)
         self.message = message
         self.message.parent = self
@@ -55,7 +55,7 @@ class ProcessDataToMud(BaseRecord):
         return attributes
 
     def one_line_summary(self):
-        """Get a one line summary of the record"""
+        """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
 
     def setup_events(self):
@@ -112,7 +112,7 @@ class ProcessDataToMud(BaseRecord):
                 index += 1
 
     def _exec_(self):
-        """Process the data before sending to the mud"""
+        """Process the data before sending to the mud."""
         # If the line came from a client and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
         self.seperate_commands()
@@ -135,7 +135,7 @@ class ProcessDataToMud(BaseRecord):
 
 class SendDataDirectlyToMud(BaseRecord):
     """send data to the mud
-    this bypasses any processing and sends directly to the mud
+    this bypasses any processing and sends directly to the mud.
 
     The message format is NetworkData instance
 
@@ -151,7 +151,7 @@ class SendDataDirectlyToMud(BaseRecord):
         client_id=None,
         parent=None,
     ):
-        """Initialize the class"""
+        """Initialize the class."""
         super().__init__(parent=parent)
         self.message = message
         self.message.parent = self
@@ -172,7 +172,7 @@ class SendDataDirectlyToMud(BaseRecord):
             )
 
     def _exec_(self):
-        """Send the data to the mud"""
+        """Send the data to the mud."""
         self.message.lock()
         if mud_connection := self.api("plugins.core.proxy:get.mud.connection")():
             for line in self.message:

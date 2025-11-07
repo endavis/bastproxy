@@ -4,7 +4,7 @@
 # File Description: a plugin to inspect async internals
 #
 # By: Bast
-"""This plugin will allow you to inspect async internals"""
+"""This plugin will allow you to inspect async internals."""
 
 # these 4 are required
 PLUGIN_NAME = "Inspect async internals"

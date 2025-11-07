@@ -4,7 +4,7 @@
 # File Description: module to handle colors
 #
 # By: Bast
-"""holds base color codes for ansi and xterm"""
+"""holds base color codes for ansi and xterm."""
 # Standard Library
 
 # 3rd Party
@@ -41,7 +41,7 @@ COLORTABLE: dict[str | int, tuple[int, int, int]] = {}
 
 
 def build_color_table():
-    """Colors 0..15: 16 basic colors"""
+    """Colors 0..15: 16 basic colors."""
     COLORTABLE[0] = (0x00, 0x00, 0x00)  # 0
     COLORTABLE["k"] = COLORTABLE[0]
     COLORTABLE[1] = (0xCD, 0x00, 0x00)  # 1

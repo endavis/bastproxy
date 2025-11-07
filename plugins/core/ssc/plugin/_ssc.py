@@ -19,10 +19,10 @@ from plugins.core.commands import AddArgument, AddCommand, AddParser
 
 
 class SSC:
-    """a class to manage settings"""
+    """a class to manage settings."""
 
     def __init__(self, name, plugin_id, data_directory, **kwargs):
-        """Initialize the class"""
+        """Initialize the class."""
         self.name = name
         self.api = API(owner_id=f"{plugin_id}:{name}")
         self.plugin_id = plugin_id
@@ -34,7 +34,7 @@ class SSC:
 
     @AddAPI("ssc.{name}", description="get the {desc} value")
     def _api_getss(self, quiet=False):
-        """Read the secret from a file"""
+        """Read the secret from a file."""
         first_line = ""
         try:
             with open(self.file_name) as fileo:
@@ -55,7 +55,7 @@ class SSC:
     @AddParser(description="set the {desc}")
     @AddArgument("value", help="the new {desc}", default="", nargs="?")
     def _command_setssc(self):
-        """Set the secret"""
+        """Set the secret."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         if args["value"]:
             with open(self.file_name, "w") as data_file:
@@ -67,7 +67,7 @@ class SSC:
 
 
 class SSCPlugin(BasePlugin):
-    """a plugin to handle secret settings"""
+    """a plugin to handle secret settings."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
@@ -76,5 +76,5 @@ class SSCPlugin(BasePlugin):
     @AddAPI("baseclass.get", description="return the ssc baseclass")
     def _api_baseclass_get(self):
         # pylint: disable=no-self-use
-        """Return the ssc baseclass"""
+        """Return the ssc baseclass."""
         return SSC

@@ -4,7 +4,7 @@
 # File Description: a plugin to handle settings and information about the proxy
 #
 # By: Bast
-"""Holds settings and information about the proxy"""
+"""Holds settings and information about the proxy."""
 
 # these 4 are required
 PLUGIN_NAME = "Proxy Interface"
