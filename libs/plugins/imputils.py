@@ -53,7 +53,7 @@ from typing import Any
 
 # Project
 
-NAMERE = re.compile(r"PLUGIN_NAME = \'(?P<value>.*)\'")
+NAMERE = re.compile(r"PLUGIN_NAME = ['\"](?P<value>.*)['\"]")
 
 
 def is_plugin(package_path: str) -> bool:

@@ -482,6 +482,18 @@ class PluginLoader:
             self.base_plugin_dir, "plugins."
         )
 
+        LogRecord(
+            f"Found {len(plugins)} total plugins from {self.base_plugin_dir}",
+            level="info",
+            sources=[__name__],
+        )()
+        if len(plugins) < 10:
+            LogRecord(
+                f"WARNING: Only found {len(plugins)} plugins: {[p['plugin_id'] for p in plugins]}",
+                level="warning",
+                sources=[__name__],
+            )()
+
         LogRecord("Done finding plugins", level="debug", sources=[__name__])()
 
         old_plugins_info = self.plugins_info
@@ -1094,9 +1106,16 @@ class PluginLoader:
             if plugin_info.package in ["plugins.core", "plugins.client"]
         ]
 
+        LogRecord(
+            f"Found {len(core_plugins)} core/client plugins: {core_plugins}",
+            level="debug",
+            sources=[__name__],
+        )()
+
         # load plugin manager and then log plugin first
-        core_plugins.remove("plugins.core.log")
-        core_plugins.insert(0, "plugins.core.log")
+        if "plugins.core.log" in core_plugins:
+            core_plugins.remove("plugins.core.log")
+            core_plugins.insert(0, "plugins.core.log")
 
         self.api(f"{__name__}:load.plugins")(
             core_plugins, exit_on_error=True, check_dependencies=False
