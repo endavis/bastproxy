@@ -282,6 +282,7 @@ class TriggersPlugin(BasePlugin):
                 self.trigger_groups[self.triggers[trigger_name].group].append(
                     trigger_name
                 )
+        return None
 
     def find_regex_id(self, regex):
         """Look for a regex, if not create one."""
@@ -486,7 +487,7 @@ class TriggersPlugin(BasePlugin):
             )
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
-        return self.triggers[trigger_id] if trigger_id in self.triggers else None
+        return self.triggers.get(trigger_id, None)
 
     @AddAPI(
         "remove.data.for.owner", description="remove all triggers related to a owner"

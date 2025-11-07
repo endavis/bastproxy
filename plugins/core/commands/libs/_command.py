@@ -182,7 +182,7 @@ class CommandClass:
             plugin_id   - the id of the plugin
             command     - the command from the plugin
 
-        returns:
+        Returns:
           the updated message
         """
         simple = self.api("plugins.core.settings:get")(

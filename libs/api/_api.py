@@ -632,7 +632,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         api_toplevel = f"{top_level_api}:"
 
         class_keys = [
-            item for item in self._class_api.keys() if item.startswith(api_toplevel)
+            item for item in self._class_api if item.startswith(api_toplevel)
         ]
         LogRecord(
             f"libs.api:remove class api - {class_keys =}",
@@ -648,7 +648,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             del self._class_api[i]
 
         instance_keys = [
-            item for item in self._instance_api.keys() if item.startswith(api_toplevel)
+            item for item in self._instance_api if item.startswith(api_toplevel)
         ]
         LogRecord(
             f"libs.api:remove instance api - {instance_keys =}",
@@ -886,7 +886,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         stats_keys = [
             k
-            for k in api_data.stats.detailed_calls.keys()
+            for k in api_data.stats.detailed_calls
             if k.startswith(stats_by_caller)
         ]
         stats_keys = sorted(stats_keys)

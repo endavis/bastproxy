@@ -251,7 +251,7 @@ class EventsPlugin(BasePlugin):
 
         this function returns no values
         """
-        priority = 50 if "prio" not in kwargs else kwargs["prio"]
+        priority = kwargs.get("prio", 50)
         func_owner_id = self.api("libs.api:get.function.owner.plugin")(func)
 
         if not func_owner_id:

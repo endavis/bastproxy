@@ -89,7 +89,7 @@ class ReloadHelper:
             None
 
         """
-        return self.reload_cache[plugin_id] if plugin_id in self.reload_cache else {}
+        return self.reload_cache.get(plugin_id, {})
 
     @AddAPI("remove.plugin.cache", description="remove the cache for a plugin")
     def _api_remove_plugin_cache(self, plugin_id: str) -> None:

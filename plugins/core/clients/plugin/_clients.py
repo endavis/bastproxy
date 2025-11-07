@@ -127,13 +127,14 @@ class ClientPlugin(BasePlugin):
     @AddAPI("get.client", description="get a client by uuid")
     def _api_get_client(self, client_uuid):
         """Get a client by uuid."""
-        return self.clients[client_uuid] if client_uuid in self.clients else None
+        return self.clients.get(client_uuid, None)
 
     @AddAPI("send.to.client", description="send data to a client")
     def _api_send_to_client(self, client_uuid, data):
         """Send data to a client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].send_to(data)
+        return None
 
     @AddAPI("client.banned.add", description="add a banned client")
     def _api_client_banned_add(self, client_uuid, how_long=600):
@@ -367,7 +368,7 @@ class ClientPlugin(BasePlugin):
         nargs="*",
     )
     def _command_ban(self):
-        """required
+        """Required
           ips - a list of IPs to ban or remove (this is a toggle).
 
         if the ip is already banned, it will be unbanned

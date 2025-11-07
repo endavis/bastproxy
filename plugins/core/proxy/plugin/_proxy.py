@@ -462,7 +462,7 @@ class ProxyPlugin(BasePlugin):
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             newsep = event_record["newvalue"]
 
-            self.api.__class__.command_split_regex = r"(?<=[^%s])%s(?=[^%s])" % (
+            self.api.__class__.command_split_regex = r"(?<=[^{}]){}(?=[^{}])".format(
                 "\\" + newsep,
                 "\\" + newsep,
                 "\\" + newsep,

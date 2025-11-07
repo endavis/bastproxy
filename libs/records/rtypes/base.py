@@ -136,6 +136,7 @@ class BaseRecord(AttributeMonitor):
         for child_record in RMANAGER.get_all_children_list(self.uuid):
             if child_record.updates.get_update(uuid):
                 return record
+        return None
 
     def fix_stack(self, stack):
         """Turn the stack into a list of lines."""

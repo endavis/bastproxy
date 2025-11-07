@@ -88,6 +88,7 @@ class UpdateRecord:
             return f"set {self.action} to {self.data}"
         if self.flag == "Info":
             return f"{self.action}"
+        return None
 
     def format_detailed(
         self,

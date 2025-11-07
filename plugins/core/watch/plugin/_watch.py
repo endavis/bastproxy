@@ -197,6 +197,7 @@ class WatchPlugin(BasePlugin):
                 level="error",
                 sources=[self.plugin_id],
             )()
+        return None
 
     @AddAPI("remove.all.data.for.plugin", description="remove all watches for a plugin")
     def _api_remove_all_data_for_plugin(self, plugin):

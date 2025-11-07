@@ -94,7 +94,7 @@ class PluginManager(BasePlugin):
           required:
             package - the package name
 
-        returns:
+        Returns:
           a list of strings of loaded plugins in the specified package
         """
         msg = []

@@ -325,9 +325,8 @@ class PluginLoader:
                 plugin_info.package for plugin_info in self.plugins_info.values()
             ]
 
-        packages = list(set(packages))
+        return list(set(packages))
 
-        return packages
 
     @AddAPI(
         "get.plugins.in.package",
@@ -1031,7 +1030,7 @@ class PluginLoader:
         if plugin_info.runtime_info.is_imported:
             modules_to_delete.extend(
                 item
-                for item in sys.modules.keys()
+                for item in sys.modules
                 if item.startswith(plugin_info.package_import_location)
                 and getattr(sys.modules[item], "CANRELOAD", True)
             )

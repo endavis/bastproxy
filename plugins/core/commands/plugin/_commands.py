@@ -633,7 +633,7 @@ class CommandsPlugin(BasePlugin):
           optional:
             command   - the data in the input stack
 
-        returns:
+        Returns:
           True if succcessful, False if not successful
         """
         # remove existing
@@ -669,14 +669,14 @@ class CommandsPlugin(BasePlugin):
             plugin_id  - the plugin_id
             command    - the command to retrieve
 
-        returns:
+        Returns:
           None if not found, the command data dict if found
         """
         # find the instance
         if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
             if data := self.command_data[plugin_id]:
                 # return the command
-                return data[command] if command in data else None
+                return data.get(command, None)
 
         return None
 
@@ -690,7 +690,7 @@ class CommandsPlugin(BasePlugin):
             command_name   - the command name
             data           - the new command data dict
 
-        returns:
+        Returns:
           True if succcessful, False if not successful
         """
         if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):

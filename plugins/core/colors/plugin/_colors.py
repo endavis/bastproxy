@@ -84,8 +84,7 @@ def fixstring(tstr):
     # strip invalid xterm codes (256+)
     tstr = re.sub(r"@[xz]25[6-9]", "", tstr)
     # rip out hidden garbage
-    tstr = re.sub(r"@[^xzcmyrgbwCMYRGBWD]", "", tstr)
-    return tstr
+    return re.sub(r"@[^xzcmyrgbwCMYRGBWD]", "", tstr)
 
 
 class ColorsPlugin(BasePlugin):
@@ -206,8 +205,7 @@ class ColorsPlugin(BasePlugin):
 
             if tstr2:
                 tstr = tstr2 + "%c[0m" % chr(27)
-        tstr = re.sub("\0", "@", tstr)  # put @ back in
-        return tstr
+        return re.sub("\0", "@", tstr)  # put @ back in
 
     @AddAPI(
         "colorcode.escape", description="escape colorcodes so they are not interpreted"

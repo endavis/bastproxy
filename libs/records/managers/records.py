@@ -140,7 +140,7 @@ class RecordManager:
                 del self.record_instances[last_record.uuid]
 
     def get_types(self):
-        return [(key, self.records[key].size()) for key in self.records.keys()]
+        return [(key, self.records[key].size()) for key in self.records]
 
     def get_records(self, recordtype, count=10):
         records = self.records.get(recordtype, None)

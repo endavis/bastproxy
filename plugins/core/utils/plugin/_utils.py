@@ -64,9 +64,7 @@ class UtilsPlugin(BasePlugin):
         number_of_columns = min(cols, len(list_of_strings))
         max_len = max(len(item) for item in list_of_strings)
         if columnwise:
-            number_of_columns = int(
-                math.ceil(float(len(list_of_strings)) / float(number_of_columns))
-            )
+            number_of_columns = math.ceil(float(len(list_of_strings)) / float(number_of_columns))
         plist = [
             list_of_strings[i : i + number_of_columns]
             for i in range(0, len(list_of_strings), number_of_columns)
@@ -146,8 +144,7 @@ class UtilsPlugin(BasePlugin):
         if not nosec:
             message.append(f"{colorn}{outar[3]:02d}{colors}s")
 
-        out = ":".join(message)
-        return out
+        return ":".join(message)
 
     @AddAPI(
         "convert.to.readable.number",
@@ -156,7 +153,7 @@ class UtilsPlugin(BasePlugin):
     def _api_convert_to_readable_number(self, num, places=2):
         """Convert a number to a shorter readable number."""
         converted_string = ""
-        nform = "%%00.0%sf" % places
+        nform = "%00.0{}f".format(places)
         if not num:
             return 0
         if num >= 1000000000000:
@@ -182,7 +179,7 @@ class UtilsPlugin(BasePlugin):
         if seconds == 0:
             return converted_time
 
-        converted_time["years"] = int(math.floor(seconds / (3600 * 24 * 365)))
+        converted_time["years"] = math.floor(seconds / (3600 * 24 * 365))
         seconds -= converted_time["years"] * 3600 * 24 * 365
         converted_time["days"] = seconds // (3600 * 24)
         seconds -= converted_time["days"] * 3600 * 24
@@ -333,9 +330,8 @@ class UtilsPlugin(BasePlugin):
                 fullcolor=False,
             )
 
-        new_str = f"{new_str}{filler_color_end}"
+        return f"{new_str}{filler_color_end}"
 
-        return new_str
 
     @AddAPI("check.list.for.match", description="check a list for a match of arg")
     def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
