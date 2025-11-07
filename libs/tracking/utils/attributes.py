@@ -1,4 +1,6 @@
 import contextlib
+
+
 class AttributeMonitor:
     def __init__(self):
         self._attributes_to_monitor = []

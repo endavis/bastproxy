@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/toclient.py
 #
@@ -13,9 +12,10 @@ Holds the client record type
 # 3rd Party
 
 # Project
-from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.base import BaseRecord
+from libs.records.rtypes.log import LogRecord
 from libs.records.rtypes.networkdata import NetworkData
+
 
 class ProcessDataToClient(BaseRecord):
     """

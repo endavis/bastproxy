@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/plugins/reloadutils.py
 #
@@ -39,6 +38,7 @@ Classes:
 
 # Project
 from typing import Any
+
 from libs.api import API, AddAPI
 
 

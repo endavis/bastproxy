@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/ssc/_ssc.py
 #
@@ -12,12 +11,11 @@ import stat
 from pathlib import Path
 
 # 3rd Party
-
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
-from plugins.core.commands import AddCommand, AddParser, AddArgument
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddCommand, AddParser
 
 
 class SSC(object):

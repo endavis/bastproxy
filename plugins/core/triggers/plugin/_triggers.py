@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/triggers/_triggers.py
 #
@@ -21,8 +20,9 @@ except ImportError:
 from libs.api import API, AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
+
 
 class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex, enabled=True,

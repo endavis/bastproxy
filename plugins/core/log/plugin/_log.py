@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/log/_log.py
 #
@@ -10,17 +9,19 @@
 import logging
 import numbers
 
-# 3rd Party
+from libs.api import AddAPI
 
+# 3rd Party
 # Project
 from libs.persistentdict import PersistentDict
+from libs.records import RMANAGER, LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.records import LogRecord, RMANAGER
-from plugins.core.commands import AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
-from libs.api import AddAPI
-from ..libs._custom_logger import setup_loggers, type_counts
 from plugins.core.log import get_toplevel
+
+from ..libs._custom_logger import setup_loggers, type_counts
+
 
 class LogPlugin(BasePlugin):
     """

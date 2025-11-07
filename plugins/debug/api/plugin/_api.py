@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/debug/apihelp/_apihelp.py
 #
@@ -12,11 +11,11 @@ this plugin can be used to inspect and call functions in the api
 import traceback
 
 # 3rd Party
-
 # Project
 from libs.api import API
-from plugins.core.commands import AddParser, AddArgument
 from plugins._baseplugin import BasePlugin
+from plugins.core.commands import AddArgument, AddParser
+
 
 class APIPlugin(BasePlugin):
     """

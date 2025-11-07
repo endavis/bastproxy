@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/debug/api/plugin/_init_.py
 #

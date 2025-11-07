@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/utils/_utils.py
 #
@@ -7,12 +6,12 @@
 # By: Bast
 
 # Standard Library
-import re
 import datetime
-import math
-import time
 import fnmatch
+import math
+import re
 import sys
+import time
 
 # 3rd Party
 try:
@@ -25,8 +24,8 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from plugins._baseplugin import BasePlugin
 from libs.api import AddAPI
+from plugins._baseplugin import BasePlugin
 
 TIMELENGTH_REGEXP = re.compile(r"^(?P<days>((\d*\.\d+)|\d+)+d)?" \
                                r":?(?P<hours>((\d*\.\d+)|\d+)+h)?" \

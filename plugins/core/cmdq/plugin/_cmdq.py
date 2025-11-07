@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/cmdq/_cmdq.py
 #
@@ -9,14 +8,15 @@
 # Standard Library
 import re
 
-# 3rd Party
+from libs.api import AddAPI
 
+# 3rd Party
 # Project
-from libs.records import LogRecord, SendDataDirectlyToMud, NetworkData
+from libs.records import LogRecord, NetworkData, SendDataDirectlyToMud
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from plugins.core.commands import AddParser
 from plugins.core.events import RegisterToEvent
-from libs.api import AddAPI
+
 
 class CMDQPlugin(BasePlugin):
     """

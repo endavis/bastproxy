@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/api/_functools.py
 #
@@ -35,12 +34,12 @@ Functions:
 
 """
 # Standard Library
-import traceback
 import inspect
 import logging
+import traceback
+from collections.abc import Callable
 from functools import lru_cache
 from itertools import chain
-from typing import Callable
 
 # Third Party
 

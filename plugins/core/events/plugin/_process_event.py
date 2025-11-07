@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/eventargs.py
 #
@@ -12,7 +11,6 @@ Holds the log record type
 from typing import TYPE_CHECKING
 
 # 3rd Party
-
 # Project
 from libs.records import BaseRecord, LogRecord
 

@@ -1,5 +1,4 @@
 # pylint: disable=too-many-lines
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/_manager/_pluginm.py
 #
@@ -14,10 +13,11 @@ manages all plugins
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.records import LogRecord
-from plugins.core.commands import AddParser, AddArgument
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
+
 
 class PluginManager(BasePlugin):
     """

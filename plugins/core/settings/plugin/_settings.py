@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/example/_settings.py
 #
@@ -11,16 +10,17 @@ import contextlib
 import textwrap
 from pathlib import Path
 
-# 3rd Party
+import libs.argp as argp
 
+# 3rd Party
 # Project
 from libs.api import AddAPI
-import libs.argp as argp
 from libs.persistentdict import PersistentDict
 from libs.records import LogRecord
-from plugins.core.commands import AddParser, AddArgument, AddCommand
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddCommand, AddParser
 from plugins.core.events import RegisterToEvent
+
 from ..libs._settinginfo import SettingInfo
 
 

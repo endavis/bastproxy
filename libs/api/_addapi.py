@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/api/_addapi.py
 #
@@ -30,7 +29,7 @@ Classes:
 
 """
 # Standard Library
-from typing import Callable
+from collections.abc import Callable
 
 # Third Party
 

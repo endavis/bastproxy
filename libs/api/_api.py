@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/api/_api.py
 #
@@ -34,20 +33,21 @@ Classes:
 
 """
 # Standard Library
+import contextlib
 import pprint
 import types
-import contextlib
-from pathlib import Path
+from collections.abc import Callable
 from datetime import datetime
 from functools import lru_cache
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
+
+from ._apiitem import APIItem
 
 # Third Party
-
 # Project
 from ._apistats import APIStatItem
-from ._functools import stackdump, get_caller_owner_id
-from ._apiitem import APIItem
+from ._functools import get_caller_owner_id, stackdump
 
 APILOCATION = "libs.api"
 

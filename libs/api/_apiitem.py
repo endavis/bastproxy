@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/api/_apiitem.py
 #
@@ -36,18 +35,16 @@ Classes:
     - `APIItem`: Represents an API function with tracking and descriptive capabilities.
 
 """
-import re
 import inspect
+import re
 import textwrap
-from typing import Callable
+from collections.abc import Callable
 
 # Local import typing
-
 # Third Party
-
 # Project
 from ._apistats import STATS_MANAGER, APIStatItem
-from ._functools import get_caller_owner_id, get_args
+from ._functools import get_args, get_caller_owner_id
 
 
 class APIItem:

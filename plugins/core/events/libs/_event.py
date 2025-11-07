@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/events/_event.py
 #
@@ -13,15 +12,16 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
     or when the event is raised and a calledfrom argument is passed and created_by is not already been set
 """
 # Standard Library
-from typing import Callable
+from collections.abc import Callable
 
 # 3rd Party
-
 # Project
 from libs.api import API
-from libs.records import LogRecord, EventArgsRecord
 from libs.callback import Callback
+from libs.records import EventArgsRecord, LogRecord
+
 from ._process_event import ProcessRaisedEvent
+
 
 class Event:
     """
@@ -107,12 +107,8 @@ class Event:
         """
         unregister a function from this event container
         """
-        # print(f"unregister - {self.name} - {func.__name__}")
         for priority in self.priority_dictionary:
-            # print(f"unregister - {self.name} - {func.__name__} - {priority}")
             for call_back in self.priority_dictionary[priority]:
-                # print(f"unregister - {self.name} - {func.__name__} - {priority} - {call_back}")
-                # print(f"{call_back == func = }")
                 if call_back == func:
                     LogRecord(f"unregister - {self.name} - unregister function {func} with priority {priority}",
                               level='debug', sources=[call_back.owner_id, self.created_by])()
@@ -199,15 +195,6 @@ class Event:
         else:
             message.append('Unknown')
         message.append(header_color + '-' * 60 + '@w')
-
-        # if self.raised_data:
-        #     message.append('')
-        #     message.append(self.api('plugins.core.utils:center.colored.string')('@x86Last 10 Raised Events@w', '-', 60, filler_color=header_color))
-        #     for i, data in enumerate(self.raised_data.get()):
-        #         if i > 0:
-        #             message.append('')
-        #         message.extend(data.format_simple())
-        #     message.append(header_color + '-' * 60 + '@w')
 
         return message
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/fuzzy/_fuzzy.py
 #
@@ -19,9 +18,10 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from plugins._baseplugin import BasePlugin
-from libs.records import LogRecord
 from libs.api import AddAPI
+from libs.records import LogRecord
+from plugins._baseplugin import BasePlugin
+
 
 def sort_fuzzy_result(result):
     """

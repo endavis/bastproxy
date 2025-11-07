@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/commands/_plugin.py
 #
@@ -8,17 +7,20 @@
 
 # Standard Library
 from __future__ import print_function
+
+import datetime
 import shlex
 from typing import TYPE_CHECKING, Callable
-import datetime
+
+import libs.argp as argp
 
 # 3rd Party
-
 # Project
 from libs.api import API
 from libs.records import LogRecord
+
 from .data.cmdargs import CmdArgsRecord
-import libs.argp as argp
+
 
 class CommandClass:
     def __init__(self, plugin_id: str, name: str, function: Callable,
@@ -46,7 +48,7 @@ class CommandClass:
         """
         run the command
         """
-        self.last_run_start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.last_run_start_time = datetime.datetime.now(datetime.UTC)
         self.current_arg_string = arg_string
         message: list[str] = []
         command_ran = f"{self.full_cmd} {arg_string}"
@@ -100,7 +102,7 @@ class CommandClass:
         run the command finisher
         """
         oldmessage = message[:]
-        self.last_run_end_time = datetime.datetime.now(datetime.timezone.utc)
+        self.last_run_end_time = datetime.datetime.now(datetime.UTC)
         if format:
             message = self.format_return_message(oldmessage)
         self.current_args = {}

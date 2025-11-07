@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/debug/plugins/plugin/_plugins.py
 #
@@ -12,7 +11,8 @@
 
 # Project
 from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddParser
+
 
 class PluginsPlugin(BasePlugin):
     """

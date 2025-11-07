@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/colors/_colors.py
 #
@@ -9,14 +8,14 @@
 # Standard Library
 import re
 
-# 3rd Party
-
-# Project
-from ..libs._colors import COLORTABLE, CONVERTCOLORS, CONVERTANSI
-from plugins.core.commands import AddParser, AddArgument
+from libs.api import AddAPI
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin
-from libs.api import AddAPI
+from plugins.core.commands import AddArgument, AddParser
+
+# 3rd Party
+# Project
+from ..libs._colors import COLORTABLE, CONVERTANSI, CONVERTCOLORS
 
 XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
 ANSI_COLOR_REGEX = re.compile(chr(27) + r"\[(?P<arg_1>\d+)(;(?P<arg_2>\d+)" \

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/clients/_clients.py
 #
@@ -9,15 +8,15 @@
 # Standard Library
 from functools import partial
 
-# 3rd Party
+from libs.api import API, AddAPI
+from libs.net.client import ClientConnection
+from libs.records import LogRecord
 
+# 3rd Party
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.records import LogRecord
-from libs.api import API
-from plugins.core.commands import AddParser, AddArgument
-from libs.api import AddAPI
-from libs.net.client import ClientConnection
+from plugins.core.commands import AddArgument, AddParser
+
 
 class BanRecord:
     def __init__(self, plugin_id:str , ip_addr: str, how_long: int = 600, copy: bool = False):

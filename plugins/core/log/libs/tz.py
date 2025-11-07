@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/log/libs/tz.py
 #
@@ -29,7 +28,7 @@ def formatTime_RFC3339_UTC(self, record, datefmt=None):
     """
     return (
         datetime.datetime.fromtimestamp(record.created)
-        .astimezone(datetime.timezone.utc)
+        .astimezone(datetime.UTC)
         .isoformat()
     )
 

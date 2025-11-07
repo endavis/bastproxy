@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/plugins/imputils.py
 #
@@ -41,9 +40,9 @@ Functions:
 
 """
 # Standard Library
-import sys
 import pkgutil
 import re
+import sys
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path

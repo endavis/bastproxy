@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/change.py
 #
@@ -10,16 +9,16 @@ Holds the change record type
 """
 
 # Standard Library
-from uuid import uuid4
-import datetime
-import traceback
-import pprint
 import contextlib
+import datetime
+import pprint
+import traceback
+from uuid import uuid4
 
 # 3rd Party
-
 # Project
 from libs.api import API
+
 
 class UpdateRecord(object):
     """
@@ -34,7 +33,7 @@ class UpdateRecord(object):
     """
     def __init__(self, parent, flag: str, action: str, extra: dict | None = None, data=None):
         self.uuid = uuid4().hex
-        self.time_taken = datetime.datetime.now(datetime.timezone.utc)
+        self.time_taken = datetime.datetime.now(datetime.UTC)
         self.parent = parent
         self.flag = flag
         self.api = API(owner_id=f"{self.__class__.__name__}:{self.uuid}")

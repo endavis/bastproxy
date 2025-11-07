@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/info/pluginfile.py
 #
@@ -38,14 +37,13 @@ Classes:
 
 """
 # Standard Library
-from pathlib import Path
-import datetime
 import ast
+import datetime
 import re
+from pathlib import Path
 from typing import Any
 
 # 3rd Party
-
 # Project
 from plugins._baseplugin import BasePlugin
 
@@ -75,7 +73,7 @@ class PluginRuntimeInfo:
         self.plugin_instance: None | BasePlugin = None
         # The imported time
         self.imported_time: datetime.datetime = datetime.datetime(
-            1970, 1, 1, tzinfo=datetime.timezone.utc
+            1970, 1, 1, tzinfo=datetime.UTC
         )
 
 
@@ -112,7 +110,7 @@ class PluginInfo:
 
         self.data_directory: Path = Path("")
 
-        self.last_updated = datetime.datetime.now(datetime.timezone.utc)
+        self.last_updated = datetime.datetime.now(datetime.UTC)
         self.runtime_info: PluginRuntimeInfo = PluginRuntimeInfo()
         self.import_errors: list = []
 
@@ -240,7 +238,7 @@ class PluginInfo:
                 if parent_dir not in self.files:
                     self.files[parent_dir] = {"files": {}}
                 file_modified_time = datetime.datetime.fromtimestamp(
-                    file.stat().st_mtime, tz=datetime.timezone.utc
+                    file.stat().st_mtime, tz=datetime.UTC
                 )
                 if (
                     parent_dir in oldfiles

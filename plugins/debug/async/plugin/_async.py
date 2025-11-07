@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/async/_async.py
 #
@@ -10,10 +9,10 @@
 import asyncio
 
 # 3rd Party
-
 # Project
 from plugins._baseplugin import BasePlugin
 from plugins.core.commands import AddParser
+
 
 class AsyncPlugin(BasePlugin):
     """

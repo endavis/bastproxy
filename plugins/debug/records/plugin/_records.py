@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/records/_records.py
 #
@@ -9,12 +8,13 @@
 # Standard Library
 import os
 
-# 3rd Party
+from libs.records import RMANAGER
 
+# 3rd Party
 # Project
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.records import RMANAGER
-from plugins.core.commands import AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddParser
+
 
 class RecordPlugin(BasePlugin):
     """

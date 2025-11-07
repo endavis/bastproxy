@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/sqldb/_plugin.py
 #
@@ -7,21 +6,21 @@
 # By: Bast
 
 # Standard Library
-import sqlite3
-import os
-import shutil
-import zipfile
+import contextlib
 import copy
 import datetime
-import contextlib
+import os
+import shutil
+import sqlite3
+import zipfile
 from pathlib import Path
 
 # 3rd Party
-
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
-from plugins.core.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddCommand, AddParser
+
 
 def dict_factory(cursor, row):
     """
@@ -286,7 +285,7 @@ class Sqldb(object):
         if args['name']:
             name = args['name']
         else:
-            name = datetime.datetime.now(datetime.timezone.utc).strftime('%a-%b-%d-%Y-%H-%M-%Z')
+            name = datetime.datetime.now(datetime.UTC).strftime('%a-%b-%d-%Y-%H-%M-%Z')
 
         backup_file_name = self.backup_template % name + '.zip'
         if self.backupdb(name):

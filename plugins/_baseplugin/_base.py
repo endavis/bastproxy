@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/_baseplugin/_baseplugin.py
 #
@@ -8,19 +7,20 @@
 
 # Standard Library
 import contextlib
-import os
-import sys
-import pprint
-import inspect
-import types
 import datetime
+import inspect
+import os
+import pprint
+import sys
+import types
 
 # 3rd Party
-
 # Project
 from libs.api import API, AddAPI
 from libs.records import LogRecord
+
 from ._pluginhooks import RegisterPluginHook
+
 
 class Plugin: # pylint: disable=too-many-instance-attributes
     """
@@ -57,7 +57,7 @@ class Plugin: # pylint: disable=too-many-instance-attributes
 
         self.version_functions = {}
         self.is_character_active_priority = None
-        self.loaded_time =  datetime.datetime.now(datetime.timezone.utc)
+        self.loaded_time =  datetime.datetime.now(datetime.UTC)
 
         os.makedirs(self.plugin_info.data_directory, exist_ok=True)
 

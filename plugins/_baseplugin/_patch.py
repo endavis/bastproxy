@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/_baseplugin/_patch.py
 #
@@ -7,16 +6,16 @@
 # By: Bast
 
 # Standard Library
-import types
 import sys
+import types
 from importlib import import_module
 
 # 3rd Party
-
 # Project
 from libs.api import API as APIClass
-from ._base import Plugin
 from libs.records import LogRecord
+
+from ._base import Plugin
 
 API = APIClass(__name__)
 

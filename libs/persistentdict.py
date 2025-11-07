@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/persistentdict.py
 #
@@ -34,16 +33,15 @@ Classes:
 """
 
 # Standard Library
-import pickle
+import contextlib
 import json
 import os
+import pickle
 import shutil
 import stat
-import contextlib
-from typing import Any, TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
 
 # Third Party
-
 # Project
 from libs.api import API
 from libs.records import LogRecord

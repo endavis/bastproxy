@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/muddata.py
 #
@@ -14,10 +13,10 @@ import re
 from typing import TYPE_CHECKING, Callable
 
 # 3rd Party
-
 # Project
 from libs.records.rtypes.base import BaseRecord
-from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
+from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+
 
 class ProcessDataToMud(BaseRecord):
     """

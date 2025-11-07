@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/plugins/dependency.py
 #
@@ -35,7 +34,6 @@ Classes:
 import sys
 
 # 3rd Party
-
 # Project
 from libs.records import LogRecord
 

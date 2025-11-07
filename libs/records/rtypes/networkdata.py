@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/dataline.py
 #
@@ -9,14 +8,14 @@
 Holds the data line record
 """
 # Standard Library
-from collections import UserList
 import re
+from collections import UserList
 
 # 3rd Party
-
 # Project
 from libs.records.rtypes.base import BaseRecord, TrackedUserList
 from libs.records.rtypes.log import LogRecord
+
 
 class NetworkDataLine(BaseRecord):
     """

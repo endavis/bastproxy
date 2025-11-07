@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/api/__init__.py
 #
@@ -31,5 +30,5 @@ Decorators:
 """
 __all__ = ["API", "AddAPI"]
 
-from ._api import API
 from ._addapi import AddAPI
+from ._api import API

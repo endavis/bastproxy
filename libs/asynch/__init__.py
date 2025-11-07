@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/asynch/__init__.py
 #
@@ -38,13 +37,13 @@ Classes:
 """
 # Standard Library
 import asyncio
-import signal
 import functools
+import signal
 import warnings
-from typing import Callable, Awaitable, Coroutine, Optional
+from collections.abc import Callable
+from typing import Awaitable, Coroutine, Optional
 
 # 3rd Party
-
 # Project
 from libs.api import API as BASEAPI
 from libs.records import LogRecord
@@ -316,7 +315,6 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
         sources=["mudproxy"],
     )()
 
-    # print(f"{asyncio.current_task():}")
     api("plugins.core.proxy:shutdown")()
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]

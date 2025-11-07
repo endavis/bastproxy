@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/callback.py
 #
@@ -34,10 +33,10 @@ Classes:
 
 # Standard Library
 import datetime
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 # 3rd Party
-
 # Project
 from libs.api import API
 
@@ -69,7 +68,7 @@ class Callback:
         self.func: Callable = func
         self.enabled: bool = enabled
         self.created_time: datetime.datetime = datetime.datetime.now(
-            datetime.timezone.utc
+            datetime.UTC
         )
         self.last_raised_datetime: datetime.datetime | None = None
 
@@ -125,7 +124,7 @@ class Callback:
             Exception: If the callback function raises an exception.
 
         """
-        self.last_raised_datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.last_raised_datetime = datetime.datetime.now(datetime.UTC)
         self.raised_count = self.raised_count + 1
         return self.func(args) if args else self.func()
 

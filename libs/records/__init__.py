@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/__init__.py
 #
@@ -28,12 +27,15 @@ __all__ = ['LogRecord', 'BaseDictRecord', 'BaseRecord',
            'ProcessDataToMud', 'SendDataDirectlyToMud',
            'ProcessDataToClient', 'SendDataDirectlyToClient']
 
-from libs.records.rtypes.base import BaseRecord, BaseDictRecord # import to resolve circular import
+from libs.records.managers.records import RMANAGER
+from libs.records.rtypes.base import (  # import to resolve circular import
+           BaseDictRecord,
+           BaseRecord,
+)
 from libs.records.rtypes.clientdata import ProcessDataToClient, SendDataDirectlyToClient
 from libs.records.rtypes.log import LogRecord
-from libs.records.managers.records import RMANAGER
-from libs.records.rtypes.networkdata import NetworkDataLine, NetworkData
 from libs.records.rtypes.muddata import ProcessDataToMud, SendDataDirectlyToMud
+from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
 
 

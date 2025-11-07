@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/plugins/loader.py
 #
@@ -36,22 +35,22 @@ Classes:
 
 """
 # Standard Library
+import contextlib
+import datetime
 import sys
 import traceback
-import datetime
-from typing import KeysView
 import weakref
-import contextlib
 from functools import partial
+from typing import KeysView
+
+import libs.plugins.imputils as imputils
 
 # 3rd Party
-
 # Project
 from libs.api import API, AddAPI
-import libs.plugins.imputils as imputils
-from plugins._baseplugin import BasePlugin, patch
-from libs.records import LogRecord
 from libs.plugins.plugininfo import PluginInfo
+from libs.records import LogRecord
+from plugins._baseplugin import BasePlugin, patch
 
 
 class PluginLoader:
@@ -596,7 +595,7 @@ class PluginLoader:
 
         plugin_info.runtime_info.is_imported = True
         plugin_info.runtime_info.imported_time = datetime.datetime.now(
-            datetime.timezone.utc
+            datetime.UTC
         )
 
         LogRecord(
@@ -1103,7 +1102,6 @@ class PluginLoader:
         core_plugins.remove("plugins.core.log")
         core_plugins.insert(0, "plugins.core.log")
 
-        # print(f"loading core plugins: {core_plugins}")
         self.api(f"{__name__}:load.plugins")(
             core_plugins, exit_on_error=True, check_dependencies=False
         )

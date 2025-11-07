@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/log.py
 #
@@ -9,14 +8,14 @@
 Holds the log record type
 """
 # Standard Library
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Callable
-import contextlib
 
 # 3rd Party
-
 # Project
 from libs.records.rtypes.base import BaseListRecord
+
 
 class LogRecord(BaseListRecord):
     """

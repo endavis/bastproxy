@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/net/listeners.py
 #
@@ -34,19 +33,19 @@ Classes:
     - `Listeners`: Manages the creation and monitoring of network listeners.
 
 """
+import asyncio
 import contextlib
 
 # Standard Library
 import sys
-import asyncio
+
+from libs.api import API as BASEAPI
+from libs.asynch import TaskItem
+from libs.net import server
 
 # Third Party
-
 # Project
 from libs.records import LogRecord
-from libs.api import API as BASEAPI
-from libs.net import server
-from libs.asynch import TaskItem
 
 
 class Listeners:

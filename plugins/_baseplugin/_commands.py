@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/_baseplugin/_commands.py
 #
@@ -6,13 +5,18 @@
 #
 # By: Bast
 # Standard Library
-from typing import Protocol, TYPE_CHECKING
 import sys
+from typing import TYPE_CHECKING, Protocol
 
 # 3rd Party
-
 # Project
-from plugins.core.commands import AddCommand, AddParser, AddArgument, set_command_autoadd
+from plugins.core.commands import (
+    AddArgument,
+    AddCommand,
+    AddParser,
+    set_command_autoadd,
+)
+
 from ._pluginhooks import RegisterPluginHook
 
 if TYPE_CHECKING:

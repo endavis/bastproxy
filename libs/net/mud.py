@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/net/client.py
 #
@@ -36,25 +35,26 @@ Classes:
 
 # Standard Library
 import asyncio
-import logging
 import datetime
+import logging
 from typing import TYPE_CHECKING
 
 # Third Party
 from telnetlib3 import open_connection
 
+from libs.api import API
+from libs.asynch import TaskItem
+
 # Project
 from libs.net import telnet
-from libs.api import API
 from libs.records import (
-    ProcessDataToClient,
     LogRecord,
-    SendDataDirectlyToMud,
     NetworkDataLine,
+    ProcessDataToClient,
     SendDataDirectlyToClient,
+    SendDataDirectlyToMud,
 )
 from libs.records import NetworkData as NetworkData
-from libs.asynch import TaskItem
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
@@ -82,12 +82,11 @@ class MudConnection:
         # self.state: dict[str, bool] = {'connected': True}
         self.connected = True
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
-        self.connected_time = datetime.datetime.now(datetime.timezone.utc)
+        self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: TelnetReaderUnicode | None = None
         self.writer: TelnetWriterUnicode | None = None
         self.max_lines_to_process = 15
         self.term_type = "bastproxy"
-        # print(self.writer.protocol._extra)  # type: ignore
         # rows = self.writer.protocol._extra['rows']
         # term = self.writer.protocol._extra['TERM']
 
@@ -223,7 +222,6 @@ class MudConnection:
         )()
 
         while self.connected and self.reader:
-            # print('mud_read - waiting for data')
             inp: str = ""
 
             data = NetworkData([], owner_id="mud_read")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/sqldb/_sqldb.py
 #
@@ -13,7 +12,9 @@
 # Project
 from libs.api import AddAPI
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
+
 from ..libs._sqlite import Sqldb
+
 
 class SQLDBPlugin(BasePlugin):
     """

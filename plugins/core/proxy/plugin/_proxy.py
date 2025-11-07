@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/proxy/_proxy.py
 #
@@ -7,12 +6,12 @@
 # By: Bast
 
 # Standard Library
-import time
-import os
-import sys
-import platform
 import datetime
+import os
+import platform
 import signal
+import sys
+import time
 from pathlib import Path
 
 # 3rd Party
@@ -31,12 +30,19 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from libs.net.mud import MudConnection
-from libs.records import LogRecord, SendDataDirectlyToMud, SendDataDirectlyToClient, NetworkData, NetworkDataLine
-from plugins.core.commands import AddCommand, AddParser, AddArgument
-from plugins.core.events import RegisterToEvent
 from libs.api import AddAPI
+from libs.net.mud import MudConnection
+from libs.records import (
+    LogRecord,
+    NetworkData,
+    NetworkDataLine,
+    SendDataDirectlyToClient,
+    SendDataDirectlyToMud,
+)
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddCommand, AddParser
+from plugins.core.events import RegisterToEvent
+
 
 class ProxyPlugin(BasePlugin):
     """
@@ -165,7 +171,7 @@ class ProxyPlugin(BasePlugin):
 
         uptime = self.api('plugins.core.utils:convert.timedelta.to.string')(
             self.api.proxy_start_time,
-            datetime.datetime.now(datetime.timezone.utc))
+            datetime.datetime.now(datetime.UTC))
 
         tmsg = [
             *(
@@ -192,7 +198,7 @@ class ProxyPlugin(BasePlugin):
                                 'plugins.core.utils:convert.timedelta.to.string'
                             )(
                                 self.mud_connection.connected_time,
-                                datetime.datetime.now(datetime.timezone.utc),
+                                datetime.datetime.now(datetime.UTC),
                             ),
                         ),
                         template % ('Host', self.mud_connection.addr),

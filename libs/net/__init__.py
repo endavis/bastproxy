@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/net/__init__.py
 #
@@ -26,8 +25,8 @@ Usage:
 
 # update telnetlib3 with mud protocols
 import telnetlib3.telopt
-from libs.records import LogRecord
 
+from libs.records import LogRecord
 
 mud_protocols = {
     "MSSP": bytes([70]),

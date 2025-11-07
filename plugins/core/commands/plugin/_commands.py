@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/commands/plugin/_commands.py
 #
@@ -7,20 +6,27 @@
 # By: Bast
 
 # Standard Library
-import types
 import copy
+import types
+
+import libs.argp as argp
 
 # 3rd Party
-
 # Project
 from libs.api import AddAPI
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
 from libs.persistentdict import PersistentDict
-from libs.records import LogRecord, SendDataDirectlyToMud, SendDataDirectlyToClient, NetworkData
-import libs.argp as argp
-from plugins.core.commands import AddCommand, AddParser, AddArgument
+from libs.records import (
+    LogRecord,
+    NetworkData,
+    SendDataDirectlyToClient,
+    SendDataDirectlyToMud,
+)
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddCommand, AddParser
 from plugins.core.events import RegisterToEvent
+
 from ..libs._command import CommandClass
+
 
 class CommandsPlugin(BasePlugin):
     """

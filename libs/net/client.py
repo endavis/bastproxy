@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/net/client.py
 #
@@ -39,8 +38,8 @@ Classes:
 # Standard Library
 import asyncio
 import contextlib
-import logging
 import datetime
+import logging
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -51,14 +50,14 @@ if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
 
 # Project
-from libs.net import telnet
-from libs.asynch import TaskItem
 from libs.api import API
+from libs.asynch import TaskItem
+from libs.net import telnet
 from libs.records import (
     LogRecord,
-    ProcessDataToMud,
-    NetworkDataLine,
     NetworkData,
+    NetworkDataLine,
+    ProcessDataToMud,
     SendDataDirectlyToClient,
 )
 
@@ -100,7 +99,7 @@ class ClientConnection:
         self.state: dict[str, bool] = {"logged in": False}
         self.view_only = False
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
-        self.connected_time = datetime.datetime.now(datetime.timezone.utc)
+        self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: TelnetReaderUnicode = reader
         self.writer: TelnetWriterUnicode = writer
         self.telnet_server: "TelnetServer | None" = self.writer.protocol
@@ -119,7 +118,7 @@ class ClientConnection:
 
         """
         return self.api("plugins.core.utils:convert.timedelta.to.string")(
-            self.connected_time, datetime.datetime.now(datetime.timezone.utc)
+            self.connected_time, datetime.datetime.now(datetime.UTC)
         )
 
     def send_to(self, data: NetworkDataLine) -> None:

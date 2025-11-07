@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/timers/_timers.py
 #
@@ -7,22 +6,23 @@
 # By: Bast
 
 # Standard Library
-import time
-import datetime
-import sys
 import asyncio
+import datetime
 import math
-from typing import Callable
+import sys
+import time
+from collections.abc import Callable
 
-# 3rd Party
-
-# Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from libs.api import API, AddAPI
 from libs.callback import Callback
 from libs.records import LogRecord
-from plugins.core.commands import AddParser, AddArgument
+
+# 3rd Party
+# Project
+from plugins._baseplugin import BasePlugin, RegisterPluginHook
+from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
-from libs.api import AddAPI, API
+
 
 class Timer(Callback):
     """
@@ -71,7 +71,7 @@ class Timer(Callback):
         Returns:
             datetime: First fire time of the timer.
         """
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         new_date = now + datetime.timedelta(seconds=self.seconds)
         if self.time:
             hour_minute = time.strptime(self.time, '%H%M')
@@ -93,7 +93,7 @@ class Timer(Callback):
         Returns:
             int: Timestamp of the next time when the timer should fire.
         """
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         if not self.last_fired_datetime:
             return self.get_first_fire()
         next_fire = self.last_fired_datetime + datetime.timedelta(seconds=self.seconds)
@@ -121,7 +121,7 @@ class TimersPlugin(BasePlugin):
         self.timer_events: dict[int, list[Timer]] = {}
         self.timer_lookup: dict[str, Timer] = {}
         self.overall_fire_count: int = 0
-        self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.UTC)
 
     @RegisterPluginHook('initialize')
     def _phook_initialize(self):
@@ -241,7 +241,7 @@ class TimersPlugin(BasePlugin):
         match: str = args['match']
 
         message: list[str] = [
-            f"UTC time is: {datetime.datetime.now(datetime.timezone.utc).strftime('%a %b %d %Y %H:%M:%S %Z')}",
+            f"UTC time is: {datetime.datetime.now(datetime.UTC).strftime('%a %b %d %Y %H:%M:%S %Z')}",
             output_header_color + '-' * 80 + '@w',
         ]
         templatestring = '%-20s : %-25s %-9s %-8s %s'
@@ -488,7 +488,7 @@ class TimersPlugin(BasePlugin):
         firstrun: bool = True
         keepgoing: bool = True
         while keepgoing:
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             if now != self.time_last_checked:
                 if not firstrun:
                     diff = now - self.time_last_checked

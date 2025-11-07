@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/log/libs/_custom_logger.py
 #
@@ -11,20 +10,25 @@ This module handles changing logging settings
 see info/logging_notes.txt for more information about logging
 """
 # Standard Library
-import os
 import logging
 import logging.handlers
+import numbers
+import os
 import sys
 import traceback
-import numbers
 
 # Third Party
-
 # Project
 from libs.api import API
+from libs.records import (
+        LogRecord,
+        NetworkData,
+        NetworkDataLine,
+        SendDataDirectlyToClient,
+)
 from plugins.core.colors import ALLCONVERTCOLORS
-from libs.records import LogRecord, SendDataDirectlyToClient, NetworkData, NetworkDataLine
-from .tz import formatTime_RFC3339_UTC, formatTime_RFC3339
+
+from .tz import formatTime_RFC3339, formatTime_RFC3339_UTC
 from .utils import get_toplevel
 
 default_log_file = "bastproxy.log"

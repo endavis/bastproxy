@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/watch/_watch.py
 #
@@ -9,14 +8,15 @@
 # Standard Library
 import re
 
-# 3rd Party
+from libs.api import AddAPI
 
+# 3rd Party
 # Project
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddParser
 from plugins.core.events import RegisterToEvent
-from libs.api import AddAPI
+
 
 class WatchPlugin(BasePlugin):
     """

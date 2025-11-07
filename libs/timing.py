@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/timing.py
 #
@@ -33,13 +32,13 @@ Classes:
 
 """
 # Standard Library
+from collections.abc import Callable
 from functools import wraps
 from timeit import default_timer
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 # 3rd Party
-
 # Project
 from libs.api import API as BASEAPI
 from libs.api import AddAPI

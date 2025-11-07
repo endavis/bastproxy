@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: plugins/core/settings/_set_cmd.py
 #
@@ -10,11 +9,10 @@
 import textwrap
 
 # 3rd Party
-
 # Project
 import libs.argp as argp
 from plugins._baseplugin import RegisterPluginHook
-from plugins.core.commands import AddCommand, AddParser, AddArgument
+from plugins.core.commands import AddArgument, AddCommand, AddParser
 
 CANRELOAD = False
 

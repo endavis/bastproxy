@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: libs/records/rtypes/__init__.py
 #
@@ -10,19 +9,18 @@ Holds the base record type
 """
 # Standard Library
 import datetime
-import traceback
 import pprint
-from collections import UserList, UserDict
-from uuid import uuid4
+import traceback
+from collections import UserDict, UserList
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 # 3rd Party
-
 # Project
 from libs.api import API
-from libs.records.rtypes.update import UpdateRecord
-from libs.records.managers.updates import UpdateManager
 from libs.records.managers.records import RMANAGER
+from libs.records.managers.updates import UpdateManager
+from libs.records.rtypes.update import UpdateRecord
 from libs.tracking.utils.attributes import AttributeMonitor
 
 if TYPE_CHECKING:
@@ -40,7 +38,7 @@ class BaseRecord(AttributeMonitor):
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
         # Add an API
         self.api = API(owner_id=self.owner_id or f"{self.__class__.__name__}:{self.uuid}")
-        self.created = datetime.datetime.now(datetime.timezone.utc)
+        self.created = datetime.datetime.now(datetime.UTC)
         self.updates = UpdateManager()
         self.execute_time_taken = -1
         self.track_record = track_record
