@@ -30,7 +30,7 @@ class RecordManager:
     """
 
     def __init__(self):
-        """Keep the last max_records of each type
+        """Keep the last max_records of each type.
 
         track the active record.
         """

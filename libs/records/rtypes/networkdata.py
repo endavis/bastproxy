@@ -15,7 +15,7 @@ from libs.records.rtypes.log import LogRecord
 
 
 class NetworkDataLine(BaseRecord):
-    """A record to hold a line of data that will be sent to the clients
+    """A record to hold a line of data that will be sent to the clients.
 
     or the mud.
     """

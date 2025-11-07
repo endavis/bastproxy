@@ -227,7 +227,7 @@ class PluginManager(BasePlugin):
         "package", help="the package of the plugins to list", default="", nargs="?"
     )
     def _command_list(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         List plugins
         @CUsage@w: list.
@@ -248,7 +248,7 @@ class PluginManager(BasePlugin):
         return True, msg
 
     def _load_other_plugins_after_core_and_client_plugins(self):
-        """Load plugins after core and client plugins have been loaded
+        """Load plugins after core and client plugins have been loaded.
 
         from the pluginstoload setting.
         """
@@ -318,7 +318,7 @@ class PluginManager(BasePlugin):
         nargs="?",
     )
     def _command_load(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
           Load a plugin
           @CUsage@w: load @Yplugin@w
@@ -382,7 +382,7 @@ class PluginManager(BasePlugin):
     @AddParser(description="unload a plugin")
     @AddArgument("plugin", help="the plugin to unload", default="", nargs="?")
     def _command_unload(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         unload a plugin
         @CUsage@w: unload @Yplugin@w
@@ -415,7 +415,7 @@ class PluginManager(BasePlugin):
     @AddParser(description="reload a plugin")
     @AddArgument("plugin", help="the plugin to reload", default="", nargs="?")
     def _command_reload(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         reload a plugin
         @CUsage@w: reload @Yplugin@w
@@ -452,7 +452,7 @@ class PluginManager(BasePlugin):
         event_name="ev_plugins.core.events_all_events_registered", priority=1
     )
     def _eventcb_all_events_registered(self):
-        """This resends all the different plugin initialization events,
+        """This resends all the different plugin initialization events,.
 
         saves all plugin states, and adds the save plugin timer.
         """

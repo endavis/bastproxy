@@ -336,7 +336,7 @@ class CommandsPlugin(BasePlugin):
                 self.api(f"{self.plugin_id}:add.command.by.func")(command)
 
     def get_command_functions_in_object(self, base, recurse=True):
-        """Recursively search for functions that are commands in a plugin instance
+        """Recursively search for functions that are commands in a plugin instance.
 
         and it's attributes.
         """
@@ -528,7 +528,7 @@ class CommandsPlugin(BasePlugin):
         "remove.data.for.plugin", description="remove all command data for a plugin"
     )
     def _api_remove_data_for_plugin(self, plugin_id):
-        """Remove all command data for a plugin
+        """Remove all command data for a plugin.
 
         @Yplugin@w    = the plugin to remove commands for.
 
@@ -558,7 +558,7 @@ class CommandsPlugin(BasePlugin):
 
     @AddAPI("command.help.format", description="format a help string for a command")
     def _api_command_help_format(self, plugin_id, command_name):
-        """Get the help for a command
+        """Get the help for a command.
 
         @Yplugin@w        = the plugin the command is in
         @Ycommand_name@w  = the command name.
@@ -578,7 +578,7 @@ class CommandsPlugin(BasePlugin):
         "get.commands.for.plugin.data", description="get the command data for a plugin"
     )
     def _api_get_commands_for_plugin_data(self, plugin_id):
-        """Get the data for commands for the specified plugin
+        """Get the data for commands for the specified plugin.
 
         @Yplugin@w   = the plugin the command is in.
 
@@ -592,7 +592,7 @@ class CommandsPlugin(BasePlugin):
     def _api_run(
         self, plugin_id: str, command_name: str, argument_string: str = "", format=False
     ) -> tuple[bool | None, list[str]]:
-        """Run a command and return the output
+        """Run a command and return the output.
 
         @Yplugin_id@w          = the plugin_id the command is in
         @Ycommand_name@w    = the command name
@@ -1227,7 +1227,7 @@ class CommandsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_for_command(self) -> None:
-        """Check if the line is a command from the client
+        """Check if the line is a command from the client.
 
         if it is, the command is parsed and executed
         and the output sent to the client.
@@ -1265,7 +1265,7 @@ class CommandsPlugin(BasePlugin):
 
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
-        """Remove a command
+        """Remove a command.
 
         @Yplugin@w        = the top level of the command
         @Ycommand_name@w  = the name of the command.
@@ -1427,7 +1427,7 @@ class CommandsPlugin(BasePlugin):
         nargs="?",
     )
     def _command_list(self, _=None):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list commands.
 
@@ -1470,7 +1470,7 @@ class CommandsPlugin(BasePlugin):
     @AddParser(description="run a command in history")
     @AddArgument("number", help="the history # to run", default=-1, nargs="?", type=int)
     def _command_run_history(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         act on the command history.
 
@@ -1501,7 +1501,7 @@ class CommandsPlugin(BasePlugin):
     @AddParser(description="list the command history")
     @AddArgument("-c", "--clear", help="clear the history", action="store_true")
     def _command_history(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list the command history.
 

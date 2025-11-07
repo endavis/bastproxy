@@ -277,7 +277,7 @@ class ColorsPlugin(BasePlugin):
     @AddParser(description="show colors")
     @AddArgument("-c", "--compact", help="show a compact version", action="store_true")
     def _command_show(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         Show xterm colors
         @CUsage@w: show @Y"compact"@w
@@ -332,7 +332,7 @@ class ColorsPlugin(BasePlugin):
     @AddParser(description="show color examples")
     def _command_example(self):
         # pylint: disable=no-self-use
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         Show examples of how to use colors
         @CUsage@w: example.

@@ -187,7 +187,7 @@ class LogPlugin(BasePlugin):
 
     @AddAPI("set.log.to.client", description="toggle a log type to show to clients")
     def _api_set_log_to_client(self, logtype, level: str = "info", flag=True):
-        """Toggle a log type to show to clients
+        """Toggle a log type to show to clients.
 
         @Ylogtype@w   = the type to toggle, can be multiple (list)
         @Yflag@w      = True to send to clients, false otherwise (default: True).
@@ -285,7 +285,7 @@ class LogPlugin(BasePlugin):
 
     @AddAPI("set.log.to.console", description="toggle a log type to show to console")
     def _api_set_log_to_console(self, logtype, level="info"):
-        """Toggle a log type to show to console
+        """Toggle a log type to show to console.
 
         @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to console, false otherwise (default: True).
@@ -367,7 +367,7 @@ class LogPlugin(BasePlugin):
 
     @AddAPI("set.log.to.file", description="toggle a log type to log to a file")
     def _api_set_log_to_file(self, logtype, level="info"):
-        """Toggle a log type to log to a file
+        """Toggle a log type to log to a file.
 
         @Ylogtype@w   = the type to toggle
         @Yflag@w      = True to send to file, false otherwise (default: True).

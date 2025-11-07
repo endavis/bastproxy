@@ -33,7 +33,7 @@ class Event:
         description: list | None = None,
         arg_descriptions: dict[str, str] | None = None,
     ):
-        """name: the name of the event
+        """name: the name of the event.
 
         created_by: it should be the __name__ of the module or the plugin id for easy identification
         description: a list of strings that describe the event

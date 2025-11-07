@@ -42,7 +42,7 @@ class CMDQPlugin(BasePlugin):
         description="remove all mud commands related to a plugin",
     )
     def _api_remove_mud_commands_for_plugin(self, plugin_id):
-        """Remove all commands related to a plugin
+        """Remove all commands related to a plugin.
 
         @Yplugin_id@w   = The plugin name.
 

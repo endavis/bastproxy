@@ -139,7 +139,7 @@ class BaseRecord(AttributeMonitor):
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
     def addupdate(self, flag: str, action: str, extra: dict | None = None):
-        """Add a change event for this record
+        """Add a change event for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
@@ -185,7 +185,7 @@ class BaseRecord(AttributeMonitor):
         return new_stack
 
     def get_attributes_to_format(self):
-        """Attributes to format in the details
+        """Attributes to format in the details.
 
         0 will be the top section
         1 is the middle section
@@ -599,7 +599,7 @@ class BaseListRecord(UserList, BaseRecord):
     def addupdate(
         self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
     ):
-        """Add a change event for this record
+        """Add a change event for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
@@ -658,7 +658,7 @@ class BaseDictRecord(BaseRecord, UserDict):
     def addupdate(
         self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
     ):
-        """Add a change event for this record
+        """Add a change event for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed

@@ -305,7 +305,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_add(
         self, trigger_name, regex, owner_id=None, **kwargs
     ):  # pylint: disable=too-many-branches
-        """Add a trigger
+        """Add a trigger.
 
         @Ytrigger_name@w   = The trigger name
         @Yregex@w    = the regular expression that matches this trigger
@@ -411,7 +411,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.remove", description="remove a trigger")
     def _api_trigger_remove(self, trigger_name, force=False, owner_id=None):
-        """Remove a trigger
+        """Remove a trigger.
 
         @Ytrigger_name@w   = The trigger name
         @Yforce@w         = True to remove it even if other functions
@@ -487,7 +487,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.get", description="get a trigger")
     def _api_trigger_get(self, trigger_name, owner_id=None):
-        """Get a trigger
+        """Get a trigger.
 
         @Ytrigger_name@w   = The trigger name.
         """
@@ -503,7 +503,7 @@ class TriggersPlugin(BasePlugin):
         "remove.data.for.owner", description="remove all triggers related to a owner"
     )
     def _api_remove_data_for_owner(self, owner_id):
-        """Remove all triggers related to a owner
+        """Remove all triggers related to a owner.
 
         @Yowner_id@w   = The owner id.
 
@@ -524,7 +524,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.toggle.enable", description="toggle a trigger")
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):
-        """Toggle a trigger
+        """Toggle a trigger.
 
         @Ytrigger_name@w = The trigger name
         @Yflag@w        = (optional) True to enable, False otherwise.
@@ -559,7 +559,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.toggle.omit", description="toggle the omit flag for a trigger")
     def _api_trigger_toggle_omit(self, trigger_name, flag, owner_id=None):
-        """Toggle a trigger
+        """Toggle a trigger.
 
         @Ytrigger_name@w = The trigger name
         @Yflag@w        = (optional) True to omit the line, False otherwise.
@@ -583,7 +583,7 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("group.toggle.enable", description="toggle a trigger group")
     def _api_group_toggle_enable(self, trigger_group, flag):
-        """Toggle a trigger group
+        """Toggle a trigger group.
 
         @Ytrigger_group@w = The triggergroup name
         @Yflag@w        = (optional) True to enable, False otherwise.
@@ -701,7 +701,7 @@ class TriggersPlugin(BasePlugin):
         nargs="?",
     )
     def _command_list(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list triggers and the plugins they are defined in
         @CUsage@w: list.
@@ -773,7 +773,7 @@ class TriggersPlugin(BasePlugin):
     @AddParser(description="get details for triggers")
     @AddArgument("trigger", help="the trigger to detail", default=[], nargs="*")
     def _command_detail(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list the details of a trigger
         @CUsage@w: detail.

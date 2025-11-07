@@ -219,7 +219,7 @@ class TimersPlugin(BasePlugin):
         nargs="?",
     )
     def _command_list(self) -> tuple[bool, list[str]]:
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list timers and the plugins they are defined in
         @CUsage@w: list.
@@ -263,7 +263,7 @@ class TimersPlugin(BasePlugin):
         "timers", help="a list of timers to get details", default=None, nargs="*"
     )
     def _command_detail(self) -> tuple[bool, list[str]]:
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         list the details of a timer
         @CUsage@w: detail.
@@ -311,7 +311,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("has.timer", description="check if a timer exists")
     def _api_has_timer(self, name: str):
-        """Check if a timer exists
+        """Check if a timer exists.
 
         @Yname@w   = the name of the timer to check.
 
@@ -321,7 +321,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("get.timer.next.fire", description="get the next fire time for a timer")
     def _api_get_timer_next_fire(self, name: str) -> datetime.datetime | None:
-        """Get the next fire time for a timer
+        """Get the next fire time for a timer.
 
         @Yname@w   = the name of the timer to check.
 
@@ -335,7 +335,7 @@ class TimersPlugin(BasePlugin):
     def _api_add_timer(
         self, name: str, func: Callable, seconds: int, **kwargs
     ) -> Timer | None:
-        """Add a timer
+        """Add a timer.
 
         @Yname@w   = The timer name
         @Yfunc@w  = the function to call when firing the timer
@@ -402,7 +402,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("remove.data.for.plugin", description="remove all data for a plugin")
     def _api_remove_data_for_plugin(self, name: str):
-        """Remove all timers associated with a plugin
+        """Remove all timers associated with a plugin.
 
         @Yname@w   = the name of the plugin.
 
@@ -422,7 +422,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("remove.timer", description="remove a timer")
     def _api_remove_timer(self, name: str):
-        """Remove a timer
+        """Remove a timer.
 
         @Yname@w   = the name of the timer to remove.
 
@@ -447,7 +447,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("toggle.timer", description="toggle a timer to be enabled/disabled")
     def _api_toggle_timer(self, name: str, flag: bool):
-        """Toggle a timer to be enabled/disabled
+        """Toggle a timer to be enabled/disabled.
 
         @Yname@w   = the name of the timer to toggle
         @Yflag@w   = True to enable, False to disable.

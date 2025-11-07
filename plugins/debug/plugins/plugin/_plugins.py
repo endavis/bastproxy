@@ -43,7 +43,7 @@ class PluginsPlugin(BasePlugin):
     @AddParser(description="show internal plugin hooks")
     @AddArgument("plugin", help="the plugin to show the hooks for", default="")
     def _command_hooks(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         show internal plugin hooks
         @CUsage@w: hooks.
@@ -78,7 +78,7 @@ class PluginsPlugin(BasePlugin):
     @AddParser(description="show plugin data summary")
     @AddArgument("plugin", help="the plugin to show the summary for", default="")
     def _command_summary(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         show a summary of what data a plugin has
         @CUsage@w: stats.
@@ -112,7 +112,7 @@ class PluginsPlugin(BasePlugin):
     @AddParser(description="show detailed plugin data in other plugins")
     @AddArgument("plugin", help="the plugin to show the data for", default="")
     def _command_detail(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         show stats, memory, profile, etc.. for this plugin
         @CUsage@w: stats.

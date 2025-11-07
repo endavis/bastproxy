@@ -30,7 +30,7 @@ CANRELOAD = False
 @AddArgument("name", help="the setting name", default="list", nargs="?")
 @AddArgument("value", help="the new value of the setting", default="", nargs="?")
 def _command_settings_plugin_set(self):
-    """@G%(name)s@w - @B%(cmdname)s@w
+    """@G%(name)s@w - @B%(cmdname)s@w.
 
     List or set vars
     @CUsage@w: var @Y<varname>@w @Y<varvalue>@w

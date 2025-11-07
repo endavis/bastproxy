@@ -67,7 +67,7 @@ class ErrorPlugin(BasePlugin):
         "number", help="list the last <number> errors", default="-1", nargs="?"
     )
     def _command_show(self):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         show the error queue
         @CUsage@w: show.

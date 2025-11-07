@@ -47,7 +47,7 @@ class Commands(Protocol):
         "-c", "--commands", help="show commands in this plugin", action="store_true"
     )
     def _command_help(self: "Plugin"):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         show the help for this plugin
         @CUsage@w: help.
@@ -131,7 +131,7 @@ class Commands(Protocol):
     @AddCommand(group="Base")
     @AddParser(description="save the plugin state")
     def _command_save(self: "Plugin"):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         save plugin state
         @CUsage@w: save.
@@ -142,7 +142,7 @@ class Commands(Protocol):
     @AddCommand(group="Base", autoadd=False)
     @AddParser(description="reset the plugin")
     def _command_reset(self: "Plugin"):
-        """@G%(name)s@w - @B%(cmdname)s@w
+        """@G%(name)s@w - @B%(cmdname)s@w.
 
         reset the plugin
         @CUsage@w: reset.

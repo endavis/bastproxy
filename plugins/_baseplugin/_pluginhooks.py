@@ -4,7 +4,7 @@
 # File Description: holds the RegisterPluginHook decorator
 #
 # By: Bast
-"""plugin hooks are for plugins to register functions to be called at certain
+"""plugin hooks are for plugins to register functions to be called at certain.
 
 points in the plugins lifecycle.
 """
@@ -17,7 +17,7 @@ points in the plugins lifecycle.
 
 class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
-        """'__init__' - invoked for __init__ at the end of baseplugin.__init__
+        """'__init__' - invoked for __init__ at the end of baseplugin.__init__.
 
         'initialize' - invoked when the initialize method is ran
         'save' - invoked when saving the plugin

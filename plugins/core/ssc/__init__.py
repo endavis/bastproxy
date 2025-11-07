@@ -4,7 +4,7 @@
 # File Description: a plugin to save settings that should not stay in memory
 #
 # By: Bast
-"""this plugin is for saving settings that should not appear in memory
+"""this plugin is for saving settings that should not appear in memory.
 
 the setting is saved to a file with read only permissions for the user
 the proxy is running under.

@@ -4,7 +4,7 @@
 # File Description: a "package" to manage records
 #
 # By: Bast
-"""This "package"" has classes for various record types and record managers
+"""This "package"" has classes for various record types and record managers.
 
 The public record types ones are:
     SendDataDirectlyToClient - send data to the client

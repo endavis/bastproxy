@@ -17,7 +17,7 @@ from libs.records.rtypes.networkdata import NetworkData
 
 
 class ProcessDataToClient(BaseRecord):
-    """a record to a client, this can originate with the mud or internally
+    """a record to a client, this can originate with the mud or internally.
 
     data from the mud will immediately be transformed into this type of record
     will not neccesarily end up going to the client.
@@ -177,7 +177,7 @@ class ProcessDataToClient(BaseRecord):
 
 
 class SendDataDirectlyToClient(BaseRecord):
-    """send data directly to a client
+    """send data directly to a client.
 
     this bypasses any processing and sends directly to the client.
 

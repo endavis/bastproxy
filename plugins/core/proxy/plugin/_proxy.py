@@ -202,7 +202,7 @@ class ProxyPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
     def _eventcb_sendusernameandpw(self):
-        """If username and password are set, then send them when the proxy
+        """If username and password are set, then send them when the proxy.
 
         connects to the mud.
         """

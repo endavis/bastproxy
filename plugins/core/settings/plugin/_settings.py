@@ -43,7 +43,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("add", description="add a setting to a plugin")
     def _api_add(self, plugin_id, setting_name, default, stype, help, **kwargs):
-        """@Yplugin_id@w     = the plugin_id of the owner of the setting
+        """@Yplugin_id@w     = the plugin_id of the owner of the setting.
 
         @Ysetting_name@w  = the name of the setting
         @Ydefault@w    = the default value of the setting
@@ -103,7 +103,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("get", description="get the value of a setting")
     def _api_setting_get(self, plugin_id, setting):
-        """Get the value of a setting
+        """Get the value of a setting.
 
         @Ysetting@w = the setting value to get
         @Yplugin@w = the plugin to get the setting from (optional).
@@ -165,7 +165,7 @@ class SettingsPlugin(BasePlugin):
 
     @AddAPI("change", description="change the value of a setting")
     def _api_setting_change(self, plugin_id, setting, value):
-        """Change a setting
+        """Change a setting.
 
         @Yplugin_id@w     = the plugin_id of the owner of the setting
         @Ysetting@w    = the name of the setting to change

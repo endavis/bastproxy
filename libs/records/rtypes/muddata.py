@@ -17,7 +17,7 @@ from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
 
 class ProcessDataToMud(BaseRecord):
-    """process data being sent to the mud
+    """process data being sent to the mud.
 
     data from a client will be immediately passed through this process
     internal data can use this if it needs to be processed before being sent to the mud.
@@ -143,7 +143,7 @@ class ProcessDataToMud(BaseRecord):
 
 
 class SendDataDirectlyToMud(BaseRecord):
-    """send data to the mud
+    """send data to the mud.
 
     this bypasses any processing and sends directly to the mud.
 

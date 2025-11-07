@@ -19,7 +19,7 @@ from libs.api import API
 
 
 class UpdateRecord:
-    """a update event for a record
+    """a update event for a record.
 
     flag: one of 'Modify', 'Set Flag', 'Info'
     action: a description of what was updated
