@@ -232,7 +232,7 @@ class PersistentDict(dict):
         """
         return self
 
-    def __exit__(self, _) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit the runtime context related to this object.
 
         This method is called when the runtime context is exited using the

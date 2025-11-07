@@ -138,9 +138,10 @@ class PluginInfo:
         """
         try:
             ast.parse(file.read_text())
-            return True, None
         except Exception as E:
             return False, E
+        else:
+            return True, None
 
     def _get_files_by_flag_helper(self, files: dict, flag: str) -> list[dict[str, Any]]:
         """Get files by a specific flag helper method.

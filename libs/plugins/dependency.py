@@ -39,6 +39,10 @@ import sys
 from libs.records import LogRecord
 
 
+class CircularDependencyError(Exception):
+    """Exception raised when a circular dependency is detected."""
+
+
 class PluginDependencyResolver:
     """Resolve plugin dependencies.
 
@@ -142,16 +146,17 @@ class PluginDependencyResolver:
                     )()
                     sys.exit(1)
 
-            if edge_plugin and plugin.plugin_id != edge_plugin.plugin_id:
-                if edge_plugin.plugin_id not in self.resolved:
-                    if edge_plugin.plugin_id in self.unresolved:
-                        msg = (
-                            f"Circular reference detected: {plugin.plugin_id} -> "
-                            f"{plugin.plugin_id}"
-                        )
-                        raise Exception(
-                            msg
-                        )
-                    self.resolve_helper(edge_plugin)
+            if (
+                edge_plugin
+                and plugin.plugin_id != edge_plugin.plugin_id
+                and edge_plugin.plugin_id not in self.resolved
+            ):
+                if edge_plugin.plugin_id in self.unresolved:
+                    msg = (
+                        f"Circular reference detected: {plugin.plugin_id} -> "
+                        f"{plugin.plugin_id}"
+                    )
+                    raise CircularDependencyError(msg)
+                self.resolve_helper(edge_plugin)
         self.resolved.append(plugin.plugin_id)
         self.unresolved.remove(plugin.plugin_id)

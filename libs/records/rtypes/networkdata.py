@@ -269,7 +269,7 @@ class NetworkData(TrackedUserList):
             old_item = item
             if not (isinstance(item, (NetworkDataLine, str, bytes))):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)}"
-                raise ValueError(
+                raise TypeError(
                     msg
                 )
             if isinstance(item, (str, bytes)):
@@ -301,7 +301,7 @@ class NetworkData(TrackedUserList):
         """Set the item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise ValueError(
+            raise TypeError(
                 msg
             )
         if isinstance(item, (str, bytes, bytearray)):
@@ -314,7 +314,7 @@ class NetworkData(TrackedUserList):
         """Insert an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise ValueError(
+            raise TypeError(
                 msg
             )
         if isinstance(item, (str, bytes, bytearray)):
@@ -327,7 +327,7 @@ class NetworkData(TrackedUserList):
         """Append an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise ValueError(
+            raise TypeError(
                 msg
             )
         if isinstance(item, (str, bytes, bytearray)):
@@ -342,7 +342,7 @@ class NetworkData(TrackedUserList):
         for item in items:
             if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-                raise ValueError(
+                raise TypeError(
                     msg
                 )
             if isinstance(item, (str, bytes, bytearray)):

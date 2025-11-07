@@ -130,29 +130,28 @@ def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, 
     for module_info in pkgutil.walk_packages(
         [directory.as_posix()], prefix, onerror=on_error
     ):
-        if module_info.ispkg:
-            if tspec := find_spec(module_info.name):
-                loader_path: str = (
-                    tspec.loader.path  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-                )
-                if tspec.origin:
-                    if is_plugin(tspec.origin):
-                        # if the name ends in .plugin, remove it
-                        matches["plugins"].append(
-                            {
-                                "plugin_id": re.sub(".plugin$", "", tspec.name),
-                                "package_init_file_path": Path(loader_path),
-                                "package_path": Path(loader_path).parent,
-                                "package_import_location": tspec.name,
-                            }
-                        )
-                    else:
-                        matches["packages"].append(
-                            {
-                                "package_id": tspec.name,
-                                "fullpath": Path(loader_path).parent,
-                            }
-                        )
+        if module_info.ispkg and (tspec := find_spec(module_info.name)):
+            loader_path: str = (
+                tspec.loader.path  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            )
+            if tspec.origin:
+                if is_plugin(tspec.origin):
+                    # if the name ends in .plugin, remove it
+                    matches["plugins"].append(
+                        {
+                            "plugin_id": re.sub(".plugin$", "", tspec.name),
+                            "package_init_file_path": Path(loader_path),
+                            "package_path": Path(loader_path).parent,
+                            "package_import_location": tspec.name,
+                        }
+                    )
+                else:
+                    matches["packages"].append(
+                        {
+                            "package_id": tspec.name,
+                            "fullpath": Path(loader_path).parent,
+                        }
+                    )
 
     return matches["packages"], matches["plugins"], errors
 

@@ -31,7 +31,9 @@ class Commands(Protocol):
             # can't figure out how to type this correctly
             # and this exists in the 'Plugin' class
             # so ignoring the error
-            set_command_autoadd(self._command_reset, True)  # pyright: ignore[reportAttributeAccessIssue]
+            set_command_autoadd(
+                self._command_reset, True
+            )  # pyright: ignore[reportAttributeAccessIssue]
 
     @AddCommand(group="Base")
     @AddParser(description="show help info for this plugin")
@@ -121,9 +123,7 @@ class Commands(Protocol):
             msg.extend(cmd_output)
             msg.extend(("@G" + "-" * 60 + "@w", ""))
         if args["api"] and (api_list := self.api("libs.api:list")(self.plugin_id)):
-            msg.extend(
-                (f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w")
-            )
+            msg.extend((f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w"))
             msg.extend(api_list)
         return True, msg
 

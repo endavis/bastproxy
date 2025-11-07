@@ -121,7 +121,8 @@ class APIPlugin(BasePlugin):
         try:
             returnstuff = self.api(api)(*args["arguments"])
             tmsg = self.dump_object_as_string(returnstuff)
-            return True, ["Api returned:", "", tmsg]
         except Exception as e:
             exc_str = traceback.format_exception(e)
             return True, ["Api returned an error:", *exc_str]
+        else:
+            return True, ["Api returned:", "", tmsg]

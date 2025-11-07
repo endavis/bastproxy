@@ -302,7 +302,9 @@ class TriggersPlugin(BasePlugin):
         return regex_id
 
     @AddAPI("trigger.add", description="add a trigger")
-    def _api_trigger_add(self, trigger_name, regex, owner_id=None, **kwargs):  # pylint: disable=too-many-branches
+    def _api_trigger_add(
+        self, trigger_name, regex, owner_id=None, **kwargs
+    ):  # pylint: disable=too-many-branches
         """Add a trigger
         @Ytrigger_name@w   = The trigger name
         @Yregex@w    = the regular expression that matches this trigger
@@ -440,10 +442,14 @@ class TriggersPlugin(BasePlugin):
             return False
 
         if (
-            event := self.api("plugins.core.events:get.event")(
-                self.triggers[trigger_id].event_name
+            (
+                event := self.api("plugins.core.events:get.event")(
+                    self.triggers[trigger_id].event_name
+                )
             )
-        ) and not event.isempty() and not force:
+            and not event.isempty()
+            and not force
+        ):
             LogRecord(
                 f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
                 level="error",

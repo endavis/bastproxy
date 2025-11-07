@@ -64,7 +64,9 @@ class UtilsPlugin(BasePlugin):
         number_of_columns = min(cols, len(list_of_strings))
         max_len = max(len(item) for item in list_of_strings)
         if columnwise:
-            number_of_columns = math.ceil(float(len(list_of_strings)) / float(number_of_columns))
+            number_of_columns = math.ceil(
+                float(len(list_of_strings)) / float(number_of_columns)
+            )
         plist = [
             list_of_strings[i : i + number_of_columns]
             for i in range(0, len(list_of_strings), number_of_columns)
@@ -332,7 +334,6 @@ class UtilsPlugin(BasePlugin):
 
         return f"{new_str}{filler_color_end}"
 
-
     @AddAPI("check.list.for.match", description="check a list for a match of arg")
     def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
         """Check a list for a match of arg."""
@@ -392,18 +393,14 @@ class UtilsPlugin(BasePlugin):
         converted_minutes = (
             int(minutes[:-1])
             if minutes.endswith("m")
-            else int(minutes)
-            if minutes
-            else 0
+            else int(minutes) if minutes else 0
         )
 
         seconds = timelength_match_groups["seconds"]
         converted_seconds = (
             int(seconds[:-1])
             if seconds.endswith("s")
-            else int(seconds)
-            if seconds
-            else 0
+            else int(seconds) if seconds else 0
         )
 
         return (

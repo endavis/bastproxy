@@ -489,7 +489,8 @@ class SettingsPlugin(BasePlugin):
             tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
             if setting_info.aftersetmessage:
                 tmsg.extend(["\n", setting_info.aftersetmessage])
-            return True, tmsg
         except ValueError:
             msg = [f"Cannot convert {val} to {setting_info.stype}"]
             return True, msg
+        else:
+            return True, tmsg

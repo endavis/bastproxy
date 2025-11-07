@@ -122,13 +122,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 for plugin_hook in item_plugin_hooks:
                     if plugin_hook not in function_list:
                         function_list[plugin_hook] = {}
-                    if (
-                        item_plugin_hooks[plugin_hook]
-                        not in function_list[plugin_hook]
-                    ):
-                        function_list[plugin_hook][
-                            item_plugin_hooks[plugin_hook]
-                        ] = []
+                    if item_plugin_hooks[plugin_hook] not in function_list[plugin_hook]:
+                        function_list[plugin_hook][item_plugin_hooks[plugin_hook]] = []
                         function_list[plugin_hook][
                             item_plugin_hooks[plugin_hook]
                         ].append(item)
@@ -152,9 +147,15 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 and hasattr(item, "plugin_hooks")
                 and plugin_hook in item.plugin_hooks
             ):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                if item.plugin_hooks[plugin_hook] not in function_list:  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                    function_list[item.plugin_hooks[plugin_hook]] = []  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                function_list[item.plugin_hooks[plugin_hook]].append(item)  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                if (
+                    item.plugin_hooks[plugin_hook] not in function_list
+                ):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                    function_list[item.plugin_hooks[plugin_hook]] = (
+                        []
+                    )  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+                function_list[item.plugin_hooks[plugin_hook]].append(
+                    item
+                )  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
 
         return function_list
 

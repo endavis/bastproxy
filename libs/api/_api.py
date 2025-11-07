@@ -63,10 +63,10 @@ class API:  # sourcery skip: upper-camel-case-classes
     """
 
     # where the main api resides
-    _class_api: dict[str, APIItem] = {}
+    _class_api: ClassVar[dict[str, APIItem]] = {}
 
     # stats for the api
-    stats: dict[str, APIStatItem] = {}
+    stats: ClassVar[dict[str, APIStatItem]] = {}
 
     # the basepath that the proxy was run from, will be dynamically set in
     # bastproxy.py
