@@ -31,7 +31,9 @@ class Commands(Protocol):
             # can't figure out how to type this correctly
             # and this exists in the 'Plugin' class
             # so ignoring the error
-            set_command_autoadd(self._command_reset, True)  # pyright: ignore[reportAttributeAccessIssue]
+            set_command_autoadd(
+                self._command_reset, True
+            )  # pyright: ignore[reportAttributeAccessIssue]
 
     @AddCommand(group="Base")
     @AddParser(description="show help info for this plugin")
