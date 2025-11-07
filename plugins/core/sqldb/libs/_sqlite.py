@@ -283,10 +283,10 @@ class Sqldb:
     def addtable(self, tablename, sql, **kwargs):
         """Add a table to the database.
 
-        Keyword Args:
-            precreate
-            postcreate
-            keyfield
+        Args:
+            tablename: The name of the table to add.
+            sql: The SQL CREATE TABLE statement.
+            **kwargs: Optional arguments including precreate, postcreate, keyfield.
 
         """
         args = copy.copy(kwargs) if kwargs else {}

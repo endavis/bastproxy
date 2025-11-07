@@ -240,7 +240,9 @@ class PersistentDict(dict):
         dictionary are written to the file on disk by calling the `close` method.
 
         Args:
-            _: The exception type, value, and traceback. These arguments are ignored.
+            exc_type: The type of exception raised, if any.
+            exc_val: The exception instance raised, if any.
+            exc_tb: The traceback object for the exception, if any.
 
         Returns:
             None

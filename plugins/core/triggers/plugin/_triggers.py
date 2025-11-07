@@ -596,13 +596,12 @@ class TriggersPlugin(BasePlugin):
         """Processes a match for triggers.
 
         Args:
-            data (str): The original data.
-            colored_data (str): The colored data.
-            regex_match_data (list): The list of regexes that matched the data.
-            event_record: The event record.
+            data_line: The data line that matched triggers.
+            regex_match_data: The list of regexes that matched the data.
 
         Returns:
             None
+
         """
         args = {"line": data_line}
         LogRecord(

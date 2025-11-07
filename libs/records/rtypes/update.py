@@ -32,6 +32,16 @@ class UpdateRecord:
     def __init__(
         self, parent, flag: str, action: str, extra: dict | None = None, data=None
     ):
+        """Initialize an update record.
+
+        Args:
+            parent: The parent object being updated.
+            flag: Flag indicating type of update.
+            action: The action being performed.
+            extra: Additional metadata (default: None).
+            data: The new data associated with the update (default: None).
+
+        """
         self.uuid = uuid4().hex
         self.time_taken = datetime.datetime.now(datetime.UTC)
         self.parent = parent

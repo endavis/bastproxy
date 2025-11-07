@@ -18,11 +18,13 @@ def formatTime_RFC3339_UTC(self, record, datefmt=None):
     """Formats a timestamp in the RFC3339 format in the UTC timezone.
 
     Args:
+        self: The formatter instance (required by logging API).
         record: The record object containing the timestamp.
         datefmt: Not used, but required by the logging module.
 
     Returns:
         str: The formatted timestamp in RFC3339 format with UTC timezone.
+
     """
     return (
         datetime.datetime.fromtimestamp(record.created)
@@ -35,10 +37,12 @@ def formatTime_RFC3339(self, record, datefmt=None):
     """Formats a timestamp in the RFC3339 format in the local timezone.
 
     Args:
+        self: The formatter instance (required by logging API).
         record: The record object containing the timestamp.
         datefmt: Not used, but required by the logging module.
 
     Returns:
         str: The formatted timestamp in RFC3339 format.
+
     """
     return datetime.datetime.fromtimestamp(record.created).astimezone().isoformat()

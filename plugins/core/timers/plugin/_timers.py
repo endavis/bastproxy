@@ -476,13 +476,15 @@ class TimersPlugin(BasePlugin):
         """Executes and reschedules the given timer.
 
         Args:
-            timer (Timer): The timer to be executed.
+            time: The current time when the timer is being executed.
+            timer: The timer to be executed.
 
         Returns:
             None
 
         Raises:
             Exception: If an error occurs during the execution of the timer.
+
         """
         if timer.enabled:
             try:

@@ -28,6 +28,18 @@ class NetworkDataLine(BaseRecord):
         prelogin: bool = False,
         color: str = "",
     ):
+        """Initialize a network data line.
+
+        Args:
+            line: The line content as string or bytes.
+            originated: Source of the line (default: "internal").
+            line_type: Type of line (default: "IO").
+            had_line_endings: Whether line had line endings (default: True).
+            preamble: Whether to include preamble (default: True).
+            prelogin: Whether this is a prelogin line (default: False).
+            color: Color code for the line (default: "").
+
+        """
         BaseRecord.__init__(self, f"{self.__class__.__name__}:{line!r}")
         self._attributes_to_monitor.append("line")
         self._attributes_to_monitor.append("send")

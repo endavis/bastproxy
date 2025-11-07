@@ -628,15 +628,12 @@ class CommandsPlugin(BasePlugin):
     def add_command_to_history(self, command: str):
         """Add to the command history.
 
-        Arguments:
-          required:
-            data      - the stack data
-
-          optional:
-            command   - the data in the input stack
+        Args:
+            command: The command string to add to history.
 
         Returns:
-          True if succcessful, False if not successful
+            True if successful, False if not successful.
+
         """
         # remove existing
         if command in self.command_history_data:
@@ -666,13 +663,13 @@ class CommandsPlugin(BasePlugin):
     def get_command_data_from_plugin(self, plugin_id, command) -> CommandClass | None:
         """Get the command from the plugin data.
 
-        Arguments:
-          required:
-            plugin_id  - the plugin_id
-            command    - the command to retrieve
+        Args:
+            plugin_id: The ID of the plugin.
+            command: The command to retrieve.
 
         Returns:
-          None if not found, the command data dict if found
+            None if not found, the CommandClass if found.
+
         """
         # find the instance
         if self.api("libs.plugins.loader:is.plugin.id")(plugin_id) and (
@@ -687,14 +684,14 @@ class CommandsPlugin(BasePlugin):
     def update_command(self, plugin_id, command_name, command: CommandClass):
         """Update a command.
 
-        Arguments:
-          required:
-            plugin         - the plugin that the command is in
-            command_name   - the command name
-            data           - the new command data dict
+        Args:
+            plugin_id: The ID of the plugin that owns the command.
+            command_name: The name of the command to update.
+            command: The new CommandClass instance with updated data.
 
         Returns:
-          True if succcessful, False if not successful
+            True if successful, False if not successful.
+
         """
         if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
             LogRecord(
@@ -803,12 +800,14 @@ class CommandsPlugin(BasePlugin):
     def proxy_help(self, header, header2, data):
         """Print the proxy help.
 
-        Arguments:
-          required:
-            header  - the header to print
-            data    - the data to print
+        Args:
+            header: The main header to print.
+            header2: The secondary header to print.
+            data: The help data to display.
 
-        returns the data
+        Returns:
+            The formatted help data as a list of strings.
+
         """
         newoutput = [
             "",
@@ -1295,11 +1294,12 @@ class CommandsPlugin(BasePlugin):
     def format_command_list(self, command_list: list[CommandClass]):
         """Format a list of commands by a category.
 
-        Arguments:
-          required:
-            command_list    - the list of commands to format
+        Args:
+            command_list: The list of CommandClass instances to format.
 
-        returns a list of stings for the commands
+        Returns:
+            A list of strings for the formatted commands.
+
         """
         message = []
         output_header_color = self.api("plugins.core.settings:get")(
@@ -1323,11 +1323,12 @@ class CommandsPlugin(BasePlugin):
     def _api_list_commands_formatted(self, plugin_id):
         """Build a table of commands for a plugin.
 
-        Arguments:
-          required:
-            plugin    - the plugin to build the commands from
+        Args:
+            plugin_id: The ID of the plugin to build commands from.
 
-        returns the a list of strings for the list of commands
+        Returns:
+            A list of strings for the list of commands.
+
         """
         if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
             return []

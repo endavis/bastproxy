@@ -21,6 +21,7 @@ class UpdateManager(deque):
     """
 
     def __init__(self):
+        """Initialize the update list with empty UID mapping."""
         super().__init__(maxlen=1000)
         self.uid_mapping = {}
 

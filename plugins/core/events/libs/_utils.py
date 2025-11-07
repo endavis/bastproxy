@@ -4,7 +4,12 @@
 # File Description: Holds the decorator for registering to events
 #
 # By: Bast
-""" """
+"""Decorator for registering functions to events.
+
+This module provides the `RegisterToEvent` decorator class that allows
+functions to be automatically registered as event listeners.
+
+"""
 # Standard Library
 
 # 3rd Party

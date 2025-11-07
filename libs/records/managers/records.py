@@ -22,6 +22,13 @@ if TYPE_CHECKING:
 
 
 class RecordManager:
+    """Manager for tracking and storing records of various types.
+
+    This class manages a collection of records, maintains an active record
+    stack, and provides functionality for filtering and querying records.
+
+    """
+
     def __init__(self):
         """Keep the last max_records of each type
         track the active record.
@@ -35,9 +42,21 @@ class RecordManager:
         self.default_filter = ["LogRecord"]
 
     def start(self, record):
+        """Start tracking a new active record by pushing it onto the stack.
+
+        Args:
+            record: The record to mark as active.
+
+        """
         self.active_record_stack.push(record)
 
     def end(self, record):
+        """End tracking an active record by removing it from the stack.
+
+        Args:
+            record: The record to remove from the active stack.
+
+        """
         if record != self.active_record_stack.peek():
             from libs.records import LogRecord
 
@@ -50,9 +69,25 @@ class RecordManager:
             self.active_record_stack.pop()
 
     def get_latest_record(self):
+        """Get the currently active record from the top of the stack.
+
+        Returns:
+            The most recently started record, or None if stack is empty.
+
+        """
         return self.active_record_stack.peek()
 
     def get_children(self, record, record_filter=None):
+        """Get all direct children of a record.
+
+        Args:
+            record: The parent record to find children for.
+            record_filter: Optional list of record types to exclude.
+
+        Returns:
+            A list of child records.
+
+        """
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
@@ -67,6 +102,16 @@ class RecordManager:
         )
 
     def get_all_children_dict(self, record, record_filter=None):
+        """Get all children recursively as a nested dictionary.
+
+        Args:
+            record: The parent record to find children for.
+            record_filter: Optional list of record types to exclude.
+
+        Returns:
+            A nested dictionary of records and their children.
+
+        """
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
@@ -80,6 +125,16 @@ class RecordManager:
         }
 
     def get_all_children_list(self, record, record_filter=None):
+        """Get all children recursively as a flat list.
+
+        Args:
+            record: The parent record to find children for.
+            record_filter: Optional list of record types to exclude.
+
+        Returns:
+            A flat list of all descendant records.
+
+        """
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
@@ -88,6 +143,16 @@ class RecordManager:
         return self.api("plugins.core.utils:get.keys.from.dict")(children)
 
     def format_all_children(self, record, record_filter=None):
+        """Format all children as a tree structure with indentation.
+
+        Args:
+            record: The parent record to format children for.
+            record_filter: Optional list of record types to exclude.
+
+        Returns:
+            A list of formatted strings showing the record tree.
+
+        """
         if not record_filter:
             record_filter = []
         rfilter = self.default_filter[:]
@@ -101,6 +166,19 @@ class RecordManager:
     def format_all_children_helper(
         self, children, indent=0, emptybar=None, output=None, record_filter=None
     ):
+        """Helper method to recursively format children with proper indentation.
+
+        Args:
+            children: Dictionary of child records to format.
+            indent: Current indentation level (default: 0).
+            emptybar: Dictionary tracking which indent levels are empty.
+            output: List to append formatted lines to.
+            record_filter: Optional list of record types to exclude.
+
+        Returns:
+            A list of formatted strings with proper tree indentation.
+
+        """
         if not emptybar:
             emptybar = {}
         emptybar[indent] = False
@@ -122,6 +200,12 @@ class RecordManager:
         return output
 
     def add(self, record):
+        """Add a record to the manager's tracking system.
+
+        Args:
+            record: The record to add.
+
+        """
         queuename = record.__class__.__name__
         if queuename not in self.records:
             self.records[queuename] = SimpleQueue(self.max_records)
@@ -140,13 +224,38 @@ class RecordManager:
                 del self.record_instances[last_record.uuid]
 
     def get_types(self):
+        """Get all record types and their counts.
+
+        Returns:
+            A list of tuples containing (record_type, count).
+
+        """
         return [(key, self.records[key].size()) for key in self.records]
 
     def get_records(self, recordtype, count=10):
+        """Get the last N records of a specific type.
+
+        Args:
+            recordtype: The type of records to retrieve.
+            count: Number of records to retrieve (default: 10).
+
+        Returns:
+            A list of records, or None if type doesn't exist.
+
+        """
         records = self.records.get(recordtype, None)
         return records.get_last_x(count) if records else records
 
     def get_record(self, recordid):
+        """Get a specific record by its UUID.
+
+        Args:
+            recordid: The UUID of the record to retrieve.
+
+        Returns:
+            The record if found, None otherwise.
+
+        """
         return self.record_instances.get(recordid, None)
 
 

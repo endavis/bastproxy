@@ -176,14 +176,12 @@ class CommandClass:
     def format_return_message(self, message):
         """Format a return message.
 
-        Arguments:
-          required:
-            message     - the message
-            plugin_id   - the id of the plugin
-            command     - the command from the plugin
+        Args:
+            message: The message to format with plugin ID and command info.
 
         Returns:
-          the updated message
+            The formatted message with appropriate colors and formatting.
+
         """
         simple = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "simple_output"

@@ -90,12 +90,12 @@ class PluginManager(BasePlugin):
     def _get_package_plugins(self, package):
         """Create a message of loaded plugins in a package.
 
-        Arguments:
-          required:
-            package - the package name
+        Args:
+            package: The package name to list plugins from.
 
         Returns:
-          a list of strings of loaded plugins in the specified package
+            A list of strings of loaded plugins in the specified package.
+
         """
         msg = []
         if "plugins" not in package:
