@@ -41,7 +41,7 @@ from collections.abc import Callable
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from ._apiitem import APIItem
 
