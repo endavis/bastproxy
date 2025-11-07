@@ -3,9 +3,9 @@
 # package, this name will be registered for you. It will determine how
 # users can install this project, e.g.:
 #
-# $ pip install sampleproject
+# $ pip install bastproxy
 #
-# And where it will live on PyPI: https://pypi.org/project/sampleproject/
+# And where it will live on PyPI: https://pypi.org/project/bastproxy/
 #
 # There are some restrictions on what makes a valid project name
 # specification here:
@@ -22,7 +22,7 @@ version = "2.0.0"  # Required
 # This is a one-line description or tagline of what your project does. This
 # corresponds to the "Summary" metadata field:
 # https://packaging.python.org/specifications/core-metadata/#summary
-description = "A mudproxy written in Python"  # Optional
+description = "A MUD proxy with plugin support for Python 3.12+"  # Optional
 
 # This is an optional longer description of your project that represents
 # the body of text which users will see when they visit PyPI.
@@ -34,11 +34,58 @@ description = "A mudproxy written in Python"  # Optional
 # https://packaging.python.org/specifications/core-metadata/#description-optional
 readme = "README.md" # Optional
 
-# Specify which Python versions you support. In contrast to the
+# Specify the Python versions you support. In contrast to the
 # 'Programming Language' classifiers above, 'pip install' will check this
 # and refuse to install the project if the version does not match. See
 # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
 requires-python = ">=3.12"
+
+# List of authors
+authors = [
+    {name = "Bast", email = "bast@bastproxy.com"}
+]
+
+# List of maintainers
+maintainers = [
+    {name = "endavis", email = "endavis@users.noreply.github.com"}
+]
+
+# License
+license = {text = "MIT"}
+
+# Keywords for PyPI search
+keywords = [
+    "mud",
+    "proxy",
+    "telnet",
+    "gaming",
+    "mush",
+    "mux",
+    "moo",
+    "asyncio",
+    "plugin",
+]
+
+# PyPI classifiers
+# See https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Games/Entertainment",
+    "Topic :: Communications",
+    "Topic :: System :: Networking",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
+    "Typing :: Typed",
+]
+
+# Dependencies
 dependencies = [
     "dumper>=1.2.0",
     "humanize>=4.11.0",
@@ -47,6 +94,18 @@ dependencies = [
     "regex>=2024.9.11",
     "telnetlib3>=2.0.4",
 ]
+
+# Project URLs
+[project.urls]
+Homepage = "https://github.com/endavis/bastproxy-py3"
+Documentation = "https://github.com/endavis/bastproxy-py3/wiki"
+Repository = "https://github.com/endavis/bastproxy-py3"
+Issues = "https://github.com/endavis/bastproxy-py3/issues"
+Changelog = "https://github.com/endavis/bastproxy-py3/releases"
+
+# Entry points for CLI scripts
+[project.scripts]
+bastproxy = "mudproxy:main"
 
 [project.optional-dependencies]
 dev = [
