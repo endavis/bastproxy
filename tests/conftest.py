@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: tests/conftest.py
 #
@@ -11,11 +10,12 @@ This module provides common fixtures and configuration for all tests in the
 bastproxy test suite.
 
 """
-import pytest
 import asyncio
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -54,6 +54,7 @@ def mock_api():
 
     """
     from unittest.mock import MagicMock
+
     from libs.api import API
 
     mock = MagicMock(spec=API)

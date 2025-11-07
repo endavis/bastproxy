@@ -160,11 +160,11 @@ Example:
 def test_queue_maintains_fifo_order():
     """Test that queue maintains FIFO order."""
     q = Queue()
-    
+
     q.enqueue("first")
     q.enqueue("second")
     q.enqueue("third")
-    
+
     assert q.dequeue() == "first"
     assert q.dequeue() == "second"
     assert q.dequeue() == "third"
@@ -186,7 +186,7 @@ def test_queue_maintains_fifo_order():
    git add .
    git commit -m "Add feature: description"
    ```
-   
+
    Commit message format:
    - First line: Brief summary (< 50 characters)
    - Blank line
@@ -276,11 +276,11 @@ from libs.api import AddAPI
 
 class YourPlugin(BasePlugin):
     """Your plugin implementation."""
-    
+
     def __init__(self, plugin_id, plugin_info):
         """Initialize the plugin."""
         super().__init__(plugin_id, plugin_info)
-        
+
     @AddAPI('your.api.function', description='API description')
     def _api_your_function(self, param: str) -> str:
         """Your API function."""

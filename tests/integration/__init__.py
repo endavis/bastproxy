@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: tests/integration/__init__.py
 #

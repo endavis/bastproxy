@@ -1,4 +1,6 @@
 *.py[cod]
+*.pyc
+*.pyo
 
 # C extensions
 *.so
@@ -17,14 +19,17 @@ develop-eggs
 .installed.cfg
 lib
 lib64
-__pycache__
+__pycache__/
 
 # Installer logs
 pip-log.txt
 
 # Unit test / coverage reports
 .coverage
+.coverage.*
+htmlcov/
 .tox
+.pytest_cache/
 nosetests.xml
 
 # Translations
@@ -34,6 +39,12 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
 
 # bastproxy specific
 data

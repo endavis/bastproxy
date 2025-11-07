@@ -1,6 +1,9 @@
-Dumper==1.2.0
-RapidFuzz==3.10.0
-telnetlib3==2.0.4
-regex==2024.9.11
-psutil==6.0.0
-humanize==4.11.0
+# Runtime dependencies for BastProxy
+# Generated from pyproject.toml - for development dependencies use: pip install -e ".[dev]"
+
+dumper>=1.2.0
+humanize>=4.11.0
+psutil>=6.0.0
+rapidfuzz>=3.10.0
+regex>=2024.9.11
+telnetlib3>=2.0.4

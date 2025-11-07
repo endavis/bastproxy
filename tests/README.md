@@ -5,7 +5,7 @@ This directory contains all tests for the bastproxy project.
 ## Structure
 
 - `tests/libs/` - Unit tests for library modules
-- `tests/plugins/` - Unit tests for plugin modules  
+- `tests/plugins/` - Unit tests for plugin modules
 - `tests/integration/` - Integration tests for component interactions
 
 ## Running Tests
@@ -61,10 +61,10 @@ def test_example(temp_data_dir):
     """Test description."""
     # Arrange
     data = {"key": "value"}
-    
+
     # Act
     result = process(data)
-    
+
     # Assert
     assert result == expected
 ```

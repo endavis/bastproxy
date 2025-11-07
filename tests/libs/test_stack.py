@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: tests/libs/test_stack.py
 #
@@ -10,7 +9,6 @@
 This module contains tests for the stack data structure.
 
 """
-import pytest
 from libs.stack import Stack
 
 

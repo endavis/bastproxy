@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: tests/libs/test_persistentdict.py
 #
@@ -11,8 +10,8 @@ This module contains tests for the persistent dictionary functionality,
 including saving, loading, and context manager behavior.
 
 """
-import pytest
 from pathlib import Path
+
 from libs.persistentdict import PersistentDict
 
 

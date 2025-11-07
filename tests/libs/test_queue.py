@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Project: bastproxy
 # Filename: tests/libs/test_queue.py
 #
@@ -10,7 +9,6 @@
 This module contains tests for the queue data structure.
 
 """
-import pytest
 from libs.queue import Queue
 
 

@@ -1,0 +1,28 @@
+# Include package metadata and config files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include requirements.txt
+include pyproject.toml
+
+# Include scripts
+recursive-include scripts *.sh *.py
+
+# Include type stubs
+include libs/py.typed
+include plugins/py.typed
+
+# Exclude development and build artifacts
+exclude .editorconfig
+exclude .pre-commit-config.yaml
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude tests *
+recursive-exclude .github *
+recursive-exclude data *
+recursive-exclude evennia *
+recursive-exclude devconfig *
+recursive-exclude info *
+recursive-exclude teststuff *

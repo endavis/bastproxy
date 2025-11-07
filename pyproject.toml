@@ -50,7 +50,7 @@ maintainers = [
     {name = "endavis", email = "endavis@users.noreply.github.com"}
 ]
 
-# License
+# License - using SPDX identifier for modern setuptools
 license = {text = "MIT"}
 
 # Keywords for PyPI search
@@ -106,6 +106,18 @@ Changelog = "https://github.com/endavis/bastproxy-py3/releases"
 # Entry points for CLI scripts
 [project.scripts]
 bastproxy = "mudproxy:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Automatically discover all packages
+packages = {find = {where = ["."], include = ["libs*", "plugins*"]}}
+
+[tool.setuptools.package-data]
+libs = ["py.typed"]
+plugins = ["py.typed"]
 
 [project.optional-dependencies]
 dev = [

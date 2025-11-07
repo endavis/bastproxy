@@ -38,7 +38,7 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
    ```bash
    pip install -r requirements.txt
    ```
-   
+
    Or for development:
    ```bash
    pip install -e ".[dev]"
@@ -102,7 +102,7 @@ from libs.api import AddAPI
 
 class YourPlugin(BasePlugin):
     """Your plugin implementation."""
-    
+
     @AddAPI('your.api.function', description='Your API function')
     def _api_your_function(self, data: str) -> str:
         """Process data."""
