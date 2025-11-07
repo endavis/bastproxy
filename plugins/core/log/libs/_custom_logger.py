@@ -110,6 +110,10 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
+        # Check if quiet mode is enabled
+        if self.api.quiet_mode:
+            return
+
         update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(

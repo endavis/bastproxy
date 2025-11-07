@@ -81,6 +81,9 @@ class API:  # sourcery skip: upper-camel-case-classes
     # a flag to show that bastproxy is starting up
     startup: bool = False
 
+    # a flag to suppress console output (logs still go to file)
+    quiet_mode: bool = False
+
     # a flag to show that bastproxy is shutting down
     shutdown: bool = False
 

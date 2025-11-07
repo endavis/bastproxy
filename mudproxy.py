@@ -60,12 +60,11 @@ BASEAPI.proxy_start_time = datetime.datetime.now(datetime.UTC)
 # set the startup flag
 BASEAPI.startup = True
 
-# set the logging format (this is overwritten when libs.log.setup_loggers is called)
-logging.basicConfig(
-    stream=sys.stdout,
-    level="INFO",
-    format="%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
-)
+# quiet mode flag (set by command line argument)
+BASEAPI.quiet_mode = False
+
+# Temporary logging setup will be configured after argument parsing
+# to respect the --quiet flag
 
 # change LOG_IN_UTC_TZ to False if you want to log in local time
 # updates the formatter for the logging module
@@ -261,7 +260,39 @@ def main() -> None:
         default="",
     )
 
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        help="suppress console output (logs still written to file)",
+        action="store_true",
+        default=False,
+    )
+
     args = vars(parser.parse_args())
+
+    # Set quiet mode if requested
+    if args.get("quiet", False):
+        BASEAPI.quiet_mode = True
+        # In quiet mode, set up a basic file handler for early logging
+        # This will be replaced when plugins.core.log loads
+        log_file = BASEAPI.BASEDATALOGPATH / "bastproxy.log"
+        file_handler = logging.FileHandler(log_file, mode="a")
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
+            )
+        )
+        logging.basicConfig(
+            level="INFO",
+            handlers=[file_handler],
+        )
+    else:
+        # Set up temporary console logging (will be replaced by plugins.core.log)
+        logging.basicConfig(
+            stream=sys.stdout,
+            level="INFO",
+            format="%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
+        )
 
     MP = MudProxy()
 
