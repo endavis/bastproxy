@@ -13,7 +13,6 @@ see info/logging_notes.txt for more information about logging
 import logging
 import logging.handlers
 import numbers
-import os
 import sys
 import traceback
 
