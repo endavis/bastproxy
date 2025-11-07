@@ -49,6 +49,7 @@ class FuzzyPlugin(BasePlugin):
         scorer: str = "ratio",
     ) -> str:
         """Get the best match for a string in a list of strings
+
         @Yitem_to_match@w  = the string to find the closest match for
         @Ylist_to_match@w  = the list of strings to match against.
 
@@ -121,6 +122,7 @@ class FuzzyPlugin(BasePlugin):
         scorer: str = "ratio",
     ) -> list:
         """Scorer can be ratio, partial_ratio, token_sort_ratio,
+
                         token_set_ratio, partial_token_sort_ratio,
                         partial_token_set_ratio.
 

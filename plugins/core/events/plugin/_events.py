@@ -122,6 +122,7 @@ class EventsPlugin(BasePlugin):
 
     def get_event_registration_functions_in_object(self, base, recurse=True):
         """Recursively search for functions that are commands in a plugin instance
+
         and it's attributes.
         """
         function_list = []
@@ -207,6 +208,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("get.event", description="return the event")
     def _api_get_event(self, event_name):
         """Return an event
+
         @Yevent_name@w   = the event to return.
 
         this function returns an Event object
@@ -219,6 +221,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("has.event", description="return the event")
     def _api_has_event(self, event_name):
         """Check if an event exists
+
         @Yevent_name@w   = the event to check for.
 
         this function returns True if found, False otherwise
@@ -231,6 +234,7 @@ class EventsPlugin(BasePlugin):
     )
     def _api_is_registered_to_event(self, event_name, func):
         """Check if a function is registered to an event
+
         @Yevent_name@w   = the event to check
         @Yfunc@w        = the function to check for.
 
@@ -244,6 +248,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("register.to.event", description="register a function to an event")
     def _api_register_to_event(self, event_name, func, **kwargs):
         """Register a function to an event
+
         @Yevent_name@w   = The event to register with
         @Yfunc@w        = The function to register
         keyword arguments:
@@ -274,6 +279,7 @@ class EventsPlugin(BasePlugin):
     def _api_unregister_from_event(self, event_name, func):
         # pylint: disable=unused-argument
         """Unregister a function from an event
+
         @Yevent_name@w   = The event to unregister with
         @Yfunc@w        = The function to unregister.
 
@@ -294,6 +300,7 @@ class EventsPlugin(BasePlugin):
     )
     def _api_remove_events_for_owner(self, owner_id):
         """Remove all registered functions that are specific to a owner_id
+
         @Yowner_id@w   = The owner to remove events for
         this function returns no values.
         """
@@ -356,6 +363,7 @@ class EventsPlugin(BasePlugin):
     ):
         # pylint: disable=too-many-nested-blocks
         """Raise an event with args
+
         @Yevent_name@w   = The event to raise
         @Yargs@w         = A dict or EventDataRecord of arguments.
         """
@@ -394,6 +402,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("get.event.detail", description="get the details of an event")
     def _api_get_event_detail(self, event_name):
         """Get the details of an event
+
         @Yevent_name@w = The event name.
 
         this function returns a list of strings for the info
@@ -410,6 +419,7 @@ class EventsPlugin(BasePlugin):
     @AddArgument("event", help="the event to raise", default="", nargs="?")
     def _command_raise(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         raise an event - only works for events with no arguments
         @CUsage@w: raise @Y<event_name>@w
           @Yevent_name@w  = the event_name to raise.
@@ -430,6 +440,7 @@ class EventsPlugin(BasePlugin):
     )
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         list events and the owner ids registered with them
         @CUsage@w: detail show @Y<event_name>@w
           @Yevent_name@w  = the event_name to get info for.
@@ -484,6 +495,7 @@ class EventsPlugin(BasePlugin):
     )
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         list events and the owner_ids registered with them
         @CUsage@w: list.
         """

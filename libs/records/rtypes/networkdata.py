@@ -5,6 +5,7 @@
 #
 # By: Bast
 """Holds the data line record."""
+
 # Standard Library
 
 # 3rd Party
@@ -15,6 +16,7 @@ from libs.records.rtypes.log import LogRecord
 
 class NetworkDataLine(BaseRecord):
     """A record to hold a line of data that will be sent to the clients
+
     or the mud.
     """
 
@@ -260,13 +262,15 @@ class NetworkData(TrackedUserList):
 
     def __init__(
         self,
-        message: NetworkDataLine
-        | str
-        | bytes
-        | list[NetworkDataLine]
-        | list[str]
-        | list[bytes]
-        | None = None,
+        message: (
+            NetworkDataLine
+            | str
+            | bytes
+            | list[NetworkDataLine]
+            | list[str]
+            | list[bytes]
+            | None
+        ) = None,
         owner_id: str = "",
     ):
         """Initialize the class."""
@@ -281,9 +285,7 @@ class NetworkData(TrackedUserList):
             old_item = item
             if not (isinstance(item, (NetworkDataLine, str, bytes))):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)}"
-                raise TypeError(
-                    msg
-                )
+                raise TypeError(msg)
             if isinstance(item, (str, bytes)):
                 item = NetworkDataLine(item)
                 self[self.index(old_item)] = item
@@ -313,9 +315,7 @@ class NetworkData(TrackedUserList):
         """Set the item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
@@ -326,9 +326,7 @@ class NetworkData(TrackedUserList):
         """Insert an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
@@ -339,9 +337,7 @@ class NetworkData(TrackedUserList):
         """Append an item."""
         if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
             msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
         if isinstance(item, (str, bytes, bytearray)):
             item = NetworkDataLine(item)
             item.parent = self
@@ -354,9 +350,7 @@ class NetworkData(TrackedUserList):
         for item in items:
             if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
                 msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-                raise TypeError(
-                    msg
-                )
+                raise TypeError(msg)
             if isinstance(item, (str, bytes, bytearray)):
                 item = NetworkDataLine(item)
             item.parent = self

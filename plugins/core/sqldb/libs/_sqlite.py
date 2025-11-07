@@ -350,6 +350,7 @@ class Sqldb:
 
     def checkdictforcolumnumns(self, tablename, temp_dict):
         """Check that a dictionary has the correct columnumns and return
+
         a new dictionary.
         """
         new_dict = {}
@@ -573,6 +574,7 @@ class Sqldb:
 
     def selectbykeyword(self, selectstmt, keyword):
         """Run a select statement against the database, return a dictionary
+
         where the keys are the keyword specified.
         """
         result = {}

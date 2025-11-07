@@ -20,12 +20,14 @@ class TestStack:
 
     def test_create_empty_stack(self) -> None:
         """Test creating an empty stack."""
+
         s: Stack = Stack()
         assert s.size() == 0
         assert s.isempty()
 
     def test_push_pop(self) -> None:
         """Test basic push and pop operations."""
+
         s: Stack = Stack()
 
         s.push("item1")
@@ -39,6 +41,7 @@ class TestStack:
 
     def test_lifo_order(self) -> None:
         """Test that stack maintains LIFO order."""
+
         s: Stack = Stack()
 
         s.push("first")
@@ -51,6 +54,7 @@ class TestStack:
 
     def test_peek(self) -> None:
         """Test peeking at top element without removing."""
+
         s: Stack = Stack()
 
         s.push("item")
@@ -61,12 +65,14 @@ class TestStack:
 
     def test_peek_empty_returns_none(self) -> None:
         """Test that peeking at empty stack returns None."""
+
         s: Stack = Stack()
 
         assert s.peek() is None
 
     def test_size(self) -> None:
         """Test size() method."""
+
         s: Stack = Stack()
 
         assert s.size() == 0
@@ -79,6 +85,7 @@ class TestStack:
 
     def test_getstack_returns_copy(self) -> None:
         """Test that getstack() returns a copy of stack items."""
+
         s: Stack = Stack()
 
         s.push("item1")
@@ -91,6 +98,7 @@ class TestStack:
 
     def test_remove_item(self) -> None:
         """Test removing a specific item from stack."""
+
         s: Stack = Stack()
 
         s.push("item1")
@@ -104,6 +112,7 @@ class TestStack:
 
     def test_pop_empty_raises_error(self) -> None:
         """Test that popping from empty stack raises IndexError."""
+
         s: Stack = Stack()
 
         with pytest.raises(IndexError):
@@ -111,6 +120,7 @@ class TestStack:
 
     def test_remove_nonexistent_raises_error(self) -> None:
         """Test that removing nonexistent item raises ValueError."""
+
         s: Stack = Stack()
 
         s.push("item1")
@@ -120,6 +130,7 @@ class TestStack:
 
     def test_multiple_push_pop(self) -> None:
         """Test multiple push and pop operations."""
+
         s: Stack = Stack()
 
         # Push several items
@@ -136,6 +147,7 @@ class TestStack:
 
     def test_mixed_operations(self) -> None:
         """Test mixing push, pop, and peek operations."""
+
         s: Stack = Stack()
 
         s.push("first")
@@ -156,6 +168,7 @@ class TestStack:
 
     def test_snapshot(self) -> None:
         """Test snapshot functionality."""
+
         s: Stack = Stack()
 
         s.push("item1")
@@ -172,6 +185,7 @@ class TestStack:
 
     def test_fixed_length_stack(self) -> None:
         """Test stack with fixed length removes oldest items."""
+
         s: Stack = Stack(length=3)
 
         s.push("item1")
@@ -187,6 +201,7 @@ class TestStack:
 
     def test_get_by_id(self) -> None:
         """Test getting items by ID when id_key is set."""
+
         s: Stack = Stack(id_key="id")
 
         s.push({"id": "1", "value": "first"})
@@ -202,6 +217,7 @@ class TestStack:
 
     def test_get_by_id_no_id_key(self) -> None:
         """Test get_by_id returns None when no id_key is set."""
+
         s: Stack = Stack()
 
         s.push({"id": "1", "value": "test"})

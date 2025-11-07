@@ -24,6 +24,7 @@ class RegisterToEvent:
 
     def __init__(self, **kwargs):
         """kwargs:
+
         event_name: the event to register to
         priority: the priority to register the function with (Default: 50).
         """

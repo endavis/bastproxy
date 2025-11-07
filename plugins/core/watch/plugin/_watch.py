@@ -102,6 +102,7 @@ class WatchPlugin(BasePlugin):
     @AddAPI("watch.add", description="add a watch")
     def _api_watch_add(self, watch_name, regex, owner=None, **kwargs):
         """Add a command watch
+
         @Ywatch_name@w   = name
         @Yregex@w    = the regular expression that matches this command
         @Yplugin@w   = the plugin this comes from
@@ -167,6 +168,7 @@ class WatchPlugin(BasePlugin):
     @AddAPI("watch.remove", description="remove a watch")
     def _api_watch_remove(self, watch_name, force=False):
         """Remove a command watch
+
         @Ywatch_name@w   = The watch name
         @Yforce@w       = force removal if functions are registered.
 
@@ -202,6 +204,7 @@ class WatchPlugin(BasePlugin):
     @AddAPI("remove.all.data.for.plugin", description="remove all watches for a plugin")
     def _api_remove_all_data_for_plugin(self, plugin):
         """Remove all watches related to a plugin
+
         @Yplugin@w   = The plugin.
 
         this function returns no values

@@ -42,6 +42,7 @@ class APIPlugin(BasePlugin):
     )
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         detail a function in the api
           @CUsage@w: detail @Y<api>@w
           @Yapi@w = (optional) the api to detail.
@@ -78,6 +79,7 @@ class APIPlugin(BasePlugin):
     )
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         List functions in the api
           @CUsage@w: list @Y<apiname>@w
           @Yapiname@w = (optional) the toplevel api to show.
@@ -111,6 +113,7 @@ class APIPlugin(BasePlugin):
     @AddArgument("arguments", help="arguments to the api", default="", nargs="*")
     def _command_call(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         Call an API
           @CUsage@w: call @Y<apiname>@w
           -a @Yapiname@w  = the api to call

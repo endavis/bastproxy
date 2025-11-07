@@ -140,6 +140,7 @@ class BaseRecord(AttributeMonitor):
 
     def addupdate(self, flag: str, action: str, extra: dict | None = None):
         """Add a change event for this record
+
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
@@ -185,6 +186,7 @@ class BaseRecord(AttributeMonitor):
 
     def get_attributes_to_format(self):
         """Attributes to format in the details
+
         0 will be the top section
         1 is the middle section
         3 is the bottom section.
@@ -598,6 +600,7 @@ class BaseListRecord(UserList, BaseRecord):
         self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
     ):
         """Add a change event for this record
+
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)
@@ -656,6 +659,7 @@ class BaseDictRecord(BaseRecord, UserDict):
         self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
     ):
         """Add a change event for this record
+
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
             actor: the item that changed the message (likely a plugin)

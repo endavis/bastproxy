@@ -68,6 +68,7 @@ class ErrorPlugin(BasePlugin):
     )
     def _command_show(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         show the error queue
         @CUsage@w: show.
         """

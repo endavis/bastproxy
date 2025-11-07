@@ -6,6 +6,7 @@
 #
 # By: Bast
 """manages all plugins."""
+
 # Standard Library
 
 # 3rd Party
@@ -227,6 +228,7 @@ class PluginManager(BasePlugin):
     )
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         List plugins
         @CUsage@w: list.
         """
@@ -247,6 +249,7 @@ class PluginManager(BasePlugin):
 
     def _load_other_plugins_after_core_and_client_plugins(self):
         """Load plugins after core and client plugins have been loaded
+
         from the pluginstoload setting.
         """
         plugins_to_load_setting = self.api("plugins.core.settings:get")(
@@ -316,6 +319,7 @@ class PluginManager(BasePlugin):
     )
     def _command_load(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
           Load a plugin
           @CUsage@w: load @Yplugin@w
             @Yplugin@w    = the id of the plugin to load,
@@ -379,6 +383,7 @@ class PluginManager(BasePlugin):
     @AddArgument("plugin", help="the plugin to unload", default="", nargs="?")
     def _command_unload(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         unload a plugin
         @CUsage@w: unload @Yplugin@w
           @Yplugin@w    = the id of the plugin to unload,
@@ -411,6 +416,7 @@ class PluginManager(BasePlugin):
     @AddArgument("plugin", help="the plugin to reload", default="", nargs="?")
     def _command_reload(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         reload a plugin
         @CUsage@w: reload @Yplugin@w
           @Yplugin@w    = the id of the plugin to reload,
@@ -447,6 +453,7 @@ class PluginManager(BasePlugin):
     )
     def _eventcb_all_events_registered(self):
         """This resends all the different plugin initialization events,
+
         saves all plugin states, and adds the save plugin timer.
         """
         self._load_other_plugins_after_core_and_client_plugins()

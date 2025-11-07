@@ -5,6 +5,7 @@
 #
 # By: Bast
 """This "package"" has classes for various record types and record managers
+
 The public record types ones are:
     SendDataDirectlyToClient - send data to the client
     ProcessDataToClient - process data to send to the client

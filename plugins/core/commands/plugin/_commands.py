@@ -337,6 +337,7 @@ class CommandsPlugin(BasePlugin):
 
     def get_command_functions_in_object(self, base, recurse=True):
         """Recursively search for functions that are commands in a plugin instance
+
         and it's attributes.
         """
         function_list = []
@@ -528,6 +529,7 @@ class CommandsPlugin(BasePlugin):
     )
     def _api_remove_data_for_plugin(self, plugin_id):
         """Remove all command data for a plugin
+
         @Yplugin@w    = the plugin to remove commands for.
 
         this function returns no values
@@ -557,6 +559,7 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("command.help.format", description="format a help string for a command")
     def _api_command_help_format(self, plugin_id, command_name):
         """Get the help for a command
+
         @Yplugin@w        = the plugin the command is in
         @Ycommand_name@w  = the command name.
 
@@ -576,6 +579,7 @@ class CommandsPlugin(BasePlugin):
     )
     def _api_get_commands_for_plugin_data(self, plugin_id):
         """Get the data for commands for the specified plugin
+
         @Yplugin@w   = the plugin the command is in.
 
         returns a dictionary of commands
@@ -589,6 +593,7 @@ class CommandsPlugin(BasePlugin):
         self, plugin_id: str, command_name: str, argument_string: str = "", format=False
     ) -> tuple[bool | None, list[str]]:
         """Run a command and return the output
+
         @Yplugin_id@w          = the plugin_id the command is in
         @Ycommand_name@w    = the command name
         @Yargument_string@w = the string of parameters for the command.
@@ -1223,6 +1228,7 @@ class CommandsPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_for_command(self) -> None:
         """Check if the line is a command from the client
+
         if it is, the command is parsed and executed
         and the output sent to the client.
         """
@@ -1260,6 +1266,7 @@ class CommandsPlugin(BasePlugin):
     # remove a command
     def _api_remove_command(self, plugin_id, command_name):
         """Remove a command
+
         @Yplugin@w        = the top level of the command
         @Ycommand_name@w  = the name of the command.
 
@@ -1421,6 +1428,7 @@ class CommandsPlugin(BasePlugin):
     )
     def _command_list(self, _=None):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         list commands.
 
         @CUsage@w: @B%(cmdname)s@w @Yplugin@w
@@ -1463,6 +1471,7 @@ class CommandsPlugin(BasePlugin):
     @AddArgument("number", help="the history # to run", default=-1, nargs="?", type=int)
     def _command_run_history(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         act on the command history.
 
         @CUsage@w: @B%(cmdname)s@w @Ynumber@w
@@ -1493,6 +1502,7 @@ class CommandsPlugin(BasePlugin):
     @AddArgument("-c", "--clear", help="clear the history", action="store_true")
     def _command_history(self):
         """@G%(name)s@w - @B%(cmdname)s@w
+
         list the command history.
 
         @CUsage@w: @B%(cmdname)s@w

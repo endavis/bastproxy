@@ -20,12 +20,14 @@ class TestQueue:
 
     def test_create_empty_queue(self) -> None:
         """Test creating an empty queue."""
+
         q: Queue = Queue()
         assert len(q) == 0
         assert q.isempty()
 
     def test_enqueue_dequeue(self) -> None:
         """Test basic enqueue and dequeue operations."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")
@@ -39,6 +41,7 @@ class TestQueue:
 
     def test_fifo_order(self) -> None:
         """Test that queue maintains FIFO order."""
+
         q: Queue = Queue()
 
         q.enqueue("first")
@@ -51,6 +54,7 @@ class TestQueue:
 
     def test_queue_length_tracking(self) -> None:
         """Test that len() works via __len__ dunder method."""
+
         q: Queue = Queue()
 
         assert len(q) == 0
@@ -64,6 +68,7 @@ class TestQueue:
 
     def test_iteration_support(self) -> None:
         """Test iteration via __iter__ dunder method."""
+
         q: Queue = Queue()
 
         q.enqueue("first")
@@ -75,6 +80,7 @@ class TestQueue:
 
     def test_fixed_length_queue(self) -> None:
         """Test queue with fixed length removes oldest items."""
+
         q: Queue = Queue(length=3)
 
         q.enqueue("item1")
@@ -89,6 +95,7 @@ class TestQueue:
 
     def test_snapshot(self) -> None:
         """Test snapshot functionality."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")
@@ -105,6 +112,7 @@ class TestQueue:
 
     def test_get_returns_copy(self) -> None:
         """Test that get() returns a copy of items."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")
@@ -117,6 +125,7 @@ class TestQueue:
 
     def test_get_last_x(self) -> None:
         """Test getting last X items."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")
@@ -130,6 +139,7 @@ class TestQueue:
 
     def test_get_by_id(self) -> None:
         """Test retrieving items by ID."""
+
         q: Queue = Queue(id_key="id")
 
         item1 = {"id": "abc", "data": "test1"}
@@ -143,6 +153,7 @@ class TestQueue:
 
     def test_get_by_id_not_found(self) -> None:
         """Test get_by_id returns None for missing ID."""
+
         q: Queue = Queue(id_key="id")
 
         item = {"id": "abc", "data": "test"}
@@ -153,6 +164,7 @@ class TestQueue:
 
     def test_iterator(self) -> None:
         """Test that queue can be iterated."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")
@@ -164,6 +176,7 @@ class TestQueue:
 
     def test_size_method(self) -> None:
         """Test size() method."""
+
         q: Queue = Queue()
 
         assert q.size() == 0
@@ -175,6 +188,7 @@ class TestQueue:
 
     def test_dequeue_empty_raises_error(self) -> None:
         """Test that dequeuing from empty queue raises IndexError."""
+
         q: Queue = Queue()
 
         with pytest.raises(IndexError):
@@ -182,6 +196,7 @@ class TestQueue:
 
     def test_get_last_x_negative_count(self) -> None:
         """Test that get_last_x with negative count raises ValueError."""
+
         q: Queue = Queue()
 
         q.enqueue("item1")

@@ -112,6 +112,7 @@ class UtilsPlugin(BasePlugin):
         self, start_time, end_time, fmin=False, colorn="", colors="", nosec=False
     ):
         """Take two times and return a string of the difference
+
         in the form ##d:##h:##m:##s.
         """
         # convert start_time to seconds
@@ -416,6 +417,7 @@ class UtilsPlugin(BasePlugin):
     )
     def _api_convert_data_to_output_table(self, table_name, data, columns, color=""):
         """Columns is a list of dicts
+
         dict format:
             'name'  : string for the column name,
             'key'   : dictionary key,

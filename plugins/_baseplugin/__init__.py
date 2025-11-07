@@ -5,6 +5,7 @@
 #
 # By: Bast
 """This module holds the class BasePlugin, which all plugins should have as
+
 their base class.
 """
 

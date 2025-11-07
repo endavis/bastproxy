@@ -5,6 +5,7 @@
 #
 # By: Bast
 """holds base color codes for ansi and xterm."""
+
 # Standard Library
 
 # 3rd Party

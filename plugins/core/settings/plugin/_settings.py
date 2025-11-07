@@ -44,6 +44,7 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("add", description="add a setting to a plugin")
     def _api_add(self, plugin_id, setting_name, default, stype, help, **kwargs):
         """@Yplugin_id@w     = the plugin_id of the owner of the setting
+
         @Ysetting_name@w  = the name of the setting
         @Ydefault@w    = the default value of the setting
         @Ystype@w      = the type of the setting
@@ -103,6 +104,7 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("get", description="get the value of a setting")
     def _api_setting_get(self, plugin_id, setting):
         """Get the value of a setting
+
         @Ysetting@w = the setting value to get
         @Yplugin@w = the plugin to get the setting from (optional).
 
@@ -164,6 +166,7 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("change", description="change the value of a setting")
     def _api_setting_change(self, plugin_id, setting, value):
         """Change a setting
+
         @Yplugin_id@w     = the plugin_id of the owner of the setting
         @Ysetting@w    = the name of the setting to change
         @Yvalue@w      = the value to set it as.
@@ -446,11 +449,13 @@ class SettingsPlugin(BasePlugin):
     @AddCommand(group="Settings", name="pset", show_in_history=False)
     @AddParser(
         formatter_class=argp.RawDescriptionHelpFormatter,
-        description=textwrap.dedent("""
+        description=textwrap.dedent(
+            """
                 change a setting in the plugin
 
                 if there are no arguments or 'list' is the first argument then
-                it will list the settings for the plugin"""),
+                it will list the settings for the plugin"""
+        ),
     )
     @AddArgument("name", help="the setting name", default="list", nargs="?")
     @AddArgument("value", help="the new value of the setting", default="", nargs="?")

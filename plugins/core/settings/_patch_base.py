@@ -25,11 +25,13 @@ CANRELOAD = False
 
             if there are no arguments or 'list' is the first argument then
             it will list the settings for the plugin"""),
+
 )
 @AddArgument("name", help="the setting name", default="list", nargs="?")
 @AddArgument("value", help="the new value of the setting", default="", nargs="?")
 def _command_settings_plugin_set(self):
     """@G%(name)s@w - @B%(cmdname)s@w
+
     List or set vars
     @CUsage@w: var @Y<varname>@w @Y<varvalue>@w
         @Yname@w    = The setting to set

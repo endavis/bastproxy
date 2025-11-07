@@ -26,6 +26,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, plugin_id, plugin_info):
         """Initialize the instance
+
         The only things that should be done are:
               initializing class variables and initializing the class
               only use libs.api:add
@@ -108,6 +109,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _get_all_plugin_hook_functions(self) -> dict:
         """Recursively search for functions that are commands in a plugin instance
+
         and it's attributes that are registered to a load hook.
         """
         function_list = {}
@@ -132,6 +134,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
         """Recursively search for functions that are commands in a plugin instance
+
         and it's attributes that are registered to a load hook.
         """
         function_list = {}
@@ -168,6 +171,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("data.get", description="get the data for a specific datatype")
     def _api_data_get(self, datatype, plugin_id=None):
         """Get the data of a specific type from this plugin
+
         @Ydatatype@w = the datatype to get
         @Yplugin@w   = the plugin to get the data from (optional).
 
@@ -186,6 +190,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("data.update", description="update the data for a specific datatype")
     def _api_data_update(self, datatype, newdata, plugin_id=None):
         """Get the data of a specific type from this plugin
+
         @Ydatatype@w = the datatype to get
         @Yplugin@w   = the plugin to get the data from (optional).
 
@@ -204,6 +209,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("dependency.add", description="add a dependency for this plugin")
     def _api_dependency_add(self, dependency):
         """Add a depencency
+
         @Ydependency@w    = the name of the plugin that will be a dependency.
         """
         if dependency not in self.dependencies:
@@ -266,6 +272,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("dump", description="dump this plugin or a specific attribute to a string")
     def _api_dump(self, attribute_name, detailed=False):
         """Dump this plugin or a specific attribute to a string
+
         @Yobj@w    = the object to inspect
         @Ymethod@w = the method to inspect.
 

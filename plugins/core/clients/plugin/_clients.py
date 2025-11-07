@@ -295,6 +295,7 @@ class ClientPlugin(BasePlugin):
     @AddAPI("get.all.clients", description="get all clients")
     def _api_get_all_clients(self, uuid_only=False):
         """Return a dictionary of clients
+
         two keys: view, active.
         """
         return self.clients.keys() if uuid_only else self.clients.values()
@@ -369,6 +370,7 @@ class ClientPlugin(BasePlugin):
     )
     def _command_ban(self):
         """Required
+
           ips - a list of IPs to ban or remove (this is a toggle).
 
         if the ip is already banned, it will be unbanned
