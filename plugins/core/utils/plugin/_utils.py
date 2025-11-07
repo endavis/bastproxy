@@ -394,14 +394,18 @@ class UtilsPlugin(BasePlugin):
         converted_minutes = (
             int(minutes[:-1])
             if minutes.endswith("m")
-            else int(minutes) if minutes else 0
+            else int(minutes)
+            if minutes
+            else 0
         )
 
         seconds = timelength_match_groups["seconds"]
         converted_seconds = (
             int(seconds[:-1])
             if seconds.endswith("s")
-            else int(seconds) if seconds else 0
+            else int(seconds)
+            if seconds
+            else 0
         )
 
         return (

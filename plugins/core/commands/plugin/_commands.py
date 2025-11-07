@@ -392,9 +392,7 @@ class CommandsPlugin(BasePlugin):
             return
 
         if hasattr(func, "__self__") and hasattr(func.__self__, "plugin_id"):
-            plugin_id = (
-                func.__self__.plugin_id
-            )  # pyright: ignore reportGeneralTypeIssues
+            plugin_id = func.__self__.plugin_id  # pyright: ignore reportGeneralTypeIssues
         else:
             LogRecord(
                 f"Function does not have a plugin: {func.__name__}",
@@ -403,9 +401,7 @@ class CommandsPlugin(BasePlugin):
             )()
             return
 
-        command_data = copy.deepcopy(
-            func.command_data
-        )  # pyright: ignore reportGeneralTypeIssues
+        command_data = copy.deepcopy(func.command_data)  # pyright: ignore reportGeneralTypeIssues
         if not command_data.command["autoadd"] and not force:
             LogRecord(
                 f"Command {func.__name__} in {plugin_id} will not be added, autoadd set to False",
