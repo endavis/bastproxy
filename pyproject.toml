@@ -269,6 +269,7 @@ ignore = [
     "B019",    # lru_cache on methods (intentional for API methods)
     "ARG001",  # Unused function arguments (interface conformance)
     "ARG002",  # Unused method arguments (interface conformance)
+    "UP038",   # isinstance with tuple (not available in Python 3.9)
     # Temporarily ignored - to be fixed incrementally
     "D205",    # missing-blank-line-after-summary (104 occurrences)
     "D415",    # missing-terminal-punctuation (557 occurrences)
