@@ -49,6 +49,12 @@ class ProcessDataToMud(BaseRecord):
         self.setup_events()
 
     def get_attributes_to_format(self):
+        """Get the attributes to format for display.
+
+        Returns:
+            A list of attribute tuples for formatting.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[0].extend(
             [("Show in History", "show_in_history"), ("Client ID", "client_id")]
@@ -60,6 +66,7 @@ class ProcessDataToMud(BaseRecord):
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
 
     def setup_events(self):
+        """Set up the events for this record type."""
         if not self._SETUP_EVENTS:
             self.SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(
@@ -74,6 +81,7 @@ class ProcessDataToMud(BaseRecord):
             )
 
     def seperate_commands(self):
+        """Separate multiple commands in a single line into individual lines."""
         index = 0
         while index < len(self.message):
             line = self.message[index]
@@ -162,6 +170,7 @@ class SendDataDirectlyToMud(BaseRecord):
         self.setup_events()
 
     def setup_events(self):
+        """Set up the events for this record type."""
         if not self._SETUP_EVENTS:
             self.SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(

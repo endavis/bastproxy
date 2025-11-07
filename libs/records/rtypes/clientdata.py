@@ -65,6 +65,12 @@ class ProcessDataToClient(BaseRecord):
         self.setup_events()
 
     def get_attributes_to_format(self):
+        """Get the attributes to format for display.
+
+        Returns:
+            A list of attribute tuples for formatting.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[0].extend(
             [
@@ -80,6 +86,7 @@ class ProcessDataToClient(BaseRecord):
         return attributes
 
     def setup_events(self):
+        """Set up the events for this record type."""
         if not self._SETUP_EVENTS:
             self.SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(
@@ -203,6 +210,7 @@ class SendDataDirectlyToClient(BaseRecord):
         self.setup_events()
 
     def setup_events(self):
+        """Set up the events for this record type."""
         if not self._SETUP_EVENTS:
             self.SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(

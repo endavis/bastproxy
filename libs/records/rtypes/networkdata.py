@@ -102,17 +102,30 @@ class NetworkDataLine(BaseRecord):
 
     @property
     def noansi(self):
+        """Get the line with ANSI codes stripped.
+
+        Returns:
+            The line without ANSI escape sequences.
+
+        """
         if self.is_command_telnet:
             return self.line
         return self.api("plugins.core.colors:ansicode.strip")(self.line)
 
     @property
     def colorcoded(self):
+        """Get the line with ANSI codes converted to color codes.
+
+        Returns:
+            The line with color codes.
+
+        """
         if self.is_command_telnet:
             return self.line
         return self.api("plugins.core.colors:ansicode.to.colorcode")(self.line)
 
     def lock(self):
+        """Lock all attributes to prevent further modification."""
         self._am_lock_attribute("line")
         self._am_lock_attribute("send")
         self._am_lock_attribute("is_prompt")
@@ -124,6 +137,12 @@ class NetworkDataLine(BaseRecord):
         self.addupdate("Modify", "locked")
 
     def escapecolor(self):
+        """Get the line with color codes escaped for display.
+
+        Returns:
+            The line with escaped color codes.
+
+        """
         if self.is_command_telnet:
             return self.line
         return self.api("plugins.core.colors:colorcode.escape")(self.line)
@@ -230,6 +249,12 @@ class NetworkDataLine(BaseRecord):
             self.add_line_endings()
 
     def get_attributes_to_format(self):
+        """Get the attributes to format for display.
+
+        Returns:
+            A list of attribute tuples for formatting.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[0].append(("Line Modified", "line_modified"))
         attributes[0].append(("Originated", "originated"))
@@ -237,14 +262,32 @@ class NetworkDataLine(BaseRecord):
         return attributes
 
     def one_line_summary(self):
+        """Get a one-line summary of the network data.
+
+        Returns:
+            A formatted summary string.
+
+        """
         return (
             f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {self.line!r}"
         )
 
     def __str__(self):
+        """Return a string representation of the line.
+
+        Returns:
+            The line content as a string.
+
+        """
         return self.line
 
     def __repr__(self):
+        """Return a detailed representation of the network data line.
+
+        Returns:
+            The one-line summary.
+
+        """
         return self.one_line_summary()
 
     def add_preamble(self, error: bool = False):
@@ -293,6 +336,12 @@ class NetworkData(TrackedUserList):
             item.add_parent(self)
 
     def get_first_line(self):
+        """Get the first non-empty line from the network data.
+
+        Returns:
+            The first valid line or "No data found" if empty.
+
+        """
         return (
             "No data found"
             if len(self) == 0

@@ -62,15 +62,48 @@ class UpdateRecord:
                 self.event_stack = self.api("plugins.core.events:get.event.stack")()
 
     def __hash__(self):
+        """Return the hash of this update record.
+
+        Returns:
+            An integer hash value.
+
+        """
         return hash(f"{self.__class__.__name__}:{self.uuid}")
 
     def __eq__(self, value: object) -> bool:
+        """Compare equality with another UpdateRecord.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            True if the UUIDs match, False otherwise.
+
+        """
         return self.uuid == value.uuid if isinstance(value, UpdateRecord) else False
 
     def __lt__(self, other):
+        """Compare if this update occurred before another.
+
+        Args:
+            other: The other UpdateRecord to compare with.
+
+        Returns:
+            True if this update took less time, False otherwise.
+
+        """
         return self.time_taken < other.time_taken
 
     def fix_stack(self, stack):
+        """Clean up and format the stack trace.
+
+        Args:
+            stack: The raw stack trace lines.
+
+        Returns:
+            A cleaned list of stack lines.
+
+        """
         new_stack = []
         # don't need the last 2 lines
         for line in stack:
@@ -78,6 +111,15 @@ class UpdateRecord:
         return new_stack[:-2]
 
     def find_relevant_actor(self, stack):
+        """Find the most relevant actor from the stack trace.
+
+        Args:
+            stack: The stack trace lines.
+
+        Returns:
+            The relevant stack lines for the actor or empty string.
+
+        """
         not_relevant = ["libs/records/", "libs/data", "libs/process", "tracking/utils"]
         found_actor = ""
         for line in [line for line in stack if "File" in line]:
@@ -89,6 +131,12 @@ class UpdateRecord:
         return found_actor
 
     def __str__(self):
+        """Return a string representation of the update.
+
+        Returns:
+            A formatted string with flag, action, data, and extra info.
+
+        """
         return f"{self.flag} - {self.action} - {self.data} - {self.extra}"
 
     def format(self):

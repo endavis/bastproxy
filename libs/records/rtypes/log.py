@@ -58,6 +58,12 @@ class LogRecord(BaseListRecord):
             self.sources.append(source)
 
     def format(self, actor: str = ""):
+        """Format the log message for output.
+
+        Args:
+            actor: The actor formatting the message.
+
+        """
         self.clean(actor)
         self.color_lines(actor)
 
