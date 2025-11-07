@@ -14,6 +14,8 @@ Test Classes:
 
 """
 
+import time
+
 from libs.callback import Callback
 
 # Helper functions
@@ -175,6 +177,9 @@ class TestCallbackExecution:
         assert callback.last_raised_datetime is not None
         first_time = callback.last_raised_datetime
 
+        # Small delay to ensure timestamp changes (Windows has low clock resolution)
+        time.sleep(0.001)
+
         # Execute again
         callback.execute()
 
@@ -224,6 +229,10 @@ class TestCallbackEquality:
         callback1 = Callback(
             name="same_callback", owner_id="test_owner", func=helper_test_function
         )
+
+        # Small delay to ensure timestamps differ (Windows has low clock resolution)
+        time.sleep(0.001)
+
         callback2 = Callback(
             name="same_callback", owner_id="test_owner", func=helper_test_function
         )
