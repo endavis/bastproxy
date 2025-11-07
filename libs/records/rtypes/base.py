@@ -371,10 +371,17 @@ class TrackedUserList(BaseRecord, UserList):
         return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else "No data found"}"
 
     def lock(self):
+        """Lock the data list to prevent modifications."""
         self.locked = True
         self._am_lock_attribute("data")
 
     def get_attributes_to_format(self):
+        """Get the attributes to include when formatting this data list.
+
+        Returns:
+            Dictionary mapping section numbers to attribute lists.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[2].append(("Data", "data"))
 
@@ -484,6 +491,12 @@ class BaseListRecord(UserList, BaseRecord):
         return f"{self.__class__.__name__:<20} {self.uuid} {first_str!r}"
 
     def get_attributes_to_format(self):
+        """Get the attributes to include when formatting this list record.
+
+        Returns:
+            Dictionary mapping section numbers to attribute lists.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[0].extend(
             [("Internal", "internal"), ("Message Type", "message_type")]
@@ -626,6 +639,12 @@ class BaseDictRecord(BaseRecord, UserDict):
         return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[next(iter(self.original_data.keys()))].strip()}"
 
     def get_attributes_to_format(self):
+        """Get the attributes to include when formatting this dict record.
+
+        Returns:
+            Dictionary mapping section numbers to attribute lists.
+
+        """
         attributes = super().get_attributes_to_format()
         attributes[2].append(("Data", "data"))
         if self.original_data != self.data:
