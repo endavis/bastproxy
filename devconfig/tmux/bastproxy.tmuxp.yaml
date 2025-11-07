@@ -29,17 +29,17 @@ windows:
     shell_command_before:
       - '[ -f .python/bin/activate ] && source .python/bin/activate && reset'
     panes:
-      - 
+      -
   - window_name: Git
     shell_command_before:
       - '[ -f .python/bin/activate ] && source .python/bin/activate && reset'
     panes:
-      - 
+      -
   - window_name: Search
     shell_command_before:
       - '[ -f .python/bin/activate ] && source .python/bin/activate && reset'
     panes:
-      - 
+      -
   - window_name: Python
     shell_command_before:
       - '[ -f .python/bin/activate ] && source .python/bin/activate && reset'
@@ -49,4 +49,4 @@ windows:
     shell_command_before:
       - '[ -f .python312-evennia/bin/activate ] && source .python312-evennia/bin/activate && reset'
     panes:
-      - 
+      -

@@ -4,6 +4,4 @@
 # File Description: Holds the record types for the records library
 #
 # By: Bast
-"""
-Holds the record types for the records library
-"""
+"""Holds the record types for the records library"""

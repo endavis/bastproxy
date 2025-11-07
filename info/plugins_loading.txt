@@ -23,7 +23,7 @@ Steps taken when loading a single plugin:
         look for _patch_base.py to apply patches to the base Plugin class
         updates plugin_info.runtime_info.is_imported
     2) instantiate Plugin
-        updates plugin_info.runtime_info.is_loaded 
+        updates plugin_info.runtime_info.is_loaded
     3) CURRENTLY NOT IMPLEMENTED: check for dependencies
         import all dependencies
         instantiate all dependencies

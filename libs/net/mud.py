@@ -334,7 +334,7 @@ class MudConnection:
                     sources=[__name__],
                 )()
                 LogRecord(
-                    f"mud_write - Writing telnet option mud: {repr(msg_obj.line)}",
+                    f"mud_write - Writing telnet option mud: {msg_obj.line!r}",
                     level="debug",
                     sources=[__name__],
                 )()

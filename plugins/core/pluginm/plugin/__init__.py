@@ -5,6 +5,6 @@
 #
 # By: Bast
 
-__all__ = ['Plugin']
+__all__ = ["Plugin"]
 
 from ._pluginm import PluginManager as Plugin

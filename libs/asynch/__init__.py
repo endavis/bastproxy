@@ -35,13 +35,14 @@ Classes:
     - `QueueManager`: Manages the queue of tasks to be executed asynchronously.
 
 """
+
 # Standard Library
 import asyncio
 import functools
 import signal
 import warnings
-from collections.abc import Callable
-from typing import Awaitable, Coroutine, Optional
+from collections.abc import Awaitable, Callable, Coroutine
+from typing import Optional
 
 # 3rd Party
 # Project
@@ -143,7 +144,7 @@ class TaskItem:
         return self.task.done() if self.task else False
 
     @property
-    def result(self) -> Optional[object]:
+    def result(self) -> object | None:
         """Retrieve the result of the task.
 
         This property returns the result of the task if it has completed. If the task
@@ -158,7 +159,7 @@ class TaskItem:
     def create(
         self,
         message: str = "",
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> asyncio.Task:
         """Create and start the asynchronous task.
 

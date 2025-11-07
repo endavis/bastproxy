@@ -4,14 +4,12 @@
 # File Description: a plugin to do fuzzy matching with strings
 #
 # By: Bast
-"""
-This plugin holds an api to do fuzzy matching
-"""
+"""This plugin holds an api to do fuzzy matching"""
 
 # these 4 are required
-PLUGIN_NAME = 'Fuzzy Match'
-PLUGIN_PURPOSE = 'do fuzzy matching'
-PLUGIN_AUTHOR = 'Bast'
+PLUGIN_NAME = "Fuzzy Match"
+PLUGIN_PURPOSE = "do fuzzy matching"
+PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = True

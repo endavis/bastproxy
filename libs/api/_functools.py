@@ -33,6 +33,7 @@ Functions:
     - `get_args`: Retrieves the arguments of a given function.
 
 """
+
 # Standard Library
 import inspect
 import logging
@@ -128,7 +129,7 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
 
     if caller_id == "unknown":
         logger = logging.getLogger(__name__)
-        logger.warn(f"Unknown caller_id for API call: {inspect.stack()[1][3]}")
+        logger.warning(f"Unknown caller_id for API call: {inspect.stack()[1][3]}")
 
     return caller_id
 
@@ -152,7 +153,7 @@ def get_args(api_function: Callable) -> str:
 
     """
     sig = inspect.signature(api_function)
-    argn: list[str] = [f"@Y{str(i)}@w" for i in sig.parameters if str(i) != "self"]
+    argn: list[str] = [f"@Y{i!s}@w" for i in sig.parameters if str(i) != "self"]
     args: str = ", ".join(argn)
 
     return args

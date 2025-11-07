@@ -9,7 +9,7 @@ echo "================================"
 echo ""
 
 # Run Bandit with appropriate exclusions
-# B401: telnet imports - MUD proxy requires telnet for game server communication  
+# B401: telnet imports - MUD proxy requires telnet for game server communication
 # B604: shell parameter - telnetlib3 uses 'shell' for connection handlers, not OS shell commands
 # B110: try/except/pass - acceptable in some contexts (will review medium+ manually)
 # B608: SQL injection - using parameterized queries, false positive

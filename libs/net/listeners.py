@@ -33,6 +33,7 @@ Classes:
     - `Listeners`: Manages the creation and monitoring of network listeners.
 
 """
+
 import asyncio
 import contextlib
 
@@ -157,7 +158,7 @@ class Listeners:
             self.reset_listener_settings()
             self.listener_tries = self.listener_tries + 1
             self.check_listener_taskname = (
-                f"Check Listeners Available - Try {str(self.listener_tries)}"
+                f"Check Listeners Available - Try {self.listener_tries!s}"
             )
             self.create_listeners()
 

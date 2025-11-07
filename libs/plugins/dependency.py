@@ -30,6 +30,7 @@ Classes:
     - `PluginDependencyResolver`: Represents a class that resolves plugin dependencies.
 
 """
+
 # Standard Library
 import sys
 
@@ -38,7 +39,7 @@ import sys
 from libs.records import LogRecord
 
 
-class PluginDependencyResolver(object):
+class PluginDependencyResolver:
     """Resolve plugin dependencies.
 
     This class resolves dependencies among plugins to ensure they are loaded in the

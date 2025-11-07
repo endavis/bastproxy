@@ -4,8 +4,7 @@
 # File Description: a plugin to handle ansi and xterm colors
 #
 # By: Bast
-"""
-This plugin handles colors
+"""This plugin handles colors
 
 ## Color Codes
 ### Ansi
@@ -25,13 +24,14 @@ This plugin handles colors
 * @z154@@z154@w - make background color xterm 154@w
 
 """
+
 # these 4 are required
-PLUGIN_NAME = 'Ansi/Xterm Colors'
-PLUGIN_PURPOSE = 'Ansi/Xterm color functions'
-PLUGIN_AUTHOR = 'Bast'
+PLUGIN_NAME = "Ansi/Xterm Colors"
+PLUGIN_PURPOSE = "Ansi/Xterm color functions"
+PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 PLUGIN_REQUIRED = True
 
-__all__ = ['ALLCONVERTCOLORS']
+__all__ = ["ALLCONVERTCOLORS"]
 
 from .libs._colors import ALLCONVERTCOLORS

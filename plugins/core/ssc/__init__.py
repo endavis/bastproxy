@@ -4,8 +4,7 @@
 # File Description: a plugin to save settings that should not stay in memory
 #
 # By: Bast
-"""
-this plugin is for saving settings that should not appear in memory
+"""this plugin is for saving settings that should not appear in memory
 the setting is saved to a file with read only permissions for the user
 the proxy is running under
 
@@ -20,9 +19,9 @@ for an example of using this plugin
 """
 
 # these 4 are required
-PLUGIN_NAME = 'Secret Setting Class'
-PLUGIN_PURPOSE = 'Class to save settings that should not stay in memory'
-PLUGIN_AUTHOR = 'Bast'
+PLUGIN_NAME = "Secret Setting Class"
+PLUGIN_PURPOSE = "Class to save settings that should not stay in memory"
+PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = True

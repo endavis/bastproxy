@@ -34,20 +34,20 @@ Classes:
         plugins.
 
 """
+
 # Standard Library
 import contextlib
 import datetime
 import sys
 import traceback
 import weakref
+from collections.abc import KeysView
 from functools import partial
-from typing import KeysView
-
-import libs.plugins.imputils as imputils
 
 # 3rd Party
 # Project
 from libs.api import API, AddAPI
+from libs.plugins import imputils
 from libs.plugins.plugininfo import PluginInfo
 from libs.records import LogRecord
 from plugins._baseplugin import BasePlugin, patch
@@ -166,7 +166,7 @@ class PluginLoader:
 
         pdiff = set(all_plugins_by_id) - set(loaded_plugins_by_id)
 
-        return list(sorted(pdiff))
+        return sorted(pdiff)
 
     @AddAPI("get.all.plugins", description="get all plugins")
     def _api_get_all_plugins(self) -> KeysView[str]:
@@ -594,9 +594,7 @@ class PluginLoader:
             return False
 
         plugin_info.runtime_info.is_imported = True
-        plugin_info.runtime_info.imported_time = datetime.datetime.now(
-            datetime.UTC
-        )
+        plugin_info.runtime_info.imported_time = datetime.datetime.now(datetime.UTC)
 
         LogRecord(
             f"{plugin_id:<30} : imported successfully", level="info", sources=[__name__]

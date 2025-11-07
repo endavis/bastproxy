@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # Project: Bast's MUD Proxy
 # Filename: mudproxy.py
 #
@@ -34,30 +33,30 @@ Classes:
     - `MudProxy`: Represents the main class for the MUD Proxy application.
 
 """
+
 # Standard Library
-import logging
 import datetime
+import logging
 import os
 import sys
 from pathlib import Path
 
-# Third Party
-
-# Project
-from libs.records import LogRecord
-from libs.api import API as BASEAPI
-from libs.asynch import run_asynch
-from plugins.core.log import formatTime_RFC3339_UTC, formatTime_RFC3339
-
 # The modules below are imported to add their functions to the API
 from libs import timing  # noqa: F401
+from libs.api import API as BASEAPI
+from libs.asynch import run_asynch
 from libs.plugins import reloadutils  # noqa: F401
+
+# Third Party
+# Project
+from libs.records import LogRecord
+from plugins.core.log import formatTime_RFC3339, formatTime_RFC3339_UTC
 
 # set this to True to log in UTC timezone, False to log in local timezone
 BASEAPI.LOG_IN_UTC_TZ = True
 
 # set the start time
-BASEAPI.proxy_start_time = datetime.datetime.now(datetime.timezone.utc)
+BASEAPI.proxy_start_time = datetime.datetime.now(datetime.UTC)
 
 # set the startup flag
 BASEAPI.startup = True
@@ -220,7 +219,6 @@ class MudProxy:
             None
 
         """
-        pass
 
 
 def main() -> None:
@@ -270,8 +268,8 @@ def main() -> None:
 
     if args["profile"]:
         import cProfile
-        import pstats
         import io
+        import pstats
 
         with cProfile.Profile() as pr:
             MP.run(args)

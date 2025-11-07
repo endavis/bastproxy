@@ -5,6 +5,6 @@
 #
 # By: Bast
 
-__all__ = ['Plugin']
+__all__ = ["Plugin"]
 
 from ._settings import SettingsPlugin as Plugin

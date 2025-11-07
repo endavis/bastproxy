@@ -12,7 +12,7 @@ libs.plugin.loader:
             #BP: ------------------------------------------------------------
 plugins.core.events:
     1) registers all events
-    2) raises 
+    2) raises
             #BP: Event         : ev_plugins.core.events_all_events_registered
             #BP: Created by    : plugins.core.events.libs._event:ev_libs.plugins.loader_post_startup_plugins_loaded
             #BP: Raised        : 1
@@ -35,7 +35,7 @@ mudproxy
             #BP: ---------------------  Registrations  ----------------------
             #BP: priority      : owner                     - function name
             #BP: ------------------------------------------------------------
-            #BP: 50            : plugins.core.errors       - _eventcb_proxy_ready    
+            #BP: 50            : plugins.core.errors       - _eventcb_proxy_ready
             #BP: ------------------------------------------------------------
     2) Creates listeners for the client
 

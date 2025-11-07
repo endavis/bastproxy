@@ -4,6 +4,4 @@
 # File Description: holds the managers for the records library
 #
 # By: Bast
-"""
-Holds the managers for the records library
-"""
+"""Holds the managers for the records library"""

@@ -28,6 +28,7 @@ Decorators:
     - `AddAPI`: Extends API to provide additional features.
 
 """
+
 __all__ = ["API", "AddAPI"]
 
 from ._addapi import AddAPI

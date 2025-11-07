@@ -28,9 +28,10 @@ Classes:
 Functions:
     - `create_server`: Creates the custom Telnet server with the specified protocol.
 """
+
 # Standard Library
 import sys
-from typing import Coroutine
+from collections.abc import Coroutine
 
 # 3rd Party
 try:
@@ -64,7 +65,6 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
             NotImplementedError: If the method is not implemented.
 
         """
-        pass
 
         # if self.writer and self.default_encoding:
         #     self.writer.iac(DO, CHARSET)

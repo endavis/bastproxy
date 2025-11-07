@@ -67,9 +67,7 @@ class Callback:
         self.raised_count: int = 0
         self.func: Callable = func
         self.enabled: bool = enabled
-        self.created_time: datetime.datetime = datetime.datetime.now(
-            datetime.UTC
-        )
+        self.created_time: datetime.datetime = datetime.datetime.now(datetime.UTC)
         self.last_raised_datetime: datetime.datetime | None = None
 
     def __hash__(self) -> int:

@@ -35,6 +35,7 @@ Classes:
     - `ClientConnection`: Represents a class that handles client connections.
 
 """
+
 # Standard Library
 import asyncio
 import contextlib
@@ -102,7 +103,7 @@ class ClientConnection:
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: TelnetReaderUnicode = reader
         self.writer: TelnetWriterUnicode = writer
-        self.telnet_server: "TelnetServer | None" = self.writer.protocol
+        self.telnet_server: TelnetServer | None = self.writer.protocol
         self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
         self.max_lines_to_process = 15
 
@@ -375,7 +376,7 @@ class ClientConnection:
                 self.process_data_from_not_logged_in_client(inp)
                 continue
 
-            elif self.view_only:
+            if self.view_only:
                 self.process_data_from_view_only_client(inp)
             else:
                 # this is where we start processing data
@@ -454,7 +455,7 @@ class ClientConnection:
                 )()
                 LogRecord(
                     f"client_write - Writing telnet option to client {self.uuid}: "
-                    f"{repr(msg_obj.line)}",
+                    f"{msg_obj.line!r}",
                     level="debug",
                     sources=[__name__],
                 )()
@@ -590,7 +591,6 @@ async def client_telnet_handler(
     )()
 
     if await register_client(connection):
-
         tasks: list[asyncio.Task] = [
             TaskItem(
                 connection.client_read(), name=f"{connection.uuid} telnet read"

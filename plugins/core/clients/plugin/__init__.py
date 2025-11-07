@@ -4,6 +4,6 @@
 # File Description: a plugin to hold information about clients
 #
 # By: Bast
-__all__ = ['Plugin']
+__all__ = ["Plugin"]
 
 from ._clients import ClientPlugin as Plugin

@@ -11,18 +11,21 @@ class AttributeMonitor:
         try:
             original_value = getattr(self, name)
         except AttributeError:
-            original_value = '#!NotSet'
-        if hasattr(self, '_locked_attributes') and name in self._locked_attributes:
+            original_value = "#!NotSet"
+        if hasattr(self, "_locked_attributes") and name in self._locked_attributes:
             self._am_locked_attribute_update(name, value)
             return
         super().__setattr__(name, value)
 
-        if hasattr(self, '_attributes_to_monitor') and name in self._attributes_to_monitor:
-                self._attribute_set(name, original_value, value)
+        if (
+            hasattr(self, "_attributes_to_monitor")
+            and name in self._attributes_to_monitor
+        ):
+            self._attribute_set(name, original_value, value)
 
     def _attribute_set(self, name, original_value, new_value):
         change_func = getattr(self, f"_am_onchange_{name}", None)
-        if original_value == '#!NotSet':
+        if original_value == "#!NotSet":
             with contextlib.suppress(Exception):
                 self._am_original_values[name] = new_value
         if original_value not in ["#!NotSet", new_value]:
@@ -43,7 +46,4 @@ class AttributeMonitor:
         self._locked_attributes.remove(name)
 
     def _am_locked_attribute_update(self, name, value):
-        """
-        called when a locked attribute is attempted to be updated
-        """
-        pass
+        """Called when a locked attribute is attempted to be updated"""

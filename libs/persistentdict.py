@@ -70,11 +70,11 @@ def convert(tinput: Any) -> Any:
     """
     if isinstance(tinput, dict):
         return {convert(key): convert(value) for key, value in tinput.items()}
-    elif isinstance(tinput, list):
+    if isinstance(tinput, list):
         return [convert(element) for element in tinput]
-    elif isinstance(tinput, str):
+    if isinstance(tinput, str):
         return tinput
-    elif isinstance(tinput, bytes):
+    if isinstance(tinput, bytes):
         return str(tinput)
 
     return tinput
@@ -276,7 +276,7 @@ class PersistentDict(dict):
             with file_object.open(mode="wb") as f:
                 pickle.dump(dict(self), f, 2)
         else:
-            raise NotImplementedError(f"Unknown format: {repr(self.format)}")
+            raise NotImplementedError(f"Unknown format: {self.format!r}")
 
     def pload(self) -> None:
         """Load the dictionary from the file on disk.
@@ -324,7 +324,7 @@ class PersistentDict(dict):
         tstuff = {}
 
         if not self.file_name.exists():
-            return
+            return None
         try:
             if self.format == "pickle":
                 with self.file_name.open(mode="rb") as tfile:
@@ -338,7 +338,7 @@ class PersistentDict(dict):
 
         except Exception:  # pylint: disable=broad-except
             sources = [__name__]
-            if getattr(self, "owner_id"):
+            if self.owner_id:
                 sources.append(self.owner_id)
             LogRecord(
                 f"Error when loading {self.format} from {self.file_name}",

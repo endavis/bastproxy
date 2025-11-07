@@ -36,6 +36,7 @@ Classes:
         plugin.
 
 """
+
 # Standard Library
 import ast
 import datetime
@@ -90,8 +91,8 @@ class PluginInfo:
             plugin_id: The unique identifier for the plugin.
 
         """
-        self.package_init_file_path: Path = Path("")
-        self.package_path: Path = Path("")
+        self.package_init_file_path: Path = Path()
+        self.package_path: Path = Path()
         self.package_import_location: str = ""
         self.plugin_id: str = plugin_id
         self.package: str = plugin_id.rsplit(".", 1)[0]
@@ -108,7 +109,7 @@ class PluginInfo:
         self.has_been_reloaded: bool = False
         self.files: dict = {}
 
-        self.data_directory: Path = Path("")
+        self.data_directory: Path = Path()
 
         self.last_updated = datetime.datetime.now(datetime.UTC)
         self.runtime_info: PluginRuntimeInfo = PluginRuntimeInfo()
@@ -350,7 +351,6 @@ class PluginInfo:
         contents = self.package_init_file_path.read_text()
 
         for tline in contents.splitlines():
-
             if name_match := NAMERE.match(tline):
                 self.is_plugin = True
                 gdict = name_match.groupdict()

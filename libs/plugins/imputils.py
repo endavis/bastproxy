@@ -39,6 +39,7 @@ Functions:
     - `deletemodule`: Deletes a module.
 
 """
+
 # Standard Library
 import pkgutil
 import re
@@ -72,7 +73,7 @@ def is_plugin(package_path: str) -> bool:
         IOError: If there is an error reading the package file.
 
     Example:
-        >>> is_plugin('/path/to/plugin')
+        >>> is_plugin("/path/to/plugin")
         True
 
     """
@@ -101,7 +102,7 @@ def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, 
         None
 
     Example:
-        >>> find_packages_and_plugins(Path('/path/to/dir'), 'prefix')
+        >>> find_packages_and_plugins(Path("/path/to/dir"), "prefix")
         (['package1', 'package2'], ['plugin1', 'plugin2'], {})
 
     """
@@ -179,7 +180,7 @@ def importmodule(full_import_location) -> dict[str, Any]:
         None
 
     Example:
-        >>> importmodule('os')
+        >>> importmodule("os")
         {'success': True, 'message': 'imported', 'module': <module 'os' from ...>,
          'exception': None, 'full_import_location': 'os'}
 
@@ -234,7 +235,7 @@ def deletemodule(full_import_location, modules_to_keep=None) -> bool:
         None
 
     Example:
-        >>> deletemodule('os')
+        >>> deletemodule("os")
         True
 
     """

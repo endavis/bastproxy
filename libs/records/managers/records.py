@@ -4,14 +4,12 @@
 # File Description: a manager that handles records of all types
 #
 # By: Bast
-"""
-This module holds a manager that handles records of all types
-"""
+"""This module holds a manager that handles records of all types"""
 
 import contextlib
 
 # Standard Library
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 # 3rd Party
 # Project
@@ -20,12 +18,12 @@ from libs.queue import SimpleQueue
 from libs.stack import SimpleStack
 
 if TYPE_CHECKING:
-    from libs.records.rtypes.update import UpdateRecord
+    pass
 
-class RecordManager(object):
+
+class RecordManager:
     def __init__(self):
-        """
-        Keep the last max_records of each type
+        """Keep the last max_records of each type
         track the active record
         """
         self.max_records: int = 5000
@@ -34,7 +32,7 @@ class RecordManager(object):
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
         # don't show these records in detailed output
-        self.default_filter = ['LogRecord']
+        self.default_filter = ["LogRecord"]
 
     def start(self, record):
         self.active_record_stack.push(record)
@@ -42,7 +40,11 @@ class RecordManager(object):
     def end(self, record):
         if record != self.active_record_stack.peek():
             from libs.records import LogRecord
-            LogRecord(f"RecordManger end: Record {record} is not the same as the active record {self.active_record_stack.peek()}", level='warning')
+
+            LogRecord(
+                f"RecordManger end: Record {record} is not the same as the active record {self.active_record_stack.peek()}",
+                level="warning",
+            )
             self.active_record_stack.remove(record)
         else:
             self.active_record_stack.pop()
@@ -60,8 +62,7 @@ class RecordManager(object):
                 rec
                 for rec in self.record_instances.values()
                 for parent in rec.parents
-                if parent.uuid == record.uuid
-                and rec.__class__.__name__ not in rfilter
+                if parent.uuid == record.uuid and rec.__class__.__name__ not in rfilter
             }
         )
 
@@ -72,7 +73,11 @@ class RecordManager(object):
         rfilter.extend(record_filter)
         children = self.get_children(record, record_filter)
         children.sort()
-        return {child: self.get_all_children_dict(child, rfilter) for child in children if child.__class__.__name__ not in rfilter}
+        return {
+            child: self.get_all_children_dict(child, rfilter)
+            for child in children
+            if child.__class__.__name__ not in rfilter
+        }
 
     def get_all_children_list(self, record, record_filter=None):
         if not record_filter:
@@ -80,7 +85,7 @@ class RecordManager(object):
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
         children = self.get_all_children_dict(record, record_filter)
-        return self.api('plugins.core.utils:get.keys.from.dict')(children)
+        return self.api("plugins.core.utils:get.keys.from.dict")(children)
 
     def format_all_children(self, record, record_filter=None):
         if not record_filter:
@@ -88,10 +93,14 @@ class RecordManager(object):
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
         children = self.get_all_children_dict(record, rfilter)
-        return [f"{'       ' * 0}{record.one_line_summary()}",
-                *self.format_all_children_helper(children, record_filter=rfilter)]
+        return [
+            f"{'       ' * 0}{record.one_line_summary()}",
+            *self.format_all_children_helper(children, record_filter=rfilter),
+        ]
 
-    def format_all_children_helper(self, children, indent = 0, emptybar = None, output = None, record_filter=None):
+    def format_all_children_helper(
+        self, children, indent=0, emptybar=None, output=None, record_filter=None
+    ):
         if not emptybar:
             emptybar = {}
         emptybar[indent] = False
@@ -101,13 +110,15 @@ class RecordManager(object):
         rfilter.extend(record_filter)
         output = output or []
         all_children = list(children.keys())
-        pre_string = ''.join('    ' if emptybar[i] else ' |  ' for i in range(indent))
+        pre_string = "".join("    " if emptybar[i] else " |  " for i in range(indent))
         for child in children:
             all_children.pop(all_children.index(child))
             output.append(f"{pre_string} |-> {child.one_line_summary()}")
             if not all_children:
                 emptybar[indent] = True
-            self.format_all_children_helper(children[child], indent + 1, emptybar, output, rfilter)
+            self.format_all_children_helper(
+                children[child], indent + 1, emptybar, output, rfilter
+            )
         return output
 
     def add(self, record):
@@ -116,7 +127,11 @@ class RecordManager(object):
             self.records[queuename] = SimpleQueue(self.max_records)
         if record.uuid in self.record_instances:
             from libs.records import LogRecord
-            LogRecord(f"Record UUID collision {record.uuid} already exists in the record manager", level='error')()
+
+            LogRecord(
+                f"Record UUID collision {record.uuid} already exists in the record manager",
+                level="error",
+            )()
         self.records[queuename].enqueue(record)
         self.record_instances[record.uuid] = record
 
@@ -133,5 +148,6 @@ class RecordManager(object):
 
     def get_record(self, recordid):
         return self.record_instances.get(recordid, None)
+
 
 RMANAGER = RecordManager()

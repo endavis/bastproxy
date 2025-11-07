@@ -324,4 +324,3 @@ exclude_dirs = [
 # B401: telnet module - MUD proxy intentionally uses telnet protocol for game communication
 # B604: shell parameter - telnetlib3 library uses 'shell' as parameter name for connection handlers (not OS shell)
 skips = ["B401", "B604"]
-

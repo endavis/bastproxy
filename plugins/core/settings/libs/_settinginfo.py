@@ -10,6 +10,7 @@
 
 # Project
 
+
 class SettingInfo:
     def __init__(self, name, default, help, stype, **kwargs):
         self.name = name
@@ -17,7 +18,7 @@ class SettingInfo:
         self.help = help
         self.stype = stype
 
-        self.nocolor = kwargs.get('nocolor', False)
-        self.readonly = kwargs.get('readonly', False)
-        self.hidden = kwargs.get('hidden', False)
-        self.aftersetmessage = kwargs.get('aftersetmessage', '')
+        self.nocolor = kwargs.get("nocolor", False)
+        self.readonly = kwargs.get("readonly", False)
+        self.hidden = kwargs.get("hidden", False)
+        self.aftersetmessage = kwargs.get("aftersetmessage", "")

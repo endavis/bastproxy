@@ -17,17 +17,14 @@ from ..libs._sqlite import Sqldb
 
 
 class SQLDBPlugin(BasePlugin):
-    """
-    a plugin to handle the base sqldb
-    """
-    @RegisterPluginHook('__init__')
+    """a plugin to handle the base sqldb"""
+
+    @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         self.reload_dependents_f = True
 
-    @AddAPI('baseclass', description='return the sql baseclass')
+    @AddAPI("baseclass", description="return the sql baseclass")
     def _api_baseclass(self):
         # pylint: disable=no-self-use
-        """
-        return the sql baseclass
-        """
+        """Return the sql baseclass"""
         return Sqldb

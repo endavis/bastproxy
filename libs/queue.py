@@ -42,15 +42,17 @@ Classes:
     - `SimpleQueue`: Represents a simple queue with optional ID-based lookups.
 
 """
+
 # Standard Library
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 # 3rd Party
 
 # Project
 
 
-class SimpleQueue(object):
+class SimpleQueue:
     """A simple queue with optional ID-based lookups.
 
     This class implements a basic queue with a fixed length. It supports standard

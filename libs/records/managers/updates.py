@@ -4,9 +4,8 @@
 # File Description: a manager to manage updates to records
 #
 # By: Bast
-"""
-This module holds a manager to manage updates to records
-"""
+"""This module holds a manager to manage updates to records"""
+
 # Standard Library
 from collections import deque
 
@@ -16,11 +15,11 @@ from collections import deque
 
 
 class UpdateManager(deque):
-    """
-    a class to manage changes to records
+    """a class to manage changes to records
 
     each record instance will have one of these
     """
+
     def __init__(self):
         super().__init__(maxlen=1000)
         self.uid_mapping = {}

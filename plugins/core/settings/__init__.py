@@ -4,12 +4,10 @@
 # File Description: a plugin to manage all settings
 #
 # By: Bast
-"""
-This module handles commands and parsing input
-"""
+"""This module handles commands and parsing input"""
 
 # these 4 are required
-PLUGIN_NAME = 'Settings'
-PLUGIN_PURPOSE = 'Plugin to handle settings'
-PLUGIN_AUTHOR = 'Bast'
+PLUGIN_NAME = "Settings"
+PLUGIN_PURPOSE = "Plugin to handle settings"
+PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1

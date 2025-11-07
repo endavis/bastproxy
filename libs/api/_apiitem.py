@@ -35,9 +35,8 @@ Classes:
     - `APIItem`: Represents an API function with tracking and descriptive capabilities.
 
 """
+
 import inspect
-import re
-import textwrap
 from collections.abc import Callable
 
 # Local import typing

@@ -31,6 +31,7 @@ Classes:
     - `Timing`: Manages timing operations and logs timing information.
 
 """
+
 # Standard Library
 from collections.abc import Callable
 from functools import wraps
@@ -90,7 +91,7 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-class Timing(object):
+class Timing:
     """Manages timing operations and logs timing information.
 
     This class provides methods to start and finish timers, toggle the timing
@@ -219,13 +220,12 @@ class Timing(object):
                     )()
                 del self.timing[uid]
                 return time_taken
-            else:
-                owner_id = self.api("libs.api:get.caller.owner")()
-                LogRecord(
-                    f"finishtimer - {uid} not found - called from {owner_id}",
-                    level="error",
-                    sources=[__name__, owner_id],
-                )()
+            owner_id = self.api("libs.api:get.caller.owner")()
+            LogRecord(
+                f"finishtimer - {uid} not found - called from {owner_id}",
+                level="error",
+                sources=[__name__, owner_id],
+            )()
         return None
 
 

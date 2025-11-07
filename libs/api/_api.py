@@ -32,6 +32,7 @@ Classes:
     - `API`: Represents a class that provides an API for plugins and modules.
 
 """
+
 # Standard Library
 import contextlib
 import pprint
@@ -69,11 +70,11 @@ class API:  # sourcery skip: upper-camel-case-classes
 
     # the basepath that the proxy was run from, will be dynamically set in
     # bastproxy.py
-    BASEPATH: Path = Path("")
-    BASEDATAPATH: Path = Path("")
-    BASEDATAPLUGINPATH: Path = Path("")
-    BASEDATALOGPATH: Path = Path("")
-    BASEPLUGINPATH: Path = Path("")
+    BASEPATH: Path = Path()
+    BASEDATAPATH: Path = Path()
+    BASEDATAPLUGINPATH: Path = Path()
+    BASEDATALOGPATH: Path = Path()
+    BASEPLUGINPATH: Path = Path()
 
     LOG_IN_UTC_TZ: bool = True
 
@@ -439,7 +440,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         if api_name in self._instance_api and not base:
             return self._instance_api[api_name]
-        elif api_name in self._class_api:
+        if api_name in self._class_api:
             return self._class_api[api_name]
 
         return None
@@ -691,7 +692,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             return self._instance_api[api_location]
 
         # check api
-        if api_location in self._class_api and self._class_api[api_location]:
+        if self._class_api.get(api_location):
             return self._class_api[api_location]
 
         raise AttributeError(f"{self.owner_id} : {api_location} is not in the api")

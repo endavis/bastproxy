@@ -19,74 +19,70 @@ from plugins.core.events import RegisterToEvent
 
 
 class WatchPlugin(BasePlugin):
-    """
-    a plugin to watch for commands coming from the client
-    """
-    @RegisterPluginHook('__init__')
+    """a plugin to watch for commands coming from the client"""
+
+    @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
-        """
-        initialize the instance
-        """
+        """Initialize the instance"""
         self.can_reload_f = False
 
         self.regex_lookup = {}
         self.watch_data = {}
 
-    @RegisterToEvent(event_name='ev_plugin_unloaded')
+    @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
-        """
-        a plugin was unloaded
-        """
-        event_record = self.api('plugins.core.events:get.current.event.record')()
-        LogRecord(f"event_plugin_unloaded - removing watches for plugin {event_record['plugin_id']}",
-                  level='debug', sources=[self.plugin_id, event_record['plugin_id']])()
-        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record['plugin_id'])
+        """A plugin was unloaded"""
+        event_record = self.api("plugins.core.events:get.current.event.record")()
+        LogRecord(
+            f"event_plugin_unloaded - removing watches for plugin {event_record['plugin_id']}",
+            level="debug",
+            sources=[self.plugin_id, event_record["plugin_id"]],
+        )()
+        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(
+            event_record["plugin_id"]
+        )
 
-    @AddParser(description='list watches')
-    @AddArgument('match',
-                        help='list only watches that have this argument in them',
-                        default='',
-                        nargs='?')
+    @AddParser(description="list watches")
+    @AddArgument(
+        "match",
+        help="list only watches that have this argument in them",
+        default="",
+        nargs="?",
+    )
     def _command_list(self):
-        """
-        list watches
-        """
-        args = self.api('plugins.core.commands:get.current.command.args')()
+        """List watches"""
+        args = self.api("plugins.core.commands:get.current.command.args")()
         watches = self.watch_data.keys()
         watches = sorted(watches)
-        match = args['match']
+        match = args["match"]
 
-        template = '%-25s : %-13s %s'
+        template = "%-25s : %-13s %s"
 
         message = [
-            template % ('Name', 'Defined in', 'Hits'),
-            '@B' + '-' * 60 + '@w',
+            template % ("Name", "Defined in", "Hits"),
+            "@B" + "-" * 60 + "@w",
         ]
         for watch_name in watches:
             watch = self.watch_data[watch_name]
-            if not match or match in watch_name or watch['owner'] == match:
-                message.append(template % (watch_name, watch['owner'],
-                                                     watch['hits']))
+            if not match or match in watch_name or watch["owner"] == match:
+                message.append(template % (watch_name, watch["owner"], watch["hits"]))
 
         return True, message
 
-    @AddParser(description='get details of a watch')
-    @AddArgument('watch',
-                    help='the trigger to detail',
-                    default=[],
-                    nargs='*')
+    @AddParser(description="get details of a watch")
+    @AddArgument("watch", help="the trigger to detail", default=[], nargs="*")
     def _command_detail(self):
-        """
-        list the details of a watch
-        """
-        args = self.api('plugins.core.commands:get.current.command.args')()
+        """List the details of a watch"""
+        args = self.api("plugins.core.commands:get.current.command.args")()
         message = []
-        if args['watch']:
+        if args["watch"]:
             columnwidth = 13
-            for watch in args['watch']:
+            for watch in args["watch"]:
                 if watch in self.watch_data:
-                    event_name = self.watch_data[watch]['event_name']
-                    watch_event = self.api('plugins.core.events:get.event.detail')(event_name)
+                    event_name = self.watch_data[watch]["event_name"]
+                    watch_event = self.api("plugins.core.events:get.event.detail")(
+                        event_name
+                    )
                     message.extend(
                         (
                             f"{'Name':<{columnwidth}} : {watch}",
@@ -99,110 +95,150 @@ class WatchPlugin(BasePlugin):
                 else:
                     message.append(f"watch {watch} does not exist")
         else:
-            message.append('Please provide a watch name')
+            message.append("Please provide a watch name")
 
         return True, message
 
-    @AddAPI('watch.add', description='add a watch')
+    @AddAPI("watch.add", description="add a watch")
     def _api_watch_add(self, watch_name, regex, owner=None, **kwargs):
-        """  add a command watch
+        """Add a command watch
         @Ywatch_name@w   = name
         @Yregex@w    = the regular expression that matches this command
         @Yplugin@w   = the plugin this comes from
         @Ykeyword args@w arguments:
           None as of now
 
-        this function returns no values"""
+        this function returns no values
+        """
         if not owner:
-            owner = self.api('libs.api:get.caller.owner')(ignore_owner_list=[self.plugin_id])
+            owner = self.api("libs.api:get.caller.owner")(
+                ignore_owner_list=[self.plugin_id]
+            )
 
         if not owner:
-            LogRecord(f"_api_watch_add: no plugin could be found to add {watch_name}",
-                      level='error', sources=[self.plugin_id])()
+            LogRecord(
+                f"_api_watch_add: no plugin could be found to add {watch_name}",
+                level="error",
+                sources=[self.plugin_id],
+            )()
             return
 
         if regex in self.regex_lookup:
-            LogRecord(f"_api_watch_add: watch {watch_name} tried to add a regex that already existed for {self.regex_lookup[regex]}",
-                      level='debug', sources=[self.plugin_id, owner])()
+            LogRecord(
+                f"_api_watch_add: watch {watch_name} tried to add a regex that already existed for {self.regex_lookup[regex]}",
+                level="debug",
+                sources=[self.plugin_id, owner],
+            )()
             return
         watch_args = kwargs.copy()
-        watch_args['regex'] = regex
-        watch_args['owner'] = owner
-        watch_args['eventname'] = f'watch_{watch_name}'
+        watch_args["regex"] = regex
+        watch_args["owner"] = owner
+        watch_args["eventname"] = f"watch_{watch_name}"
         try:
             self.watch_data[watch_name] = watch_args
-            self.watch_data[watch_name]['hits'] = 0
-            self.watch_data[watch_name]['compiled'] = re.compile(watch_args['regex'])
-            self.regex_lookup[watch_args['regex']] = watch_name
-            LogRecord(f"_api_watch_add: watch {watch_name} added for {owner}",
-                      level='debug', sources=[self.plugin_id, owner])()
-        except Exception: # pylint: disable=broad-except
-            LogRecord(f"_api_watch_add: watch {watch_name} failed to compile regex {regex}",
-                      level='error', sources=[self.plugin_id, owner], exc_info=True)()
+            self.watch_data[watch_name]["hits"] = 0
+            self.watch_data[watch_name]["compiled"] = re.compile(watch_args["regex"])
+            self.regex_lookup[watch_args["regex"]] = watch_name
+            LogRecord(
+                f"_api_watch_add: watch {watch_name} added for {owner}",
+                level="debug",
+                sources=[self.plugin_id, owner],
+            )()
+        except Exception:  # pylint: disable=broad-except
+            LogRecord(
+                f"_api_watch_add: watch {watch_name} failed to compile regex {regex}",
+                level="error",
+                sources=[self.plugin_id, owner],
+                exc_info=True,
+            )()
 
         # add the event so it can be tracked
-        self.api('plugins.core.events:add.event')(watch_args['eventname'], watch_args['owner'],
-                                                  description = [f"event for {watch_name} for {watch_args['regex']}"],
-                                                  arg_descriptions = { 'matched' : 'The matched arguments from the regex',
-                                                                       'cmdname' : 'The command name that was matched',
-                                                                       'data'    : 'The data that was matched'})
+        self.api("plugins.core.events:add.event")(
+            watch_args["eventname"],
+            watch_args["owner"],
+            description=[f"event for {watch_name} for {watch_args['regex']}"],
+            arg_descriptions={
+                "matched": "The matched arguments from the regex",
+                "cmdname": "The command name that was matched",
+                "data": "The data that was matched",
+            },
+        )
 
-    @AddAPI('watch.remove', description='remove a watch')
+    @AddAPI("watch.remove", description="remove a watch")
     def _api_watch_remove(self, watch_name, force=False):
-        """  remove a command watch
+        """Remove a command watch
         @Ywatch_name@w   = The watch name
         @Yforce@w       = force removal if functions are registered
 
-        this function returns no values"""
+        this function returns no values
+        """
         if watch_name in self.watch_data:
-            event = self.api('plugins.core.events:get.event')(self.watch_data[watch_name]['eventname'])
-            plugin = self.watch_data[watch_name]['owner']
+            event = self.api("plugins.core.events:get.event")(
+                self.watch_data[watch_name]["eventname"]
+            )
+            plugin = self.watch_data[watch_name]["owner"]
             if event and not event.isempty() and not force:
-                LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} has functions registered",
-                          level='error', sources=[self.plugin_id, plugin])()
+                LogRecord(
+                    f"_api_watch_remove: watch {watch_name} for plugin {plugin} has functions registered",
+                    level="error",
+                    sources=[self.plugin_id, plugin],
+                )()
                 return False
-            del self.regex_lookup[self.watch_data[watch_name]['regex']]
+            del self.regex_lookup[self.watch_data[watch_name]["regex"]]
             del self.watch_data[watch_name]
-            LogRecord(f"_api_watch_remove: watch {watch_name} for plugin {plugin} removed",
-                      level='debug', sources=[self.plugin_id, plugin])()
+            LogRecord(
+                f"_api_watch_remove: watch {watch_name} for plugin {plugin} removed",
+                level="debug",
+                sources=[self.plugin_id, plugin],
+            )()
         else:
-            LogRecord(f"_api_watch_remove: watch {watch_name} does not exist",
-                      level='error', sources=[self.plugin_id])()
+            LogRecord(
+                f"_api_watch_remove: watch {watch_name} does not exist",
+                level="error",
+                sources=[self.plugin_id],
+            )()
 
-    @AddAPI('remove.all.data.for.plugin', description='remove all watches for a plugin')
+    @AddAPI("remove.all.data.for.plugin", description="remove all watches for a plugin")
     def _api_remove_all_data_for_plugin(self, plugin):
-        """  remove all watches related to a plugin
+        """Remove all watches related to a plugin
         @Yplugin@w   = The plugin
 
-        this function returns no values"""
-        LogRecord(f"_api_remove_all_data_for_plugin: removing watches for plugin {plugin}",
-                  level='debug', sources=[self.plugin_id, plugin])()
+        this function returns no values
+        """
+        LogRecord(
+            f"_api_remove_all_data_for_plugin: removing watches for plugin {plugin}",
+            level="debug",
+            sources=[self.plugin_id, plugin],
+        )()
         watches = self.watch_data.keys()
         for i in watches:
-            if self.watch_data[i]['owner'] == plugin:
-                self.api(f'{self.plugin_id}:watch.remove')(i)
+            if self.watch_data[i]["owner"] == plugin:
+                self.api(f"{self.plugin_id}:watch.remove")(i)
 
-    @RegisterToEvent(event_name='ev_to_mud_data_modify')
+    @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_command(self):
-        """
-        check input from the client and see if we are watching for it
-        """
+        """Check input from the client and see if we are watching for it"""
         if not (
-            event_record := self.api(
-                'plugins.core.events:get.current.event.record'
-            )()
+            event_record := self.api("plugins.core.events:get.current.event.record")()
         ):
             return
-        client_data = event_record['line']
+        client_data = event_record["line"]
         for watch_name in self.watch_data:
-            cmdre = self.watch_data[watch_name]['compiled']
+            cmdre = self.watch_data[watch_name]["compiled"]
             if match_data := cmdre.match(client_data):
-                self.watch_data[watch_name]['hits'] = self.watch_data[watch_name]['hits'] + 1
+                self.watch_data[watch_name]["hits"] = (
+                    self.watch_data[watch_name]["hits"] + 1
+                )
                 match_args = {
-                    'matched': match_data.groupdict(),
-                    'cmdname': f'cmd_{watch_name}',
+                    "matched": match_data.groupdict(),
+                    "cmdname": f"cmd_{watch_name}",
                 }
-                match_args['data'] = client_data
-                LogRecord(f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
-                        level='debug', sources=[self.plugin_id])()
-                self.api('plugins.core.events:raise.event')(self.watch_data[watch_name]['eventname'], event_args=match_args)
+                match_args["data"] = client_data
+                LogRecord(
+                    f"_eventcb_check_command: watch {watch_name} matched {client_data}, raising {match_args['cmdname']}",
+                    level="debug",
+                    sources=[self.plugin_id],
+                )()
+                self.api("plugins.core.events:raise.event")(
+                    self.watch_data[watch_name]["eventname"], event_args=match_args
+                )

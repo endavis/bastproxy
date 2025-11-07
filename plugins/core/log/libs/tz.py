@@ -4,9 +4,8 @@
 # File Description: functions to change tzinfo in logging
 #
 # By: Bast
-"""
-This module has functions for changing the timezone information in the logging module.
-"""
+"""This module has functions for changing the timezone information in the logging module."""
+
 # Standard Library
 import datetime
 
@@ -16,8 +15,7 @@ import datetime
 
 
 def formatTime_RFC3339_UTC(self, record, datefmt=None):
-    """
-    Formats a timestamp in the RFC3339 format in the UTC timezone.
+    """Formats a timestamp in the RFC3339 format in the UTC timezone.
 
     Args:
         record: The record object containing the timestamp.
@@ -32,9 +30,9 @@ def formatTime_RFC3339_UTC(self, record, datefmt=None):
         .isoformat()
     )
 
+
 def formatTime_RFC3339(self, record, datefmt=None):
-    """
-    Formats a timestamp in the RFC3339 format in the local timezone.
+    """Formats a timestamp in the RFC3339 format in the local timezone.
 
     Args:
         record: The record object containing the timestamp.
@@ -43,8 +41,4 @@ def formatTime_RFC3339(self, record, datefmt=None):
     Returns:
         str: The formatted timestamp in RFC3339 format.
     """
-    return (
-        datetime.datetime.fromtimestamp(record.created)
-        .astimezone()
-        .isoformat()
-    )
+    return datetime.datetime.fromtimestamp(record.created).astimezone().isoformat()

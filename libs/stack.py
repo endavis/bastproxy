@@ -31,6 +31,7 @@ Classes:
     - `SimpleStack`: Represents a simple stack data structure with additional features.
 
 """
+
 # Standard Library
 from typing import Any
 
@@ -39,7 +40,7 @@ from typing import Any
 # Project
 
 
-class SimpleStack(object):
+class SimpleStack:
     """A simple stack data structure with additional features.
 
     This class implements a basic stack with methods for standard stack operations

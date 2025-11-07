@@ -15,9 +15,9 @@ Plugin Developer Notes
     Add data that needs to be saved on a reload to the reload cache with the apis. Be careful,
         do not store items in the cache that have references to anything in the plugin that will
         be reloaded
-        libs.plugins.reloadutils:add.cache           | add data to the cache         
-        libs.plugins.reloadutils:get.plugin.cache    | get cache for a plugin        
-        libs.plugins.reloadutils:remove.plugin.cache | remove the cache for a plugin 
+        libs.plugins.reloadutils:add.cache           | add data to the cache
+        libs.plugins.reloadutils:get.plugin.cache    | get cache for a plugin
+        libs.plugins.reloadutils:remove.plugin.cache | remove the cache for a plugin
 
     Reloading plugins does not update any objects that have been imported by another plugin.
     Try to keep imports into other plugins at a minimum or small use cases
@@ -108,10 +108,9 @@ Plugin Developer Notes
                 )():
                     plugin_id = event_record['plugin_id']
                     self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
-    
+
     Get the current Event record with the api('plugins.core.events:get.current.event.record')()
         The record type is EventArgsRecord in libs/records/rtypes/eventargs.py
         It is a subclass of dict so can be added and modified in the same way as a dict
 
     Unregister with the api('plugins.core.events:unregister.from.event')
-    

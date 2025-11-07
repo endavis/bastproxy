@@ -36,5 +36,3 @@ Sending data to the mud
 Sending data to clients, this will also send it through the interpreter
 -------------------------------------------------------------------------
 1)  use a ToClientData instance and send by calling the record
-
-

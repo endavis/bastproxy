@@ -10,6 +10,7 @@ This module provides common fixtures and configuration for all tests in the
 bastproxy test suite.
 
 """
+
 import asyncio
 import shutil
 import tempfile
