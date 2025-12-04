@@ -51,6 +51,7 @@ data
 *-config.ini
 *.kdev4
 plugins/test
+src/plugins/test
 *.bak
 *.reindent
 teststuff/

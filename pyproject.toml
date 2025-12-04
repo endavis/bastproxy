@@ -112,8 +112,10 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# Automatically discover all packages
-packages = {find = {where = ["."], include = ["libs*", "plugins*"]}}
+package-dir = {"" = "src"}
+py-modules = ["mudproxy"]
+# Automatically discover all packages under src/
+packages = {find = {where = ["src"], include = ["libs*", "plugins*"]}}
 
 [tool.setuptools.package-data]
 libs = ["py.typed"]
@@ -141,7 +143,7 @@ addopts = [
     "--showlocals",
 ]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
 asyncio_mode = "auto"
 
 [tool.coverage.run]

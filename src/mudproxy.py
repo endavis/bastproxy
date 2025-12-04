@@ -73,14 +73,17 @@ if BASEAPI.LOG_IN_UTC_TZ:
 else:
     logging.Formatter.formatTime = formatTime_RFC3339
 
-# set the base path from the parent of the current file
-BASEAPI.BASEPATH = Path(__file__).resolve().parent
+CODE_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = CODE_ROOT.parent
 
 # set the paths based on where the executable is
-BASEAPI.BASEDATAPATH = BASEAPI.BASEPATH / "data"
+BASEAPI.BASEPATH = CODE_ROOT
+BASEAPI.BASEDATAPATH = PROJECT_ROOT / "data"
+if not BASEAPI.BASEDATAPATH.exists():
+    BASEAPI.BASEDATAPATH = CODE_ROOT / "data"
 BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / "plugins"
 BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / "logs"
-BASEAPI.BASEPLUGINPATH = BASEAPI.BASEPATH / "plugins"
+BASEAPI.BASEPLUGINPATH = CODE_ROOT / "plugins"
 
 BASEAPI.BASEDATAPATH.mkdir(parents=True, exist_ok=True)
 BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True)

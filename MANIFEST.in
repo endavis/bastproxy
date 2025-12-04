@@ -3,15 +3,14 @@ include README.md
 include LICENSE
 include CHANGELOG.md
 include CONTRIBUTING.md
-include requirements.txt
 include pyproject.toml
 
 # Include scripts
 recursive-include scripts *.sh *.py
 
 # Include type stubs
-include libs/py.typed
-include plugins/py.typed
+include src/libs/py.typed
+include src/plugins/py.typed
 
 # Exclude development and build artifacts
 exclude .editorconfig

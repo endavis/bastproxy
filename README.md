@@ -24,7 +24,7 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 ### Prerequisites
 
 - Python 3.12 or newer
-- pip (Python package installer)
+- uv (for dependency management) or pip
 
 ### Installation
 
@@ -36,7 +36,7 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 
 2. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
+   uv sync --all-extras
    ```
 
    Or for development:
@@ -48,12 +48,12 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 
 **Basic usage**:
 ```bash
-python mudproxy.py
+uv run bastproxy
 ```
 
 **With options**:
 ```bash
-python mudproxy.py --port 9999 --IPv4-address localhost
+uv run bastproxy --port 9999 --IPv4-address localhost
 ```
 
 **Command-line options**:

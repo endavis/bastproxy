@@ -13,7 +13,7 @@ try:
     import regex as re
 except ImportError:
     print("Please install required libraries. regex is missing.")
-    print("From the root of the project: pip(3) install -r requirements.txt")
+    print("From the root of the project: uv sync --all-extras")
     sys.exit(1)
 
 # Project

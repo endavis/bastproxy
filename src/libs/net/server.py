@@ -38,7 +38,7 @@ try:
     import telnetlib3
 except ImportError:
     print("Please install required libraries. telnetlib3 is missing.")
-    print("From the root of the project: pip(3) install -r requirements.txt")
+    print("From the root of the project: uv sync --all-extras")
     sys.exit(1)
 
 # Project
