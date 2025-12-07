@@ -93,6 +93,7 @@ dependencies = [
     "rapidfuzz>=3.10.0",
     "regex>=2024.9.11",
     "telnetlib3>=2.0.4",
+    "pydatatracker",
 ]
 
 # Project URLs
