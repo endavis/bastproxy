@@ -11,10 +11,10 @@ from pathlib import Path
 
 # 3rd Party
 # Project
-from libs.api import API, AddAPI
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
 
 class SSC:

@@ -42,12 +42,12 @@ from typing import TYPE_CHECKING
 # Third Party
 from telnetlib3 import open_connection
 
-from libs.api import API
-from libs.asynch import TaskItem
+from bastproxy.libs.api import API
+from bastproxy.libs.asynch import TaskItem
 
 # Project
-from libs.net import telnet
-from libs.records import (
+from bastproxy.libs.net import telnet
+from bastproxy.libs.records import (
     LogRecord,
     NetworkData,
     NetworkDataLine,

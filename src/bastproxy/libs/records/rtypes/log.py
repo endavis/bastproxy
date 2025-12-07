@@ -11,7 +11,7 @@ import logging
 
 # 3rd Party
 # Project
-from libs.records.rtypes.base import BaseListRecord
+from bastproxy.libs.records.rtypes.base import BaseListRecord
 
 
 class LogRecord(BaseListRecord):

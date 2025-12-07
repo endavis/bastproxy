@@ -8,14 +8,18 @@
 # Standard Library
 import re
 
-from libs.api import AddAPI
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin
 
 # 3rd Party
 # Project
-from plugins.core.colors.libs._colors import COLORTABLE, CONVERTANSI, CONVERTCOLORS
-from plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.colors.libs._colors import (
+    COLORTABLE,
+    CONVERTANSI,
+    CONVERTCOLORS,
+)
+from bastproxy.plugins.core.commands import AddArgument, AddParser
 
 XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
 ANSI_COLOR_REGEX = re.compile(

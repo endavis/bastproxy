@@ -16,11 +16,11 @@ from collections.abc import Callable
 
 # 3rd Party
 # Project
-from libs.api import API
-from libs.callback import Callback
-from libs.records import LogRecord
-from plugins.core.events.libs.data._event import EventDataRecord
-from plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
+from bastproxy.libs.api import API
+from bastproxy.libs.callback import Callback
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
+from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
 
 
 class Event:

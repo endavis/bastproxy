@@ -10,9 +10,9 @@
 # 3rd Party
 
 # Project
-from libs.api import AddAPI
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.sqldb.libs._sqlite import Sqldb
+from bastproxy.libs.api import AddAPI
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
 
 
 class SQLDBPlugin(BasePlugin):

@@ -46,8 +46,8 @@ from typing import Optional
 
 # 3rd Party
 # Project
-from libs.api import API as BASEAPI
-from libs.records import LogRecord
+from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.records import LogRecord
 
 # Module-level set to store background tasks and prevent garbage collection
 _BACKGROUND_TASKS: set[asyncio.Task] = set()

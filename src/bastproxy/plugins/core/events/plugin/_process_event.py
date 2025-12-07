@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 
 # 3rd Party
 # Project
-from libs.records import BaseRecord, LogRecord
+from bastproxy.libs.records import BaseRecord, LogRecord
 
 if TYPE_CHECKING:
-    from plugins.core.events.libs._event import Event
-    from plugins.core.events.libs.data._event import EventDataRecord
+    from bastproxy.plugins.core.events.libs._event import Event
+    from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 
 
 class ProcessRaisedEvent(BaseRecord):

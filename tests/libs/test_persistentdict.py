@@ -13,7 +13,7 @@ including saving, loading, and context manager behavior.
 
 from pathlib import Path
 
-from libs.persistentdict import PersistentDict
+from bastproxy.libs.persistentdict import PersistentDict
 
 
 class TestPersistentDict:

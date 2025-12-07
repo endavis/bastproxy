@@ -12,7 +12,7 @@ Holds the log record type
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseDictRecord
+from bastproxy.libs.records.rtypes.base import BaseDictRecord
 
 class CmdArgsRecord(BaseDictRecord):
     def __init__(self, owner_id: str = '', data: dict | None = None,

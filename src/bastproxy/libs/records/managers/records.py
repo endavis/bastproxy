@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 
 # 3rd Party
 # Project
-from libs.api import API as BASEAPI
-from libs.queue import SimpleQueue
-from libs.stack import SimpleStack
+from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.queue import SimpleQueue
+from bastproxy.libs.stack import SimpleStack
 
 if TYPE_CHECKING:
     pass
@@ -59,7 +59,7 @@ class RecordManager:
 
         """
         if record != self.active_record_stack.peek():
-            from libs.records import LogRecord
+            from bastproxy.libs.records import LogRecord
 
             LogRecord(
                 f"RecordManger end: Record {record} is not the same as the active record {self.active_record_stack.peek()}",
@@ -211,7 +211,7 @@ class RecordManager:
         if queuename not in self.records:
             self.records[queuename] = SimpleQueue(self.max_records)
         if record.uuid in self.record_instances:
-            from libs.records import LogRecord
+            from bastproxy.libs.records import LogRecord
 
             LogRecord(
                 f"Record UUID collision {record.uuid} already exists in the record manager",

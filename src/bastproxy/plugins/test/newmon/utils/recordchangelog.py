@@ -4,19 +4,18 @@
 # File Description: Holds the change record type
 #
 # By: Bast
-"""Holds the change record type
-"""
+"""Holds the change record type"""
 
 # Standard Library
-import traceback
-import pprint
 import contextlib
+import pprint
+import traceback
+
+from pydatatracker import ChangeLogEntry
 
 # 3rd Party
-
 # Project
-from libs.api import API
-from pydatatracker import ChangeLogEntry
+from bastproxy.libs.api import API
 
 
 class RecordChangeLogEntry(ChangeLogEntry):
@@ -39,6 +38,7 @@ class RecordChangeLogEntry(ChangeLogEntry):
         data=None,
         call_stack=None,
     ):
+        """Initialize a change log entry with context and optional stack details."""
         if not extra:
             extra = {}
         if "action" not in extra:
@@ -65,9 +65,11 @@ class RecordChangeLogEntry(ChangeLogEntry):
                 self.event_stack = self.api("plugins.core.events:get.event.stack")()
 
     def __hash__(self):
+        """Return a stable hash for the change log entry."""
         return hash(f"{self.__class__.__name__}:{self.uuid}")
 
     def __eq__(self, value: object) -> bool:
+        """Compare equality based on uuid and class type."""
         return (
             self.uuid == value.uuid
             if isinstance(value, RecordChangeLogEntry)
@@ -75,9 +77,15 @@ class RecordChangeLogEntry(ChangeLogEntry):
         )
 
     def __lt__(self, value: object) -> bool:
-        return self.created_time < value.created_time if hasattr(value, "created_time") else False  # type: ignore
+        """Allow sorting by creation time when available."""
+        return (
+            self.created_time < value.created_time
+            if hasattr(value, "created_time")
+            else False
+        )  # type: ignore
 
     def fix_stack(self, stack):
+        """Normalize the captured stack for formatting."""
         new_stack = []
         # don't need the last 2 lines
         for line in stack:
@@ -85,6 +93,7 @@ class RecordChangeLogEntry(ChangeLogEntry):
         return new_stack[:-2]
 
     def find_relevant_actor(self, stack):
+        """Identify the most relevant actor in the captured stack trace."""
         not_relevant = ["libs/records/", "libs/data", "libs/process", "libs/tracking"]
         found_actor = ""
         for line in [line for line in stack if "File" in line]:
@@ -96,17 +105,18 @@ class RecordChangeLogEntry(ChangeLogEntry):
         return found_actor
 
     def __str__(self):
+        """Return a concise string representation of the change log entry."""
         return f"{self.flag} - {self.action} - {self.data} - {self.extra}"
 
     def format(self):
         """Format the change record"""
-
         if self.flag == "Modify":
             return f"updated {self.action}"
         if self.flag == "Set Flag":
             return f"set {self.action} to {self.data}"
         if self.flag == "Info":
             return f"{self.action}"
+        return None
 
     def format_detailed(
         self,
@@ -115,7 +125,6 @@ class RecordChangeLogEntry(ChangeLogEntry):
         data_lines_to_show: int = 10,
     ):
         """Format the change record"""
-
         args = self.api("plugins.core.commands:get.current.command.args")()
         if "show_data" in args:
             show_data = args["show_data"]

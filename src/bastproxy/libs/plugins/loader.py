@@ -46,11 +46,11 @@ from functools import partial
 
 # 3rd Party
 # Project
-from libs.api import API, AddAPI
-from libs.plugins import imputils
-from libs.plugins.plugininfo import PluginInfo
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin, patch
+from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.plugins import imputils
+from bastproxy.libs.plugins.plugininfo import PluginInfo
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin, patch
 
 
 class PluginLoader:
@@ -821,7 +821,7 @@ class PluginLoader:
 
         bad_plugins = []
 
-        # import plugins
+        # import bastproxy.plugins
         for plugin_id in plugins_not_loaded:
             LogRecord(
                 f"{plugin_id:<30} : attempting to load",

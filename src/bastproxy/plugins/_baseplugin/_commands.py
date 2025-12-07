@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Protocol
 
 # 3rd Party
 # Project
-from plugins.core.commands import (
+from bastproxy.plugins.core.commands import (
     AddArgument,
     AddCommand,
     AddParser,
@@ -20,7 +20,7 @@ from plugins.core.commands import (
 from ._pluginhooks import RegisterPluginHook
 
 if TYPE_CHECKING:
-    from plugins._baseplugin import Plugin
+    from bastproxy.plugins._baseplugin import Plugin
 
 
 class Commands(Protocol):

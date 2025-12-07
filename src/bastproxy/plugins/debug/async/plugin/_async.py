@@ -10,8 +10,8 @@ import asyncio
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddParser
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.plugins.core.commands import AddParser
 
 
 class AsyncPlugin(BasePlugin):

@@ -13,15 +13,15 @@ import sys
 import time
 from collections.abc import Callable
 
-from libs.api import API, AddAPI
-from libs.callback import Callback
-from libs.records import LogRecord
+from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.callback import Callback
+from bastproxy.libs.records import LogRecord
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
-from plugins.core.events import RegisterToEvent
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
 
 
 class Timer(Callback):

@@ -16,9 +16,9 @@ from collections.abc import Callable
 
 # 3rd Party
 # Project
-from libs.api import API
-from libs.callback import Callback
-from libs.records import EventArgsRecord, LogRecord
+from bastproxy.libs.api import API
+from bastproxy.libs.callback import Callback
+from bastproxy.libs.records import EventArgsRecord, LogRecord
 
 from ._process_event import ProcessRaisedEvent
 

@@ -10,8 +10,8 @@
 
 # 3rd Party
 # Project
-from libs.records.rtypes.base import BaseRecord, TrackedUserList
-from libs.records.rtypes.log import LogRecord
+from bastproxy.libs.records.rtypes.base import BaseRecord, TrackedUserList
+from bastproxy.libs.records.rtypes.log import LogRecord
 
 
 class NetworkDataLine(BaseRecord):

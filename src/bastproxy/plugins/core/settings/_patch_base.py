@@ -10,9 +10,9 @@ import textwrap
 
 # 3rd Party
 # Project
-from libs import argp
-from plugins._baseplugin import RegisterPluginHook
-from plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.libs import argp
+from bastproxy.plugins._baseplugin import RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
 CANRELOAD = False
 

@@ -82,7 +82,7 @@ class APIStatItem:
             )
             stack.insert(0, "\n")
             try:
-                from libs.records import LogRecord
+                from bastproxy.libs.records import LogRecord
 
                 LogRecord(stack, level="warning", sources=[__name__])()
             except ImportError:

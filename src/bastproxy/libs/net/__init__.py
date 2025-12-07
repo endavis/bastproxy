@@ -26,7 +26,7 @@ Usage:
 # update telnetlib3 with mud protocols
 import telnetlib3.telopt
 
-from libs.records import LogRecord
+from bastproxy.libs.records import LogRecord
 
 mud_protocols = {
     "MSSP": bytes([70]),

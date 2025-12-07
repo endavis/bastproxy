@@ -46,7 +46,7 @@ from typing import Any
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin
+from bastproxy.plugins._baseplugin import BasePlugin
 
 REQUIREDRE = re.compile(r"^REQUIRED = (?P<value>.*)$")
 NAMERE = re.compile(r"^PLUGIN_NAME = \'(?P<value>.*)\'$")

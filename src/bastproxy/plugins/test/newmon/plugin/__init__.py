@@ -4,6 +4,6 @@
 # File Description: a plugin to inspect records
 #
 # By: Bast
-__all__ = ['Plugin']
+__all__ = ["Plugin"]
 
 from ._newmon import NewMonPlugin as Plugin

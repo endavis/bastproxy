@@ -16,7 +16,7 @@ Test Classes:
 
 import time
 
-from libs.timing import Timing, duration
+from bastproxy.libs.timing import Timing, duration
 
 
 # Helper function for testing the duration decorator

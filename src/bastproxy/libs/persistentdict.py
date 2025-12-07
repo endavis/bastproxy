@@ -44,8 +44,8 @@ from typing import TYPE_CHECKING, Any, Self
 
 # Third Party
 # Project
-from libs.api import API
-from libs.records import LogRecord
+from bastproxy.libs.api import API
+from bastproxy.libs.records import LogRecord
 
 if TYPE_CHECKING:
     pass

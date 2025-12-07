@@ -244,7 +244,13 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        from libs.records import LogRecord
+        from bastproxy.libs.records import LogRecord
+
+        if isinstance(toplevel, str):
+            package_root = self.owner_id.split(".")[0] if self.owner_id else ""
+            prefix = f"{package_root}."
+            if package_root and toplevel.startswith(prefix):
+                toplevel = toplevel.removeprefix(prefix)
 
         LogRecord(
             f"_api_add_apis_for_object: {item} {toplevel}",
@@ -496,7 +502,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                 self._class_api[full_api_name] = api_item
             else:
                 try:
-                    from libs.records import LogRecord
+                    from bastproxy.libs.records import LogRecord
 
                     added_in = self._class_api[api_item.full_api_name].owner_id
                     LogRecord(
@@ -545,7 +551,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                 self._instance_api[api_item.full_api_name] = api_item
             else:
                 try:
-                    from libs.records import LogRecord
+                    from bastproxy.libs.records import LogRecord
 
                     LogRecord(
                         f"libs.api:instance - {api_item.full_api_name} already exists "
@@ -625,7 +631,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        from libs.records import LogRecord
+        from bastproxy.libs.records import LogRecord
 
         LogRecord(
             f"libs.api:remove - {top_level_api}",
@@ -684,6 +690,12 @@ class API:  # sourcery skip: upper-camel-case-classes
             AttributeError: If the API location is not found in the API.
 
         """
+        if "." in api_location:
+            package_root = (self.owner_id or "").split(".")[0]
+            prefix = f"{package_root}."
+            if package_root and api_location.startswith(prefix):
+                api_location = api_location.removeprefix(prefix)
+
         # check overloaded api
         if (
             not get_class

@@ -18,9 +18,9 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import AddAPI
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin
 
 
 def sort_fuzzy_result(result):

@@ -11,12 +11,12 @@ import datetime
 import shlex
 from collections.abc import Callable
 
-from libs import argp
+from bastproxy.libs import argp
 
 # 3rd Party
 # Project
-from libs.api import API
-from libs.records import LogRecord
+from bastproxy.libs.api import API
+from bastproxy.libs.records import LogRecord
 
 from .data.cmdargs import CmdArgsRecord
 

@@ -41,15 +41,15 @@ import sys
 from pathlib import Path
 
 # The modules below are imported to add their functions to the API
-from libs import timing  # noqa: F401
-from libs.api import API as BASEAPI
-from libs.asynch import run_asynch
-from libs.plugins import reloadutils  # noqa: F401
+from bastproxy.libs import argp, timing
+from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.asynch import run_asynch
+from bastproxy.libs.plugins import reloadutils
 
 # Third Party
 # Project
-from libs.records import LogRecord
-from plugins.core.log import formatTime_RFC3339, formatTime_RFC3339_UTC
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins.core.log import formatTime_RFC3339, formatTime_RFC3339_UTC
 
 # set this to True to log in UTC timezone, False to log in local timezone
 BASEAPI.LOG_IN_UTC_TZ = True
@@ -69,9 +69,9 @@ BASEAPI.quiet_mode = False
 # change LOG_IN_UTC_TZ to False if you want to log in local time
 # updates the formatter for the logging module
 if BASEAPI.LOG_IN_UTC_TZ:
-    logging.Formatter.formatTime = formatTime_RFC3339_UTC
+    logging.Formatter.formatTime = formatTime_RFC3339_UTC  # type: ignore[method-assign]
 else:
-    logging.Formatter.formatTime = formatTime_RFC3339
+    logging.Formatter.formatTime = formatTime_RFC3339  # type: ignore[method-assign]
 
 CODE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = CODE_ROOT.parent
@@ -137,7 +137,7 @@ class MudProxy:
         LogRecord("Loading Plugin Loader", level="info", sources=["mudproxy"])()
 
         # instantiate the plugin manager
-        from libs.plugins.loader import PluginLoader
+        from bastproxy.libs.plugins.loader import PluginLoader
 
         plugin_loader = PluginLoader()
 
@@ -194,7 +194,7 @@ class MudProxy:
             "ev_bastproxy_proxy_ready", calledfrom="mudproxy"
         )
 
-        from libs.net.listeners import Listeners
+        from bastproxy.libs.net.listeners import Listeners
 
         Listeners().create_listeners()
 
@@ -236,11 +236,9 @@ def main() -> None:
         SystemExit: If the argument parsing fails or if the application exits.
 
     """
-    import libs.argp
-
     # create an ArgumentParser to parse the command line
-    parser = libs.argp.ArgumentParser(description="A python mud proxy")
-    parser.formatter_class = libs.argp.CustomFormatter
+    parser = argp.ArgumentParser(description="A python mud proxy")
+    parser.formatter_class = argp.CustomFormatter
 
     # create a port option, this sets the variable automatically in the proxy plugin
     parser.add_argument(

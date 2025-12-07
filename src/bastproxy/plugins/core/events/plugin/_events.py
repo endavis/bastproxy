@@ -8,16 +8,16 @@
 # Standard Library
 import types
 
-from libs.api import AddAPI
-from libs.queue import SimpleQueue
-from libs.records import LogRecord
-from libs.stack import SimpleStack
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.queue import SimpleQueue
+from bastproxy.libs.records import LogRecord
+from bastproxy.libs.stack import SimpleStack
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
-from plugins.core.events import RegisterToEvent
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
 
 from ._event import Event
 

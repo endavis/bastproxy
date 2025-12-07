@@ -36,7 +36,7 @@ import sys
 
 # 3rd Party
 # Project
-from libs.records import LogRecord
+from bastproxy.libs.records import LogRecord
 
 
 class CircularDependencyError(Exception):

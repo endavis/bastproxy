@@ -25,8 +25,8 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import AddAPI
-from plugins._baseplugin import BasePlugin
+from bastproxy.libs.api import AddAPI
+from bastproxy.plugins._baseplugin import BasePlugin
 
 TIMELENGTH_REGEXP = re.compile(
     r"^(?P<days>((\d*\.\d+)|\d+)+d)?"

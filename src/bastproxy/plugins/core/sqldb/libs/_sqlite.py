@@ -16,9 +16,9 @@ from pathlib import Path
 
 # 3rd Party
 # Project
-from libs.api import API, AddAPI
-from libs.records import LogRecord
-from plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
 
 def dict_factory(cursor, row):

@@ -12,7 +12,7 @@ Holds the log record type
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseDictRecord
+from bastproxy.libs.records.rtypes.base import BaseDictRecord
 
 
 class EventDataRecord(BaseDictRecord):

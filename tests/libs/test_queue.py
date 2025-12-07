@@ -11,8 +11,7 @@ This module contains tests for the queue data structure.
 """
 
 import pytest
-
-from libs.queue import SimpleQueue as Queue
+from bastproxy.libs.queue import SimpleQueue as Queue
 
 
 class TestQueue:

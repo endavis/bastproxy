@@ -11,9 +11,9 @@ import traceback
 
 # 3rd Party
 # Project
-from libs.api import API
-from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddArgument, AddParser
+from bastproxy.libs.api import API
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.plugins.core.commands import AddArgument, AddParser
 
 
 class APIPlugin(BasePlugin):

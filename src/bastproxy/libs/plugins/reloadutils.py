@@ -39,7 +39,7 @@ Classes:
 # Project
 from typing import Any
 
-from libs.api import API, AddAPI
+from bastproxy.libs.api import API, AddAPI
 
 
 class ReloadHelper:

@@ -30,18 +30,18 @@ except ImportError:
     sys.exit(1)
 
 # Project
-from libs.api import AddAPI
-from libs.net.mud import MudConnection
-from libs.records import (
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.net.mud import MudConnection
+from bastproxy.libs.records import (
     LogRecord,
     NetworkData,
     NetworkDataLine,
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
 )
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddCommand, AddParser
-from plugins.core.events import RegisterToEvent
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
 
 
 class ProxyPlugin(BasePlugin):

@@ -36,12 +36,18 @@ __all__ = [
     "SendDataDirectlyToMud",
 ]
 
-from libs.records.managers.records import RMANAGER
-from libs.records.rtypes.base import (  # import to resolve circular import
+from bastproxy.libs.records.managers.records import RMANAGER
+from bastproxy.libs.records.rtypes.base import (  # import to resolve circular import
     BaseDictRecord,
     BaseRecord,
 )
-from libs.records.rtypes.clientdata import ProcessDataToClient, SendDataDirectlyToClient
-from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.muddata import ProcessDataToMud, SendDataDirectlyToMud
-from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+from bastproxy.libs.records.rtypes.clientdata import (
+    ProcessDataToClient,
+    SendDataDirectlyToClient,
+)
+from bastproxy.libs.records.rtypes.log import LogRecord
+from bastproxy.libs.records.rtypes.muddata import (
+    ProcessDataToMud,
+    SendDataDirectlyToMud,
+)
+from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine

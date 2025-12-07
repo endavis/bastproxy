@@ -9,17 +9,17 @@
 import logging
 import numbers
 
-from libs.api import AddAPI
+from bastproxy.libs.api import AddAPI
 
 # 3rd Party
 # Project
-from libs.persistentdict import PersistentDict
-from libs.records import RMANAGER, LogRecord
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
-from plugins.core.events import RegisterToEvent
-from plugins.core.log import get_toplevel
-from plugins.core.log.libs._custom_logger import setup_loggers, type_counts
+from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs.records import RMANAGER, LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.log import get_toplevel
+from bastproxy.plugins.core.log.libs._custom_logger import setup_loggers, type_counts
 
 
 class LogPlugin(BasePlugin):

@@ -40,13 +40,14 @@ import contextlib
 # Standard Library
 import sys
 
-from libs.api import API as BASEAPI
-from libs.asynch import TaskItem
-from libs.net import server
+from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.asynch import TaskItem
+from bastproxy.libs.net import client as net_client
+from bastproxy.libs.net import server
 
 # Third Party
 # Project
-from libs.records import LogRecord
+from bastproxy.libs.records import LogRecord
 
 
 class Listeners:
@@ -233,9 +234,6 @@ class Listeners:
             None
 
         """
-        # import the client handler here so that the server can be created
-        import libs.net.client
-
         listen_port = self.api("plugins.core.settings:get")(
             "plugins.core.proxy", "listenport"
         )
@@ -265,7 +263,7 @@ class Listeners:
                 server.create_server(
                     host=ipv4_address,
                     port=listen_port,
-                    shell=libs.net.client.client_telnet_handler,
+                    shell=net_client.client_telnet_handler,
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
@@ -280,7 +278,7 @@ class Listeners:
                 server.create_server(
                     host=ipv6_address,
                     port=listen_port,
-                    shell=libs.net.client.client_telnet_handler,
+                    shell=net_client.client_telnet_handler,
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",

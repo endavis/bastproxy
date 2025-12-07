@@ -15,7 +15,7 @@ from uuid import uuid4
 
 # 3rd Party
 # Project
-from libs.api import API
+from bastproxy.libs.api import API
 
 
 class UpdateRecord:

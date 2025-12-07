@@ -9,22 +9,22 @@
 import copy
 import types
 
-from libs import argp
+from bastproxy.libs import argp
 
 # 3rd Party
 # Project
-from libs.api import AddAPI
-from libs.persistentdict import PersistentDict
-from libs.records import (
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs.records import (
     LogRecord,
     NetworkData,
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
 )
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddCommand, AddParser
-from plugins.core.commands.libs._command import CommandClass
-from plugins.core.events import RegisterToEvent
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands.libs._command import CommandClass
+from bastproxy.plugins.core.events import RegisterToEvent
 
 
 class CommandsPlugin(BasePlugin):

@@ -12,8 +12,8 @@ import re
 
 # 3rd Party
 # Project
-from libs.records.rtypes.base import BaseRecord
-from libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+from bastproxy.libs.records.rtypes.base import BaseRecord
+from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
 
 class ProcessDataToMud(BaseRecord):

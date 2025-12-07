@@ -13,10 +13,17 @@ bastproxy test suite.
 
 import asyncio
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+
+# Ensure src/ is on the import path so bastproxy.* imports resolve when running tests directly.
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 
 @pytest.fixture
@@ -56,7 +63,7 @@ def mock_api():
     """
     from unittest.mock import MagicMock
 
-    from libs.api import API
+    from bastproxy.libs.api import API
 
     mock = MagicMock(spec=API)
     mock.owner_id = "test_owner"

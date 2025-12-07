@@ -8,14 +8,14 @@
 # Standard Library
 from functools import partial
 
-from libs.api import API, AddAPI
-from libs.net.client import ClientConnection
-from libs.records import LogRecord
+from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.net.client import ClientConnection
+from bastproxy.libs.records import LogRecord
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
 
 
 class BanRecord:

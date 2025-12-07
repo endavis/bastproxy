@@ -7,12 +7,12 @@
 
 # Standard Library
 
-from libs.records import RMANAGER
+from bastproxy.libs.records import RMANAGER
 
 # 3rd Party
 # Project
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
 
 
 class RecordPlugin(BasePlugin):

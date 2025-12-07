@@ -18,8 +18,7 @@ Test Classes:
 """
 
 import pytest
-
-from libs.exceptions import (
+from bastproxy.libs.exceptions import (
     APIException,
     APIInvocationError,
     APINotFoundError,

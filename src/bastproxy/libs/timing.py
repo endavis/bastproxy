@@ -41,9 +41,9 @@ from uuid import uuid4
 
 # 3rd Party
 # Project
-from libs.api import API as BASEAPI
-from libs.api import AddAPI
-from libs.records import LogRecord
+from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.records import LogRecord
 
 API = BASEAPI(owner_id=__name__)
 

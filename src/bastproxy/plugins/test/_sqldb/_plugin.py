@@ -4,27 +4,26 @@
 # File Description: a plugin to test the sqldb plugin
 #
 # By: Bast
-"""
-This plugin is used to test the sqldb plugin
-"""
-from plugins._baseplugin import BasePlugin
+"""This plugin is used to test the sqldb plugin"""
+
+from bastproxy.plugins._baseplugin import BasePlugin
+
 
 def dbcreate(sqldbclass, plugin, **kwargs):
-    """
-    create the statdb class, this is needed because the Sqldb baseclass
+    """Create the statdb class, this is needed because the Sqldb baseclass
     can be reloaded since it is a plugin
     """
-    class Statdb(sqldbclass): # pylint: disable=too-many-public-methods
-            """
-            a class to manage a sqlite database for aardwolf events
-            """
-            def __init__(self, plugin, **kwargs):
-                """
-                initialize the class
-                """
-                sqldbclass.__init__(self, plugin, **kwargs)
 
-                self.addtable('stats', """CREATE TABLE stats(
+    class Statdb(sqldbclass):  # pylint: disable=too-many-public-methods
+        """a class to manage a sqlite database for aardwolf events"""
+
+        def __init__(self, plugin, **kwargs):
+            """Initialize the class"""
+            sqldbclass.__init__(self, plugin, **kwargs)
+
+            self.addtable(
+                "stats",
+                """CREATE TABLE stats(
                         stat_id INTEGER NOT NULL PRIMARY KEY autoincrement,
                         name TEXT NOT NULL,
                         level INT default 1,
@@ -51,22 +50,26 @@ def dbcreate(sqldbclass, plugin, **kwargs):
                         time INT default 0,
                         milestone TEXT,
                         redos INT default 0
-                    );""", keyfield='stat_id')
+                    );""",
+                keyfield="stat_id",
+            )
 
-                # Need to do this after adding tables
-                self.postinit()
+            # Need to do this after adding tables
+            self.postinit()
 
     return Statdb(plugin, **kwargs)
 
+
 class SQLDBPlugin(BasePlugin):
-    """
-    a plugin to test the sqldb plugin
-    """
+    """a plugin to test the sqldb plugin"""
+
     def initialize(self):
-        """
-        initialize the plugin
-        """
+        """Initialize the plugin"""
         BasePlugin.initialize(self)
 
-        self.statdb = dbcreate(self.api('plugins.core.sqldb:baseclass')(), self.plugin_id,
-                                dbname='stats', dbdir=self.data_directory)
+        self.statdb = dbcreate(
+            self.api("plugins.core.sqldb:baseclass")(),
+            self.plugin_id,
+            dbname="stats",
+            dbdir=self.data_directory,
+        )

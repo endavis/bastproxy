@@ -10,8 +10,8 @@
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.plugins.core.commands import AddArgument, AddParser
 
 
 class PluginsPlugin(BasePlugin):

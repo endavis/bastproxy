@@ -6,19 +6,18 @@
 # By: Bast
 
 # Standard Library
-# import asyncio
-import traceback
 import logging
+import traceback
+from typing import Any, NoReturn
+
+from pydatatracker import add_to_ignore_in_stack
 
 # import pprint
-
 # 3rd Party
-
 # Project
-from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddParser
-from ..types.trackedrecord import TrackedRecord
-from pydatatracker import add_to_ignore_in_stack
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.test.newmon.types.trackedrecord import TrackedRecord
 
 add_to_ignore_in_stack(["in run_expression"])
 
@@ -59,33 +58,37 @@ def run_expression(command: dict, logger_func=logging.info, description=""):
 
     """
     logger_func("#" * 80)
+
+    def _missing_required_field(field: str) -> NoReturn:
+        msg = f"Missing required field: '{field}'"
+        raise ValueError(msg)
+
     if description:
         logger_func(f"  {description}")
         logger_func("")
     logger_func(f"  Testing begin: {command}")
+    if "operation" not in command:
+        _missing_required_field("operation")
+    if "target" not in command:
+        _missing_required_field("target")
+
+    operation = command["operation"]
+    target = command["target"]
+    args: list[Any] = command.get("args", [])  # Optional args default to empty list
+
+    # Fetch and execute the method dynamically
+    method = getattr(target, operation, None)
+    if not callable(method):
+        msg = f"Operation '{operation}' not supported on the target object."
+        raise TypeError(msg)
+
     try:
-        if "operation" not in command:
-            raise ValueError("Missing required field: 'operation'")
-        if "target" not in command:
-            raise ValueError("Missing required field: 'target'")
-
-        operation = command["operation"]
-        target = command["target"]
-        args = command.get("args", [])  # Optional args default to empty list
-
-        # Fetch and execute the method dynamically
-        method = getattr(target, operation, None)
-        if not callable(method):
-            raise ValueError(
-                f"Operation '{operation}' not supported on the target object."
-            )
-
         result = method(*args)
-        logger_func(f"    Operation result: {result}")
-        return result
-
     except Exception as e:
         logger_func(f"    Error executing command: {e}")
+    else:
+        logger_func(f"    Operation result: {result}")
+        return result
 
     finally:
         logger_func("  Testing end.")
@@ -98,7 +101,6 @@ class NewMonPlugin(BasePlugin):
     @AddParser(description="test new tracking records")
     def _command_rectest(self):
         """Test new record tracking"""
-
         new_record = TrackedRecord(owner_id="test record")
 
         new_record._tracking_debug_flag = True

@@ -23,14 +23,14 @@ Functions:
 
 # Standard Library
 import datetime
-import traceback
 import logging
+import traceback
+
+from pydatatracker import TrackedAttr, add_to_ignore_in_stack
 
 # 3rd Party
-
 # Project
-from libs.api import API
-from pydatatracker import TrackedAttr, add_to_ignore_in_stack
+from bastproxy.libs.api import API
 
 _record_types = []
 
@@ -208,8 +208,8 @@ class TrackedRecord(TrackedAttr):
 
         """
         if reset:
-            for parent in self.parents:
-                self.tracking_remove_observer(parent._tracking_onchange)
+            for existing_parent in self.parents:
+                self.tracking_remove_observer(existing_parent._tracking_onchange)
             self.parents = []
         if parent not in self.parents:
             self.parents.append(parent)
@@ -343,10 +343,7 @@ class TrackedRecord(TrackedAttr):
                 f"{self.__class__.__name__:<20} {self._tracking_uuid} "
                 f"{self.owner_id} {self.execute_time_taken:.2f}ms"
             )
-        else:
-            return (
-                f"{self.__class__.__name__:<20} {self._tracking_uuid} {self.owner_id}"
-            )
+        return f"{self.__class__.__name__:<20} {self._tracking_uuid} {self.owner_id}"
 
     def fix_stack(self, stack) -> list[str]:
         """Process the stack trace to remove empty lines and return a cleaned list.

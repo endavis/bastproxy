@@ -12,10 +12,10 @@
 # 3rd Party
 
 # Project
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddParser
-from plugins.core.events import RegisterToEvent
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
 
 
 class PluginManager(BasePlugin):

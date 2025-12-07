@@ -12,8 +12,8 @@ from importlib import import_module
 
 # 3rd Party
 # Project
-from libs.api import API as APIClass
-from libs.records import LogRecord
+from bastproxy.libs.api import API as APIClass
+from bastproxy.libs.records import LogRecord
 
 from ._base import Plugin
 

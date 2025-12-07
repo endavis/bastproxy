@@ -16,11 +16,11 @@ from uuid import uuid4
 
 # 3rd Party
 # Project
-from libs.api import API
-from libs.records.managers.records import RMANAGER
-from libs.records.managers.updates import UpdateManager
-from libs.records.rtypes.update import UpdateRecord
-from libs.tracking.utils.attributes import AttributeMonitor
+from bastproxy.libs.api import API
+from bastproxy.libs.records.managers.records import RMANAGER
+from bastproxy.libs.records.managers.updates import UpdateManager
+from bastproxy.libs.records.rtypes.update import UpdateRecord
+from bastproxy.libs.tracking.utils.attributes import AttributeMonitor
 
 if TYPE_CHECKING:
     pass
@@ -587,7 +587,7 @@ class BaseListRecord(UserList, BaseRecord):
             if isinstance(decoded_line, str):
                 new_message.extend(decoded_line.splitlines() if decoded_line else [""])
             else:
-                from libs.records.rtypes.log import LogRecord
+                from bastproxy.libs.records.rtypes.log import LogRecord
 
                 LogRecord(
                     f"clean - {self.uuid} Message.clean: line is not a string: {line}",

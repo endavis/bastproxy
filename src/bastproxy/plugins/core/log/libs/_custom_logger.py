@@ -18,14 +18,14 @@ import traceback
 
 # Third Party
 # Project
-from libs.api import API
-from libs.records import (
+from bastproxy.libs.api import API
+from bastproxy.libs.records import (
     LogRecord,
     NetworkData,
     NetworkDataLine,
     SendDataDirectlyToClient,
 )
-from plugins.core.colors import ALLCONVERTCOLORS
+from bastproxy.plugins.core.colors import ALLCONVERTCOLORS
 
 from .tz import formatTime_RFC3339, formatTime_RFC3339_UTC
 from .utils import get_toplevel
@@ -229,7 +229,7 @@ def reset_logging():
 
 
 def setup_loggers(log_level: int):
-    from libs.api import API
+    from bastproxy.libs.api import API
 
     reset_logging()
     rootlogger = logging.getLogger()

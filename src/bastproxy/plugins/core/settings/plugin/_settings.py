@@ -10,17 +10,17 @@ import contextlib
 import textwrap
 from pathlib import Path
 
-from libs import argp
+from bastproxy.libs import argp
 
 # 3rd Party
 # Project
-from libs.api import AddAPI
-from libs.persistentdict import PersistentDict
-from libs.records import LogRecord
-from plugins._baseplugin import BasePlugin, RegisterPluginHook
-from plugins.core.commands import AddArgument, AddCommand, AddParser
-from plugins.core.events import RegisterToEvent
-from plugins.core.settings.libs._settinginfo import SettingInfo
+from bastproxy.libs.api import AddAPI
+from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.settings.libs._settinginfo import SettingInfo
 
 
 class SettingsPlugin(BasePlugin):

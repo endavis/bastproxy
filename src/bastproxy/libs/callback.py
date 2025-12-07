@@ -38,7 +38,7 @@ from typing import Any
 
 # 3rd Party
 # Project
-from libs.api import API
+from bastproxy.libs.api import API
 
 
 class Callback:

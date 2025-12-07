@@ -11,9 +11,9 @@
 # 3rd Party
 
 # Project
-from libs.records.rtypes.base import BaseRecord
-from libs.records.rtypes.log import LogRecord
-from libs.records.rtypes.networkdata import NetworkData
+from bastproxy.libs.records.rtypes.base import BaseRecord
+from bastproxy.libs.records.rtypes.log import LogRecord
+from bastproxy.libs.records.rtypes.networkdata import NetworkData
 
 
 class ProcessDataToClient(BaseRecord):

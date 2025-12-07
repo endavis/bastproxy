@@ -10,16 +10,14 @@
 # 3rd Party
 
 # Project
-from plugins._baseplugin import BasePlugin
-from plugins.core.commands import AddParser
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.plugins.core.commands import AddParser
+
 
 class CMDDecPlugin(BasePlugin):
-    """
-    a plugin to test command decorators
-    """
-    @AddParser(description='raise a test error')
+    """a plugin to test command decorators"""
+
+    @AddParser(description="raise a test error")
     def cmd_raise(self):
-        """
-        test errors
-        """
-        return True, ['@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w']
+        """Test errors"""
+        return True, ["@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"]
