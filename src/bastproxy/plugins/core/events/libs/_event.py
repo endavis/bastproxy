@@ -18,7 +18,8 @@ from collections.abc import Callable
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.callback import Callback
-from bastproxy.libs.records import EventArgsRecord, LogRecord
+from bastproxy.libs.records import LogRecord
+from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 
 from ._process_event import ProcessRaisedEvent
 
@@ -217,7 +218,7 @@ class Event:
         for call_back in list(self.priority_dictionary[priority].keys()):
             try:
                 # A callback should call the api 'plugins.core.events:get:current:event'
-                # which returns event_name, EventArgsRecord
+                # which returns event_name, EventDataRecord
                 # If the registered event changes the data, it should snapshot it with addupdate
                 if (
                     call_back in self.priority_dictionary[priority]
@@ -251,15 +252,15 @@ class Event:
         return found
 
     def raise_event(
-        self, data: dict | EventArgsRecord, actor: str, data_list=None, key_name=None
-    ) -> EventArgsRecord | None:
+        self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
+    ) -> EventDataRecord | None:
         """Raise this event."""
         self.raised_count = self.raised_count + 1
 
-        # If data is not a dict or EventArgsRecord object, log an error and the event will not be processed
-        if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
+        # If data is not a dict or EventDataRecord object, log an error and the event will not be processed
+        if not isinstance(data, EventDataRecord) and not isinstance(data, dict):
             LogRecord(
-                f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventArgsRecord object",
+                f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventDataRecord object",
                 level="error",
                 sources=[self.created_by, "plugins.core.events"],
             )()
@@ -270,8 +271,8 @@ class Event:
             )()
             return None
 
-        if not isinstance(data, EventArgsRecord):
-            data = EventArgsRecord(owner_id=actor, event_name=self.name, data=data)
+        if not isinstance(data, EventDataRecord):
+            data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
 
         # if the created_by is not set, set it to the calledfrom argument
         if actor and not self.created_by:

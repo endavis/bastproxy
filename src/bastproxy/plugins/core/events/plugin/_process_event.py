@@ -68,9 +68,9 @@ class ProcessRaisedEvent(BaseRecord):
                 sources=[self.called_from, self.event.created_by],
             )()
 
-        # convert a dict to an EventArgsRecord object
+        # convert a dict to an EventDataRecord object
 
-        # This checks each priority seperately and executes the functions in order of priority
+        # This checks each priority separately and executes the functions in order of priority
         # A while loop is used to ensure that if a function is added to the event during the execution of the same event
         # it will be processed in the same order as the other functions
         # This means that any registration added during the execution of the event will be processed
