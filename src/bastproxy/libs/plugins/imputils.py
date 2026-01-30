@@ -127,9 +127,7 @@ def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, 
         """
         errors[package] = sys.exc_info()
 
-    for module_info in pkgutil.walk_packages(
-        [directory.as_posix()], prefix, onerror=on_error
-    ):
+    for module_info in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
         if module_info.ispkg and (tspec := find_spec(module_info.name)):
             loader_path: str = (
                 tspec.loader.path  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]

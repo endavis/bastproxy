@@ -63,9 +63,7 @@ def patch(full_import_location, override=False):
                 )()
                 continue
 
-            LogRecord(
-                f"adding {itemo.__name__}", level="info", sources=["baseplugin"]
-            )()
+            LogRecord(f"adding {itemo.__name__}", level="info", sources=["baseplugin"])()
             setattr(Plugin, itemo.__name__, itemo)
             added = True
 

@@ -53,10 +53,7 @@ class NetworkDataLine(BaseRecord):
         self._attributes_to_monitor.append("was_sent")
         if originated != "internal" and (
             (isinstance(line, str) and ("\n" in line or "\r" in line))
-            or (
-                isinstance(line, (bytes, bytearray))
-                and (b"\n" in line or b"\r" in line)
-            )
+            or (isinstance(line, (bytes, bytearray)) and (b"\n" in line or b"\r" in line))
         ):
             LogRecord(
                 f"NetworkDataLine: {self.uuid} {line} is multi line with \\n and/or \\r",
@@ -268,9 +265,7 @@ class NetworkDataLine(BaseRecord):
             A formatted summary string.
 
         """
-        return (
-            f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {self.line!r}"
-        )
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {self.line!r}"
 
     def __str__(self):
         """Return a string representation of the line.
@@ -293,9 +288,7 @@ class NetworkDataLine(BaseRecord):
     def add_preamble(self, error: bool = False):
         """Add the preamble to the line only if it is from internal and is an IO message."""
         if self.internal and self.is_io:
-            preamblecolor = self.api("plugins.core.proxy:preamble.color.get")(
-                error=error
-            )
+            preamblecolor = self.api("plugins.core.proxy:preamble.color.get")(error=error)
             preambletext = self.api("plugins.core.proxy:preamble.get")()
             self.line = f"{preamblecolor}{preambletext}@w: {self.line}"
 
@@ -306,13 +299,7 @@ class NetworkData(TrackedUserList):
     def __init__(
         self,
         message: (
-            NetworkDataLine
-            | str
-            | bytes
-            | list[NetworkDataLine]
-            | list[str]
-            | list[bytes]
-            | None
+            NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes] | None
         ) = None,
         owner_id: str = "",
     ):
@@ -351,8 +338,7 @@ class NetworkData(TrackedUserList):
                 (
                     networkline.original_line
                     for networkline in self
-                    if networkline.original_line
-                    not in ["#BP", b"#BP", "", b"", "''", b"''"]
+                    if networkline.original_line not in ["#BP", b"#BP", "", b"", "''", b"''"]
                 ),
                 "",
             )
@@ -400,7 +386,9 @@ class NetworkData(TrackedUserList):
         new_list = []
         for item in items:
             if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
-                msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                msg = (
+                    f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
+                )
                 raise TypeError(msg)
             if isinstance(item, (str, bytes, bytearray)):
                 converted_item = NetworkDataLine(item)

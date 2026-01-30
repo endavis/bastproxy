@@ -108,9 +108,7 @@ class ColorsPlugin(BasePlugin):
             # line = fixstring(line)
             if "@@" in stripped_line:
                 stripped_line = stripped_line.replace("@@", "\0")
-            tlist = re.split(
-                r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", stripped_line
-            )
+            tlist = re.split(r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", stripped_line)
 
             nlist = []
             color = "w"
@@ -193,15 +191,11 @@ class ColorsPlugin(BasePlugin):
                 if color == "x":
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
                     color = f"38;5;{tcolor}"
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(
-                        color, newtext
-                    )
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
                 elif color == "z":
                     tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
                     color = f"48;5;{tcolor}"
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(
-                        color, newtext
-                    )
+                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
                 else:
                     tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(
                         CONVERTCOLORS[color], text
@@ -211,9 +205,7 @@ class ColorsPlugin(BasePlugin):
                 tstr = tstr2 + f"{chr(27)}[0m"
         return re.sub("\0", "@", tstr)  # put @ back in
 
-    @AddAPI(
-        "colorcode.escape", description="escape colorcodes so they are not interpreted"
-    )
+    @AddAPI("colorcode.escape", description="escape colorcodes so they are not interpreted")
     def _api_colorcode_escape(self, tstr):
         """Escape colorcodes."""
         tinput = tstr.splitlines()

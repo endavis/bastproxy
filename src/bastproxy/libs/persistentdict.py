@@ -302,11 +302,7 @@ class PersistentDict(dict):
 
         """
         # try formats from most restrictive to least restrictive
-        if (
-            self.file_name.exists()
-            and self.flag != "n"
-            and os.access(self.file_name, os.R_OK)
-        ):
+        if self.file_name.exists() and self.flag != "n" and os.access(self.file_name, os.R_OK):
             self.load()
 
     def load(self) -> None:

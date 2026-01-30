@@ -58,9 +58,7 @@ class EventsPlugin(BasePlugin):
     def _eventcb_post_startup_plugins_loaded(self):
         """Register all events in all plugins."""
         self._register_all_plugin_events()
-        self.api("plugins.core.events:raise.event")(
-            f"ev_{self.plugin_id}_all_events_registered"
-        )
+        self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_all_events_registered")
 
     @RegisterToEvent(event_name="ev_baseplugin_patched")
     def _eventcb_baseplugin_patched(self):
@@ -93,9 +91,7 @@ class EventsPlugin(BasePlugin):
     def _register_events_for_plugin(self, plugin_id):
         """Register all events in a plugin."""
         plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(plugin_id)
-        event_functions = self.get_event_registration_functions_in_object(
-            plugin_instance
-        )
+        event_functions = self.get_event_registration_functions_in_object(plugin_instance)
         LogRecord(
             f"_register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations",
             level="debug",
@@ -157,9 +153,7 @@ class EventsPlugin(BasePlugin):
             event_name = item["event_name"]
             event_name = event_name.format(**func.__self__.__dict__)
             prio = item["priority"]
-            self.api("plugins.core.events:register.to.event")(
-                event_name, func, priority=prio
-            )
+            self.api("plugins.core.events:register.to.event")(event_name, func, priority=prio)
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
@@ -170,9 +164,7 @@ class EventsPlugin(BasePlugin):
                 level="info",
                 sources=[self.plugin_id, event_record["plugin_id"]],
             )()
-            self.api(f"{self.plugin_id}:remove.events.for.owner")(
-                event_record["plugin_id"]
-            )
+            self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record["plugin_id"])
 
     @AddAPI("get.current.event.name", description="return the current event name")
     def _api_get_current_event_name(self):
@@ -314,9 +306,7 @@ class EventsPlugin(BasePlugin):
         for event in self.events:
             self.events[event].removeowner(owner_id)
 
-    @AddAPI(
-        "get.detailed.data.for.plugin", description="get detailed data for a plugin"
-    )
+    @AddAPI("get.detailed.data.for.plugin", description="get detailed data for a plugin")
     def _api_get_detailed_data_for_plugin(self, owner_name):
         """Return all events for an owner."""
         owner_events = {}
@@ -372,9 +362,7 @@ class EventsPlugin(BasePlugin):
             event_args = {}
 
         if not calledfrom:
-            calledfrom = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            calledfrom = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if not calledfrom:
             LogRecord(
@@ -436,9 +424,7 @@ class EventsPlugin(BasePlugin):
         return True, message
 
     @AddParser(description="get details of an event")
-    @AddArgument(
-        "event", help="the event name to get details for", default=[], nargs="*"
-    )
+    @AddArgument("event", help="the event name to get details for", default=[], nargs="*")
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -450,9 +436,7 @@ class EventsPlugin(BasePlugin):
         message = []
         if args["event"]:
             for event_name in args["event"]:
-                message.extend(
-                    self.api(f"{self.plugin_id}:get.event.detail")(event_name)
-                )
+                message.extend(self.api(f"{self.plugin_id}:get.event.detail")(event_name))
                 message.append("")
         else:
             message.append("Please provide an event name")
@@ -518,13 +502,10 @@ class EventsPlugin(BasePlugin):
             eventlist = [
                 name
                 for name in eventnames
-                if not self.events[name].description
-                or not self.events[name].arg_descriptions
+                if not self.events[name].description or not self.events[name].arg_descriptions
             ]
         elif show_raised_only:
-            eventlist = [
-                name for name in eventnames if self.events[name].raised_count > 0
-            ]
+            eventlist = [name for name in eventnames if self.events[name].raised_count > 0]
         else:
             eventlist = eventnames
 

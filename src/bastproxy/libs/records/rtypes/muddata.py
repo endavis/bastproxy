@@ -56,9 +56,7 @@ class ProcessDataToMud(BaseRecord):
 
         """
         attributes = super().get_attributes_to_format()
-        attributes[0].extend(
-            [("Show in History", "show_in_history"), ("Client ID", "client_id")]
-        )
+        attributes[0].extend([("Show in History", "show_in_history"), ("Client ID", "client_id")])
         return attributes
 
     def one_line_summary(self):
@@ -126,9 +124,7 @@ class ProcessDataToMud(BaseRecord):
         # pass each line through the event system to allow plugins to modify it
         self.seperate_commands()
 
-        if data_for_event := [
-            line for line in self.message if line.fromclient and line.is_io
-        ]:
+        if data_for_event := [line for line in self.message if line.fromclient and line.is_io]:
             self.api("plugins.core.events:raise.event")(
                 self.modify_data_event_name,
                 event_args={
@@ -177,9 +173,7 @@ class SendDataDirectlyToMud(BaseRecord):
                 self.read_data_event_name,
                 __name__,
                 description=["An event to see data that was sent to the mud"],
-                arg_descriptions={
-                    "line": "The line to modify, a NetworkDataLine instance"
-                },
+                arg_descriptions={"line": "The line to modify, a NetworkDataLine instance"},
             )
 
     def _exec_(self):

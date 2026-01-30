@@ -29,14 +29,12 @@ repos:
         entry: uv run ruff check --fix
         language: system
         types: [python]
-        exclude: ^tools/pyproject_template/
 
       - id: ruff-format
         name: ruff-format
         entry: uv run ruff format
         language: system
         types: [python]
-        exclude: ^tools/pyproject_template/
 
       # Type checking (uses project's mypy version)
       # Only checks src/ to match doit type_check behavior
@@ -54,7 +52,6 @@ repos:
         entry: bash -c 'command -v bandit &>/dev/null || uv run python -c "import bandit" 2>/dev/null || exit 0; uv run bandit -c pyproject.toml "$@"' --
         language: system
         types: [python]
-        exclude: ^tools/pyproject_template/
 
       # Spell checking (uses project's codespell version)
       - id: codespell
@@ -71,7 +68,7 @@ repos:
           bash -c '
           BRANCH=$(git branch --show-current);
           if [[ "$BRANCH" != "main" && "$BRANCH" != "develop" && ! "$BRANCH" =~ ^(issue|feat|fix|docs|test|refactor|chore|ci|perf|hotfix)/[0-9]+-[a-z0-9\-]+$ && ! "$BRANCH" =~ ^release/.+ ]]; then
-            echo "Branch name must follow convention:";
+            echo "❌ Branch name must follow convention:";
             echo "   - issue/<num>-<description>";
             echo "   - feat/<num>-<description>";
             echo "   - fix/<num>-<description>";
@@ -91,6 +88,14 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # Generate documentation TOC from frontmatter
+      - id: generate-doc-toc
+        name: Generate documentation TOC
+        entry: doit docs_toc
+        language: system
+        pass_filenames: false
+        files: ^docs/.*\.md$
+
       # Prevent direct commits to main branch
       - id: no-commit-to-main
         name: Prevent commits to main branch
@@ -98,9 +103,9 @@ repos:
           bash -c '
           BRANCH=$(git branch --show-current);
           if [[ "$BRANCH" == "main" ]]; then
-            echo "ERROR: Direct commits to main branch are not allowed!";
+            echo "❌ ERROR: Direct commits to main branch are not allowed!";
             echo "";
-            echo "The mandatory workflow is: Issue -> Branch -> Commit -> PR -> Merge";
+            echo "The mandatory workflow is: Issue → Branch → Commit → PR → Merge";
             echo "";
             echo "Please follow these steps:";
             echo "  1. Ensure a GitHub issue exists for your change";
@@ -124,7 +129,7 @@ repos:
           # Find staged files with .local or .local. in name (as distinct segment, not substring)
           LOCAL_FILES=$(git diff --cached --name-only | grep -E "\.local$|\.local\." | grep -v "\.local\.example" || true)
           if [[ -n "$LOCAL_FILES" ]]; then
-            echo "ERROR: Local config files should not be committed!"
+            echo "❌ ERROR: Local config files should not be committed!"
             echo ""
             echo "The following files appear to be user-specific configs:"
             echo "$LOCAL_FILES" | sed "s/^/  - /"
@@ -146,7 +151,7 @@ repos:
           bash -c '
           if git diff --cached --name-only | grep -q "^pyproject.toml$"; then
             if git diff --cached pyproject.toml | grep -E "^[-+]dynamic\s*=" | grep -q .; then
-              echo "ERROR: Changes to the dynamic field in pyproject.toml are not allowed!"
+              echo "❌ ERROR: Changes to the dynamic field in pyproject.toml are not allowed!"
               echo ""
               echo "Version is managed dynamically via git tags."
               echo "The dynamic = [\"version\"] setting should not be modified."

@@ -209,9 +209,7 @@ class APIItem:
             from ._api import API
 
             tmsg.append("")
-            tmsg.append(
-                f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}"
-            )
+            tmsg.append(f"function defined in {sourcefile.replace(str(API.BASEPATH), '')}")
 
         if show_function_code:
             tmsg.append("")

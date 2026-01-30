@@ -172,8 +172,7 @@ class Timing:
                 "args": args,
             }
             LogRecord(
-                f"starttimer - {uid} {timername:<20} : started - from {owner_id} "
-                f"with args {args}",
+                f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
                 level="debug",
                 sources=[__name__, owner_id],
             )()
@@ -213,8 +212,7 @@ class Timing:
                     )()
                 else:
                     LogRecord(
-                        f"finishtimer - {uid} {timername:<20} : finished in "
-                        f"{time_taken} ms",
+                        f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms",
                         level="debug",
                         sources=[__name__, self.timing[uid]["owner_id"]],
                     )()

@@ -42,8 +42,6 @@ mud_protocols = {
 
 for item, value in mud_protocols.items():
     if not hasattr(telnetlib3.telopt, item):
-        LogRecord(
-            f"Adding {item} to telnetlib3.telopt", level="debug", sources=[__name__]
-        )()
+        LogRecord(f"Adding {item} to telnetlib3.telopt", level="debug", sources=[__name__])()
         setattr(telnetlib3.telopt, item, value)
         telnetlib3.telopt._DEBUG_OPTS[value] = item  # type: ignore[assignment]

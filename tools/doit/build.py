@@ -22,7 +22,7 @@ def task_publish() -> dict[str, Any]:
         token = os.environ.get("PYPI_TOKEN")
         if not token:
             raise RuntimeError("PYPI_TOKEN environment variable must be set.")
-        return f"uv publish --token '{token}'"
+        return "uv publish --token '{token}'"
 
     return {
         "actions": ["uv build", CmdAction(publish_cmd)],

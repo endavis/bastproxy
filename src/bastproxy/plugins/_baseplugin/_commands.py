@@ -41,9 +41,7 @@ class Commands(Protocol):
         help="show functions this plugin has in the api",
         action="store_true",
     )
-    @AddArgument(
-        "-c", "--commands", help="show commands in this plugin", action="store_true"
-    )
+    @AddArgument("-c", "--commands", help="show commands in this plugin", action="store_true")
     def _command_help(self: "Plugin"):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -73,9 +71,7 @@ class Commands(Protocol):
             msg.pop()
 
         file_header = False
-        for file in self.api("libs.plugins.loader:plugin.get.changed.files")(
-            self.plugin_id
-        ):
+        for file in self.api("libs.plugins.loader:plugin.get.changed.files")(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != "":
@@ -93,9 +89,7 @@ class Commands(Protocol):
             msg.append("@B" + "-" * 60 + "@w")
 
         file_header = False
-        for file in self.api("libs.plugins.loader:plugin.get.invalid.python.files")(
-            self.plugin_id
-        ):
+        for file in self.api("libs.plugins.loader:plugin.get.invalid.python.files")(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != "":
@@ -116,9 +110,7 @@ class Commands(Protocol):
             msg.append("")
 
         if args["commands"]:
-            cmd_output = self.api("plugins.core.commands:list.commands.formatted")(
-                self.plugin_id
-            )
+            cmd_output = self.api("plugins.core.commands:list.commands.formatted")(self.plugin_id)
             msg.extend(cmd_output)
             msg.extend(("@G" + "-" * 60 + "@w", ""))
         if args["api"] and (api_list := self.api("libs.api:list")(self.plugin_id)):

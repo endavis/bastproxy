@@ -260,8 +260,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         )()
         api_functions = self.get_api_functions_in_object(item)
         LogRecord(
-            f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} "
-            "api functions",
+            f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions",
             level=self.log_level,
             sources=[__name__, toplevel],
         )()
@@ -362,22 +361,14 @@ class API:  # sourcery skip: upper-camel-case-classes
         self("plugins.core.events:add.event")(
             "ev_libs.api_character_active",
             APILOCATION,
-            description=(
-                "An event for when the character is active and ready for commands"
-            ),
-            arg_descriptions={
-                "is_character_active": "The state of the is_character_active flag"
-            },
+            description=("An event for when the character is active and ready for commands"),
+            arg_descriptions={"is_character_active": "The state of the is_character_active flag"},
         )
         self("plugins.core.events:add.event")(
             "ev_libs.api_character_inactive",
             APILOCATION,
-            description=(
-                "An event for when the character is inactive and not ready for commands"
-            ),
-            arg_descriptions={
-                "is_character_active": "The state of the is_character_active flag"
-            },
+            description=("An event for when the character is inactive and not ready for commands"),
+            arg_descriptions={"is_character_active": "The state of the is_character_active flag"},
         )
 
     def _api_is_character_active_get(self) -> bool:
@@ -488,9 +479,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         full_api_name: str = f"{top_level_api}:{name}"
 
-        api_item = APIItem(
-            full_api_name, tfunction, self.owner_id, description=description
-        )
+        api_item = APIItem(full_api_name, tfunction, self.owner_id, description=description)
 
         if instance:
             return self._api_instance(api_item, force)
@@ -540,10 +529,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         """
         if api_item.full_api_name in self._instance_api:
-            if (
-                api_item.tfunction
-                == self._instance_api[api_item.full_api_name].tfunction
-            ):
+            if api_item.tfunction == self._instance_api[api_item.full_api_name].tfunction:
                 return True
 
             if force:
@@ -561,9 +547,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                         sources=[__name__, api_item.owner_id],
                     )()
                 except ImportError:
-                    print(
-                        f"libs.api:instance - {api_item.full_api_name} already exists"
-                    )
+                    print(f"libs.api:instance - {api_item.full_api_name} already exists")
 
                 return False
 
@@ -655,9 +639,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             self._class_api[i].tfunction.api["addedin"][top_level_api].remove(api_name)  # type: ignore
             del self._class_api[i]
 
-        instance_keys = [
-            item for item in self._instance_api if item.startswith(api_toplevel)
-        ]
+        instance_keys = [item for item in self._instance_api if item.startswith(api_toplevel)]
         LogRecord(
             f"libs.api:remove instance api - {instance_keys =}",
             level="debug",
@@ -832,9 +814,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                 tmsg.extend(api_instance.detail(show_function_code=show_function_code))
 
             if stats_by_plugin or stats_by_caller:
-                tmsg.extend(
-                    self.format_stats(api_location, stats_by_plugin, stats_by_caller)
-                )
+                tmsg.extend(self.format_stats(api_location, stats_by_plugin, stats_by_caller))
 
         else:
             tmsg.append(f"{api_location} is not in the api")
@@ -899,9 +879,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        stats_keys = [
-            k for k in api_data.stats.detailed_calls if k.startswith(stats_by_caller)
-        ]
+        stats_keys = [k for k in api_data.stats.detailed_calls if k.startswith(stats_by_caller)]
         stats_keys = sorted(stats_keys)
         stats_caller_data = [
             {"caller": i, "count": api_data.stats.detailed_calls[i]} for i in stats_keys
@@ -942,8 +920,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         stats_keys = api_data.stats.calls_by_caller.keys()
         stats_keys = sorted(stats_keys)
         stats_caller_data = [
-            {"caller": i, "count": api_data.stats.calls_by_caller[i]}
-            for i in stats_keys
+            {"caller": i, "count": api_data.stats.calls_by_caller[i]} for i in stats_keys
         ]
         stats_caller_columns = [
             {"name": "Caller", "key": "caller", "width": 20},
@@ -977,9 +954,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        api_data: list[str] = [
-            i for i in self._class_api if i.startswith(top_level_api)
-        ]
+        api_data: list[str] = [i for i in self._class_api if i.startswith(top_level_api)]
         for i in self._instance_api:
             if i.startswith(top_level_api):
                 api_data.append(i)

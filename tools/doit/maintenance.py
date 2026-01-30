@@ -86,7 +86,7 @@ def task_cleanup() -> dict[str, Any]:
         console.print()
         console.print(
             Panel.fit(
-                "[bold green]\u2713 Deep clean complete![/bold green]",
+                "[bold green]✓ Deep clean complete![/bold green]",
                 border_style="green",
                 padding=(1, 2),
             )
@@ -105,9 +105,7 @@ def task_update_deps() -> dict[str, Any]:
         console = Console()
         console.print()
         console.print(
-            Panel.fit(
-                "[bold cyan]Updating Dependencies[/bold cyan]", border_style="cyan"
-            )
+            Panel.fit("[bold cyan]Updating Dependencies[/bold cyan]", border_style="cyan")
         )
         console.print()
 
@@ -128,12 +126,11 @@ def task_update_deps() -> dict[str, Any]:
         # Update dependencies and refresh lockfile
         result = subprocess.run(
             ["uv", "sync", "--all-extras", "--dev", "--upgrade"],
-            check=False,
             env={**os.environ, "UV_CACHE_DIR": UV_CACHE_DIR},
         )
 
         if result.returncode != 0:
-            print("\n\u274c Dependency update failed!")
+            print("\n❌ Dependency update failed!")
             sys.exit(1)
 
         print()
@@ -143,12 +140,12 @@ def task_update_deps() -> dict[str, Any]:
         print()
 
         # Run all checks
-        check_result = subprocess.run(["doit", "check"], check=False)
+        check_result = subprocess.run(["doit", "check"])
 
         print()
         if check_result.returncode == 0:
             print("=" * 70)
-            print(" " * 20 + "\u2713 All checks passed!")
+            print(" " * 20 + "✓ All checks passed!")
             print("=" * 70)
             print()
             print("Next steps:")
@@ -157,7 +154,7 @@ def task_update_deps() -> dict[str, Any]:
             print("3. Commit the updated dependencies")
         else:
             print("=" * 70)
-            print("\u26a0 Warning: Some checks failed after update")
+            print("⚠ Warning: Some checks failed after update")
             print("=" * 70)
             print()
             print("You may need to:")
@@ -176,5 +173,154 @@ def task_fmt_pyproject() -> dict[str, Any]:
     """Format pyproject.toml with pyproject-fmt."""
     return {
         "actions": ["uv run pyproject-fmt pyproject.toml"],
+        "title": title_with_actions,
+    }
+
+
+def task_completions() -> dict[str, Any]:
+    """Generate shell completion scripts for doit tasks."""
+
+    def generate_completions() -> None:
+        console = Console()
+        console.print()
+        console.print(
+            Panel.fit("[bold cyan]Generating Shell Completions[/bold cyan]", border_style="cyan")
+        )
+        console.print()
+
+        # Ensure completions directory exists
+        os.makedirs("completions", exist_ok=True)
+
+        # Generate bash completion
+        console.print("[cyan]Generating bash completion...[/cyan]")
+        bash_result = subprocess.run(
+            ["doit", "tabcompletion", "--shell", "bash"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        with open("completions/doit.bash", "w") as f:
+            f.write(bash_result.stdout)
+        console.print("  [dim]Created completions/doit.bash[/dim]")
+
+        # Generate zsh completion
+        console.print("[cyan]Generating zsh completion...[/cyan]")
+        zsh_result = subprocess.run(
+            ["doit", "tabcompletion", "--shell", "zsh"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        with open("completions/doit.zsh", "w") as f:
+            f.write(zsh_result.stdout)
+        console.print("  [dim]Created completions/doit.zsh[/dim]")
+
+        console.print()
+        console.print(
+            Panel.fit(
+                "[bold green]✓ Completions generated![/bold green]\n\n"
+                "[dim]To enable, add to your shell config:[/dim]\n"
+                "  Bash: source completions/doit.bash\n"
+                "  Zsh:  source completions/doit.zsh",
+                border_style="green",
+                padding=(1, 2),
+            )
+        )
+
+    return {
+        "actions": [generate_completions],
+        "title": title_with_actions,
+    }
+
+
+def task_completions_install() -> dict[str, Any]:
+    """Install doit completions to your shell config (~/.bashrc or ~/.zshrc)."""
+
+    def install_completions() -> None:
+        console = Console()
+        console.print()
+        console.print(
+            Panel.fit("[bold cyan]Installing Shell Completions[/bold cyan]", border_style="cyan")
+        )
+        console.print()
+
+        # Get absolute path to completions
+        project_dir = os.path.abspath(os.getcwd())
+        bash_completion = os.path.join(project_dir, "completions", "doit.bash")
+        zsh_completion = os.path.join(project_dir, "completions", "doit.zsh")
+
+        # Check if completions exist
+        if not os.path.exists(bash_completion) or not os.path.exists(zsh_completion):
+            console.print("[yellow]Completions not found. Generating...[/yellow]")
+            subprocess.run(["doit", "completions"], check=True)
+            console.print()
+
+        # Source line to add (with unique marker for identification)
+        project_name = os.path.basename(project_dir)
+        bash_source_line = (
+            f"\n# Doit completions for {project_name}\n"
+            f'if [ -f "{bash_completion}" ]; then source "{bash_completion}"; fi\n'
+        )
+        zsh_source_line = (
+            f"\n# Doit completions for {project_name}\n"
+            f'if [ -f "{zsh_completion}" ]; then source "{zsh_completion}"; fi\n'
+        )
+
+        home = os.path.expanduser("~")
+        installed = []
+
+        # Install bash completion
+        bashrc = os.path.join(home, ".bashrc")
+        if os.path.exists(bashrc):
+            with open(bashrc) as f:
+                content = f.read()
+            if bash_completion not in content:
+                with open(bashrc, "a") as f:
+                    f.write(bash_source_line)
+                installed.append(("Bash", bashrc))
+                console.print(f"[green]✓ Added to {bashrc}[/green]")
+            else:
+                console.print(f"[dim]Already in {bashrc}[/dim]")
+
+        # Install zsh completion
+        zshrc = os.path.join(home, ".zshrc")
+        if os.path.exists(zshrc):
+            with open(zshrc) as f:
+                content = f.read()
+            if zsh_completion not in content:
+                with open(zshrc, "a") as f:
+                    f.write(zsh_source_line)
+                installed.append(("Zsh", zshrc))
+                console.print(f"[green]✓ Added to {zshrc}[/green]")
+            else:
+                console.print(f"[dim]Already in {zshrc}[/dim]")
+
+        console.print()
+        if installed:
+            shells = ", ".join(s[0] for s in installed)
+            console.print(
+                Panel.fit(
+                    f"[bold green]✓ Completions installed for {shells}![/bold green]\n\n"
+                    "[dim]Reload your shell or run:[/dim]\n"
+                    "  source ~/.bashrc  (for Bash)\n"
+                    "  source ~/.zshrc   (for Zsh)",
+                    border_style="green",
+                    padding=(1, 2),
+                )
+            )
+        else:
+            console.print(
+                Panel.fit(
+                    "[yellow]No shell config files found or already installed.[/yellow]\n\n"
+                    "[dim]Manually add to your shell config:[/dim]\n"
+                    f'  source "{bash_completion}"  (Bash)\n'
+                    f'  source "{zsh_completion}"   (Zsh)',
+                    border_style="yellow",
+                    padding=(1, 2),
+                )
+            )
+
+    return {
+        "actions": [install_completions],
         "title": title_with_actions,
     }

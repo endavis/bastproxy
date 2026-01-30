@@ -36,7 +36,7 @@ def _install_direnv() -> None:
             text=True,
             check=True,
         ).stdout.strip()
-        print(f"\u2713 direnv already installed: {version}")
+        print(f"✓ direnv already installed: {version}")
         return
 
     print("Installing direnv...")
@@ -49,7 +49,9 @@ def _install_direnv() -> None:
         os.makedirs(install_dir, exist_ok=True)
 
     if system == "linux":
-        bin_url = f"https://github.com/direnv/direnv/releases/download/v{version}/direnv.linux-amd64"
+        bin_url = (
+            f"https://github.com/direnv/direnv/releases/download/v{version}/direnv.linux-amd64"
+        )
         bin_path = os.path.join(install_dir, "direnv")
         print(f"Downloading {bin_url}...")
         urllib.request.urlretrieve(bin_url, bin_path)  # nosec B310 - downloading from hardcoded GitHub release URL
@@ -60,7 +62,7 @@ def _install_direnv() -> None:
         print(f"Unsupported OS: {system}")
         sys.exit(1)
 
-    print("\u2713 direnv installed.")
+    print("✓ direnv installed.")
     print("\nIMPORTANT: Add direnv hook to your shell:")
     print("  Bash: echo 'eval \"$(direnv hook bash)\"'")
     print("  Zsh:  echo 'eval \"$(direnv hook zsh)\"'")
@@ -76,18 +78,8 @@ def task_install() -> dict[str, Any]:
     }
 
 
-def task_dev() -> dict[str, Any]:
+def task_install_dev() -> dict[str, Any]:
     """Install package with dev dependencies."""
-    return {
-        "actions": [
-            "uv sync --all-extras --dev",
-        ],
-        "title": title_with_actions,
-    }
-
-
-def task_sync() -> dict[str, Any]:
-    """Sync virtualenv with all extras and dev deps (alias of dev)."""
     return {
         "actions": [
             "uv sync --all-extras --dev",

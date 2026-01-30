@@ -143,9 +143,7 @@ class TestCustomFormatter:
 
     def test_formatter_with_multiple_args(self) -> None:
         """Test formatter with multiple arguments."""
-        parser = ArgumentParser(
-            description="Test parser", formatter_class=CustomFormatter
-        )
+        parser = ArgumentParser(description="Test parser", formatter_class=CustomFormatter)
         parser.add_argument("--name", default="default_name", help="Name parameter")
         parser.add_argument("--count", type=int, default=5, help="Count parameter")
         parser.add_argument("--verbose", action="store_true", help="Verbose output")

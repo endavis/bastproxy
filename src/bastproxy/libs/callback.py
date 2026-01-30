@@ -49,9 +49,7 @@ class Callback:
     and the last execution time of the callback.
     """
 
-    def __init__(
-        self, name: str, owner_id: str, func: Callable, enabled: bool = True
-    ) -> None:
+    def __init__(self, name: str, owner_id: str, func: Callable, enabled: bool = True) -> None:
         """Initialize the callback with the given parameters.
 
         Args:
@@ -80,12 +78,7 @@ class Callback:
             int: The generated hash value.
 
         """
-        return (
-            hash(self.func)
-            + hash(self.owner_id)
-            + hash(self.name)
-            + hash(self.created_time)
-        )
+        return hash(self.func) + hash(self.owner_id) + hash(self.name) + hash(self.created_time)
 
     def __eq__(self, other_function: Any) -> bool:
         """Check equality between this callback and another function or callback.

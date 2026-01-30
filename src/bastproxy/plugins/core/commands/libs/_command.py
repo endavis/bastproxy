@@ -43,9 +43,7 @@ class CommandClass:
         self.group = group or ""
         self.preamble = preamble
         self.show_in_history = show_in_history
-        self.full_cmd = self.api("plugins.core.commands:get.command.format")(
-            self.plugin_id, name
-        )
+        self.full_cmd = self.api("plugins.core.commands:get.command.format")(self.plugin_id, name)
         self.short_help = shelp
         self.count = 0
         self.current_args: CmdArgsRecord | dict = {}
@@ -53,9 +51,7 @@ class CommandClass:
         self.last_run_start_time: datetime.datetime | None = None
         self.last_run_end_time: datetime.datetime | None = None
 
-    def run(
-        self, arg_string: str = "", format=False
-    ) -> tuple[bool | None, list[str], str]:
+    def run(self, arg_string: str = "", format=False) -> tuple[bool | None, list[str], str]:
         """Run the command."""
         self.last_run_start_time = datetime.datetime.now(datetime.UTC)
         self.current_arg_string = arg_string
@@ -69,9 +65,7 @@ class CommandClass:
 
         if not success:
             message.extend(fail_message)
-            return self.run_finish(
-                False, message, "could not parse args", format=format
-            )
+            return self.run_finish(False, message, "could not parse args", format=format)
 
         args = CmdArgsRecord(
             f"{self.plugin_id}:{self.name}",
@@ -99,9 +93,7 @@ class CommandClass:
                 sources=[self.plugin_id, "plugins.core.commands"],
                 exc_info=True,
             )(actor)
-            return self.run_finish(
-                False, message, "function returned False", format=format
-            )
+            return self.run_finish(False, message, "function returned False", format=format)
 
         if isinstance(return_value, tuple):
             retval = return_value[0]
@@ -115,9 +107,7 @@ class CommandClass:
             actor = f"{self.plugin_id}:run_command:returned_False"
             message.append("")
             message.extend(self.arg_parser.format_help().splitlines())
-            return self.run_finish(
-                False, message, "function returned False", format=format
-            )
+            return self.run_finish(False, message, "function returned False", format=format)
 
         return self.run_finish(True, message, "command ran successfully", format=format)
 
@@ -183,30 +173,22 @@ class CommandClass:
             The formatted message with appropriate colors and formatting.
 
         """
-        simple = self.api("plugins.core.settings:get")(
-            "plugins.core.commands", "simple_output"
-        )
+        simple = self.api("plugins.core.settings:get")("plugins.core.commands", "simple_output")
         include_date = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "include_date"
         )
-        line_length = self.api("plugins.core.settings:get")(
-            "plugins.core.proxy", "linelen"
-        )
+        line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
         preamble_color = self.api("plugins.core.proxy:preamble.color.get")()
         header_color = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "header_color"
         )
         command_indent = self.api("plugins.core.commands:get.command.indent")()
         command_indent_string = " " * command_indent
-        command_line_length = self.api(
-            "plugins.core.commands:get.command.line.length"
-        )()
+        command_line_length = self.api("plugins.core.commands:get.command.line.length")()
         output_indent = self.api("plugins.core.commands:get.output.indent")()
         output_indent_string = " " * output_indent
 
-        command = self.api("plugins.core.commands:get.command.format")(
-            self.plugin_id, self.name
-        )
+        command = self.api("plugins.core.commands:get.command.format")(self.plugin_id, self.name)
 
         newmessage = [
             "",
@@ -251,9 +233,7 @@ class CommandClass:
                         "Arguments", "-", command_line_length, filler_color=header_color
                     )
                 )
-                newmessage.extend(
-                    [command_indent_string + line for line in arg_message]
-                )
+                newmessage.extend([command_indent_string + line for line in arg_message])
 
             newmessage.append(
                 command_indent_string

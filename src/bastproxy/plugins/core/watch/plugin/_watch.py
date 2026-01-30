@@ -38,9 +38,7 @@ class WatchPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, event_record["plugin_id"]],
         )()
-        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(
-            event_record["plugin_id"]
-        )
+        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record["plugin_id"])
 
     @AddParser(description="list watches")
     @AddArgument(
@@ -80,9 +78,7 @@ class WatchPlugin(BasePlugin):
             for watch in args["watch"]:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]["event_name"]
-                    watch_event = self.api("plugins.core.events:get.event.detail")(
-                        event_name
-                    )
+                    watch_event = self.api("plugins.core.events:get.event.detail")(event_name)
                     message.extend(
                         (
                             f"{'Name':<{columnwidth}} : {watch}",
@@ -112,9 +108,7 @@ class WatchPlugin(BasePlugin):
         this function returns no values
         """
         if not owner:
-            owner = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if not owner:
             LogRecord(
@@ -222,17 +216,13 @@ class WatchPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_command(self):
         """Check input from the client and see if we are watching for it."""
-        if not (
-            event_record := self.api("plugins.core.events:get.current.event.record")()
-        ):
+        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
             return
         client_data = event_record["line"]
         for watch_name in self.watch_data:
             cmdre = self.watch_data[watch_name]["compiled"]
             if match_data := cmdre.match(client_data):
-                self.watch_data[watch_name]["hits"] = (
-                    self.watch_data[watch_name]["hits"] + 1
-                )
+                self.watch_data[watch_name]["hits"] = self.watch_data[watch_name]["hits"] + 1
                 match_args = {
                     "matched": match_data.groupdict(),
                     "cmdname": f"cmd_{watch_name}",

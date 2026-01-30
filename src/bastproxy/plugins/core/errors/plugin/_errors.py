@@ -63,9 +63,7 @@ class ErrorPlugin(BasePlugin):
         self.errors = []
 
     @AddParser(description="show errors")
-    @AddArgument(
-        "number", help="list the last <number> errors", default="-1", nargs="?"
-    )
+    @AddArgument("number", help="list the last <number> errors", default="-1", nargs="?")
     def _command_show(self):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -86,9 +84,7 @@ class ErrorPlugin(BasePlugin):
                     msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
             else:
                 for i in errors:
-                    msg.extend(
-                        ("", f"Time   : {i['timestamp']}", f"Error  : {i['msg']}")
-                    )
+                    msg.extend(("", f"Time   : {i['timestamp']}", f"Error  : {i['msg']}"))
         else:
             msg.append("There are no errors")
         return True, msg

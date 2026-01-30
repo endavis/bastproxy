@@ -61,9 +61,7 @@ class ProxyPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        restartproxymessage = (
-            "@RPlease restart the proxy for the changes to take effect.@w"
-        )
+        restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"
 
         # Network Settings
         self.api("plugins.core.settings:add")(
@@ -195,9 +193,7 @@ class ProxyPlugin(BasePlugin):
     def _api_preamble_color_get(self, error=False):
         """Get the preamble color."""
         if error:
-            return self.api("plugins.core.settings:get")(
-                self.plugin_id, "preambleerrorcolor"
-            )
+            return self.api("plugins.core.settings:get")(self.plugin_id, "preambleerrorcolor")
         return self.api("plugins.core.settings:get")(self.plugin_id, "preamblecolor")
 
     @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
@@ -208,9 +204,7 @@ class ProxyPlugin(BasePlugin):
         """
         if self.api("plugins.core.settings:get")(self.plugin_id, "username") != "":
             SendDataDirectlyToMud(
-                NetworkData(
-                    self.api("plugins.core.settings:get")(self.plugin_id, "username")
-                ),
+                NetworkData(self.api("plugins.core.settings:get")(self.plugin_id, "username")),
                 show_in_history=False,
             )()
             pasw = self.api(f"{self.plugin_id}:ssc.mudpw")()
@@ -245,9 +239,7 @@ class ProxyPlugin(BasePlugin):
                         template
                         % (
                             "Connected",
-                            self.mud_connection.connected_time.strftime(
-                                self.api.time_format
-                            ),
+                            self.mud_connection.connected_time.strftime(self.api.time_format),
                         ),
                         template
                         % (
@@ -269,9 +261,7 @@ class ProxyPlugin(BasePlugin):
 
         tmsg.append("")
 
-        _, nmsg = self.api("plugins.core.commands:run")(
-            "plugins.core.clients", "show", ""
-        )
+        _, nmsg = self.api("plugins.core.commands:run")("plugins.core.clients", "show", "")
 
         tmsg.extend(nmsg)
         return True, tmsg
@@ -297,9 +287,7 @@ class ProxyPlugin(BasePlugin):
             self.api("plugins.core.settings:get")(self.plugin_id, "mudport"),
         )
 
-        self.api("libs.asynch:task.add")(
-            self.mud_connection.connect_to_mud, "Mud Connect Task"
-        )
+        self.api("libs.asynch:task.add")(self.mud_connection.connect_to_mud, "Mud Connect Task")
 
         return True, ["Connecting to the mud"]
 
@@ -342,13 +330,9 @@ class ProxyPlugin(BasePlugin):
     def _command_restart(self):
         """Restart the proxy."""
         args = self.api("plugins.core.commands:get.current.command.args")()
-        listen_port = self.api("plugins.core.settings:get")(
-            self.plugin_id, "listenport"
-        )
+        listen_port = self.api("plugins.core.settings:get")(self.plugin_id, "listenport")
         self.api(f"{self.plugin_id}:restart")(args["seconds"])
-        return True, [
-            f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"
-        ]
+        return True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self):
@@ -396,10 +380,7 @@ class ProxyPlugin(BasePlugin):
                     f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
                 )
             )
-        if (
-            self.api(f"{self.plugin_id}:ssc.proxypwview")(quiet=True)
-            == "defaultviewpass"
-        ):
+        if self.api(f"{self.plugin_id}:ssc.proxypwview")(quiet=True) == "defaultviewpass":
             tmsg.extend(
                 (
                     divider,
@@ -414,24 +395,18 @@ class ProxyPlugin(BasePlugin):
             tmsg.insert(0, divider)
 
         if tmsg:
-            new_message = NetworkData(
-                tmsg, owner_id=f"{self.plugin_id}:_eventcb_client_logged_in"
-            )
+            new_message = NetworkData(tmsg, owner_id=f"{self.plugin_id}:_eventcb_client_logged_in")
             SendDataDirectlyToClient(new_message)()
 
     @AddAPI("restart", description="restart the proxy")
     def _api_restart(self, restart_in=None):
         """Restart the proxy after 10 seconds."""
         restart_in = restart_in or 10
-        listen_port = self.api("plugins.core.settings:get")(
-            self.plugin_id, "listenport"
-        )
+        listen_port = self.api("plugins.core.settings:get")(self.plugin_id, "listenport")
 
         SendDataDirectlyToClient(
             NetworkData(
-                [
-                    f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"
-                ],
+                [f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"],
                 owner_id=f"{self.plugin_id}:_api_restart",
             )
         )()
@@ -482,9 +457,7 @@ class ProxyPlugin(BasePlugin):
         action="store_false",
         default=True,
     )
-    @AddArgument(
-        "-p", "--ports", help="show network ports", action="store_false", default=True
-    )
+    @AddArgument("-p", "--ports", help="show network ports", action="store_false", default=True)
     def _command_resource(self):
         """Output proxy resource usage."""
         args = self.api("plugins.core.commands:get.current.command.args")()

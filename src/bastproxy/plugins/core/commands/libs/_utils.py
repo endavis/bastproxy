@@ -51,9 +51,7 @@ class AddCommand:
             func.command_data = CommandFuncData()
         func.command_data.command["kwargs"].update(self.command_kwargs)
         if "name" not in func.command_data.command:
-            func.command_data.command["name"] = self.name or func.__name__.replace(
-                "_command_", " "
-            )
+            func.command_data.command["name"] = self.name or func.__name__.replace("_command_", " ")
         func.command_data.command["autoadd"] = self.autoadd
 
         return func
@@ -89,8 +87,6 @@ class AddArgument:
         # insert at 0 because decorators are applied in bottom->top order,
         # so the last decorator applied will be the first
         # make it so the order can be exactly like using an argparse object
-        func.command_data.arguments.insert(
-            0, {"args": self.args, "kwargs": self.kwargs}
-        )
+        func.command_data.arguments.insert(0, {"args": self.args, "kwargs": self.kwargs})
 
         return func

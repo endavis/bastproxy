@@ -8,9 +8,7 @@ from doit.tools import title_with_actions
 def task_commit() -> dict[str, Any]:
     """Interactive commit with commitizen (ensures conventional commit format)."""
     return {
-        "actions": [
-            "uv run cz commit || echo 'commitizen not installed. Run: uv sync'"
-        ],
+        "actions": ["uv run cz commit || echo 'commitizen not installed. Run: uv sync'"],
         "title": title_with_actions,
     }
 
@@ -26,9 +24,7 @@ def task_bump() -> dict[str, Any]:
 def task_changelog() -> dict[str, Any]:
     """Generate CHANGELOG from conventional commits."""
     return {
-        "actions": [
-            "uv run cz changelog || echo 'commitizen not installed. Run: uv sync'"
-        ],
+        "actions": ["uv run cz changelog || echo 'commitizen not installed. Run: uv sync'"],
         "title": title_with_actions,
     }
 

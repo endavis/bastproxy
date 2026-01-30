@@ -152,10 +152,7 @@ class PluginDependencyResolver:
                 and edge_plugin.plugin_id not in self.resolved
             ):
                 if edge_plugin.plugin_id in self.unresolved:
-                    msg = (
-                        f"Circular reference detected: {plugin.plugin_id} -> "
-                        f"{plugin.plugin_id}"
-                    )
+                    msg = f"Circular reference detected: {plugin.plugin_id} -> {plugin.plugin_id}"
                     raise CircularDependencyError(msg)
                 self.resolve_helper(edge_plugin)
         self.resolved.append(plugin.plugin_id)

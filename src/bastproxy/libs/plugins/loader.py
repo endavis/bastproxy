@@ -239,9 +239,7 @@ class PluginLoader:
 
     @AddAPI(
         "plugin.get.changed.files",
-        description=(
-            "get the list of files that have changed since loading for a plugin"
-        ),
+        description=("get the list of files that have changed since loading for a plugin"),
     )
     def _api_plugin_get_changed_files(self, plugin: str) -> list[dict]:
         """Get the list of files that have changed since loading for a plugin.
@@ -263,9 +261,7 @@ class PluginLoader:
 
     @AddAPI(
         "plugin.get.invalid.python.files",
-        description=(
-            "get the list of files that have invalid python syntax for a plugin"
-        ),
+        description=("get the list of files that have invalid python syntax for a plugin"),
     )
     def _api_plugin_get_invalid_python_files(self, plugin: str) -> list[dict]:
         """Get the list of files that have invalid Python syntax for a plugin.
@@ -334,9 +330,7 @@ class PluginLoader:
                 if plugin_info.runtime_info.is_loaded
             ]
         else:
-            packages = [
-                plugin_info.package for plugin_info in self.plugins_info.values()
-            ]
+            packages = [plugin_info.package for plugin_info in self.plugins_info.values()]
 
         return list(set(packages))
 
@@ -392,9 +386,7 @@ class PluginLoader:
                 plugin_name in self.plugins_info
                 and self.plugins_info[plugin_name].runtime_info.is_loaded
             ):
-                plugin_instance = self.plugins_info[
-                    plugin_name
-                ].runtime_info.plugin_instance
+                plugin_instance = self.plugins_info[plugin_name].runtime_info.plugin_instance
         elif isinstance(plugin_name, BasePlugin):
             plugin_instance = plugin_name
 
@@ -542,12 +534,8 @@ class PluginLoader:
                 plugin_info = PluginInfo(plugin_id=found_plugin["plugin_id"])
             plugin_info.package_init_file_path = found_plugin["package_init_file_path"]
             plugin_info.package_path = found_plugin["package_path"]
-            plugin_info.package_import_location = found_plugin[
-                "package_import_location"
-            ]
-            plugin_info.data_directory = (
-                self.api.BASEDATAPLUGINPATH / plugin_info.plugin_id
-            )
+            plugin_info.package_import_location = found_plugin["package_import_location"]
+            plugin_info.data_directory = self.api.BASEDATAPLUGINPATH / plugin_info.plugin_id
 
             plugin_info.update_from_init()
 
@@ -555,9 +543,7 @@ class PluginLoader:
                 plugin_info.is_required = True
 
             if plugin_info.package_import_location in errors:
-                plugin_info.import_errors.append(
-                    errors[plugin_info.package_import_location]
-                )
+                plugin_info.import_errors.append(errors[plugin_info.package_import_location])
 
             plugin_info.get_file_data()
 
@@ -568,10 +554,7 @@ class PluginLoader:
         # warn about plugins whose path is no longer valid
         removed_plugins = set(old_plugins_info.keys()) - set(self.plugins_info.keys())
         for plugin_id in removed_plugins:
-            if (
-                plugin_id in old_plugins_info
-                and old_plugins_info[plugin_id].runtime_info
-            ):
+            if plugin_id in old_plugins_info and old_plugins_info[plugin_id].runtime_info:
                 LogRecord(
                     [
                         f"Loaded Plugin {plugin_id}'s path is no longer valid: "
@@ -582,9 +565,7 @@ class PluginLoader:
                     sources=[__name__],
                 )()
 
-    def _import_single_plugin(
-        self, plugin_id: str, exit_on_error: bool = False
-    ) -> bool:
+    def _import_single_plugin(self, plugin_id: str, exit_on_error: bool = False) -> bool:
         """Import a single plugin.
 
         This method imports a single plugin based on the provided plugin ID. It
@@ -604,9 +585,7 @@ class PluginLoader:
 
         """
         # import the plugin
-        LogRecord(
-            f"{plugin_id:<30} : attempting import", level="info", sources=[__name__]
-        )()
+        LogRecord(f"{plugin_id:<30} : attempting import", level="info", sources=[__name__])()
         plugin_info = self.plugins_info[plugin_id]
         plugin_info.update_from_init()
         return_info = imputils.importmodule(plugin_info.plugin_class_import_location)
@@ -634,9 +613,7 @@ class PluginLoader:
         plugin_info.runtime_info.is_imported = True
         plugin_info.runtime_info.imported_time = datetime.datetime.now(datetime.UTC)
 
-        LogRecord(
-            f"{plugin_id:<30} : imported successfully", level="info", sources=[__name__]
-        )()
+        LogRecord(f"{plugin_id:<30} : imported successfully", level="info", sources=[__name__])()
 
         # check for patches to the base plugin
         if (
@@ -670,9 +647,7 @@ class PluginLoader:
 
         return True
 
-    def _instantiate_single_plugin(
-        self, plugin_id: str, exit_on_error: bool = False
-    ) -> bool:
+    def _instantiate_single_plugin(self, plugin_id: str, exit_on_error: bool = False) -> bool:
         """Instantiate a single plugin.
 
         This method creates an instance of a plugin based on the provided plugin ID.
@@ -691,9 +666,7 @@ class PluginLoader:
 
         """
         plugin_info = self.plugins_info[plugin_id]
-        LogRecord(
-            f"{plugin_id:<30} : creating instance", level="info", sources=[__name__]
-        )()
+        LogRecord(f"{plugin_id:<30} : creating instance", level="info", sources=[__name__])()
 
         if not plugin_info.plugin_class_import_location:
             LogRecord(
@@ -734,9 +707,7 @@ class PluginLoader:
         return True
 
     # run the initialize method for a plugin
-    def _run_initialize_single_plugin(
-        self, plugin_id: str, exit_on_error: bool = False
-    ) -> bool:
+    def _run_initialize_single_plugin(self, plugin_id: str, exit_on_error: bool = False) -> bool:
         """Run the initialize method for a single plugin.
 
         This method runs the initialize method for a single plugin based on the
@@ -768,8 +739,7 @@ class PluginLoader:
 
         if not plugin_info.runtime_info.plugin_instance:
             LogRecord(
-                f"{plugin_info.plugin_id:<30} : plugin instance is None, not "
-                f"initializing",
+                f"{plugin_info.plugin_id:<30} : plugin instance is None, not initializing",
                 level="error",
                 sources=[__name__, plugin_info.plugin_id],
             )()
@@ -788,8 +758,7 @@ class PluginLoader:
             )()
             if exit_on_error:
                 LogRecord(
-                    f"{plugin_info.plugin_id:<30} : INITIALIZE METHOD WAS NOT "
-                    "SUCCESSFUL",
+                    f"{plugin_info.plugin_id:<30} : INITIALIZE METHOD WAS NOT SUCCESSFUL",
                     level="error",
                     sources=[__name__, plugin_info.plugin_id],
                 )()
@@ -860,22 +829,16 @@ class PluginLoader:
                 bad_plugins.append(plugin_id)
 
         plugins_not_loaded = [
-            plugin_id
-            for plugin_id in plugins_not_loaded
-            if plugin_id not in bad_plugins
+            plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
         ]
 
         # instantiate plugins
         for plugin_id in plugins_not_loaded:
-            if not self._instantiate_single_plugin(
-                plugin_id, exit_on_error=exit_on_error
-            ):
+            if not self._instantiate_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
         plugins_not_loaded = [
-            plugin_id
-            for plugin_id in plugins_not_loaded
-            if plugin_id not in bad_plugins
+            plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
         ]
 
         # check dependencies
@@ -897,22 +860,16 @@ class PluginLoader:
         #
 
         plugins_not_loaded = [
-            plugin_id
-            for plugin_id in plugins_not_loaded
-            if plugin_id not in bad_plugins
+            plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
         ]
 
         # run the initialize method for each plugin
         for plugin_id in plugins_not_loaded:
-            if not self._run_initialize_single_plugin(
-                plugin_id, exit_on_error=exit_on_error
-            ):
+            if not self._run_initialize_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
         loaded_plugins = [
-            plugin_id
-            for plugin_id in plugins_not_loaded
-            if plugin_id not in bad_plugins
+            plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
         ]
 
         # clean up plugins that
@@ -1035,16 +992,14 @@ class PluginLoader:
                 )()
             else:
                 LogRecord(
-                    f"{plugin_info.plugin_id:<30} : plugin instance not found "
-                    f"({plugin_info.name})",
+                    f"{plugin_info.plugin_id:<30} : plugin instance not found ({plugin_info.name})",
                     level="info",
                     sources=[__name__, plugin_info.plugin_id],
                 )()
 
         except Exception:  # pylint: disable=broad-except
             LogRecord(
-                f"unload: error running the uninitialize method for "
-                f"{plugin_info.plugin_id}",
+                f"unload: error running the uninitialize method for {plugin_info.plugin_id}",
                 level="error",
                 sources=[__name__, plugin_info.plugin_id],
                 exc_info=True,
@@ -1076,9 +1031,7 @@ class PluginLoader:
 
         for item in modules_to_delete:
             cb_weakref = partial(self.remove_weakref, module_import_path=item)
-            self.weak_references_to_modules[item] = weakref.ref(
-                sys.modules[item], cb_weakref
-            )
+            self.weak_references_to_modules[item] = weakref.ref(sys.modules[item], cb_weakref)
             if imputils.deletemodule(item):
                 LogRecord(
                     f"{plugin_info.plugin_id:<30} : deleting imported module {item} "
@@ -1169,9 +1122,7 @@ class PluginLoader:
         """
         LogRecord("Loading core and client plugins", level="info", sources=[__name__])()
         self._load_core_and_client_plugins_on_startup()
-        LogRecord(
-            "Finished Loading core and client plugins", level="info", sources=[__name__]
-        )()
+        LogRecord("Finished Loading core and client plugins", level="info", sources=[__name__])()
 
         LogRecord(
             f"ev_{__name__}_post_startup_plugins_loaded: Started",
@@ -1179,9 +1130,7 @@ class PluginLoader:
             sources=[__name__],
         )()
 
-        self.api("plugins.core.events:raise.event")(
-            f"ev_{__name__}_post_startup_plugins_loaded"
-        )
+        self.api("plugins.core.events:raise.event")(f"ev_{__name__}_post_startup_plugins_loaded")
 
         LogRecord(
             f"ev_{__name__}_post_startup_plugins_loaded: Finish",
@@ -1195,9 +1144,7 @@ class PluginLoader:
                 for error in plugin_info.import_errors:
                     traceback_message = traceback.format_exception(error[1])
                     traceback_message = [
-                        item.strip()
-                        for item in traceback_message
-                        if item and item != "\n"
+                        item.strip() for item in traceback_message if item and item != "\n"
                     ]
                     LogRecord(
                         [

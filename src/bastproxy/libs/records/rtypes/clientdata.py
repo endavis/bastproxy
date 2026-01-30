@@ -93,9 +93,7 @@ class ProcessDataToClient(BaseRecord):
                 self.modify_data_event_name,
                 __name__,
                 description=["An event to modify data before it is sent to the client"],
-                arg_descriptions={
-                    "line": "The line to modify, a NetworkDataLine object"
-                },
+                arg_descriptions={"line": "The line to modify, a NetworkDataLine object"},
             )
 
     # @property
@@ -144,16 +142,12 @@ class ProcessDataToClient(BaseRecord):
                 return False
             # If the client is a view client and this is an internal message, we don't send it
             # This way view clients don't see the output of commands entered by other clients
-            if (
-                self.api("plugins.core.clients:client.is.view.client")(client_uuid)
-                and internal
-            ):
+            if self.api("plugins.core.clients:client.is.view.client")(client_uuid) and internal:
                 return False
             # If the client is in the list of clients or self.clients is empty,
             # then we can check to make sure the client is logged in or the prelogin flag is set
             if (not self.clients or client_uuid in self.clients) and (
-                self.api("plugins.core.clients:client.is.logged.in")(client_uuid)
-                or self.prelogin
+                self.api("plugins.core.clients:client.is.logged.in")(client_uuid) or self.prelogin
             ):
                 # All checks passed, we can send to this client
                 return True
@@ -163,9 +157,7 @@ class ProcessDataToClient(BaseRecord):
         """Send the message."""
         # If a line came from the mud and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
-        if data_for_event := [
-            line for line in self.message if line.frommud and line.is_io
-        ]:
+        if data_for_event := [line for line in self.message if line.frommud and line.is_io]:
             self.api("plugins.core.events:raise.event")(
                 self.modify_data_event_name, data_list=data_for_event, key_name="line"
             )
@@ -217,9 +209,7 @@ class SendDataDirectlyToClient(BaseRecord):
                 self.read_data_event_name,
                 __name__,
                 description=["An event to see data that was sent to the client"],
-                arg_descriptions={
-                    "line": "The line to modify, a NetworkDataLine object"
-                },
+                arg_descriptions={"line": "The line to modify, a NetworkDataLine object"},
             )
 
     def one_line_summary(self):
@@ -243,8 +233,7 @@ class SendDataDirectlyToClient(BaseRecord):
             # If the client is in the list of clients or self.clients is empty,
             # then we can check to make sure the client is logged in or the prelogin flag is set
             if (not self.clients or client_uuid in self.clients) and (
-                self.api("plugins.core.clients:client.is.logged.in")(client_uuid)
-                or line.prelogin
+                self.api("plugins.core.clients:client.is.logged.in")(client_uuid) or line.prelogin
             ):
                 # All checks passed, we can send to this client
                 return True
@@ -258,14 +247,12 @@ class SendDataDirectlyToClient(BaseRecord):
                 line.format()
                 line.lock()
 
-                clients = self.clients or self.api(
-                    "plugins.core.clients:get.all.clients"
-                )(uuid_only=True)
+                clients = self.clients or self.api("plugins.core.clients:get.all.clients")(
+                    uuid_only=True
+                )
                 for client_uuid in clients:
                     if self.can_send_to_client(client_uuid, line):
-                        self.api("plugins.core.clients:send.to.client")(
-                            client_uuid, line
-                        )
+                        self.api("plugins.core.clients:send.to.client")(client_uuid, line)
                     else:
                         LogRecord(
                             f"## NOTE: Client {client_uuid} cannot receive message {self.uuid!s}",

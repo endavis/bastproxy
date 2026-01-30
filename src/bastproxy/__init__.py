@@ -37,9 +37,9 @@ Classes:
 # Standard Library
 import datetime
 import logging
+import os
 import sys
 from pathlib import Path
-import os
 
 # The modules below are imported to add their functions to the API
 from bastproxy.libs import argp, timing
@@ -158,9 +158,7 @@ class MudProxy:
         # load plugins on startup
         plugin_loader.load_plugins_on_startup()
 
-        LogRecord(
-            "Plugin Manager - all plugins loaded", level="info", sources=["mudproxy"]
-        )()
+        LogRecord("Plugin Manager - all plugins loaded", level="info", sources=["mudproxy"])()
 
         # do any post plugin loaded actions
         self.post_plugins_loaded()
@@ -170,9 +168,7 @@ class MudProxy:
         self.api("plugins.core.events:add.event")(
             "ev_bastproxy_proxy_ready",
             "mudproxy",
-            description=[
-                "An event raised when the proxy is ready to accept connections"
-            ],
+            description=["An event raised when the proxy is ready to accept connections"],
             arg_descriptions={"None": None},
         )
 
@@ -210,9 +206,7 @@ class MudProxy:
 
         Listeners().create_listeners()
 
-        LogRecord(
-            "__main__ - Launching async loop", level="info", sources=["mudproxy"]
-        )()
+        LogRecord("__main__ - Launching async loop", level="info", sources=["mudproxy"])()
 
         run_asynch()
 
@@ -264,9 +258,7 @@ def main() -> None:
         default=-1,
     )
 
-    parser.add_argument(
-        "-pf", "--profile", help="profile code", action="store_true", default=False
-    )
+    parser.add_argument("-pf", "--profile", help="profile code", action="store_true", default=False)
 
     parser.add_argument(
         "--IPv4-address",
@@ -292,9 +284,7 @@ def main() -> None:
         log_file = BASEAPI.BASEDATALOGPATH / "bastproxy.log"
         file_handler = logging.FileHandler(log_file, mode="a")
         file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
-            )
+            logging.Formatter("%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s")
         )
         logging.basicConfig(
             level="INFO",

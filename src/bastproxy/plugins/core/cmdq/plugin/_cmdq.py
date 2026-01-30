@@ -33,9 +33,7 @@ class CMDQPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
-            self.api(f"{self.plugin_id}:remove.mud.commands.for.plugin")(
-                event_record["plugin_id"]
-            )
+            self.api(f"{self.plugin_id}:remove.mud.commands.for.plugin")(event_record["plugin_id"])
 
     @AddAPI(
         "remove.mud.commands.for.plugin",
@@ -85,9 +83,7 @@ class CMDQPlugin(BasePlugin):
     @AddAPI("type.add", description="add a command type")
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
         """Add a command type."""
-        owner = self.api("libs.api:get.caller.owner")(
-            ignore_owner_list=[self.plugin_id]
-        )
+        owner = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
         beforef = kwargs.get("beforef")
         afterf = kwargs.get("afterf")
         if "plugin" in kwargs:
@@ -106,25 +102,19 @@ class CMDQPlugin(BasePlugin):
             self.api("plugins.core.events:add.event")(
                 f"cmd_{self.current_command['ctype']}_send",
                 self.cmds[cmdtype]["owner"],
-                description=[
-                    f"event for the command {self.cmds[cmdtype]['ctype']} being sent"
-                ],
+                description=[f"event for the command {self.cmds[cmdtype]['ctype']} being sent"],
                 arg_descriptions={"None": None},
             )
             self.api("plugins.core.events:add.event")(
                 f"cmd_{self.current_command['ctype']}_completed",
                 self.cmds[cmdtype]["owner"],
-                description=[
-                    f"event for the command {self.cmds[cmdtype]['ctype']} completing"
-                ],
+                description=[f"event for the command {self.cmds[cmdtype]['ctype']} completing"],
                 arg_descriptions={"None": None},
             )
 
     def sendnext(self):
         """Send the next command."""
-        LogRecord(
-            "sendnext - checking queue", level="debug", sources=[self.plugin_id]
-        )()
+        LogRecord("sendnext - checking queue", level="debug", sources=[self.plugin_id])()
         if not self.queue or self.current_command:
             return
 
@@ -141,9 +131,7 @@ class CMDQPlugin(BasePlugin):
             self.cmds[cmdtype]["beforef"]()
 
         self.current_command = cmdt
-        self.api("plugins.core.events:raise.event")(
-            f"cmd_{self.current_command['ctype']}_send"
-        )
+        self.api("plugins.core.events:raise.event")(f"cmd_{self.current_command['ctype']}_send")
         SendDataDirectlyToMud(NetworkData(cmd), show_in_history=False)()
 
     def checkinqueue(self, cmd):
@@ -169,9 +157,7 @@ class CMDQPlugin(BasePlugin):
                 )()
                 self.cmds[cmdtype]["afterf"]()
 
-            self.api("libs.timing:timing.finish")(
-                f"cmd_{self.current_command['ctype']}"
-            )
+            self.api("libs.timing:timing.finish")(f"cmd_{self.current_command['ctype']}")
             self.api("plugins.core.events:raise.event")(
                 f"cmd_{self.current_command['ctype']}_completed"
             )
@@ -181,9 +167,7 @@ class CMDQPlugin(BasePlugin):
     @AddAPI("queue.add.command", description="add a command to the plugin")
     def _api_queue_add_command(self, cmdtype, arguments=""):
         """Add a command to the queue."""
-        plugin = self.api("libs.api:get.caller.owner")(
-            ignore_owner_list=[self.plugin_id]
-        )
+        plugin = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]["cmd"]
         if arguments:
             cmd = f"{cmd} {arguments!s}"
@@ -208,9 +192,7 @@ class CMDQPlugin(BasePlugin):
     def _command_fixqueue(self):
         """Finish the last command."""
         if self.current_command:
-            self.api("libs.timing:timing.finish")(
-                f"cmd_{self.current_command['ctype']}"
-            )
+            self.api("libs.timing:timing.finish")(f"cmd_{self.current_command['ctype']}")
             self.current_command = {}
             self.sendnext()
 
