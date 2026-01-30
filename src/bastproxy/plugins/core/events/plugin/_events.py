@@ -9,6 +9,7 @@
 import types
 
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.records import LogRecord
 from bastproxy.libs.stack import SimpleStack
@@ -50,7 +51,7 @@ class EventsPlugin(BasePlugin):
 
         # Can't use decorator since this is the one that registers all events from decorators
         self.api("plugins.core.events:register.to.event")(
-            "ev_libs.plugins.loader_post_startup_plugins_loaded",
+            f"ev_{plugin_loader.__name__}_post_startup_plugins_loaded",
             self._eventcb_post_startup_plugins_loaded,
         )
 
