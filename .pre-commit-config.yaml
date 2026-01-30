@@ -1,34 +1,7 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.4
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        additional_dependencies: []
-        args: [--strict, --ignore-missing-imports]
-
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.10
-    hooks:
-      - id: bandit
-        args: [-c, pyproject.toml]
-        additional_dependencies: ["bandit[toml]"]
-
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
-    hooks:
-      - id: codespell
-        additional_dependencies: [tomli]
-        args: [--ignore-words-list=crate]
-
+  # Generic file checks (not Python-specific, keep external)
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -37,3 +10,151 @@ repos:
       - id: check-toml
       - id: check-merge-conflict
       - id: detect-private-key
+
+  # Conventional commits enforcement
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--strict]
+
+  # Local hooks using project's installed tools via uv
+  # This ensures version consistency with pyproject.toml
+  - repo: local
+    hooks:
+      # Python linting and formatting (uses project's ruff version)
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        exclude: ^tools/pyproject_template/
+
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        exclude: ^tools/pyproject_template/
+
+      # Type checking (uses project's mypy version)
+      # Only checks src/ to match doit type_check behavior
+      - id: mypy
+        name: mypy
+        entry: uv run mypy src/
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      # Security scanning (uses project's bandit version)
+      # Skips if bandit not installed (optional security extra)
+      - id: bandit
+        name: bandit
+        entry: bash -c 'command -v bandit &>/dev/null || uv run python -c "import bandit" 2>/dev/null || exit 0; uv run bandit -c pyproject.toml "$@"' --
+        language: system
+        types: [python]
+        exclude: ^tools/pyproject_template/
+
+      # Spell checking (uses project's codespell version)
+      - id: codespell
+        name: codespell
+        entry: uv run codespell
+        language: system
+        types: [text]
+        exclude: ^(\.git/|\.venv/|uv\.lock)
+
+      # Branch naming enforcement
+      - id: check-branch-name
+        name: Check branch naming convention
+        entry: |
+          bash -c '
+          BRANCH=$(git branch --show-current);
+          if [[ "$BRANCH" != "main" && "$BRANCH" != "develop" && ! "$BRANCH" =~ ^(issue|feat|fix|docs|test|refactor|chore|ci|perf|hotfix)/[0-9]+-[a-z0-9\-]+$ && ! "$BRANCH" =~ ^release/.+ ]]; then
+            echo "Branch name must follow convention:";
+            echo "   - issue/<num>-<description>";
+            echo "   - feat/<num>-<description>";
+            echo "   - fix/<num>-<description>";
+            echo "   - docs/<num>-<description>";
+            echo "   - test/<num>-<description>";
+            echo "   - refactor/<num>-<description>";
+            echo "   - chore/<num>-<description>";
+            echo "   - ci/<num>-<description>";
+            echo "   - perf/<num>-<description>";
+            echo "   - hotfix/<description>";
+            echo "   - release/<version>";
+            echo "";
+            echo "Current branch: $BRANCH";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Prevent direct commits to main branch
+      - id: no-commit-to-main
+        name: Prevent commits to main branch
+        entry: |
+          bash -c '
+          BRANCH=$(git branch --show-current);
+          if [[ "$BRANCH" == "main" ]]; then
+            echo "ERROR: Direct commits to main branch are not allowed!";
+            echo "";
+            echo "The mandatory workflow is: Issue -> Branch -> Commit -> PR -> Merge";
+            echo "";
+            echo "Please follow these steps:";
+            echo "  1. Ensure a GitHub issue exists for your change";
+            echo "  2. Create a feature branch: git checkout -b <type>/<issue#>-<description>";
+            echo "  3. Make your changes and commit on the feature branch";
+            echo "  4. Push and create a Pull Request";
+            echo "  5. Merge the PR after review and CI checks pass";
+            echo "";
+            echo "See AGENTS.md and .github/CONTRIBUTING.md for details.";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Prevent committing local config files
+      - id: no-local-config
+        name: Prevent committing local config files
+        entry: |
+          bash -c '
+          # Find staged files with .local or .local. in name (as distinct segment, not substring)
+          LOCAL_FILES=$(git diff --cached --name-only | grep -E "\.local$|\.local\." | grep -v "\.local\.example" || true)
+          if [[ -n "$LOCAL_FILES" ]]; then
+            echo "ERROR: Local config files should not be committed!"
+            echo ""
+            echo "The following files appear to be user-specific configs:"
+            echo "$LOCAL_FILES" | sed "s/^/  - /"
+            echo ""
+            echo "These files are gitignored for a reason - they may contain"
+            echo "user-specific settings, paths, or sensitive data."
+            echo ""
+            echo "If this is a template, rename it to include .example (e.g., .envrc.local.example)"
+            exit 1
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Protect dynamic version configuration
+      - id: protect-dynamic-version
+        name: Protect dynamic version configuration
+        entry: |
+          bash -c '
+          if git diff --cached --name-only | grep -q "^pyproject.toml$"; then
+            if git diff --cached pyproject.toml | grep -E "^[-+]dynamic\s*=" | grep -q .; then
+              echo "ERROR: Changes to the dynamic field in pyproject.toml are not allowed!"
+              echo ""
+              echo "Version is managed dynamically via git tags."
+              echo "The dynamic = [\"version\"] setting should not be modified."
+              echo ""
+              echo "See AGENTS.md for details on version management."
+              exit 1
+            fi
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true

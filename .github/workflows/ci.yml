@@ -2,51 +2,115 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  setup:
+    # Skip CI if triggered by a label event that isn't 'full-matrix'
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-matrix'
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/python-versions.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set matrix based on config and label
+        id: set-matrix
+        run: |
+          # Read config
+          oldest=$(jq -r '.oldest' .github/python-versions.json)
+          newest=$(jq -r '.newest' .github/python-versions.json)
+
+          oldest_minor=${oldest#3.}
+          newest_minor=${newest#3.}
+
+          if [[ "${{ github.event.label.name }}" == "full-matrix" ]]; then
+            # Middle versions only (bookends already tested)
+            versions=""
+            for ((i=oldest_minor+1; i<newest_minor; i++)); do
+              if [[ -n "$versions" ]]; then
+                versions="$versions,"
+              fi
+              versions="$versions\"3.$i\""
+            done
+
+            if [[ -z "$versions" ]]; then
+              echo "No middle versions to test (oldest=$oldest, newest=$newest)"
+              echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            else
+              echo "Middle versions: $versions"
+              echo "matrix={\"os\":[\"ubuntu-latest\"],\"python-version\":[$versions]}" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Bookend versions (oldest + newest)
+            echo "Bookend versions: $oldest, $newest"
+            echo "matrix={\"os\":[\"ubuntu-latest\"],\"python-version\":[\"$oldest\",\"$newest\"]}" >> $GITHUB_OUTPUT
+          fi
+
+  test:
+    needs: setup
+    if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     env:
-      UV_CACHE_DIR: /tmp/uv-cache
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: astral-sh/setup-uv@v1
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
       - name: Cache uv dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
-          path: /tmp/uv-cache
+          path: ${{ env.UV_CACHE_DIR }}
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-
 
       - name: Install dependencies
-        run: uv run doit dev
+        run: uv sync --all-extras --dev
 
-      - name: Run checks
-        run: uv run doit check
+      - name: Check code formatting
+        run: uv run ruff format --check src/ tests/
 
-      - name: Run coverage
+      - name: Run linting
+        run: uv run ruff check src/ tests/
+
+      - name: Run type checking
+        run: uv run mypy src/
+
+      - name: Run security scan
+        run: uv run bandit -c pyproject.toml -r src/
+
+      - name: Run spell check
+        run: uv run codespell src/ tests/ docs/ README.md
+
+      - name: Run tests with coverage
         run: uv run pytest --cov=bastproxy --cov-report=xml:tmp/coverage.xml --cov-report=term -v
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
         with:
           file: ./tmp/coverage.xml
           flags: unittests
@@ -54,3 +118,31 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  ci-complete:
+    # Always run unless this is a non-full-matrix label event
+    if: always() && (github.event.action != 'labeled' || github.event.label.name == 'full-matrix')
+    needs: [setup, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI status
+        run: |
+          setup_result="${{ needs.setup.result }}"
+          test_result="${{ needs.test.result }}"
+
+          echo "Setup result: $setup_result"
+          echo "Test result: $test_result"
+
+          # Setup must succeed
+          if [[ "$setup_result" != "success" ]]; then
+            echo "Setup job failed"
+            exit 1
+          fi
+
+          # Test must succeed or be skipped (skipped = no middle versions)
+          if [[ "$test_result" != "success" && "$test_result" != "skipped" ]]; then
+            echo "Test job failed"
+            exit 1
+          fi
+
+          echo "CI completed successfully"

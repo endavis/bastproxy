@@ -67,6 +67,10 @@ dev = [
     "commitizen>=3.0",
     "bandit>=1.7.0",
     "safety>=3.0.0",
+    "pyright>=1.1.0",
+    "vulture>=2.11",
+    "radon>=6.0",
+    "griffe>=0.40",
 ]
 security = [
     "pip-audit>=2.6",
@@ -143,6 +147,7 @@ exclude = [
     "venv",
     "data",
     "evennia",
+    "tools/pyproject_template",
 ]
 
 [tool.ruff.lint]
@@ -204,6 +209,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/**/*.py" = ["D", "ARG", "PLR2004"]
 "__init__.py" = ["F401", "D104", "E402"]
 "src/bastproxy/__init__.py" = ["I001"]
+"tools/doit/**/*.py" = ["PTH", "EM101", "EM102", "EM103"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -307,8 +313,9 @@ exclude_dirs = [
     "evennia/",
     "data/",
     "teststuff/",
+    "tools/pyproject_template/",
 ]
-skips = ["B401", "B604"]
+skips = ["B401", "B603", "B604", "B607"]
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
@@ -319,3 +326,12 @@ name = "cz_conventional_commits"
 version = "0.0.0"
 tag_format = "v$version"
 version_provider = "scm"
+
+[tool.pyright]
+include = ["src", "tests", "*.py", "tools"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[tool.vulture]
+min_confidence = 80
+paths = ["src", "tests"]
