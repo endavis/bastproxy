@@ -67,8 +67,12 @@ jobs:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     env:
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
 
     steps:
+      - name: Create BASTPROXY_HOME directory
+        run: mkdir -p $BASTPROXY_HOME
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
