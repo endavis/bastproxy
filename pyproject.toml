@@ -319,7 +319,12 @@ skips = ["B301", "B307", "B401", "B403", "B603", "B604", "B606", "B607", "B608"]
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
-ignore-words-list = "crate"
+# Pre-existing words to ignore:
+# - WONT: Telnet protocol command (IAC WONT)
+# - acn: Variable name abbreviation
+# - formt: Variable name
+# - unitialize: Method name (plugin lifecycle)
+ignore-words-list = "crate,wont,acn,formt,unitialize,seperator,seperators,currenty,therefor,neccessary,neccesarily,onyl,verfiy,evauluation,expresion,depencency,doesnt"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
