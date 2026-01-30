@@ -1,0 +1,154 @@
+name: Breaking Change Detection
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  detect-breaking-changes:
+    name: Detect API Breaking Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Need full history for comparison
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install griffe
+        run: pip install griffe
+
+      - name: Check for breaking changes
+        id: griffe
+        run: |
+          set +e
+          OUTPUT=$(griffe check bastproxy \
+            --against "origin/${{ github.base_ref }}" \
+            --search src \
+            --verbose 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "$OUTPUT"
+
+          if [ $EXIT_CODE -ne 0 ] && [ -n "$OUTPUT" ]; then
+            echo "has_breaking=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_breaking=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Save output for comment step (handle multiline)
+          {
+            echo "details<<EOF"
+            echo "$OUTPUT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report breaking changes
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          HAS_BREAKING: ${{ steps.griffe.outputs.has_breaking }}
+          GRIFFE_OUTPUT: ${{ steps.griffe.outputs.details }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            const hasBreaking = process.env.HAS_BREAKING === 'true';
+            const griffeOutput = process.env.GRIFFE_OUTPUT || '';
+
+            // Check if BREAKING CHANGE is documented
+            const hasBreakingChangeDoc = /BREAKING CHANGE:/i.test(body) ||
+                                          /breaking change/i.test(body);
+
+            // Find existing bot comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+
+            const marker = '<!-- breaking-change-detection -->';
+            const botComment = comments.data.find(c =>
+              c.body.includes(marker)
+            );
+
+            if (!hasBreaking) {
+              // No breaking changes - remove old comment if it exists
+              if (botComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id
+                });
+              }
+              console.log('No breaking changes detected');
+              return;
+            }
+
+            // Build report
+            let report = `${marker}\n`;
+            report += '## API Breaking Changes Detected\n\n';
+            report += 'The following breaking changes were detected by [griffe](https://mkdocstrings.github.io/griffe/):\n\n';
+            report += '```\n';
+            report += griffeOutput.trim();
+            report += '\n```\n\n';
+
+            if (!hasBreakingChangeDoc) {
+              report += '### Required Actions\n\n';
+              report += 'Breaking changes detected but not documented!\n\n';
+              report += '**You must:**\n';
+              report += '1. Add `BREAKING CHANGE:` footer to your commit message\n';
+              report += '2. Document the breaking change in the PR description\n';
+              report += '3. Add migration guide to CHANGELOG.md\n';
+              report += '4. Update documentation\n\n';
+              report += '**Commit message format:**\n';
+              report += '```\n';
+              report += 'feat: description of change\n\n';
+              report += 'BREAKING CHANGE: describe what broke and how to migrate.\n';
+              report += '```\n';
+            } else {
+              report += '### Breaking Change Documented\n\n';
+              report += 'This PR includes breaking change documentation.\n\n';
+              report += '**Before merging, verify:**\n';
+              report += '- [ ] Migration guide in CHANGELOG.md\n';
+              report += '- [ ] Documentation updated\n';
+              report += '- [ ] Version will be bumped appropriately (major version)\n';
+            }
+
+            // Create or update comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: report
+              });
+            }
+
+            // Fail if not documented
+            if (!hasBreakingChangeDoc) {
+              core.setFailed(
+                'Breaking changes detected but not documented! ' +
+                'Add BREAKING CHANGE: footer to commit message and document in PR description.'
+              );
+            } else {
+              console.log('Breaking changes properly documented');
+            }

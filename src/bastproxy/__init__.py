@@ -40,7 +40,6 @@ import logging
 import sys
 from pathlib import Path
 import os
-import pprint
 
 # The modules below are imported to add their functions to the API
 from bastproxy.libs import argp, timing
@@ -101,6 +100,7 @@ BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True)
 BASEAPI.BASEDATAPLUGINPATH.mkdir(parents=True, exist_ok=True)
 
 print("last updated 12:19 PM")
+
 
 class MudProxy:
     """Main class for the MUD Proxy application.
@@ -206,10 +206,6 @@ class MudProxy:
             "ev_bastproxy_proxy_ready", calledfrom="mudproxy"
         )
 
-        event_instance = self.api("libs.plugins.loader:get.plugin.instance")("plugins.core.events")
-        pprint.pprint(event_instance.events)
-        pprint.pprint(self.api._instance_api)
-        pprint.pprint(self.api._class_api)
         from bastproxy.libs.net.listeners import Listeners
 
         Listeners().create_listeners()

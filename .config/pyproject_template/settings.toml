@@ -1,0 +1,13 @@
+[project]
+project_name = "bastproxy"
+package_name = "bastproxy"
+pypi_name = "bastproxy"
+description = "A MUD proxy with plugin support for Python 3.12+"
+author_name = "Bast"
+author_email = "bast@bastproxy.com"
+github_user = "endavis"
+github_repo = "bastproxy-py3"
+
+[template]
+commit = "2c1171b97183a76fe8415d408432bf344081507c"
+commit_date = "2026-01-23"
