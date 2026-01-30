@@ -1,0 +1,43 @@
+{
+  "context": {
+    "files": ["AGENTS.md"]
+  },
+  "tools": {
+    "allowed": [
+      "run_shell_command(git)",
+      "run_shell_command(gh)",
+      "run_shell_command(uv)",
+      "run_shell_command(doit)",
+      "run_shell_command(ls)",
+      "run_shell_command(cat)",
+      "run_shell_command(tree)",
+      "run_shell_command(find)",
+      "run_shell_command(grep)",
+      "run_shell_command(wc)",
+      "run_shell_command(mkdir)",
+      "run_shell_command(python)",
+      "run_shell_command(pytest)",
+      "run_shell_command(ruff)",
+      "run_shell_command(mypy)"
+    ]
+  },
+  "coreTools": [
+    "ShellTool",
+    "ReadFileTool",
+    "WriteFileTool",
+    "LSTool",
+    "GrepTool"
+  ],
+  "sandbox": {
+    "enabled": false,
+    "profile": "permissive-open"
+  },
+  "model": {
+    "name": "gemini-2.0-flash-exp",
+    "temperature": 0.7
+  },
+  "ui": {
+    "autoApprove": false,
+    "showToolCalls": true
+  }
+}

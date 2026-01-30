@@ -1,0 +1,67 @@
+site_name: bastproxy
+site_description: A MUD proxy with plugin support for Python 3.12+
+site_author: Bast
+site_url: https://username.github.io/bastproxy
+
+repo_name: username/bastproxy
+repo_url: https://github.com/endavis/bastproxy
+edit_uri: edit/main/docs/
+
+# Theme configuration
+# Default: material (modern, responsive theme)
+theme:
+  name: material
+  # Optional features (uncomment to enable)
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - API Reference: api.md
+  - Extensions: extensions.md
+  - Migration Guide: migration.md
+  - Examples: examples.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/endavis
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/bastproxy

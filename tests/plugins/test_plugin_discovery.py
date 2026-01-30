@@ -10,7 +10,7 @@ This module tests the plugin discovery and validation functionality.
 
 """
 
-from libs.plugins import imputils
+from bastproxy.libs.plugins import imputils
 
 
 class TestPluginDiscovery:

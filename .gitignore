@@ -1,66 +1,79 @@
-*.py[cod]
-*.pyc
-*.pyo
-
-# C extensions
-*.so
-
-# Packages
-*.egg
-*.egg-info
-dist
-build
-eggs
-parts
-bin
-var
-sdist
-develop-eggs
-.installed.cfg
-lib
-lib64
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Installer logs
-pip-log.txt
+# Virtual environments
+venv/
+.venv/
+.venv*/
+ENV/
+env/
 
-# Unit test / coverage reports
+# Testing
+.pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
-.tox
-.pytest_cache/
-nosetests.xml
-
-# Translations
-*.mo
-
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
+.tox/
+.hypothesis/
 
 # Type checking and linting
 .mypy_cache/
 .ruff_cache/
+.pytype/
+.pyre/
 .dmypy.json
 dmypy.json
 
-# bastproxy specific
-data
-*-config.ini
-*.kdev4
-plugins/test
-src/plugins/test
-*.bak
-*.reindent
-teststuff/
-.python*
-.flake8
-evennia
-pydatatracker
-uv.lock
-.venv
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-bandit-report.txt
-tmp/
+# direnv
+.direnv/
+.envrc.local
+
+# Environment variables
+.env
+.env.*
+
+# Temporary files
+tmp/*
+!tmp/.gitkeep
+.cache/
+
+# Documentation
+site/
+
+# Build and packaging
+*.whl
+.uv-cache/
+
+# Project specific
+*.log
+.doit.db.db
+coverage.xml
+.nfs*

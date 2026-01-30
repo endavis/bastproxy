@@ -151,6 +151,13 @@
         # clear cache after a plugin reload
     # TODO: tracking base, add method to check if self
     # TODO: change typing to "import typing as T" instead of using from typing import ...
+    # TODO: put statistics like total memory usage in a command
+        def memory_usage():
+            process = psutil.Process(os.getpid())
+            return process.memory_info().rss / 1024 ** 2  # In MB
+    # TODO: a data class for function returns
+    # TODO: look at where context managers can be used
+    # TODO: change the way we do validation to use a validation library
 
 # IDEAS
     # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
@@ -159,6 +166,8 @@
         that get looked up once and never change. Just define a pydantic
         class and boom, you have error handling, type checking, and can pass that around as a single
         argument to functions.
+    # IDEA: look at jubilant, anyio, uvloop to replace asyncio?
+    # IDEA: look at pyinstrument for profiling?
 
 # BUGS:
     # BUG: evennia intro command doesn't seem to take number, works with regular telnet

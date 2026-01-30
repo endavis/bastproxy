@@ -12,7 +12,7 @@ This module contains tests for the stack data structure.
 
 import pytest
 
-from libs.stack import SimpleStack as Stack
+from bastproxy.libs.stack import SimpleStack as Stack
 
 
 class TestStack:

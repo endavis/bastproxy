@@ -17,7 +17,7 @@ Test Classes:
 
 import pytest
 
-from libs.api import API
+from bastproxy.libs.api import API
 
 
 def helper_function_one() -> str:

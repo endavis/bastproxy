@@ -93,7 +93,7 @@ BastProxy uses a powerful plugin system. Here's a minimal plugin example:
 # plugins/your_plugin/__init__.py
 PLUGIN_NAME = 'Your Plugin'
 PLUGIN_PURPOSE = 'Does something useful'
-PLUGIN_AUTHOR = 'Your Name'
+PLUGIN_AUTHOR = 'Bast'
 PLUGIN_VERSION = 1
 
 # plugins/your_plugin/plugin/_yourplugin.py

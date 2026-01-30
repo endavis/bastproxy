@@ -16,7 +16,7 @@ import argparse
 
 import pytest
 
-from libs.argp import (
+from bastproxy.libs.argp import (
     OPTIONAL,
     SUPPRESS,
     ZERO_OR_MORE,

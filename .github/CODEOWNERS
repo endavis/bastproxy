@@ -1,0 +1,37 @@
+# Code Owners
+#
+# This file defines individuals or teams responsible for code in this repository.
+# When a pull request modifies code that has an owner, that owner will automatically
+# be requested for review.
+#
+# Format: path/to/file @username @team-name
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+# These owners will be requested for review unless a later match takes precedence
+* @username
+
+# Documentation
+/docs/ @username
+*.md @username
+
+# Configuration files
+/.github/ @username
+pyproject.toml @username
+.pre-commit-config.yaml @username
+
+# CI/CD
+/.github/workflows/ @username
+
+# Core source code
+/src/ @username
+
+# Tests
+/tests/ @username
+
+# Examples
+/examples/ @username
+
+# Task automation
+dodo.py @username

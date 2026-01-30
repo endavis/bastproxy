@@ -16,7 +16,7 @@ Test Classes:
 
 import time
 
-from libs.callback import Callback
+from bastproxy.libs.callback import Callback
 
 # Helper functions
 test_execution_log = []
