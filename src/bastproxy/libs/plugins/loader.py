@@ -43,6 +43,7 @@ import traceback
 import weakref
 from collections.abc import KeysView
 from functools import partial
+from pathlib import Path
 
 # 3rd Party
 # Project
@@ -79,6 +80,18 @@ class PluginLoader:
 
         self.plugins_info: dict[str, PluginInfo] = {}
         self.base_plugin_dir = API.BASEPLUGINPATH
+        packaged_plugins = Path(__file__).resolve().parents[2] / "plugins"
+        self.plugin_search_paths: list[dict[str, Path | str]] = [
+            {"path": self.base_plugin_dir, "prefix": "plugins.", "strip": ""},
+        ]
+        if packaged_plugins.exists():
+            self.plugin_search_paths.append(
+                {
+                    "path": packaged_plugins,
+                    "prefix": "bastproxy.plugins.",
+                    "strip": "bastproxy.",
+                }
+            )
 
         self.api("libs.api:add.apis.for.object")(__name__, self)
 
@@ -478,9 +491,24 @@ class PluginLoader:
         """
         LogRecord("Read all plugin information", level="info", sources=[__name__])()
 
-        _, plugins, errors = imputils.find_packages_and_plugins(
-            self.base_plugin_dir, "plugins."
-        )
+        packages: list = []
+        plugins: list = []
+        errors: dict[str, tuple] = {}
+
+        for search in self.plugin_search_paths:
+            search_path = search["path"]
+            prefix = search["prefix"]
+            strip_prefix = search.get("strip", "")
+
+            pkg, plug, err = imputils.find_packages_and_plugins(search_path, prefix)
+
+            for p in plug:
+                plugin_id = p["plugin_id"]
+                if strip_prefix and plugin_id.startswith(strip_prefix):
+                    p["plugin_id"] = plugin_id[len(strip_prefix) :]
+            packages.extend(pkg)
+            plugins.extend(plug)
+            errors.update(err)
 
         LogRecord(
             f"Found {len(plugins)} total plugins from {self.base_plugin_dir}",

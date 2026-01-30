@@ -248,9 +248,10 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         if isinstance(toplevel, str):
             package_root = self.owner_id.split(".")[0] if self.owner_id else ""
-            prefix = f"{package_root}."
-            if package_root and toplevel.startswith(prefix):
-                toplevel = toplevel.removeprefix(prefix)
+            if package_root == "bastproxy":
+                prefix = f"{package_root}."
+                if toplevel.startswith(prefix):
+                    toplevel = toplevel.removeprefix(prefix)
 
         LogRecord(
             f"_api_add_apis_for_object: {item} {toplevel}",
@@ -693,7 +694,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         if "." in api_location:
             package_root = (self.owner_id or "").split(".")[0]
             prefix = f"{package_root}."
-            if package_root and api_location.startswith(prefix):
+            if package_root == "bastproxy" and api_location.startswith(prefix):
                 api_location = api_location.removeprefix(prefix)
 
         # check overloaded api

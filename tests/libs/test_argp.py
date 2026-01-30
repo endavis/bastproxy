@@ -15,6 +15,7 @@ Test Classes:
 import argparse
 
 import pytest
+
 from bastproxy.libs.argp import (
     OPTIONAL,
     SUPPRESS,

@@ -87,8 +87,8 @@ class ProcessDataToClient(BaseRecord):
 
     def setup_events(self):
         """Set up the events for this record type."""
-        if not self._SETUP_EVENTS:
-            self.SETUP_EVENTS = True
+        if not ProcessDataToClient._SETUP_EVENTS:
+            ProcessDataToClient._SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(
                 self.modify_data_event_name,
                 __name__,
@@ -211,8 +211,8 @@ class SendDataDirectlyToClient(BaseRecord):
 
     def setup_events(self):
         """Set up the events for this record type."""
-        if not self._SETUP_EVENTS:
-            self.SETUP_EVENTS = True
+        if not SendDataDirectlyToClient._SETUP_EVENTS:
+            SendDataDirectlyToClient._SETUP_EVENTS = True
             self.api("plugins.core.events:add.event")(
                 self.read_data_event_name,
                 __name__,

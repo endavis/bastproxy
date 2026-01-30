@@ -233,7 +233,7 @@ def setup_loggers(log_level: int):
 
     reset_logging()
     rootlogger = logging.getLogger()
-    rootlogger.setLevel(log_level)
+    rootlogger.setLevel(logging.DEBUG)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
     (API.BASEDATALOGPATH / "networkdata").mkdir(parents=True, exist_ok=True)

@@ -16,6 +16,7 @@ Test Classes:
 """
 
 import pytest
+
 from bastproxy.libs.api import API
 
 

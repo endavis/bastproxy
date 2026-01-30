@@ -39,6 +39,8 @@ import datetime
 import logging
 import sys
 from pathlib import Path
+import os
+import pprint
 
 # The modules below are imported to add their functions to the API
 from bastproxy.libs import argp, timing
@@ -75,20 +77,30 @@ else:
 
 CODE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = CODE_ROOT.parent
+if "BASTPROXY_HOME" not in os.environ:
+    msg = "BASTPROXY_HOME must be set to a writable directory for data/plugins/logs."
+    raise RuntimeError(msg)
+
+BASTPROXY_HOME = Path(os.environ["BASTPROXY_HOME"]).expanduser().resolve()
+if not BASTPROXY_HOME.exists():
+    msg = f"BASTPROXY_HOME '{BASTPROXY_HOME}' does not exist."
+    raise RuntimeError(msg)
+if not os.access(BASTPROXY_HOME, os.W_OK):
+    msg = f"BASTPROXY_HOME '{BASTPROXY_HOME}' is not writable."
+    raise RuntimeError(msg)
 
 # set the paths based on where the executable is
 BASEAPI.BASEPATH = CODE_ROOT
-BASEAPI.BASEDATAPATH = PROJECT_ROOT / "data"
-if not BASEAPI.BASEDATAPATH.exists():
-    BASEAPI.BASEDATAPATH = CODE_ROOT / "data"
+BASEAPI.BASEDATAPATH = BASTPROXY_HOME / "data"
 BASEAPI.BASEDATAPLUGINPATH = BASEAPI.BASEDATAPATH / "plugins"
 BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / "logs"
-BASEAPI.BASEPLUGINPATH = CODE_ROOT / "plugins"
+BASEAPI.BASEPLUGINPATH = BASEAPI.BASEDATAPLUGINPATH
 
 BASEAPI.BASEDATAPATH.mkdir(parents=True, exist_ok=True)
 BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True)
 BASEAPI.BASEDATAPLUGINPATH.mkdir(parents=True, exist_ok=True)
 
+print("last updated 12:19 PM")
 
 class MudProxy:
     """Main class for the MUD Proxy application.
@@ -194,6 +206,10 @@ class MudProxy:
             "ev_bastproxy_proxy_ready", calledfrom="mudproxy"
         )
 
+        event_instance = self.api("libs.plugins.loader:get.plugin.instance")("plugins.core.events")
+        pprint.pprint(event_instance.events)
+        pprint.pprint(self.api._instance_api)
+        pprint.pprint(self.api._class_api)
         from bastproxy.libs.net.listeners import Listeners
 
         Listeners().create_listeners()
@@ -236,6 +252,7 @@ def main() -> None:
         SystemExit: If the argument parsing fails or if the application exits.
 
     """
+    print("last updated 12:19:00 PM")
     # create an ArgumentParser to parse the command line
     parser = argp.ArgumentParser(description="A python mud proxy")
     parser.formatter_class = argp.CustomFormatter

@@ -11,7 +11,7 @@ import pkgutil
 from pathlib import Path
 
 # Allow "plugins" to point at the actual bastproxy.plugins package directory.
-__path__ = pkgutil.extend_path(
-    __path__,
-    __name__,
-) + [str(Path(__file__).resolve().parent.parent / "bastproxy" / "plugins")]
+__path__ = [
+    *pkgutil.extend_path(__path__, __name__),
+    str(Path(__file__).resolve().parent.parent / "bastproxy" / "plugins"),
+]
