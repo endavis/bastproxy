@@ -120,110 +120,62 @@ fallback-version = "0.0.0"
 version-file = "src/bastproxy/_version.py"
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py312"
 extend-exclude = ["**/_version.py"]
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
     "data",
     "evennia",
-    "tools/pyproject_template",
 ]
 
 [tool.ruff.lint]
 select = [
-    "E",
-    "W",
-    "F",
-    "I",
-    "D",
-    "UP",
-    "B",
-    "C4",
-    "DTZ",
-    "T10",
-    "EM",
-    "ISC",
-    "ICN",
-    "G",
-    "PIE",
-    "T20",
-    "PT",
-    "Q",
-    "RET",
-    "SIM",
-    "TID",
-    "ARG",
-    "PTH",
-    "ERA",
-    "PL",
-    "TRY",
-    "RUF",
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "W",      # pycodestyle warnings
+    "UP",     # pyupgrade
+    "ANN",    # flake8-annotations (type hints)
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "RUF",    # Ruff-specific rules
+    "SIM",    # flake8-simplify
+    "ASYNC",  # flake8-async
 ]
 ignore = [
-    "D203",
-    "D213",
-    "E501",
-    "TRY003",
-    "PLR0913",
-    "PLR0912",
-    "PLR0915",
-    "PLR2004",
-    "PLR0911",
-    "ISC001",
-    "ERA001",
-    "B019",
-    "ARG001",
-    "ARG002",
-    "UP038",
-    "D205",
-    "D415",
-    "T201",
-    "PLC0415",
+    "ANN",    # TODO: Enable after adding type annotations to codebase
+    "E501",   # Line too long - existing code uses longer lines
+    "N",      # TODO: Enable after fixing naming conventions
+    "B019",   # lru_cache on methods - intentional for API caching
+    "SIM108", # TODO: Refactor if/else to ternary where appropriate
 ]
-fixable = ["ALL"]
-unfixable = []
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D", "ARG", "PLR2004"]
-"__init__.py" = ["F401", "D104", "E402"]
-"src/bastproxy/__init__.py" = ["I001"]
-"tools/doit/**/*.py" = ["PTH", "EM101", "EM102", "EM103"]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
+"tools/pyproject_template/*.py" = [
+    "ANN401",  # Any return type for dynamic GitHub API responses
+    "RUF022",  # __all__ intentionally grouped by category, not sorted
+]
+"tools/doit/*.py" = [
+    "ANN401",  # Any return type for dynamic doit task responses
+    "ANN001",  # Missing type annotation for function argument
+    "ANN201",  # Missing return type annotation for public function
+]
+"tests/**/*.py" = [
+    "ANN",     # No type annotations required in tests
+]
+"**/__init__.py" = [
+    "F401",    # Unused imports - intentional re-exports
+    "E402",    # Module level import not at top - needed for path setup
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bastproxy"]
-required-imports = []
-
-[tool.ruff.lint.mccabe]
-max-complexity = 15
 
 [tool.ruff.format]
-docstring-code-format = true
-docstring-code-line-length = 88
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
 
 [tool.mypy]
 mypy_path = ["src"]
@@ -247,6 +199,7 @@ disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
 module = [
+    "doit.*",
     "dumper.*",
     "telnetlib3.*",
     "rapidfuzz.*",
@@ -254,6 +207,7 @@ module = [
     "psutil",
     "psutil._common",
     "pydatatracker",
+    "yaml",
 ]
 ignore_missing_imports = true
 

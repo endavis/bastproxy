@@ -23,9 +23,7 @@ def success_message() -> None:
     console.print()
     console.print(
         Panel.fit(
-            "[bold green]\u2713 All checks passed![/bold green]",
-            border_style="green",
-            padding=(1, 2),
+            "[bold green]✓ All checks passed![/bold green]", border_style="green", padding=(1, 2)
         )
     )
     console.print()

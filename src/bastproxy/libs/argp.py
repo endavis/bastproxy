@@ -128,9 +128,7 @@ class CustomFormatter(HelpFormatter):
             and action.default is not SUPPRESS
         ):
             defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
-            if (
-                action.option_strings or action.nargs in defaulting_nargs
-            ) and action.default != "":
+            if (action.option_strings or action.nargs in defaulting_nargs) and action.default != "":
                 temp_help += " (default: %(default)s)"
 
         return temp_help

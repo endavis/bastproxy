@@ -1,4 +1,4 @@
-"""Dodo task modules for bastproxy.
+"""Dodo task modules for the pyproject-template.
 
 This package contains modular doit task definitions organized by functionality.
 Tasks are auto-discovered from all modules in this package.

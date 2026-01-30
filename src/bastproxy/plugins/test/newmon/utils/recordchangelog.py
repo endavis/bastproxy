@@ -70,19 +70,11 @@ class RecordChangeLogEntry(ChangeLogEntry):
 
     def __eq__(self, value: object) -> bool:
         """Compare equality based on uuid and class type."""
-        return (
-            self.uuid == value.uuid
-            if isinstance(value, RecordChangeLogEntry)
-            else False
-        )
+        return self.uuid == value.uuid if isinstance(value, RecordChangeLogEntry) else False
 
     def __lt__(self, value: object) -> bool:
         """Allow sorting by creation time when available."""
-        return (
-            self.created_time < value.created_time
-            if hasattr(value, "created_time")
-            else False
-        )  # type: ignore
+        return self.created_time < value.created_time if hasattr(value, "created_time") else False  # type: ignore
 
     def fix_stack(self, stack):
         """Normalize the captured stack for formatting."""
@@ -162,8 +154,7 @@ class RecordChangeLogEntry(ChangeLogEntry):
                 data = self.data
             tmsg.append(f"{'Data':<15} :")
             tmsg.extend(
-                f"{'':<15} : {line}"
-                for line in pprint.pformat(data, width=120).splitlines()
+                f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).splitlines()
             )
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<15} :")

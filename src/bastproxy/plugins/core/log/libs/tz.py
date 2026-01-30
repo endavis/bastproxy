@@ -26,11 +26,7 @@ def formatTime_RFC3339_UTC(self, record, datefmt=None):
         str: The formatted timestamp in RFC3339 format with UTC timezone.
 
     """
-    return (
-        datetime.datetime.fromtimestamp(record.created)
-        .astimezone(datetime.UTC)
-        .isoformat()
-    )
+    return datetime.datetime.fromtimestamp(record.created).astimezone(datetime.UTC).isoformat()
 
 
 def formatTime_RFC3339(self, record, datefmt=None):

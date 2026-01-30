@@ -155,8 +155,7 @@ class MudConnection:
         loop = asyncio.get_event_loop()
         if not isinstance(data, NetworkDataLine):
             LogRecord(
-                "client: send_to - got a type that is not NetworkDataLine: "
-                f"{type(data)}",
+                f"client: send_to - got a type that is not NetworkDataLine: {type(data)}",
                 level="error",
                 stack_info=True,
                 sources=[__name__],
@@ -186,9 +185,7 @@ class MudConnection:
             )()
             networkdata = NetworkData([], owner_id="mud:setup_mud")
             networkdata.append(
-                NetworkDataLine(
-                    features, originated="internal", line_type="COMMAND-TELNET"
-                )
+                NetworkDataLine(features, originated="internal", line_type="COMMAND-TELNET")
             )
             SendDataDirectlyToMud(networkdata)()
             LogRecord(
@@ -261,9 +258,7 @@ class MudConnection:
                     level="debug",
                     sources=[__name__],
                 )()
-                data.append(
-                    NetworkDataLine(inp, originated="mud", had_line_endings=False)
-                )
+                data.append(NetworkDataLine(inp, originated="mud", had_line_endings=False))
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
@@ -318,9 +313,7 @@ class MudConnection:
                     )()
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
-                    logging.getLogger("data.mud").info(
-                        "%-12s : %s", "to_mud", msg_obj.line
-                    )
+                    logging.getLogger("data.mud").info("%-12s : %s", "to_mud", msg_obj.line)
                 else:
                     LogRecord(
                         "client_write - No message to write to client.",
@@ -340,9 +333,7 @@ class MudConnection:
                 )()
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
-                logging.getLogger("data.mud").info(
-                    "%-12s : %s", "to_client", msg_obj.line
-                )
+                logging.getLogger("data.mud").info("%-12s : %s", "to_client", msg_obj.line)
 
             if count >= self.max_lines_to_process:
                 await asyncio.sleep(0)
@@ -405,9 +396,7 @@ class MudConnection:
             level="warning",
             sources=[__name__],
         )()
-        SendDataDirectlyToClient(
-            NetworkData(["Connection to the mud has been closed."])
-        )()
+        SendDataDirectlyToClient(NetworkData(["Connection to the mud has been closed."]))()
 
         await asyncio.sleep(1)
 

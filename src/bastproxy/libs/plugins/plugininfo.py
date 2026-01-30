@@ -73,9 +73,7 @@ class PluginRuntimeInfo:
         # The plugin instance
         self.plugin_instance: None | BasePlugin = None
         # The imported time
-        self.imported_time: datetime.datetime = datetime.datetime(
-            1970, 1, 1, tzinfo=datetime.UTC
-        )
+        self.imported_time: datetime.datetime = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
 
 
 class PluginInfo:
@@ -115,9 +113,7 @@ class PluginInfo:
         self.runtime_info: PluginRuntimeInfo = PluginRuntimeInfo()
         self.import_errors: list = []
 
-    def check_file_is_valid_python_code(
-        self, file: Path
-    ) -> tuple[bool, Exception | None]:
+    def check_file_is_valid_python_code(self, file: Path) -> tuple[bool, Exception | None]:
         """Check if a file contains valid Python code.
 
         This method attempts to parse the provided file to determine if it contains
@@ -164,9 +160,7 @@ class PluginInfo:
         changed_files = []
         if "files" in files:
             changed_files.extend(
-                files["files"][file]
-                for file in files["files"]
-                if files["files"][file][flag]
+                files["files"][file] for file in files["files"] if files["files"][file][flag]
             )
 
         for item, value in files.items():
@@ -245,8 +239,7 @@ class PluginInfo:
                 if (
                     parent_dir in oldfiles
                     and file.name in oldfiles[parent_dir]
-                    and file_modified_time
-                    == oldfiles[parent_dir][file.name]["modified_time"]
+                    and file_modified_time == oldfiles[parent_dir][file.name]["modified_time"]
                 ):
                     self.files[parent_dir][file.name] = oldfiles[parent_dir][file.name]
                     continue

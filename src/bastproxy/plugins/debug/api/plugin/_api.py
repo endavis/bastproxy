@@ -20,9 +20,7 @@ class APIPlugin(BasePlugin):
     """a plugin to show api information."""
 
     @AddParser(description="detail a function in the API")
-    @AddArgument(
-        "-a", "--api", help="the api to detail (optional)", default="", nargs="?"
-    )
+    @AddArgument("-a", "--api", help="the api to detail (optional)", default="", nargs="?")
     @AddArgument("-s", "--stats", help="add stats", action="store_true")
     @AddArgument(
         "-sd",
@@ -37,9 +35,7 @@ class APIPlugin(BasePlugin):
         help="use an API that is not from a plugin",
         action="store_true",
     )
-    @AddArgument(
-        "-c", "--show-code", help="show the function code", action="store_true"
-    )
+    @AddArgument("-c", "--show-code", help="show the function code", action="store_true")
     def _command_detail(self):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -68,9 +64,7 @@ class APIPlugin(BasePlugin):
         return True, tmsg
 
     @AddParser(description="list functions in the API")
-    @AddArgument(
-        "toplevel", help="the top level api to show (optional)", default="", nargs="?"
-    )
+    @AddArgument("toplevel", help="the top level api to show (optional)", default="", nargs="?")
     @AddArgument(
         "-np",
         "--noplugin",
@@ -107,9 +101,7 @@ class APIPlugin(BasePlugin):
         return True, tmsg
 
     @AddParser(description="call an API")
-    @AddArgument(
-        "-a", "--api", help="the api to detail (optional)", default="", nargs="?"
-    )
+    @AddArgument("-a", "--api", help="the api to detail (optional)", default="", nargs="?")
     @AddArgument("arguments", help="arguments to the api", default="", nargs="*")
     def _command_call(self):
         """@G%(name)s@w - @B%(cmdname)s@w.

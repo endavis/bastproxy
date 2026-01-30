@@ -57,10 +57,7 @@ class AttributeMonitor:
             return
         super().__setattr__(name, value)
 
-        if (
-            hasattr(self, "_attributes_to_monitor")
-            and name in self._attributes_to_monitor
-        ):
+        if hasattr(self, "_attributes_to_monitor") and name in self._attributes_to_monitor:
             self._attribute_set(name, original_value, value)
 
     def _attribute_set(self, name, original_value, new_value):

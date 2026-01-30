@@ -91,9 +91,7 @@ class FuzzyPlugin(BasePlugin):
             )()
         else:
             sorted_extract = sort_fuzzy_result(
-                rapidfuzz.process.extract(
-                    item_to_match, list_to_match, scorer=scorer_inst
-                )
+                rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst)
             )
             LogRecord(
                 f"_api_get_best_match - extract for {item_to_match} - {sorted_extract}",

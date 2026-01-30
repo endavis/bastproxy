@@ -195,9 +195,7 @@ class RecordManager:
             output.append(f"{pre_string} |-> {child.one_line_summary()}")
             if not all_children:
                 emptybar[indent] = True
-            self.format_all_children_helper(
-                children[child], indent + 1, emptybar, output, rfilter
-            )
+            self.format_all_children_helper(children[child], indent + 1, emptybar, output, rfilter)
         return output
 
     def add(self, record):

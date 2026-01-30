@@ -57,9 +57,7 @@ class ProcessRaisedEvent(BaseRecord):
         log_savestate = self.api("plugins.core.settings:get")(
             "plugins.core.events", "log_savestate"
         )
-        log: bool = (
-            True if log_savestate else not self.event_name.endswith("_savestate")
-        )
+        log: bool = True if log_savestate else not self.event_name.endswith("_savestate")
 
         if log:
             LogRecord(

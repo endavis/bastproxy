@@ -79,9 +79,7 @@ class CustomColorFormatter(logging.Formatter):
         if record.name != "root":
             if "exc_info" in record.__dict__ and record.exc_info:
                 formatted_exc = traceback.format_exception(record.exc_info[1])
-                formatted_exc_no_newline = [
-                    line.rstrip() for line in formatted_exc if line
-                ]
+                formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
                 if isinstance(record.msg, LogRecord):
                     record.msg.extend(formatted_exc_no_newline)
                     record.msg.addupdate("Modify", "add traceback")
@@ -118,9 +116,7 @@ class CustomConsoleHandler(logging.StreamHandler):
         try:
             canlog = bool(
                 not self.api("libs.api:has")("plugins.core.log:can.log.to.console")
-                or self.api("plugins.core.log:can.log.to.console")(
-                    record.name, record.levelno
-                )
+                or self.api("plugins.core.log:can.log.to.console")(record.name, record.levelno)
             )
             if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["console"]:
@@ -144,9 +140,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         utc=False,
         atTime=None,
     ):
-        super().__init__(
-            filename, when, interval, backupCount, encoding, delay, utc, atTime
-        )
+        super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
         self.api = API(owner_id=f"{__name__}:CustomRotatingFileHandler")
         self.setLevel(logging.DEBUG)
 
@@ -155,9 +149,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         try:
             canlog = bool(
                 not self.api("libs.api:has")("plugins.core.log:can.log.to.file")
-                or self.api("plugins.core.log:can.log.to.file")(
-                    record.name, record.levelno
-                )
+                or self.api("plugins.core.log:can.log.to.file")(record.name, record.levelno)
             )
             if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["file"]:
@@ -184,9 +176,7 @@ class CustomClientHandler(logging.Handler):
 
         update_type_counts(record.name, record.levelno)
 
-        canlog = self.api("plugins.core.log:can.log.to.client")(
-            record.name, record.levelno
-        )
+        canlog = self.api("plugins.core.log:can.log.to.client")(record.name, record.levelno)
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if isinstance(record.msg, LogRecord):
@@ -195,9 +185,7 @@ class CustomClientHandler(logging.Handler):
                 else:
                     color = None
                 if not record.msg.wasemitted["client"]:
-                    new_message = NetworkData(
-                        owner_id=f"{__name__}:CustomClientHandler:emit"
-                    )
+                    new_message = NetworkData(owner_id=f"{__name__}:CustomClientHandler:emit")
                     [
                         new_message.append(NetworkDataLine(line, color=color or ""))
                         for line in formatted_message.splitlines()
@@ -237,13 +225,9 @@ def setup_loggers(log_level: int):
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
     (API.BASEDATALOGPATH / "networkdata").mkdir(parents=True, exist_ok=True)
-    data_logger_log_file_path = (
-        API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
-    )
+    data_logger_log_file_path = API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
 
-    file_handler = CustomRotatingFileHandler(
-        filename=default_log_file_path, when="midnight"
-    )
+    file_handler = CustomRotatingFileHandler(filename=default_log_file_path, when="midnight")
     file_handler.formatter = logging.Formatter(
         "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )

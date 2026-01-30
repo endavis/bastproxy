@@ -82,9 +82,7 @@ class PluginManager(BasePlugin):
             )
 
         if foundrequired and required_color_line:
-            msg.extend(
-                ("", f"* {required_color}Required plugins appear in this color@w")
-            )
+            msg.extend(("", f"* {required_color}Required plugins appear in this color@w"))
         return msg
 
     # get a message of plugins in a package
@@ -109,8 +107,7 @@ class PluginManager(BasePlugin):
         if plist := [
             plugin_id
             for plugin_id in loaded_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).package
-            == package
+            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).package == package
         ]:
             plugins = sorted(plist)
             mod = __import__(package)
@@ -166,13 +163,9 @@ class PluginManager(BasePlugin):
         if list_to_format := [
             plugin_id
             for plugin_id in loaded_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(
-                plugin_id
-            ).get_changed_files()
+            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).get_changed_files()
         ]:
-            msg = self._command_helper_format_plugin_list(
-                list_to_format, "Changed Plugins"
-            )
+            msg = self._command_helper_format_plugin_list(list_to_format, "Changed Plugins")
 
         return msg or ["No plugins are changed on disk."]
 
@@ -183,9 +176,7 @@ class PluginManager(BasePlugin):
         if list_to_format := [
             plugin_id
             for plugin_id in all_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(
-                plugin_id
-            ).get_invalid_python_files()
+            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).get_invalid_python_files()
         ]:
             msg = self._command_helper_format_plugin_list(
                 list_to_format, "Plugins with invalid python code"
@@ -198,9 +189,7 @@ class PluginManager(BasePlugin):
         """Create a message of all not loaded plugins."""
         msg = []
         not_loaded_plugins = self.api("libs.plugins.loader:get.not.loaded.plugins")()
-        msg = self._command_helper_format_plugin_list(
-            not_loaded_plugins, "Not Loaded Plugins"
-        )
+        msg = self._command_helper_format_plugin_list(not_loaded_plugins, "Not Loaded Plugins")
 
         return msg or ["There are no plugins that are not loaded"]
 
@@ -223,9 +212,7 @@ class PluginManager(BasePlugin):
         help="list plugins that have files with invalid python code",
         action="store_true",
     )
-    @AddArgument(
-        "package", help="the package of the plugins to list", default="", nargs="?"
-    )
+    @AddArgument("package", help="the package of the plugins to list", default="", nargs="?")
     def _command_list(self):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -295,9 +282,7 @@ class PluginManager(BasePlugin):
         if plugins_to_load_setting:
             LogRecord("Loading other plugins", level="info", sources=[self.plugin_id])()
             self.api("libs.plugins.loader:load.plugins")(plugins_to_load_setting)
-            LogRecord(
-                "Finished loading other plugins", level="info", sources=[self.plugin_id]
-            )()
+            LogRecord("Finished loading other plugins", level="info", sources=[self.plugin_id])()
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
     def _eventcb_shutdown(self, _=None):
@@ -337,9 +322,7 @@ class PluginManager(BasePlugin):
         if self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id):
             return True, [f"Plugin {plugin_id} is already loaded"]
 
-        not_loaded_plugins_by_id = self.api(
-            "libs.plugins.loader:get.not.loaded.plugins"
-        )()
+        not_loaded_plugins_by_id = self.api("libs.plugins.loader:get.not.loaded.plugins")()
 
         if plugin_id and plugin_id not in not_loaded_plugins_by_id:
             return True, [f"Plugin {plugin_id} not found"]
@@ -448,9 +431,7 @@ class PluginManager(BasePlugin):
         )
         return True, [f"{args['plugin']} reloaded"]
 
-    @RegisterToEvent(
-        event_name="ev_plugins.core.events_all_events_registered", priority=1
-    )
+    @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self):
         """This resends all the different plugin initialization events,.
 

@@ -66,15 +66,12 @@ class Event:
     def isregistered(self, func) -> bool:
         """Check if a function is registered to this event."""
         return any(
-            func in self.priority_dictionary[priority]
-            for priority in self.priority_dictionary
+            func in self.priority_dictionary[priority] for priority in self.priority_dictionary
         )
 
     def isempty(self) -> bool:
         """Check if an event has no functions registered."""
-        return not any(
-            self.priority_dictionary[priority] for priority in self.priority_dictionary
-        )
+        return not any(self.priority_dictionary[priority] for priority in self.priority_dictionary)
 
     def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
         """Register a function to this event container."""
@@ -140,9 +137,7 @@ class Event:
                 if call_back.owner_id == owner_id
             )
         for event_function in plugins_to_unregister:
-            self.api("plugins.core.events:unregister.from.event")(
-                self.name, event_function.func
-            )
+            self.api("plugins.core.events:unregister.from.event")(self.name, event_function.func)
 
     def detail(self) -> list[str]:
         """Format a detail of the event."""
@@ -194,8 +189,7 @@ class Event:
         )
         if self.arg_descriptions and "None" not in self.arg_descriptions:
             message.extend(
-                f"@C{arg:<13}@w : {self.arg_descriptions[arg]}"
-                for arg in self.arg_descriptions
+                f"@C{arg:<13}@w : {self.arg_descriptions[arg]}" for arg in self.arg_descriptions
             )
         elif "None" in self.arg_descriptions:
             message.append("None")

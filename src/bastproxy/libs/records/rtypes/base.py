@@ -43,9 +43,7 @@ class BaseRecord(AttributeMonitor):
         self.uuid = uuid4().hex
         self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
         # Add an API
-        self.api = API(
-            owner_id=self.owner_id or f"{self.__class__.__name__}:{self.uuid}"
-        )
+        self.api = API(owner_id=self.owner_id or f"{self.__class__.__name__}:{self.uuid}")
         self.created = datetime.datetime.now(datetime.UTC)
         self.updates = UpdateManager()
         self.execute_time_taken = -1
@@ -231,12 +229,8 @@ class BaseRecord(AttributeMonitor):
         """
         msg = []
         if full_children_records:
-            children_records = RMANAGER.get_all_children_dict(
-                self, record_filter=update_filter
-            )
-            msg.extend(
-                ["Children Records :", "---------------------------------------"]
-            )
+            children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
+            msg.extend(["Children Records :", "---------------------------------------"])
             for record in children_records:
                 msg.extend(
                     f"     {line}"
@@ -274,11 +268,7 @@ class BaseRecord(AttributeMonitor):
         for level in attributes:
             for item_string, item_attr in attributes[level]:
                 if isinstance(item_attr, str):
-                    attr = (
-                        getattr(self, item_attr)
-                        if hasattr(self, item_attr)
-                        else item_attr
-                    )
+                    attr = getattr(self, item_attr) if hasattr(self, item_attr) else item_attr
                 else:
                     attr = item_attr
                 if isinstance(attr, (list, dict)):
@@ -314,10 +304,7 @@ class BaseRecord(AttributeMonitor):
 
     def check_for_change(self, flag: str, action: str):
         """Check if there is a change with the given flag and action."""
-        return any(
-            update["flag"] == flag and update["action"] == action
-            for update in self.updates
-        )
+        return any(update["flag"] == flag and update["action"] == action for update in self.updates)
 
     # def __str__(self):
     #     return f"{self.__class__.__name__}:{self.uuid})"
@@ -398,9 +385,7 @@ class TrackedUserList(BaseRecord, UserList):
             )
             return
         super().__setitem__(index, item)
-        self.addupdate(
-            "Modify", f"set item at position {index}", extra={"item": f"{item!r}"}
-        )
+        self.addupdate("Modify", f"set item at position {index}", extra={"item": f"{item!r}"})
 
     def insert(self, index, item):
         """Insert an item."""
@@ -500,9 +485,7 @@ class BaseListRecord(UserList, BaseRecord):
 
         """
         attributes = super().get_attributes_to_format()
-        attributes[0].extend(
-            [("Internal", "internal"), ("Message Type", "message_type")]
-        )
+        attributes[0].extend([("Internal", "internal"), ("Message Type", "message_type")])
         attributes[2].append(("Data", "data"))
         if self.original_data != self.data:
             attributes[2].append(("Original Data", "original_data"))
@@ -560,9 +543,7 @@ class BaseListRecord(UserList, BaseRecord):
                     colored_line = f"@w{color}".join(new_line_list)
                 if colored_line:
                     colored_line = f"{color}{colored_line}@w"
-            new_message.append(
-                self.api("plugins.core.colors:colorcode.to.ansicode")(colored_line)
-            )
+            new_message.append(self.api("plugins.core.colors:colorcode.to.ansicode")(colored_line))
 
         self.replace(
             new_message,
@@ -594,13 +575,9 @@ class BaseListRecord(UserList, BaseRecord):
                     level="error",
                     sources=[__name__],
                 )()
-        self.replace(
-            new_message, actor=f"{actor}:clean", extra={"msg": "clean each item"}
-        )
+        self.replace(new_message, actor=f"{actor}:clean", extra={"msg": "clean each item"})
 
-    def addupdate(
-        self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
-    ):
+    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
         """Add a change event for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'
@@ -657,9 +634,7 @@ class BaseDictRecord(BaseRecord, UserDict):
 
         return attributes
 
-    def addupdate(
-        self, flag: str, action: str, extra: dict | None = None, savedata: bool = True
-    ):
+    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
         """Add a change event for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'

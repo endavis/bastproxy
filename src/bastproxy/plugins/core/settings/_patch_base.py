@@ -43,9 +43,7 @@ def _command_settings_plugin_set(self):
     args = self.api("plugins.core.commands:get.current.command.args")()
 
     if not args["name"] or args["name"] == "list":
-        return True, self.api("plugins.core.settings:get.all.settings.formatted")(
-            self.plugin_id
-        )
+        return True, self.api("plugins.core.settings:get.all.settings.formatted")(self.plugin_id)
 
     arg_string = f"-p {self.plugin_id} {args.arg_string}"
     _retval, return_string = self.api("plugins.core.commands:run")(

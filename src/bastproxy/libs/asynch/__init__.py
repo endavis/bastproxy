@@ -97,9 +97,7 @@ class TaskItem:
     manage the task, check its completion status, and retrieve its result.
     """
 
-    def __init__(
-        self, func: Awaitable | Callable, name: str, startstring: str = ""
-    ) -> None:
+    def __init__(self, func: Awaitable | Callable, name: str, startstring: str = "") -> None:
         """Initialize a TaskItem object.
 
         This constructor initializes the task item with the provided coroutine or
@@ -193,12 +191,8 @@ class TaskItem:
             self.task = loop.create_task(self.coroutine, name=self.name)
         else:
             self.task = loop.create_task(self.coroutine)
-        self.task.add_done_callback(
-            functools.partial(_handle_task_result, message=message)
-        )
-        LogRecord(
-            f"(Task) {self.name} : {self.task}", level="debug", sources=[__name__]
-        )()
+        self.task.add_done_callback(functools.partial(_handle_task_result, message=message))
+        LogRecord(f"(Task) {self.name} : {self.task}", level="debug", sources=[__name__])()
         if self.startstring:
             LogRecord(
                 f"(Task) {self.name} : Created - {self.startstring}",
@@ -206,9 +200,7 @@ class TaskItem:
                 sources=[__name__],
             )()
         else:
-            LogRecord(
-                f"(Task) {self.name} : Created", level="debug", sources=[__name__]
-            )()
+            LogRecord(f"(Task) {self.name} : Created", level="debug", sources=[__name__])()
         return self.task
 
 
@@ -287,9 +279,7 @@ class QueueManager:
 
             task.create()
 
-            LogRecord(
-                f"Tasks - {asyncio.all_tasks()}", level="debug", sources=[__name__]
-            )()
+            LogRecord(f"Tasks - {asyncio.all_tasks()}", level="debug", sources=[__name__])()
 
             await asyncio.sleep(0.1)
 
@@ -329,25 +319,19 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
         sources=["mudproxy"],
     )()
     for item in tasks:
-        LogRecord(
-            f"shutdown -     {item.get_name()}", level="warning", sources=["mudproxy"]
-        )()
+        LogRecord(f"shutdown -     {item.get_name()}", level="warning", sources=["mudproxy"])()
 
     [task.cancel() for task in tasks]
 
     exceptions = await asyncio.gather(*tasks, return_exceptions=True)
-    if new_exceptions := [
-        exc for exc in exceptions if not isinstance(exc, asyncio.CancelledError)
-    ]:
+    if new_exceptions := [exc for exc in exceptions if not isinstance(exc, asyncio.CancelledError)]:
         LogRecord(
             f"shutdown - Tasks had Exceptions: {new_exceptions}",
             level="warning",
             sources=["mudproxy"],
         )()
     else:
-        LogRecord(
-            "shutdown - All tasks cancelled", level="warning", sources=["mudproxy"]
-        )()
+        LogRecord("shutdown - All tasks cancelled", level="warning", sources=["mudproxy"])()
 
     loop_.stop()
 
@@ -372,9 +356,7 @@ def run_asynch() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    LogRecord(
-        "__main__ - setting up signal handlers", level="info", sources=["mudproxy"]
-    )()
+    LogRecord("__main__ - setting up signal handlers", level="info", sources=["mudproxy"])()
     # for sig in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
     for sig in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT]:
         LogRecord(

@@ -141,8 +141,7 @@ class ClientConnection:
         """
         if not self.connected:
             LogRecord(
-                f"send_to - {self.uuid} [{self.addr}:{self.port}] is not connected. "
-                "Cannot send",
+                f"send_to - {self.uuid} [{self.addr}:{self.port}] is not connected. Cannot send",
                 level="debug",
                 sources=[__name__],
             )()
@@ -183,11 +182,7 @@ class ClientConnection:
         # We send an IAC+WILL+ECHO to the client so that
         #  it won't locally echo the password.
         networkdata = NetworkData(
-            [
-                NetworkDataLine(
-                    telnet.echo_on(), line_type="COMMAND-TELNET", prelogin=True
-                )
-            ],
+            [NetworkDataLine(telnet.echo_on(), line_type="COMMAND-TELNET", prelogin=True)],
             owner_id=f"client:{self.uuid}",
         )
         SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
@@ -220,9 +215,7 @@ class ClientConnection:
             [NetworkDataLine("Welcome to Bastproxy.", prelogin=True)],
             owner_id=f"client:{self.uuid}",
         )
-        networkdata.append(
-            NetworkDataLine("Please enter your password.", prelogin=True)
-        )
+        networkdata.append(NetworkDataLine("Please enter your password.", prelogin=True))
         SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
         self.login_attempts += 1
         LogRecord(
@@ -255,11 +248,7 @@ class ClientConnection:
         vpw = self.api("plugins.core.proxy:ssc.proxypwview")()
         if inp.strip() == dpw:
             networkdata = NetworkData(
-                [
-                    NetworkDataLine(
-                        telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True
-                    )
-                ],
+                [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
                 owner_id=f"client:{self.uuid}",
             )
             networkdata.append(NetworkDataLine("You are now logged in.", prelogin=True))
@@ -267,17 +256,11 @@ class ClientConnection:
             self.api("plugins.core.clients:client.logged.in")(self.uuid)
         elif inp.strip() == vpw:
             networkdata = NetworkData(
-                [
-                    NetworkDataLine(
-                        telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True
-                    )
-                ],
+                [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
                 owner_id=f"client:{self.uuid}",
             )
             networkdata.append(
-                NetworkDataLine(
-                    "You are now logged in as view only user.", prelogin=True
-                )
+                NetworkDataLine("You are now logged in as view only user.", prelogin=True)
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
             self.api("plugins.core.clients:client.logged.in.view.only")(self.uuid)
@@ -425,8 +408,7 @@ class ClientConnection:
             if msg_obj.is_io:
                 if msg_obj.line:
                     LogRecord(
-                        f"client_write - Writing message to client {self.uuid}: "
-                        f"{msg_obj.line}",
+                        f"client_write - Writing message to client {self.uuid}: {msg_obj.line}",
                         level="debug",
                         sources=[__name__],
                     )()
@@ -446,9 +428,7 @@ class ClientConnection:
                     )()
                 if msg_obj.is_prompt:
                     self.writer.write(telnet.go_ahead())
-                    self.data_logger.info(
-                        "%-12s : %s", "client_write", telnet.go_ahead()
-                    )
+                    self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
             elif msg_obj.is_command_telnet:
                 LogRecord(
                     f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",
@@ -456,8 +436,7 @@ class ClientConnection:
                     sources=[__name__],
                 )()
                 LogRecord(
-                    f"client_write - Writing telnet option to client {self.uuid}: "
-                    f"{msg_obj.line!r}",
+                    f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.line!r}",
                     level="debug",
                     sources=[__name__],
                 )()
@@ -558,9 +537,7 @@ async def unregister_client(connection) -> None:
     )()
 
 
-async def client_telnet_handler(
-    reader: TelnetReaderUnicode, writer: TelnetWriterUnicode
-) -> None:
+async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWriterUnicode) -> None:
     """Handle new telnet client connections.
 
     This coroutine handles new telnet client connections by creating a
@@ -582,24 +559,17 @@ async def client_telnet_handler(
     client_details: str = writer.get_extra_info("peername")
 
     addr, port, *rest = client_details
-    connection: ClientConnection = ClientConnection(
-        addr, port, "telnet", reader, writer
-    )
+    connection: ClientConnection = ClientConnection(addr, port, "telnet", reader, writer)
     LogRecord(
-        f"Connection established with {addr} : {port} : {rest} : uuid - "
-        f"{connection.uuid}",
+        f"Connection established with {addr} : {port} : {rest} : uuid - {connection.uuid}",
         level="warning",
         sources=[__name__],
     )()
 
     if await register_client(connection):
         tasks: list[asyncio.Task] = [
-            TaskItem(
-                connection.client_read(), name=f"{connection.uuid} telnet read"
-            ).create(),
-            TaskItem(
-                connection.client_write(), name=f"{connection.uuid} telnet write"
-            ).create(),
+            TaskItem(connection.client_read(), name=f"{connection.uuid} telnet read").create(),
+            TaskItem(connection.client_write(), name=f"{connection.uuid} telnet write").create(),
         ]
 
         if current_task := asyncio.current_task():

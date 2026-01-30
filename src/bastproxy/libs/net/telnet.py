@@ -176,9 +176,7 @@ def split_opcode_from_input(data: bytes) -> tuple[bytes, str]:
         None
 
     """
-    logging.getLogger(__name__).debug(
-        "Received raw data (len=%d of: %s", len(data), data
-    )
+    logging.getLogger(__name__).debug("Received raw data (len=%d of: %s", len(data), data)
     opcodes = b""
     inp = ""
     for position, _ in enumerate(data):
@@ -307,9 +305,7 @@ async def handle(opcodes: bytes, writer: "TelnetWriterUnicode") -> None:
     for each_code in opcodes.split(IAC):
         if each_code and each_code in opcode_match:
             result = iac_sb(opcode_match[each_code]())
-            logging.getLogger(__name__).debug(
-                "Responding to previous opcode with: %s", result
-            )
+            logging.getLogger(__name__).debug("Responding to previous opcode with: %s", result)
             writer.write(result)
             await writer.drain()
     logging.getLogger(__name__).debug("Finished handling opcodes.")

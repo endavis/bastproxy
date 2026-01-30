@@ -132,14 +132,10 @@ class RecordPlugin(BasePlugin):
             if update := record.get_update(args["update"]):
                 tmsg.extend(update.format_detailed())
             else:
-                tmsg.append(
-                    f"update {args['update']} in record {args['uid']} not found"
-                )
+                tmsg.append(f"update {args['update']} in record {args['uid']} not found")
 
         else:
-            showlogrecords = self.api("plugins.core.settings:get")(
-                self.plugin_id, "showLogRecords"
-            )
+            showlogrecords = self.api("plugins.core.settings:get")(self.plugin_id, "showLogRecords")
             update_filter = [] if showlogrecords else ["LogRecord"]
             data = record.get_formatted_details(
                 update_filter=update_filter,

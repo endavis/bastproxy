@@ -77,9 +77,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         # load anything in the reload cache
         cache = self.api("libs.plugins.reloadutils:get.plugin.cache")(self.plugin_id)
         for item in cache:
-            LogRecord(
-                f"loading {item} from cache", level="debug", sources=[self.plugin_id]
-            )()
+            LogRecord(f"loading {item} from cache", level="debug", sources=[self.plugin_id])()
             self.__setattr__(item, cache[item])
         self.api("libs.plugins.reloadutils:remove.plugin.cache")(self.plugin_id)
 
@@ -126,9 +124,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                         function_list[plugin_hook] = {}
                     if item_plugin_hooks[plugin_hook] not in function_list[plugin_hook]:
                         function_list[plugin_hook][item_plugin_hooks[plugin_hook]] = []
-                        function_list[plugin_hook][
-                            item_plugin_hooks[plugin_hook]
-                        ].append(attr)
+                        function_list[plugin_hook][item_plugin_hooks[plugin_hook]].append(attr)
 
         return function_list
 
@@ -310,13 +306,9 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
             with contextlib.suppress(TypeError):
                 if callable(attr):
-                    message.extend(
-                        (header, f"Defined in {inspect.getfile(attr)}", header, "")
-                    )
+                    message.extend((header, f"Defined in {inspect.getfile(attr)}", header, ""))
                     text_list, _ = inspect.getsourcelines(attr)
-                    message.extend(
-                        [i.replace("@", "@@").rstrip("\n") for i in text_list]
-                    )
+                    message.extend([i.replace("@", "@@").rstrip("\n") for i in text_list])
 
         return True, message
 
@@ -329,16 +321,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             old_plugin_version - the version in the savestate file
             new_plugin_version - the latest version from the module
         """
-        old_plugin_version = self.api("plugins.core.settings:get")(
-            self.plugin_id, "_version"
-        )
+        old_plugin_version = self.api("plugins.core.settings:get")(self.plugin_id, "_version")
 
         new_plugin_version = self.plugin_info.version
 
-        if (
-            old_plugin_version != new_plugin_version
-            and new_plugin_version > old_plugin_version
-        ):
+        if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
                 LogRecord(
                     f"_update_version: upgrading to version {version}",
@@ -354,9 +341,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                         sources=[self.plugin_id, "plugin_upgrade"],
                     )()
 
-            self.api("plugins.core.settings:change")(
-                self.plugin_id, "_version", new_plugin_version
-            )
+            self.api("plugins.core.settings:change")(self.plugin_id, "_version", new_plugin_version)
 
             self.api(f"{self.plugin_id}:save.state")()
 

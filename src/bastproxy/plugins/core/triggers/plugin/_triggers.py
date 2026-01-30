@@ -70,9 +70,7 @@ class TriggerItem:
         args["trigger_name"] = self.trigger_name
         args["trigger_id"] = self.trigger_id
 
-        args = self.api("plugins.core.events:raise.event")(
-            self.event_name, event_args=args
-        )
+        args = self.api("plugins.core.events:raise.event")(self.event_name, event_args=args)
         LogRecord(
             f"raisetrigger - trigger {self.trigger_id} raised event {self.event_name} with args {args}",
             level="debug",
@@ -123,12 +121,8 @@ class TriggersPlugin(BasePlugin):
             self.plugin_id, "enabled", "True", bool, "enable triggers"
         )
 
-        self.api("plugins.core.triggers:trigger.add")(
-            "beall", None, self.plugin_id, enabled=False
-        )
-        self.api("plugins.core.triggers:trigger.add")(
-            "all", None, self.plugin_id, enabled=False
-        )
+        self.api("plugins.core.triggers:trigger.add")("beall", None, self.plugin_id, enabled=False)
+        self.api("plugins.core.triggers:trigger.add")("all", None, self.plugin_id, enabled=False)
         self.api("plugins.core.triggers:trigger.add")(
             "emptyline", None, self.plugin_id, enabled=False
         )
@@ -153,9 +147,7 @@ class TriggersPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:get.current.event.record")():
-            self.api(f"{self.plugin_id}:remove.data.for.owner")(
-                event_record["plugin_id"]
-            )
+            self.api(f"{self.plugin_id}:remove.data.for.owner")(event_record["plugin_id"])
 
     def rebuild_regexes(self):
         """Rebuild a regex for priority.
@@ -197,9 +189,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_register(self, trigger_name, function, **kwargs):
         """Register a function to a trigger."""
         if trigger_name not in self.triggers:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
         return self.api("plugins.core.events:register.to.event")(
             self.triggers[trigger_name].event_name, function, *kwargs
@@ -209,9 +199,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_unregister(self, trigger_name, function):
         """Unregister a function from a trigger."""
         if trigger_name not in self.triggers:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
         return self.api("plugins.core.events:unregister.from.event")(
             self.triggers[trigger_name].event_name, function
@@ -220,9 +208,7 @@ class TriggersPlugin(BasePlugin):
     @AddAPI("trigger.update", description="update a trigger without deleting it")
     def _api_trigger_update(self, trigger_name, trigger_data):
         """Update a trigger without deleting it."""
-        owner_id = self.api("libs.api:get.caller.owner")(
-            ignore_owner_list=[self.plugin_id]
-        )
+        owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
         if trigger_id not in self.triggers:
@@ -250,9 +236,7 @@ class TriggersPlugin(BasePlugin):
 
                 self.triggers[trigger_id].original_regex = orig_regex
                 try:
-                    self.triggers[trigger_id].original_regex_compiled = re.compile(
-                        orig_regex
-                    )
+                    self.triggers[trigger_id].original_regex_compiled = re.compile(orig_regex)
                 except Exception:  # pylint: disable=broad-except
                     LogRecord(
                         f"Could not compile regex for trigger: {trigger_name} : {orig_regex}",
@@ -279,9 +263,7 @@ class TriggersPlugin(BasePlugin):
                 self.trigger_groups[old_value].remove(trigger_name)
                 if self.triggers[trigger_name].group not in self.trigger_groups:
                     self.trigger_groups[self.triggers[trigger_name].group] = []
-                self.trigger_groups[self.triggers[trigger_name].group].append(
-                    trigger_name
-                )
+                self.trigger_groups[self.triggers[trigger_name].group].append(trigger_name)
         return None
 
     def find_regex_id(self, regex):
@@ -323,9 +305,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             print("could not add a owner for trigger name", trigger_name)
@@ -420,9 +400,7 @@ class TriggersPlugin(BasePlugin):
                                   False if it wasn't
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get:caller:owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get:caller:owner")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             LogRecord(
@@ -490,16 +468,12 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_name@w   = The trigger name.
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         return self.triggers.get(trigger_id, None)
 
-    @AddAPI(
-        "remove.data.for.owner", description="remove all triggers related to a owner"
-    )
+    @AddAPI("remove.data.for.owner", description="remove all triggers related to a owner")
     def _api_remove_data_for_owner(self, owner_id):
         """Remove all triggers related to a owner.
 
@@ -530,9 +504,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -565,9 +537,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(
-                ignore_owner_list=[self.plugin_id]
-            )
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -641,9 +611,9 @@ class TriggersPlugin(BasePlugin):
                     if self.triggers[trigger_id].argtypes:
                         for arg in self.triggers[trigger_id].argtypes:
                             if arg in group_dict:
-                                group_dict[arg] = self.triggers[trigger_id].argtypes[
-                                    arg
-                                ](group_dict[arg])
+                                group_dict[arg] = self.triggers[trigger_id].argtypes[arg](
+                                    group_dict[arg]
+                                )
                     args["matches"] = group_dict
                     self.triggers[trigger_id].raisetrigger(args)
                     if self.triggers[trigger_id].stopevaluating:
@@ -652,9 +622,7 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self):  # pylint: disable=too-many-branches
         """Check a line of text from the mud to see if it matches any triggers."""
-        if not (
-            event_record := self.api("plugins.core.events:get.current.event.record")()
-        ):
+        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
             return
 
         # don't check internal data
@@ -674,9 +642,7 @@ class TriggersPlugin(BasePlugin):
                 match_data = None
 
             if match_data:
-                match_groups = {
-                    k: v for k, v in match_data.groupdict().items() if v is not None
-                }
+                match_groups = {k: v for k, v in match_data.groupdict().items() if v is not None}
             else:
                 match_groups = {}
 
@@ -812,9 +778,7 @@ class TriggersPlugin(BasePlugin):
                     )
                     if self.api("plugins.core.events:has.event")(event_name):
                         message.extend(("", "Event Details:"))
-                        event_details = self.api(
-                            "plugins.core.events:get.event.detail"
-                        )(event_name)
+                        event_details = self.api("plugins.core.events:get.event.detail")(event_name)
                         message.extend(event_details)
                     else:
                         message.extend(["", "No functions registered for this trigger"])

@@ -32,7 +32,16 @@ def task_docs_deploy() -> dict[str, Any]:
 def task_spell_check() -> dict[str, Any]:
     """Check spelling in code and documentation."""
     return {
-        "actions": ["uv run codespell src/ tests/ docs/ README.md"],
+        "actions": ["uv run codespell src/ tests/ tools/ docs/ bootstrap.py README.md"],
         "title": title_with_actions,
         "verbosity": 0,
+    }
+
+
+def task_docs_toc() -> dict[str, Any]:
+    """Generate documentation table of contents from frontmatter."""
+    return {
+        "actions": ["uv run python tools/generate_doc_toc.py"],
+        "title": title_with_actions,
+        "verbosity": 2,
     }

@@ -167,9 +167,7 @@ class TrackedRecord(TrackedAttr):
             self.owner_id = f"{owner_id}-{self._tracking_uuid}"
         else:
             self.owner_id = f"{self.__class__.__name__}-{self._tracking_uuid}"
-        self.api = API(
-            owner_id=self.owner_id or f"{self.__class__.__name__}:{self._tracking_uuid}"
-        )
+        self.api = API(owner_id=self.owner_id or f"{self.__class__.__name__}:{self._tracking_uuid}")
         self.tracking_add_observer(self._tracking_onchange)
         self._tracking_record_updates = []
         # create a unique id for this record

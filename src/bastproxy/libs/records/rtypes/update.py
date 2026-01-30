@@ -30,9 +30,7 @@ class UpdateRecord:
     will automatically add the time and last 5 stack frames
     """
 
-    def __init__(
-        self, parent, flag: str, action: str, extra: dict | None = None, data=None
-    ):
+    def __init__(self, parent, flag: str, action: str, extra: dict | None = None, data=None):
         """Initialize an update record.
 
         Args:
@@ -193,8 +191,7 @@ class UpdateRecord:
                 data = self.data
             tmsg.append(f"{'Data':<15} :")
             tmsg.extend(
-                f"{'':<15} : {line}"
-                for line in pprint.pformat(data, width=120).splitlines()
+                f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).splitlines()
             )
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<15} :")

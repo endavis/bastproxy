@@ -92,9 +92,7 @@ class SettingsPlugin(BasePlugin):
         if plugin_id not in self.settings_values:
             data_directory = self.api(f"{plugin_id}:get.data.directory")()
             settings_file: Path = data_directory / "settingvalues.txt"
-            self.settings_values[plugin_id] = PersistentDict(
-                plugin_id, settings_file, "c"
-            )
+            self.settings_values[plugin_id] = PersistentDict(plugin_id, settings_file, "c")
 
         if setting_name not in self.settings_values[plugin_id]:
             self.settings_values[plugin_id][setting_name] = setting_info.default
@@ -151,16 +149,12 @@ class SettingsPlugin(BasePlugin):
             self.api(f"{self.plugin_id}:reset")(plugin_id)
             event_record["plugins_that_acted"].append(self.plugin_id)
 
-    @AddAPI(
-        "reset", description="reset all settings for a plugin to their default values"
-    )
+    @AddAPI("reset", description="reset all settings for a plugin to their default values")
     def _api_reset(self, plugin_id):
         """Reset all settings for a plugin to their default values."""
         self.settings_values[plugin_id].clear()
         for i in self.settings_info[plugin_id]:
-            self.settings_values[plugin_id][i] = self.settings_info[plugin_id][
-                i
-            ].default
+            self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i].default
         self.settings_values[plugin_id].sync()
 
     @AddAPI("change", description="change the value of a setting")
@@ -229,9 +223,7 @@ class SettingsPlugin(BasePlugin):
             return None
         return self.settings_info[plugin_id][setting]
 
-    @AddAPI(
-        "initialize.plugin.settings", description="initialize the settings for a plugin"
-    )
+    @AddAPI("initialize.plugin.settings", description="initialize the settings for a plugin")
     def _api_initialize_plugin_settings(self, plugin_id):
         """Initialize the settings for a plugin."""
         LogRecord(
@@ -311,9 +303,7 @@ class SettingsPlugin(BasePlugin):
                 event_args={"var": i, "newvalue": new_value, "oldvalue": old_value},
             )
 
-    @AddAPI(
-        "is.setting.hidden", description="check if a plugin setting is flagged hidden"
-    )
+    @AddAPI("is.setting.hidden", description="check if a plugin setting is flagged hidden")
     def _api_is_setting_hidden(self, plugin_id, setting):
         """Check if a plugin setting is hidden."""
         return self.settings_info[plugin_id][setting].hidden
@@ -332,9 +322,7 @@ class SettingsPlugin(BasePlugin):
     def format_setting_for_print(self, plugin_id, setting_name):
         """Format a setting for printing."""
         value = self.api(f"{self.plugin_id}:get")(plugin_id, setting_name)
-        setting_info = self.api(f"{self.plugin_id}:get.setting.info")(
-            plugin_id, setting_name
-        )
+        setting_info = self.api(f"{self.plugin_id}:get.setting.info")(plugin_id, setting_name)
         if setting_info.nocolor:
             value = value.replace("@", "@@")
         elif setting_info.stype == "color":
@@ -373,9 +361,7 @@ class SettingsPlugin(BasePlugin):
             return [f"There are no settings defined in {plugin_id}"]
 
         for i in self.settings_info[plugin_id]:
-            if formatted_setting := self.api("plugins.core.settings:format.setting")(
-                plugin_id, i
-            ):
+            if formatted_setting := self.api("plugins.core.settings:format.setting")(plugin_id, i):
                 tmsg.append(formatted_setting)
 
         return tmsg or [f"There are no settings defined in {plugin_id}"]
@@ -410,16 +396,14 @@ class SettingsPlugin(BasePlugin):
         if args["plugin"]:
             default_message = [f"No settings found for {args['plugin']}"]
             if self.api("libs.plugins.loader:is.plugin.loaded")(args["plugin"]):
-                settings[args["plugin"]] = self.api(
-                    f"{self.plugin_id}:get.all.for.plugin"
-                )(args["plugin"])
+                settings[args["plugin"]] = self.api(f"{self.plugin_id}:get.all.for.plugin")(
+                    args["plugin"]
+                )
             else:
                 return True, ["Plugin does not exist"]
         else:
             for plugin_id in loaded_plugins:
-                settings[plugin_id] = self.api(f"{self.plugin_id}:get.all.for.plugin")(
-                    plugin_id
-                )
+                settings[plugin_id] = self.api(f"{self.plugin_id}:get.all.for.plugin")(plugin_id)
 
         if not settings:
             return True, ["No settings found"]
@@ -459,9 +443,7 @@ class SettingsPlugin(BasePlugin):
     )
     @AddArgument("name", help="the setting name", default="list", nargs="?")
     @AddArgument("value", help="the new value of the setting", default="", nargs="?")
-    @AddArgument(
-        "-p", "--plugin", help="the plugin of the setting", default="", nargs="?"
-    )
+    @AddArgument("-p", "--plugin", help="the plugin of the setting", default="", nargs="?")
     def _command_settings_plugin_sets(self):
         """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:get.current.command.args")()

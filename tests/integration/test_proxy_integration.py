@@ -17,9 +17,7 @@ import asyncio
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason="Integration tests disabled - subprocess timing issues"
-)
+pytestmark = pytest.mark.skip(reason="Integration tests disabled - subprocess timing issues")
 
 
 class TestProxyConnection:
@@ -76,9 +74,7 @@ class TestProxyConnection:
         assert b"password" in banner.lower()
 
     @pytest.mark.asyncio
-    async def test_authentication_with_default_password(
-        self, telnet_connection: tuple
-    ) -> None:
+    async def test_authentication_with_default_password(self, telnet_connection: tuple) -> None:
         """Test authentication with the default password.
 
         Args:
@@ -106,9 +102,7 @@ class TestProxyConnection:
         assert b"logged in" in response.lower()
 
     @pytest.mark.asyncio
-    async def test_authentication_with_wrong_password(
-        self, telnet_connection: tuple
-    ) -> None:
+    async def test_authentication_with_wrong_password(self, telnet_connection: tuple) -> None:
         """Test that wrong password is rejected.
 
         Args:
@@ -133,9 +127,7 @@ class TestProxyConnection:
         # Read response
         response = await asyncio.wait_for(reader.read(2048), timeout=2.0)
 
-        assert (
-            b"Invalid password" in response or b"invalid password" in response.lower()
-        )
+        assert b"Invalid password" in response or b"invalid password" in response.lower()
 
 
 class TestProxyCommands:

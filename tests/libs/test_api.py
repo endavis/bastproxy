@@ -82,9 +82,7 @@ class TestAPIBasics:
     def test_api_add_instance_level(self) -> None:
         """Test adding a function to the instance-level API."""
         api = API(owner_id="test_owner")
-        result = api.add(
-            "test", "function", helper_function_one, instance=True, description="Test"
-        )
+        result = api.add("test", "function", helper_function_one, instance=True, description="Test")
         assert result is True
 
         # Check that the API exists at instance level
@@ -203,9 +201,7 @@ class TestAPIOverwriting:
         """Test that adding duplicate API with force=True overwrites."""
         api = API(owner_id="test_owner")
         result1 = api.add("test", "function", helper_function_one, description="Test 1")
-        result2 = api.add(
-            "test", "function", helper_function_two, force=True, description="Test 2"
-        )
+        result2 = api.add("test", "function", helper_function_two, force=True, description="Test 2")
 
         assert result1 is True
         assert result2 is True  # Should succeed with force=True
@@ -229,9 +225,7 @@ class TestAPIOverwriting:
         """Test that overwritten_api stores reference to original API."""
         api = API(owner_id="test_owner")
         api.add("test", "function", helper_function_one, description="Test 1")
-        api.add(
-            "test", "function", helper_function_two, force=True, description="Test 2"
-        )
+        api.add("test", "function", helper_function_two, force=True, description="Test 2")
 
         # Check that overwritten_api reference exists
         api_item = api.get("test:function")
@@ -283,9 +277,7 @@ class TestAPIInstancePriority:
         api = API(owner_id="test_owner")
 
         # Add to class API
-        result1 = api.add(
-            "testsep", "classapi", helper_function_one, description="Class"
-        )
+        result1 = api.add("testsep", "classapi", helper_function_one, description="Class")
 
         # Add to instance API with different name
         result2 = api.add(

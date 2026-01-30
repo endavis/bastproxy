@@ -146,9 +146,7 @@ class Sqldb:
         message = []
         if args:
             if sqlstmt := args["stmt"]:
-                results = self.api(f"{self.plugin_id}:{self.database_name}.select")(
-                    sqlstmt
-                )
+                results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sqlstmt)
                 message.extend(f"{i}" for i in results)
             else:
                 message.append("Please enter a select statement")
@@ -171,9 +169,7 @@ class Sqldb:
                     desc = cursor.fetchall()
                     cursor.close()
                     message.extend((f"Fields in table {args['table']}:", "-" * 40))
-                    message.extend(
-                        f"{item['name']:<25} : {item['type']}" for item in desc
-                    )
+                    message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
                     return True, message
             else:
                 tables = []
@@ -188,9 +184,7 @@ class Sqldb:
                     cursor.close()
                 if tables:
                     message.append(f"Tables in database {self.database_name}:")
-                    message.extend(
-                        f"{item}" for item in tables if item != "sqlite_sequence"
-                    )
+                    message.extend(f"{item}" for item in tables if item != "sqlite_sequence")
                 else:
                     message.append(f"No tables in database {self.database_name}")
                 return True, message
@@ -228,9 +222,7 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="remove a row from a table")
-    @AddArgument(
-        "table", help="the table to remove the row from", default="", nargs="?"
-    )
+    @AddArgument("table", help="the table to remove the row from", default="", nargs="?")
     @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?")
     def _command_dbremove(self):
         """Remove a table from the database."""
@@ -260,13 +252,9 @@ class Sqldb:
 
         backup_file_name = self.backup_template % name + ".zip"
         if self.backupdb(name):
-            message.append(
-                f"backed up {self.database_name} with name {backup_file_name}"
-            )
+            message.append(f"backed up {self.database_name} with name {backup_file_name}")
         else:
-            message.append(
-                f"could not back up {self.database_name} with name {backup_file_name}"
-            )
+            message.append(f"could not back up {self.database_name} with name {backup_file_name}")
 
         return True, message
 
@@ -338,10 +326,7 @@ class Sqldb:
                     column = sql_line_split_list[0]
                     columnumns.append(column)
                     columnumnsbykeys[column] = True
-                    if (
-                        "default" in sql_line_split_list
-                        or "Default" in sql_line_split_list
-                    ):
+                    if "default" in sql_line_split_list or "Default" in sql_line_split_list:
                         columnumn_defaults[column] = sql_line_split_list[-1].strip(",")
                     else:
                         columnumn_defaults[column] = None
@@ -371,23 +356,16 @@ class Sqldb:
             temp_list = [f":{i}" for i in columns]
             columnstring = ", ".join(temp_list)
             if replace:
-                sql_string = (
-                    f"INSERT OR REPLACE INTO {tablename} VALUES ({columnstring})"
-                )
+                sql_string = f"INSERT OR REPLACE INTO {tablename} VALUES ({columnstring})"
             else:
                 sql_string = f"INSERT INTO {tablename} VALUES ({columnstring})"
             if keynull and self.tables[tablename]["keyfield"]:
-                sql_string = sql_string.replace(
-                    f":{self.tables[tablename]['keyfield']}", "NULL"
-                )
+                sql_string = sql_string.replace(f":{self.tables[tablename]['keyfield']}", "NULL")
         return sql_string
 
     def checkcolumnumnexists(self, table, columnumnname):
         """Check if a columnumn exists."""
-        return (
-            table in self.tables
-            and columnumnname in self.tables[table]["columnumnsbykeys"]
-        )
+        return table in self.tables and columnumnname in self.tables[table]["columnumnsbykeys"]
 
     def converttoupdate(self, tablename, wherekey="", nokey=None):
         """Create an update statement based on the columnumns of a table."""
@@ -402,9 +380,7 @@ class Sqldb:
                 if column != wherekey and (not nokey or column not in nokey)
             ]
             columnstring = ",".join(sql_string_list)
-            sql_string = (
-                f"UPDATE {tablename} SET {columnstring} WHERE {wherekey} = :{wherekey};"
-            )
+            sql_string = f"UPDATE {tablename} SET {columnstring} WHERE {wherekey} = :{wherekey};"
         return sql_string
 
     def getversion(self):
@@ -608,9 +584,7 @@ class Sqldb:
         if where:
             sql_string = f"SELECT * FROM {table_name} WHERE {where} ORDER by {column_id_name} desc limit {num}"
         else:
-            sql_string = (
-                f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
-            )
+            sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
         return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 

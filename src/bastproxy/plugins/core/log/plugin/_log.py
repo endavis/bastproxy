@@ -56,9 +56,7 @@ class LogPlugin(BasePlugin):
         self,
     ):  # pyright: ignore[reportInvalidTypeVarUse]
         # setup file logging and network data logging
-        LogRecord(
-            "setting up custom logging", level="debug", sources=[self.plugin_id]
-        )()
+        LogRecord("setting up custom logging", level="debug", sources=[self.plugin_id])()
         setup_loggers(logging.DEBUG)
 
     @RegisterPluginHook("initialize")
@@ -105,45 +103,33 @@ class LogPlugin(BasePlugin):
         match level:
             case "error":
                 try:
-                    return self.api("plugins.core.settings:get")(
-                        self.plugin_id, "color_error"
-                    )
+                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_error")
                 except Exception:
                     return "@x136"
             case "warning":
                 try:
-                    return self.api("plugins.core.settings:get")(
-                        self.plugin_id, "color_warning"
-                    )
+                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_warning")
                 except Exception:
                     return "@y"
             case "info":
                 try:
-                    return self.api("plugins.core.settings:get")(
-                        self.plugin_id, "color_info"
-                    )
+                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_info")
                 except Exception:
                     return "@w"
             case "debug":
                 try:
-                    return self.api("plugins.core.settings:get")(
-                        self.plugin_id, "color_debug"
-                    )
+                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_debug")
                 except Exception:
                     return "@x246"
             case "critical":
                 try:
-                    return self.api("plugins.core.settings:get")(
-                        self.plugin_id, "color_critical"
-                    )
+                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_critical")
                 except Exception:
                     return "@r"
             case _:
                 return ""
 
-    @AddAPI(
-        "can.log.to.console", description="check if a logger can log to the console"
-    )
+    @AddAPI("can.log.to.console", description="check if a logger can log to the console")
     def _api_can_log_to_console(self, logger, level):
         """Check if a logger can log to the console.
 
@@ -154,9 +140,7 @@ class LogPlugin(BasePlugin):
             self.handlers["console"][logger_name] = "info"
             self.handlers["console"].sync()
 
-        convlevel = getattr(
-            logging, self.handlers["console"][logger_name].upper(), logging.INFO
-        )
+        convlevel = getattr(logging, self.handlers["console"][logger_name].upper(), logging.INFO)
         return level >= convlevel
 
     @AddAPI("can.log.to.file", description="check if a logger can log to file")
@@ -170,9 +154,7 @@ class LogPlugin(BasePlugin):
             self.handlers["file"][logger_name] = "info"
             self.handlers["file"].sync()
 
-        convlevel = getattr(
-            logging, self.handlers["file"][logger_name].upper(), logging.INFO
-        )
+        convlevel = getattr(logging, self.handlers["file"][logger_name].upper(), logging.INFO)
         return level >= convlevel
 
     @AddAPI("can.log.to.client", description="check if a logger can log to the client")
@@ -263,9 +245,7 @@ class LogPlugin(BasePlugin):
                     logger_name, level=level, flag=remove
                 )
                 if logger_name in self.handlers["client"]:
-                    tmsg.append(
-                        f"setting {logger_name} to log to client at level {level}"
-                    )
+                    tmsg.append(f"setting {logger_name} to log to client at level {level}")
                 else:
                     tmsg.append(f"no longer sending {logger_name} to client")
 
@@ -337,19 +317,11 @@ class LogPlugin(BasePlugin):
                 if logger_name not in self.handlers["console"]:
                     self.handlers["console"][logger_name] = "info"
                 if self.handlers["console"][logger_name] == "info":
-                    self.api(f"{self.plugin_id}:set.log.to.console")(
-                        logger_name, level="debug"
-                    )
-                    tmsg.append(
-                        f"setting {logger_name} to log to console at level 'debug'"
-                    )
+                    self.api(f"{self.plugin_id}:set.log.to.console")(logger_name, level="debug")
+                    tmsg.append(f"setting {logger_name} to log to console at level 'debug'")
                 else:
-                    self.api(f"{self.plugin_id}:set.log.to.console")(
-                        logger_name, level="info"
-                    )
-                    tmsg.append(
-                        f"setting {logger_name} to log to console at default level 'info'"
-                    )
+                    self.api(f"{self.plugin_id}:set.log.to.console")(logger_name, level="info")
+                    tmsg.append(f"setting {logger_name} to log to console at default level 'info'")
 
             self.handlers["console"].sync()
             return True, tmsg
@@ -420,19 +392,11 @@ class LogPlugin(BasePlugin):
                 if logger_name not in self.handlers["file"]:
                     self.handlers["file"][logger_name] = "info"
                 if self.handlers["file"][logger_name] == "info":
-                    self.api(f"{self.plugin_id}:set.log.to.file")(
-                        logger_name, level="debug"
-                    )
-                    tmsg.append(
-                        f"setting {logger_name} to log to file at level 'debug'"
-                    )
+                    self.api(f"{self.plugin_id}:set.log.to.file")(logger_name, level="debug")
+                    tmsg.append(f"setting {logger_name} to log to file at level 'debug'")
                 else:
-                    self.api(f"{self.plugin_id}:set.log.to.file")(
-                        logger_name, level="info"
-                    )
-                    tmsg.append(
-                        f"setting {logger_name} to log to file at default level 'info'"
-                    )
+                    self.api(f"{self.plugin_id}:set.log.to.file")(logger_name, level="info")
+                    tmsg.append(f"setting {logger_name} to log to file at default level 'info'")
 
             self.handlers["file"].sync()
             return True, tmsg

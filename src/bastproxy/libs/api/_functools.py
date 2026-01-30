@@ -107,15 +107,9 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
 
     if frame := inspect.currentframe():
         while frame := frame.f_back:
-            if "self" in frame.f_locals and not isinstance(
-                frame.f_locals["self"], APIItem
-            ):
+            if "self" in frame.f_locals and not isinstance(frame.f_locals["self"], APIItem):
                 tcs = frame.f_locals["self"]
-                if (
-                    hasattr(tcs, "owner_id")
-                    and tcs.owner_id
-                    and tcs.owner_id not in ignore_list
-                ):
+                if hasattr(tcs, "owner_id") and tcs.owner_id and tcs.owner_id not in ignore_list:
                     caller_id = tcs.owner_id
                     break
                 if (

@@ -65,9 +65,7 @@ class PluginsPlugin(BasePlugin):
         )
 
         for hook in hooks:
-            tmsg.extend(
-                self.api("plugins.core.commands:format.output.subheader")(f"{hook}")
-            )
+            tmsg.extend(self.api("plugins.core.commands:format.output.subheader")(f"{hook}"))
             priorities = hooks[hook].keys()
             priorities = sorted(priorities)
             for priority in priorities:

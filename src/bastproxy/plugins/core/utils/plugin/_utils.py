@@ -64,9 +64,7 @@ class UtilsPlugin(BasePlugin):
         number_of_columns = min(cols, len(list_of_strings))
         max_len = max(len(item) for item in list_of_strings)
         if columnwise:
-            number_of_columns = math.ceil(
-                float(len(list_of_strings)) / float(number_of_columns)
-            )
+            number_of_columns = math.ceil(float(len(list_of_strings)) / float(number_of_columns))
         plist = [
             list_of_strings[i : i + number_of_columns]
             for i in range(0, len(list_of_strings), number_of_columns)
@@ -300,9 +298,7 @@ class UtilsPlugin(BasePlugin):
         converted_colors_string = self.api("plugins.core.colors:colorcode.to.ansicode")(
             string_to_center
         )
-        noncolored_string = self.api("plugins.core.colors:ansicode.strip")(
-            converted_colors_string
-        )
+        noncolored_string = self.api("plugins.core.colors:ansicode.strip")(converted_colors_string)
 
         caplength = 0
         if endcaps:
@@ -316,7 +312,9 @@ class UtilsPlugin(BasePlugin):
         filler = filler_character * half_length
         filler_color_end = "@w" if filler_color else ""
 
-        new_str = f"{filler_color}{filler}{filler_color_end}  {string_to_center}  {filler_color}{filler}"
+        new_str = (
+            f"{filler_color}{filler}{filler_color_end}  {string_to_center}  {filler_color}{filler}"
+        )
 
         new_length = (half_length * 2) + noncolored_string_length
 
@@ -355,9 +353,7 @@ class UtilsPlugin(BasePlugin):
 
         return matches["partofstring"]
 
-    @AddAPI(
-        "convert.timelength.to.secs", description="converts a time length to seconds"
-    )
+    @AddAPI("convert.timelength.to.secs", description="converts a time length to seconds")
     def _api_convert_timelength_to_secs(self, timel):
         """Converts a time length to seconds.
 
@@ -381,31 +377,19 @@ class UtilsPlugin(BasePlugin):
             return None
 
         days = timelength_match_groups["days"]
-        converted_days = (
-            int(days[:-1]) if days.endswith("d") else int(days) if days else 0
-        )
+        converted_days = int(days[:-1]) if days.endswith("d") else int(days) if days else 0
 
         hours = timelength_match_groups["hours"]
-        converted_hours = (
-            int(hours[:-1]) if hours.endswith("h") else int(hours) if hours else 0
-        )
+        converted_hours = int(hours[:-1]) if hours.endswith("h") else int(hours) if hours else 0
 
         minutes = timelength_match_groups["minutes"]
         converted_minutes = (
-            int(minutes[:-1])
-            if minutes.endswith("m")
-            else int(minutes)
-            if minutes
-            else 0
+            int(minutes[:-1]) if minutes.endswith("m") else int(minutes) if minutes else 0
         )
 
         seconds = timelength_match_groups["seconds"]
         converted_seconds = (
-            int(seconds[:-1])
-            if seconds.endswith("s")
-            else int(seconds)
-            if seconds
-            else 0
+            int(seconds[:-1]) if seconds.endswith("s") else int(seconds) if seconds else 0
         )
 
         return (
@@ -427,9 +411,7 @@ class UtilsPlugin(BasePlugin):
             'key'   : dictionary key,
             'width' : the width of the column.
         """
-        line_length_default = self.api("plugins.core.settings:get")(
-            "plugins.core.proxy", "linelen"
-        )
+        line_length_default = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
         output_color = color or self.api("plugins.core.settings:get")(
             "plugins.core.commands", "output_subheader_color"
         )
@@ -440,9 +422,7 @@ class UtilsPlugin(BasePlugin):
             column["width"] = max(len(str(item[column["key"]])) for item in temp_data)
 
         # build the template string
-        template_strings = [
-            "{" + item["key"] + ":<" + str(item["width"]) + "}" for item in columns
-        ]
+        template_strings = ["{" + item["key"] + ":<" + str(item["width"]) + "}" for item in columns]
         template_string = f"{f' {output_color}|{color_end} '.join(template_strings)}"
 
         # build the header dict
@@ -454,10 +434,7 @@ class UtilsPlugin(BasePlugin):
         largest_line = max(
             [
                 len(self.api("plugins.core.colors:colorcode.strip")(subheader_msg)),
-                *[
-                    len(self.api("plugins.core.colors:colorcode.strip")(line))
-                    for line in data_msg
-                ],
+                *[len(self.api("plugins.core.colors:colorcode.strip")(line)) for line in data_msg],
             ]
         )
 
@@ -508,9 +485,7 @@ class UtilsPlugin(BasePlugin):
         spacechar = " " if space else ""
 
         if not line_length:
-            line_length = self.api("plugins.core.settings:get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
 
         capchar_len = len(capchar + spacechar)
 

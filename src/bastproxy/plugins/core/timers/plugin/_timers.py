@@ -72,9 +72,7 @@ class Timer(Callback):
         new_date = now + datetime.timedelta(seconds=self.seconds)
         if self.time:
             hour_minute = time.strptime(self.time, "%H%M")
-            new_date = now.replace(
-                hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0
-            )
+            new_date = now.replace(hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0)
             while new_date < now:
                 new_date = new_date + datetime.timedelta(days=1)
 
@@ -126,9 +124,7 @@ class TimersPlugin(BasePlugin):
         )()
 
         # setup the task to check for timers to fire
-        self.api("libs.asynch:task.add")(
-            self.check_for_timers_to_fire, "Timer Plugin task"
-        )
+        self.api("libs.asynch:task.add")(self.check_for_timers_to_fire, "Timer Plugin task")
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
@@ -139,9 +135,7 @@ class TimersPlugin(BasePlugin):
                 "debug",
                 sources=[self.plugin_id, event_record["plugin_id"]],
             )()
-            self.api(f"{self.plugin_id}:remove.data.for.plugin")(
-                event_record["plugin_id"]
-            )
+            self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record["plugin_id"])
 
     @AddParser(description="toggle log flag for a timer")
     @AddArgument("timername", help="the timer name", default="", nargs="?")
@@ -150,9 +144,7 @@ class TimersPlugin(BasePlugin):
         args = self.api("plugins.core.commands:get.current.command.args")()
         message: list[str] = []
         if args["timername"] in self.timer_lookup:
-            self.timer_lookup[args["timername"]].log = not self.timer_lookup[
-                args["timername"]
-            ].log
+            self.timer_lookup[args["timername"]].log = not self.timer_lookup[args["timername"]].log
             message.append(
                 f"changed log flag to {self.timer_lookup[args['timername']].log} for timer {args['timername']}"
             )
@@ -188,17 +180,11 @@ class TimersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_stats")
     def _eventcb_event_get_stats_for_plugin(self) -> None:
         """Get stats for a plugin."""
-        if not (
-            event_record := self.api("plugins.core.events:get.current.event.record")()
-        ):
+        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
             return
 
         plugin_id = event_record["plugin_id"]
-        timers = [
-            timer.name
-            for timer in self.timer_lookup.values()
-            if timer.owner_id == plugin_id
-        ]
+        timers = [timer.name for timer in self.timer_lookup.values() if timer.owner_id == plugin_id]
 
         if not timers:
             return
@@ -237,8 +223,7 @@ class TimersPlugin(BasePlugin):
         templatestring = "%-20s : %-25s %-9s %-8s %s"
         message.extend(
             (
-                templatestring
-                % ("Name", "Defined in", "Enabled", "Fired", "Next Fire"),
+                templatestring % ("Name", "Defined in", "Enabled", "Fired", "Next Fire"),
                 output_header_color + "-" * 80 + "@w",
             )
         )
@@ -259,9 +244,7 @@ class TimersPlugin(BasePlugin):
         return True, message
 
     @AddParser(description="get details for a timer")
-    @AddArgument(
-        "timers", help="a list of timers to get details", default=None, nargs="*"
-    )
+    @AddArgument("timers", help="a list of timers to get details", default=None, nargs="*")
     def _command_detail(self) -> tuple[bool, list[str]]:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -292,9 +275,7 @@ class TimersPlugin(BasePlugin):
                         last_fire_time = timer.last_fired_datetime.strftime(
                             "%a %b %d %Y %H:%M:%S %Z"
                         )
-                        message.append(
-                            f"{'Last Fire':<{columnwidth}} : {last_fire_time}"
-                        )
+                        message.append(f"{'Last Fire':<{columnwidth}} : {last_fire_time}")
                     message.extend(
                         (
                             f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
@@ -332,9 +313,7 @@ class TimersPlugin(BasePlugin):
         return None
 
     @AddAPI("add.timer", description="add a timer")
-    def _api_add_timer(
-        self, name: str, func: Callable, seconds: int, **kwargs
-    ) -> Timer | None:
+    def _api_add_timer(self, name: str, func: Callable, seconds: int, **kwargs) -> Timer | None:
         """Add a timer.
 
         @Yname@w   = The timer name
@@ -349,9 +328,7 @@ class TimersPlugin(BasePlugin):
 
         returns an Event instance
         """
-        plugin_id: str = self.api("libs.api:get.caller.owner")(
-            ignore_owner_list=[self.plugin_id]
-        )
+        plugin_id: str = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if "plugin_id" in kwargs:
             plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(
@@ -409,9 +386,7 @@ class TimersPlugin(BasePlugin):
         this function returns no values
         """
         plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(name)
-        LogRecord(
-            f"removing timers for {name}", level="debug", sources=[self.plugin_id, name]
-        )()
+        LogRecord(f"removing timers for {name}", level="debug", sources=[self.plugin_id, name])()
         timers_to_remove: list[str] = [
             i
             for i in self.timer_lookup
@@ -469,10 +444,7 @@ class TimersPlugin(BasePlugin):
     def _remove_timer_internal(self, timer: Timer):
         """Internally remove a timer."""
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
-        if (
-            timer_next_time_to_fire != -1
-            and timer_next_time_to_fire in self.timer_events
-        ):
+        if timer_next_time_to_fire != -1 and timer_next_time_to_fire in self.timer_events:
             if timer in self.timer_events[timer_next_time_to_fire]:
                 self.timer_events[timer_next_time_to_fire].remove(timer)
             if not self.timer_events[timer_next_time_to_fire]:
