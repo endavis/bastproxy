@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793121842003,
+  "lastUpdate": 1793121852807,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -180,6 +180,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00004056044879081233",
             "extra": "mean: 299.0814793668656 usec\nrounds: 3538"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ffbeeda611214a8011f466a4969fce29a7380282",
+          "message": "chore(deps): bump griffe from 1.15.0 to 2.4.0 (merges PR #18)\n\nBumps [griffe](https://github.com/mkdocstrings/griffe) from 1.15.0 to 2.4.0.\n- [Release notes](https://github.com/mkdocstrings/griffe/releases)\n- [Changelog](https://github.com/mkdocstrings/griffe/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/mkdocstrings/griffe/compare/1.15.0...2.4.0)\n\n---\nupdated-dependencies:\n- dependency-name: griffe\n  dependency-version: 2.4.0\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T17:23:18Z",
+          "tree_id": "ae4614dfb1dce2dc7ecb581e7cbbd299d82c020c",
+          "url": "https://github.com/endavis/bastproxy/commit/ffbeeda611214a8011f466a4969fce29a7380282"
+        },
+        "date": 1793121851426,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2918.316912939395,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000030150145584530614",
+            "extra": "mean: 342.6632644200308 usec\nrounds: 3086"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2614.144701416513,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008804375147514555",
+            "extra": "mean: 382.5342948529725 usec\nrounds: 2720"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4586.983528688806,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000207168581325389",
+            "extra": "mean: 218.00819509065278 usec\nrounds: 4685"
           }
         ]
       }
