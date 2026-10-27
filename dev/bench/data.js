@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793116492303,
+  "lastUpdate": 1793121842003,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000011982985820845942",
             "extra": "mean: 290.35243378996904 usec\nrounds: 3504"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9a932a316b6ae6e084a41ad1520af7b8cf1a4dec",
+          "message": "chore(deps): bump psutil from 6.1.1 to 7.2.2 (merges PR #13)\n\nBumps [psutil](https://github.com/giampaolo/psutil) from 6.1.1 to 7.2.2.\n- [Changelog](https://github.com/giampaolo/psutil/blob/master/docs/changelog.rst)\n- [Commits](https://github.com/giampaolo/psutil/compare/v6.1.1...v7.2.2)\n\n---\nupdated-dependencies:\n- dependency-name: psutil\n  dependency-version: 7.2.2\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T17:20:16Z",
+          "tree_id": "d1aba572b57a23314c83c41b6eb63eb0dfc89a36",
+          "url": "https://github.com/endavis/bastproxy/commit/9a932a316b6ae6e084a41ad1520af7b8cf1a4dec"
+        },
+        "date": 1793121839420,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2086.225490407522,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001706594975199885",
+            "extra": "mean: 479.33457078249995 usec\nrounds: 2211"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1848.657258007178,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000492506625451093",
+            "extra": "mean: 540.9331533298841 usec\nrounds: 1937"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3343.5704615241616,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004056044879081233",
+            "extra": "mean: 299.0814793668656 usec\nrounds: 3538"
           }
         ]
       }
