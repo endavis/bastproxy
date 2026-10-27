@@ -7,15 +7,12 @@ Provides utilities for managing Python projects based on pyproject-template.
 from .check_template_updates import (
     compare_files,
     download_template,
-    get_latest_release,
+    resolve_template_ref,
     run_check_updates,
 )
 from .configure import (
     load_defaults,
     run_configure,
-)
-from .migrate_existing_project import (
-    run_migrate,
 )
 from .settings import (
     ProjectContext,
@@ -52,10 +49,9 @@ __all__ = [
     # Check updates
     "compare_files",
     "download_template",
-    "get_latest_release",
+    "resolve_template_ref",
     "run_check_updates",
     # Migrate
-    "run_migrate",
     # Utils
     "Colors",
     "GitHubCLI",

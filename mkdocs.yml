@@ -50,6 +50,20 @@ markdown_extensions:
   - toc:
       permalink: true
 
+# From pyproject-template. docs/ links to repository files outside docs_dir and
+# to template pages that arrive later in the sync (#7), which mkdocs reports the
+# same as broken links. `not_found` is ignored here; tests/test_markdown_links.py
+# takes over link validation in the docs sync PR. Anchors are still validated.
+# `decisions/adr-template.md` is the `doit adr` scaffold, not content.
+not_in_nav: |
+  decisions/adr-template.md
+
+validation:
+  links:
+    not_found: ignore
+    unrecognized_links: ignore
+    anchors: warn
+
 nav:
   - Home: index.md
   - Installation: installation.md

@@ -77,7 +77,7 @@ def is_plugin(package_path: str) -> bool:
         True
 
     """
-    contents = Path(package_path).read_text()
+    contents = Path(package_path).read_text(encoding="utf-8")
     return bool(NAMERE.search(contents))
 
 

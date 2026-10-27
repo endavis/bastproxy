@@ -1,0 +1,93 @@
+name: Daily Check
+
+on:
+  schedule:
+    - cron: "17 6 * * *"  # Daily at 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: daily-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: pv
+        uses: ./.github/actions/python-versions
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.pv.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "latest"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Create BASTPROXY_HOME directory
+        run: mkdir -p "$BASTPROXY_HOME"
+
+      # --continue runs every task after a failure, so a second failure is not
+      # hidden behind the first. The log feeds the failing-task list below (#952).
+      - name: Run doit check
+        run: |
+          set -o pipefail
+          uv run doit --continue check 2>&1 | tee "${RUNNER_TEMP}/doit-check.log"
+
+      - name: Open or update failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          today="$(date -u +%Y-%m-%d)"
+          # doit prints "TaskFailed - taskid:<name>" for a failing command and
+          # "TaskError - taskid:<name>" for a Python action that raised.
+          failed="$(grep -oE '^(TaskFailed|TaskError) - taskid:[^ ]+' \
+            "${RUNNER_TEMP}/doit-check.log" 2>/dev/null \
+            | sed 's/.*taskid://' | awk '!seen[$0]++' \
+            | sed 's/.*/`&`/' | paste -sd, - | sed 's/,/, /g')" || true
+          failed="${failed:-none identified, see the run log}"
+          existing="$(gh issue list --state open --label automated --json number,title \
+            --jq '[.[] | select(.title | contains("Daily doit check failed"))][0].number // empty')"
+          {
+            echo "Scheduled \`doit check\` failed on \`main\`."
+            echo
+            echo "- Run: ${RUN_URL}"
+            echo "- Seen: ${today} (UTC)"
+            echo "- Failing tasks: ${failed}"
+            echo
+            echo "Runs \`uv run doit --continue check\`, which runs every task \`doit check\` depends on"
+            echo "and reports each one that fails. Close this issue once the check passes again."
+          } > "${RUNNER_TEMP}/issue-body.md"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" \
+              --body "Still failing as of ${today} (UTC). Failing tasks: ${failed}. Run: ${RUN_URL}"
+          else
+            gh issue create --title "🚨 Daily doit check failed on main" \
+              --label automated --label needs-triage \
+              --assignee "${OWNER}" \
+              --body-file "${RUNNER_TEMP}/issue-body.md"
+          fi

@@ -3,6 +3,7 @@ Shared utilities for pyproject-template tools.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess  # nosec B404
@@ -22,6 +23,128 @@ except ModuleNotFoundError:  # pragma: no cover
 # Template repository info
 TEMPLATE_REPO = "endavis/pyproject-template"
 TEMPLATE_URL = f"https://github.com/{TEMPLATE_REPO}"
+
+# Where `check` leaves the downloaded template, and the file inside it that
+# records which commit was reviewed.
+#
+# The directory is named by GitHub's archive root, which is
+# `pyproject-template-<ref>` for the ref that was fetched. Since #779 the ref is
+# always a resolved commit SHA (ADR-9020), so the name carries the reviewed
+# commit and must never be hardcoded: `manage.py` looked for a fixed
+# `pyproject-template-main` that no longer exists, which silently killed the
+# whole check -> sync handoff (#805).
+EXTRACTED_DIR = Path("tmp/extracted")
+TEMPLATE_COMMIT_FILE = ".template_commit"
+_ARCHIVE_ROOT_GLOB = "pyproject-template-*"
+
+# A full commit SHA, as GitHub names archive roots and as `.template_commit`
+# records them.
+SHA_RE = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
+
+
+def find_extracted_template(project_root: Path | None = None) -> Path | None:
+    """Return the extracted upstream template directory, or None if absent.
+
+    Located by glob rather than by a fixed name: the archive root is named for
+    the commit that was fetched, so the name differs on every run (#805). When
+    more than one is present -- an interrupted earlier run -- the most recently
+    modified wins, which is the one the current check produced.
+    """
+    root = (project_root or Path.cwd()) / EXTRACTED_DIR
+    if not root.is_dir():
+        return None
+
+    candidates = [path for path in root.glob(_ARCHIVE_ROOT_GLOB) if path.is_dir()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
+def extracted_template_commit(template_dir: Path) -> str | None:
+    """Return the commit SHA *template_dir* was extracted from, or None.
+
+    Read from the directory name, so it names what is actually on disk rather
+    than what a second API call thinks the ref points at now. Returns None when
+    the suffix is not a full SHA -- an extract of a moving ref, which an older
+    `resolve_template_ref` produced when it could not reach the API (#1026). A
+    moving ref is not a sync point, so recording it would be worse than
+    recording nothing.
+    """
+    prefix = _ARCHIVE_ROOT_GLOB.rstrip("*")
+    name = template_dir.name
+    if not name.startswith(prefix):
+        return None
+    suffix = name[len(prefix) :]
+    return suffix if SHA_RE.match(suffix) else None
+
+
+# Tests that are template-owned: they live in the template's own CI, are
+# excluded from the drift checker, and are shed from downstreams by cleanup
+# and by configure.py. All three consumers — check_template_updates.py,
+# cleanup.py and configure.py — import this list; never hardcode it in any of
+# them (ADR-9017).
+#
+# The membership test is whether the test's *target* survives configuration.
+# Tests covering tools/doit/ and tools/hooks/ are deliberately absent: that
+# code ships to the spawned project, runs there, and is measured by the
+# coverage gate in pyproject.toml (#731).
+TEMPLATE_OWNED_TEST_FILES: list[str] = [
+    "tests/template/test_pyproject_template_main.py",
+    "tests/template/test_check_template_updates.py",
+    "tests/template/test_cleanup.py",
+    "tests/template/test_repo_settings.py",
+    "tests/template/test_setup_repo.py",
+    "tests/template/test_bootstrap.py",
+    "tests/template/test_utils.py",
+    "tests/template/test_utils_properties.py",
+    # Targets consumed by configure.py itself: configure.py self-destructs at
+    # the end of its run, and README.template.md is renamed onto README.md.
+    "tests/template/test_configure_paths.py",
+    "tests/template/test_readme_split.py",
+    "tests/template/test_downstream_test_retention.py",
+    # Targets docs/template/migration.md, which cleanup sheds in both modes.
+    "tests/template/test_migration_guide.py",
+    # Targets configure.py and setup_repo.py, both shed by configuration.
+    "tests/template/test_author_maintainer_split.py",
+]
+
+
+def remove_template_owned_tests(root: Path) -> list[Path]:
+    """Delete the template-owned test files under *root*, returning what was removed.
+
+    The single shedding implementation for every path that turns the template
+    into a real project: ``configure.py`` and ``setup_repo.py`` both call this,
+    and ``cleanup --setup`` sheds the same list through ``SETUP_FILES``. That
+    keeps ADR-9017's "single authoritative list" claim true in practice rather
+    than only in the constant.
+
+    Tests covering ``tools/doit/`` and ``tools/hooks/`` are deliberately kept:
+    that code ships to the spawned project, runs there, and is measured by the
+    coverage gate in ``pyproject.toml``. All three paths used to remove
+    ``tests/template/`` wholesale, which left the spawned project failing its
+    own coverage gate at 33.98% against a ``fail_under`` of 54 (#731).
+    """
+    removed: list[Path] = []
+    for rel in TEMPLATE_OWNED_TEST_FILES:
+        path = root / rel
+        if path.is_file():
+            path.unlink()
+            removed.append(path)
+
+    # Drop the package directory only if shedding emptied it. A project that
+    # keeps tooling tests keeps the package they live in.
+    template_tests_dir = root / "tests" / "template"
+    if template_tests_dir.is_dir():
+        survivors = [
+            entry
+            for entry in template_tests_dir.iterdir()
+            if entry.name not in {"__init__.py", "__pycache__"}
+        ]
+        if not survivors:
+            shutil.rmtree(template_tests_dir)
+
+    return removed
+
 
 # Files to update during placeholder replacement (single source of truth)
 # Used by both configure.py and setup_repo.py
@@ -46,6 +169,7 @@ FILES_TO_UPDATE: tuple[str, ...] = (
     ".claude/lsp-setup.md",
     ".envrc",
     ".pre-commit-config.yaml",
+    ".vscode/launch.json",
 )
 
 
@@ -162,6 +286,47 @@ def command_exists(command: str) -> bool:
         return False
 
 
+def github_token() -> str | None:
+    """Return a GitHub token for API calls, or None when none is available.
+
+    `GITHUB_TOKEN` wins. Otherwise `gh auth token` is asked, since `gh` is
+    already a project prerequisite: the unauthenticated API allows 60 requests
+    an hour, and a drift check that runs out of them cannot pin the template to
+    a commit (#1026).
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        return token
+    try:
+        result = subprocess.run(  # nosec B603 B607
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return None
+    token = result.stdout.strip()
+    return token if result.returncode == 0 and token else None
+
+
+def github_api_request(
+    url: str, accept: str = "application/vnd.github.v3+json"
+) -> urllib.request.Request:
+    """Build a GitHub API request, authenticated whenever a token is available.
+
+    Every API call in the management suite is built here, so one token covers
+    the whole check -> sync flow. Building them by hand let two of the three
+    drift from the token: `check` got past the rate limit and `sync` then
+    recorded `commit_date = "unknown"` (#1027).
+    """
+    request = urllib.request.Request(url, headers={"Accept": accept})
+    token = github_token()
+    if token:
+        request.add_header("Authorization", f"token {token}")
+    return request
+
+
 def get_git_config(key: str, default: str = "") -> str:
     """Get a git configuration value.
 
@@ -171,6 +336,18 @@ def get_git_config(key: str, default: str = "") -> str:
 
     Returns:
         The config value if found, otherwise the default value.
+
+    Notes:
+        The unscoped ``git config <key>`` lookup merges system, global, and
+        local config — but only when the current working directory is inside
+        a git repository. When called from outside any repo (e.g. the
+        bootstrap wizard running from ``~/src`` before the project checkout
+        exists), the unscoped call exits non-zero even for keys that are set
+        in ``~/.gitconfig``. This function retries with ``--global`` on
+        failure so that ``user.name`` and ``user.email`` resolve from the
+        user's global identity regardless of CWD (see #470). Keys that only
+        exist locally (e.g. ``remote.origin.url``) fail both calls and fall
+        through to ``default``, which is the correct behavior.
     """
     try:
         result = subprocess.run(
@@ -178,7 +355,19 @@ def get_git_config(key: str, default: str = "") -> str:
             capture_output=True,
             text=True,
         )
-        return result.stdout.strip() if result.returncode == 0 else default
+        if result.returncode == 0:
+            return result.stdout.strip()
+        # Unscoped lookup failed — retry with --global so that globally
+        # configured values (user.name, user.email) resolve even when the
+        # CWD is not inside a git repository.
+        global_result = subprocess.run(
+            ["git", "config", "--global", key],
+            capture_output=True,
+            text=True,
+        )
+        if global_result.returncode == 0:
+            return global_result.stdout.strip()
+        return default
     except (subprocess.SubprocessError, FileNotFoundError):
         return default
 
@@ -265,32 +454,106 @@ def get_first_author(pyproject_data: dict[str, Any]) -> tuple[str, str]:
     Returns:
         Tuple of (name, email) or ("", "") if no author found.
     """
-    authors = pyproject_data.get("project", {}).get("authors", [])
-    if not authors:
+    return _first_person(pyproject_data, "authors")
+
+
+def get_first_maintainer(pyproject_data: dict[str, Any]) -> tuple[str, str]:
+    """Extract the first maintainer's name and email from pyproject.toml data.
+
+    PEP 621 separates ``authors`` from ``maintainers`` because they diverge the
+    moment a project is adopted, forked or handed over: the author wrote it, the
+    maintainer answers for it now. A greenfield project sets only ``authors``,
+    where both roles are the same person -- callers are expected to fall back to
+    :func:`get_first_author` when this returns empty, which keeps that case
+    behaving exactly as it did before the distinction existed (#787).
+
+    Args:
+        pyproject_data: Parsed pyproject.toml data.
+
+    Returns:
+        Tuple of (name, email) or ("", "") if no maintainer found.
+    """
+    return _first_person(pyproject_data, "maintainers")
+
+
+def _first_person(pyproject_data: dict[str, Any], key: str) -> tuple[str, str]:
+    """Return (name, email) of the first entry in ``[project].<key>``."""
+    people = pyproject_data.get("project", {}).get(key, [])
+    if not people:
         return "", ""
-    author = authors[0]
-    return author.get("name", ""), author.get("email", "")
+    person = people[0]
+    return person.get("name", ""), person.get("email", "")
+
+
+# Marker tokens follow the ``__FOO__`` convention used in prose files
+# (README, CHANGELOG, docs, .github prose, .claude/CLAUDE.md). They are always
+# replaced via a blind string substitution because the surrounding double
+# underscores make collisions with real code/prose structurally impossible.
+_MARKER_TOKENS: frozenset[str] = frozenset(
+    {
+        "__PACKAGE_NAME__",
+        "__PYPI_NAME__",
+        "__PROJECT_NAME__",
+        "__GH_OWNER__",
+        "__AUTHOR_NAME__",
+        "__AUTHOR_EMAIL__",
+        "__DESCRIPTION__",
+        "__REPO_URL__",
+        "__REPO_SLUG__",
+    }
+)
+
+# Literal placeholder tokens that must use word-boundary regex when applied to
+# Python source so that identifier substrings (e.g. ``validate_package_name``,
+# ``my_username``) are not accidentally rewritten. These are the tokens that
+# collide with natural identifier-like substrings. Multi-word tokens such as
+# ``Your Name`` do not need this guard because they cannot appear inside a
+# Python identifier.
+_IDENTIFIER_LITERALS: frozenset[str] = frozenset(
+    {
+        "package_name",
+        "package-name",
+        "username",
+    }
+)
 
 
 def update_file(filepath: Path, replacements: dict[str, str]) -> None:
     """Update file with string replacements.
 
-    Special handling for 'package_name': only replaces when NOT followed by
-    optional whitespace and '=' to preserve:
-    - Python keyword arguments: package_name="value"
-    - TOML keys: package_name = "value"
+    Three replacement modes are applied per ``(old, new)`` pair:
+
+    1. **Marker tokens** (``__FOO__``): blind string replace. Markers cannot
+       collide with real identifiers or prose, so no guarding is required.
+    2. **Identifier-like literals in Python source** (``.py`` files only):
+       word-boundary regex replace so that ``validate_package_name`` and
+       similar identifier substrings survive. The ``package_name`` literal
+       additionally preserves keyword-argument and TOML-key forms via the
+       ``(?!\\s*=)`` lookahead.
+    3. **Everything else**: blind string replace (current default behaviour).
+
+    Binary files are skipped silently.
     """
     if not filepath.exists():
         return
     try:
         content = filepath.read_text(encoding="utf-8")
+        is_python = filepath.suffix == ".py"
         for old, new in replacements.items():
-            if old == "package_name":
-                # Use regex to replace 'package_name' only when NOT followed by
-                # optional whitespace and '='. This preserves:
-                # - Python kwargs: package_name="value"
-                # - TOML keys: package_name = "value"
-                content = re.sub(r"package_name(?!\s*=)", new, content)
+            if old in _MARKER_TOKENS:
+                # Markers are unambiguous; blind replace.
+                content = content.replace(old, new)
+            elif is_python and old in _IDENTIFIER_LITERALS:
+                # Word-boundary regex protects identifier substrings such as
+                # ``validate_package_name`` or ``my_username`` from being
+                # rewritten when the bare token appears elsewhere.
+                if old == "package_name":
+                    # Additional guard preserves kwargs/TOML-keys:
+                    # ``package_name="value"`` and ``package_name = "value"``.
+                    pattern = r"\bpackage_name\b(?!\s*=)"
+                else:
+                    pattern = rf"\b{re.escape(old)}\b"
+                content = re.sub(pattern, new, content)
             else:
                 content = content.replace(old, new)
         filepath.write_text(content, encoding="utf-8")
@@ -332,7 +595,11 @@ def download_and_extract_archive(url: str, target_dir: Path) -> Path:
         Logger.error(f"Failed to download archive: {e}")
         sys.exit(1)
 
-    extract_dir = target_dir / "extracted"
+    # Extract into a staging directory and swap it in only once extraction has
+    # succeeded, so a failed run never destroys the extract a previous check
+    # left for `sync` to record (#1026).
+    final_dir = target_dir / "extracted"
+    extract_dir = target_dir / "extracted.tmp"
     if extract_dir.exists():
         shutil.rmtree(extract_dir)
     extract_dir.mkdir(parents=True, exist_ok=True)
@@ -360,16 +627,21 @@ def download_and_extract_archive(url: str, target_dir: Path) -> Path:
             raise ValueError("Unknown archive format")
     except Exception as e:
         Logger.error(f"Failed to extract archive: {e}")
+        shutil.rmtree(extract_dir, ignore_errors=True)
         sys.exit(1)
     finally:
         if archive_path.exists():
             archive_path.unlink()
 
+    if final_dir.exists():
+        shutil.rmtree(final_dir)
+    extract_dir.rename(final_dir)
+
     # If the archive contains a single top-level directory, return that
-    contents = list(extract_dir.iterdir())
+    contents = list(final_dir.iterdir())
     if len(contents) == 1 and contents[0].is_dir():
         return contents[0]
-    return extract_dir
+    return final_dir
 
 
 class GitHubCLI:

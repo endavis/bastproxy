@@ -14,16 +14,19 @@ jobs:
     name: Detect API Breaking Changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Need full history for comparison
 
       - name: Fetch base branch
         run: git fetch origin ${{ github.base_ref }}
 
-      - uses: actions/setup-python@v6
+      - id: pv
+        uses: ./.github/actions/python-versions
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.12"
+          python-version: ${{ steps.pv.outputs.newest }}
 
       - name: Install griffe
         run: pip install griffe
@@ -56,7 +59,7 @@ jobs:
 
       - name: Report breaking changes
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           HAS_BREAKING: ${{ steps.griffe.outputs.has_breaking }}
           GRIFFE_OUTPUT: ${{ steps.griffe.outputs.details }}
@@ -92,20 +95,20 @@ jobs:
                   comment_id: botComment.id
                 });
               }
-              console.log('No breaking changes detected');
+              console.log('✅ No breaking changes detected');
               return;
             }
 
             // Build report
             let report = `${marker}\n`;
-            report += '## API Breaking Changes Detected\n\n';
+            report += '## ⚠️ API Breaking Changes Detected\n\n';
             report += 'The following breaking changes were detected by [griffe](https://mkdocstrings.github.io/griffe/):\n\n';
             report += '```\n';
             report += griffeOutput.trim();
             report += '\n```\n\n';
 
             if (!hasBreakingChangeDoc) {
-              report += '### Required Actions\n\n';
+              report += '### ❌ Required Actions\n\n';
               report += 'Breaking changes detected but not documented!\n\n';
               report += '**You must:**\n';
               report += '1. Add `BREAKING CHANGE:` footer to your commit message\n';
@@ -118,7 +121,7 @@ jobs:
               report += 'BREAKING CHANGE: describe what broke and how to migrate.\n';
               report += '```\n';
             } else {
-              report += '### Breaking Change Documented\n\n';
+              report += '### ✅ Breaking Change Documented\n\n';
               report += 'This PR includes breaking change documentation.\n\n';
               report += '**Before merging, verify:**\n';
               report += '- [ ] Migration guide in CHANGELOG.md\n';
@@ -146,9 +149,9 @@ jobs:
             // Fail if not documented
             if (!hasBreakingChangeDoc) {
               core.setFailed(
-                'Breaking changes detected but not documented! ' +
+                '❌ Breaking changes detected but not documented! ' +
                 'Add BREAKING CHANGE: footer to commit message and document in PR description.'
               );
             } else {
-              console.log('Breaking changes properly documented');
+              console.log('✅ Breaking changes properly documented');
             }

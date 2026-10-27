@@ -1,0 +1,18 @@
+name: CI (full matrix)
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch full-matrix CI
+    if: github.event.label.name == 'full-matrix'
+    uses: ./.github/workflows/ci.yml
+    with:
+      full_matrix: true
+    secrets: inherit

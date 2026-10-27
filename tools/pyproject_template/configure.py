@@ -9,6 +9,7 @@ Optional: skip final confirmation with --yes.
 
 import argparse
 import shutil
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -22,11 +23,13 @@ from utils import (  # noqa: E402
     FILES_TO_UPDATE,
     Logger,
     get_first_author,
+    get_first_maintainer,
     get_git_config,
     load_toml_file,
     parse_github_url,
     prompt,
     prompt_confirm,
+    remove_template_owned_tests,
     update_file,
     update_test_files,
     validate_email,
@@ -88,7 +91,7 @@ def guess_github_user(pyproject_data: dict[str, object]) -> str:
 def read_readme_title(readme_path: Path) -> str:
     if not readme_path.exists():
         return ""
-    for line in readme_path.read_text().splitlines():
+    for line in readme_path.read_text(encoding="utf-8").splitlines():
         if line.startswith("#"):
             return line.lstrip("#").strip()
     return ""
@@ -102,6 +105,7 @@ def load_defaults(pyproject_path: Path) -> dict[str, str]:
     pypi_name = validate_pypi_name(project_name) if project_name else ""
     description = project.get("description") or read_readme_title(Path("README.md"))
     author_name, author_email = get_first_author(data)
+    maintainer_name, maintainer_email = get_first_maintainer(data)
     github_user = guess_github_user(data)
 
     # If current pyproject still has template placeholders, try backup for real values
@@ -135,6 +139,10 @@ def load_defaults(pyproject_path: Path) -> dict[str, str]:
         else:
             author_email = b_author_email or author_email
 
+        b_maintainer_name, b_maintainer_email = get_first_maintainer(backup_data)
+        maintainer_name = maintainer_name or b_maintainer_name
+        maintainer_email = maintainer_email or b_maintainer_email
+
         if not_placeholder(github_user, {"username", ""}):
             pass
         else:
@@ -147,6 +155,11 @@ def load_defaults(pyproject_path: Path) -> dict[str, str]:
         "description": description,
         "author_name": author_name,
         "author_email": author_email,
+        # A project with no [project].maintainers is one where the author still
+        # maintains it. Falling back here keeps every greenfield path identical
+        # to its behaviour before the split (#787).
+        "maintainer_name": maintainer_name or author_name,
+        "maintainer_email": maintainer_email or author_email,
         "github_user": github_user,
     }
 
@@ -157,6 +170,78 @@ def require(value: str, label: str) -> str:
     raise SystemExit(
         f"❌ Missing required value for {label} (supply in pyproject.toml or via prompt)."
     )
+
+
+def _git_has_version_tag() -> bool:
+    """Return ``True`` if the current repo has at least one ``v*`` tag."""
+    result = subprocess.run(  # nosec B603 B607
+        ["git", "tag", "--list", "v*"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return bool(result.stdout.strip())
+
+
+def _git_root_commit() -> str | None:
+    """Return the root commit SHA of the current repo, or ``None`` if unavailable.
+
+    Returns ``None`` if not inside a git repo, the repo has no commits, or the
+    ``git rev-list`` call fails for any other reason.
+    """
+    result = subprocess.run(  # nosec B603 B607
+        ["git", "rev-list", "--max-parents=0", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return lines[0] if lines else None
+
+
+def seed_baseline_tag() -> None:
+    """Seed a ``v0.0.0`` tag on the root commit if no ``v*`` tag exists.
+
+    Gives commitizen an anchor to compute pre-release versions against. Without
+    it, ``doit release --prerelease=alpha`` refuses on a tagless repo (guard
+    from issue #448). Idempotent: skips if any ``v*`` tag already exists. Skips
+    silently (with a visible message) if not inside a git repo or if there are
+    no commits yet, so the user can run ``git init && git commit`` first and
+    seed manually with ``git tag v0.0.0 <root-commit>``.
+    """
+    if not Path(".git").exists():
+        Logger.info(
+            "Skipping v0.0.0 baseline tag: not a git repo yet (run `git init` "
+            "and commit first, then seed manually: "
+            "`git tag v0.0.0 <root-commit>`)"
+        )
+        return
+
+    if _git_has_version_tag():
+        Logger.info("Skipping v0.0.0 baseline tag: a v* tag already exists")
+        return
+
+    root = _git_root_commit()
+    if root is None:
+        Logger.info(
+            "Skipping v0.0.0 baseline tag: no commits yet "
+            "(seed manually after your first commit: `git tag v0.0.0 <root-commit>`)"
+        )
+        return
+
+    result = subprocess.run(  # nosec B603 B607
+        ["git", "tag", "v0.0.0", root],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        print(f"  ✓ Seeded baseline tag v0.0.0 on root commit {root[:7]}")
+        Logger.info("   → push with `git push origin v0.0.0` when ready")
+    else:
+        Logger.warning(f"Could not create v0.0.0 tag: {result.stderr.strip() or 'unknown error'}")
 
 
 def run_configure(
@@ -199,11 +284,19 @@ def run_configure(
         author_email = require(defaults["author_email"], "author email")
         if not validate_email(author_email):
             raise SystemExit("❌ Invalid email format in pyproject.toml")
+        # `defaults` is caller-supplied, so the maintainer keys are read with a
+        # fallback rather than required: a mapping without them describes a
+        # project that names no maintainer, which is the greenfield case where
+        # the author is the maintainer. `load_defaults` resolves this already;
+        # this keeps every other caller working unchanged.
+        maintainer_name = defaults.get("maintainer_name") or author_name
+        maintainer_email = defaults.get("maintainer_email") or author_email
+        if not validate_email(maintainer_email):
+            raise SystemExit("❌ Invalid maintainer email format in pyproject.toml")
         github_user = require(
             defaults["github_user"],
             "GitHub user (from Repository URL or git remote)",
         )
-        enable_dependabot = False
     else:
         project_name = prompt(
             "Project name (human-readable)",
@@ -224,6 +317,9 @@ def run_configure(
             defaults["description"] or "A short description of your package",
         )
 
+        print("\n  Author: who wrote it. Used for the LICENSE copyright line,")
+        print("  the package metadata and the documentation site.\n")
+
         author_name = prompt("Author name", defaults["author_name"] or "Your Name")
 
         while True:
@@ -235,15 +331,24 @@ def run_configure(
                 break
             Logger.warning("Invalid email format. Please try again.")
 
-        github_user = prompt("GitHub username", defaults["github_user"] or "username")
+        print("\n  Maintainer: who answers for it now. Used for the security")
+        print("  contact address. Press Enter to accept the author.\n")
 
-    # Optional features
-    if auto:
-        enable_dependabot = False
-    else:
-        print()
-        Logger.step("Optional Features")
-        enable_dependabot = prompt_confirm("Enable Dependabot for automatic dependency updates?")
+        maintainer_name = prompt(
+            "Maintainer name",
+            defaults.get("maintainer_name") or author_name,
+        )
+
+        while True:
+            maintainer_email = prompt(
+                "Maintainer email",
+                defaults.get("maintainer_email") or author_email,
+            )
+            if validate_email(maintainer_email):
+                break
+            Logger.warning("Invalid email format. Please try again.")
+
+        github_user = prompt("GitHub username", defaults["github_user"] or "username")
 
     # Confirm configuration
     Logger.header("Configuration Summary")
@@ -252,8 +357,13 @@ def run_configure(
     print(f"PyPI Name:        {pypi_name}")
     print(f"Description:      {description}")
     print(f"Author:           {author_name} <{author_email}>")
+    if (maintainer_name, maintainer_email) != (author_name, author_email):
+        print(f"Maintainer:       {maintainer_name} <{maintainer_email}>")
     print(f"GitHub:           {github_user}")
-    print(f"Dependabot:       {'Enabled' if enable_dependabot else 'Disabled'}")
+    # Stated, not asked. Dependabot is part of the template's automation
+    # surface -- .github/dependabot.yml plus two workflows, a docs page and
+    # their tests -- and ships with every project.
+    print("Dependabot:       Enabled (ships with the template)")
     print("━" * 60)
 
     if not yes and not prompt_confirm("\nProceed with configuration?"):
@@ -270,7 +380,22 @@ def run_configure(
     # Define replacements
     # IMPORTANT: Longer/Specific replacements must come before shorter substrings
     replacements = {
-        # URLs (Specific matches first)
+        # Marker tokens (unambiguous, used in prose files). These take
+        # priority because ``update_file()`` treats them as blind replaces
+        # regardless of surrounding context.
+        "__PACKAGE_NAME__": package_name,
+        "__PYPI_NAME__": pypi_name,
+        "__PROJECT_NAME__": project_name,
+        "__GH_OWNER__": github_user,
+        "__AUTHOR_NAME__": author_name,
+        "__AUTHOR_EMAIL__": author_email,
+        "__DESCRIPTION__": description,
+        "__REPO_URL__": f"https://github.com/{github_user}/{package_name}",
+        "__REPO_SLUG__": f"{github_user}/{package_name}",
+        # URLs (Specific matches first). Retained for runtime-critical files
+        # (pyproject.toml, workflows, LICENSE, mkdocs.yml, dodo.py, .envrc,
+        # .pre-commit-config.yaml) that keep literal placeholders, and for
+        # downstream consumer projects that have not yet migrated.
         "https://github.com/username/package_name": f"https://github.com/{github_user}/{package_name}",
         "https://github.com/original-owner/package_name": f"https://github.com/{github_user}/{package_name}",
         "https://codecov.io/gh/username/package_name": f"https://codecov.io/gh/{github_user}/{package_name}",
@@ -284,7 +409,9 @@ def run_configure(
         "package-name/": f"{pypi_name}/",
         # Repo name pattern (mkdocs.yml) - must come before general package_name
         "username/package_name": f"{github_user}/{package_name}",
-        # General Placeholders (Substrings)
+        # General Placeholders (Substrings). Python files receive
+        # word-boundary protection from ``update_file()`` so identifier
+        # substrings (e.g. ``validate_package_name``) survive.
         "package_name": package_name,
         "package-name": pypi_name,
         "Package Name": project_name,
@@ -294,12 +421,30 @@ def run_configure(
         # GitHub template placeholders (for issue templates, etc.)
         "{owner}": github_user,
         "{repo}": package_name,
-        # Contact email placeholders
-        "security@example.com": author_email,
-        "[INSERT CONTACT EMAIL]": author_email,
+        # Contact email placeholders. These are the security-report address in
+        # .github/SECURITY.md, and they belong to whoever answers for the
+        # project now -- not to whoever wrote it. In an adopted or forked
+        # project the two differ, and using the author routed vulnerability
+        # reports to someone with no involvement (#787). Identical to the
+        # author's address unless [project].maintainers says otherwise.
+        "security@example.com": maintainer_email,
+        "[INSERT CONTACT EMAIL]": maintainer_email,
         # Note: "username" is NOT replaced globally to avoid breaking code
         # variables (e.g. in extensions.md)
     }
+
+    # Install the consumer README before placeholder replacement.
+    #
+    # README.md in the template is the repository's landing page: it describes
+    # the template itself and carries working badges, so browsing the repo does
+    # not show a placeholder title and four broken badge images (#697).
+    # README.template.md is the README the spawned project actually wants.
+    # Moving it into place here means it is then picked up by the
+    # FILES_TO_UPDATE pass below like any other file.
+    consumer_readme = Path("README.template.md")
+    if consumer_readme.exists():
+        print("  ✓ Installing README.template.md as README.md")
+        consumer_readme.replace(Path("README.md"))
 
     # Update files (using shared constant from utils.py)
     for file_path in FILES_TO_UPDATE:
@@ -355,28 +500,37 @@ def run_configure(
         print("  ✓ Updating test files")
         update_test_files(test_dir, package_name)
 
-    # Remove template tool tests (they're only for the template itself)
-    tool_tests_dir = Path("tests/pyproject_template")
-    if tool_tests_dir.exists():
-        print("  ✓ Removing template tool tests (tests/pyproject_template/)")
-        shutil.rmtree(tool_tests_dir)
+    # Shed template-only tests. This must shed exactly what `cleanup --setup`
+    # sheds — ADR-9017 makes TEMPLATE_OWNED_TEST_FILES the single authoritative
+    # list, and cleanup.py already consumes it.
+    #
+    # Removing the whole directory instead (as this did until #731) also deleted
+    # the tests covering tools/doit/ and tools/hooks/ — code that ships to and
+    # runs in the spawned project, and that the coverage gate in pyproject.toml
+    # measures. A spawned project failed its first CI run at 33.98% against a
+    # fail_under of 54.
+    shed = remove_template_owned_tests(Path.cwd())
+    if shed:
+        print(f"  ✓ Removing {len(shed)} template-only test files")
 
-    # Enable Dependabot if requested
-    dependabot_example = Path(".github/dependabot.yml.example")
-    dependabot_config = Path(".github/dependabot.yml")
-    if enable_dependabot and dependabot_example.exists():
-        print("  ✓ Enabling Dependabot")
-        shutil.copy(dependabot_example, dependabot_config)
+    # Seed v0.0.0 baseline tag so `doit release --prerelease=alpha` works on the
+    # first release (see issue #447). Idempotent and skipped gracefully when
+    # there is no git repo or no commits yet.
+    seed_baseline_tag()
 
     Logger.success("Configuration complete!")
     Logger.header("Next Steps")
     print("1. Review the changes: git diff")
     print("2. Initialize git repository: git init")
     print("3. Install dependencies: uv sync --all-extras --dev")
-    print("4. Install pre-commit hooks: uv run pre-commit install")
-    print("5. Run tests: uv run pytest")
-    print("6. Cut a prerelease (if desired): uv run doit release_dev")
-    print("7. Start coding!")
+    print("4. Install pre-commit hooks: uv run doit pre_commit_install")
+    # The bootstrap wizard (setup_repo.py) runs this automatically. The manual
+    # route has to be told, or the project keeps a template management suite it
+    # does not use (#731).
+    print("5. Remove the template suite: uv run doit template_clean --all")
+    print("6. Run tests: uv run pytest")
+    print("7. Cut a prerelease (if desired): uv run doit release --prerelease=alpha")
+    print("8. Start coding!")
     print("━" * 60)
 
     # Self-destruct

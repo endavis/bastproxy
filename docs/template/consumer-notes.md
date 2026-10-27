@@ -1,0 +1,270 @@
+---
+title: Consumer Notes
+description: Breaking changes and behaviour changes that arrive when a project syncs from the template.
+---
+
+# Consumer Notes
+
+Changes that **reach a downstream project through the sync path** and need action, or need
+explaining when someone notices them. Newest first.
+
+This page exists because the alternative failed. The `sha256` change below was documented in
+ADR-9015 and in the install-tools reference, and neither is read during a sync — so a project
+syncing `tools/doit/install_tools.py` got a runtime abort with no prior warning. Per-topic docs are
+the right home for *how a thing works*; this is the home for *what will change under you*.
+
+Read it after `bootstrap.py --sync` and before adopting drift. It is also linked from
+[Files to Review Carefully](updates.md#files-to-review-carefully) and the
+[AI Sync Checklist](ai-sync-checklist.md).
+
+## Breaking
+
+### `/claude:plan`, `/claude:implement`, `/ghi-finalize` and the per-agent plan/implement matrix are gone
+
+**What changed.** The three-step chain — `/<ai>:plan`, `/<ai>:implement`, `/ghi-finalize` — and the
+28-file per-agent plan/implement matrix (`.claude/commands/{claude,codex,copilot,antigravity}/{plan,implement}.md`,
+`.github/skills/*-{plan,implement}/`, `.agents/skills/{codex,antigravity}-{plan,implement}/`,
+`.agents/skills/delegate-*-{plan,implement}/`) are all removed, along with `.claude/commands/ghi-finalize.md`
+and `.agents/skills/ghi-finalize/`. One shared skill, `implement-issue`
+(`.agents/skills/implement-issue/SKILL.md`, generated for Claude by `doit skills_sync`), replaces
+all of it: say "implement issue N" and it decides whether to plan, posts the plan without an
+approval wait, implements with tests, validates, commits, pushes, opens the PR, and fixes CI for up
+to 3 rounds.
+
+**Who breaks.** Any project or script invoking `/claude:plan`, `/claude:implement`, `/ghi-finalize`,
+or any host's `plan`/`implement` self-action or cross-agent bridge (`$codex-plan`, `/copilot-implement`,
+`antigravity-plan`, `delegate-*-plan`, `delegate-*-implement`, and so on). Any customization of one
+of those files is lost — there is nothing left to move it into, since the replacement is a single
+behavior, not a per-agent file.
+
+**What it looks like.** The commands and skills simply no longer exist; a host will report it does
+not recognize the slash command or skill name.
+
+**The fix.** Use "implement issue N" (or "implement issue N with \<agent\>" to hand the coding step
+to a specific agent) instead of the old three-step chain. `tests/agent_roster.py`'s presence markers
+moved from each agent's `*-plan` directory to its `*-review` directory — if you keyed any local
+tooling off the old marker paths, update it to `*-review`.
+
+**Why it is not optional.** The old chain required two separate approval waits (plan, then commit)
+and carried 28 nearly-identical files across four agents. `implement-issue` collapses both the
+approval waits and the duplication; see
+[ADR-9024](../decisions/9024-one-implement-issue-skill-takes-an-issue-to-a-green-pr.md) and
+[Cross-Agent Delegation Matrix](../development/ai/cross-agent-delegation.md).
+
+### `install_tools` requires `sha256` for untrusted hosts
+
+**What changed.** A download from any host outside `IMPLICITLY_TRUSTED_HOSTS` — `github.com`,
+`objects.githubusercontent.com`, `raw.githubusercontent.com`, `api.github.com` — must now be
+accompanied by an expected digest. Without one the install aborts with `IntegrityError` before the
+file is made executable.
+
+**Who breaks.** Any caller passing `url_template` for a non-GitHub host. That is precisely the case
+`url_template` was introduced for (ADR-9015 names `releases.hashicorp.com`, terraform and opentofu),
+so the projects most likely to hit this are the ones the feature was built for.
+
+**What it looks like.**
+
+```
+IntegrityError: https://releases.hashicorp.com/... is outside ['api.github.com',
+'github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com'] and no
+sha256 was given. Pass sha256= to install_tool()/create_install_task() naming the
+digest you expect
+```
+
+**The fix.** Pass the digest you expect. `sha256` accepts a single string, or a dict keyed the same
+way as `asset_patterns` when the digest differs per platform:
+
+```python
+create_install_task(
+    name="terraform",
+    url_template="https://releases.hashicorp.com/terraform/{version}/terraform_{version}_{os}_{arch}.zip",
+    sha256={"linux-x86_64": "…", "darwin-arm64": "…"},
+)
+```
+
+Publishers of this kind ship a checksums file alongside the release; take the digest from there
+rather than computing it from a download you have not yet verified.
+
+**Why it is not optional.** `url_template` fetches from arbitrary third parties, which is exactly
+where an implicit trust assumption should not be extended. See
+[install-tools framework](../development/install-tools-framework.md) and ADR-9015.
+
+## Needs a one-off action
+
+### `multi-plan`, `multi-review` and `multi-adversarial-review` moved to shared skills
+
+**Who.** Any project that customized `.claude/commands/multi-{plan,review,adversarial-review}.md` or
+`.copilot/commands/multi-{plan,review,adversarial-review}.md` (the latter was dead — Copilot never
+read it) by hand.
+
+**What changed.** These files are gone. Each orchestrator is now written once, in
+`.agents/skills/multi-{plan,review,adversarial-review}/SKILL.md`, and `doit skills_sync` generates
+the Claude copy at `.claude/skills/multi-{plan,review,adversarial-review}/SKILL.md` — the same
+mechanism the other 14 shared workflow skills already used. Each file previously hardcoded one
+agent as the one running inline ("if `codex` is in the agent list (self)"); it now says "the entry
+in the table that matches the CLI running this skill is you," so the same file works unmodified from
+any of the four hosts. `multi-plan` also changed its plan format: it now runs `implement-issue`'s
+Planner brief for every agent instead of its own inline planning steps, which drops the old
+`### Risks and Considerations` section from the posted plans.
+
+**The fix.** Move any local customization into the three `.agents/skills/multi-*/SKILL.md` files,
+then run `doit skills_sync` to regenerate the Claude copies. The slash names are unchanged:
+`/multi-plan`, `/multi-review`, `/multi-adversarial-review` still work in Claude, now as skills.
+
+### Thirteen Claude commands moved to shared skills
+
+**Who.** Any project that customized a file under `.claude/commands/`: `add-dependency.md`, `checkpoint.md`,
+`restore.md`, `template-sync.md`, `template-migrate.md`, `mutation-triage.md`, `property-tests.md`,
+`deprecate-api.md`, `python-version-bump.md`, `security-triage.md`, `dead-code-triage.md`,
+`perf-change.md` or `ghi-status.md` by hand.
+
+**What changed.** These 13 files are gone from `.claude/commands/`. Each is now written once, in
+`.agents/skills/<name>/SKILL.md`, and a new `doit skills_sync` task generates the Claude copy at
+`.claude/skills/<name>/SKILL.md` — byte-identical to the source, with no Claude-only frontmatter so
+Claude can auto-invoke it the same way Codex, Antigravity and Copilot do. The slash names are
+unchanged: `/add-dependency` and the rest still work in Claude, now as skills.
+
+**The fix.** Move any local customization into `.agents/skills/<name>/SKILL.md`, then run
+`doit skills_sync` to regenerate the Claude copy. Do not hand-edit the file under
+`.claude/skills/` — the sync task, and `doit skills_sync --check`, treat it as generated output and
+will overwrite or flag it. `ghi-finalize` was removed in a later change — see
+[the entry above about the plan/implement matrix](#claudeplan-claudeimplement-ghi-finalize-and-the-per-agent-planimplement-matrix-are-gone).
+The `multi-*` orchestrators moved out of `.claude/commands/` too, in a later change — see
+[the entry above about them](#multi-plan-multi-review-and-multi-adversarial-review-moved-to-shared-skills).
+
+### Give every document under `docs/` frontmatter
+
+**Who.** Every project with a document under `docs/` that has no frontmatter block, or has one that
+does not parse. That includes any ADR written before `doit adr` started writing the block.
+
+**Why.** `tests/test_docs_frontmatter.py` fails `doit check` for each such document.
+`docs/TABLE_OF_CONTENTS.md` is generated from these blocks, and a document without one is listed
+bare and reaches no audience section.
+
+**The fix.** Start each document with a block that has at least a `description`, and quote any value
+that holds `: ` — every ADR title does:
+
+```yaml
+---
+title: "ADR-0001: Use Redis for caching"
+description: Cache sessions in Redis
+audience:
+  - contributors
+tags:
+  - adr
+---
+```
+
+`uv run pytest tests/test_docs_frontmatter.py` names each document that still needs one, and for a
+block that does not parse, why. An ADR must also replace the template's placeholder description.
+
+### Re-run `doit pre_commit_install`
+
+**Who.** Every project that ran it *before* adopting the `.pre-commit-config.yaml` that declares
+`default_install_hook_types`.
+
+**Why.** The config now declares four hook types, and `commit-msg` is newly among them. A project
+that installed hooks earlier has no `commit-msg` hook on disk, so **neither conventional-commit
+enforcement nor the branch/issue check runs for it** — silently, because nothing fails when a hook
+that was never installed does not fire.
+
+```bash
+doit pre_commit_install
+```
+
+Verify with `ls .git/hooks/` — `commit-msg`, `pre-commit`, `post-merge` and `post-checkout` should
+all be present.
+
+## Behaviour you will notice
+
+### `doit release` follows your `[tool.commitizen]` version and changelog settings
+
+`doit release` used to assume the template's setup: version from the tag, changelog generated by
+`cz changelog`. It now reads two keys (issue #971):
+
+- **`version_provider` other than `scm`** — no new key needed. The release branch also runs
+  `cz bump --files-only` and `uv lock`, and the release PR carries `pyproject.toml`, every
+  `version_files` path and `uv.lock`. Previously those files stayed at the old version.
+- **`update_changelog_on_bump` not set to `true`** — including a missing key, which is commitizen's
+  own default. The changelog is treated as hand-written: `## [Unreleased]` is renamed to the new
+  version, and the release aborts if that section is missing or empty. Previously `cz changelog`
+  rewrote the file, dropping hand-written entries. If you want a generated changelog, set the key
+  to `true` — the template's own `pyproject.toml` does.
+
+Release PRs on `release/v*` branches are now exempt from Validate Issue Link, and
+`doit release --issue=N` links a release issue. See
+[Downstream opt-ins](../development/release-and-automation.md#downstream-opt-ins-static-version-and-hand-written-changelog).
+
+### Conventional-commit enforcement is live
+
+It was configured but dormant while `commit-msg` was never installed. Commit messages that
+previously succeeded are now rejected unless they match `<type>: <subject>`. See
+[Commit Guidelines](../../.github/CONTRIBUTING.md#commit-guidelines).
+
+### The dangerous-command hook blocks more
+
+`tools/hooks/ai/block-dangerous-commands.py` now scans heredoc bodies that a POSIX shell executes,
+so `bash <<EOF` carrying a blocked pattern aborts where it previously ran. It fails safe — the newly
+blocked shapes are ones the hook already intended to catch — but a command that worked before may
+stop. See [AI Command Blocking](../development/ai/command-blocking.md#heredocs).
+
+### Long commit messages go in a file
+
+A commit message passed by heredoc is scanned as command arguments, so a message that merely *names*
+a blocked pattern is refused. Write it to `tmp/agents/<agent-type>/` and pass `git commit -F <file>`;
+the block now says so rather than giving a generic reason. See
+[Passing the Message](../../.github/CONTRIBUTING.md#commit-guidelines).
+
+### PRs get no benchmark regression comment
+
+The benchmark still runs and uploads its JSON. The comment required `contents: write` on the pull
+request path and was removed with it; read the workflow artifact instead.
+
+### Dependabot proposes exact-version action bumps
+
+GitHub Actions are SHA-pinned, so dependabot now proposes `from 6.3.0 to 7.0.0` rather than
+major-to-major `from 6 to 7`. The pin is the point — review the SHA, not only the version.
+
+### Delegated agent prompts read a pre-fetched file instead of calling `gh`
+
+A new `doit delegation_context` task (`tools/doit/github.py`) fetches an issue's or PR's GitHub data
+once — `--kind=issue` writes `issue.json`/`comments.json`; `--kind=pr` writes `pr.json`/`diff.txt` —
+and writes it under `tmp/agents/<host>/<task>-<n>/`. `implement-issue`'s Planner and Coder briefs,
+`multi-plan`'s and `multi-review`'s per-agent delegated prompt, and the six Codex review/adversarial-
+review bridge files now read those files instead of running `gh issue view`/`gh pr view`/`gh pr
+diff` themselves, so a delegated agent no longer needs its own GitHub network access. No command,
+flag, or file was removed — the prompt text and the six bridge files changed what they say, and the
+new task is additive. If you customized any of those skill files downstream, re-apply your
+customization on top of the context-file convention rather than the old inline `gh` calls. See
+[`doit-tasks-reference.md` — `delegation_context`](../development/doit-tasks-reference.md#delegation_context)
+and [Cross-Agent Delegation Matrix — Context-file
+convention](../development/ai/cross-agent-delegation.md#context-file-convention).
+
+### The doc-link and doc-path tests honor `sync-exclude.toml` and skip git-ignored markdown
+
+`tests/test_markdown_links.py`, `tests/test_documented_paths.py` and `tests/test_instruction_pointers.py`
+now discover markdown through `git ls-files` instead of walking the filesystem with a hardcoded
+skip list, and skip a link or documented-path target that matches a pattern in
+`.config/pyproject_template/sync-exclude.toml`. If you adopted a shared skill or a 9xxx ADR that
+links to a template-only page you chose not to adopt (`docs/template/*.md`,
+`src/package_name/core.py`, and so on), add that path to `sync-exclude.toml` rather than editing
+the adopted file. A new helper module, `tests/doc_scan.py`, ships alongside the three tests and
+must be adopted with them — see
+[AI Sync Checklist](ai-sync-checklist.md#phase-1-sync-template-management-tools-always-run-first).
+See [ADR-9026](../decisions/9026-doc-scanning-tests-honor-sync-excludetoml-and-discover-markdown-via-git.md).
+
+### `doit release_tag`'s next steps depend on `release.yml`
+
+Without `.github/workflows/release.yml`, `doit release_tag` no longer tells you to monitor GitHub
+Actions or check TestPyPI/PyPI — it says the tag is the release, since nothing builds or publishes
+from it. If you patched this locally (as gnome-connection-manager did in endavis/gnome-connection-manager#306), drop your patch; the
+template now carries the condition.
+
+## Adding to this page
+
+An entry belongs here when a downstream project would be **surprised** by the change: it breaks a
+call that worked, requires a one-off action, or alters behaviour someone will notice without an
+explanation to hand. Ordinary improvements do not need an entry.
+
+Put the *reasoning* in the ADR or the per-topic doc and link it. This page answers "what changes
+under me, and what do I do about it" — nothing else.

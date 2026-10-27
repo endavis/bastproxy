@@ -71,7 +71,7 @@ class PluginRuntimeInfo:
         # The plugin package has been imported
         self.is_imported: bool = False
         # The plugin instance
-        self.plugin_instance: None | BasePlugin = None
+        self.plugin_instance: BasePlugin | None = None
         # The imported time
         self.imported_time: datetime.datetime = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
 
@@ -133,7 +133,7 @@ class PluginInfo:
 
         """
         try:
-            ast.parse(file.read_text())
+            ast.parse(file.read_text(encoding="utf-8"))
         except Exception as E:
             return False, E
         else:

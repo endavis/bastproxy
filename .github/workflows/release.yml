@@ -19,17 +19,23 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - id: pv
+        uses: ./.github/actions/python-versions
 
-      - uses: astral-sh/setup-uv@v1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.pv.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
 
       - name: Show resolved version
         run: |
@@ -41,10 +47,36 @@ jobs:
       - name: Build artifacts
         run: uv build
 
-      - uses: actions/upload-artifact@v4
+      - name: Check the built wheel
+        run: uv run doit wheel_check --dist=dist
+
+      - name: Install security extras for SBOM generation
+        run: uv sync --extra security
+
+      - name: Generate SBOM (JSON)
+        run: uv run cyclonedx-py environment --of JSON -o dist/sbom.json
+
+      - name: Generate SBOM (XML)
+        run: uv run cyclonedx-py environment --of XML -o dist/sbom.xml
+
+      # Split into two artifacts: ``dist`` for twine (wheels + sdist only)
+      # and ``sbom`` for the GitHub release. Mixing SBOM files into the
+      # publish artifact makes twine abort with InvalidDistribution. See
+      # issue #665.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
-          path: dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: |
+            dist/sbom.json
+            dist/sbom.xml
           if-no-files-found: error
 
   publish-testpypi:
@@ -56,7 +88,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
@@ -77,7 +109,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
@@ -87,3 +119,33 @@ jobs:
         with:
           packages-dir: dist
           skip-existing: true
+
+  github-release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create GitHub release with auto-generated notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release create "$tag" --generate-notes --title "$tag"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: dist
+
+      - name: Upload SBOM assets to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release upload "$tag" dist/sbom.json dist/sbom.xml --clobber

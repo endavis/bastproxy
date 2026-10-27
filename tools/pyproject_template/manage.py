@@ -37,18 +37,39 @@ from settings import (  # noqa: E402
     ProjectSettings,
     SettingsManager,
     TemplateState,
+    get_template_commit,
     get_template_commits_since,
     get_template_latest_commit,
 )
-from utils import Colors, Logger, prompt, validate_package_name  # noqa: E402
+from utils import (  # noqa: E402
+    TEMPLATE_COMMIT_FILE,
+    Colors,
+    Logger,
+    extracted_template_commit,
+    find_extracted_template,
+    prompt,
+    validate_package_name,
+)
+
+
+def _reviewed_template_is_ready() -> bool:
+    """Whether a reviewed template with a recorded commit is waiting to be synced.
+
+    Drives the menu's recommended action. Globs for the extracted archive rather
+    than assuming a fixed name -- the name carries the reviewed commit, so it is
+    different on every run (#805).
+    """
+    template_dir = find_extracted_template()
+    return template_dir is not None and (template_dir / TEMPLATE_COMMIT_FILE).exists()
+
 
 # Import cleanup utilities (optional - may not exist if already cleaned)
 try:
     from cleanup import CleanupMode, cleanup_template_files, prompt_cleanup
 except ImportError:
-    CleanupMode = None  # type: ignore[misc,assignment]
-    cleanup_template_files = None  # type: ignore[assignment]
-    prompt_cleanup = None  # type: ignore[assignment]
+    CleanupMode = None
+    cleanup_template_files = None
+    prompt_cleanup = None
 
 
 def print_banner() -> None:
@@ -151,6 +172,8 @@ def get_recommended_action(
     settings: ProjectSettings,
     template_state: TemplateState,
     latest_commit: tuple[str, str] | None,
+    *,
+    template_downloaded: bool,
 ) -> int | None:
     """Determine the recommended action based on context."""
     # No git repo - need to create new project
@@ -162,8 +185,7 @@ def get_recommended_action(
         return 2  # Configure project
 
     # Template already downloaded and reviewed - recommend marking as synced
-    template_commit_file = Path("tmp/extracted/pyproject-template-main/.template_commit")
-    if template_commit_file.exists():
+    if template_downloaded:
         return 5  # Mark as synced
 
     # Existing repo with outdated template
@@ -281,27 +303,39 @@ def edit_settings(manager: SettingsManager) -> None:
     manager.save()
 
 
-def run_action(action: int, manager: SettingsManager, dry_run: bool) -> int:
+def run_action(
+    action: int,
+    manager: SettingsManager,
+    dry_run: bool,
+    *,
+    yes: bool = False,
+    cleanup_mode: str | None = None,
+    show_excluded: bool = False,
+    template_version: str | None = None,
+) -> int:
     """Run the selected action."""
     if action == 1:
-        return action_create_project(manager, dry_run)
+        return action_create_project(manager, dry_run, yes=yes)
     elif action == 2:
-        return action_configure(manager, dry_run)
+        return action_configure(manager, dry_run, yes=yes)
     elif action == 3:
-        return action_check_updates(manager, dry_run)
+        return action_check_updates(
+            manager, dry_run, show_excluded=show_excluded, template_version=template_version
+        )
     elif action == 4:
         return action_repo_settings(manager, dry_run)
     elif action == 5:
-        return action_mark_synced(manager, dry_run)
+        return action_mark_synced(manager, dry_run, yes=yes)
     elif action == 6:
-        return action_template_cleanup(manager, dry_run)
+        return action_template_cleanup(manager, dry_run, yes=yes, cleanup_mode=cleanup_mode)
     else:
         Logger.error(f"Unknown action: {action}")
         return 1
 
 
-def action_create_project(manager: SettingsManager, dry_run: bool) -> int:
+def action_create_project(manager: SettingsManager, dry_run: bool, *, yes: bool = False) -> int:
     """Create a new project from the template."""
+    del yes  # Kept for action_* signature uniformity; no confirmation prompts remain.
     Logger.header("Creating New Project from Template")
 
     settings = manager.settings
@@ -352,6 +386,7 @@ def action_create_project(manager: SettingsManager, dry_run: bool) -> int:
 
         # Clone and configure locally BEFORE branch protection
         setup.clone_repository()
+
         setup.configure_placeholders()
         setup.setup_development_environment()
 
@@ -386,11 +421,12 @@ def action_create_project(manager: SettingsManager, dry_run: bool) -> int:
             )
             subprocess.run(["git", "push"], cwd=project_dir, check=True)
 
-        # Now configure branch protection and other GitHub settings
+        # Now configure branch protection and other GitHub settings.
+        # CodeQL scanning is NOT set up here: it runs from the committed
+        # .github/workflows/codeql.yml workflow that was cloned with the repo.
         setup.configure_branch_protection()
         setup.replicate_labels()
         setup.enable_github_pages()
-        setup.configure_codeql()
 
         setup.print_manual_steps()
 
@@ -403,21 +439,50 @@ def action_create_project(manager: SettingsManager, dry_run: bool) -> int:
         return 1
 
 
-def action_check_updates(manager: SettingsManager, dry_run: bool) -> int:
-    """Check for template updates (comparison only, does not modify files)."""
+def action_check_updates(
+    manager: SettingsManager,
+    dry_run: bool,
+    *,
+    show_excluded: bool = False,
+    template_version: str | None = None,
+) -> int:
+    """Check for template updates (comparison only, does not modify files).
+
+    `template_version` pins which template snapshot the project is compared
+    against -- a tag, branch or SHA, resolved to a commit before anything is
+    downloaded (#779, ADR-9020). Without it the comparison runs against `main`;
+    this template publishes no releases, so there is no release to prefer (#781).
+
+    The commit that was compared is recorded in the extracted directory for
+    `action_mark_synced` to pick up. That handoff is the pair that was broken:
+    each half worked and nothing checked that they met (#805).
+    """
     Logger.header("Checking for Template Updates")
 
     result = run_check_updates(
+        template_version=template_version,
         skip_changelog=True,
         keep_template=True,  # Keep template so user can run diff commands
         dry_run=dry_run,
+        show_excluded=show_excluded,
     )
+    if result != 0:
+        # Nothing was downloaded -- most often the ref could not be pinned to a
+        # commit -- so there is no review to record, and an earlier reviewed
+        # extract must be left for `sync` as it was (#1026).
+        return int(result)
+
+    # The commit that was actually reviewed. Taken from the extracted archive's
+    # own directory name, so it names what is on disk rather than whatever
+    # `main` points at now -- with `--template-version` those are different
+    # commits, and recording the wrong one defeats a staged upgrade (#805).
+    template_dir = find_extracted_template()
+    reviewed_commit = extracted_template_commit(template_dir) if template_dir else None
 
     # Show commit history link if we have a sync point (after the review section)
-    latest = get_template_latest_commit()
-    if manager.template_state.commit and latest and latest[0] != manager.template_state.commit:
+    if manager.template_state.commit and reviewed_commit != manager.template_state.commit:
         old_commit = manager.template_state.commit
-        new_commit = latest[0]
+        new_commit = reviewed_commit or "main"
         print()
         Logger.info("View template commit history since last sync:")
         print(
@@ -425,13 +490,24 @@ def action_check_updates(manager: SettingsManager, dry_run: bool) -> int:
         )
 
     # Save commit info to template directory for later sync
-    if latest and not dry_run:
-        template_dir = Path("tmp/extracted/pyproject-template-main")
-        if template_dir.exists():
-            commit_file = template_dir / ".template_commit"
-            commit_file.write_text(f"{latest[0]}\n{latest[1]}\n")
-            print()
-            Logger.info("After reviewing changes, use option [5] to mark as synced.")
+    if template_dir and reviewed_commit and not dry_run:
+        # Only the date needs the API; the SHA came off the archive itself, so
+        # a failed lookup costs the date and not the sync point. It must still
+        # be non-empty -- `action_mark_synced` reads a strict two-line file and
+        # would reject a blank second line as malformed.
+        info = get_template_commit(reviewed_commit)
+        commit_date = info[1] if info and info[1] else "unknown"
+        commit_file = template_dir / TEMPLATE_COMMIT_FILE
+        commit_file.write_text(f"{reviewed_commit}\n{commit_date}\n", encoding="utf-8")
+        print()
+        Logger.info("After reviewing changes, use option [5] to mark as synced.")
+    elif template_dir and not reviewed_commit and not dry_run:
+        # The extract is not named for a commit, so there is no identity to
+        # record. `resolve_template_ref` no longer falls back to a moving ref
+        # (#1026); this guards an extract left by an older version of it.
+        print()
+        Logger.warning("Could not determine which commit was reviewed; skipping sync-point record.")
+        Logger.info("Re-run the check with network access before marking as synced.")
 
     # Note: This only shows differences, it doesn't update files.
     # Template state is NOT updated here - only when user runs "Mark as synced".
@@ -439,7 +515,7 @@ def action_check_updates(manager: SettingsManager, dry_run: bool) -> int:
     return int(result)
 
 
-def action_configure(manager: SettingsManager, dry_run: bool) -> int:
+def action_configure(manager: SettingsManager, dry_run: bool, *, yes: bool = False) -> int:
     """Re-run configuration."""
     Logger.header("Running Configuration")
 
@@ -462,8 +538,8 @@ def action_configure(manager: SettingsManager, dry_run: bool) -> int:
 
     return int(
         run_configure(
-            auto=False,
-            yes=False,
+            auto=yes,
+            yes=yes,
             dry_run=dry_run,
             defaults=defaults,
         )
@@ -480,7 +556,6 @@ def action_repo_settings(manager: SettingsManager, dry_run: bool) -> int:
         Logger.info("  - Branch protection rulesets")
         Logger.info("  - Labels")
         Logger.info("  - GitHub Pages")
-        Logger.info("  - CodeQL code scanning")
         return 0
 
     # Import repo_settings module for repository configuration
@@ -506,24 +581,39 @@ def action_repo_settings(manager: SettingsManager, dry_run: bool) -> int:
         return 1
 
 
-def action_mark_synced(manager: SettingsManager, dry_run: bool) -> int:
-    """Mark project as synced to reviewed template commit."""
+def action_mark_synced(manager: SettingsManager, dry_run: bool, *, yes: bool = False) -> int:
+    """Mark project as synced to reviewed template commit.
+
+    Writes the sync point to `.config/pyproject_template/settings.toml` and
+    removes the downloaded template. It does not touch git: see #808.
+    """
     import shutil
-    import subprocess  # nosec B404 - subprocess is required for git operations
 
     Logger.header("Mark as Synced to Template")
 
     # Check for downloaded template with commit info
-    template_dir = Path("tmp/extracted/pyproject-template-main")
-    commit_file = template_dir / ".template_commit"
+    template_dir = find_extracted_template()
+    commit_file = (template_dir / TEMPLATE_COMMIT_FILE) if template_dir else None
 
-    if not commit_file.exists():
+    if commit_file is None or not commit_file.exists():
         Logger.error("No reviewed template found.")
+        if template_dir and extracted_template_commit(template_dir) is None:
+            # The extract is of a moving ref, not a commit: an older check
+            # could not pin the template and fell back to it (#1026).
+            Logger.info(
+                f"{template_dir} was extracted from a moving ref, not a commit, "
+                "so it cannot be recorded as a sync point."
+            )
+            Logger.info(
+                "This usually means the GitHub API was rate-limited. Set GITHUB_TOKEN "
+                "(e.g. GITHUB_TOKEN=$(gh auth token)) and run option [3] again."
+            )
+            return 1
         Logger.info("Run option [3] 'Check for template updates' first to review changes.")
         return 1
 
     # Read commit info from the reviewed template
-    lines = commit_file.read_text().strip().split("\n")
+    lines = commit_file.read_text(encoding="utf-8").strip().split("\n")
     if len(lines) < 2:
         Logger.error("Invalid commit file format")
         return 1
@@ -547,61 +637,42 @@ def action_mark_synced(manager: SettingsManager, dry_run: bool) -> int:
         Logger.info(f"Dry run: Would mark as synced to {new_commit}")
         return 0
 
-    # Confirm with user
-    confirm = prompt(f"Mark as synced to {new_commit}?", "Y")
-    if confirm.lower() not in ("y", "yes", ""):
-        Logger.warning("Cancelled")
-        return 0
+    # Confirm with user (skip when yes=True to auto-confirm)
+    if not yes:
+        confirm = prompt(f"Mark as synced to {new_commit}?", "Y")
+        if confirm.lower() not in ("y", "yes", ""):
+            Logger.warning("Cancelled")
+            return 0
 
     # Update template state
     manager.update_template_state(new_commit, new_date)
 
-    # Commit the settings file if there are changes
+    # Recording the sync point writes one file. Committing it is the user's,
+    # through the same Issue -> Branch -> PR flow as any other change.
+    #
+    # This used to stage, commit with hook verification disabled, and push --
+    # on whatever branch happened to be checked out, which for a sync starting
+    # from a clean `main` is `main` (#808). That skipped the very hooks this
+    # project relies on, including the one that blocks commits to `main`, and it
+    # did so from a prompt that only offered to "mark as synced".
     settings_file = ".config/pyproject_template/settings.toml"
-    try:
-        subprocess.run(["git", "add", settings_file], check=True)
-
-        # Check if there are staged changes to commit
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            capture_output=True,
-        )
-        if result.returncode != 0:
-            # There are changes to commit
-            subprocess.run(
-                [
-                    "git",
-                    "commit",
-                    "--no-verify",
-                    "-m",
-                    f"chore: sync template state to {new_commit}",
-                ],
-                check=True,
-            )
-            subprocess.run(["git", "push"], check=True)
-            Logger.success(f"Marked as synced to {new_commit}")
-        else:
-            # Settings file exists but wasn't committed (maybe already staged)
-            Logger.success(f"Marked as synced to {new_commit}")
-            print()
-            print(f"{Colors.BOLD}{Colors.YELLOW}*** IMPORTANT ***{Colors.NC}")
-            print(f"{Colors.BOLD}Don't forget to commit the settings file:{Colors.NC}")
-            print()
-            print("  # 1. Create an issue")
-            print("  doit issue --type=chore --title='Sync template state'")
-            print()
-            print("  # 2. Create branch, commit, and push")
-            print("  git checkout -b chore/<issue#>-sync-template-state")
-            print(f"  git add {settings_file}")
-            print(f"  git commit -m 'chore: sync template state to {new_commit[:12]}'")
-            print("  git push -u origin HEAD")
-            print()
-            print("  # 3. Create PR and merge")
-            print("  doit pr --title='chore: sync template state'")
-            print()
-    except subprocess.CalledProcessError as e:
-        Logger.error(f"Failed to commit: {e}")
-        return 1
+    Logger.success(f"Marked as synced to {new_commit}")
+    print()
+    print(f"{Colors.BOLD}{Colors.YELLOW}*** IMPORTANT ***{Colors.NC}")
+    print(f"{Colors.BOLD}Don't forget to commit the settings file:{Colors.NC}")
+    print()
+    print("  # 1. Create an issue")
+    print("  doit issue --type=chore --title='Sync template state'")
+    print()
+    print("  # 2. Create branch, commit, and push")
+    print("  git checkout -b chore/<issue#>-sync-template-state")
+    print(f"  git add {settings_file}")
+    print(f"  git commit -m 'chore: sync template state to {new_commit[:12]}'")
+    print("  git push -u origin HEAD")
+    print()
+    print("  # 3. Create PR and merge")
+    print("  doit pr --title='chore: sync template state'")
+    print()
 
     # Clean up template directory
     if template_dir.exists():
@@ -611,7 +682,13 @@ def action_mark_synced(manager: SettingsManager, dry_run: bool) -> int:
     return 0
 
 
-def action_template_cleanup(manager: SettingsManager, dry_run: bool) -> int:
+def action_template_cleanup(
+    manager: SettingsManager,
+    dry_run: bool,
+    *,
+    yes: bool = False,
+    cleanup_mode: str | None = None,
+) -> int:
     """Clean up template-specific files."""
     Logger.header("Template File Cleanup")
 
@@ -623,11 +700,27 @@ def action_template_cleanup(manager: SettingsManager, dry_run: bool) -> int:
         Logger.info("Dry run: Would prompt for cleanup mode and show files to delete")
         return 0
 
-    # Prompt user for cleanup mode
-    mode = prompt_cleanup()
-    if mode is None:
-        Logger.info("Keeping all template files")
+    mode = None
+
+    if cleanup_mode:
+        # CLI-specified mode (cleanup module is guaranteed available after guard above)
+        from cleanup import CleanupMode as CleanupModeEnum
+
+        mode_map = {"setup": CleanupModeEnum.SETUP_ONLY, "all": CleanupModeEnum.ALL}
+        mode = mode_map.get(cleanup_mode)
+        if mode is None:
+            Logger.error(f"Invalid cleanup mode: {cleanup_mode}. Use 'setup' or 'all'.")
+            return 1
+    elif yes:
+        # Non-interactive without explicit mode: skip cleanup (safer default)
+        Logger.info("Non-interactive mode: skipping cleanup (use --cleanup-mode to specify)")
         return 0
+    else:
+        # Interactive prompt
+        mode = prompt_cleanup()
+        if mode is None:
+            Logger.info("Keeping all template files")
+            return 0
 
     # Perform cleanup
     result = cleanup_template_files(mode, dry_run=False)
@@ -640,13 +733,16 @@ def action_template_cleanup(manager: SettingsManager, dry_run: bool) -> int:
     return 0
 
 
-def offer_cleanup_prompt() -> None:
+def offer_cleanup_prompt(*, yes: bool = False) -> None:
     """Offer to clean up template files after successful setup.
 
     This is called after "Create new project" or "Configure project" completes.
     """
     if prompt_cleanup is None or cleanup_template_files is None:
         return  # Cleanup module not available
+
+    if yes:
+        return  # Non-interactive mode: skip cleanup
 
     print()
     response = prompt("Would you like to clean up template-specific files? (y/N)", "n")
@@ -703,7 +799,7 @@ def prompt_initial_settings(manager: SettingsManager) -> None:
     print()
 
 
-def interactive_menu(manager: SettingsManager, dry_run: bool = False) -> int:
+def interactive_menu(manager: SettingsManager, dry_run: bool = False, *, yes: bool = False) -> int:
     """Run the interactive menu loop."""
     # Prompt for initial settings if not configured
     prompt_initial_settings(manager)
@@ -724,7 +820,11 @@ def interactive_menu(manager: SettingsManager, dry_run: bool = False) -> int:
 
         # Get recommended action
         recommended = get_recommended_action(
-            manager.context, manager.settings, manager.template_state, latest_commit
+            manager.context,
+            manager.settings,
+            manager.template_state,
+            latest_commit,
+            template_downloaded=_reviewed_template_is_ready(),
         )
 
         # Show menu
@@ -748,12 +848,12 @@ def interactive_menu(manager: SettingsManager, dry_run: bool = False) -> int:
             Logger.info(f"Dry run mode: {'enabled' if dry_run else 'disabled'}")
         elif choice in ("1", "2", "3", "4", "5", "6"):
             action = int(choice)
-            result = run_action(action, manager, dry_run)
+            result = run_action(action, manager, dry_run, yes=yes)
             if result == 0:
                 Logger.success("Action completed successfully")
                 # Offer cleanup after successful create/configure (but not for cleanup itself)
                 if action in (1, 2) and not dry_run:
-                    offer_cleanup_prompt()
+                    offer_cleanup_prompt(yes=yes)
             else:
                 Logger.error("Action failed")
             input("\nPress enter to return to menu...")
@@ -775,9 +875,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     subparsers.add_parser("create", help="Create new project from template")
     subparsers.add_parser("configure", help="Re-run configuration")
-    subparsers.add_parser("check", help="Check for template updates")
+    check_parser = subparsers.add_parser("check", help="Check for template updates")
+    check_parser.add_argument(
+        "--show-excluded",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="List paths skipped via .config/pyproject_template/sync-exclude.toml",
+    )
+    check_parser.add_argument(
+        "--template-version",
+        metavar="TAG",
+        default=argparse.SUPPRESS,
+        help="Compare against a specific template release tag (e.g. v2.2.0) instead of the latest",
+    )
     subparsers.add_parser("repo", help="Update repository settings")
     subparsers.add_parser("sync", help="Mark as synced to latest template")
+    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up template-specific files")
+    cleanup_parser.add_argument(
+        "--cleanup-mode",
+        choices=["setup", "all"],
+        help="Cleanup mode: 'setup' removes setup files only, 'all' removes all template files",
+    )
 
     # Global options
     parser.add_argument(
@@ -796,8 +914,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Only check for updates (CI-friendly, fails if can't auto-detect)",
     )
+    parser.add_argument(
+        "--show-excluded",
+        action="store_true",
+        help="With 'check': list paths skipped via .config/pyproject_template/sync-exclude.toml",
+    )
+    parser.add_argument(
+        "--template-version",
+        metavar="TAG",
+        default=None,
+        help=(
+            "With 'check': compare against a specific template release tag (e.g. v2.2.0) "
+            "instead of the latest. Pins the comparison so a staged upgrade takes one "
+            "release at a time and two runs produce the same diff."
+        ),
+    )
 
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    # Both parsers may declare these; SUPPRESS means an unset flag leaves no
+    # attribute at all, so fill the defaults once here rather than letting
+    # either parser's default overwrite the other's value.
+    if not hasattr(args, "show_excluded"):
+        args.show_excluded = False
+    if not hasattr(args, "template_version"):
+        args.template_version = None
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -815,10 +956,20 @@ def main(argv: list[str] | None = None) -> int:
             "check": 3,
             "repo": 4,
             "sync": 5,
+            "cleanup": 6,
         }
         action = command_map.get(args.command)
         if action:
-            return run_action(action, manager, args.dry_run)
+            cleanup_mode = getattr(args, "cleanup_mode", None)
+            return run_action(
+                action,
+                manager,
+                args.dry_run,
+                yes=args.yes,
+                cleanup_mode=cleanup_mode,
+                show_excluded=args.show_excluded,
+                template_version=args.template_version,
+            )
         return 1
 
     # Handle --update-only (CI mode)
@@ -826,7 +977,12 @@ def main(argv: list[str] | None = None) -> int:
         if not manager.settings.is_configured():
             Logger.error("Cannot auto-detect settings. Run interactively first.")
             return 1
-        return action_check_updates(manager, args.dry_run)
+        return action_check_updates(
+            manager,
+            args.dry_run,
+            show_excluded=args.show_excluded,
+            template_version=args.template_version,
+        )
 
     # Handle --yes (non-interactive mode)
     if args.yes:
@@ -837,10 +993,14 @@ def main(argv: list[str] | None = None) -> int:
         # Run recommended action non-interactively
         latest_commit = get_template_latest_commit()
         recommended = get_recommended_action(
-            manager.context, manager.settings, manager.template_state, latest_commit
+            manager.context,
+            manager.settings,
+            manager.template_state,
+            latest_commit,
+            template_downloaded=_reviewed_template_is_ready(),
         )
         if recommended:
-            return run_action(recommended, manager, args.dry_run)
+            return run_action(recommended, manager, args.dry_run, yes=True)
         Logger.success("Project is up to date, no action needed.")
         return 0
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24", "hatch-vcs>=0.4"]
+requires = ["hatchling>=1.32.4", "hatch-vcs>=0.5.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -33,6 +33,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: OS Independent",
     "Environment :: Console",
@@ -52,31 +53,37 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "doit>=0.36.0",
-    "pytest>=8.0",
+    "pytest>=9.1.1",
     "pytest-cov>=5.0",
     "pytest-xdist>=3.5",
     "pytest-asyncio>=0.21.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.7.0",
-    "ruff>=0.5",
-    "black>=23.0.0",
-    "mkdocs-material>=9.5",
-    "codespell>=2.2",
+    "ruff>=0.17.1",
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=1.0.7",
+    "pymdown-extensions>=12.3",
+    "codespell>=2.4.3",
     "rich>=13.0",
-    "pyproject-fmt>=2.0",
-    "commitizen>=3.0",
+    "pyproject-fmt>=2.30.3",
+    "commitizen>=4.19.2",
     "bandit>=1.7.0",
-    "safety>=3.0.0",
-    "pyright>=1.1.0",
+    "pyright>=1.1.414",
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0.12.20260906",
     "vulture>=2.11",
     "radon>=6.0",
     "griffe>=0.40",
+    "pytest-benchmark>=5.3.0",
+    "mutmut>=3.8.0",
+    "hypothesis>=6.170.2",
 ]
 security = [
-    "pip-audit>=2.6",
+    "pip-audit>=2.10.1",
     "bandit>=1.7",
+    "pip>=26.2.1",
     "pip-licenses>=4.0",
-    "safety>=3.0.0",
+    "cyclonedx-bom>=7.5.0",
 ]
 
 [project.urls]
@@ -129,6 +136,10 @@ exclude = [
 ]
 
 [tool.ruff.lint]
+# Enable preview mode but require rules to be listed by exact code so we
+# opt into PLW1514 without pulling in every other unstable preview rule.
+preview = true
+explicit-preview-rules = true
 select = [
     "E",      # pycodestyle errors
     "F",      # pyflakes
@@ -142,6 +153,7 @@ select = [
     "RUF",    # Ruff-specific rules
     "SIM",    # flake8-simplify
     "ASYNC",  # flake8-async
+    "PLW1514",  # require explicit encoding on text-mode file I/O (preview rule)
 ]
 ignore = [
     "ANN",    # TODO: Enable after adding type annotations to codebase
@@ -160,9 +172,13 @@ ignore = [
     "ANN401",  # Any return type for dynamic doit task responses
     "ANN001",  # Missing type annotation for function argument
     "ANN201",  # Missing return type annotation for public function
+    "RUF100",  # Adopted template files keep noqa for rules this repo disables
 ]
 "tests/**/*.py" = [
     "ANN",     # No type annotations required in tests
+]
+"tests/template/*.py" = [
+    "RUF100",  # Adopted template files keep noqa for rules this repo disables
 ]
 "**/__init__.py" = [
     "F401",    # Unused imports - intentional re-exports
@@ -196,6 +212,23 @@ disallow_any_generics = false
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 disallow_incomplete_defs = false
+exclude = [".claude/", ".codex/"]
+
+[[tool.mypy.overrides]]
+# tools/pyproject_template/ scripts run standalone and do `sys.path.insert`
+# before importing their siblings by bare name (`from utils import ...`).
+# mypy cannot resolve those, so suppress the import errors by naming the
+# sibling modules.
+module = [
+    "check_template_updates",
+    "cleanup",
+    "configure",
+    "repo_settings",
+    "settings",
+    "setup_repo",
+    "utils",
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -234,42 +267,97 @@ module = [
 ]
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+# Tests assert an attribute's value, call a method that changes it, then assert
+# again. mypy keeps the first narrowing across the call and reports the second
+# assert as unreachable, so the check is noise here.
+module = "tests.*"
+warn_unreachable = false
+
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "8.0"
+# pytest-benchmark reads its settings only from these flags, never from a pyproject table.
+# Disabled runs ignore them, so they apply only when a benchmark run adds --benchmark-enable.
 addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
     "--showlocals",
+    "--benchmark-disable",
+    "--benchmark-disable-gc",
+    "--benchmark-warmup=on",
 ]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 asyncio_mode = "auto"
-
-[tool.coverage.run]
-source = ["bastproxy"]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-    "*/__pycache__/*",
+norecursedirs = ["tmp", ".venv", ".git", ".uv-cache"]
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for multiple components",
+    "asyncio: Tests that use async/await",
+    "slow: Tests that take a long time to run",
+    "benchmark: marks tests as performance benchmarks (deselect with '--benchmark-disable')",
+    "property: marks tests as property-based tests (run with Hypothesis)",
 ]
 
+[tool.coverage.run]
+branch = true
+# `tools/` is the code that runs releases, creates PRs and blocks dangerous
+# commands, so it is measured alongside the package.
+source = ["bastproxy", "tools"]
+# tools/pyproject_template/ is the template's own management suite; its tests
+# are template-owned (ADR-9017), so it is not measured here.
+omit = ["tools/pyproject_template/*"]
+
 [tool.coverage.report]
-precision = 2
-show_missing = true
 skip_covered = false
+show_missing = true
+precision = 2
+# Measured at 32.53% over bastproxy + tools (branch) when the gate was adopted
+# in #7. The ~3pp margin is deliberate: a threshold set exactly at the measured
+# value fails on trivial variation. Raise it as coverage improves; treat
+# lowering it as a change that needs justification.
+fail_under = 29
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.coverage.html]
+directory = "tmp/htmlcov"
+
+[tool.coverage.xml]
+output = "tmp/coverage.xml"
 
 [tool.bandit]
 exclude_dirs = [
-    "tests/",
-    ".venv/",
-    "venv/",
-    "evennia/",
-    "data/",
-    "teststuff/",
-    "tools/pyproject_template/",
+    "tests",
+    "tmp",
+    ".venv",
+    "venv",
+    "evennia",
+    "data",
+    "teststuff",
+    "tools/pyproject_template",
+    "docs",
+    "examples",
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "site",
+    ".claude",
+    ".codex",
+    ".devcontainer",
+    ".vscode",
 ]
-skips = ["B301", "B307", "B401", "B403", "B603", "B604", "B606", "B607", "B608"]
+skips = ["B101", "B301", "B307", "B401", "B403", "B603", "B604", "B606", "B607", "B608"]
 
 [tool.codespell]
 skip = "tmp,.venv,.git,*.lock,*.pyc,__pycache__"
@@ -285,12 +373,88 @@ name = "cz_conventional_commits"
 version = "0.0.0"
 tag_format = "v$version"
 version_provider = "scm"
+update_changelog_on_bump = true
+major_version_zero = true
+merge_prerelease = true
+bump_pattern = "^(feat|fix|refactor|perf)"
+bump_map = { "feat" = "MINOR", "fix" = "PATCH", "refactor" = "PATCH", "perf" = "PATCH" }
+change_type_order = ["BREAKING CHANGE", "feat", "fix", "refactor", "perf"]
 
 [tool.pyright]
-include = ["src", "tests", "*.py", "tools"]
+# LSP support for Claude Code - provides fast code navigation and type checking
+include = [
+    "src",
+    "tests",
+    "*.py",           # Root level Python files (dodo.py)
+    "tools",          # Tools directory
+    ".github",        # Any Python in GitHub workflows/scripts
+]
+# tests/ is not a package, so pytest puts it on sys.path; mirror that here so
+# shared test helpers resolve for the LSP too.
+extraPaths = ["tests"]
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "**/tmp",
+    "**/.pytest_cache",
+    "**/.mypy_cache",
+    "**/.ruff_cache",
+    "**/site",        # mkdocs build output
+    "**/.git",
+]
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingImports = true
+reportMissingTypeStubs = false
 
 [tool.vulture]
 min_confidence = 80
-paths = ["src", "tests"]
+paths = ["src", "tests", "tools"]
+exclude = [
+    "*/tests/*",      # Test fixtures often appear unused
+    "*/__pycache__/*",
+]
+# Common false positives in Python projects
+ignore_names = [
+    # Imported under `if TYPE_CHECKING:` and referenced only from string
+    # annotations, which vulture does not parse.
+    "ConsoleType",
+    "test_*",         # Pytest test functions
+    "fixture_*",      # Pytest fixtures
+    "*_fixture",      # Pytest fixtures
+    "setUp",          # unittest methods
+    "tearDown",       # unittest methods
+    "setUpClass",     # unittest methods
+    "tearDownClass",  # unittest methods
+    # Existing src/ findings whitelisted when deadcode was adopted; review in #8
+    "exc_type",            # __exit__ protocol signature
+    "exc_val",             # __exit__ protocol signature
+    "exc_tb",              # __exit__ protocol signature
+    "datefmt",             # logging.Formatter.formatTime replacement signature
+    "check_dependencies",  # loader._api_load_plugins: accepted but never read (#8)
+]
+ignore_decorators = [
+    "@pytest.fixture",
+    "@pytest.mark.*",
+    "@click.command",
+    "@click.option",
+    "@click.group",
+    "@abstractmethod",
+]
+
+[tool.mutmut]
+source_paths = ["src/"]
+# The tests that exercise src/. mutmut runs them inside mutants/, a copy holding
+# src/, tests/ and the project files but not tools/ or the rest of the
+# repository. tests/test_mutmut_config.py fails when a test that imports the
+# package is missing from this list.
+pytest_add_cli_args_test_selection = [
+    "tests/libs/",
+    "tests/plugins/",
+]
+# mutmut passes -x to pytest itself. --assert=plain skips assertion rewriting,
+# which mutmut has no use for: it reads only whether the tests pass.
+pytest_add_cli_args = ["--assert=plain"]

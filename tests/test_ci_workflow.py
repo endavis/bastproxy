@@ -1,0 +1,218 @@
+"""Tests for the CI GitHub Actions workflow configuration.
+
+These tests are structural asserts on the parsed YAML. They do not execute the
+workflow -- they only verify its shape.
+
+Scope is intentionally minimal: we guard the three invariants that matter for
+issue #424:
+
+1. ``labeled`` is NOT in the ``pull_request`` event type list. Keeping it
+   there would cause every auto-applied label on a dependabot PR to spawn a
+   duplicate CI run (the motivation for the split introduced in #424).
+2. A workflow-level ``concurrency`` block exists with ``cancel-in-progress:
+   true`` and a key that includes ``github.head_ref || github.ref``. This
+   ensures a new push to a PR cancels the in-flight run on the prior commit.
+3. The ``workflow_call`` trigger exposes a ``full_matrix`` boolean input
+   (default ``false``) so the sibling ``ci-full-matrix.yml`` workflow can
+   dispatch the full-matrix run via ``uses: ./.github/workflows/ci.yml``.
+
+A fourth was added for issue #952: the ``lint`` job runs every check
+``doit check`` runs (``test`` aside), and each runs even when one before it
+failed, so a PR shows every failing check at once.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+WORKFLOW_PATH = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
+
+
+def _load_workflow() -> dict[Any, Any]:
+    """Load and parse the CI workflow YAML.
+
+    Return type is ``dict[Any, Any]`` (not ``dict[str, Any]``) because
+    PyYAML parses the ``on`` key as the boolean ``True`` (YAML 1.1 alias).
+
+    The explicit ``encoding="utf-8"`` is required for Windows, where the
+    default ``locale.getpreferredencoding()`` is cp1252 and chokes on any
+    non-ASCII content in the workflow file (lesson from issue #430).
+    """
+    # Bind to an annotated local first: yaml.safe_load returns Any,
+    # and returning Any from a typed function trips warn_return_any.
+    data: dict[Any, Any] = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    return data
+
+
+class TestWorkflowFile:
+    """The workflow file exists and parses as YAML."""
+
+    def test_workflow_file_exists(self) -> None:
+        """The CI workflow YAML file should exist."""
+        assert WORKFLOW_PATH.exists(), f"Workflow not found: {WORKFLOW_PATH}"
+
+    def test_workflow_parses_as_yaml(self) -> None:
+        """The workflow file should be valid YAML with a jobs dict."""
+        workflow = _load_workflow()
+        assert isinstance(workflow, dict)
+        assert "jobs" in workflow
+        assert isinstance(workflow["jobs"], dict)
+
+    def test_workflow_name(self) -> None:
+        """The workflow name is ``CI`` -- the required check-run in branch
+        protection and the name referenced by ``ci-full-matrix.yml``."""
+        workflow = _load_workflow()
+        assert workflow.get("name") == "CI"
+
+
+class TestPullRequestTriggerHasNoLabeledType:
+    """The main CI workflow should no longer fire on label events (issue #424).
+
+    Label-driven full-matrix runs are handled by ``ci-full-matrix.yml``, which
+    calls this workflow via ``workflow_call``. Leaving ``labeled`` in the
+    trigger list here would re-introduce the duplicate-run problem.
+    """
+
+    def test_labeled_not_in_pull_request_types(self) -> None:
+        """The ``labeled`` event type must NOT appear in ``pull_request.types``."""
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None, "workflow has no triggers block"
+        pr = triggers["pull_request"]
+        types = pr["types"]
+        assert "labeled" not in types, (
+            f"'labeled' must not be in pull_request.types; got {types}. "
+            "Label-driven runs are handled by ci-full-matrix.yml (issue #424)."
+        )
+
+    def test_pull_request_types_cover_core_lifecycle(self) -> None:
+        """The PR trigger must still cover the core lifecycle events.
+
+        We keep ``opened``, ``synchronize``, and ``reopened`` so that CI runs
+        on every push and on reopened PRs. Removing any of these would leave
+        a PR without CI coverage.
+        """
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        types = triggers["pull_request"]["types"]
+        for required in ("opened", "synchronize", "reopened"):
+            assert required in types, f"pull_request.types missing '{required}': {types}"
+
+
+class TestConcurrency:
+    """Workflow-level concurrency block cancels stale runs on new pushes."""
+
+    def test_concurrency_block_exists(self) -> None:
+        """The workflow must declare a top-level ``concurrency`` block."""
+        workflow = _load_workflow()
+        assert "concurrency" in workflow, "workflow must declare a concurrency block"
+
+    def test_concurrency_group_keyed_on_ref(self) -> None:
+        """The group key must reference ``head_ref || ref``.
+
+        ``head_ref`` is only set for PR events and points at the PR's source
+        branch; ``ref`` is the fallback for push/schedule/dispatch events.
+        Using the pair gives each PR its own concurrency lane while still
+        scoping main-branch runs to ``refs/heads/main``.
+        """
+        workflow = _load_workflow()
+        group: str = workflow["concurrency"]["group"]
+        assert "github.head_ref" in group
+        assert "github.ref" in group
+
+    def test_concurrency_cancel_in_progress(self) -> None:
+        """``cancel-in-progress: true`` supersedes stale runs on a new push."""
+        workflow = _load_workflow()
+        assert workflow["concurrency"]["cancel-in-progress"] is True
+
+
+class TestWorkflowCallInputs:
+    """``workflow_call`` exposes a ``full_matrix`` boolean input."""
+
+    def test_workflow_call_present(self) -> None:
+        """The workflow must be callable as a reusable workflow.
+
+        ``ci-full-matrix.yml`` invokes this workflow via
+        ``uses: ./.github/workflows/ci.yml``; removing ``workflow_call``
+        here breaks the full-matrix dispatch path.
+        """
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        assert "workflow_call" in triggers
+
+    def test_workflow_call_has_full_matrix_input(self) -> None:
+        """``workflow_call.inputs.full_matrix`` must be declared."""
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        wc = triggers["workflow_call"]
+        assert wc is not None, "workflow_call must declare an inputs block"
+        assert "inputs" in wc
+        assert "full_matrix" in wc["inputs"]
+
+    def test_full_matrix_input_is_boolean(self) -> None:
+        """The ``full_matrix`` input must be declared as a boolean."""
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        fm = triggers["workflow_call"]["inputs"]["full_matrix"]
+        assert fm["type"] == "boolean"
+
+    def test_full_matrix_input_defaults_false(self) -> None:
+        """The default must be ``false`` so plain ``workflow_call`` runs
+        the bookend matrix, matching the pre-#424 behavior."""
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        fm = triggers["workflow_call"]["inputs"]["full_matrix"]
+        assert fm["default"] is False
+
+
+def _lint_steps() -> list[dict[str, Any]]:
+    """Return the steps of the ``lint`` job."""
+    steps: list[dict[str, Any]] = _load_workflow()["jobs"]["lint"]["steps"]
+    return steps
+
+
+def _lint_check_steps() -> list[dict[str, Any]]:
+    """Return the ``lint`` job's steps that run a ``doit`` task."""
+    return [step for step in _lint_steps() if "doit " in step.get("run", "")]
+
+
+class TestLintJob:
+    """The lint job runs each check and reports every failing one (#952)."""
+
+    def test_lint_runs_every_check_but_test(self) -> None:
+        """Every ``doit check`` task runs in CI; ``test`` and ``docs_build`` have own jobs.
+
+        ``deadcode`` was in ``task_check`` but in no CI job, so a PR could add
+        dead code that only the daily check caught.
+        """
+        from tools.doit.quality import task_check
+
+        expected = set(task_check()["task_dep"]) - {"test", "docs_build"}
+        run = {step["run"].split("doit ", 1)[1].split()[0] for step in _lint_check_steps()}
+        assert run == expected
+
+    def test_docs_job_runs_docs_build(self) -> None:
+        """``docs_build`` is left out of the lint job only because the docs job runs it (#974)."""
+        steps: list[dict[str, Any]] = _load_workflow()["jobs"]["docs"]["steps"]
+        assert any("doit docs_build" in step.get("run", "") for step in steps)
+
+    def test_each_check_runs_after_an_earlier_failure(self) -> None:
+        """A failing check must not skip the checks after it."""
+        for step in _lint_check_steps():
+            condition = step.get("if", "")
+            assert "!cancelled()" in condition, f"{step['name']!r} is skipped after a failure"
+
+    def test_no_check_runs_without_dependencies(self) -> None:
+        """When the install fails, the checks are skipped, not each failed on its own."""
+        install = next(s for s in _lint_steps() if s.get("name") == "Install dependencies")
+        assert install.get("id") == "install"
+        for step in _lint_check_steps():
+            assert "steps.install.outcome == 'success'" in step.get("if", ""), step["name"]

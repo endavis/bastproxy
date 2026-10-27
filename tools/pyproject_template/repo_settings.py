@@ -3,8 +3,13 @@
 repo_settings.py - GitHub repository settings configuration.
 
 This module provides functions to configure GitHub repository settings,
-branch protection, labels, GitHub Pages, and CodeQL. It can be used
-independently of the full setup process.
+branch protection, labels, and GitHub Pages. It can be used independently
+of the full setup process.
+
+CodeQL scanning is configured via the committed workflow file at
+``.github/workflows/codeql.yml`` (advanced setup) -- no API call is
+required, because the workflow is replicated by the template generator
+along with all other workflow files. See issue #431.
 
 These functions are used by both setup_repo.py (initial setup) and
 manage.py (updating existing repositories).
@@ -395,58 +400,6 @@ def enable_github_pages(repo_full: str) -> bool:
         return False
 
 
-def configure_codeql(
-    repo_full: str,
-    template_repo: str = TEMPLATE_REPO,
-) -> bool:
-    """Configure CodeQL code scanning to match template.
-
-    Args:
-        repo_full: Full repository name (owner/repo)
-        template_repo: Template repository to copy CodeQL config from
-
-    Returns:
-        True if successful, False otherwise
-    """
-    Logger.step("Configuring CodeQL code scanning...")
-
-    try:
-        # Get CodeQL setup from template
-        template_codeql = GitHubCLI.api(f"repos/{template_repo}/code-scanning/default-setup")
-
-        if template_codeql.get("state") != "configured":
-            Logger.info("CodeQL not configured in template, skipping")
-            return True  # Not a failure, just nothing to do
-
-        # Replicate CodeQL configuration
-        codeql_data: dict[str, Any] = {
-            "state": "configured",
-            "query_suite": template_codeql.get("query_suite", "default"),
-        }
-
-        # Add languages if specified (will auto-detect if not provided)
-        if template_codeql.get("languages"):
-            codeql_data["languages"] = template_codeql["languages"]
-
-        GitHubCLI.api(
-            f"repos/{repo_full}/code-scanning/default-setup",
-            method="PATCH",
-            data=codeql_data,
-        )
-        Logger.success(
-            f"CodeQL configured with {template_codeql.get('query_suite', 'default')} query suite"
-        )
-        return True
-
-    except subprocess.CalledProcessError as e:
-        Logger.warning("CodeQL configuration failed")
-        if e.stderr:
-            print(f"  Error: {e.stderr.strip()}")
-        Logger.info("You can configure CodeQL manually at:")
-        Logger.info(f"  https://github.com/{repo_full}/security/code-scanning")
-        return False
-
-
 def update_all_repo_settings(
     repo_full: str,
     description: str,
@@ -456,6 +409,11 @@ def update_all_repo_settings(
     """Update all repository settings to match template.
 
     This is a convenience function that runs all configuration steps.
+
+    Note: CodeQL scanning is NOT configured here -- it is driven by the
+    committed ``.github/workflows/codeql.yml`` workflow file, which the
+    template generator copies into new repositories alongside every other
+    workflow. No API call is required. See issue #431.
 
     Args:
         repo_full: Full repository name (owner/repo)
@@ -471,6 +429,5 @@ def update_all_repo_settings(
         configure_branch_protection(repo_full, template_repo),
         replicate_labels(repo_full, template_repo),
         enable_github_pages(repo_full),
-        configure_codeql(repo_full, template_repo),
     ]
     return all(results)

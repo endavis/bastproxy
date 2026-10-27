@@ -1,0 +1,118 @@
+name: Mutation Testing
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Sunday midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+      # As in ci.yml: no per-example deadline, so a slow runner cannot fail a
+      # property test on timing and stop the run.
+      HYPOTHESIS_PROFILE: ci
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: pv
+        uses: ./.github/actions/python-versions
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.pv.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "latest"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Create BASTPROXY_HOME directory
+        run: mkdir -p "$BASTPROXY_HOME"
+
+      - name: Run mutmut
+        timeout-minutes: 120
+        run: |
+          mkdir -p tmp
+          # Surviving mutants do not fail this step. mutmut exits non-zero only
+          # when it cannot test the mutants at all, as when its stats run fails.
+          # This line used to end in `|| true`, which kept the job green through
+          # months of runs that checked no mutant (#873).
+          if ! uv run mutmut run > tmp/mutmut-run-raw.log 2>&1; then
+            echo "::error::mutmut could not test the mutants. The Mutation results step prints its log."
+            exit 1
+          fi
+
+      - name: Mutation results
+        if: always()
+        run: |
+          mkdir -p tmp
+          if [ -f tmp/mutmut-run-raw.log ]; then
+            # Strip spinner/carriage-return noise from log.
+            # mutmut renders progress with braille spinners + \r; convert \r to \n,
+            # drop blank lines, and drop the repeating spinner phrases.
+            tr '\r' '\n' < tmp/mutmut-run-raw.log \
+              | grep -v '^[[:space:]]*$' \
+              | grep -avE 'Generating mutants|Running stats|Running clean tests|Running mutation testing|Running forced fail test|^[[:space:]]*[^[:alnum:]]*[[:space:]]*[0-9]+/[0-9]+' \
+              > tmp/mutmut-run.log || true
+            echo "=== Mutation run log ==="
+            cat tmp/mutmut-run.log
+          fi
+          # mutmut leaves killed mutants out of its results unless asked with
+          # --all, and without them the run cannot give a score (#878).
+          uv run mutmut results --all true > tmp/mutmut-results.txt 2>/dev/null || true
+          echo "=== Mutants not killed ==="
+          grep -v ': killed$' tmp/mutmut-results.txt || true
+          counts=$(awk -F': ' 'NF {print $NF}' tmp/mutmut-results.txt | sort | uniq -c | sort -rn)
+          total=$(grep -c . tmp/mutmut-results.txt || true)
+          killed=$(grep -c ': killed$' tmp/mutmut-results.txt || true)
+          # The score as docs/development/ci-cd-testing.md defines it: killed
+          # mutants as a percentage of all mutants generated.
+          if [ "$total" -gt 0 ]; then
+            score="$(awk -v k="$killed" -v t="$total" 'BEGIN { printf "%.1f%%", 100 * k / t }') (${killed} of ${total} mutants killed)"
+          else
+            score="none, as mutmut listed no mutants"
+          fi
+          echo ""
+          echo "=== Summary ==="
+          if [ -n "$counts" ]; then
+            echo "$counts"
+          fi
+          echo "Mutation score: ${score}"
+          {
+            echo "### Mutation testing"
+            echo ""
+            echo "Mutation score: ${score}"
+            if [ -n "$counts" ]; then
+              echo ""
+              echo "| Status | Mutants |"
+              echo "| :--- | ---: |"
+              echo "$counts" | while read -r count status; do
+                echo "| ${status} | ${count} |"
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutation results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-results
+          path: tmp/mutmut-results.txt
+          retention-days: 90
