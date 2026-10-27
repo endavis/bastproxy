@@ -1661,14 +1661,14 @@ wheels = [
 
 [[package]]
 name = "pip-licenses"
-version = "5.5.0"
+version = "5.5.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prettytable" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/03/627620aa09aa51d6e9fc1f996c535caa2ade11b9cb161fbb0e71fb2fa608/pip_licenses-5.5.0.tar.gz", hash = "sha256:2473e7afd02a0c21460758f70fd2bb3b3c080c5150713dd33baa9493dc1563a5", size = 45467, upload-time = "2025-10-19T00:29:54.552Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/18/ddd93af610a04f56a51a27095ddfe55238e1ec236f6758730a0d2c0b49f2/pip_licenses-5.5.5.tar.gz", hash = "sha256:60750c006adf7a0910347b726e8ee9fee3bc8d2e7c8307a5c4ec0776c8e2a276", size = 54955, upload-time = "2026-03-28T22:12:56.48Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/a2/90d93f85d13bfcc19e63227bcede9e147c1c4d9260183f759ccd343b80e7/pip_licenses-5.5.0-py3-none-any.whl", hash = "sha256:ae1869436d13ee487088d29e71fc5821950062ad25ec28b6a1a443e0add6d8e8", size = 21581, upload-time = "2025-10-19T00:29:53.11Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/9a/6acfdb8d463eac7cdae7534d35d72237eca63f5fbafe797289d8a5fae447/pip_licenses-5.5.5-py3-none-any.whl", hash = "sha256:f4c4c6d9e6a03612cf59f29f19dc8ab54904d82e055b8e191498f2279a224e14", size = 23247, upload-time = "2026-03-28T22:12:54.89Z" },
 ]
 
 [[package]]
