@@ -13,6 +13,8 @@ including saving, loading, and context manager behavior.
 
 from pathlib import Path
 
+import pytest
+
 from bastproxy.libs.persistentdict import PersistentDict
 
 
@@ -210,6 +212,39 @@ class TestPersistentDict:
 
         default = pd.pop("missing", "default_val")
         assert default == "default_val"
+
+    def test_context_manager_saves_and_exits_cleanly(self, temp_data_dir: Path) -> None:
+        """Test that using PersistentDict as a context manager syncs and exits cleanly.
+
+        Args:
+            temp_data_dir: Temporary directory for test data.
+
+        """
+        filepath = temp_data_dir / "test.json"
+
+        with PersistentDict("test_owner", filepath) as pd:
+            pd["context_key"] = "context_value"
+
+        assert filepath.exists()
+
+        pd2 = PersistentDict("test_owner", filepath)
+        assert pd2["context_key"] == "context_value"
+
+    def test_context_manager_exits_cleanly_on_exception(self, temp_data_dir: Path) -> None:
+        """Test that `__exit__` still syncs data when the `with` block raises.
+
+        Args:
+            temp_data_dir: Temporary directory for test data.
+
+        """
+        filepath = temp_data_dir / "test.json"
+
+        with pytest.raises(ValueError, match="boom"), PersistentDict("test_owner", filepath) as pd:
+            pd["key_before_error"] = "value"
+            raise ValueError("boom")
+
+        pd2 = PersistentDict("test_owner", filepath)
+        assert pd2["key_before_error"] == "value"
 
     def test_setdefault_method(self, temp_data_dir: Path) -> None:
         """Test setdefault method.
