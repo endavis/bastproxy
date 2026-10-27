@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793113483159,
+  "lastUpdate": 1793116492303,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -90,6 +90,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008670786474575848",
             "extra": "mean: 291.6095864598013 usec\nrounds: 3545"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da2ad82965b84cb7f459086f6ced25a8fed4510a",
+          "message": "chore: synchronize docs with pyproject-template and record sync point (merges PR #23)\n\nThird and last PR syncing to template d80ce96, per #7. Records the\nnew sync point (2c1171b -> d80ce96).\n\nTemplate improvements adopted:\n- ADRs 9001-9004, 9006-9017, 9020-9022, 9026 and the ADR index\n- docs/development: ci-cd-testing, coding-standards,\n  dependabot-automerge, doit-tasks-reference, extensions,\n  github-repository-settings, install-tools-framework,\n  release-and-automation, tooling-roles\n- docs/template: index, manage, migration, new-project,\n  tools-reference, updates\n- generated docs/TABLE_OF_CONTENTS.md, tools/generate_doc_toc.py and\n  the generate-doc-toc pre-commit hook (re-enabled)\n- mkdocs.yml nav and validation from the template\n- the doc-scanning tests deferred from #9 and #21\n\nbastproxy docs:\n- docs/index.md rewritten for bastproxy\n- old template leftover pages removed (api, examples, extensions,\n  installation, migration, usage)\n- docs/claude architecture notes: frontmatter, repo-root paths,\n  Architecture section in the nav\n- .config/pyproject_template/sync-exclude.toml for paths bastproxy\n  deliberately does not adopt\n- project URLs, README badges and clone instructions moved from the\n  old bastproxy-py3 name to endavis/bastproxy\n\nTemplate main moved to e7571f7 during this PR; that change is left\nfor the next sync.\n\nPart of #7\nCloses #22",
+          "timestamp": "2026-10-27T15:54:05Z",
+          "tree_id": "6afde6184a769217002968b17a07ea825ca21523",
+          "url": "https://github.com/endavis/bastproxy/commit/da2ad82965b84cb7f459086f6ced25a8fed4510a"
+        },
+        "date": 1793116491686,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2128.1632117373088,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000168322177804613",
+            "extra": "mean: 469.88877285575205 usec\nrounds: 2122"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1863.8169043250907,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001892591291823485",
+            "extra": "mean: 536.5333889178945 usec\nrounds: 1913"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3444.0902972535982,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011982985820845942",
+            "extra": "mean: 290.35243378996904 usec\nrounds: 3504"
           }
         ]
       }
