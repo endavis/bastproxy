@@ -1,889 +1,352 @@
-# Python Project Template – AI Agent Unified Instructions
+# Python Project Template – AI Agent Instructions
 
 ## Overview
-This is a modern Python project template using `uv` for package management, `doit` for task automation, `ruff` for formatting/linting, and `mypy` for type checking. The template follows best practices for Python development with comprehensive CI/CD workflows and strict code quality standards.
+**Reference:** [README.md](README.md)
+Modern Python template using `uv`, `doit`, `ruff`, and `mypy`.
+
+## ⚠️ CORE MANDATE: PROFESSIONAL INTEGRITY
+You are a senior coding partner. Your goal is efficient, tested, and compliant code.
+- **Do not aim to please:** Prioritize standards over user requests that violate them.
+- **Enforce Workflows:** If the user attempts to bypass a process, you must correct them.
+- **Be Direct:** No fluff, no apologies, no excessive politeness.
+
+## Agent Role & Expertise
+**You are an expert Python developer.**
+- **Mission:** Maintain code quality, follow patterns, and improve the codebase.
+
+## ⚠️ MANDATORY PROTOCOLS (READ FIRST)
+
+### 1. Communication Protocol
+- **Questions != Instructions:** If the user asks "What...", "How...", or "Can we...", answer with a **PLAN** or **EXPLANATION**.
+- **NEVER implement based on a question.** Wait for explicit "Do it" or "Proceed".
+- **Stop & Verify:** If the user says "Stop", "Wait", "Hold on", "Cancel", "Wrong", or "No", immediately halt and ask for clarification.
+- **Summary Before Commit:** At the end of any implementation (docs, fix, feature, chore, etc.), summarize what was changed for the user before committing and wait for the user's explicit instruction to commit the changes. **Exception:** the user saying "implement issue X" (the `implement-issue` skill) authorizes commit, push, and PR creation on that issue's own branch without a further wait — see [Slash Commands and Workflows — implement issue N](docs/development/ai/slash-commands.md#implement-issue-n).
+- **Failing Tests:** Never modify a test to make it pass. Stop, explain *why* the test broke (what behavior changed, what the test was asserting), and discuss with the user whether the code or the test should change. A failing test is a signal, not a problem to silence.
+
+### 2. Task Planning Protocol
+- **Plan First:** Before writing code, you MUST present a checklist:
+  1. Implementation Plan
+  2. Test Plan (Mandatory)
+  3. Validation Plan (`doit check`)
+- **No Shortcuts:** Tests are created *with* the implementation, not after.
+- **Pre-Commit Validation:** Run `doit check` locally *before* staging files to avoid pre-commit hook failures.
+
+### 3. Error Recovery Protocol
+- **Stop on Error:** If an action fails or you realize a mistake, **STOP**. Do not attempt to "fix it quickly" or revert silently.
+- **Report & Wait:** Report the error/mistake to the user, explain the state, propose a fix, and **WAIT** for confirmation.
+- **No Auto-Reverts:** Do not revert changes unless explicitly instructed or if the change caused a critical system failure blocking further interaction.
+
+### 4. When Blocked Protocol
+- **Blocked ≠ Broken:** If a command is blocked (merge fails, push rejected, permission denied), it is blocked FOR A REASON.
+- **Investigate First:** Ask "WHY is this blocked?" before anything else.
+- **NEVER Bypass:** Do not use `--admin`, `--force`, `--no-verify`, or similar flags to override blocks.
+- **Report & Wait:** Explain what's blocked and ask the user how to proceed.
+
+> **Note:** Dangerous commands are also blocked at the tool level by hooks in `tools/hooks/ai/`. See the [AI Command Blocking](docs/development/ai/command-blocking.md) documentation.
+
+### 5. Pre-Action Checks (Dynamic Context)
+**Do not rely on pre-loaded context.** You MUST read these files *immediately before* acting:
+
+| Intent / Action | **MUST READ** Rule Source | Purpose |
+| :--- | :--- | :--- |
+| **New Feature** (Check for duplicates) | `.github/ISSUE_TEMPLATE/feature_request.yml` | Required fields & structure. |
+| **Refactoring** | `.github/ISSUE_TEMPLATE/refactor.yml` | Success criteria requirements. |
+| **Bug Fix** (Check for duplicates) | `.github/ISSUE_TEMPLATE/bug_report.yml` | Reproduction steps format. |
+| **PR Template** | `.github/pull_request_template.md` | Required structure & checklist items. |
+| **Committing** | `.github/CONTRIBUTING.md` (Commit Guidelines) | `<type>: <subject>` format. |
+| **New Dependency** | `.github/CONTRIBUTING.md` (Dependencies) | "Ask First" policy. |
+| **Creating Code** | `.claude/CLAUDE.md` (TodoWrite) | Plan -> Test -> Code loop. |
+| **Generating new code** | `docs/development/ai/architectural-conventions.md` | Layering rules and anti-patterns to avoid before writing code. |
+| **Architectural Decision** | `docs/decisions/README.md` | Check for related ADRs to update. |
+| **Editing AI agent config** (commands, skills, hooks, instruction files) | `docs/development/AI_SETUP.md` | Per-agent config roots, discovery rules and hook wiring. |
+| **Creating an issue, PR or ADR** | `.github/CONTRIBUTING.md` (Development Workflow) | The commands, their flags, and the required fields. |
+| **Merging a dependabot PR** | `docs/development/dependabot-automerge.md` | Rebase procedure; never `update-branch` — it strips signatures. |
+
+### 6. Decision Framework
+
+| Status | Trigger | Action |
+| :--- | :--- | :--- |
+| ✅ **ALWAYS** | Obvious fixes, docs, tests, refactoring (same behavior) | **Proceed Autonomously** |
+| ⚠️ **ASK FIRST** | Scope expansion, new deps, architecture, ambiguous requests | **Propose & Wait** |
+| 🚫 **NEVER** | Commit to `main`, skip hooks, release, commit secrets, bypass blocks (`--admin`, `--force`) | **Refuse & Explain** |
+
+### Examples: Prohibited vs. Correct Reasoning
+
+**Understanding what constitutes an "assumption" or "judgment call":**
+
+**❌ PROHIBITED - These are assumption-based judgment calls:**
+- "This change is small/trivial, so I don't need to follow the full workflow"
+- "This is just a typo fix, so I can commit directly to main"
+- "GitHub will automatically close the issue with 'Addresses #XX' syntax, so I don't need to verify"
+- "The user probably wants me to proceed without asking"
+- "This seems obvious, so I'll skip the issue creation step"
+- "It's just documentation, so tests aren't needed"
+- "I'll commit now and create the issue afterward"
+- "The merge is blocked, so I'll use --admin to force it through"
+- "CI hasn't finished but I'll bypass with --admin"
+
+**✅ CORRECT - These follow documented rules:**
+- "The workflow says Issue → Branch → Commit → PR → Merge, so I will follow every step regardless of change size"
+- "I'm not sure if I should close the issue manually, so I will ask the user"
+- "The documentation says 'NEVER commit to main' with no exceptions, so I will create a branch"
+- "AGENTS.md says to create tests when writing new code, so I will create them even though this is simple"
+- "I don't see explicit documentation about this case, so I will ask the user before proceeding"
+- "The rule says 'NO EXCEPTIONS' so I will not evaluate if this qualifies as an exception"
+- "The merge is blocked, so I will investigate why and ask the user before attempting to bypass"
+
+**Key principle:** If you find yourself thinking "but this case is different because..." or "this is simple enough to...", you are making a judgment call. STOP and follow the documented process or ASK the user.
+
+Some of these are blocked in code as well as forbidden here — committing to `main` and the `--admin` bypasses are stopped by hooks and branch rules, listed in [AI Enforcement Principles — Currently Enforced Processes](docs/development/ai/enforcement-principles.md#currently-enforced-processes). The rest are enforced only by you reading this. A hook matches a command pattern, not the reasoning that reached for it.
+
+## Sources of Truth
+
+**DO NOT HALLUCINATE RULES.** Read these files to know what to do:
+
+| Topic | Source File | Context |
+| :--- | :--- | :--- |
+| **Project Details** | `docs/index.md` | Overview and index of documentation. |
+| **Workflow & Git** | `.github/CONTRIBUTING.md` | Branching, Commits, PR process. |
+| **Code Style** | `.github/CONTRIBUTING.md` | Python standards, naming, typing. |
+| **Testing** | `.github/CONTRIBUTING.md` | Test patterns, coverage rules. |
+| **Security** | `.github/SECURITY.md` | Policy, sensitive data handling. |
+| **Architecture & Layering** | `docs/development/ai/architectural-conventions.md` | Imperative-form rules for AI agents. |
+| **Slash Commands & Workflows** | `docs/development/ai/slash-commands.md` | Reference for "implement issue N", self-action review/adversarial-review, and cross-agent workflows. |
+| **AI Agent Walkthrough** | `docs/development/ai/first-5-minutes.md` | Narrative onboarding for the AI agent workflow (plan → implement → review → PR → merge). |
 
-**AI Agent Compatibility:**
-- **Codex CLI**: This file is read directly by Codex CLI (use `/init` to regenerate)
-- **Gemini CLI**: This file is read directly by Gemini CLI (also supports `GEMINI.md`)
-- **Claude Code**: Referenced via `.claude/claude.md`
-- **Other AI tools**: Can reference this as general project documentation
+## bastproxy Project Context
 
-## Repository Structure & Architecture
+bastproxy is an asyncio MUD proxy with a plugin system. The sections above are shared template instructions; this one is specific to this project.
 
-### Directory Layout
-```
-.
-├── .github/
-│   ├── workflows/           # CI/CD workflows
-│   │   ├── ci.yml          # Continuous Integration (test, lint, type-check)
-│   │   ├── testpypi.yml    # Dev releases (prerelease v* tags → TestPyPI)
-│   │   └── release.yml     # Production releases (v* tags → PyPI)
-│   ├── ISSUE_TEMPLATE/     # GitHub issue templates
-│   │   ├── bug_report.md   # Bug report template
-│   │   └── feature_request.md # Feature request template
-│   ├── CODEOWNERS          # Code ownership definitions
-│   ├── SECURITY.md         # Security policy
-│   ├── dependabot.yml      # Automated dependency updates
-│   └── pull_request_template.md # PR template
-├── .claude/                # Claude Code configuration
-│   ├── claude.md           # Imports AGENTS.md
-│   └── settings.local.json # Command permissions
-├── .codex/                 # Codex CLI configuration
-│   └── config.toml         # Command whitelisting and approval policies
-├── .devcontainer/          # VS Code Remote Containers configuration
-│   └── devcontainer.json   # Container development environment
-├── .gemini/                # Gemini CLI configuration
-│   └── settings.json       # Tool allowlists and context files
-├── .vscode/                # VS Code configuration
-│   ├── settings.json       # Editor settings
-│   └── extensions.json     # Recommended extensions
-├── docs/                   # Documentation
-│   ├── index.md            # Documentation home
-│   ├── installation.md     # Installation guide
-│   ├── usage.md            # Usage guide
-│   ├── api.md              # API reference
-│   ├── extensions.md       # Optional tools and extensions guide
-│   └── migration.md        # Migration guide
-├── examples/               # Usage examples
-│   ├── README.md           # Examples overview
-│   ├── basic_usage.py      # Basic usage example
-│   ├── advanced_usage.py   # Advanced features example
-│   └── cli_usage.py        # CLI usage example
-├── src/
-│   └── bastproxy/       # Main package source code
-│       ├── __init__.py     # Package initialization, exports __version__
-│       ├── _version.py     # Version info (generated by hatch-vcs from git tags during build)
-│       └── py.typed        # PEP 561 type marker
-├── tests/                  # Test suite
-│   └── test_example.py     # Example tests
-├── tmp/                    # All temporary files (git-ignored)
-│   ├── .ruff_cache/       # Ruff linting cache
-│   ├── .mypy_cache/       # Mypy type checking cache
-│   ├── .pytest_cache/     # Pytest cache
-│   ├── htmlcov/           # HTML coverage reports
-│   ├── coverage.xml       # XML coverage for Codecov
-│   ├── .coverage          # Coverage data file
-│   ├── .pre-commit/       # Pre-commit cache
-│   └── .uv_cache/         # UV package cache
-├── .editorconfig          # Editor configuration
-├── .envrc                 # direnv configuration (committed)
-├── .envrc.local.example   # direnv local overrides template
-├── .gitignore            # Git ignore patterns
-├── .pre-commit-config.yaml  # Pre-commit hooks configuration
-├── .python-version       # Python version specification (3.12)
-├── AGENTS.md             # AI agent documentation
-├── AI_SETUP.md           # AI tools setup guide
-├── CHANGELOG.md          # Release history
-├── dodo.py               # Task automation definitions
-├── LICENSE               # Project license (MIT by default)
-├── pyproject.toml        # Project metadata and tool configuration
-└── README.md             # Project documentation
-```
+- **`BASTPROXY_HOME` must exist.** Importing `bastproxy` raises unless `BASTPROXY_HOME` points at an existing, writable directory (data, plugin settings and logs live there). `.envrc` defaults it to `~/bastproxy`; for local test runs use `BASTPROXY_HOME=$PWD doit check` if that directory does not exist. CI creates `tmp/bastproxy_home`.
+- **Layout:** `src/bastproxy/libs/` holds the framework (API, records, networking, plugin loader); `src/bastproxy/plugins/` holds plugins (`core/`, `debug/`, `test/`, plus `_baseplugin/`). Tests mirror this in `tests/libs/` and `tests/plugins/`. The entry point is the `bastproxy` console script (`bastproxy:main`).
+- **Architecture notes:** `docs/claude/` describes the API, command, event, plugin, record, settings, timer and trigger systems. Read the relevant page before changing one of them.
+- **Plugin development:** the root `CONTRIBUTING.md` covers plugin structure (its run instructions predate the `src/` layout).
+- **Legacy strictness:** ruff ignores `ANN`, `N`, `E501` and some `SIM` rules, and mypy has `ignore_errors` overrides for several `bastproxy.*` packages. These are tracked for tightening in #6; do not widen them, and do not fix them opportunistically in unrelated changes.
 
-### Key Architectural Decisions
+## Template Layers and Guarded Docs
 
-**Package Structure:**
-- `src/` layout for proper package installation and imports
-- `_version.py` is a stub; the built version file is generated by hatch-vcs from git tags
-- Version is derived from git tags via hatch-vcs (no manual edits)
+Configuration turns this template into a project. Know which layer a file belongs to before editing it:
 
-**Temporary Files Pattern:**
-- All cache and temporary files go in `tmp/` directory
-- Keeps project root clean and organized
-- Configurable via environment variables in `.envrc`
+- **The package**: `src/package_name/`, renamed to the project's package on configuration.
+- **Dev tooling that ships**: `tools/doit/`, `tools/hooks/` and their tests. The tests ship too; shedding them broke a spawned project's coverage gate (#731).
+- **Template-owned, shed on configuration**: `tools/pyproject_template/`, `bootstrap.py`, `README.template.md` (renamed onto `README.md`), and only the tests in `TEMPLATE_OWNED_TEST_FILES`. `tests/template/` is not shed wholesale.
 
-**Environment Management:**
-- `direnv` for automatic environment variable loading
-- `.envrc` (committed) contains project defaults
-- `.envrc.local` (git-ignored) for personal overrides
-- `.envrc.local.example` provides template for local settings
+A test is template-owned when its target does not survive configuration ([ADR-9017](docs/decisions/9017-template-tooling-and-its-tests-are-template-owned.md)). A test that ships must never depend on shed code (#691).
 
-## State, Data Flow, and Artifacts
+**ADR numbering:** template decisions use the 9XXX series (`doit adr --template`), project decisions the 0001 series (`doit adr`). See [Tooling Roles](docs/development/tooling-roles.md).
 
-### Build Artifacts
-- **Source distributions**: `dist/*.tar.gz` (generated by `uv build`)
-- **Wheel distributions**: `dist/*.whl` (generated by `uv build`)
-- **Coverage reports**: `tmp/htmlcov/index.html` (HTML), `tmp/coverage.xml` (XML for Codecov)
+**Docs and AI config are test-guarded.** Editing docs, `AGENTS.md`, rule files or agent commands and skills can fail `doit test`, for example in `tests/test_instruction_pointers.py`, `tests/test_cross_agent_contract.py` and `tests/test_markdown_links.py`. A change to one agent's command, skill or rule must be mirrored across `.claude/`, `.github/` and `.agents/`.
 
-### Version Management Flow
-1. Developer creates git tag (prerelease `v1.0.0-alpha.1` for TestPyPI, `v1.0.0` for PyPI)
-2. GitHub Actions workflow triggered
-3. hatch-vcs reads the tag and injects the version into the build (no file rewrites)
-4. Package built with correct version
-5. Published to TestPyPI (prerelease v* tags) or PyPI (v* tags)
-
-**Important for AI Agents:** The `version = "0.0.0"` in `pyproject.toml` is a placeholder. The **Single Source of Truth** for the project's version is the Git tag. AI agents should not attempt to manually update the `pyproject.toml` version during regular development. This is handled automatically by the CI/CD release workflow.
-
-### Cache Management
-All caches stored in `tmp/` and configured via environment variables in `.envrc`:
-- `UV_CACHE_DIR` → `tmp/.uv_cache` (uv package cache)
-- `RUFF_CACHE_DIR` → `tmp/.ruff_cache` (ruff linting cache)
-- `MYPY_CACHE_DIR` → `tmp/.mypy_cache` (mypy type checking cache)
-- `COVERAGE_FILE` → `tmp/.coverage` (coverage data file)
-- `PRE_COMMIT_HOME` → `tmp/.pre-commit` (pre-commit hooks cache)
-
-## Configuration & Environment Variables
-
-### direnv Setup
-The project uses `direnv` for automatic environment management:
-
-1. **Allow direnv**: `direnv allow`
-2. **Optional - Create local overrides**: `cp .envrc.local.example .envrc.local`
-3. **Customize** `.envrc.local` with personal settings (API keys, debug flags, etc.)
-
-When you `cd` into the project directory, direnv automatically:
-- Activates the virtual environment
-- Sets all cache directories to `tmp/` subdirectories
-- Loads `.envrc.local` for personal overrides (if it exists)
-- Adds `.venv/bin` to PATH
-
-### Environment Variables
-
-**Cache Directories (set in `.envrc`):**
-- `UV_CACHE_DIR` → `tmp/.uv_cache` (uv package cache)
-- `RUFF_CACHE_DIR` → `tmp/.ruff_cache` (ruff linting cache)
-- `MYPY_CACHE_DIR` → `tmp/.mypy_cache` (mypy type checking cache)
-- `COVERAGE_FILE` → `tmp/.coverage` (coverage data file)
-- `PRE_COMMIT_HOME` → `tmp/.pre-commit` (pre-commit hooks cache)
-
-**CI/CD Secrets (set in GitHub Actions):**
-- `PYPI_TOKEN`: PyPI API token for publishing
-- `CODECOV_TOKEN`: Codecov token for coverage upload
-
-**Custom Variables:**
-Add custom variables to `.envrc.local` (git-ignored, never committed)
-
-## Development & Testing
-
-### Setup
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-
-# Install pre-commit hooks
-doit pre_commit_install
-
-# Optional: Install direnv for automatic environment management
-doit install_direnv
-# Then hook direnv into your shell and run:
-direnv allow
-# Optional: Create .envrc.local for personal settings
-cp .envrc.local.example .envrc.local
-```
-
-### Common Development Tasks
-
-**Testing:**
-```bash
-doit test          # Run all tests
-doit coverage      # Run tests with coverage report
-```
-
-**Code Quality:**
-```bash
-doit format        # Format code with ruff
-doit format_check  # Check formatting without changes
-doit lint          # Run ruff linting
-doit type_check    # Run mypy type checking
-doit check         # Run all checks (format_check, lint, type_check, test)
-```
-
-**Pre-commit:**
-```bash
-doit pre_commit_install  # Install pre-commit hooks
-doit pre_commit_run      # Run pre-commit on all files
-```
-
-**Dependency Management:**
-```bash
-doit update_deps   # Update all dependencies and verify with tests
-```
-
-**Build & Publish:**
-```bash
-doit build         # Build package distributions
-doit publish       # Publish to PyPI (requires PYPI_TOKEN)
-```
-
-**Release Management:**
-```bash
-doit release # Release a new version (automatic version bump)
-```
-
-**Maintenance:**
-```bash
-doit cleanup       # Deep clean: remove all build artifacts, caches, and temp files
-doit list          # Show all available tasks
-doit fmt_pyproject # Format and organize pyproject.toml
-```
-
-**Security & Compliance:**
-```bash
-doit audit         # Run security audit with pip-audit (requires security extras)
-doit security      # Run security scan with bandit (requires security extras)
-doit licenses      # Check licenses of dependencies (requires security extras)
-doit spell_check   # Check for typos in code and documentation
-```
-
-### Using New Development Tools
-
-**pyproject-fmt - Format pyproject.toml:**
-```bash
-# Format and organize pyproject.toml automatically
-doit fmt_pyproject
-
-# The tool will:
-# - Sort sections and dependencies alphabetically
-# - Apply consistent formatting
-# - Remove redundant entries
-# - Organize project metadata
-```
-
-**commitizen - Conventional Commits:**
-```bash
-# Interactive commit creation (ensures proper format)
-# 1. Stage your changes: git add .
-# 2. Run the commit task:
-doit commit
-# 3. Follow the prompts to create a properly formatted commit
-
-# Note: Configured in pyproject.toml under [tool.commitizen]
-```
-
-**pip-licenses - Check Dependency Licenses:**
-```bash
-# View all dependency licenses (requires security extras)
-doit licenses
-
-# Output shows: Package | Version | License | Author
-# Useful for compliance audits and OSS license reviews
-# Results are formatted as a markdown table sorted by license type
-```
-
-### Testing Workflow
-- Write tests in `tests/` directory
-- Follow pytest conventions: `test_*.py`, `Test*` classes, `test_*` functions
-- Use fixtures for common test setup
-- Maintain test coverage ≥80% (configurable in CI)
-- Run tests before committing: `doit check`
-
-### Examples & Learning Resources
-
-The `examples/` directory contains runnable example scripts demonstrating package usage:
-
-**`examples/basic_usage.py`** - Getting started
-- Package imports and version checking
-- Basic operations and common patterns
-- Simple error handling
-```bash
-python examples/basic_usage.py
-```
-
-**`examples/advanced_usage.py`** - Advanced features
-- Configuration and setup patterns
-- File processing workflows
-- Batch operations
-- Logging best practices
-```bash
-python examples/advanced_usage.py
-```
-
-**`examples/cli_usage.py`** - Command-line interface examples
-- CLI command patterns
-- Programmatic CLI usage
-- Output formatting options
-```bash
-python examples/cli_usage.py
-```
-
-See `examples/README.md` for detailed documentation of each example.
-
-### VS Code Integration
-
-The project includes VS Code configuration for an optimal development experience:
-
-**`.vscode/settings.json`** - Editor settings
-- Python interpreter configured to `.venv/bin/python`
-- Ruff as default formatter with format-on-save enabled
-- Test discovery configured for pytest
-- Type checking enabled with mypy
-- Line length set to 100 characters
-
-**`.vscode/extensions.json`** - Recommended extensions
-- Python (ms-python.python) - Python language support
-- Ruff (charliermarsh.ruff) - Fast linting and formatting
-- Mypy (ms-python.mypy-type-checker) - Type checking
-- GitLens (eamodio.gitlens) - Git integration
-- Better Comments (aaron-bond.better-comments) - Comment highlighting
-- Markdown All in One (yzhang.markdown-all-in-one) - Markdown support
-
-**Opening the project in VS Code:**
-1. VS Code will prompt to install recommended extensions
-2. Select the Python interpreter from `.venv/`
-3. Format on save and linting work automatically
-4. Tests can be run through the Testing sidebar
-
-### Remote Container Development
-
-The project includes VS Code Remote Containers support for consistent development environments:
-
-**`.devcontainer/devcontainer.json`** - Container configuration
-- Based on official Python 3.12 development container
-- Includes git and GitHub CLI
-- Pre-configured with VS Code extensions (Ruff, Pylance, etc.)
-- Automatically installs dependencies with uv
-- Sets up pre-commit hooks on container creation
-- Mounts your local git config for seamless git operations
-
-**Using Remote Containers:**
-1. Install the "Remote - Containers" extension in VS Code
-2. Open the project in VS Code
-3. Click "Reopen in Container" when prompted (or use Command Palette: "Remote-Containers: Reopen in Container")
-4. Container builds and configures automatically
-5. Development environment is ready to use with all tools installed
-
-**Benefits:**
-- Consistent environment across different machines
-- No need to install Python, uv, or other tools locally
-- Isolated from your host system
-- Easy onboarding for new contributors
-
-## CI/CD Workflows
-
-### Continuous Integration (ci.yml)
-**Trigger:** Push to main/develop or pull requests
-
-**Steps:**
-1. Test on multiple Python versions (3.12, 3.13)
-2. Run format check (`ruff format --check`)
-3. Run linting (`ruff check`)
-4. Run type checking (`mypy`)
-5. Run tests with coverage
-6. Upload coverage to Codecov (Python 3.12 only)
-
-**Requirements:** All checks must pass before merge
-
-### Development Releases (testpypi.yml)
-**Trigger:** Push tags matching prerelease `v*` (e.g., `v1.0.0-alpha.1`, `v1.2.3-rc.0`)
-
-**Tag Format:** Pre-release SemVer with `v` prefix (e.g., `v1.0.0-alpha.1`)
-
-**Process:**
-1. hatch-vcs reads the tag version (no file rewrites)
-2. Build package
-3. Publish to TestPyPI
-
-**Use Case:** Testing releases before production deployment
-
-**Installation:**
-```bash
-pip install --index-url https://test.pypi.org/simple/ bastproxy
-```
-
-### Production Releases (release.yml)
-**Trigger:** Push tags matching `v*` (e.g., `v1.0.0`)
-
-**Tag Format:** `v<version>` (e.g., `v1.0.0`)
-
-**Process:**
-1. hatch-vcs reads the tag version (no file rewrites)
-2. Build package
-3. Publish to TestPyPI (verification)
-4. Publish to PyPI (production)
-
-**Use Case:** Official releases to PyPI
-
-**Installation:**
-```bash
-pip install bastproxy
-```
-
-### Creating a Release
-
-**Using the automated release tasks (recommended):**
-```bash
-# Production release (stable v*)
-doit release
-
-# Development/pre-release (prerelease v* for TestPyPI)
-doit release_dev              # defaults to alpha
-doit release_dev --type beta  # or rc
-```
-
-The `doit release` task will:
-1. Verify you're on the main branch (or ask for confirmation)
-2. Check for uncommitted changes
-3. Pull latest changes from remote
-4. Run all checks (format, lint, type-check, tests)
-5. Use commitizen to calculate the next version, update CHANGELOG.md (merging pre-release entries via `--merge-prerelease`), and create a `v*` git tag
-6. Trigger the GitHub Actions release workflow
-
-**Manual release (if needed):**
-```bash
-# Production release
-git tag v1.0.0 -m "Release version 1.0.0"
-git push origin v1.0.0
-
-# Development release (TestPyPI only)
-git tag v1.0.0-alpha.1 -m "Development release 1.0.0-alpha.1"
-git push origin v1.0.0-alpha.1
-```
-
-## Code Quality Tooling
-
-### Core Tools
-- **uv** - Fast Python package installer and dependency manager
-- **ruff** - Extremely fast Python linter and formatter (replaces black, isort, flake8, etc.)
-- **mypy** - Static type checker with strict mode enabled
-- **pytest** - Testing framework with parallel execution (pytest-xdist)
-
-### Quality & Security Tools (Development)
-- **pre-commit** - Git hooks for automated quality checks before commits
-- **codespell** - Spell checker for code and documentation
-- **pyproject-fmt** - Automatically format and organize pyproject.toml
-- **commitizen** - Enforce conventional commit message standards
-
-### Security Tools (Optional - security extras)
-- **bandit** - Security vulnerability scanner for Python code
-- **pip-audit** - Dependency vulnerability auditor (CVE scanning)
-- **pip-licenses** - License compliance checker for dependencies
-
-### Documentation Tools
-- **MkDocs** - Static documentation site generator
-- **mkdocs-material** - Material Design theme for MkDocs
-
-### Installing Tool Groups
-```bash
-# Core development tools (default)
-uv sync
-
-# Include security tools
-uv sync --extra security
-
-# All extras
-uv sync --all-extras
-```
-
-## Code Style & Conventions
-
-### Python Style
-- **Python version:** 3.12+ (using modern syntax)
-- **Type hints:** Required for all public functions/methods
-  - Use modern syntax: `list[str]`, `dict[str, Any]`, `X | None`
-  - Avoid legacy `typing.List`, `typing.Optional`
-- **Line length:** Max 100 characters
-- **Docstrings:** Google-style, required for public APIs
-- **Naming conventions:**
-  - `snake_case` for functions, variables, modules
-  - `PascalCase` for classes
-  - `UPPER_CASE` for constants
-
-### Import Organization
-Organize imports in three groups (separated by blank lines):
-
-```python
-# Standard library
-import os
-from pathlib import Path
-from typing import Any
-
-# Third-party
-import click
-import pytest
-
-# Local
-from bastproxy import __version__
-from bastproxy.module import function
-```
-
-### Docstring Requirements
-**Required for:**
-- Public classes, functions, methods
-- Modules (module-level docstring)
-
-**Optional for:**
-- Private functions/methods (prefix `_`)
-- Very simple/obvious functions
-
-**Format (Google-style):**
-```python
-def process_data(data: list[dict[str, Any]], validate: bool = True) -> dict[str, Any]:
-    """Process input data and return results.
-
-    Args:
-        data: List of data dictionaries to process
-        validate: Whether to validate data before processing
-
-    Returns:
-        Dictionary containing processed results
-
-    Raises:
-        ValueError: If data validation fails
-        TypeError: If data is not in expected format
-    """
-```
-
-### Type Hints Best Practices
-- Use `typing.Any` sparingly; prefer specific types
-- Use `collections.abc` for abstract types (Sequence, Mapping, etc.)
-- Mark optional parameters with `| None`, not `Optional[T]`
-- Use `TypeVar` for generic functions
-- Use `Protocol` for structural subtyping when appropriate
-
-## Coding Standards & Best Practices
-
-### General Principles
-- **Read before editing**: Always read files before modifying them
-- **Maintain backward compatibility**: Don't break public APIs without major version bump
-- **Early returns**: Prefer early returns over deep nesting
-- **Explicit over implicit**: Make intentions clear in code
-- **Single responsibility**: Functions/classes should do one thing well
-
-### Error Handling
-- Raise specific exceptions with clear messages
-- Never catch `KeyboardInterrupt` or `SystemExit`
-- Log errors with context before raising
-- Use custom exception classes for domain-specific errors
+## Common Pitfalls
 
 ### Anti-Patterns to Avoid
-- **Mutable default arguments**: Never use `def foo(items=[])` ❌
-- **String concatenation for paths**: Use `Path` objects
-- **Ignoring type hints**: Type hints are enforced by mypy
-- **God classes**: Keep classes focused and modular
-- **Silent failures**: Always log and raise exceptions appropriately
-- **Blocking I/O in loops**: Batch operations when possible
+- **Tight Coupling**: Always use dependency injection
+- **Silent Failures**: Always log errors and raise exceptions with context
+- **String Concatenation for Paths**: Use `Path` objects
 
-### Security Best Practices
-- Never log secrets or sensitive data
-- Use `subprocess` with list args, avoid `shell=True`
-- Validate all user-provided paths (prevent path traversal)
-- Use `yaml.safe_load()`, never `yaml.load()`
-
-## Commit Guidelines
-
-### Commit Message Format
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>: <subject>
-
-[optional body]
-
-[optional footer]
-```
-
-**Commitizen Support:**
-The project includes [Commitizen](https://commitizen-tools.github.io/commitizen/) to enforce conventional commit standards and automate versioning:
-- Configured in `pyproject.toml` under `[tool.commitizen]`
-- Helps maintain consistent commit message format
-- Can be used to automatically bump versions and generate changelogs
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code restructuring without behavior change
-- `docs`: Documentation updates
-- `test`: Adding or updating tests
-- `chore`: Dependency updates, tooling changes
-- `ci`: CI/CD configuration changes
-- `perf`: Performance improvements
-
-**Rules:**
-- Subject must be lowercase, concise (no period at end)
-- Use imperative mood ("add feature" not "added feature")
-- Separate concerns: one commit per logical change
-- Write clear, descriptive messages
-
-**Examples:**
-```
-feat: add support for custom validators
-
-fix: handle None values in data processing
-
-refactor: extract common validation logic
-
-docs: update installation instructions for direnv
-
-test: add tests for edge cases in parser
-
-chore: update dependencies to latest versions
-```
-
-### Breaking Changes
-For breaking changes, include `BREAKING CHANGE:` in commit footer:
-
-```
-refactor: change API to use async/await
-
-Migrate to async for better concurrency handling.
-
-BREAKING CHANGE: All public methods are now async and must be awaited.
-Update calling code to use `await` or `asyncio.run()`.
-```
-
-## Pull Request Guidelines
-
-### PR Title Format
-Same as commit messages: `<type>: <subject>`
-
-### PR Template
-See `.github/pull_request_template.md` for the complete PR description template, which includes:
-- Summary section
-- Changes checklist
-- Related issues
-- Testing checklist
-- Breaking changes section
-- Documentation updates
-
-### Code Review Checklist
-**Before submitting:**
-- [ ] Self-reviewed code
-- [ ] All CI checks passing locally (`doit check`)
-- [ ] Tests added/updated
-- [ ] Documentation updated
-- [ ] CHANGELOG.md updated (for notable changes)
-
-**Reviewers verify:**
-- [ ] Code follows project conventions
-- [ ] Tests adequate and passing
-- [ ] No security vulnerabilities
-- [ ] Error handling appropriate
-- [ ] Documentation clear and accurate
+### Security Pitfalls
+- **Never log secrets**: Scrub sensitive data before logging
+- **Command Injection**: Always use subprocess with list args, not shell=True
+- **Path Traversal**: Validate all user-provided paths
+- **YAML Unsafe Loading**: Always use `yaml.safe_load()`
 
 ## AI Agent Guidelines
 
 ### When to Ask for User Input
-Ask the user when:
-- Multiple valid implementation approaches exist
-- Architectural decisions need to be made
-- Breaking changes would impact users
-- Requirements are ambiguous or incomplete
-- Trade-offs between approaches are significant
-- Custom configuration values are needed
+- **Ambiguous requirements**: Multiple valid implementation approaches exist
+- **Architectural decisions**: Choosing between patterns or libraries
+- **Breaking changes**: User impact needs to be understood
+- **Missing information**: Config values, credentials, or preferences needed
+- **Scope clarification**: Feature boundaries unclear
 
 ### When to Proceed Autonomously
-Proceed without asking when:
-- Clear conventions exist in the codebase
-- Obvious bugs with single correct solution
-- Documentation improvements (docstrings, README)
-- Code refactoring that maintains behavior
-- Adding missing test coverage
-- Following established patterns
+- **Clear conventions exist**: Follow existing patterns in codebase
+- **Obvious fixes**: Clear bugs with single correct solution
+- **Documentation tasks**: Adding docstrings, comments, README updates
+- **Refactoring**: Improving code structure without behavior change
+- **Tests**: Adding missing test coverage for existing code
 
-### Best Practices for AI Agents
-- **Read before editing**: Always read files first
-- **Follow patterns**: Match existing code style
-- **Run tests**: Verify changes with `doit check`
-- **Commit appropriately**: Use conventional commit format
-- **Explain clearly**: Provide context in commit messages
-- **Check CI**: Ensure all checks pass
-- **Update docs**: Keep documentation synchronized
-- **Review guidelines**: See **.github/CONTRIBUTING.md** for detailed development guidelines and standards
+## Breaking Changes Policy
 
-## Testing Expectations
+**What Constitutes a Breaking Change:**
+- Changes to public function/method signatures
+- Removal of public functions, classes, or modules
+- Changes to CLI command syntax or options
+- Changes to configuration file formats
+- Changes to default behavior that affects existing code
 
-### Coverage Requirements
-- Maintain ≥80% test coverage (configurable)
-- Test coverage enforced in CI
-- View coverage report: `open tmp/htmlcov/index.html`
+**How to Handle:**
+1. Document in commit message with `BREAKING CHANGE:` footer
+2. Document in PR description with migration guide
+3. Don't edit CHANGELOG.md: `doit release` writes it from the commit messages, footer included
+4. Breaking changes bump MINOR before 1.0 and MAJOR from 1.0 on: set `major_version_zero = false` in `[tool.commitizen]` before releasing 1.0 (`doit release` refuses 1.0 or later until you do)
 
-### Testing Best Practices
-- Write tests for all public APIs
-- Use fixtures for common setup
-- Use parametrized tests for multiple input cases
-- Mock external dependencies
-- Test edge cases and error conditions
-- Keep tests focused and readable
+## Tooling & Environment
 
-### Running Tests
+> For the architectural rationale behind this hierarchy — what each tool is for, who uses it, and where runtime code ends and dev tooling begins — see [Tooling Roles and Architectural Boundaries](docs/development/tooling-roles.md).
+
+### Principle: Use the Highest-Level Tool Available
+
+This project wraps common operations in `doit` tasks that enforce conventions, validate inputs, and reduce errors. **Always check if a `doit` task exists (`doit list`) before running a raw command.**
+
+The tool hierarchy (prefer higher over lower):
+
+1. **`doit`** — Project tasks that enforce conventions (issues, PRs, checks, releases)
+2. **`uv`** — Package management and Python execution
+3. **`gh`** — GitHub API queries and operations not covered by `doit`
+4. **`git`** — Version control operations
+5. **Raw commands** — Only when nothing above covers the need
+
+### Tool Reference
+
+| Task | Preferred Tool | Do NOT Use |
+| :--- | :--- | :--- |
+| Run all checks (test, lint, type) | `doit check` | `pytest`, `ruff`, `mypy` separately |
+| Run tests only | `doit test` | `pytest` directly |
+| Run tests with coverage | `doit coverage` | `pytest --cov` directly |
+| Lint code | `doit lint` | `ruff check` directly |
+| Format code | `doit format` | `ruff format` directly |
+| Type-check | `doit type_check` | `mypy` directly |
+| Security audit | `doit audit` | `pip-audit` directly |
+| Create issues | `doit issue --type=<type>` | `gh issue create` |
+| Create PRs | `doit pr` | `gh pr create` |
+| Merge PRs | `doit pr_merge` | `gh pr merge` |
+| Create ADRs | `doit adr` | Manual file creation |
+| Sync GitHub labels | `doit labels_sync` | `gh label create` / `gh label edit` manually |
+| Commit (interactive) | `doit commit` | `git commit` without format |
+| Create a worktree | `doit worktree --branch=<branch>` | `git worktree add` by hand |
+| Install/add packages | `uv add <pkg>` | `pip install` |
+| Sync dependencies | `doit install_dev` | plain `uv sync`, `pip install -r` |
+| Run Python scripts | `uv run <script>` | `python` directly |
+| Run a specific test file | `uv run pytest tests/test_foo.py` | `pytest` directly |
+| Run a single test | `uv run pytest tests/test_foo.py::test_name` | `pytest` directly |
+| Read issues/PRs/comments | `gh issue view`, `gh pr view`, `gh api` | `WebFetch` on GitHub URLs |
+| GitHub API queries | `gh api` | `curl` to GitHub API |
+| Build docs | `doit docs_build` | `mkdocs build` directly |
+| Serve docs locally | `doit docs_serve` | `mkdocs serve` directly |
+| Release | `doit release` | Manual changelog + PR |
+| Tag after release PR merge | `doit release_tag` | Manual tag + push |
+| Mutation testing | `doit mutate` | `mutmut` directly |
+| Generate SBOM | `doit sbom` | `cyclonedx-py` directly |
+
+### When Raw Commands Are Appropriate
+
+Raw `git` and `gh` commands are fine for **read-only queries** that `doit` doesn't wrap:
+
 ```bash
-# Run all tests (use doit for standard workflows)
-doit test
+# Git — read-only is always fine
+git status
+git log --oneline -10
+git diff
+git branch -a
 
-# Run with coverage
-doit coverage
-
-# View coverage report
-open tmp/htmlcov/index.html
-
-# Advanced: Run specific test file or test (use pytest directly)
-uv run pytest tests/test_example.py
-uv run pytest tests/test_example.py::test_function -v
-uv run pytest -v -s  # Verbose with print output
+# gh — read-only queries
+gh issue view 42
+gh pr view 123
+gh pr checks
+gh api repos/{owner}/{repo}/pulls/123/comments
+gh issue list --label "bug"
+gh pr list --state open
 ```
 
-## Troubleshooting
+**Write operations** should go through `doit` when a task exists. Use raw `git`/`gh` for write operations only when no `doit` task covers the need (e.g., `git checkout -b`, `git add`, `gh issue close`).
 
-### Common Issues
+### Dependabot PRs
 
-**uv not found:**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+Dependabot PRs that pass CI are auto-merged by `.github/workflows/dependabot-automerge.yml`. A PR
+the bot skips (major bumps, sensitive deps, `automerge-blocked`) is merged by hand.
+
+**Never** use the GitHub `update-branch` API or a local rebase to update a dependabot branch — both
+strip the verified commit signatures that branch protection requires. Use `@dependabot rebase`
+instead, posted from a real user account.
+
+The full procedure — requesting the rebase, confirming the force-push landed, merging — is in
+[Dependabot Auto-merge](docs/development/dependabot-automerge.md#stale-prs). Read it before
+merging a dependabot PR.
+
+### AI Agent File Operations
+
+AI agents with native file tools (Read, Grep, Glob, Edit, Write) **must** prefer those over shell equivalents:
+
+| Operation | Use This | Not This |
+| :--- | :--- | :--- |
+| Read a file | `Read` tool | `cat`, `head`, `tail` |
+| Search file contents | `Grep` tool | `grep`, `rg` |
+| Find files by pattern | `Glob` tool | `find`, `ls` |
+| Edit a file | `Edit` tool | `sed`, `awk` |
+| Create a file | `Write` tool | `echo >`, `cat <<EOF` |
+
+Native tools provide better visibility, review capabilities, and error handling for the user.
+
+### AI Config Directories
+
+Each supported AI CLI has a config root at the repo root. This table is a pointer, not a summary —
+read the linked section before editing an agent's configuration, command surface, or hooks.
+
+| CLI | Config roots | Details |
+| :--- | :--- | :--- |
+| Claude Code | `.claude/` | [Claude Code setup](docs/development/AI_SETUP.md#2-claude-code-anthropic) |
+| GitHub Copilot CLI | `.copilot/`, `.github/skills/`, `.github/instructions/` | [Copilot CLI setup](docs/development/AI_SETUP.md#3-github-copilot-cli) |
+| Codex CLI | `.codex/`, `.agents/skills/` | [Codex CLI setup](docs/development/AI_SETUP.md#1-codex-cli-openai) |
+| Antigravity CLI (`agy`) | `.agents/` (shared with Codex) | [Antigravity CLI setup](docs/development/AI_SETUP.md#4-antigravity-cli-google) |
+
+Detail that spans agents — per-host command discovery and naming, the cross-agent workflow
+contract, non-interactive invocation flags, hook wiring and each host's block contract — lives in
+[Slash Commands and Workflows](docs/development/ai/slash-commands.md),
+[Cross-Agent Delegation Matrix](docs/development/ai/cross-agent-delegation.md) and
+[AI Command Blocking](docs/development/ai/command-blocking.md).
+
+Do not restate any of it here. `AGENTS.md` carries only what is true for every agent *and* must be
+true at all times; see [ADR-9018](docs/decisions/9018-agentsmd-carries-only-shared-always-on-instructions.md).
+
+### Temporary Files
+
+AI agents **must never** write temporary files to generic locations like `/tmp/`. Instead, use the project-scoped directory:
+
+```
+tmp/agents/<agent-type>/
 ```
 
-**direnv not activating:**
-```bash
-# Ensure direnv is hooked in your shell
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or ~/.zshrc
-source ~/.bashrc
-direnv allow
-```
+Where `<agent-type>` is one of: `claude`, `copilot`, `codex`, `antigravity`, or the relevant agent name.
 
-**Pre-commit hooks failing:**
-```bash
-# Run pre-commit manually
-doit pre_commit_run
+**Filenames must include context** (issue number, PR number, or task identifier) to prevent collisions when multiple sub-agents run concurrently.
 
-# Or fix specific issues
-doit format  # Auto-fix formatting
-doit lint    # Check linting issues
-```
+| | Example |
+| :--- | :--- |
+| **Before (wrong)** | `/tmp/pr-body.md` |
+| **After (correct)** | `tmp/agents/claude/pr-body-issue-307.md` |
 
-**Tests failing:**
-```bash
-# Run with verbose output
-uv run pytest -v -s
+**Cleanup rule:** Agents must delete their temporary files when the task is complete. Do not leave stale files in `tmp/agents/`.
 
-# Run specific test
-uv run pytest tests/test_example.py::test_function -v
-```
+**Exception:** `tmp/checkpoints/` is the one location outside `tmp/agents/<agent-type>/`. Checkpoints written by `/checkpoint` are portable project-state captures meant to be readable by any agent — Claude can write a checkpoint and Codex or Copilot can restore from it.
 
-**Import errors:**
-```bash
-# Reinstall in development mode
-doit dev
-```
+**Worktrees are not temporary files.** A worktree lives until its PR merges, so it goes in `worktrees/` (gitignored), never under `tmp/`, which `doit cleanup` empties. Create one with `doit worktree`. Inside it, run commands through `uv run` and never pass `--active`, which installs the worktree into the main checkout's `.venv`. Merge its PR from the main checkout with `uv run doit pr_merge --pr=<number>`, which removes the worktree.
 
-## Documentation Structure
+## Token Efficiency
+- **Be Concise:** Minimal text output.
+- **Use Local Tools:** Prefer native file tools over sub-agents (see [AI Agent File Operations](#ai-agent-file-operations)).
+- **No Speculation:** Don't read files you don't need.
 
-The `docs/` directory contains comprehensive documentation:
+## Critical Reminders
+- **Flow:** Issue (`doit issue`) -> **`git checkout main && git pull`** -> Branch -> Commit -> PR (`doit pr`) -> Merge (`doit pr_merge`). NEVER commit to main. Pull `main` before branching — local `main` may be behind the remote (e.g., after dependabot PRs merged via the web UI). `doit pr` enforces this by aborting if the branch is behind `origin/main`; pass `--no-update-check` to override. Saying "implement issue N" runs this whole flow through branch, commit, and PR in one go via the `implement-issue` skill — it still never touches `main` or the merge step.
+- **Scope:** Never mix refactoring, features, and docs in one PR. Create separate branches.
+- **Verify:** Check file paths (`ls`) and branch (`git status`) before assuming they exist.
+- **Security:** NEVER bypass security checks (e.g., `--no-verify`, ignoring secrets).
+- **Tooling:** Prefer `doit` tasks over manual commands.
+- **Integrity:** Respect architectural patterns (modularity) over "quick fixes".
+- **Local State:** Protect user config (e.g., `.envrc.local`, settings). Do not revert/delete without backup.
+- **Version:** Source of truth is Git tags. Never edit `pyproject.toml` version.
+- **Tests:** Creating code = Creating tests. No exceptions. Never modify a failing test to make it pass — stop, explain why it broke, and discuss with the user whether the code or the test should change.
+- **Commits:** One logical change per commit. Use conventional commits.
+- **Releases:** Never run `doit release` without explicit command.
+- **PRs:** Use `doit pr` to create PRs and `doit pr_merge` to merge with proper commit format. Issues are not automatically closed. Ask the user if they would like the related issue closed — pass `--auto-close` to `doit pr_merge` to close linked issues in one step. The `implement-issue` skill commits with `git commit` (not `doit commit`, which is interactive) and opens the PR itself with `doit pr` — it never applies `ready-to-merge`, merges, or closes the issue those steps remain the user's.
+- **The Merge Gate action:** is a manual action for the user to add to a PR. It requires the ready-to-merge label and should never be added by automation. Exception: the dependabot auto-merge workflow (`.github/workflows/dependabot-automerge.yml`) applies the `ready-to-merge` label to qualifying dependabot PRs only. AI agents may apply the label only when the human has set `ALLOW_AI_READY_TO_MERGE=1` in the shell that launched the AI CLI (see `docs/development/ai/command-blocking.md`).
+- **Issues:** Use `doit issue --type=<type>` to create issues (types: feature, bug, refactor, docs, chore). Labels are auto-applied. Manually close after PR merge with comment "Addressed in PR #XXX". Issues are not closed automatically when PRs are merged.
+- **ADRs:** When implementing architectural decisions (typically `feat` or `refactor`, rarely `fix`), update related ADRs in `docs/decisions/` to add the issue link. Create new ADRs for significant decisions using `doit adr`. Every ADR must link to the documentation in `docs/` that describes the implementation. Doc and chore issues do not need ADRs. Issues with the `needs-adr` label require an ADR before the PR can be merged.
 
-**`docs/index.md`** - Documentation home
-- Overview of the project
-- Key features and capabilities
-- Quick navigation to other documentation
+## PR Checklist (for AI agents)
 
-**`docs/installation.md`** - Installation guide
-- Installing with pip
-- Installing with uv
-- Development setup
-- Troubleshooting installation issues
-
-**`docs/usage.md`** - Usage guide
-- Getting started tutorial
-- Common use cases and patterns
-- Configuration options
-- Best practices
-
-**`docs/api.md`** - API reference documentation
-- Module documentation
-- Function and class references
-- Type signatures
-- Code examples
-
-**`docs/extensions.md`** - Optional tools and extensions guide
-- Testing extensions (pytest-watch, hypothesis, faker, factory-boy, mutmut, vcrpy)
-- Performance & profiling tools (py-spy, memray, scalene, line_profiler)
-- Configuration management (pydantic-settings, dynaconf, python-decouple)
-- Logging & monitoring (loguru, structlog, Sentry, OpenTelemetry)
-- Dependency management tools (pipdeptree)
-- Additional code quality tools (vulture, radon, interrogate)
-- Container support (Docker, docker-compose)
-- Multi-version Testing (tox, nox)
-- When to add each extension based on project needs
-
-**`docs/migration.md`** - Migration guide
-- How to migrate an existing project into this template
-
-The documentation is built using MkDocs with the Material theme. View locally with `doit docs_serve` or build with `doit docs_build`.
-
-## Extending the Template
-
-### Optional Tools & Extensions
-
-The template includes a comprehensive guide for optional tools and extensions in **docs/extensions.md**. This guide covers:
-
-**When to extend**: Add tools only when you have a specific need. The template is intentionally minimal to avoid bloat.
-
-**Available extensions**:
-- **Testing**: pytest-watch, hypothesis, faker, factory-boy, mutmut, vcrpy
-- **Profiling**: py-spy, memray, scalene, line_profiler
-- **Configuration**: pydantic-settings, dynaconf, python-decouple
-- **Logging**: loguru, structlog, Sentry, OpenTelemetry
-- **Code Quality**: vulture, radon, interrogate, pipdeptree
-- **Containers**: Docker, docker-compose support
-- **Multi-version Testing**: tox, nox
-
-See **docs/extensions.md** for installation instructions, usage examples, and guidance on when to add each tool.
-
-### Template Variants
-
-Consider creating separate template variants for different use cases:
-- **Web APIs**: FastAPI/Flask with database support
-- **CLI Applications**: Click/Typer-based command-line tools
-- **Data Science**: Jupyter, pandas, numpy, visualization tools
-- **Libraries**: Current template (general-purpose Python package)
-
-## Help & Resources
-
-### Project Documentation
-- **README.md**: Project overview and quick start
-- **CHANGELOG.md**: Release history and changes
-- **AGENTS.md**: This file - comprehensive agent instructions
-- **AI_SETUP.md**: Guide for setting up AI coding assistants (Codex CLI, Gemini CLI, Claude Code)
-- **LICENSE**: Project license (MIT)
-
-### Community & Contributing
-- **.github/CONTRIBUTING.md**: Development setup, coding standards, testing requirements, and contribution workflow
-- **.github/CODE_OF_CONDUCT.md**: Contributor Covenant code of conduct for community guidelines
-- **.github/SECURITY.md**: Security policy, vulnerability reporting, and supported versions
-- **.github/CODEOWNERS**: Code ownership and review assignments
-
-### Task Automation
-- **dodo.py**: All development tasks (see `doit list` for available commands)
-  - Common tasks: `test`, `coverage`, `lint`, `format`, `type_check`, `check`
-  - Security: `audit`, `security`, `licenses`, `spell_check`
-  - Version management: `commit`, `bump`, `changelog`
-  - Maintenance: `cleanup`, `update_deps`, `release`, `fmt_pyproject`
-  - Build: `build`, `publish`
-  - Documentation: `docs_serve`, `docs_build`, `docs_deploy`
-
-### Documentation Files
-- **docs/index.md**: Documentation home page
-- **docs/installation.md**: Installation instructions
-- **docs/usage.md**: Usage guide and examples
-- **docs/api.md**: API reference documentation
-- **docs/extensions.md**: Optional tools and extensions guide
-- **docs/migration.md**: How to migrate an existing project into this template
-
-### Example Code
-- **examples/README.md**: Overview of available examples
-- **examples/basic_usage.py**: Getting started examples
-- **examples/advanced_usage.py**: Advanced usage patterns
-- **examples/cli_usage.py**: CLI usage examples
-
-### External Resources
-- **uv documentation**: https://github.com/astral-sh/uv
-- **ruff documentation**: https://docs.astral.sh/ruff/
-- **pytest documentation**: https://docs.pytest.org/
-- **direnv documentation**: https://direnv.net/
-- **Conventional Commits**: https://www.conventionalcommits.org/
-- **Commitizen**: https://commitizen-tools.github.io/commitizen/
-- **Contributor Covenant**: https://www.contributor-covenant.org/
-
-### Getting Help
-- Check GitHub Issues for similar problems
-- Review CI logs for detailed error messages
-- Run `doit list` to see all available tasks
-- Check `.envrc` and `.envrc.local` configuration for environment issues
-- Read **.github/CONTRIBUTING.md** for development guidelines
-- See **AI_SETUP.md** for AI assistant configuration
-
----
-This file provides comprehensive instructions for both human developers and AI agents working with this Python project template. Follow these guidelines to maintain code quality and consistency.
+Before creating a PR, read [CONTRIBUTING.md — Pull Request Process](.github/CONTRIBUTING.md#pull-request-process)
+and work through the checklist in [`.github/pull_request_template.md`](.github/pull_request_template.md).
+Between them they carry every check this section used to restate — `doit check`, branch and commit
+format, the `Addresses #XX` reference, the `needs-adr` label, and ADR and documentation updates.

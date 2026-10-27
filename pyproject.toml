@@ -180,6 +180,9 @@ ignore = [
 "tests/template/*.py" = [
     "RUF100",  # Adopted template files keep noqa for rules this repo disables
 ]
+"tests/test_*.py" = [
+    "RUF100",  # Adopted template files keep noqa for rules this repo disables
+]
 "**/__init__.py" = [
     "F401",    # Unused imports - intentional re-exports
     "E402",    # Module level import not at top - needed for path setup
@@ -228,6 +231,14 @@ module = [
     "setup_repo",
     "utils",
 ]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Adopted template tests import shared helpers from tests/ by bare name
+# (`from agent_roster import ...`); pytest finds them via `pythonpath`. tests/
+# is a package here, so adding it to mypy_path makes mypy see each helper under
+# two module names. Suppress the bare-name import instead.
+module = ["agent_roster"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -288,7 +299,7 @@ addopts = [
     "--benchmark-warmup=on",
 ]
 testpaths = ["tests"]
-pythonpath = ["src", "."]
+pythonpath = ["src", ".", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
