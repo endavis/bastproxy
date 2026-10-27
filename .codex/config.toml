@@ -1,49 +1,58 @@
 # Codex CLI Configuration
 # Location: ~/.codex/config.toml or project-specific .codex/config.toml
 #
-# This configuration whitelists common development commands for Python projects
-# using uv, doit, git, and GitHub CLI.
+# This configuration uses the current Codex config schema. The repo-native
+# dangerous-command protection lives in the shared hook script below; use that
+# script to change blocked patterns instead of adding obsolete approval-policy
+# rule tables here.
 
-# Default approval policy
-approval_policy = "untrusted"  # Prompt before running untrusted commands
+# Let the model decide when to ask for approval. Codex removed the "untrusted"
+# value; as of codex-cli 0.128.0 the supported values are "on-request" and
+# "never", and an unsupported value is a *fatal* config error -- Codex refuses
+# to start at all, taking the hook with it (#681).
+approval_policy = "on-request"
 
-# Whitelist standard development tools
-[[approval_policy]]
+[features]
+# Enable lifecycle hook support for the shared dangerous-command policy.
+# `codex_hooks` was the old name and is deprecated; Codex warns on it today
+# and a removed flag would silently disable the hook (#681).
+hooks = true
+
+# =============================================================================
+# PRE-TOOL-USE HOOK — Primary defense
+# =============================================================================
+# The shared hook script provides context-aware blocking via tokenization,
+# protected-branch detection, and chained-command scanning.
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
 type = "command"
-pattern = "^(git|gh|uv|doit|ls|cat|tree|find|grep|wc|mkdir|python|pytest|ruff|mypy)\\b"
-action = "allow"
-reason = "Standard development and version control tools"
+command = 'python3 "$(git rev-parse --show-toplevel)/tools/hooks/ai/block-dangerous-commands.py"'
+timeout = 30
+statusMessage = "Checking Bash command"
 
-# Allow specific git operations
-[[approval_policy]]
+# =============================================================================
+# FILE-EDIT HOOK — Blocks env-var persistence attempts
+# =============================================================================
+# Codex's file-edit tool is `apply_patch`, not Claude's Edit/Write/MultiEdit
+# triple -- verified by probe, see docs/development/ai/command-blocking.md.
+# Its payload is command-shaped, so the hook checks it both as a command and as
+# a set of file edits.
+[[hooks.PreToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PreToolUse.hooks]]
 type = "command"
-pattern = "^git\\s+(status|diff|log|add|commit|push|pull|fetch|checkout|branch|merge|stash|reset|rebase|remote)"
-action = "allow"
-reason = "Common git operations"
+command = 'python3 "$(git rev-parse --show-toplevel)/tools/hooks/ai/block-dangerous-commands.py"'
+timeout = 30
+statusMessage = "Checking file edit"
 
-# Allow GitHub CLI operations
-[[approval_policy]]
-type = "command"
-pattern = "^gh\\s+(auth|pr|issue|run|api)"
-action = "allow"
-reason = "GitHub CLI operations"
-
-# Allow uv package management
-[[approval_policy]]
-type = "command"
-pattern = "^uv\\s+(pip|venv|build|publish|run|sync)"
-action = "allow"
-reason = "UV package manager operations"
-
-# Allow doit task automation
-[[approval_policy]]
-type = "command"
-pattern = "^doit\\s+(list|test|coverage|lint|format|check|build|cleanup)"
-action = "allow"
-reason = "Doit task automation"
-
-# Shell environment policy - whitelist safe environment variables
-[shell_env_policy]
+# =============================================================================
+# SHELL ENVIRONMENT POLICY
+# =============================================================================
+[shell_environment_policy]
+inherit = "core"
 include_only = [
     "PATH",
     "HOME",
@@ -61,8 +70,6 @@ exclude = [
     "CODECOV_TOKEN",
 ]
 
-# Sandbox mode (optional - set to false for local development)
-# sandbox_mode = false
-
-# Network access policy
-# network_access = "prompt"  # Options: "allow", "deny", "prompt"
+# Sandbox mode is intentionally left to the user's Codex environment defaults.
+# If your local setup needs a project override, add it explicitly using the
+# current Codex config keys from the official docs.
