@@ -1,3 +1,14 @@
+---
+title: bastproxy System Documentation
+description: Index of the bastproxy architecture notes and how the systems fit together
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - overview
+---
+
 # bastproxy System Documentation
 
 ## Overview
@@ -432,11 +443,11 @@ def _eventcb_modify_data(self):
 
 ### Code Locations
 
-- **Event System**: `plugins/core/events/`
-- **API System**: `libs/api/`
-- **Plugin System**: `libs/plugins/` and `plugins/_baseplugin/`
-- **Record System**: `libs/records/`
-- **Network Data**: `libs/records/rtypes/networkdata.py`
+- **Event System**: `src/bastproxy/plugins/core/events/`
+- **API System**: `src/bastproxy/libs/api/`
+- **Plugin System**: `src/bastproxy/libs/plugins/` and `src/bastproxy/plugins/_baseplugin/`
+- **Record System**: `src/bastproxy/libs/records/`
+- **Network Data**: `src/bastproxy/libs/records/rtypes/networkdata.py`
 
 ### Example Plugins
 

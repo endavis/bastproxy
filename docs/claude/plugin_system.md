@@ -1,3 +1,14 @@
+---
+title: Plugin System
+description: Plugin structure, metadata, loading, reloading and lifecycle
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - plugins
+---
+
 # Plugin System
 
 ## Overview
@@ -9,7 +20,7 @@ Each plugin is a Python package with a specific structure, metadata, and lifecyc
 ## Key Components
 
 ### BasePlugin Class
-**Location**: `plugins/_baseplugin/_base.py`
+**Location**: `src/bastproxy/plugins/_baseplugin/_base.py`
 
 The base class that all plugins inherit from. Provides core functionality:
 
@@ -34,7 +45,7 @@ Key attributes:
 - **attributes_to_save_on_reload**: List of attributes to preserve during reload
 
 ### PluginLoader Class
-**Location**: `libs/plugins/loader.py`
+**Location**: `src/bastproxy/libs/plugins/loader.py`
 
 Manages the loading, unloading, and tracking of all plugins:
 
@@ -55,7 +66,7 @@ Responsibilities:
 - Maintaining weak references to unloaded modules
 
 ### PluginInfo Class
-**Location**: `libs/plugins/plugininfo.py`
+**Location**: `src/bastproxy/libs/plugins/plugininfo.py`
 
 Holds metadata and runtime information for a plugin:
 
@@ -86,7 +97,7 @@ Tracks:
 - Runtime state
 
 ### PluginRuntimeInfo Class
-**Location**: `libs/plugins/plugininfo.py`
+**Location**: `src/bastproxy/libs/plugins/plugininfo.py`
 
 Tracks runtime state of a plugin:
 
@@ -100,7 +111,7 @@ class PluginRuntimeInfo:
 ```
 
 ### RegisterPluginHook Decorator
-**Location**: `plugins/_baseplugin/_pluginhooks.py`
+**Location**: `src/bastproxy/plugins/_baseplugin/_pluginhooks.py`
 
 Decorator for registering functions to plugin lifecycle hooks:
 
@@ -151,7 +162,7 @@ Metadata fields:
 
 ### Plugin Class (plugin/__init__.py)
 
-The main plugin class in `plugin/__init__.py`:
+The main plugin class in the plugin package's `plugin/` subpackage (`<plugin>/plugin/__init__.py`):
 
 ```python
 from bastproxy.plugins._baseplugin import BasePlugin
@@ -526,18 +537,18 @@ class Plugin(BasePlugin):
 ## Important Files
 
 ### Core Plugin System
-- `plugins/_baseplugin/_base.py` - BasePlugin class
-- `plugins/_baseplugin/_pluginhooks.py` - RegisterPluginHook decorator
-- `plugins/_baseplugin/_commands.py` - Command-related base functionality
-- `plugins/_baseplugin/_patch.py` - Plugin patching mechanics
-- `plugins/_baseplugin/__init__.py` - Exports BasePlugin
+- `src/bastproxy/plugins/_baseplugin/_base.py` - BasePlugin class
+- `src/bastproxy/plugins/_baseplugin/_pluginhooks.py` - RegisterPluginHook decorator
+- `src/bastproxy/plugins/_baseplugin/_commands.py` - Command-related base functionality
+- `src/bastproxy/plugins/_baseplugin/_patch.py` - Plugin patching mechanics
+- `src/bastproxy/plugins/_baseplugin/__init__.py` - Exports BasePlugin
 
 ### Plugin Loader
-- `libs/plugins/loader.py` - PluginLoader class
-- `libs/plugins/plugininfo.py` - PluginInfo and PluginRuntimeInfo classes
-- `libs/plugins/dependency.py` - Dependency resolution
-- `libs/plugins/imputils.py` - Import utilities
-- `libs/plugins/reloadutils.py` - Reload cache utilities
+- `src/bastproxy/libs/plugins/loader.py` - PluginLoader class
+- `src/bastproxy/libs/plugins/plugininfo.py` - PluginInfo and PluginRuntimeInfo classes
+- `src/bastproxy/libs/plugins/dependency.py` - Dependency resolution
+- `src/bastproxy/libs/plugins/imputils.py` - Import utilities
+- `src/bastproxy/libs/plugins/reloadutils.py` - Reload cache utilities
 
 ## Common APIs
 

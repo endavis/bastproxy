@@ -1,3 +1,14 @@
+---
+title: Command System
+description: How client commands are parsed, dispatched and documented
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - commands
+---
+
 # Command System
 
 ## Overview
@@ -14,7 +25,7 @@ The system is built on:
 ## Key Components
 
 ### CommandsPlugin Class
-**Location**: `plugins/core/commands/plugin/_commands.py`
+**Location**: `src/bastproxy/plugins/core/commands/plugin/_commands.py`
 
 The main plugin that manages all commands:
 
@@ -34,7 +45,7 @@ Features:
 - **Output formatting**: Standardizes command output
 
 ### CommandClass
-**Location**: `plugins/core/commands/libs/_command.py`
+**Location**: `src/bastproxy/plugins/core/commands/libs/_command.py`
 
 Represents a single command:
 
@@ -52,7 +63,7 @@ class CommandClass:
 ```
 
 ### Command Decorators
-**Location**: `plugins/core/commands/libs/_utils.py`
+**Location**: `src/bastproxy/plugins/core/commands/libs/_utils.py`
 
 Decorators for defining commands:
 
@@ -228,11 +239,11 @@ Arguments support all argparse features:
 ## Important Files
 
 ### Core Command System
-- `plugins/core/commands/plugin/_commands.py` - Main commands plugin
-- `plugins/core/commands/libs/_command.py` - CommandClass implementation
-- `plugins/core/commands/libs/_utils.py` - Command decorators
-- `plugins/core/commands/libs/data/cmdargs.py` - Command argument data structures
-- `plugins/core/commands/__init__.py` - Exports decorators
+- `src/bastproxy/plugins/core/commands/plugin/_commands.py` - Main commands plugin
+- `src/bastproxy/plugins/core/commands/libs/_command.py` - CommandClass implementation
+- `src/bastproxy/plugins/core/commands/libs/_utils.py` - Command decorators
+- `src/bastproxy/plugins/core/commands/libs/data/cmdargs.py` - Command argument data structures
+- `src/bastproxy/plugins/core/commands/__init__.py` - Exports decorators
 
 ## Common APIs
 

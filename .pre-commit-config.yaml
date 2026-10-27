@@ -129,14 +129,13 @@ repos:
         stages: [pre-commit]
 
       # Generate documentation TOC from frontmatter
-      # Disabled until tools/generate_doc_toc.py and docs frontmatter land (template sync PR 3, #7)
-      # - id: generate-doc-toc
-      #   name: Generate documentation TOC
-      #   entry: doit docs_toc
-      #   language: system
-      #   pass_filenames: false
-      #   files: ^docs/.*\.md$
-      #   stages: [pre-commit]
+      - id: generate-doc-toc
+        name: Generate documentation TOC
+        entry: doit docs_toc
+        language: system
+        pass_filenames: false
+        files: ^docs/.*\.md$
+        stages: [pre-commit]
 
       # Prevent direct commits to main branch
       - id: check-commit-issue-ref

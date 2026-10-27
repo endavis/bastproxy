@@ -87,11 +87,11 @@ security = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/endavis/bastproxy-py3"
-Repository = "https://github.com/endavis/bastproxy-py3"
-Documentation = "https://github.com/endavis/bastproxy-py3/wiki"
-Issues = "https://github.com/endavis/bastproxy-py3/issues"
-Changelog = "https://github.com/endavis/bastproxy-py3/releases"
+Homepage = "https://github.com/endavis/bastproxy"
+Repository = "https://github.com/endavis/bastproxy"
+Documentation = "https://github.com/endavis/bastproxy/tree/main/docs"
+Issues = "https://github.com/endavis/bastproxy/issues"
+Changelog = "https://github.com/endavis/bastproxy/releases"
 
 [project.scripts]
 bastproxy = "bastproxy:main"
@@ -238,7 +238,7 @@ ignore_missing_imports = true
 # (`from agent_roster import ...`); pytest finds them via `pythonpath`. tests/
 # is a package here, so adding it to mypy_path makes mypy see each helper under
 # two module names. Suppress the bare-name import instead.
-module = ["agent_roster"]
+module = ["agent_roster", "doc_scan"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -284,6 +284,16 @@ ignore_errors = true
 # assert as unreachable, so the check is noise here.
 module = "tests.*"
 warn_unreachable = false
+
+[[tool.mypy.overrides]]
+# These adopted tests return values from the bare-name `doc_scan` helper, which
+# is untyped (Any) to mypy here (see the agent_roster/doc_scan override above).
+module = [
+    "tests.test_documented_paths",
+    "tests.test_instruction_pointers",
+    "tests.test_markdown_links",
+]
+warn_return_any = false
 
 [tool.pytest.ini_options]
 minversion = "8.0"

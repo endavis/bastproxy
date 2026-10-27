@@ -1,3 +1,14 @@
+---
+title: API System
+description: The central API registry plugins use to publish and call functions
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - api
+---
+
 # API System
 
 ## Overview
@@ -9,7 +20,7 @@ The API system is both class-based and instance-based, allowing for shared funct
 ## Key Components
 
 ### API Class
-**Location**: `libs/api/_api.py`
+**Location**: `src/bastproxy/libs/api/_api.py`
 
 The `API` class is the core of the API system. It provides:
 - **_class_api**: Class-level dictionary storing all shared API functions
@@ -29,7 +40,7 @@ class API:
 ```
 
 ### APIItem Class
-**Location**: `libs/api/_apiitem.py`
+**Location**: `src/bastproxy/libs/api/_apiitem.py`
 
 Wraps individual API functions to provide tracking and metadata:
 
@@ -52,7 +63,7 @@ Key features:
 - Supports function overriding with tracking of the overwritten API
 
 ### AddAPI Decorator
-**Location**: `libs/api/_addapi.py`
+**Location**: `src/bastproxy/libs/api/_addapi.py`
 
 Decorator for marking functions as APIs during class definition:
 
@@ -76,7 +87,7 @@ class AddAPI:
 The decorator attaches metadata to functions, which is later processed during plugin initialization.
 
 ### API Statistics
-**Location**: `libs/api/_apistats.py`
+**Location**: `src/bastproxy/libs/api/_apistats.py`
 
 Tracks usage statistics for all API calls:
 
@@ -214,12 +225,12 @@ This removes all APIs with the top-level name `my.plugin:*`.
 ## Important Files
 
 ### Core API System
-- `libs/api/_api.py` - Main API class
-- `libs/api/_apiitem.py` - API item wrapper class
-- `libs/api/_addapi.py` - AddAPI decorator
-- `libs/api/_apistats.py` - Statistics tracking
-- `libs/api/_functools.py` - Utility functions for caller detection
-- `libs/api/__init__.py` - Module exports
+- `src/bastproxy/libs/api/_api.py` - Main API class
+- `src/bastproxy/libs/api/_apiitem.py` - API item wrapper class
+- `src/bastproxy/libs/api/_addapi.py` - AddAPI decorator
+- `src/bastproxy/libs/api/_apistats.py` - Statistics tracking
+- `src/bastproxy/libs/api/_functools.py` - Utility functions for caller detection
+- `src/bastproxy/libs/api/__init__.py` - Module exports
 
 ## Code Examples
 

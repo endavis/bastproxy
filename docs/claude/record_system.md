@@ -1,3 +1,14 @@
+---
+title: Record System
+description: Records that track data and operations, their lifecycle and relationships
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - records
+---
+
 # Record System
 
 ## Overview
@@ -16,7 +27,7 @@ Every piece of data (logs, network messages, events, commands) is wrapped in a r
 ## Key Components
 
 ### BaseRecord Class
-**Location**: `libs/records/rtypes/base.py`
+**Location**: `src/bastproxy/libs/records/rtypes/base.py`
 
 The foundation class for all record types:
 
@@ -44,7 +55,7 @@ Features:
 - **Execution Tracking**: Can track execution time when called
 
 ### UpdateRecord Class
-**Location**: `libs/records/rtypes/update.py`
+**Location**: `src/bastproxy/libs/records/rtypes/update.py`
 
 Tracks individual changes to records:
 
@@ -70,7 +81,7 @@ Update flags:
 - **Info**: Informational update (lifecycle events, etc.)
 
 ### UpdateManager Class
-**Location**: `libs/records/managers/updates.py`
+**Location**: `src/bastproxy/libs/records/managers/updates.py`
 
 Manages updates for a record:
 
@@ -87,7 +98,7 @@ Features:
 - Ordered by time
 
 ### RecordManager Class
-**Location**: `libs/records/managers/records.py`
+**Location**: `src/bastproxy/libs/records/managers/records.py`
 
 Global manager tracking all records:
 
@@ -111,7 +122,7 @@ Responsibilities:
 ### Specialized Record Types
 
 #### BaseListRecord
-**Location**: `libs/records/rtypes/base.py`
+**Location**: `src/bastproxy/libs/records/rtypes/base.py`
 
 Base class for list-based records (network data, logs):
 
@@ -132,7 +143,7 @@ Methods:
 - `replace()`: Replace data (tracked)
 
 #### BaseDictRecord
-**Location**: `libs/records/rtypes/base.py`
+**Location**: `src/bastproxy/libs/records/rtypes/base.py`
 
 Base class for dictionary-based records:
 
@@ -146,7 +157,7 @@ class BaseDictRecord(BaseRecord, UserDict):
 Provides dictionary interface with automatic update tracking.
 
 #### LogRecord
-**Location**: `libs/records/rtypes/log.py`
+**Location**: `src/bastproxy/libs/records/rtypes/log.py`
 
 Specialized record for log messages:
 
@@ -309,7 +320,7 @@ Output includes:
 ### Network Data Records
 
 #### MudData
-**Location**: `libs/records/rtypes/muddata.py`
+**Location**: `src/bastproxy/libs/records/rtypes/muddata.py`
 
 Data received from or sent to the MUD:
 - Tracks origin (from MUD vs to MUD)
@@ -318,7 +329,7 @@ Data received from or sent to the MUD:
 - Color code processing
 
 #### ClientData
-**Location**: `libs/records/rtypes/clientdata.py`
+**Location**: `src/bastproxy/libs/records/rtypes/clientdata.py`
 
 Data received from or sent to a client:
 - Client ID tracking
@@ -327,13 +338,13 @@ Data received from or sent to a client:
 - Command detection
 
 #### NetworkData
-**Location**: `libs/records/rtypes/networkdata.py`
+**Location**: `src/bastproxy/libs/records/rtypes/networkdata.py`
 
 Base class for network communication records.
 
 ### Log Records
 
-**Location**: `libs/records/rtypes/log.py`
+**Location**: `src/bastproxy/libs/records/rtypes/log.py`
 
 Logging with levels and sources:
 
@@ -391,19 +402,19 @@ record.some_attr = "new"  # Creates update but doesn't change value
 ## Important Files
 
 ### Core Record System
-- `libs/records/rtypes/base.py` - Base record classes
-- `libs/records/rtypes/log.py` - Log record type
-- `libs/records/rtypes/update.py` - Update record type
-- `libs/records/rtypes/networkdata.py` - Network data base
-- `libs/records/rtypes/muddata.py` - MUD data records
-- `libs/records/rtypes/clientdata.py` - Client data records
+- `src/bastproxy/libs/records/rtypes/base.py` - Base record classes
+- `src/bastproxy/libs/records/rtypes/log.py` - Log record type
+- `src/bastproxy/libs/records/rtypes/update.py` - Update record type
+- `src/bastproxy/libs/records/rtypes/networkdata.py` - Network data base
+- `src/bastproxy/libs/records/rtypes/muddata.py` - MUD data records
+- `src/bastproxy/libs/records/rtypes/clientdata.py` - Client data records
 
 ### Managers
-- `libs/records/managers/records.py` - RecordManager (RMANAGER)
-- `libs/records/managers/updates.py` - UpdateManager
+- `src/bastproxy/libs/records/managers/records.py` - RecordManager (RMANAGER)
+- `src/bastproxy/libs/records/managers/updates.py` - UpdateManager
 
 ### Exports
-- `libs/records/__init__.py` - Exports record types
+- `src/bastproxy/libs/records/__init__.py` - Exports record types
 
 ## Common Patterns
 

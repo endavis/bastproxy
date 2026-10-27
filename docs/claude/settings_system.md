@@ -1,3 +1,14 @@
+---
+title: Settings System
+description: Per-plugin settings, persistence and change events
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - settings
+---
+
 # Settings System
 
 ## Overview
@@ -14,7 +25,7 @@ The system is built on:
 ## Key Components
 
 ### SettingsPlugin Class
-**Location**: `plugins/core/settings/plugin/_settings.py`
+**Location**: `src/bastproxy/plugins/core/settings/plugin/_settings.py`
 
 The main plugin that manages all settings across the proxy:
 
@@ -33,7 +44,7 @@ Features:
 - **Event integration**: Raises events when settings change
 
 ### SettingInfo Class
-**Location**: `plugins/core/settings/libs/_settinginfo.py`
+**Location**: `src/bastproxy/plugins/core/settings/libs/_settinginfo.py`
 
 Metadata for a single setting:
 
@@ -164,10 +175,10 @@ Settings system listens to:
 ## Important Files
 
 ### Core Settings System
-- `plugins/core/settings/plugin/_settings.py` - Main settings plugin
-- `plugins/core/settings/libs/_settinginfo.py` - SettingInfo class
-- `plugins/core/settings/__init__.py` - Plugin metadata
-- `plugins/core/settings/_patch_base.py` - BasePlugin "set" command
+- `src/bastproxy/plugins/core/settings/plugin/_settings.py` - Main settings plugin
+- `src/bastproxy/plugins/core/settings/libs/_settinginfo.py` - SettingInfo class
+- `src/bastproxy/plugins/core/settings/__init__.py` - Plugin metadata
+- `src/bastproxy/plugins/core/settings/_patch_base.py` - BasePlugin "set" command
 
 ### Integration
 - Uses `PersistentDict` for storage (libs/persistentdict.py)
