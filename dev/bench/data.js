@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793122207331,
+  "lastUpdate": 1793124488333,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -315,6 +315,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000030460383898783957",
             "extra": "mean: 180.91784443398228 usec\nrounds: 6396"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cdfdce5c5489ac5fbee600982885fe7ff6431f18",
+          "message": "chore: remove dead check_dependencies and clear deadcode whitelist (merges PR #24, addresses #8)\n\nResolve the vulture findings whitelisted during the template sync.\n\n- loader: remove the check_dependencies parameter from\n  _api_load_plugins (the load.plugins API). It was accepted but never\n  read; the dependency block it guarded was commented out and\n  referenced names that no longer exist. Both internal callers and\n  the docstring are updated and the dead block deleted.\n- log tz formatters: rename the unused datefmt parameter to _datefmt.\n  The signature is fixed by logging.Formatter.formatTime, which calls\n  it positionally.\n- persistentdict: underscore-prefix the unused __exit__ arguments.\n- pyproject: drop the five [tool.vulture] ignore_names entries; vulture\n  does not report underscore-prefixed arguments.\n- tests: pin the load.plugins signature, the formatters under logging,\n  and PersistentDict as a context manager (including on exception).\n\nBREAKING CHANGE: the load.plugins API no longer accepts\ncheck_dependencies. A plugin that passes it now gets a TypeError\ninstead of having the argument silently ignored.\n\nAddresses #8",
+          "timestamp": "2026-10-27T18:07:22Z",
+          "tree_id": "03c69b2f0ec6e4f13580fc00667e1bdd728f4744",
+          "url": "https://github.com/endavis/bastproxy/commit/cdfdce5c5489ac5fbee600982885fe7ff6431f18"
+        },
+        "date": 1793124487397,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2182.4304849468435,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003444762992649805",
+            "extra": "mean: 458.20474324264967 usec\nrounds: 2220"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1898.9922024488362,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009586344758654983",
+            "extra": "mean: 526.5951059253719 usec\nrounds: 1907"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3534.947768297009,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004370342285591552",
+            "extra": "mean: 282.8896112605812 usec\nrounds: 3712"
           }
         ]
       }
