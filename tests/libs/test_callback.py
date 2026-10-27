@@ -19,7 +19,7 @@ import time
 from bastproxy.libs.callback import Callback
 
 # Helper functions
-test_execution_log = []
+test_execution_log: list[str] = []
 
 
 def helper_test_function() -> str:

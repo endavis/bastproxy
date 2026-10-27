@@ -36,7 +36,7 @@ class SSC:
         """Read the secret from a file."""
         first_line = ""
         try:
-            with Path(self.file_name).open() as fileo:
+            with Path(self.file_name).open(encoding="utf-8") as fileo:
                 first_line = fileo.readline()
 
             return first_line.strip()
@@ -57,7 +57,7 @@ class SSC:
         """Set the secret."""
         args = self.api("plugins.core.commands:get.current.command.args")()
         if args["value"]:
-            with Path(self.file_name).open("w") as data_file:
+            with Path(self.file_name).open("w", encoding="utf-8") as data_file:
                 data_file.write(args["value"])
             Path(self.file_name).chmod(stat.S_IRUSR | stat.S_IWUSR)
             return True, [f"{self.desc} saved"]

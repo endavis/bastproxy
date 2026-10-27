@@ -5,37 +5,54 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      full_matrix:
+        description: 'Run the full Python-version matrix (middle versions) instead of the bookend versions.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   setup:
-    # Skip CI if triggered by a label event that isn't 'full-matrix'
-    if: github.event.action != 'labeled' || github.event.label.name == 'full-matrix'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      oldest: ${{ steps.pv.outputs.oldest }}
+      newest: ${{ steps.pv.outputs.newest }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: .github/python-versions.json
+          sparse-checkout: |
+            .github/python-versions.json
+            .github/actions/python-versions
           sparse-checkout-cone-mode: false
+
+      - id: pv
+        uses: ./.github/actions/python-versions
 
       - name: Set matrix based on config and label
         id: set-matrix
+        env:
+          OLDEST: ${{ steps.pv.outputs.oldest }}
+          NEWEST: ${{ steps.pv.outputs.newest }}
         run: |
-          # Read config
-          oldest=$(jq -r '.oldest' .github/python-versions.json)
-          newest=$(jq -r '.newest' .github/python-versions.json)
+          oldest="$OLDEST"
+          newest="$NEWEST"
 
           oldest_minor=${oldest#3.}
           newest_minor=${newest#3.}
 
-          if [[ "${{ github.event.label.name }}" == "full-matrix" ]]; then
+          if [[ "${{ inputs.full_matrix }}" == "true" ]]; then
             # Middle versions only (bookends already tested)
             versions=""
             for ((i=oldest_minor+1; i<newest_minor; i++)); do
@@ -50,11 +67,12 @@ jobs:
               echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
             else
               echo "Middle versions: $versions"
-              echo "matrix={\"os\":[\"ubuntu-latest\"],\"python-version\":[$versions]}" >> $GITHUB_OUTPUT
+              echo "matrix={\"os\":[\"ubuntu-latest\",\"windows-latest\",\"macos-latest\"],\"python-version\":[$versions]}" >> $GITHUB_OUTPUT
             fi
           else
             # Bookend versions (oldest + newest)
             echo "Bookend versions: $oldest, $newest"
+            # bastproxy: bookend runs are ubuntu-only; the full matrix covers other OSes
             echo "matrix={\"os\":[\"ubuntu-latest\"],\"python-version\":[\"$oldest\",\"$newest\"]}" >> $GITHUB_OUTPUT
           fi
 
@@ -67,24 +85,30 @@ jobs:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     env:
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      HYPOTHESIS_PROFILE: ci
       BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Configure git line endings (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create BASTPROXY_HOME directory
-        run: mkdir -p $BASTPROXY_HOME
+        shell: bash
+        run: mkdir -p "$BASTPROXY_HOME"
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           version: "latest"
 
       - name: Cache uv dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.UV_CACHE_DIR }}
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -94,48 +118,142 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Check code formatting
-        run: uv run ruff format --check src/ tests/
-
-      - name: Run linting
-        run: uv run ruff check src/ tests/
-
-      - name: Run type checking
-        run: uv run mypy src/
-
-      - name: Run security scan
-        run: uv run bandit -c pyproject.toml -r src/
-
-      - name: Run spell check
-        run: uv run codespell src/ tests/ docs/ README.md
-
       - name: Run tests with coverage
-        run: uv run pytest --cov=bastproxy --cov-report=xml:tmp/coverage.xml --cov-report=term -v
+        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest'
+        run: uv run pytest -n auto --cov --cov-report=xml:tmp/coverage.xml --cov-report=term -v --ignore=tests/benchmarks/
+
+      - name: Run tests
+        if: "!(matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest')"
+        run: uv run pytest -n auto -v --ignore=tests/benchmarks/
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
+        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
-          file: ./tmp/coverage.xml
+          files: ./tmp/coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  docs:
+    needs: setup
+    if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
+    runs-on: ubuntu-latest
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ needs.setup.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "latest"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Build documentation
+        run: uv run doit docs_build
+
+  lint:
+    needs: setup
+    if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
+    runs-on: ubuntu-latest
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      # wheel_check imports the built package, which requires an existing BASTPROXY_HOME
+      BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create BASTPROXY_HOME directory
+        run: mkdir -p "$BASTPROXY_HOME"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ needs.setup.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "latest"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        id: install
+        run: uv sync --all-extras --dev
+
+      # Each check runs whether or not the one before it failed, so a PR shows
+      # every failing check at once instead of one per push (#952).
+      - name: Check code formatting
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit format_check
+
+      - name: Run linting
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit lint
+
+      - name: Run type checking
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit type_check
+
+      - name: Find dead code
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit deadcode
+
+      - name: Run security scan
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit security
+
+      - name: Run spell check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit spell_check
+
+      - name: Run dependency audit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit audit
+
+      - name: Check the built wheel
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit wheel_check
+
   ci-complete:
-    # Always run unless this is a non-full-matrix label event
-    if: always() && (github.event.action != 'labeled' || github.event.label.name == 'full-matrix')
-    needs: [setup, test]
+    if: always()
+    needs: [setup, test, lint, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
         run: |
           setup_result="${{ needs.setup.result }}"
           test_result="${{ needs.test.result }}"
+          lint_result="${{ needs.lint.result }}"
+          docs_result="${{ needs.docs.result }}"
 
           echo "Setup result: $setup_result"
           echo "Test result: $test_result"
+          echo "Lint result: $lint_result"
+          echo "Docs result: $docs_result"
 
           # Setup must succeed
           if [[ "$setup_result" != "success" ]]; then
@@ -146,6 +264,18 @@ jobs:
           # Test must succeed or be skipped (skipped = no middle versions)
           if [[ "$test_result" != "success" && "$test_result" != "skipped" ]]; then
             echo "Test job failed"
+            exit 1
+          fi
+
+          # Lint must succeed or be skipped (skipped = no middle versions)
+          if [[ "$lint_result" != "success" && "$lint_result" != "skipped" ]]; then
+            echo "Lint job failed"
+            exit 1
+          fi
+
+          # Docs must succeed or be skipped (skipped = no middle versions)
+          if [[ "$docs_result" != "success" && "$docs_result" != "skipped" ]]; then
+            echo "Docs job failed"
             exit 1
           fi
 

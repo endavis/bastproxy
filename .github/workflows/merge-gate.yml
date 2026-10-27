@@ -18,4 +18,4 @@ jobs:
             echo "Add the label when the PR is reviewed and ready to merge."
             exit 1
           fi
-          echo "ready-to-merge label present"
+          echo "✓ ready-to-merge label present"

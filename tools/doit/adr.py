@@ -1,5 +1,6 @@
 """Architecture Decision Records (ADR) doit tasks."""
 
+import json
 import os
 import re
 import subprocess  # nosec B404 - subprocess is required for doit tasks
@@ -13,35 +14,65 @@ from doit.tools import title_with_actions
 from rich.console import Console
 from rich.panel import Panel
 
-from tools.doit.templates import get_adr_required_sections, get_adr_template
+from tools.doit.base import verbatim
+from tools.doit.templates import (
+    ADR_EDITOR_HEADER,
+    FRONTMATTER_PATTERN,
+    get_adr_required_sections,
+    get_adr_template,
+)
 
 if TYPE_CHECKING:
     from rich.console import Console as ConsoleType
 
 ADR_DIR = Path("docs/decisions")
+TEMPLATE_SERIES_FLOOR = 9001
 
 
-def _get_next_adr_number() -> int:
-    """Get the next available ADR number.
+def _get_next_adr_number(template: bool = False) -> int:
+    """Get the next available ADR number for the requested series.
 
-    Scans existing ADR files and returns the next sequential number.
+    Scans existing ADR files in ``ADR_DIR`` and returns the next sequential
+    number for the series. Both series share the same directory; they are
+    distinguished by the numeric prefix:
+
+    - Project series (``template=False``): 0XXX, starting at 1.
+    - Template series (``template=True``): 9XXX, starting at
+      ``TEMPLATE_SERIES_FLOOR`` (9001) when no template ADRs exist yet.
+
+    Args:
+        template: If True, scan only the template (9XXX) series. If False,
+            scan only the project (0XXX) series.
 
     Returns:
-        Next ADR number (1 if no ADRs exist)
+        Next ADR number. For the project series: ``max + 1``, floor 1.
+        For the template series: ``max + 1``, floor ``TEMPLATE_SERIES_FLOOR``.
     """
-    if not ADR_DIR.exists():
-        return 1
+    if template:
+        pattern = re.compile(r"^9\d{3}-.*\.md$")
+        floor = TEMPLATE_SERIES_FLOOR
+    else:
+        pattern = re.compile(r"^0\d{3}-.*\.md$")
+        floor = 1
 
-    pattern = re.compile(r"^(\d{4})-.*\.md$")
+    if not ADR_DIR.exists():
+        return floor
+
     max_number = 0
+    number_pattern = re.compile(r"^(\d{4})-.*\.md$")
 
     for file in ADR_DIR.iterdir():
         if file.name == "adr-template.md" or file.name == "README.md":
             continue
-        match = pattern.match(file.name)
+        if not pattern.match(file.name):
+            continue
+        match = number_pattern.match(file.name)
         if match:
             number = int(match.group(1))
             max_number = max(max_number, number)
+
+    if max_number == 0:
+        return floor
 
     return max_number + 1
 
@@ -87,13 +118,13 @@ def _open_editor_with_template(template: str, suffix: str = ".md") -> str | None
     editor = _get_editor()
 
     # Create temp file with template
-    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False, encoding="utf-8") as f:
         f.write(template)
         temp_path = f.name
 
     try:
         # Open editor
-        console.print(f"[dim]Opening {editor}...[/dim]")
+        console.print(verbatim(f"Opening {editor}...", "dim"))
         result = subprocess.run([editor, temp_path])
 
         if result.returncode != 0:
@@ -101,8 +132,13 @@ def _open_editor_with_template(template: str, suffix: str = ".md") -> str | None
             return None
 
         # Read the edited content
-        with open(temp_path) as f:
+        with open(temp_path, encoding="utf-8") as f:
             content = f.read()
+
+        # Remove the editor instructions. Left in, they would sit above the
+        # frontmatter, which only counts as frontmatter at the top (#841).
+        header_lines = set(ADR_EDITOR_HEADER.splitlines()) - {""}
+        content = "\n".join(line for line in content.split("\n") if line not in header_lines)
 
         # Remove HTML comments <!-- ... -->
         edited = re.sub(r"<!--.*?-->", "", content, flags=re.DOTALL)
@@ -130,13 +166,13 @@ def _read_body_file(file_path: str, console: "ConsoleType") -> str | None:
     """
     path = Path(file_path)
     if not path.exists():
-        console.print(f"[red]File not found: {file_path}[/red]")
+        console.print(verbatim(f"File not found: {file_path}", "red"))
         return None
 
     try:
-        return path.read_text()
+        return path.read_text(encoding="utf-8")
     except Exception as e:
-        console.print(f"[red]Error reading file: {e}[/red]")
+        console.print(verbatim(f"Error reading file: {e}", "red"))
         return None
 
 
@@ -192,6 +228,32 @@ def _is_placeholder_content(content: str) -> bool:
     return any(re.match(pattern, content_lower) for pattern in placeholder_patterns)
 
 
+def _set_frontmatter_title(content: str, heading: str) -> str:
+    """Set the ``title`` in *content*'s frontmatter to *heading*, adding it if missing.
+
+    The title is written double-quoted: every ADR heading holds a colon, which
+    YAML reads as a mapping unless the scalar is quoted, and a JSON string is a
+    valid YAML one whatever quotes or backslashes the title contains.
+
+    Args:
+        content: ADR markdown, with or without a frontmatter block
+        heading: The ADR heading, e.g. ``ADR-0001: Use Redis``
+
+    Returns:
+        *content* with the title set, or unchanged if it has no frontmatter
+    """
+    match = FRONTMATTER_PATTERN.match(content)
+    if not match:
+        return content
+
+    line = f"title: {json.dumps(heading, ensure_ascii=False)}"
+    block, found = re.subn(r"^title:.*$", lambda _: line, match.group(0), count=1, flags=re.M)
+    if not found:
+        opening, rest = block.split("\n", 1)
+        block = f"{opening}\n{line}\n{rest}"
+    return block + content[match.end() :]
+
+
 def _prepare_editor_template(title: str, number: int, date: str) -> str:
     """Prepare the editor template with title, number, and date filled in.
 
@@ -204,7 +266,10 @@ def _prepare_editor_template(title: str, number: int, date: str) -> str:
         Template content ready for editing
     """
     adr_template = get_adr_template()
-    template = adr_template.editor_template
+
+    # The frontmatter block is found only at the start, so set its title past the header.
+    content = adr_template.editor_template.removeprefix(ADR_EDITOR_HEADER)
+    template = ADR_EDITOR_HEADER + _set_frontmatter_title(content, f"ADR-{number:04d}: {title}")
 
     # Replace placeholders
     template = template.replace("ADR-NNNN: Title", f"ADR-{number:04d}: {title}")
@@ -220,21 +285,29 @@ def task_adr() -> dict[str, Any]:
     Creates a new ADR file with the next sequential number.
     Required sections are determined by the ADR template file.
 
-    Three modes:
+    Two series live side-by-side in ``docs/decisions/``:
+
+    - Project series (0XXX) — the default.
+    - Template-meta series (9XXX) — pass ``--template``.
+
+    Three input modes:
     1. Interactive (default): Opens $EDITOR with template
     2. --body-file: Reads body from a file
     3. --title + --body: Provides content directly (for AI/scripts)
 
     Examples:
-        Interactive:  doit adr --title="Use Redis for caching"
-        From file:    doit adr --title="Use Redis" --body-file=adr.md
-        Direct:       doit adr --title="Use Redis" --body="## Status\\nAccepted\\n..."
+        Project (0XXX):    doit adr --title="Use Redis for caching"
+        From file:         doit adr --title="Use Redis" --body-file=adr.md
+        Direct:            doit adr --title="Use Redis" --body="## Status\\nAccepted\\n..."
+        Template (9XXX):   doit adr --title="Use some tool" --template
+        Template w/ file:  doit adr --title="Use some tool" --template --body-file=adr.md
     """
 
     def create_adr(
         title: str | None = None,
         body: str | None = None,
         body_file: str | None = None,
+        template: bool = False,
     ) -> None:
         console = Console()
         console.print()
@@ -258,13 +331,14 @@ def task_adr() -> dict[str, Any]:
                 sys.exit(1)
 
         # Generate filename and number
-        number = _get_next_adr_number()
+        number = _get_next_adr_number(template=template)
         slug = _title_to_slug(title)
         filename = f"{number:04d}-{slug}.md"
         adr_path = ADR_DIR / filename
         today = datetime.now().strftime("%Y-%m-%d")
 
-        console.print(f"[dim]ADR number: {number:04d}[/dim]")
+        series_label = "template-meta (9XXX)" if template else "project (0XXX)"
+        console.print(f"[dim]ADR number: {number:04d} ({series_label})[/dim]")
         console.print(f"[dim]Filename: {filename}[/dim]")
 
         # Show required sections
@@ -282,18 +356,26 @@ def task_adr() -> dict[str, Any]:
             body_content = body
         else:
             # Mode 1: Interactive editor
-            template = _prepare_editor_template(title, number, today)
+            editor_template = _prepare_editor_template(title, number, today)
 
             console.print(
                 "[dim]Opening editor with ADR template. Fill in the sections, save, and exit.[/dim]"
             )
-            body_content = _open_editor_with_template(template)
+            body_content = _open_editor_with_template(editor_template)
             if body_content is None:
                 console.print("[yellow]Aborted.[/yellow]")
                 sys.exit(0)
 
-        # For non-interactive modes, ensure header is correct
+        # For non-interactive modes, ensure frontmatter and header are correct
         if body_file or body:
+            # Keep the body's own frontmatter, or start from the template's
+            match = FRONTMATTER_PATTERN.match(body_content)
+            if match:
+                frontmatter = match.group(0)
+                body_content = body_content[match.end() :].lstrip("\n")
+            else:
+                frontmatter = get_adr_template().frontmatter
+
             # Check if content already has a header
             if not body_content.startswith("# ADR-"):
                 # Prepend the header
@@ -306,6 +388,11 @@ def task_adr() -> dict[str, Any]:
                     body_content,
                 )
 
+            if frontmatter:
+                body_content = _set_frontmatter_title(
+                    f"{frontmatter}\n{body_content}", f"ADR-{number:04d}: {title}"
+                )
+
             # Ensure date is set
             if "YYYY-MM-DD" in body_content:
                 body_content = body_content.replace("YYYY-MM-DD", today)
@@ -315,8 +402,9 @@ def task_adr() -> dict[str, Any]:
             console.print("[red]ADR content validation failed.[/red]")
             sys.exit(1)
 
-        # Write ADR file
-        adr_path.write_text(body_content + "\n")
+        # Write ADR file. Exactly one final newline: a body file usually ends
+        # with one already, and a second fails end-of-file-fixer (#859).
+        adr_path.write_text(body_content.rstrip("\n") + "\n", encoding="utf-8")
 
         console.print()
         console.print(
@@ -325,6 +413,14 @@ def task_adr() -> dict[str, Any]:
                 border_style="green",
             )
         )
+
+        # The table of contents lists the description next to the title (#841)
+        placeholder = get_adr_template().placeholder_description
+        if placeholder and placeholder in body_content:
+            console.print(
+                "[yellow]Replace the placeholder description in the ADR's frontmatter "
+                "with one sentence that says what was decided.[/yellow]"
+            )
 
     return {
         "actions": [create_adr],
@@ -346,6 +442,16 @@ def task_adr() -> dict[str, Any]:
                 "long": "body-file",
                 "default": None,
                 "help": "Read body from file",
+            },
+            {
+                "name": "template",
+                "long": "template",
+                "type": bool,
+                "default": False,
+                "help": (
+                    "Create a template-meta ADR (9XXX series) "
+                    "instead of a project-level ADR (0XXX series)"
+                ),
             },
         ],
         "title": title_with_actions,

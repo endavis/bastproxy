@@ -19,3 +19,11 @@
 # Custom environment variables for your workflow
 # export EDITOR=vim
 # export BROWSER=firefox
+
+# Claude Code LSP support (enables fast code navigation)
+# Uncomment to enable Language Server Protocol in Claude Code
+# See .claude/lsp-setup.md for setup instructions
+# export ENABLE_LSP_TOOL=1
+
+# Pyright LSP debug logging (uncomment for troubleshooting LSP issues)
+# export PYRIGHT_PYTHON_DEBUG=1

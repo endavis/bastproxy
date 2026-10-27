@@ -35,6 +35,8 @@ env/
 htmlcov/
 .tox/
 .hypothesis/
+# mutmut's working copy, made by `doit mutate` at the repository root.
+/mutants/
 
 # Type checking and linting
 .mypy_cache/
@@ -56,6 +58,13 @@ dmypy.json
 .direnv/
 .envrc.local
 
+# Per-user local state. `.claude/settings.local.json` was previously covered
+# only by the maintainer's global ignore file, so a fresh clone by anyone else
+# showed it as untracked. `.local/` is where `gh` writes its state dir when
+# HOME is unset (see tests/test_statusline_agy.py).
+.claude/settings.local.json
+.local/
+
 # Environment variables
 .env
 .env.*
@@ -65,15 +74,23 @@ tmp/*
 !tmp/.gitkeep
 .cache/
 
+# Git worktrees made by `doit worktree`. Not temporary: each lives until its PR merges.
+# Anchored to the root, so a directory named `worktrees` elsewhere stays tracked (#860).
+/worktrees/
+# Claude Code's built-in worktree tool (EnterWorktree) creates worktrees here.
+.claude/worktrees/
+
 # Documentation
 site/
 
 # Build and packaging
 *.whl
 .uv-cache/
+**/_version.py
 
 # Project specific
 *.log
 .doit.db.db
 coverage.xml
 .nfs*
+tools/hooks/ai/hook-debug.jsonl
