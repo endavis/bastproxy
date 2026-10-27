@@ -1,3 +1,15 @@
+---
+title: Event System Analysis and Findings
+description: Review findings and recommendations for the event system implementation
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - events
+  - review
+---
+
 # Event System Analysis and Findings
 
 **Date:** 2025-12-09
@@ -46,7 +58,7 @@ Two identical `ProcessRaisedEvent` class definitions exist in the codebase. This
 - Import confusion
 
 **Recommendation:**
-Consolidate to a single location, preferably `libs/process/_raisedevent.py`, and remove the duplicate from the plugin directory.
+Consolidate to a single location, preferably a `_raisedevent.py` module in a new `src/bastproxy/libs/process/` package, and remove the duplicate from the plugin directory.
 
 **Fix:**
 ```python
@@ -146,13 +158,13 @@ from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaise
    ```
 
 **Impact:**
-- **ImportError** when `plugins/core/events/libs/_event.py` is imported
-- Code in `plugins/core/events/libs/_event.py` cannot execute
+- **ImportError** when `src/bastproxy/plugins/core/events/libs/_event.py` is imported
+- Code in `src/bastproxy/plugins/core/events/libs/_event.py` cannot execute
 - Type hints are incorrect, confusing for developers and type checkers
 
 **Why it hasn't failed yet:**
-- The actual plugin uses `plugins/core/events/plugin/_event.py` which was correctly updated (line 22)
-- The file with the bad import (`plugins/core/events/libs/_event.py`) may not be imported at runtime
+- The actual plugin uses `src/bastproxy/plugins/core/events/plugin/_event.py` which was correctly updated (line 22)
+- The file with the bad import (`src/bastproxy/plugins/core/events/libs/_event.py`) may not be imported at runtime
 - There appear to be two Event implementations (see Bug #1)
 
 **Fix Required:**
@@ -162,7 +174,7 @@ Update all 8 locations listed above to use `EventDataRecord` instead of `EventAr
 
 ### Bug #3: Memory Leak - Unbounded Event History ⚠️ HIGH SEVERITY
 
-**Location:** `plugins/core/events/plugin/_event.py:16224`
+**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16224`
 
 **Issue:**
 ```python
@@ -221,7 +233,7 @@ self.raised_events = {}  # Keep for UUID lookup, but clean periodically
 
 ### Bug #4: AttributeError in raise_event ⚠️ MEDIUM SEVERITY
 
-**Location:** `plugins/core/events/plugin/_event.py:16087`
+**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16087`
 
 **Issue:**
 ```python
@@ -254,7 +266,7 @@ LogRecord(
 
 ### Issue #1: Overly Broad Exception Handling
 
-**Location:** `plugins/core/events/plugin/_event.py:16413`
+**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16413`
 
 **Code:**
 ```python

@@ -1,3 +1,14 @@
+---
+title: Triggers System
+description: Regex matching on MUD output that raises events for plugins to handle
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - triggers
+---
+
 # Triggers System
 
 ## Overview
@@ -7,7 +18,7 @@ The triggers system in bastproxy provides pattern matching on MUD output using r
 ## Key Components
 
 ### TriggerItem Class
-**Location**: `plugins/core/triggers/plugin/_triggers.py`
+**Location**: `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`
 
 Represents a single trigger:
 
@@ -29,7 +40,7 @@ class TriggerItem:
 ```
 
 ### TriggersPlugin Class
-**Location**: `plugins/core/triggers/plugin/_triggers.py`
+**Location**: `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`
 
 Manages all triggers:
 

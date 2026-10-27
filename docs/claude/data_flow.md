@@ -1,3 +1,15 @@
+---
+title: Data Flow
+description: How network data moves between MUD servers and clients through the proxy
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - data-flow
+  - networking
+---
+
 # Data Flow
 
 ## Overview

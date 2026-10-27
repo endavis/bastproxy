@@ -1,0 +1,59 @@
+# Template paths bastproxy deliberately does not adopt.
+#
+# Hand-managed: no tool rewrites this file. Matching paths are left out of the
+# `manage.py check` drift report, and the doc-scanning tests
+# (test_documented_paths, test_markdown_links, test_instruction_pointers) accept
+# references to them from adopted template files. Patterns are fnmatch globs
+# against repository-relative POSIX paths.
+#
+# Review with `python tools/pyproject_template/manage.py --yes check --show-excluded`
+# on each sync: an excluded path never shows as drift again.
+#
+# Decisions: #7 (overall sync), #9, #21, #22.
+
+exclude = [
+    # The template's example package and the tests that exercise it.
+    # bastproxy has its own package under src/bastproxy/.
+    "src/package_name/*",
+    "tests/test_cli.py",
+    "tests/test_core.py",
+    "tests/test_logging.py",
+    "tests/test_example.py",
+    "tests/benchmarks/test_bench_core.py",
+    "tests/benchmarks/test_bench_logging.py",
+    "tests/template/test_properties.py",
+
+    # Example scripts and the FastAPI example app (removed in #9; never applied here).
+    "examples/*",
+
+    # Template distribution files: README.template.md becomes README.md on
+    # spawn, and bootstrap.py is fetched by URL when a sync needs it.
+    "README.template.md",
+    "bootstrap.py",
+
+    # Template-owned management code and tests (ADR-9017). setup_repo.py is
+    # shed by `cleanup --setup`; the tests are named by adopted ADRs and skills.
+    "tools/pyproject_template/setup_repo.py",
+    "tests/template/test_utils_properties.py",
+    "tests/template/test_check_template_updates.py",
+
+    # Personal editor configuration; .vscode/ is git-ignored here.
+    ".vscode/*",
+
+    # Project-owned text: copyright holder and wording differ on purpose.
+    "LICENSE",
+    ".github/CODE_OF_CONDUCT.md",
+
+    # User docs written around the template's example package and CLI (#22).
+    # bastproxy's own docs are docs/index.md and docs/claude/.
+    "docs/getting-started/*",
+    "docs/usage/*",
+    "docs/reference/*",
+    "docs/examples/*",
+    "docs/deployment/*",
+
+    # Hypothetical files in the docs/development/ai/first-5-minutes.md
+    # walkthrough, named after the package once its placeholder is replaced.
+    "src/bastproxy/cache.py",
+    "src/bastproxy/provider.py",
+]

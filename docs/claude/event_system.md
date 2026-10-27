@@ -1,3 +1,14 @@
+---
+title: Event System
+description: Priority-based event registration and dispatch between plugins
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - events
+---
+
 # Event System
 
 ## Overview
@@ -7,7 +18,7 @@ The event system in bastproxy is a priority-based event dispatch system that all
 ## Key Components
 
 ### Event Class
-**Location**: `plugins/core/events/libs/_event.py` and `plugins/core/events/plugin/_event.py`
+**Location**: `src/bastproxy/plugins/core/events/libs/_event.py` and `src/bastproxy/plugins/core/events/plugin/_event.py`
 
 The `Event` class is the core of the event system. Each event has:
 - **name**: Unique event identifier
@@ -33,7 +44,7 @@ class Event:
 ```
 
 ### EventDataRecord
-**Location**: `plugins/core/events/libs/data/_event.py`
+**Location**: `src/bastproxy/plugins/core/events/libs/data/_event.py`
 
 A data container for event arguments that extends `BaseDictRecord`:
 
@@ -46,7 +57,7 @@ class EventDataRecord(BaseDictRecord):
 ```
 
 ### ProcessRaisedEvent
-**Location**: `plugins/core/events/libs/process/_raisedevent.py`
+**Location**: `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`
 
 A record type that tracks the execution of a raised event:
 
@@ -62,7 +73,7 @@ class ProcessRaisedEvent(BaseRecord):
 ```
 
 ### RegisterToEvent Decorator
-**Location**: `plugins/core/events/libs/_utils.py`
+**Location**: `src/bastproxy/plugins/core/events/libs/_utils.py`
 
 Decorator class for registering functions to events:
 
@@ -76,7 +87,7 @@ class RegisterToEvent:
 ```
 
 ### EventsPlugin
-**Location**: `plugins/core/events/plugin/_events.py`
+**Location**: `src/bastproxy/plugins/core/events/plugin/_events.py`
 
 The core plugin that manages the event system, tracking all events and registrations.
 
@@ -174,14 +185,14 @@ if event_record:
 ## Important Files
 
 ### Core Event System
-- `plugins/core/events/libs/_event.py` - Event class implementation
-- `plugins/core/events/libs/process/_raisedevent.py` - ProcessRaisedEvent class
-- `plugins/core/events/libs/data/_event.py` - EventDataRecord class
-- `plugins/core/events/libs/_utils.py` - RegisterToEvent decorator
+- `src/bastproxy/plugins/core/events/libs/_event.py` - Event class implementation
+- `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` - ProcessRaisedEvent class
+- `src/bastproxy/plugins/core/events/libs/data/_event.py` - EventDataRecord class
+- `src/bastproxy/plugins/core/events/libs/_utils.py` - RegisterToEvent decorator
 
 ### Event Plugin
-- `plugins/core/events/plugin/_events.py` - EventsPlugin that manages events
-- `plugins/core/events/__init__.py` - Plugin metadata and exports
+- `src/bastproxy/plugins/core/events/plugin/_events.py` - EventsPlugin that manages events
+- `src/bastproxy/plugins/core/events/__init__.py` - Plugin metadata and exports
 
 ## Code Examples
 

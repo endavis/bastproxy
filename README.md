@@ -1,7 +1,6 @@
 # BastProxy
 
-[![Tests](https://github.com/endavis/bastproxy-py3/actions/workflows/test.yml/badge.svg)](https://github.com/endavis/bastproxy-py3/actions/workflows/test.yml)
-[![Lint](https://github.com/endavis/bastproxy-py3/actions/workflows/lint.yml/badge.svg)](https://github.com/endavis/bastproxy-py3/actions/workflows/lint.yml)
+[![CI](https://github.com/endavis/bastproxy/actions/workflows/ci.yml/badge.svg)](https://github.com/endavis/bastproxy/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -30,8 +29,8 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/endavis/bastproxy-py3.git
-   cd bastproxy-py3
+   git clone https://github.com/endavis/bastproxy.git
+   cd bastproxy
    ```
 
 2. **Install dependencies**:
@@ -152,7 +151,7 @@ mypy mudproxy.py libs/ plugins/
 ## Project Structure
 
 ```
-bastproxy-py3/
+bastproxy/
 ├── mudproxy.py          # Main entry point
 ├── libs/                # Core libraries
 │   ├── api/            # API framework
@@ -197,8 +196,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/endavis/bastproxy-py3/issues)
-- **Documentation**: [Wiki](https://github.com/endavis/bastproxy-py3/wiki)
+- **Issues**: [GitHub Issues](https://github.com/endavis/bastproxy/issues)
+- **Documentation**: [docs/](docs/index.md)
 
 ## Acknowledgments
 

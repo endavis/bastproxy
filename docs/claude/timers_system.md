@@ -1,3 +1,14 @@
+---
+title: Timers System
+description: Scheduling recurring and one-shot timers from plugins
+audience:
+  - contributors
+  - ai-agents
+tags:
+  - architecture
+  - timers
+---
+
 # Timers System
 
 ## Overview
@@ -7,7 +18,7 @@ The timers system in bastproxy provides scheduled execution of functions at spec
 ## Key Components
 
 ### Timer Class
-**Location**: `plugins/core/timers/plugin/_timers.py`
+**Location**: `src/bastproxy/plugins/core/timers/plugin/_timers.py`
 
 Represents a single timer:
 
@@ -26,7 +37,7 @@ class Timer(Callback):
 ```
 
 ### TimersPlugin Class
-**Location**: `plugins/core/timers/plugin/_timers.py`
+**Location**: `src/bastproxy/plugins/core/timers/plugin/_timers.py`
 
 Manages all timers:
 

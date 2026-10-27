@@ -23,12 +23,12 @@ Thank you for your interest in contributing to BastProxy! This document provides
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/bastproxy-py3.git
-   cd bastproxy-py3
+   git clone https://github.com/YOUR-USERNAME/bastproxy.git
+   cd bastproxy
    ```
 3. **Add the upstream remote**:
    ```bash
-   git remote add upstream https://github.com/endavis/bastproxy-py3.git
+   git remote add upstream https://github.com/endavis/bastproxy.git
    ```
 
 ## Development Setup
