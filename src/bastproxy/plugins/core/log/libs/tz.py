@@ -14,13 +14,13 @@ import datetime
 # Project
 
 
-def formatTime_RFC3339_UTC(self, record, datefmt=None):
+def formatTime_RFC3339_UTC(self, record, _datefmt=None):
     """Formats a timestamp in the RFC3339 format in the UTC timezone.
 
     Args:
         self: The formatter instance (required by logging API).
         record: The record object containing the timestamp.
-        datefmt: Not used, but required by the logging module.
+        _datefmt: Not used, but required by the logging module.
 
     Returns:
         str: The formatted timestamp in RFC3339 format with UTC timezone.
@@ -29,13 +29,13 @@ def formatTime_RFC3339_UTC(self, record, datefmt=None):
     return datetime.datetime.fromtimestamp(record.created).astimezone(datetime.UTC).isoformat()
 
 
-def formatTime_RFC3339(self, record, datefmt=None):
+def formatTime_RFC3339(self, record, _datefmt=None):
     """Formats a timestamp in the RFC3339 format in the local timezone.
 
     Args:
         self: The formatter instance (required by logging API).
         record: The record object containing the timestamp.
-        datefmt: Not used, but required by the logging module.
+        _datefmt: Not used, but required by the logging module.
 
     Returns:
         str: The formatted timestamp in RFC3339 format.

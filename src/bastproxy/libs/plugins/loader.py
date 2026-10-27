@@ -786,20 +786,16 @@ class PluginLoader:
         self,
         plugins_to_load: list[str],
         exit_on_error: bool = False,
-        check_dependencies: bool = True,
     ) -> dict[str, list[str] | set[str]]:
         """Load a list of plugins.
 
         This method loads a list of plugins by importing, instantiating, and
         initializing them. It handles errors during the loading process and logs
-        the progress. If `check_dependencies` is True, it also checks for plugin
-        dependencies.
+        the progress.
 
         Args:
             plugins_to_load: A list of plugin IDs to load.
             exit_on_error: A flag indicating whether to exit on error.
-            check_dependencies: A flag indicating whether to check for plugin
-            dependencies.
 
         Returns:
             A dictionary containing lists of loaded plugins, bad plugins, and
@@ -836,28 +832,6 @@ class PluginLoader:
         for plugin_id in plugins_not_loaded:
             if not self._instantiate_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
-
-        plugins_not_loaded = [
-            plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
-        ]
-
-        # check dependencies
-        # if check_dependencies:
-        #     if plugin_instance := self.loaded_plugins_info[
-        #         plugin_id
-        #     ].plugininstance:
-        #         dependencies = plugin_instance.dependencies
-        #     else:
-        #         dependencies = []
-
-        #     for dependency in dependencies:
-        #         # import and instantiate dependencies and add their dependencies
-        #         # to list
-        #         return_value, new_dependencies = self.preinitialize_plugin(dependency)
-        #         if return_value:
-        #             all_dependencies.append(dependency)
-        #             all_dependencies.extend(new_dependencies)
-        #
 
         plugins_not_loaded = [
             plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
@@ -916,9 +890,7 @@ class PluginLoader:
 
         """
         return (
-            self.api(f"{__name__}:load.plugins")(
-                [plugin_id], exit_on_error=False, check_dependencies=True
-            )
+            self.api(f"{__name__}:load.plugins")([plugin_id], exit_on_error=False)
             if self.api(f"{__name__}:unload.plugin")(plugin_id)
             else False
         )
@@ -1098,9 +1070,7 @@ class PluginLoader:
             core_plugins.remove("plugins.core.log")
             core_plugins.insert(0, "plugins.core.log")
 
-        self.api(f"{__name__}:load.plugins")(
-            core_plugins, exit_on_error=True, check_dependencies=False
-        )
+        self.api(f"{__name__}:load.plugins")(core_plugins, exit_on_error=True)
 
     def load_plugins_on_startup(self) -> None:
         """Load plugins on startup.

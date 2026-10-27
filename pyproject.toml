@@ -450,12 +450,6 @@ ignore_names = [
     "tearDown",       # unittest methods
     "setUpClass",     # unittest methods
     "tearDownClass",  # unittest methods
-    # Existing src/ findings whitelisted when deadcode was adopted; review in #8
-    "exc_type",            # __exit__ protocol signature
-    "exc_val",             # __exit__ protocol signature
-    "exc_tb",              # __exit__ protocol signature
-    "datefmt",             # logging.Formatter.formatTime replacement signature
-    "check_dependencies",  # loader._api_load_plugins: accepted but never read (#8)
 ]
 ignore_decorators = [
     "@pytest.fixture",

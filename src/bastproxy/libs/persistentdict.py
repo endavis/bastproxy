@@ -235,7 +235,7 @@ class PersistentDict(dict):
         """
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, _exc_type, _exc_val, _exc_tb) -> None:
         """Exit the runtime context related to this object.
 
         This method is called when the runtime context is exited using the
@@ -243,9 +243,9 @@ class PersistentDict(dict):
         dictionary are written to the file on disk by calling the `close` method.
 
         Args:
-            exc_type: The type of exception raised, if any.
-            exc_val: The exception instance raised, if any.
-            exc_tb: The traceback object for the exception, if any.
+            _exc_type: The type of exception raised, if any.
+            _exc_val: The exception instance raised, if any.
+            _exc_tb: The traceback object for the exception, if any.
 
         Returns:
             None
