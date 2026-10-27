@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793122045746,
+  "lastUpdate": 1793122207331,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -270,6 +270,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000012405602482548631",
             "extra": "mean: 291.0074652137685 usec\nrounds: 3579"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ddb8f2b3964d70eb699ef14c63270b36f800aff5",
+          "message": "chore(deps): bump rich from 14.2.0 to 15.0.0 (merges PR #20)\n\nBumps [rich](https://github.com/Textualize/rich) from 14.2.0 to 15.0.0.\n- [Release notes](https://github.com/Textualize/rich/releases)\n- [Changelog](https://github.com/Textualize/rich/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/Textualize/rich/compare/v14.2.0...v15.0.0)\n\n---\nupdated-dependencies:\n- dependency-name: rich\n  dependency-version: 15.0.0\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T17:29:23Z",
+          "tree_id": "74db656251b064793d40fb1ae9356315554b8c04",
+          "url": "https://github.com/endavis/bastproxy/commit/ddb8f2b3964d70eb699ef14c63270b36f800aff5"
+        },
+        "date": 1793122204599,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3858.279201569733,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009468976641192604",
+            "extra": "mean: 259.18290195099206 usec\nrounds: 3998"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3286.957004271558,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000017313881934295744",
+            "extra": "mean: 304.23275957076777 usec\nrounds: 3448"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 5527.37074183362,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000030460383898783957",
+            "extra": "mean: 180.91784443398228 usec\nrounds: 6396"
           }
         ]
       }
