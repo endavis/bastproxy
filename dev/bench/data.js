@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793121852807,
+  "lastUpdate": 1793122045746,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -225,6 +225,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000207168581325389",
             "extra": "mean: 218.00819509065278 usec\nrounds: 4685"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3d4884b4c1657da4b0e30ff906b5baac9aea375",
+          "message": "chore(deps): bump regex from 2024.11.6 to 2026.9.29 (merges PR #19)\n\nBumps [regex](https://github.com/mrabarnett/mrab-regex) from 2024.11.6 to 2026.9.29.\n- [Changelog](https://github.com/mrabarnett/mrab-regex/blob/hg/changelog.txt)\n- [Commits](https://github.com/mrabarnett/mrab-regex/compare/2024.11.6...2026.9.29)\n\n---\nupdated-dependencies:\n- dependency-name: regex\n  dependency-version: 2026.9.29\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T17:26:38Z",
+          "tree_id": "1da4508736a1629bfa9b1961399b88ba3fd707b9",
+          "url": "https://github.com/endavis/bastproxy/commit/a3d4884b4c1657da4b0e30ff906b5baac9aea375"
+        },
+        "date": 1793122044337,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2093.308817170486,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012806276345990845",
+            "extra": "mean: 477.7126011209826 usec\nrounds: 2141"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1869.3084574114175,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012145696492056283",
+            "extra": "mean: 534.9571902032588 usec\nrounds: 1919"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3436.337962208011,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012405602482548631",
+            "extra": "mean: 291.0074652137685 usec\nrounds: 3579"
           }
         ]
       }
