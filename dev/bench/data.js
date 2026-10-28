@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793177225708,
+  "lastUpdate": 1793184438701,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -450,6 +450,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000009428788592384027",
             "extra": "mean: 281.2478652793145 usec\nrounds: 3652"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cda091fd3468eb804b832bb723ffeedcbe3e8f85",
+          "message": "chore: synchronize with pyproject-template (merges PR #30, addresses #29)\n\nSyncs template 556e130..2fafe38:\n- endavis/pyproject-template#1057 (block shell-expanded write targets and git replacement of .envrc.local.example)\n- endavis/pyproject-template#1058 (AI agents commit with git commit, since doit commit needs a terminal)\n\nAddresses #29\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sb5Ua6GvageApSGs7o\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-28T10:46:30Z",
+          "tree_id": "392d774104ae07909fa40bbd74bf9626bee0eaa0",
+          "url": "https://github.com/endavis/bastproxy/commit/cda091fd3468eb804b832bb723ffeedcbe3e8f85"
+        },
+        "date": 1793184438345,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2129.572297600543,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015726481651587014",
+            "extra": "mean: 469.57785895634146 usec\nrounds: 2127"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1491.769599014211,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00017626787464661652",
+            "extra": "mean: 670.344804359077 usec\nrounds: 1927"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3508.592397725022,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008502500005968044",
+            "extra": "mean: 285.0145832409607 usec\nrounds: 3604"
           }
         ]
       }
