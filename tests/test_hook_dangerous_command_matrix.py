@@ -509,9 +509,14 @@ BASH_CASES = [
         "rtm var to non-protected file",
     ),
     (
+        # Flipped from ALLOW on purpose (#1037, decision b): any confirmed
+        # write to an ENV_PERSISTENCE_TARGETS file is now blocked whatever its
+        # content, not only when the literal var name is present -- otherwise
+        # a runtime-assembled name (`v=ALLOW_AI_; echo "...${v}..." >>
+        # ~/.bashrc`) would still slip through the old literal-string check.
         'echo "PATH=/foo" >> ~/.bashrc',
-        "ALLOW",
-        "no var name write to .bashrc",
+        "BLOCK",
+        "unrelated write still blocked: any write to .bashrc is now blocked",
     ),
     (
         'git add .claude/settings.json && git commit -m "doc: mention ALLOW_AI_READY_TO_MERGE"',
@@ -562,6 +567,48 @@ BASH_CASES = [
         "python -c \"print('ALLOW_AI_READY_TO_MERGE')\"",
         "ALLOW",
         "python -c print var name only",
+    ),
+    (
+        # Issue #1037's reproduction for the literal-string gap: no token
+        # contains "ALLOW_AI_READY_TO_MERGE", only a runtime-assembled "v"
+        # variable the shell concatenates. Blocked because any confirmed
+        # write to an ENV_PERSISTENCE_TARGETS file is now blocked whatever
+        # its content (decision b), not because the name was found.
+        "bash -c 'v=ALLOW_AI_; echo \"export ${v}READY_TO_MERGE=1\" >> ~/.bashrc'",
+        "BLOCK",
+        "runtime-assembled var name write to .bashrc",
+    ),
+    (
+        # A documented, legitimate setup step (docs/development/AI_SETUP.md)
+        # that must stay allowed: config.toml is an _AI_CLI_SETTINGS_TARGETS
+        # file, which (unlike ENV_PERSISTENCE_TARGETS) still requires the
+        # literal var name, and this command has none.
+        "cp .codex/config.toml ~/.codex/config.toml",
+        "ALLOW",
+        "cp codex config.toml is a documented setup step",
+    ),
+    (
+        # .envrc sources .envrc.local, so persisting the var there is the
+        # issue's own repro (#1037). It is content-gated: blocked only when
+        # the literal var name is present.
+        "printf 'export ALLOW_AI_READY_TO_MERGE=1' > .envrc.local",
+        "BLOCK",
+        "var name write to .envrc.local",
+    ),
+    (
+        # Documented agent-runnable steps (AI_SETUP.md, README) that must
+        # stay allowed: no var name, so the content gate lets them through.
+        "echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
+        "ALLOW",
+        "documented ENABLE_LSP_TOOL line to .envrc.local",
+    ),
+    ("cp .envrc.local.example .envrc.local", "ALLOW", "copy envrc.local example"),
+    (
+        # The interpreter heuristic only *might* write; mentioning a target
+        # basename with no var name present stays allowed.
+        "python -c \"print('.bashrc')\"",
+        "ALLOW",
+        "python -c mentions target basename only, no var name",
     ),
     # A separator glued to the next command still ends the one before it (#1023).
     # `shlex.split` keeps `true;git` as one word, so the checks that look for a
@@ -629,6 +676,18 @@ EDIT_CASES: list[tuple[str, dict, str, str]] = [
     ),
     (
         "Write",
+        {"file_path": ".envrc.local", "content": "export ALLOW_AI_READY_TO_MERGE=1\n"},
+        "BLOCK",
+        "Write .envrc.local adding rtm var (#1037 repro)",
+    ),
+    (
+        "Write",
+        {"file_path": ".envrc.local", "content": "export ENABLE_LSP_TOOL=1\n"},
+        "ALLOW",
+        "Write .envrc.local unrelated content",
+    ),
+    (
+        "Write",
         {
             "file_path": ".claude/settings.local.json",
             "content": '{"env": {"ALLOW_AI_READY_TO_MERGE": "1"}}',
@@ -693,26 +752,31 @@ EDIT_CASES: list[tuple[str, dict, str, str]] = [
 ]
 
 # --- File-edit cases (Copilot format) ---
+#
+# "create"/"edit" with a "path" key are Copilot's real tool names, from the
+# shipped SDK docs (not a live probe -- #1037); its content key is not
+# confirmed, so the hook scans every string value instead of a guessed key.
 COPILOT_EDIT_CASES: list[tuple[str, dict, str, str]] = [
     (
-        "Edit",
-        {
-            "file_path": "~/.bashrc",
-            "old_string": "",
-            "new_string": "export ALLOW_AI_READY_TO_MERGE=1",
-        },
+        "create",
+        {"path": "~/.bashrc", "content": "export ALLOW_AI_READY_TO_MERGE=1"},
         "BLOCK",
-        "Copilot Edit .bashrc adding rtm var",
+        "Copilot create .bashrc adding rtm var",
     ),
     (
-        "Edit",
-        {
-            "file_path": "~/.bashrc",
-            "old_string": "",
-            "new_string": "export PATH=$PATH:/usr/local/bin",
-        },
+        "edit",
+        {"path": "~/.bashrc", "content": "export PATH=$PATH:/usr/local/bin"},
         "ALLOW",
-        "Copilot Edit .bashrc unrelated content",
+        "Copilot edit .bashrc unrelated content",
+    ),
+    (
+        # The content key is not confirmed: the var name lands under a key
+        # name this hook has never seen, and the scan-all-values path still
+        # has to catch it.
+        "edit",
+        {"path": "~/.bashrc", "body": "export ALLOW_AI_READY_TO_MERGE=1"},
+        "BLOCK",
+        "Copilot edit .bashrc var under unexpected content key",
     ),
 ]
 
@@ -992,6 +1056,48 @@ def test_file_edit_copilot_format(
     assert outcome == expected, description
 
 
+# --- Shape-based fallback for a tool name this hook doesn't recognise (#1037) ---
+#
+# A new or renamed edit tool is not in `_FILE_EDIT_TOOL_NAMES`; before this it
+# fell through to `return 0` -- allowed -- however dangerous its payload. The
+# fallback instead checks the *shape* of `tool_input`: a path key plus a
+# content key is a write, whatever the tool is called.
+UNKNOWN_TOOL_EDIT_CASES: list[tuple[str, dict, str, str]] = [
+    (
+        "write_text",
+        {"file_path": "~/.bashrc", "content": "export ALLOW_AI_READY_TO_MERGE=1"},
+        "BLOCK",
+        "unrecognised write-shaped tool against a protected target",
+    ),
+    (
+        # A path key with no content key is read-shaped (Read, Grep, Glob, a
+        # `view` tool) -- it must not be treated as a write.
+        "view",
+        {"file_path": "~/.bashrc"},
+        "ALLOW",
+        "unrecognised read-shaped tool",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "tool_input", "expected", "description"),
+    UNKNOWN_TOOL_EDIT_CASES,
+    ids=_ids(UNKNOWN_TOOL_EDIT_CASES, 3),
+)
+def test_file_edit_unrecognised_tool_name(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tool_name: str,
+    tool_input: dict,
+    expected: str,
+    description: str,
+) -> None:
+    """An unrecognised tool is checked by the shape of its input, not allowed by default."""
+    payload = json.dumps({"tool_name": tool_name, "tool_input": tool_input})
+    assert _outcome_exit_code(hook, monkeypatch, payload) == expected, description
+
+
 @pytest.mark.parametrize(
     ("command", "expected", "description"), AGY_COMMAND_CASES, ids=_ids(AGY_COMMAND_CASES, 2)
 )
@@ -1228,9 +1334,13 @@ def test_codex_shell_tool_uses_the_default_schema() -> None:
     """Codex's shell tool name and payload shape, as observed from a live session.
 
     Recorded as a test rather than a comment because it is the premise the
-    `^Bash$` matcher in `.codex/config.toml` rests on.
+    `^Bash$` matcher in `.codex/config.toml` rests on. Tool names are matched
+    case-insensitively (#1037), so the set itself holds the lower-case name;
+    the real "Bash" sent by Codex matches ``main()``'s ``tool_name.lower()``
+    comparison, which every case in BASH_CASES above exercises against the
+    literal "Bash" tool name.
     """
-    assert "Bash" in _load_hook()._BASH_TOOL_NAMES
+    assert "bash" in _load_hook()._BASH_TOOL_NAMES
 
 
 # --- Secret exposure cases (issue #682) ------------------------------------
@@ -1262,6 +1372,18 @@ SECRET_EXPOSURE_CASES: list[tuple[str, str, str]] = [
     ("cat ~/.pypirc", "BLOCK", "reads the PyPI credential store"),
     ("cat ~/.aws/credentials", "BLOCK", "reads AWS credentials"),
     ("cp ~/.docker/config.json /tmp/x", "BLOCK", "copies the docker credential store"),
+    ("cat ~/.copilot/config.json", "BLOCK", "reads Copilot's OAuth token store (#1043)"),
+    ("head -c 300 ~/.copilot/config.json", "BLOCK", "the read that leaked a token (#1043)"),
+    ("cp ~/.copilot/config.json /tmp/x", "BLOCK", "copies Copilot's OAuth token store"),
+    ("cat config.json", "ALLOW", "a bare 'config.json' outside .docker and .copilot"),
+    ("cat ~/.codex/auth.json", "BLOCK", "reads Codex's auth store"),
+    ("cat auth.json", "ALLOW", "a bare 'auth.json' outside .codex"),
+    ("tail ~/.claude/.credentials.json", "BLOCK", "reads Claude Code's credential store"),
+    (
+        "cat ~/.gemini/antigravity-cli/antigravity-oauth-token",
+        "BLOCK",
+        "reads Antigravity's OAuth token",
+    ),
     ("cat credentials", "ALLOW", "a bare 'credentials' file outside .aws"),
     ("grep -rn pypirc docs/", "ALLOW", "searching for the name is not reading the file"),
     ("cat README.md", "ALLOW", "an ordinary file read"),

@@ -552,8 +552,10 @@ def action_repo_settings(manager: SettingsManager, dry_run: bool) -> int:
 
     if dry_run:
         Logger.info("Dry run: Would configure GitHub repository settings")
+        Logger.info("  - Admin access check")
         Logger.info("  - Repository settings (description, features)")
         Logger.info("  - Branch protection rulesets")
+        Logger.info("  - CodeQL default setup (disabled if a repo had it enabled)")
         Logger.info("  - Labels")
         Logger.info("  - GitHub Pages")
         return 0
@@ -573,6 +575,13 @@ def action_repo_settings(manager: SettingsManager, dry_run: bool) -> int:
             Logger.success("Repository settings updated")
             return 0
         else:
+            # update_all_repo_settings() returning False covers two different cases: the
+            # up-front admin-access check failing (nothing ran) and one later step failing
+            # after everything before it already succeeded. Both are reported the same way
+            # here -- as a warning, not a hard error -- because a sync that landed most
+            # settings should not be treated as a failed run just because, say, GitHub
+            # Pages isn't available yet. The admin-check case already prints its own clear
+            # error message from check_admin_access() before returning here (#1034).
             Logger.warning("Some repository settings may not have been updated")
             return 0  # Partial success is still success
 

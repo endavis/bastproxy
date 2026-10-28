@@ -130,7 +130,7 @@ versions, raw `pytest` instead of `doit`, and mutable action tags this project's
 | :--- | :--- |
 | `setup` | Builds the test matrix from `.github/python-versions.json` |
 | `test` | `pytest`, called directly, on each OS and Python version in the matrix. The newest Python on `ubuntu-latest` also measures coverage. |
-| `lint` | `doit format_check`, `doit lint`, `doit type_check`, `doit deadcode`, `doit security`, `doit spell_check`, `doit audit` and `doit wheel_check`, on `ubuntu-latest`. Each runs even when one before it failed, so CI reports every failing check at once. A failure in any of them fails CI. |
+| `lint` | `doit env_check`, `doit format_check`, `doit lint`, `doit type_check`, `doit deadcode`, `doit security`, `doit spell_check`, `doit audit` and `doit wheel_check`, on `ubuntu-latest`. Each runs even when one before it failed, so CI reports every failing check at once. A failure in any of them fails CI. |
 | `docs` | `doit docs_build`, described below |
 | `ci-complete` | Fails if any other job failed; a skipped job passes. It gives the run one result to require ([ADR-9013](../decisions/9013-python-version-support-policy.md)). |
 
@@ -412,12 +412,14 @@ uv run pre-commit autoupdate
 |------|---------|
 | `conventional-pre-commit` | Enforce conventional commit format |
 
-**Post-merge / Post-checkout stage** (automatic dependency sync):
-
-| Hook | Purpose |
-|------|---------|
-| `uv-sync-on-pull` | Runs `uv sync --all-extras --dev` when `uv.lock` changes after `git pull` |
-| `uv-sync-on-checkout` | Runs `uv sync --all-extras --dev` when `uv.lock` changes after branch switch |
+**No post-merge / post-checkout stage.** Earlier versions ran `uv-sync-on-pull` and
+`uv-sync-on-checkout` here, auto-running `uv sync --all-extras --dev` whenever `uv.lock` changed
+after a `git pull` or branch switch. Removed in #1033: `pre-commit` reads `.pre-commit-config.yaml`
+from whatever is checked out, so a `post-merge`/`post-checkout` hook — ours or one an untrusted
+branch supplies in its own copy of the file — ran before anyone had reviewed that branch. `doit
+pre_commit_install` now uninstalls both hook types from repos that installed them before this
+change. `doit check` and `doit test` warn instead, without failing, when `uv.lock` has drifted from
+the installed environment — see `tools/doit/base.py::warn_if_env_drifted`.
 
 ### Continuous Integration Checklist
 

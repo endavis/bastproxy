@@ -87,13 +87,19 @@ SECRET_ENV_PATTERNS: tuple[str, ...] = (
 
 # Credential stores. Reading one dumps live secrets into the transcript, which
 # is the accidental-exposure case this guards; a determined agent has other
-# routes, so this is a guardrail rather than a boundary.
-CREDENTIAL_FILE_BASENAMES: dict[str, str] = {
-    ".pypirc": "",
-    ".netrc": "",
-    "credentials": ".aws",
-    "hosts.yml": "gh",
-    "config.json": ".docker",
+# routes, so this is a guardrail rather than a boundary. Each basename maps to
+# the parent directories it is a credential store under; an empty tuple means
+# any parent. `config.json` is a store under `.docker` and `.copilot` alone, so
+# an ordinary project `config.json` is still readable (#1043).
+CREDENTIAL_FILE_BASENAMES: dict[str, tuple[str, ...]] = {
+    ".pypirc": (),
+    ".netrc": (),
+    "credentials": (".aws",),
+    "hosts.yml": ("gh",),
+    "config.json": (".docker", ".copilot"),
+    "auth.json": (".codex",),
+    ".credentials.json": (".claude",),
+    "antigravity-oauth-token": ("antigravity-cli",),
 }
 
 # Commands that read a file's contents. The credential check is anchored on
@@ -157,6 +163,14 @@ ENV_PERSISTENCE_TARGETS: dict[str, str] = {
     "copilot-hooks.json": "",
 }
 
+# Env files that are protected but stay content-gated on the Bash path: a
+# write is blocked only when ALLOW_AI_READY_TO_MERGE is literally present.
+# `.envrc` loads `.envrc.local` on every directory entry, so it persists the
+# var as well as `.envrc` does, but this project documents agent-runnable
+# shell writes to it (`cp .envrc.local.example .envrc.local`, the
+# ENABLE_LSP_TOOL line in AI_SETUP.md) that must stay allowed (#1037).
+CONTENT_GATED_ENV_TARGETS: frozenset[str] = frozenset({".envrc.local"})
+
 # Settings files that are only protected when inside a known AI CLI config dir
 _AI_CLI_SETTINGS_TARGETS: dict[str, set[str]] = {
     "settings.json": {".claude", ".gemini", ".copilot"},
@@ -175,14 +189,16 @@ def _env_truthy(name: str) -> bool:
     return val in {"1", "true", "yes", "on"}
 
 
-def _is_env_persistence_target(path_str: str) -> bool:
-    """Return True when *path_str* points to a file that the AI must not use
-    to persist the ``ALLOW_AI_READY_TO_MERGE`` env var.
+def _matches_env_persistence_target(path_str: str) -> bool:
+    """Return True when *path_str* matches a bare ``ENV_PERSISTENCE_TARGETS``
+    basename (+ optional parent-path fragment).
 
-    Checks:
-    - Basename + optional parent-path fragment (ENV_PERSISTENCE_TARGETS)
-    - AI CLI settings files only when the immediate parent dir is in the
-      corresponding allow-list (_AI_CLI_SETTINGS_TARGETS)
+    Split out from the former single-function ``_is_env_persistence_target``
+    so the Bash write check can tell this category apart from
+    ``_AI_CLI_SETTINGS_TARGETS``: a confirmed write to one of these -- a shell
+    rc file, an env file, or ``copilot-hooks.json`` -- is blocked whatever its
+    content, while a settings file still needs the literal var name (#1037,
+    decision b).
     """
     if not path_str:
         return False
@@ -194,25 +210,66 @@ def _is_env_persistence_target(path_str: str) -> bool:
         return False
 
     basename = path.name
-    parent = path.parent
+    if basename not in ENV_PERSISTENCE_TARGETS:
+        return False
 
-    # Check plain persistence targets
-    if basename in ENV_PERSISTENCE_TARGETS:
-        fragment = ENV_PERSISTENCE_TARGETS[basename]
-        if not fragment:
-            return True
-        # Fragment must appear in the parent path string
-        parent_posix = parent.as_posix()
-        if fragment in parent_posix:
-            return True
+    fragment = ENV_PERSISTENCE_TARGETS[basename]
+    if not fragment:
+        return True
+    # Fragment must appear in the parent path string
+    return fragment in path.parent.as_posix()
 
-    # Check AI CLI settings files
-    if basename in _AI_CLI_SETTINGS_TARGETS:
-        allowed_parents = _AI_CLI_SETTINGS_TARGETS[basename]
-        if parent.name in allowed_parents:
-            return True
 
-    return False
+def _matches_ai_cli_settings_target(path_str: str) -> bool:
+    """Return True when *path_str* matches an ``_AI_CLI_SETTINGS_TARGETS``
+    file inside its allowed parent dir.
+
+    These still require the literal var name on the Bash write path (#1037,
+    decision b): ``cp .codex/config.toml ~/.codex/config.toml`` is a
+    documented, legitimate setup step
+    (``docs/development/AI_SETUP.md``), so blocking every write to
+    ``config.toml`` whatever its content would break it.
+    """
+    if not path_str:
+        return False
+
+    try:
+        # Expand ~ so ~/.config comparisons work
+        path = Path(path_str).expanduser()
+    except (ValueError, RuntimeError):
+        return False
+
+    allowed_parents = _AI_CLI_SETTINGS_TARGETS.get(path.name)
+    if allowed_parents is None:
+        return False
+    return path.parent.name in allowed_parents
+
+
+def _is_env_persistence_target(path_str: str) -> bool:
+    """Return True when *path_str* points to a file that the AI must not use
+    to persist the ``ALLOW_AI_READY_TO_MERGE`` env var.
+
+    Checks:
+    - Basename + optional parent-path fragment (ENV_PERSISTENCE_TARGETS)
+    - AI CLI settings files only when the immediate parent dir is in the
+      corresponding allow-list (_AI_CLI_SETTINGS_TARGETS)
+    - Content-gated env files by basename (CONTENT_GATED_ENV_TARGETS)
+    """
+    return (
+        _matches_env_persistence_target(path_str)
+        or _matches_ai_cli_settings_target(path_str)
+        or _matches_content_gated_env_target(path_str)
+    )
+
+
+def _matches_content_gated_env_target(path_str: str) -> bool:
+    """Return True when *path_str*'s basename is in ``CONTENT_GATED_ENV_TARGETS``."""
+    if not path_str:
+        return False
+    try:
+        return Path(path_str).expanduser().name in CONTENT_GATED_ENV_TARGETS
+    except (ValueError, RuntimeError):
+        return False
 
 
 def tokenize(command: str) -> list[str]:
@@ -913,9 +970,9 @@ _INTERPRETER_COMMANDS = {"python", "python3", "perl", "ruby", "node"}
 _COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
 
 
-def _bash_writes_to_persistence_target(tokens: list[str]) -> bool:
-    """Return True if the token stream contains a write operation targeting a
-    persistence-protected file.
+def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
+    """Return every persistence-protected path/basename targeted by a
+    *confirmed* Bash write.
 
     Detected patterns:
     - A:  ``>`` / ``>>`` standalone token followed by a persistence target
@@ -923,27 +980,32 @@ def _bash_writes_to_persistence_target(tokens: list[str]) -> bool:
     - C:  ``tee`` / ``cp`` / ``mv`` / ``dd`` with a persistence target as a
           positional argument before the next command separator
     - D:  ``sed -i`` (in-place edit) with a persistence target as a positional
-    - E:  script interpreter (``python``/``python3``/``perl``/``ruby``/``node``)
-          invoked with ``-c`` / ``-e`` / ``--command`` whose script body mentions
-          any persistence-target basename
+
+    Split from the script-interpreter heuristic (:func:`_bash_interpreter_mentions_target`,
+    formerly pattern E of this function) so :func:`check_env_persistence_in_bash`
+    can block one of these outright for ``ENV_PERSISTENCE_TARGETS`` while still
+    requiring the literal var name for ``_AI_CLI_SETTINGS_TARGETS`` (#1037,
+    decision b) -- the interpreter heuristic only *might* write and keeps the
+    var-name requirement for every target, confirmed or not.
     """
+    targets: list[str] = []
     n = len(tokens)
     for i, tok in enumerate(tokens):
         # Pattern A: standalone redirect operator
         if tok in _WRITE_REDIRECTS:
             if i + 1 < n and _is_env_persistence_target(tokens[i + 1]):
-                return True
+                targets.append(tokens[i + 1])
             continue
 
         # Pattern B: redirect operator concatenated with target (no whitespace)
         if tok.startswith(">>") and len(tok) > 2:
             if _is_env_persistence_target(tok[2:]):
-                return True
+                targets.append(tok[2:])
             continue
         if tok.startswith(">") and len(tok) > 1 and tok[1] not in {"=", ">"}:
             # Skip ">=" (comparison) and ">>" (already handled)
             if _is_env_persistence_target(tok[1:]):
-                return True
+                targets.append(tok[1:])
             continue
 
         # Pattern C: write command followed by persistence target as positional
@@ -955,7 +1017,7 @@ def _bash_writes_to_persistence_target(tokens: list[str]) -> bool:
                 if t.startswith("-"):
                     continue
                 if _is_env_persistence_target(t):
-                    return True
+                    targets.append(t)
             continue
 
         # Pattern D: sed -i (in-place) with persistence target
@@ -973,55 +1035,89 @@ def _bash_writes_to_persistence_target(tokens: list[str]) -> bool:
                 if t.startswith("-"):
                     continue
                 if _is_env_persistence_target(t):
+                    targets.append(t)
+            continue
+
+    return targets
+
+
+def _bash_interpreter_mentions_target(tokens: list[str]) -> bool:
+    """Pattern E: script interpreter (``python``/``python3``/``perl``/``ruby``/
+    ``node``) invoked with ``-c`` / ``-e`` / ``--command`` whose script body
+    mentions any persistence-target basename.
+
+    A *might-write* heuristic, not a confirmed write -- ``python -c
+    "print('.bashrc')"`` only prints the basename -- so it keeps the literal
+    var-name requirement for every target, including ``ENV_PERSISTENCE_TARGETS``
+    (#1037, decision b), unlike the confirmed-write patterns in
+    :func:`_bash_confirmed_write_targets`.
+    """
+    n = len(tokens)
+    for i, tok in enumerate(tokens):
+        if tok not in _INTERPRETER_COMMANDS:
+            continue
+        cmd_end = n
+        for j in range(i + 1, n):
+            if tokens[j] in _COMMAND_SEPARATORS:
+                cmd_end = j
+                break
+        segment = tokens[i + 1 : cmd_end]
+        has_inline = any(
+            t in {"-c", "-e", "--command"} or t.startswith(("-c=", "-e=", "--command="))
+            for t in segment
+        )
+        if not has_inline:
+            continue
+        persistence_basenames = (
+            set(ENV_PERSISTENCE_TARGETS) | set(_AI_CLI_SETTINGS_TARGETS) | CONTENT_GATED_ENV_TARGETS
+        )
+        for t in segment:
+            for basename in persistence_basenames:
+                if basename in t:
                     return True
-            continue
-
-        # Pattern E: script interpreter with -c/-e/--command and target in body
-        if tok in _INTERPRETER_COMMANDS:
-            cmd_end = n
-            for j in range(i + 1, n):
-                if tokens[j] in _COMMAND_SEPARATORS:
-                    cmd_end = j
-                    break
-            segment = tokens[i + 1 : cmd_end]
-            has_inline = any(
-                t in {"-c", "-e", "--command"} or t.startswith(("-c=", "-e=", "--command="))
-                for t in segment
-            )
-            if not has_inline:
-                continue
-            persistence_basenames = set(ENV_PERSISTENCE_TARGETS) | set(_AI_CLI_SETTINGS_TARGETS)
-            for t in segment:
-                for basename in persistence_basenames:
-                    if basename in t:
-                        return True
-            continue
-
     return False
 
 
 def check_env_persistence_in_bash(tokens: list[str]) -> tuple[bool, str]:
-    """Block Bash commands that would persist ALLOW_AI_READY_TO_MERGE to a
-    protected file.
+    """Block Bash commands that would persist ALLOW_AI_READY_TO_MERGE, or
+    that write to a protected file at all.
 
-    Two conditions must both hold:
-    - The literal string ``ALLOW_AI_READY_TO_MERGE`` appears in any token, AND
-    - The command performs a write operation targeting a persistence-protected
-      file (see :func:`_bash_writes_to_persistence_target` for patterns).
+    Two write classes, split by how confident the match is (#1037, decision b):
 
-    Plain mention of the var name (e.g., in a commit message, a doc string, or
-    `git add` arguments that reference protected file paths) is NOT a write
-    operation and is allowed.
+    - A *confirmed* write (:func:`_bash_confirmed_write_targets`: redirect,
+      ``tee``/``cp``/``mv``/``dd``, ``sed -i``) to an ``ENV_PERSISTENCE_TARGETS``
+      file -- a shell rc file, an env file, or ``copilot-hooks.json`` -- is
+      blocked whatever its content. A runtime-assembled variable name
+      (``v=ALLOW_AI_; echo "export ${v}READY_TO_MERGE=1" >> ~/.bashrc``) is
+      blocked this way without the literal string ever needing to appear.
+    - A confirmed write to an ``_AI_CLI_SETTINGS_TARGETS`` file, and the
+      script-interpreter *might-write* heuristic
+      (:func:`_bash_interpreter_mentions_target`) against any target, still
+      require the literal ``ALLOW_AI_READY_TO_MERGE`` string -- the behaviour
+      before this issue, kept so ``cp .codex/config.toml ~/.codex/config.toml``
+      (a documented, legitimate setup step) is not broken.
+
+    Plain mention of the var name with no write at all (e.g., in a commit
+    message, a doc string, or ``git add`` arguments that reference protected
+    file paths) is allowed either way.
     """
     var_name = ALLOW_AI_READY_TO_MERGE_VAR
-    if not any(var_name in t for t in tokens):
-        return False, ""
-    if not _bash_writes_to_persistence_target(tokens):
-        return False, ""
-    return True, (
-        f"Blocked: AI must not persist {var_name} to shell or project config files. "
-        f"Only a human can set this variable in their environment."
+    var_present = any(var_name in t for t in tokens)
+    message = (
+        f"Blocked: writes to shell or project config files that could persist "
+        f"{var_name} are not allowed. Only a human can edit these files."
     )
+
+    for target in _bash_confirmed_write_targets(tokens):
+        if _matches_env_persistence_target(target):
+            return True, message
+        if var_present:
+            return True, message
+
+    if var_present and _bash_interpreter_mentions_target(tokens):
+        return True, message
+
+    return False, ""
 
 
 # Codex's file-edit tool is ``apply_patch``. Unlike every other agent's
@@ -1098,53 +1194,156 @@ def check_env_persistence_in_apply_patch(command: str) -> tuple[bool, str]:
     return False, ""
 
 
+# Path-shaped keys checked, in order, to resolve a file-edit tool's target.
+# ``file_path`` is every CLI's own normalized key (Claude/Codex/Gemini, and
+# Antigravity's PascalCase args normalized in ``_parse_input``); ``path`` and
+# ``filename`` cover a tool this hook does not recognise by name -- Copilot's
+# `create`/`edit` use ``path``, and the shape-based fallback in ``main()``
+# routes any other unrecognised write-shaped tool here too (#1037).
+_PATH_KEYS = ("file_path", "path", "filename")
+
+# Content-shaped keys checked, in addition to each known tool's own key(s)
+# below, so a key no CLI in the per-tool branches uses yet (``new_text``,
+# ``file_text``) -- or an unrecognised tool that reuses a common name instead
+# of inventing its own -- is still covered (#1037, decision a).
+_GENERIC_CONTENT_KEYS = ("content", "new_string", "new_text", "file_text")
+
+
+def _resolve_file_path(tool_input: dict[str, object]) -> str:
+    """Return the first non-empty path-shaped value in *tool_input*."""
+    for key in _PATH_KEYS:
+        value = tool_input.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def _looks_like_file_edit(tool_input: dict[str, object]) -> bool:
+    """Whether *tool_input* has the shape of a file write: a path key plus a
+    content key.
+
+    Used by ``main()`` to fail closed on an unrecognised tool name (#1037)
+    rather than letting it fall through to allow. A read-only tool (Read,
+    Grep, Glob, a ``view`` tool) carries a path but no content key, so it
+    does not match.
+    """
+    has_path = any(tool_input.get(key) for key in _PATH_KEYS)
+    has_content = any(key in tool_input for key in _GENERIC_CONTENT_KEYS) or isinstance(
+        tool_input.get("edits"), list
+    )
+    return has_path and has_content
+
+
+def _all_string_values(value: object) -> list[str]:
+    """Return every string found anywhere inside *value*, however it nests.
+
+    Used for Copilot's ``create``/``edit`` tools: the SDK docs that confirm
+    those tool names do not confirm a content key (#1037), so rather than
+    guess one, every string value in the tool_input is scanned for the
+    bypass var name.
+    """
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        strings: list[str] = []
+        for item in value.values():
+            strings.extend(_all_string_values(item))
+        return strings
+    if isinstance(value, list):
+        strings = []
+        for item in value:
+            strings.extend(_all_string_values(item))
+        return strings
+    return []
+
+
+def _generic_content_strings(tool_input: dict[str, object]) -> list[str]:
+    """Return the string content under :data:`_GENERIC_CONTENT_KEYS` plus
+    ``edits``, unioned with whatever a tool's own key(s) already matched.
+
+    ``edits`` only contributes each item's own added-content key(s)
+    (``new_string``/``new_text``), not ``old_string`` -- scanning the text an
+    edit *removes* would block the one operation that's actually safe, taking
+    the var name back out of a file (#1037, decision a).
+    """
+    parts: list[str] = []
+    for key in _GENERIC_CONTENT_KEYS:
+        value = tool_input.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+    edits = tool_input.get("edits")
+    if isinstance(edits, list):
+        for edit_item in edits:
+            if not isinstance(edit_item, dict):
+                continue
+            for added_key in ("new_string", "new_text"):
+                value = edit_item.get(added_key)
+                if isinstance(value, str):
+                    parts.append(value)
+    return parts
+
+
 def check_env_persistence_in_file_edit(
-    tool_name: str, tool_input: dict[str, object]
+    tool_name: str, tool_input: dict[str, object], *, scan_all_values: bool = False
 ) -> tuple[bool, str]:
     """Block file-edit operations (Edit/Write/MultiEdit for Claude/Codex,
     write_file/replace for Gemini, write_to_file/write_file/edit_file for
-    Antigravity) that would
+    Antigravity, create/edit for Copilot) that would
     persist ALLOW_AI_READY_TO_MERGE to a protected file.
 
     Triggers when:
-    - The target file_path is a persistence-protected target, AND
+    - The target path (:func:`_resolve_file_path`) is a persistence-protected
+      target, AND
     - The new content being written contains ALLOW_AI_READY_TO_MERGE.
+
+    *scan_all_values*: when True, every string value anywhere in *tool_input*
+    is scanned instead of relying on a known key name -- set by ``main()``
+    for Copilot's ``create``/``edit`` tools, whose content key is not
+    confirmed (#1037).
     """
     var_name = ALLOW_AI_READY_TO_MERGE_VAR
 
-    file_path_raw = str(tool_input.get("file_path", "") or "")
+    file_path_raw = _resolve_file_path(tool_input)
     if not file_path_raw:
         return False, ""
 
     if not _is_env_persistence_target(file_path_raw):
         return False, ""
 
-    # Collect all new content being written
-    new_content_parts: list[str] = []
+    if scan_all_values:
+        new_content_parts = _all_string_values(tool_input)
+    else:
+        # Collect all new content being written
+        new_content_parts = []
 
-    tool_lower = tool_name.lower()
+        tool_lower = tool_name.lower()
 
-    if tool_lower in ("write", "write_file", "write_to_file", "apply_patch"):
-        # Write/write_file (Claude/Gemini/agy) and write_to_file (agy), with
-        # agy's args normalized in _parse_input: full file content lives in the
-        # 'content' key.
-        # apply_patch (Codex) is normalised into the same shape by
-        # check_env_persistence_in_apply_patch, one entry per patch target.
-        content = str(tool_input.get("content", "") or "")
-        new_content_parts.append(content)
+        if tool_lower in ("write", "write_file", "write_to_file", "apply_patch"):
+            # Write/write_file (Claude/Gemini/agy) and write_to_file (agy), with
+            # agy's args normalized in _parse_input: full file content lives in the
+            # 'content' key.
+            # apply_patch (Codex) is normalised into the same shape by
+            # check_env_persistence_in_apply_patch, one entry per patch target.
+            content = str(tool_input.get("content", "") or "")
+            new_content_parts.append(content)
 
-    elif tool_lower in ("edit", "replace", "edit_file"):
-        # Edit (Claude/Codex), replace (Gemini) and edit_file (agy, its
-        # Replacement normalized in _parse_input): new_string key
-        new_content_parts.append(str(tool_input.get("new_string", "") or ""))
+        elif tool_lower in ("edit", "replace", "edit_file"):
+            # Edit (Claude/Codex), replace (Gemini) and edit_file (agy, its
+            # Replacement normalized in _parse_input): new_string key
+            new_content_parts.append(str(tool_input.get("new_string", "") or ""))
 
-    elif tool_lower == "multiedit":
-        # MultiEdit: edits is a list of {old_string, new_string} dicts
-        edits = tool_input.get("edits", [])
-        if isinstance(edits, list):
-            for edit_item in edits:
-                if isinstance(edit_item, dict):
-                    new_content_parts.append(str(edit_item.get("new_string", "") or ""))
+        elif tool_lower == "multiedit":
+            # MultiEdit: edits is a list of {old_string, new_string} dicts
+            edits = tool_input.get("edits", [])
+            if isinstance(edits, list):
+                for edit_item in edits:
+                    if isinstance(edit_item, dict):
+                        new_content_parts.append(str(edit_item.get("new_string", "") or ""))
+
+        # Union with a generic key scan, so a key none of the branches above
+        # uses (or an unrecognised tool routed here by the shape-based
+        # fallback in main()) is still covered (#1037, decision a).
+        new_content_parts += _generic_content_strings(tool_input)
 
     # Check if any new content contains the env var name
     combined = "\n".join(new_content_parts)
@@ -1409,10 +1608,11 @@ def _is_credential_store(token: str) -> bool:
         path = Path(token).expanduser()
     except (ValueError, RuntimeError):
         return False
-    required_parent = CREDENTIAL_FILE_BASENAMES.get(path.name)
-    if required_parent is None:
+    required_parents = CREDENTIAL_FILE_BASENAMES.get(path.name)
+    if required_parents is None:
         return False
-    return not required_parent or required_parent in path.parent.as_posix()
+    parent = path.parent.as_posix()
+    return not required_parents or any(required in parent for required in required_parents)
 
 
 # A redirection does not end the command the way `&&`/`;`/`|` does -- it
@@ -1565,6 +1765,25 @@ def check_command(command: str, _depth: int = 0) -> tuple[bool, str]:
     return False, ""
 
 
+# Key ``_parse_input`` stores a bare patch-string payload under. Prefixed so it
+# cannot collide with a real tool argument name (#1042). ``_parse_input`` also
+# strips it from every dict payload, so a tool call cannot set it itself to
+# steer ``main()`` past the checks its real tool name would get.
+_RAW_PATCH_KEY = "_raw_patch"
+
+
+def _raw_patch_input(raw: object) -> dict:
+    """Wrap a bare patch-text payload so its targets can be checked.
+
+    Returns ``{_RAW_PATCH_KEY: raw}`` when *raw* is a string naming at least one
+    ``*** Add/Update/Delete File:`` target, else an empty dict -- the previous
+    fallback for any payload that is not a dict.
+    """
+    if isinstance(raw, str) and _APPLY_PATCH_TARGET_RE.search(raw):
+        return {_RAW_PATCH_KEY: raw}
+    return {}
+
+
 def _parse_input(input_data: dict) -> tuple[str, str, dict]:
     """
     Parse tool name, command, and tool_input from hook input.
@@ -1572,14 +1791,27 @@ def _parse_input(input_data: dict) -> tuple[str, str, dict]:
     Handles three input formats:
     - Claude/Gemini: {"tool_name": "Bash", "tool_input": {"command": "..."}}
     - Copilot CLI:   {"toolName": "bash", "toolArgs": "{\"command\":\"...\"}"}
+                     File edits use "create"/"edit" with a "path" key (vendor
+                     SDK docs, not a live probe -- #1037); its content key is
+                     not confirmed, so this is left unmapped here and
+                     ``main()``/``check_env_persistence_in_file_edit`` scan
+                     every string value instead of a guessed key name.
     - Antigravity:   {"toolCall": {"name": "run_command",
                       "args": {"CommandLine": "..."}}}
+
+    Copilot's file-edit tool is ``apply_patch``, and its ``toolArgs`` is the
+    bare patch text, not JSON. Copilot also runs the Claude-format hooks in
+    ``.claude/settings.json`` with ``tool_name: "Edit"`` and that same patch
+    text as ``tool_input``. Both were observed from a live ``-p`` session
+    (#1042). A patch-shaped string is returned as ``{_RAW_PATCH_KEY: text}``
+    so ``main()`` checks its targets instead of seeing an empty dict.
 
     Returns:
         (tool_name, command, tool_input) tuple where tool_input is the full
         parameter dict (used for file-edit operations). For Antigravity the
         PascalCase args are normalized to the canonical command/file_path/content
-        keys the downstream checks expect.
+        keys the downstream checks expect. ``_resolve_file_path`` reads
+        Copilot's "path" key directly, so it needs no normalizing here.
     """
     # Antigravity CLI (agy) format: a nested toolCall with PascalCase args
     # (protojson camelCase envelope). run_command -> args.CommandLine;
@@ -1600,6 +1832,7 @@ def _parse_input(input_data: dict) -> tuple[str, str, dict]:
             "content": args.get("CodeContent", "") or args.get("Content", "") or "",
             "new_string": args.get("Replacement", "") or "",
         }
+        tool_input.pop(_RAW_PATCH_KEY, None)
         return tool_name, tool_input["command"], tool_input
 
     # Copilot CLI format uses camelCase keys
@@ -1614,15 +1847,19 @@ def _parse_input(input_data: dict) -> tuple[str, str, dict]:
             tool_input = (
                 json.loads(tool_args_raw) if isinstance(tool_args_raw, str) else tool_args_raw
             )
+            if isinstance(tool_input, dict):
+                tool_input.pop(_RAW_PATCH_KEY, None)
         except json.JSONDecodeError:
-            tool_input = {}
+            tool_input = _raw_patch_input(tool_args_raw)
         return tool_name, tool_input.get("command", ""), tool_input
 
     # Claude/Gemini format uses snake_case keys
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
-    if not isinstance(tool_input, dict):
-        tool_input = {}
+    if isinstance(tool_input, dict):
+        tool_input.pop(_RAW_PATCH_KEY, None)
+    else:
+        tool_input = _raw_patch_input(tool_input)
     return tool_name, tool_input.get("command", ""), tool_input
 
 
@@ -1662,19 +1899,36 @@ def _log(entry: dict) -> None:
 # are kept on purpose: a downstream project with enterprise Gemini access can
 # still point that CLI at this hook, and matching an extra name costs nothing
 # while failing to match one would silently remove protection.
-_BASH_TOOL_NAMES = frozenset({"Bash", "run_shell_command", "bash", "run_command"})
+#
+# All tool-name sets below are lower-case; ``main()`` compares against
+# ``tool_name.lower()`` so a CLI that capitalizes its tool name differently
+# (or inconsistently) still matches (#1037, decision a).
+_BASH_TOOL_NAMES = frozenset({"bash", "run_shell_command", "run_command"})
 
 # File-edit tool names across all supported AI CLIs
 # Claude/Codex: Edit, Write, MultiEdit
 # Gemini: write_file, replace
 # Antigravity (agy): write_to_file (older releases), write_file and edit_file (#1006)
+# Copilot CLI: create, edit (vendor SDK docs, not a live probe -- #1037). Its
+# content key is not confirmed, so ``main()`` additionally scans every string
+# value for these two rather than trusting a guessed key name.
 # Codex: apply_patch. Handled on its own path -- see the parser above -- because
 # its payload is command-shaped rather than file_path/content.
+# Copilot CLI 1.0.104 in -p mode also edits through apply_patch, with the bare
+# patch text as its payload (live probe, #1042); _parse_input wraps that under
+# _RAW_PATCH_KEY. create/edit stay listed in case another mode still uses them.
 _APPLY_PATCH_TOOL_NAME = "apply_patch"
 
 _FILE_EDIT_TOOL_NAMES = frozenset(
-    {"Edit", "Write", "MultiEdit", "write_file", "replace", "write_to_file", "edit_file"}
+    {"edit", "write", "multiedit", "write_file", "replace", "write_to_file", "edit_file", "create"}
 )
+
+# Copilot tool names whose content key is not confirmed (#1037): main() scans
+# every string value in tool_input for these rather than a guessed key name.
+# Gated on the Copilot format too -- "edit" alone would otherwise also match
+# Claude's lower-cased "Edit", whose content lives specifically in new_string
+# and whose old_string must NOT be scanned (removing the var is safe).
+_COPILOT_SCAN_ALL_VALUES_TOOLS = frozenset({"create", "edit"})
 
 
 def _block_response(fmt: str, reason: str, command: str) -> int:
@@ -1753,6 +2007,9 @@ def main() -> int:
 
     tool_name, command, tool_input = _parse_input(input_data)
     fmt = _hook_format(input_data)
+    # Case-insensitive throughout (#1037, decision a): a CLI's own
+    # capitalization of a tool name is not part of its contract.
+    tool_lower = tool_name.lower()
 
     _log(
         {
@@ -1764,7 +2021,7 @@ def main() -> int:
     )
 
     # --- Bash / shell command path ---
-    if tool_name in _BASH_TOOL_NAMES:
+    if tool_lower in _BASH_TOOL_NAMES:
         if not command:
             return 0
         is_dangerous, reason = check_command(command)
@@ -1772,26 +2029,62 @@ def main() -> int:
             return _block_response(fmt, redirect_reason(command, reason), command)
         return 0
 
+    # --- Bare patch-text path (Copilot apply_patch, either hook format) ---
+    #
+    # Only the env-persistence check runs: the payload is file content, not a
+    # shell command, so scanning it with check_command would block a patch that
+    # merely mentions a dangerous command in a doc (#1042). A clean patch falls
+    # through rather than returning, so the checks below still see the call.
+    raw_patch = tool_input.get(_RAW_PATCH_KEY)
+    if isinstance(raw_patch, str):
+        is_dangerous, reason = check_env_persistence_in_apply_patch(raw_patch)
+        if is_dangerous:
+            return _block_response(fmt, reason, f"{tool_name} {raw_patch[:60]}")
+
     # --- Codex apply_patch path ---
     #
     # Checked as *both* a command and a file edit: the envelope is a shell
     # command (so the dangerous-flag scanning applies to it) and the patch body
-    # writes files (so the env-persistence check must see its targets).
-    if tool_name == _APPLY_PATCH_TOOL_NAME:
-        if command:
-            is_dangerous, reason = check_command(command)
-            if is_dangerous:
-                return _block_response(fmt, reason, command)
-            is_dangerous, reason = check_env_persistence_in_apply_patch(command)
-            if is_dangerous:
-                return _block_response(fmt, reason, f"{tool_name} {command[:60]}")
+    # writes files (so the env-persistence check must see its targets). A call
+    # with no `command` falls through instead of returning, so a path + content
+    # payload under this name still reaches the shape-based fallback (#1048).
+    if tool_lower == _APPLY_PATCH_TOOL_NAME and command:
+        is_dangerous, reason = check_command(command)
+        if is_dangerous:
+            return _block_response(fmt, reason, command)
+        is_dangerous, reason = check_env_persistence_in_apply_patch(command)
+        if is_dangerous:
+            return _block_response(fmt, reason, f"{tool_name} {command[:60]}")
         return 0
 
-    # --- File-edit tool path (Edit/Write/MultiEdit/write_file/replace) ---
-    if tool_name in _FILE_EDIT_TOOL_NAMES:
+    # --- File-edit tool path (Edit/Write/MultiEdit/write_file/replace/create) ---
+    if tool_lower in _FILE_EDIT_TOOL_NAMES:
+        # Copilot's create/edit content key is not confirmed (#1037): scan
+        # every string value rather than trust a guessed key name. Gated on
+        # the Copilot format, not just the tool name, so Claude's "Edit"
+        # (which lower-cases to the same "edit") keeps its precise,
+        # key-based check instead.
+        scan_all_values = fmt == "copilot" and tool_lower in _COPILOT_SCAN_ALL_VALUES_TOOLS
+        is_dangerous, reason = check_env_persistence_in_file_edit(
+            tool_name, tool_input, scan_all_values=scan_all_values
+        )
+        if is_dangerous:
+            file_path = _resolve_file_path(tool_input)
+            return _block_response(fmt, reason, f"{tool_name} {file_path}")
+        return 0
+
+    # --- Shape-based fallback for a tool name this hook doesn't recognise ---
+    #
+    # Fails closed on shape rather than falling through to allow (#1037): a
+    # new or renamed edit tool, or one this hook has never seen (Copilot's
+    # vendor docs are not a live probe), still gets checked when its
+    # tool_input carries both a path key and a content key -- the shape of a
+    # write. A read-only tool (Read, Grep, Glob, a `view` tool) carries a
+    # path but no content key, so it does not match and is still allowed.
+    if isinstance(tool_input, dict) and _looks_like_file_edit(tool_input):
         is_dangerous, reason = check_env_persistence_in_file_edit(tool_name, tool_input)
         if is_dangerous:
-            file_path = str(tool_input.get("file_path", ""))
+            file_path = _resolve_file_path(tool_input)
             return _block_response(fmt, reason, f"{tool_name} {file_path}")
         return 0
 

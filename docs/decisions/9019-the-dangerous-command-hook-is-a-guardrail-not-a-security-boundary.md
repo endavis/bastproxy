@@ -129,6 +129,9 @@ and the draft that flipped it to `BLOCK` was wrong.
   precise-versus-crude question
 - Issue #1025: a here-string or arithmetic `<<` misread as a heredoc start — the boundary-finder
   fix, and the fail-closed body scan this ADR declines
+- Issue #1037: Copilot and unrecognised edit tools fell through to allow, and the Bash
+  env-persistence check needed the literal var name — both closed as coverage gaps in ordinary
+  use, not as evasions this ADR puts out of scope
 - ADR-9005: the decision to block at the tool level, which this scopes
 
 ## Related Documentation

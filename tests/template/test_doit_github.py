@@ -44,6 +44,7 @@ from tools.doit.github import (
     _run_label_cmd,
     _validate_issue_content,
     _worktree_holding,
+    sync_labels,
     task_delegation_context,
     task_env_create,
     task_env_list,
@@ -915,6 +916,85 @@ class TestLabelsSync:
         # Every entry must have a 6-char hex color.
         for entry in entries:
             assert len(entry["color"]) == 6, f"bad color for {entry['name']}: {entry['color']!r}"
+
+
+class TestSyncLabelsWrapper:
+    """Tests for the public ``sync_labels()`` wrapper (#1034).
+
+    ``repo_settings.sync_labels_from_file`` calls this directly, so it needs its own
+    coverage independent of the ``doit labels_sync`` CLI action that also wraps it.
+    """
+
+    @staticmethod
+    def _make_console() -> Console:
+        return Console(file=io.StringIO(), width=200)
+
+    @staticmethod
+    def _labels_file(tmp_path: Path, body: str) -> Path:
+        path = tmp_path / "labels.yml"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    @staticmethod
+    def _register_list(mock_subprocess: MagicMock, current: list[dict[str, str]]) -> None:
+        mock_subprocess.register({("gh", "label", "list"): {"stdout": json.dumps(current)}})
+
+    def test_delegates_to_the_shared_reconcile_logic(
+        self, tmp_path: Path, mock_subprocess: MagicMock
+    ) -> None:
+        """A file entry missing on GitHub results in one gh label create call."""
+        labels_file = self._labels_file(
+            tmp_path,
+            "- name: foo\n  color: aaa111\n  description: Foo label\n",
+        )
+        self._register_list(mock_subprocess, [])
+        mock_subprocess.register({("gh", "label", "create"): {}})
+
+        counters = sync_labels(str(labels_file), console=self._make_console())
+
+        assert counters is not None
+        assert counters["created"] == 1
+        create_calls = [
+            c for c in mock_subprocess.call_args_list if c.args[0][:3] == ["gh", "label", "create"]
+        ]
+        assert len(create_calls) == 1
+
+    def test_empty_file_returns_none(self, tmp_path: Path, mock_subprocess: MagicMock) -> None:
+        """A labels file with no entries returns None and makes no gh calls."""
+        labels_file = self._labels_file(tmp_path, "[]\n")
+
+        result = sync_labels(str(labels_file), console=self._make_console())
+
+        assert result is None
+        mock_subprocess.assert_not_called()
+
+    def test_missing_file_raises(self, tmp_path: Path, mock_subprocess: MagicMock) -> None:
+        """A nonexistent --file path raises SystemExit(1), as the CLI task does."""
+        missing = tmp_path / "does-not-exist.yml"
+
+        with pytest.raises(SystemExit) as excinfo:
+            sync_labels(str(missing), console=self._make_console())
+
+        assert excinfo.value.code == 1
+        mock_subprocess.assert_not_called()
+
+    def test_creates_a_console_when_none_given(
+        self, tmp_path: Path, mock_subprocess: MagicMock, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Called without a console (as repo_settings does), output still reaches stdout."""
+        labels_file = self._labels_file(
+            tmp_path,
+            "- name: foo\n  color: aaa111\n  description: Foo label\n",
+        )
+        self._register_list(mock_subprocess, [])
+        mock_subprocess.register({("gh", "label", "create"): {}})
+
+        counters = sync_labels(str(labels_file))
+
+        assert counters is not None
+        assert counters["created"] == 1
+        out = capsys.readouterr().out
+        assert "foo" in out
 
 
 class TestPrTitlePattern:

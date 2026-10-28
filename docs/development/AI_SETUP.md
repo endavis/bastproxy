@@ -137,8 +137,8 @@ For complete setup instructions and troubleshooting, see `.claude/lsp-setup.md` 
 | Var | Value | Effect | Risk |
 | :--- | :--- | :--- | :--- |
 | `ENABLE_PROMPT_CACHING_1H` | `1` | Extends prompt cache TTL from 5 minutes to 1 hour. Cuts cost on repeated reads of the same context within a session. | None — pure efficiency flag. |
-| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `50` | Auto-compaction triggers at 50% of the context window instead of the default (~92%). Sessions compact earlier, leaving more headroom for the post-compact continuation. | More frequent compaction churn; mitigated by the [PreCompact handoff hook](ai/auto-checkpoint-hook.md) which preserves context across compaction events. |
-| `CLAUDE_CODE_SUBAGENT_MODEL` | `claude-sonnet-5` | Subagents (e.g. `implement-worker`, spawned by the `implement-issue` skill) default to Sonnet 5 instead of inheriting the parent's Opus model. | Subagent output quality drops below Opus on hard reasoning tasks. Mitigate per-agent (see below). |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `50` | Auto-compaction triggers at 50% of the context window instead of the default (~92%). Sessions compact earlier, leaving more headroom for the post-compact continuation. | More frequent compaction churn; native compaction already re-reads the project-root CLAUDE.md and recently used files, and `/checkpoint` is available for a manual checkpoint before a deliberate `/compact`. |
+| `CLAUDE_CODE_SUBAGENT_MODEL` | `claude-sonnet-5-5` | Subagents (e.g. `implement-worker`, spawned by the `implement-issue` skill) default to Sonnet 5.5 instead of inheriting the parent's Opus model. | Subagent output quality drops below Opus on hard reasoning tasks. Mitigate per-agent (see below). |
 
 **Per-agent model overrides:**
 
@@ -147,11 +147,11 @@ For complete setup instructions and troubleshooting, see `.claude/lsp-setup.md` 
 ```yaml
 ---
 name: high-stakes-reviewer
-model: claude-opus-5   # overrides the env-var default for this agent only
+model: claude-opus-5-5   # overrides the env-var default for this agent only
 ---
 ```
 
-Agents without a `model:` line inherit the env-var default. This project's `.claude/agents/implement-worker.md` deliberately does not override — implement-worker runs on Sonnet 5 as an explicit cost/quality trade-off. Future high-stakes subagents (e.g. design review, security review) can opt into Opus on a per-file basis.
+Agents without a `model:` line inherit the env-var default. This project's `.claude/agents/implement-worker.md` deliberately does not override — implement-worker runs on Sonnet 5.5 as an explicit cost/quality trade-off. Future high-stakes subagents (e.g. design review, security review) can opt into Opus on a per-file basis.
 
 **Per-developer overrides:**
 
@@ -167,7 +167,7 @@ To opt out or tune values for your local environment, override them in `.claude/
 
 **Cross-references:**
 
-- The 50% autocompact threshold is paired with the [PreCompact handoff hook](ai/auto-checkpoint-hook.md) — earlier compaction has lower cost because the hook preserves context across compaction events automatically.
+- For a manual checkpoint before compaction, use `/checkpoint` and `/restore` — see [Slash Commands and Workflows](ai/slash-commands.md).
 - For operators who need more aggressive token reduction, see [AI Agent Token-Efficiency Add-Ons](ai/token-efficiency-add-ons.md) — a catalogue of opt-in external tools (RTK, Headroom, Caveman) with tipping-point guidance and trust caveats.
 
 ### 3. GitHub Copilot CLI

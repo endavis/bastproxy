@@ -131,7 +131,6 @@ nav:
           - Architectural Conventions: development/ai/architectural-conventions.md
           - Enforcement Principles: development/ai/enforcement-principles.md
           - Command Blocking: development/ai/command-blocking.md
-          - Auto-Checkpoint Hook: development/ai/auto-checkpoint-hook.md
           - Ruff-Fix Hook: development/ai/ruff-fix-hook.md
           - LSP Tool and Diagnostics: development/ai/lsp-tool.md
           - Statusline: development/ai/statusline.md

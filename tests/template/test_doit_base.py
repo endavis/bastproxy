@@ -9,6 +9,7 @@ import subprocess  # nosec B404 - test invokes bash deliberately to verify shell
 import sys
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -18,7 +19,49 @@ from tools.doit.base import (
     optional_root_dirs,
     optional_root_files,
     verbatim,
+    warn_if_env_drifted,
 )
+
+
+class TestWarnIfEnvDrifted:
+    """``warn_if_env_drifted`` warns but never fails (#1033).
+
+    Replaces the ``uv-sync-on-pull``/``uv-sync-on-checkout`` pre-commit hooks,
+    which auto-ran ``uv sync`` on ``git checkout``/``git pull`` before anyone
+    had reviewed the branch. This runs only when a developer runs ``doit
+    check``/``doit test`` themselves, and only warns -- it never syncs.
+    """
+
+    def test_runs_the_check_only_command(self) -> None:
+        """The subprocess call is ``uv sync --all-extras --dev --check``, never a real sync."""
+        with patch("tools.doit.base.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            warn_if_env_drifted()
+
+        mock_run.assert_called_once_with(
+            ["uv", "sync", "--all-extras", "--dev", "--check"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_in_sync_prints_nothing(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Exit 0 (environment matches ``uv.lock``) -> no output."""
+        with patch("tools.doit.base.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            warn_if_env_drifted()
+
+        assert capsys.readouterr().out == ""
+
+    def test_out_of_sync_prints_the_reminder_and_does_not_raise(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Non-zero exit (drifted) -> the reminder prints and the function returns normally."""
+        with patch("tools.doit.base.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            warn_if_env_drifted()  # must not raise
+
+        assert "uv.lock changed — run: doit install_dev" in capsys.readouterr().out
 
 
 def _touch(tmp_path: Path, rel: str) -> Path:
