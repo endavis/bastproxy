@@ -589,20 +589,84 @@ BASH_CASES = [
     ),
     (
         # .envrc sources .envrc.local, so persisting the var there is the
-        # issue's own repro (#1037). It is content-gated: blocked only when
-        # the literal var name is present.
+        # issue's own repro (#1037).
         "printf 'export ALLOW_AI_READY_TO_MERGE=1' > .envrc.local",
         "BLOCK",
         "var name write to .envrc.local",
     ),
     (
+        # Issue #1051's repro: the name is assembled at run time, so no token
+        # contains it. A confirmed write to .envrc.local is blocked whatever
+        # its content, like .envrc.
+        'v=ALLOW_AI_READY_TO; echo "export ${v}_MERGE=1" >> .envrc.local',
+        "BLOCK",
+        "runtime-assembled var name write to .envrc.local",
+    ),
+    (
+        'printf "export ALLOW_AI_READY_TO%s=1\\n" _MERGE >> .envrc.local',
+        "BLOCK",
+        "printf-assembled var name write to .envrc.local",
+    ),
+    ("echo hi >> .envrc.local", "BLOCK", "undocumented write to .envrc.local"),
+    (
+        # A shell function defined earlier in the same command could change
+        # what an allowed write produces, so only the whole command is allowed.
+        "echo(){ printf x; }; echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
+        "BLOCK",
+        "documented .envrc.local write preceded by other commands",
+    ),
+    (
         # Documented agent-runnable steps (AI_SETUP.md, README) that must
-        # stay allowed: no var name, so the content gate lets them through.
+        # stay allowed: each is a whole-command allowlist entry.
         "echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
         "ALLOW",
         "documented ENABLE_LSP_TOOL line to .envrc.local",
     ),
+    (
+        'echo "export ENABLE_LSP_TOOL=1" >> .envrc.local',
+        "ALLOW",
+        "documented ENABLE_LSP_TOOL line with double quotes",
+    ),
     ("cp .envrc.local.example .envrc.local", "ALLOW", "copy envrc.local example"),
+    (
+        # The allowlist applies only to the top-level command: a wrapper can
+        # export a function into its payload first (`export -f`).
+        "f(){ printf x; }; export -f f; bash -c 'cp .envrc.local.example .envrc.local'",
+        "BLOCK",
+        "documented .envrc.local write inside bash -c after export -f",
+    ),
+    (
+        "bash -c 'cp .envrc.local.example .envrc.local'",
+        "BLOCK",
+        "documented .envrc.local write inside bash -c",
+    ),
+    # Write forms the hook did not see before #1051: link, install and rsync
+    # onto a protected file, and redirects spelled `>|`, with an fd prefix,
+    # `&>`, or glued to the word before them.
+    ("ln -sf /tmp/x .envrc.local.example", "BLOCK", "ln over .envrc.local.example"),
+    ("ln -sf /tmp/x ~/.bashrc", "BLOCK", "ln over .bashrc"),
+    ("install -m644 x .envrc.local", "BLOCK", "install onto .envrc.local"),
+    ("rsync x ~/.bashrc", "BLOCK", "rsync onto .bashrc"),
+    ("echo hi >| ~/.bashrc", "BLOCK", "noclobber-override redirect to .bashrc"),
+    ("echo hi 1>> ~/.bashrc", "BLOCK", "fd-prefixed append to .bashrc"),
+    ("echo hi &> .envrc", "BLOCK", "&> redirect to .envrc"),
+    ("echo hi>~/.bashrc", "BLOCK", "redirect glued to the word before it"),
+    ("echo hi|tee ~/.bashrc", "BLOCK", "tee glued to a pipe"),
+    (
+        # A quoted `>>` is text, not a redirect.
+        'git commit -m "docs: append >> .envrc"',
+        "ALLOW",
+        "quoted redirect text naming .envrc",
+    ),
+    ("echo hi 2>&1 | grep x", "ALLOW", "fd duplication is not a file write"),
+    ("cat ~/.bashrc > tmp/agents/claude/rc-copy.txt", "ALLOW", "redirect from a protected file"),
+    (
+        # The example file is the allowed `cp`'s source, so writing it first
+        # would carry any content into .envrc.local.
+        'v=ALLOW_AI_READY_TO; echo "export ${v}_MERGE=1" >> .envrc.local.example',
+        "BLOCK",
+        "runtime-assembled var name write to .envrc.local.example",
+    ),
     (
         # The interpreter heuristic only *might* write; mentioning a target
         # basename with no var name present stays allowed.
@@ -681,10 +745,36 @@ EDIT_CASES: list[tuple[str, dict, str, str]] = [
         "Write .envrc.local adding rtm var (#1037 repro)",
     ),
     (
+        # direnv runs .envrc.local as bash, so any content can assemble the
+        # var name at load time: a file edit is blocked whatever it writes,
+        # as the Bash path is (#1051).
         "Write",
         {"file_path": ".envrc.local", "content": "export ENABLE_LSP_TOOL=1\n"},
-        "ALLOW",
+        "BLOCK",
         "Write .envrc.local unrelated content",
+    ),
+    (
+        "Write",
+        {
+            "file_path": ".envrc.local",
+            "content": "v=ALLOW_AI_READY_TO; export ${v}_MERGE=1\n",
+        },
+        "BLOCK",
+        "Write .envrc.local runtime-assembled var name",
+    ),
+    (
+        "Write",
+        {"file_path": ".envrc.local.example", "content": "export ENABLE_LSP_TOOL=1\n"},
+        "BLOCK",
+        "Write .envrc.local.example, the allowed cp's source",
+    ),
+    (
+        # AI CLI settings files are JSON/TOML, not run by a shell, so they
+        # stay content-gated: no var name, no block.
+        "Write",
+        {"file_path": ".claude/settings.local.json", "content": '{"env": {"FOO": "1"}}'},
+        "ALLOW",
+        "Write claude settings.local.json unrelated content",
     ),
     (
         "Write",
@@ -702,7 +792,7 @@ EDIT_CASES: list[tuple[str, dict, str, str]] = [
             "old_string": "",
             "new_string": "export PATH=$PATH:/usr/local/bin",
         },
-        "ALLOW",
+        "BLOCK",
         "Edit .bashrc unrelated content",
     ),
     (
@@ -766,7 +856,7 @@ COPILOT_EDIT_CASES: list[tuple[str, dict, str, str]] = [
     (
         "edit",
         {"path": "~/.bashrc", "content": "export PATH=$PATH:/usr/local/bin"},
-        "ALLOW",
+        "BLOCK",
         "Copilot edit .bashrc unrelated content",
     ),
     (
@@ -867,7 +957,7 @@ AGY_EDIT_CASES: list[tuple[str, str, str, str]] = [
     (
         "~/.bashrc",
         "export PATH=$PATH:/usr/local/bin",
-        "ALLOW",
+        "BLOCK",
         "write_to_file .bashrc no var",
     ),
 ]
@@ -905,7 +995,7 @@ AGY_EDIT_FILE_CASES: list[tuple[str, dict[str, object], str, str]] = [
     (
         "edit_file",
         {"Path": "/home/x/.bashrc", "Target": "x", "Replacement": "export PATH=$PATH:/opt"},
-        "ALLOW",
+        "BLOCK",
         "edit_file .bashrc no var",
     ),
     (

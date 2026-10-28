@@ -156,6 +156,10 @@ ENV_PERSISTENCE_TARGETS: dict[str, str] = {
     ".zshenv": "",
     "config.fish": ".config/fish",
     ".envrc": "",
+    ".envrc.local": "",
+    # The source of the allowed `cp` below: writing it first, then copying,
+    # would carry any content into `.envrc.local` (#1051).
+    ".envrc.local.example": "",
     ".env": "",
     ".env.local": "",
     ".env.development": "",
@@ -163,13 +167,22 @@ ENV_PERSISTENCE_TARGETS: dict[str, str] = {
     "copilot-hooks.json": "",
 }
 
-# Env files that are protected but stay content-gated on the Bash path: a
-# write is blocked only when ALLOW_AI_READY_TO_MERGE is literally present.
-# `.envrc` loads `.envrc.local` on every directory entry, so it persists the
-# var as well as `.envrc` does, but this project documents agent-runnable
-# shell writes to it (`cp .envrc.local.example .envrc.local`, the
-# ENABLE_LSP_TOOL line in AI_SETUP.md) that must stay allowed (#1037).
-CONTENT_GATED_ENV_TARGETS: frozenset[str] = frozenset({".envrc.local"})
+# Whole Bash commands that may write an ENV_PERSISTENCE_TARGETS file anyway.
+# `.envrc` loads `.envrc.local` on every directory entry, so a confirmed write
+# to it is blocked whatever its content, like `.envrc` (#1051). This project
+# documents these agent-runnable writes to it (README, CONTRIBUTING.md,
+# AI_SETUP.md), so they stay allowed. The whole command must match: a token
+# list compares quoting-insensitively, and nothing before the write (such as a
+# shell function shadowing `echo`) can change what it writes. For the same
+# reason it applies only to the top-level command, never to a `bash -c` or
+# heredoc payload, whose wrapper can export a function into it first.
+_ALLOWED_ENV_PERSISTENCE_WRITES: frozenset[tuple[str, ...]] = frozenset(
+    tuple(shlex.split(command))
+    for command in (
+        "cp .envrc.local.example .envrc.local",
+        "echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
+    )
+)
 
 # Settings files that are only protected when inside a known AI CLI config dir
 _AI_CLI_SETTINGS_TARGETS: dict[str, set[str]] = {
@@ -253,23 +266,8 @@ def _is_env_persistence_target(path_str: str) -> bool:
     - Basename + optional parent-path fragment (ENV_PERSISTENCE_TARGETS)
     - AI CLI settings files only when the immediate parent dir is in the
       corresponding allow-list (_AI_CLI_SETTINGS_TARGETS)
-    - Content-gated env files by basename (CONTENT_GATED_ENV_TARGETS)
     """
-    return (
-        _matches_env_persistence_target(path_str)
-        or _matches_ai_cli_settings_target(path_str)
-        or _matches_content_gated_env_target(path_str)
-    )
-
-
-def _matches_content_gated_env_target(path_str: str) -> bool:
-    """Return True when *path_str*'s basename is in ``CONTENT_GATED_ENV_TARGETS``."""
-    if not path_str:
-        return False
-    try:
-        return Path(path_str).expanduser().name in CONTENT_GATED_ENV_TARGETS
-    except (ValueError, RuntimeError):
-        return False
+    return _matches_env_persistence_target(path_str) or _matches_ai_cli_settings_target(path_str)
 
 
 def tokenize(command: str) -> list[str]:
@@ -960,8 +958,14 @@ def check_governance_labels(tokens: list[str]) -> tuple[bool, str]:
 # Shell write operators (as standalone tokens after shlex.split)
 _WRITE_REDIRECTS = {">", ">>"}
 
-# Shell commands that write to a file argument
-_WRITE_COMMANDS = {"tee", "cp", "mv", "dd"}
+# Shell commands that write to a file argument. `ln` points a protected name
+# at another file, `install` and `rsync` copy over it (#1051).
+_WRITE_COMMANDS = {"tee", "cp", "mv", "dd", "ln", "install", "rsync"}
+
+# Characters a redirect operator is made of. :func:`_redirect_tokens` lexes
+# them as punctuation so `>|`, `&>`, `1>>` and a redirect glued to a word
+# (`echo x>~/.bashrc`) each yield a standalone operator token (#1051).
+_REDIRECT_PUNCTUATION = "<>|&;()"
 
 # Script interpreters that can write files via -c/-e/--command
 _INTERPRETER_COMMANDS = {"python", "python3", "perl", "ruby", "node"}
@@ -991,8 +995,9 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
     targets: list[str] = []
     n = len(tokens)
     for i, tok in enumerate(tokens):
-        # Pattern A: standalone redirect operator
-        if tok in _WRITE_REDIRECTS:
+        # Pattern A: standalone redirect operator, including `>|`, `&>` and
+        # `>&` as :func:`_redirect_tokens` yields them
+        if tok in _WRITE_REDIRECTS or (">" in tok and set(tok) <= set(_REDIRECT_PUNCTUATION)):
             if i + 1 < n and _is_env_persistence_target(tokens[i + 1]):
                 targets.append(tokens[i + 1])
             continue
@@ -1041,6 +1046,23 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
     return targets
 
 
+def _redirect_tokens(command: str) -> list[str]:
+    """Tokenize *command* with shell operator characters as their own tokens.
+
+    :func:`tokenize` splits on whitespace only, so a redirect glued to a word
+    (`echo x>~/.bashrc`) or written as `>|` / `1>>` / `&>` never produced the
+    standalone `>`/`>>` token pattern A looks for (#1051). Quoted strings stay
+    one token, so `git commit -m "a >> .envrc"` is still not a redirect.
+    """
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=_REDIRECT_PUNCTUATION)
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        return list(lexer)
+    except ValueError:
+        return tokenize(command)
+
+
 def _bash_interpreter_mentions_target(tokens: list[str]) -> bool:
     """Pattern E: script interpreter (``python``/``python3``/``perl``/``ruby``/
     ``node``) invoked with ``-c`` / ``-e`` / ``--command`` whose script body
@@ -1068,9 +1090,7 @@ def _bash_interpreter_mentions_target(tokens: list[str]) -> bool:
         )
         if not has_inline:
             continue
-        persistence_basenames = (
-            set(ENV_PERSISTENCE_TARGETS) | set(_AI_CLI_SETTINGS_TARGETS) | CONTENT_GATED_ENV_TARGETS
-        )
+        persistence_basenames = set(ENV_PERSISTENCE_TARGETS) | set(_AI_CLI_SETTINGS_TARGETS)
         for t in segment:
             for basename in persistence_basenames:
                 if basename in t:
@@ -1078,7 +1098,7 @@ def _bash_interpreter_mentions_target(tokens: list[str]) -> bool:
     return False
 
 
-def check_env_persistence_in_bash(tokens: list[str]) -> tuple[bool, str]:
+def check_env_persistence_in_bash(tokens: list[str], _depth: int = 0) -> tuple[bool, str]:
     """Block Bash commands that would persist ALLOW_AI_READY_TO_MERGE, or
     that write to a protected file at all.
 
@@ -1090,6 +1110,10 @@ def check_env_persistence_in_bash(tokens: list[str]) -> tuple[bool, str]:
       blocked whatever its content. A runtime-assembled variable name
       (``v=ALLOW_AI_; echo "export ${v}READY_TO_MERGE=1" >> ~/.bashrc``) is
       blocked this way without the literal string ever needing to appear.
+      The only exceptions are the whole commands in
+      ``_ALLOWED_ENV_PERSISTENCE_WRITES``, the documented ``.envrc.local``
+      setup steps, and only when *_depth* is 0: a wrapped payload is never
+      the whole command (#1051).
     - A confirmed write to an ``_AI_CLI_SETTINGS_TARGETS`` file, and the
       script-interpreter *might-write* heuristic
       (:func:`_bash_interpreter_mentions_target`) against any target, still
@@ -1110,6 +1134,8 @@ def check_env_persistence_in_bash(tokens: list[str]) -> tuple[bool, str]:
 
     for target in _bash_confirmed_write_targets(tokens):
         if _matches_env_persistence_target(target):
+            if _depth == 0 and tuple(tokens) in _ALLOWED_ENV_PERSISTENCE_WRITES:
+                continue
             return True, message
         if var_present:
             return True, message
@@ -1291,10 +1317,10 @@ def check_env_persistence_in_file_edit(
     Antigravity, create/edit for Copilot) that would
     persist ALLOW_AI_READY_TO_MERGE to a protected file.
 
-    Triggers when:
-    - The target path (:func:`_resolve_file_path`) is a persistence-protected
-      target, AND
-    - The new content being written contains ALLOW_AI_READY_TO_MERGE.
+    Triggers when the target path (:func:`_resolve_file_path`) is:
+    - an ``ENV_PERSISTENCE_TARGETS`` file, whatever the content (#1051), or
+    - an ``_AI_CLI_SETTINGS_TARGETS`` file and the new content contains
+      ALLOW_AI_READY_TO_MERGE.
 
     *scan_all_values*: when True, every string value anywhere in *tool_input*
     is scanned instead of relying on a known key name -- set by ``main()``
@@ -1309,6 +1335,16 @@ def check_env_persistence_in_file_edit(
 
     if not _is_env_persistence_target(file_path_raw):
         return False, ""
+
+    # A shell rc or env file is run by bash or direnv when loaded, so content
+    # that assembles the name (`v=ALLOW_AI_; export ${v}READY_TO_MERGE=1`)
+    # persists it without the literal string. Block any edit, as the Bash
+    # path does; only AI CLI settings files stay content-gated (#1051).
+    if _matches_env_persistence_target(file_path_raw):
+        return True, (
+            f"Blocked: AI must not edit '{file_path_raw}', a file that could persist "
+            f"{var_name}. Only a human can edit this file."
+        )
 
     if scan_all_values:
         new_content_parts = _all_string_values(tool_input)
@@ -1750,9 +1786,13 @@ def check_command(command: str, _depth: int = 0) -> tuple[bool, str]:
             return True, reason
 
     # Check for attempts to persist ALLOW_AI_READY_TO_MERGE via Bash
-    is_dangerous, reason = check_env_persistence_in_bash(tokens)
-    if is_dangerous:
-        return True, reason
+    # Checked on the `tokenize()` tokens and again on tokens that split out
+    # redirect operators, which find `>|`, `1>>`, `&>` and glued redirects
+    # (#1051). Heredoc bodies are stripped so a body's text is not a redirect.
+    for check_tokens in (tokens, _redirect_tokens(stripped)):
+        is_dangerous, reason = check_env_persistence_in_bash(check_tokens, _depth)
+        if is_dangerous:
+            return True, reason
 
     # Recurse into shell-wrapper payloads (bash/sh/zsh/dash -c <payload>, eval ...)
     # Depth cap of 3 prevents infinite loops on adversarial inputs.

@@ -706,21 +706,24 @@ The hook reads `os.environ` at hook-startup time (the AI CLI's process environme
 
 The hook fires on **Edit**, **Write**, and **MultiEdit** (Claude/Codex), **write_file**/**replace** (retained for Gemini compatibility), **write_file**/**edit_file**/**write_to_file** (Antigravity), **create**/**edit** (Copilot, `path` key) and Copilot's patch-text **apply_patch** (see [Copilot CLI](#copilot-cli) above) in addition to Bash commands. Tool names are matched case-insensitively. Any other tool name is still checked when its input has the *shape* of a write — a path-shaped key (`file_path`, `path`, `filename`) plus a content-shaped key (`content`, `new_string`, `new_text`, `file_text`, `edits`) — rather than being allowed by default (#1037).
 
-**Protected file basenames** (Bash redirect/`tee`/`cp`/`mv`/`dd`/`sed -i` target, or a file-edit tool's path argument):
+**Protected file basenames** (Bash redirect/`tee`/`cp`/`mv`/`dd`/`ln`/`install`/`rsync`/`sed -i` target, or a file-edit tool's path argument). A redirect counts in any spelling: `>`, `>>`, `>|`, `&>`, with an fd prefix (`1>>`), or glued to the word before it (`echo x>~/.bashrc`).
 
-| File | Notes | Bash write blocked |
+| File | Notes | Write blocked (Bash or file-edit tool) |
 |------|-------|---------------------|
 | `.bashrc`, `.zshrc`, `.profile`, `.bash_profile`, `.bash_login`, `.zshenv` | Shell init files | Always, whatever the content |
 | `config.fish` | Only when parent path contains `.config/fish` | Always, whatever the content |
 | `.envrc`, `.env`, `.env.local`, `.env.development`, `.env.production` | Project env files | Always, whatever the content |
 | `copilot-hooks.json` | Any path (Copilot's env-injection vector) | Always, whatever the content |
-| `.envrc.local` | Loaded by `.envrc` on every directory entry | Only when `ALLOW_AI_READY_TO_MERGE` is literally present |
+| `.envrc.local` | Loaded by `.envrc` on every directory entry | Always, except the two documented Bash setup commands |
+| `.envrc.local.example` | Source of the documented `cp` to `.envrc.local` | Always, whatever the content |
 | `settings.json`, `settings.local.json` | Only when parent dir is `.claude` or `.copilot` | Only when `ALLOW_AI_READY_TO_MERGE` is literally present |
 | `config.toml` | Only when parent dir is `.codex` | Only when `ALLOW_AI_READY_TO_MERGE` is literally present |
 
-The first group — shell rc files, env files, `copilot-hooks.json` — blocks a confirmed Bash write (redirect, `tee`/`cp`/`mv`/`dd`, `sed -i`) outright, whatever it writes, rather than only when the literal `ALLOW_AI_READY_TO_MERGE` string appears. That closes a gap where the shell assembles the name at run time (`v=ALLOW_AI_; echo "export ${v}READY_TO_MERGE=1" >> ~/.bashrc`) and no token ever contains the literal name (#1037). The second group — `.envrc.local` and AI CLI settings files — keeps the literal-name requirement, because this project documents legitimate shell writes to them (`cp .envrc.local.example .envrc.local`, the `ENABLE_LSP_TOOL` line and `cp .codex/config.toml ~/.codex/config.toml` in [AI Agent Setup](../AI_SETUP.md)) that must stay allowed. A script interpreter invoked inline (`python -c`, `perl -e`, …) whose script only *mentions* a target's basename is a "might write" heuristic rather than a confirmed write, and also keeps the literal-name requirement for every target, confirmed or not.
+The first group — shell rc files, env files, `copilot-hooks.json` and `.envrc.local` — blocks a confirmed Bash write (redirect, `tee`/`cp`/`mv`/`dd`/`ln`/`install`/`rsync`, `sed -i`) outright, whatever it writes, rather than only when the literal `ALLOW_AI_READY_TO_MERGE` string appears. That closes a gap where the shell assembles the name at run time (`v=ALLOW_AI_; echo "export ${v}READY_TO_MERGE=1" >> ~/.bashrc`) and no token ever contains the literal name (#1037, and #1051 for `.envrc.local`). The project documents two agent-runnable writes to `.envrc.local` — `cp .envrc.local.example .envrc.local` and `echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local` in [AI Agent Setup](../AI_SETUP.md) — so those stay allowed, but only as the whole top-level command. Anything run before them in the same command could change what they write, such as a shell function that shadows `echo`. So could a `bash -c` wrapper that exports such a function into its payload. `.envrc.local.example` is protected too, because it is the `cp`'s source: writing it first and then copying would carry any content into `.envrc.local`. The AI CLI settings files keep the literal-name requirement, because `cp .codex/config.toml ~/.codex/config.toml` is a documented setup step that must stay allowed. A script interpreter invoked inline (`python -c`, `perl -e`, …) whose script only *mentions* a target's basename is a "might write" heuristic rather than a confirmed write, and also keeps the literal-name requirement for every target, confirmed or not.
 
-A file-edit tool's content check stays literal-string-based for every known tool except Copilot's `create`/`edit`: AI agents edit `.claude/`, `.github/hooks/`, `.agents/` and `.codex/` through their edit tools as normal, sanctioned work, and a blunter check there would make that impossible. For Copilot, whose content key the hook has not confirmed, every string value in `tool_input` is scanned instead of one guessed key name.
+A file-edit tool (Write, Edit, `apply_patch`, …) is blocked from every file in the first group whatever it writes, the same as a Bash write (#1051). bash or direnv runs these files when it loads them, so content that assembles the name (`v=ALLOW_AI_; export ${v}READY_TO_MERGE=1`) persists it without the literal string. That includes this template's own tracked `.envrc` and `.envrc.local.example`: a human edits them. The `ENABLE_LSP_TOOL` line goes in through the documented Bash `echo`, not an edit tool.
+
+The AI CLI settings files keep a literal-string content check for file-edit tools too. They are JSON or TOML that no shell runs, and AI agents edit `.claude/`, `.github/hooks/`, `.agents/` and `.codex/` through their edit tools as normal, sanctioned work, which a blunter check would make impossible. For Copilot's `create`/`edit`, whose content key the hook has not confirmed, every string value in `tool_input` is scanned instead of one guessed key name.
 
 **Example blocked Bash commands:**
 
@@ -742,6 +745,10 @@ cp .codex/config.toml ~/.codex/config.toml
 # BLOCKED — AI cannot persist the variable via Edit tool
 Edit ~/.bashrc
   new_string: "export ALLOW_AI_READY_TO_MERGE=1"
+
+# BLOCKED — any edit to a shell rc or env file, whatever it writes
+Edit ~/.bashrc
+  new_string: "export PATH=$PATH:/usr/local/bin"
 ```
 
 ### Adding New Patterns
