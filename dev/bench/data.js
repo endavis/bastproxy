@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793184438701,
+  "lastUpdate": 1793203357936,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -495,6 +495,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008502500005968044",
             "extra": "mean: 285.0145832409607 usec\nrounds: 3604"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49981bddcb02c8260f4c4d938084037c319c47dc",
+          "message": "chore: synchronize with pyproject-template 4cadf97 (merges PR #32, addresses #31)\n\nSyncs template 2fafe38..4cadf97:\n- endavis/pyproject-template#1060 (pin the template-sync target to a SHA, used in issue/PR titles)\n- endavis/pyproject-template#1063 (add the merge-pr skill)\n- endavis/pyproject-template#1064 (close glob-source, sed operand, broad pathspec and dd of= gaps in the env-file write guard)\n- endavis/pyproject-template#1068 (file unfixed security review findings as private draft advisories)\n\nAddresses #31\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sb5Ua6GvageApSGs7o\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-28T16:01:52Z",
+          "tree_id": "7939f9ba17324215536792a1049dbf6041303a9a",
+          "url": "https://github.com/endavis/bastproxy/commit/49981bddcb02c8260f4c4d938084037c319c47dc"
+        },
+        "date": 1793203356985,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2145.3363088541446,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005284368322445009",
+            "extra": "mean: 466.1273833257941 usec\nrounds: 2207"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1903.3706685856537,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001810355306367771",
+            "extra": "mean: 525.383739754209 usec\nrounds: 1952"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3476.4615706324703,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011049031944437296",
+            "extra": "mean: 287.64880027656125 usec\nrounds: 3615"
           }
         ]
       }
