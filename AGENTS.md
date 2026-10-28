@@ -213,7 +213,7 @@ The tool hierarchy (prefer higher over lower):
 | Merge PRs | `doit pr_merge` | `gh pr merge` |
 | Create ADRs | `doit adr` | Manual file creation |
 | Sync GitHub labels | `doit labels_sync` | `gh label create` / `gh label edit` manually |
-| Commit (interactive) | `doit commit` | `git commit` without format |
+| Commit (AI agents) | `git commit` with a conventional message (`-F <file>`) | `doit commit` (humans at a terminal only), `git commit` without format |
 | Create a worktree | `doit worktree --branch=<branch>` | `git worktree add` by hand |
 | Install/add packages | `uv add <pkg>` | `pip install` |
 | Sync dependencies | `doit install_dev` | plain `uv sync`, `pip install -r` |
