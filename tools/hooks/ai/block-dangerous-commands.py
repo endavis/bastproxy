@@ -202,9 +202,85 @@ def _env_truthy(name: str) -> bool:
     return val in {"1", "true", "yes", "on"}
 
 
-def _matches_env_persistence_target(path_str: str) -> bool:
+_DYNAMIC_CHARS = frozenset("$`*?[{\\")
+
+
+def _scan_dynamic_path(path_str: str) -> list[tuple[str, str | None]]:
+    """Split *path_str* into ``(literal_char, None)`` / ``("", regex)`` parts.
+
+    Each shell expansion becomes a wildcard part, so a caller can ask whether
+    the path *could* expand to a protected name (#1055). Only ``$name``, ``*``
+    and ``?`` are read exactly. Every other expansion -- ``${...}``,
+    ``$(...)``, ``$'...'``, a special parameter, a backtick, ``[...]``,
+    ``{...}``, a backslash left by quoting -- turns the rest of the path into
+    one wildcard: their bash grammar (nesting, ``[]x]``, ANSI-C escapes) is
+    too easy to parse differently from the shell, so fail closed instead.
+    """
+    parts: list[tuple[str, str | None]] = []
+    i = 0
+    n = len(path_str)
+    while i < n:
+        ch = path_str[i]
+        if ch == "$" and i + 1 < n and (path_str[i + 1].isalpha() or path_str[i + 1] == "_"):
+            j = i + 1
+            while j < n and (path_str[j].isalnum() or path_str[j] == "_"):
+                j += 1
+            parts.append(("", ".*"))
+            i = j
+        elif ch == "*":
+            parts.append(("", ".*"))
+            i += 1
+        elif ch == "?":
+            parts.append(("", "."))
+            i += 1
+        elif ch in _DYNAMIC_CHARS:
+            parts.append(("", ".*"))
+            break
+        else:
+            parts.append((ch, None))
+            i += 1
+    return parts
+
+
+def _matches_dynamic_env_persistence_target(path_str: str) -> bool:
+    """Return True when *path_str*, with its shell expansions read as
+    wildcards, could name an ``ENV_PERSISTENCE_TARGETS`` file (#1055).
+
+    The hook sees the text of a write target, not what the shell makes of it,
+    so ``>> ${f}al`` or ``>> .envrc.loca?`` slipped past the literal match.
+    Fail closed: every expansion matches anything, so ``>> $f`` matches every
+    target. A parent path holding an expansion may supply any fragment
+    ``ENV_PERSISTENCE_TARGETS`` asks for. Only a path with an expansion is
+    treated this way; a literal path is left to the literal match.
+    """
+    if not _DYNAMIC_CHARS & set(path_str):
+        return False
+    parts = _scan_dynamic_path(path_str.rstrip("/"))
+    # The basename starts after the last literal "/" -- one inside an
+    # expansion (`$(dirname $0)/x`) is part of that wildcard.
+    split = 0
+    for idx, (lit, rx) in enumerate(parts):
+        if rx is None and lit == "/":
+            split = idx + 1
+    parent, base = parts[:split], parts[split:]
+    if not base:
+        return False
+    pattern = re.compile("".join(re.escape(lit) if rx is None else rx for lit, rx in base))
+    parent_dynamic = any(rx is not None for _, rx in parent)
+    parent_text = "".join(lit for lit, rx in parent if rx is None)
+    for name, fragment in ENV_PERSISTENCE_TARGETS.items():
+        if pattern.fullmatch(name) and (not fragment or parent_dynamic or fragment in parent_text):
+            return True
+    return False
+
+
+def _matches_env_persistence_target(path_str: str, *, dynamic: bool = False) -> bool:
     """Return True when *path_str* matches a bare ``ENV_PERSISTENCE_TARGETS``
     basename (+ optional parent-path fragment).
+
+    With *dynamic*, a path whose shell expansions could spell such a name also
+    matches (:func:`_matches_dynamic_env_persistence_target`, #1055). Only the
+    Bash write check asks for it: a file-edit tool's path is not shell text.
 
     Split out from the former single-function ``_is_env_persistence_target``
     so the Bash write check can tell this category apart from
@@ -224,13 +300,16 @@ def _matches_env_persistence_target(path_str: str) -> bool:
 
     basename = path.name
     if basename not in ENV_PERSISTENCE_TARGETS:
-        return False
+        return dynamic and _matches_dynamic_env_persistence_target(path_str)
 
     fragment = ENV_PERSISTENCE_TARGETS[basename]
     if not fragment:
         return True
     # Fragment must appear in the parent path string
-    return fragment in path.parent.as_posix()
+    if fragment in path.parent.as_posix():
+        return True
+    # ...or a parent expansion may supply it (`$HOME/.config/fi*/config.fish`)
+    return dynamic and _matches_dynamic_env_persistence_target(path_str)
 
 
 def _matches_ai_cli_settings_target(path_str: str) -> bool:
@@ -258,7 +337,7 @@ def _matches_ai_cli_settings_target(path_str: str) -> bool:
     return path.parent.name in allowed_parents
 
 
-def _is_env_persistence_target(path_str: str) -> bool:
+def _is_env_persistence_target(path_str: str, *, dynamic: bool = False) -> bool:
     """Return True when *path_str* points to a file that the AI must not use
     to persist the ``ALLOW_AI_READY_TO_MERGE`` env var.
 
@@ -267,7 +346,9 @@ def _is_env_persistence_target(path_str: str) -> bool:
     - AI CLI settings files only when the immediate parent dir is in the
       corresponding allow-list (_AI_CLI_SETTINGS_TARGETS)
     """
-    return _matches_env_persistence_target(path_str) or _matches_ai_cli_settings_target(path_str)
+    return _matches_env_persistence_target(
+        path_str, dynamic=dynamic
+    ) or _matches_ai_cli_settings_target(path_str)
 
 
 def tokenize(command: str) -> list[str]:
@@ -974,6 +1055,43 @@ _INTERPRETER_COMMANDS = {"python", "python3", "perl", "ruby", "node"}
 _COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
 
 
+def _git_restore_targets(tokens: list[str], git_idx: int) -> list[str]:
+    """Return the protected paths a ``git checkout``/``git restore`` at
+    *git_idx* would overwrite (#1055).
+
+    ``git checkout <rev> -- <path>`` and ``git restore [--source=<rev>] <path>``
+    replace the file with another version of it, so this carries content into
+    ``.envrc.local.example`` ahead of the allowed ``cp`` onto ``.envrc.local``.
+    ``git checkout <rev> <path>`` needs no ``--``, so without one every
+    non-option argument is checked as a path; a branch is never named like a
+    protected file, so ``git checkout main`` still passes.
+    """
+    sub = _git_subcommand_index(tokens, git_idx)
+    if sub is None or tokens[sub] not in {"checkout", "restore"}:
+        return []
+    rest: list[str] = []
+    for t in tokens[sub + 1 :]:
+        if t in _COMMAND_SEPARATORS:
+            break
+        rest.append(t)
+    paths: list[str] = []
+    if tokens[sub] == "checkout":
+        if "--" in rest:
+            paths = rest[rest.index("--") + 1 :]
+        else:
+            paths = [t for t in rest if not t.startswith("-")]
+    else:
+        skip = False
+        for t in rest:
+            if skip:
+                skip = False
+            elif t in {"--source", "-s"}:
+                skip = True
+            elif not t.startswith("-"):
+                paths.append(t)
+    return [path for path in paths if _is_env_persistence_target(path, dynamic=True)]
+
+
 def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
     """Return every persistence-protected path/basename targeted by a
     *confirmed* Bash write.
@@ -998,23 +1116,25 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
         # Pattern A: standalone redirect operator, including `>|`, `&>` and
         # `>&` as :func:`_redirect_tokens` yields them
         if tok in _WRITE_REDIRECTS or (">" in tok and set(tok) <= set(_REDIRECT_PUNCTUATION)):
-            if i + 1 < n and _is_env_persistence_target(tokens[i + 1]):
+            if i + 1 < n and _is_env_persistence_target(tokens[i + 1], dynamic=True):
                 targets.append(tokens[i + 1])
             continue
 
         # Pattern B: redirect operator concatenated with target (no whitespace)
         if tok.startswith(">>") and len(tok) > 2:
-            if _is_env_persistence_target(tok[2:]):
+            if _is_env_persistence_target(tok[2:], dynamic=True):
                 targets.append(tok[2:])
             continue
         if tok.startswith(">") and len(tok) > 1 and tok[1] not in {"=", ">"}:
             # Skip ">=" (comparison) and ">>" (already handled)
-            if _is_env_persistence_target(tok[1:]):
+            if _is_env_persistence_target(tok[1:], dynamic=True):
                 targets.append(tok[1:])
             continue
 
         # Pattern C: write command followed by persistence target as positional
         if tok in _WRITE_COMMANDS:
+            positionals: list[str] = []
+            seg_open = True
             for j in range(i + 1, n):
                 t = tokens[j]
                 if t in _COMMAND_SEPARATORS:
@@ -1023,11 +1143,24 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
                     continue
                 if _is_env_persistence_target(t):
                     targets.append(t)
+                if seg_open and set(t) <= set(_REDIRECT_PUNCTUATION):
+                    seg_open = False
+                if seg_open:
+                    positionals.append(t)
+            # A glob in a copy's source is not a target (`cp src/* build/`):
+            # only `tee`'s files or the destination can expand to one (#1055).
+            dynamic_targets = positionals if tok == "tee" else positionals[-1:]
+            targets.extend(
+                t
+                for t in dynamic_targets
+                if t not in targets and _matches_dynamic_env_persistence_target(t)
+            )
             continue
 
         # Pattern D: sed -i (in-place) with persistence target
         if tok == "sed":
             has_in_place = False
+            last: str | None = None
             for j in range(i + 1, n):
                 t = tokens[j]
                 if t in _COMMAND_SEPARATORS:
@@ -1041,7 +1174,17 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
                     continue
                 if _is_env_persistence_target(t):
                     targets.append(t)
+                    last = None
+                else:
+                    last = t
+            if last is not None and _matches_dynamic_env_persistence_target(last):
+                targets.append(last)
             continue
+
+        # Pattern F: `git checkout ... -- <path>` and `git restore <path>`
+        # overwrite <path> from the index or another commit (#1055)
+        if tok == "git":
+            targets.extend(_git_restore_targets(tokens, i))
 
     return targets
 
@@ -1133,7 +1276,7 @@ def check_env_persistence_in_bash(tokens: list[str], _depth: int = 0) -> tuple[b
     )
 
     for target in _bash_confirmed_write_targets(tokens):
-        if _matches_env_persistence_target(target):
+        if _matches_env_persistence_target(target, dynamic=True):
             if _depth == 0 and tuple(tokens) in _ALLOWED_ENV_PERSISTENCE_WRITES:
                 continue
             return True, message

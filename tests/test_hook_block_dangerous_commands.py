@@ -912,3 +912,62 @@ def test_merge_rule_on_main_reads_each_command(
 ) -> None:
     """Matching `git`, `merge` and `--ff-only` anywhere on the line got both ways wrong (#894)."""
     assert _run(hook, monkeypatch, command, branch="main") == expected
+
+
+# ---------------------------------------------------------------------------
+# Dynamic write targets and git restores of protected files (#1055)
+# ---------------------------------------------------------------------------
+
+_DYNAMIC_TARGET_BLOCKED = [
+    "f=.envrc.loc; echo x >> ${f}al",
+    "echo x >> .envrc.loca?",
+    "echo x >> .envrc.loca{l,}",
+    "echo x >> $(printf .envrc.local)",
+    "echo x >> `printf .envrc.local`",
+    "echo x >> .envrc.l*l",
+    "echo x >> .envrc.loca[l]",
+    "f=.envrc.local; echo x >> $f",
+    'echo x >> "$GITHUB_OUTPUT"',
+    "f=.envrc.local; echo x | tee -a $f",
+    "cp x .envrc.l*",
+    "sed -i s/a/b/ .envrc.l*",
+    "echo x >> $HOME/.config/fi*/config.fish",
+    "git checkout other -- .envrc.local.example",
+    "git restore --source=other .envrc.local.example",
+    "git -C . restore -s other .envrc.local.example",
+    "git checkout other -- .envrc.l*",
+    "echo x >> ~/.bash*",
+    # Grammar the scanner no longer tries to mirror: the rest is a wildcard
+    "git checkout other .envrc.local.example",
+    "echo x >> $'\\x2eenvrc.local'",
+    "echo x >> .envrc.loca[]l]",
+    "echo x >> .envrc.loc{a{l,},}",
+]
+
+_DYNAMIC_TARGET_ALLOWED = [
+    "cp .envrc.local.example .envrc.local",
+    "echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
+    "cp src/* build/",
+    "echo x >> out.log",
+    "echo x >> *.log",
+    "echo x >> $TMPDIR/out.log",
+    "git checkout main",
+    "git checkout -b feature/x",
+    "git checkout main -- src/foo.py",
+    "git restore src/foo.py",
+    'git commit -m "a >> $f"',
+]
+
+
+@pytest.mark.parametrize("command", _DYNAMIC_TARGET_BLOCKED)
+def test_dynamic_write_target_that_could_be_protected_is_blocked(
+    hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    assert _run(hook, monkeypatch, command) == 2
+
+
+@pytest.mark.parametrize("command", _DYNAMIC_TARGET_ALLOWED)
+def test_write_target_that_cannot_be_protected_is_allowed(
+    hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    assert _run(hook, monkeypatch, command) == 0
