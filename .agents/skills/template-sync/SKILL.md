@@ -68,15 +68,23 @@ The full reference is `docs/template/ai-sync-checklist.md`; read it if any step 
 
 Per `AGENTS.md` (Issue -> Branch -> Commit -> PR):
 
+First resolve the target ref (default `main`; a tag, branch or SHA also works) to a full commit SHA,
+so the issue, the check and the recorded sync point all name the same commit even if upstream
+`main` moves during the sync. The short SHA is its first 7 characters:
+
+```bash
+gh api repos/endavis/pyproject-template/commits/<ref> --jq .sha
+```
+
 ```bash
 git checkout main && git pull
-doit issue --type=chore --title="chore: synchronize with latest pyproject-template" --body-file=<file>
+doit issue --type=chore --title="chore: synchronize with pyproject-template <short-sha>" --body-file=<file>
 git checkout -b chore/<issue#>-sync-pyproject-template
 ```
 
-The issue body at this point states intent only — what is being synced and to which ref. The plan
-comes in Step 6, once you know what the drift actually is. Record the issue number; every later
-step refers to it.
+The issue body at this point states intent only — what is being synced, the ref and its full SHA.
+The plan comes in Step 6, once you know what the drift actually is. Record the issue number and the
+SHA; every later step refers to them.
 
 Branch before Step 3: `bootstrap.py --sync` overwrites tracked files under
 `tools/pyproject_template/`, so it is already a change to `main` if you skip this.
@@ -97,14 +105,10 @@ values and correct them before continuing.
 ### Step 4: Check for drift
 
 ```bash
-python tools/pyproject_template/manage.py --yes check
+python tools/pyproject_template/manage.py --yes check --template-version <sha>
 ```
 
-To sync to a specific ref instead of `main`, when the user named one:
-
-```bash
-python tools/pyproject_template/manage.py --yes check --template-version <ref>
-```
+Always pass the full SHA resolved in Step 2, whether or not the user named a ref.
 
 The template is left extracted for diffing. **Locate it by glob, not by a fixed name** — the
 directory is named for the resolved commit:
@@ -187,7 +191,7 @@ gh issue comment <issue#> --body-file=tmp/agents/<agent>/sync-plan-<issue#>.md
 The comment opens with the header, so the plan is findable and a second run can detect it:
 
 ```
-## Sync Plan for #<issue#>: <template ref>
+## Sync Plan for #<issue#>: <template ref> (<short-sha>)
 ```
 
 Include, in this order:
@@ -250,7 +254,7 @@ This records the reviewed commit in `.config/pyproject_template/settings.toml` a
 `tmp/extracted/`. Future checks compare from this point.
 
 The commit recorded is the one you actually reviewed — with `--template-version` that is the pinned
-ref, not the tip of `main` (#805). Confirm the SHA it reports matches the ref you checked against
+ref, not the tip of `main` (#805). Confirm the SHA it reports matches the SHA resolved in Step 2
 before moving on.
 
 ### Step 10: Summarize, then finalize
@@ -259,10 +263,12 @@ Report against the plan, not from memory: what was adopted, what was skipped, wh
 and why, the `doit check` result, and the old and new template SHAs.
 
 Then return to the `implement-issue` run, or commit and open a PR per `.github/CONTRIBUTING.md`.
+The commit subject and the PR title both use the Step 2 short SHA, matching the issue title (for
+example `doit pr --title="chore: synchronize with pyproject-template <short-sha>" --body-file=<file>`).
 The commit message should list the upstream changes taken:
 
 ```
-chore: synchronize with pyproject-template
+chore: synchronize with pyproject-template <short-sha>
 
 Syncs the following template improvements:
 - endavis/pyproject-template#<PR> (description)

@@ -19,6 +19,7 @@ For full documentation, see: docs/development/ai/command-blocking.md
 import fnmatch
 import json
 import os
+import posixpath
 import re
 import shlex
 import subprocess  # nosec B404 - needed for git branch detection
@@ -183,6 +184,12 @@ _ALLOWED_ENV_PERSISTENCE_WRITES: frozenset[tuple[str, ...]] = frozenset(
         "echo 'export ENABLE_LSP_TOOL=1' >> .envrc.local",
     )
 )
+
+# The one allowed write whose source another command can swap out: `cp` is the
+# sink for every git working-tree writer (`stash pop`, `apply`, `am`, `merge`,
+# an alias ...), so it is allowed only while the example matches HEAD (#1061).
+_ENVRC_EXAMPLE = ".envrc.local.example"
+_ALLOWED_ENVRC_COPY: tuple[str, ...] = tuple(shlex.split(f"cp {_ENVRC_EXAMPLE} .envrc.local"))
 
 # Settings files that are only protected when inside a known AI CLI config dir
 _AI_CLI_SETTINGS_TARGETS: dict[str, set[str]] = {
@@ -1055,6 +1062,98 @@ _INTERPRETER_COMMANDS = {"python", "python3", "perl", "ruby", "node"}
 _COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
 
 
+def _is_broad_pathspec(path: str) -> bool:
+    """Return True when git pathspec *path* could cover a repo-root file.
+
+    ``.``, ``./``, ``src/..``, anything above the repo (``..``, ``../x``), an
+    absolute path and anything starting with ``:`` (``:/``, ``:(top)``, ``:!x``
+    pathspec magic) can reach the root. A subdirectory such as ``src/`` cannot
+    hold a root-level file, so it is not broad (#1061).
+    """
+    if not path:
+        return False
+    if path.startswith((":", "/", "~")):
+        return True
+    norm = posixpath.normpath(path)
+    return norm in {".", ".."} or norm.startswith("../")
+
+
+def _envrc_example_modified() -> bool:
+    """Return True when the example file differs from HEAD (#1061).
+
+    Fails open (False) when git is missing, times out, is not in a repo or the
+    file is untracked: the gated ``cp`` is a documented setup step and the hook
+    is a guardrail (ADR-9019).
+    """
+    try:
+        result = subprocess.run(  # nosec B603 B607 - trusted git command
+            ["git", "diff", "--quiet", "HEAD", "--", _ENVRC_EXAMPLE],
+            capture_output=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return result.returncode == 1
+
+
+def _long_opt_matches(tok: str, full: str) -> bool:
+    """Return True when *tok* names long option *full*, abbreviated or not.
+
+    GNU getopt and git's parse-options both accept any unambiguous prefix
+    (``--in-pl`` for ``--in-place``), with or without ``=value`` (#1061). An
+    ambiguous prefix makes the tool error out, so matching it fails closed.
+    """
+    name = tok.split("=", 1)[0]
+    return len(name) >= 3 and full.startswith(name)
+
+
+def _is_leading_dot_glob(path: str) -> bool:
+    """Return True when *path*'s basename starts with a literal ``.``.
+
+    Bash ``*``, ``?`` and ``[`` never match a leading dot, so only a glob that
+    spells the dot can reach a dotfile such as ``.envrc.local`` (#1061).
+    ``src/*`` does not qualify, and neither does the everyday ``src/.*``;
+    ``src/.envrc.loca?``, ``src/.[e]nvrc.local`` and ``src/.?nvrc.local`` do.
+    """
+    base = path.rstrip("/").rsplit("/", 1)[-1]
+    return base.startswith(".") and base not in {".", "..", ".*"}
+
+
+_EXTGLOB_INTRODUCERS = frozenset("@+!?*")
+
+
+def _collapse_extglobs(tokens: list[str]) -> list[str]:
+    """Fold each extglob back into one wildcard token (#1061).
+
+    The lexer splits ``.envrc.@(local)`` into ``.envrc.@``, ``(``, ``local``,
+    ``)``. Rewrite the introducer as ``*`` and drop the group, so every write
+    pattern reads ``.envrc.*`` as one dynamic target. Fails closed: the whole
+    group becomes a wildcard whatever it holds.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        tok = tokens[i]
+        if i + 1 < n and tokens[i + 1] == "(" and tok[-1:] in _EXTGLOB_INTRODUCERS:
+            depth = 0
+            j = i + 1
+            while j < n:
+                if tokens[j] == "(":
+                    depth += 1
+                elif tokens[j] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            out.append(tok[:-1] + "*")
+            i = j + 1
+            continue
+        out.append(tok)
+        i += 1
+    return out
+
+
 def _git_restore_targets(tokens: list[str], git_idx: int) -> list[str]:
     """Return the protected paths a ``git checkout``/``git restore`` at
     *git_idx* would overwrite (#1055).
@@ -1065,6 +1164,11 @@ def _git_restore_targets(tokens: list[str], git_idx: int) -> list[str]:
     ``git checkout <rev> <path>`` needs no ``--``, so without one every
     non-option argument is checked as a path; a branch is never named like a
     protected file, so ``git checkout main`` still passes.
+
+    With an explicit source (another revision), a broad pathspec (``.``, ``:/``,
+    ``--pathspec-from-file``) covers the example too and counts as a write to it
+    (#1061). Without one the content comes from the index, so ``git checkout .``
+    and ``git restore .`` stay allowed.
     """
     sub = _git_subcommand_index(tokens, git_idx)
     if sub is None or tokens[sub] not in {"checkout", "restore"}:
@@ -1075,21 +1179,43 @@ def _git_restore_targets(tokens: list[str], git_idx: int) -> list[str]:
             break
         rest.append(t)
     paths: list[str] = []
+    has_source = False
     if tokens[sub] == "checkout":
+        non_options = [t for t in rest if not t.startswith("-")]
         if "--" in rest:
-            paths = rest[rest.index("--") + 1 :]
+            dashes = rest.index("--")
+            paths = rest[dashes + 1 :]
+            has_source = any(not t.startswith("-") for t in rest[:dashes])
         else:
-            paths = [t for t in rest if not t.startswith("-")]
+            paths = non_options
+            has_source = len(non_options) >= 2
     else:
         skip = False
         for t in rest:
             if skip:
                 skip = False
-            elif t in {"--source", "-s"}:
+            elif t == "-s" or (_long_opt_matches(t, "--source") and "=" not in t):
                 skip = True
+                has_source = True
+            elif _long_opt_matches(t, "--source") or (
+                t.startswith("-s") and not t.startswith("--")
+            ):
+                has_source = True
             elif not t.startswith("-"):
                 paths.append(t)
-    return [path for path in paths if _is_env_persistence_target(path, dynamic=True)]
+    targets = [path for path in paths if _is_env_persistence_target(path, dynamic=True)]
+    # `-C`/`--work-tree` move where git resolves paths, so any pathspec may
+    # reach the root (`git -C .. checkout X -- repo/`)
+    moved = any(t == "-C" or t.startswith("--work-tree") for t in tokens[git_idx + 1 : sub])
+    if has_source and (
+        moved
+        or any(_is_broad_pathspec(path) for path in paths)
+        or any(_long_opt_matches(t, "--pathspec-from-file") for t in rest)
+    ):
+        # Stand in the protected name the broad pathspec covers, so the
+        # caller's match blocks it
+        targets.append(_ENVRC_EXAMPLE)
+    return targets
 
 
 def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
@@ -1111,6 +1237,7 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
     var-name requirement for every target, confirmed or not.
     """
     targets: list[str] = []
+    tokens = _collapse_extglobs(tokens)
     n = len(tokens)
     for i, tok in enumerate(tokens):
         # Pattern A: standalone redirect operator, including `>|`, `&>` and
@@ -1141,15 +1268,26 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
                     break
                 if t.startswith("-"):
                     continue
+                if tok == "dd":
+                    # `dd` names its files as `if=`/`of=`; only the output is
+                    # written, so strip `of=` and ignore `if=` (#1061)
+                    if t.startswith("if="):
+                        continue
+                    t = t.removeprefix("of=")
                 if _is_env_persistence_target(t):
                     targets.append(t)
                 if seg_open and set(t) <= set(_REDIRECT_PUNCTUATION):
                     seg_open = False
                 if seg_open:
                     positionals.append(t)
-            # A glob in a copy's source is not a target (`cp src/* build/`):
-            # only `tee`'s files or the destination can expand to one (#1055).
-            dynamic_targets = positionals if tok == "tee" else positionals[-1:]
+            # A glob in a copy's source is a target only when it spells the
+            # leading dot of a protected name (`cp src/.envrc.loca? .`), not for
+            # `cp src/* build/`: bash `*` never matches a dot (#1055, #1061).
+            # `tee`'s files and the destination are always read as dynamic.
+            dynamic_targets = positionals[-1:]
+            dynamic_targets += [
+                t for t in positionals[:-1] if tok == "tee" or _is_leading_dot_glob(t)
+            ]
             targets.extend(
                 t
                 for t in dynamic_targets
@@ -1157,28 +1295,48 @@ def _bash_confirmed_write_targets(tokens: list[str]) -> list[str]:
             )
             continue
 
-        # Pattern D: sed -i (in-place) with persistence target
+        # Pattern D: sed -i (in-place) with persistence target. Every operand
+        # is matched literally, and every operand after the script is a file
+        # matched as dynamic too, not just the last (#1061). The script (first
+        # operand, unless -e/-f supplies it) skips only the dynamic match, as
+        # `s/a/$/` would read as a wildcard.
         if tok == "sed":
             has_in_place = False
-            last: str | None = None
+            has_script_flag = False
+            skip_next = False
+            operands: list[str] = []
             for j in range(i + 1, n):
                 t = tokens[j]
                 if t in _COMMAND_SEPARATORS:
                     break
-                if t.startswith("-i"):
+                if skip_next:
+                    skip_next = False
+                elif _long_opt_matches(t, "--in-place"):
                     has_in_place = True
-                    continue
-                if not has_in_place:
-                    continue
-                if t.startswith("-"):
-                    continue
-                if _is_env_persistence_target(t):
-                    targets.append(t)
-                    last = None
-                else:
-                    last = t
-            if last is not None and _matches_dynamic_env_persistence_target(last):
-                targets.append(last)
+                elif _long_opt_matches(t, "--expression") or _long_opt_matches(t, "--file"):
+                    has_script_flag = True
+                    skip_next = "=" not in t
+                elif t.startswith("-") and not t.startswith("--"):
+                    # A short-option cluster: `-i` takes the rest as its
+                    # suffix, `-e`/`-f` the rest (or the next token) as script
+                    for k, ch in enumerate(t[1:], start=2):
+                        if ch == "i":
+                            has_in_place = True
+                            break
+                        if ch in {"e", "f"}:
+                            has_script_flag = True
+                            skip_next = k == len(t)
+                            break
+                elif not t.startswith("-"):
+                    operands.append(t)
+            if has_in_place:
+                files = operands if has_script_flag else operands[1:]
+                targets.extend(t for t in operands if _is_env_persistence_target(t))
+                targets.extend(
+                    t
+                    for t in files
+                    if t not in targets and _matches_dynamic_env_persistence_target(t)
+                )
             continue
 
         # Pattern F: `git checkout ... -- <path>` and `git restore <path>`
@@ -1278,6 +1436,12 @@ def check_env_persistence_in_bash(tokens: list[str], _depth: int = 0) -> tuple[b
     for target in _bash_confirmed_write_targets(tokens):
         if _matches_env_persistence_target(target, dynamic=True):
             if _depth == 0 and tuple(tokens) in _ALLOWED_ENV_PERSISTENCE_WRITES:
+                if tuple(tokens) == _ALLOWED_ENVRC_COPY and _envrc_example_modified():
+                    return True, (
+                        f"Blocked: {_ENVRC_EXAMPLE} differs from HEAD, so copying it could "
+                        f"persist content that was swapped in. Restore or commit the "
+                        f"example, or ask a human to run the copy."
+                    )
                 continue
             return True, message
         if var_present:

@@ -20,7 +20,7 @@ You are a senior coding partner. Your goal is efficient, tested, and compliant c
 - **Questions != Instructions:** If the user asks "What...", "How...", or "Can we...", answer with a **PLAN** or **EXPLANATION**.
 - **NEVER implement based on a question.** Wait for explicit "Do it" or "Proceed".
 - **Stop & Verify:** If the user says "Stop", "Wait", "Hold on", "Cancel", "Wrong", or "No", immediately halt and ask for clarification.
-- **Summary Before Commit:** At the end of any implementation (docs, fix, feature, chore, etc.), summarize what was changed for the user before committing and wait for the user's explicit instruction to commit the changes. **Exception:** the user saying "implement issue X", or approving work on an issue (including a "yes" to a fix the agent proposed and filed as an issue), runs the `implement-issue` skill and authorizes commit, push, and PR creation on that issue's own branch without a further wait. Issue work goes through `implement-issue`, never by hand. A question is still not approval — see [Slash Commands and Workflows — implement issue N](docs/development/ai/slash-commands.md#implement-issue-n).
+- **Summary Before Commit:** At the end of any implementation (docs, fix, feature, chore, etc.), summarize what was changed for the user before committing and wait for the user's explicit instruction to commit the changes. **Exception:** the user saying "implement issue X", or approving work on an issue (including a "yes" to a fix the agent proposed and filed as an issue), runs the `implement-issue` skill and authorizes commit, push, and PR creation on that issue's own branch without a further wait. Issue work goes through `implement-issue`, never by hand. The user saying "N is green" or "merge N" runs the `merge-pr` skill, which counts as consent to merge that PR and close the issues it fully addresses, never adding `ready-to-merge` — see [Slash Commands and Workflows — merge-pr](docs/development/ai/slash-commands.md#merge-pr-n). A question is still not approval — see [Slash Commands and Workflows — implement issue N](docs/development/ai/slash-commands.md#implement-issue-n).
 - **Failing Tests:** Never modify a test to make it pass. Stop, explain *why* the test broke (what behavior changed, what the test was asserting), and discuss with the user whether the code or the test should change. A failing test is a signal, not a problem to silence.
 
 ### 2. Task Planning Protocol
@@ -165,6 +165,16 @@ A test is template-owned when its target does not survive configuration ([ADR-90
 - **Documentation tasks**: Adding docstrings, comments, README updates
 - **Refactoring**: Improving code structure without behavior change
 - **Tests**: Adding missing test coverage for existing code
+
+### Security Review Findings
+When a security review (a plugin, a review skill, another agent) reports findings, fix those that
+belong to the current change. Never put an unfixed finding in a public issue, PR, comment or commit
+message ([SECURITY.md](.github/SECURITY.md)). Reproduce it first, keeping the command and its
+output, then file it as a private draft security advisory, one per finding:
+`gh api -X POST repos/{owner}/{repo}/security-advisories --input <file>`, with `summary`,
+`description`, `severity` and `vulnerabilities` (package ecosystem `other`). If the call is refused,
+stop and ask the user; never fall back to a public issue. Do not keep extending the current PR;
+triage is the repo admin's call.
 
 ## Breaking Changes Policy
 
@@ -339,7 +349,7 @@ Where `<agent-type>` is one of: `claude`, `copilot`, `codex`, `antigravity`, or 
 - **Tests:** Creating code = Creating tests. No exceptions. Never modify a failing test to make it pass — stop, explain why it broke, and discuss with the user whether the code or the test should change.
 - **Commits:** One logical change per commit. Use conventional commits.
 - **Releases:** Never run `doit release` without explicit command.
-- **PRs:** Use `doit pr` to create PRs and `doit pr_merge` to merge with proper commit format. Issues are not automatically closed. Ask the user if they would like the related issue closed — pass `--auto-close` to `doit pr_merge` to close linked issues in one step. The `implement-issue` skill commits with `git commit` (not `doit commit`, which is interactive) and opens the PR itself with `doit pr` — it never applies `ready-to-merge`, merges, or closes the issue those steps remain the user's.
+- **PRs:** Use `doit pr` to create PRs and `doit pr_merge` to merge with proper commit format. Issues are not automatically closed. Outside `merge-pr`, ask the user if they would like the related issue closed — pass `--auto-close` to `doit pr_merge` to close linked issues in one step. The `implement-issue` skill commits with `git commit` (not `doit commit`, which is interactive) and opens the PR itself with `doit pr` — it never applies `ready-to-merge`, merges, or closes the issue those steps remain the user's.
 - **The Merge Gate action:** is a manual action for the user to add to a PR. It requires the ready-to-merge label and should never be added by automation. Exception: the dependabot auto-merge workflow (`.github/workflows/dependabot-automerge.yml`) applies the `ready-to-merge` label to qualifying dependabot PRs only. AI agents may apply the label only when the human has set `ALLOW_AI_READY_TO_MERGE=1` in the shell that launched the AI CLI (see `docs/development/ai/command-blocking.md`).
 - **Issues:** Use `doit issue --type=<type>` to create issues (types: feature, bug, refactor, docs, chore). Labels are auto-applied. Manually close after PR merge with comment "Addressed in PR #XXX". Issues are not closed automatically when PRs are merged.
 - **ADRs:** When implementing architectural decisions (typically `feat` or `refactor`, rarely `fix`), update related ADRs in `docs/decisions/` to add the issue link. Create new ADRs for significant decisions using `doit adr`. Every ADR must link to the documentation in `docs/` that describes the implementation. Doc and chore issues do not need ADRs. Issues with the `needs-adr` label require an ADR before the PR can be merged.

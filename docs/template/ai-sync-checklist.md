@@ -42,10 +42,15 @@ This checklist guides an AI agent through synchronizing a downstream project wit
   overwriting it here — `manage.py check` only warns about it and never writes it.
 - [ ] Verify on `main` branch and clean working tree (`git status`)
 - [ ] Run `doit check` to confirm current state passes
-- [ ] Create a GitHub Issue for the sync work:
+- [ ] Resolve the target ref (default `main`; a tag, branch or SHA also works) to a full commit
+      SHA. The short SHA is its first 7 characters:
   ```bash
-  doit issue --type=chore --title="chore: synchronize with latest pyproject-template" \
-    --body="## Description\nSynchronize project with latest pyproject-template improvements."
+  gh api repos/endavis/pyproject-template/commits/<ref> --jq .sha
+  ```
+- [ ] Create a GitHub Issue for the sync work, naming the commit in the title:
+  ```bash
+  doit issue --type=chore --title="chore: synchronize with pyproject-template <short-sha>" \
+    --body="## Description\nSynchronize project with pyproject-template <ref> (<full-sha>)."
   ```
 - [ ] Create branch linked to the issue (e.g., `chore/<issue#>-sync-pyproject-template`)
 - [ ] Read [Consumer Notes](consumer-notes.md) — the breaking and behaviour changes that
@@ -123,12 +128,15 @@ After running bootstrap:
 Per [Template Manager](manage.md) "Workflow: Staying Up to Date":
 
 ```bash
-python tools/pyproject_template/manage.py --yes check
+python tools/pyproject_template/manage.py --yes check --template-version <sha>
 ```
+
+Pass the full commit SHA resolved in Pre-Flight, so the check, the recorded sync point and the
+issue/commit/PR titles all name the same commit even if upstream `main` moves during the sync.
 
 This will (per [Tools Reference](tools-reference.md)):
 
-1. Fetch the template at `main` — or at a specific tag, branch or commit SHA via `manage.py check --template-version <ref>` (ADR-9020)
+1. Fetch the template at the given tag, branch or commit SHA (`--template-version <ref>`, ADR-9020); without the flag it fetches `main`
 2. Compare all files - categorized as **Modified**, **Missing** (new in template), or **Extra** (project-specific)
 3. Keep the template at `tmp/extracted/pyproject-template-<commit-sha>/` for diff commands —
    the archive root is named for the **resolved commit** (ADR-9020), so locate it by glob rather
@@ -346,14 +354,15 @@ It does not commit or push. The changed `settings.toml` goes into this sync's ow
 - [ ] Stage all changes
 - [ ] Commit with conventional format:
   ```
-  chore: synchronize with pyproject-template
+  chore: synchronize with pyproject-template <short-sha>
 
   Syncs the following template improvements:
   - endavis/pyproject-template#<PR1> (description)
   - endavis/pyproject-template#<PR2> (description)
   - <additional changes summary>
   ```
-- [ ] Create PR: `doit pr --title="chore: synchronize with pyproject-template" --body-file=<body>`
+- [ ] Create PR, with the same title as the commit (the 7-character `<short-sha>` from Pre-Flight):
+      `doit pr --title="chore: synchronize with pyproject-template <short-sha>" --body-file=<body>`
 - [ ] PR body should reference the issue and list all synced template PRs
 
 ---
