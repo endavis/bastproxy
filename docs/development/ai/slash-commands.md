@@ -19,7 +19,7 @@ that drives an issue to an open PR, self-action and multi-agent review commands 
 `.claude/commands/`; the shared workflow skills (`implement-issue`, `ghi-status`,
 `checkpoint`/`restore`, `template-sync`, `template-migrate`, `add-dependency`, `mutation-triage`,
 `property-tests`, `deprecate-api`, `python-version-bump`, `security-triage`, `dead-code-triage`,
-`perf-change`) written once under `.agents/skills/` and generated for Claude under `.claude/skills/`
+`perf-change`, `merge-pr`) written once under `.agents/skills/` and generated for Claude under `.claude/skills/`
 by `doit skills_sync` — and the single-agent and multi-agent workflows built on top of them. It is
 written for contributors who want to understand or extend the workflow, and for AI agents that need
 to know which command to run at each stage of the issue lifecycle.
@@ -47,10 +47,12 @@ artifact the next step expects.
    for fix-ups (the skill is not re-run for small corrections — just edit, `doit check`, commit, and
    push).
 4. **User-driven merge** — the user reviews the PR, adds the `ready-to-merge` label, and merges via
-   `doit pr_merge` (or the web UI). This step is never automated — `implement-issue` never applies
-   the label or merges.
-5. **Close the issue** — after the PR merges, run `doit pr_merge --auto-close` (or `gh issue close
-   <n>`) to close the linked issue and post a closing comment.
+   `doit pr_merge` (or the web UI), or says "merge \<n\>" to run [`merge-pr`](#merge-pr-n). The
+   label stays manual — neither `implement-issue` nor `merge-pr` applies it, and
+   `implement-issue` never merges.
+5. **Close the issue** — `merge-pr` closes the issues the PR fully addresses and comments on the
+   rest. Merging by hand, run `doit pr_merge --auto-close` (or `gh issue close <n>`) to close the
+   linked issue and post a closing comment.
 
 ### Multi-agent workflow
 
@@ -85,7 +87,7 @@ uses the same format `implement-issue` posts on its own.
 
 ## Shared workflow skills: one source, generated for Claude
 
-Seventeen workflow skills — `implement-issue`, `ghi-status`, `checkpoint`, `restore`, `template-sync`, `template-migrate`, `add-dependency`, `mutation-triage`, `property-tests`, `deprecate-api`, `python-version-bump`, `security-triage`, `dead-code-triage`, `perf-change`, `multi-plan`, `multi-review`, `multi-adversarial-review` — are written once, in `.agents/skills/<name>/SKILL.md`, with no Claude-only frontmatter so Claude can auto-invoke them from their `description:` the same way Codex, Antigravity and Copilot do. **Edit only the `.agents/skills/` copy.** `doit skills_sync` then copies each one, byte for byte, to `.claude/skills/<name>/SKILL.md` — the path Claude Code reads (verified against Claude Code 2.1.304, which does not read `.agents/skills/`). The task runs only when this project wires Claude Code; `doit skills_sync --check` reports drift and exits non-zero instead of writing anything, and `tests/template/test_skills_sync.py` enforces that the generated copies never drift from source in this repo.
+Eighteen workflow skills — `implement-issue`, `ghi-status`, `checkpoint`, `restore`, `template-sync`, `template-migrate`, `add-dependency`, `mutation-triage`, `property-tests`, `deprecate-api`, `python-version-bump`, `security-triage`, `dead-code-triage`, `perf-change`, `merge-pr`, `multi-plan`, `multi-review`, `multi-adversarial-review` — are written once, in `.agents/skills/<name>/SKILL.md`, with no Claude-only frontmatter so Claude can auto-invoke them from their `description:` the same way Codex, Antigravity and Copilot do. **Edit only the `.agents/skills/` copy.** `doit skills_sync` then copies each one, byte for byte, to `.claude/skills/<name>/SKILL.md` — the path Claude Code reads (verified against Claude Code 2.1.304, which does not read `.agents/skills/`). The task runs only when this project wires Claude Code; `doit skills_sync --check` reports drift and exits non-zero instead of writing anything, and `tests/template/test_skills_sync.py` enforces that the generated copies never drift from source in this repo.
 
 The slash names are unchanged for Claude users: `/add-dependency` and the rest still work, now as skills rather than single-file commands. `multi-plan`, `multi-review` and `multi-adversarial-review` joined this list in #975, once each could say "the entry in the table that matches the CLI running this skill is you" instead of hardcoding one agent as self — see [Multi-agent orchestration](cross-agent-delegation.md#multi-agent-orchestration-multi-) for what changed. `ghi-finalize` and the per-agent `plan`/`implement` matrix are gone entirely, replaced by `implement-issue` (#976).
 
@@ -239,6 +241,14 @@ Turns a performance change into a measured one instead of a claimed one. It conf
 
 **Workflow position:** mid-task, whenever the work is a performance change or a speedup claim needs backing. **Design note:** the local `doit benchmark_save` / change / `doit benchmark_compare` loop used to compare against a pinned first save regardless of how many baselines existed (`tools/doit/benchmark.py`); #840 made `--benchmark-compare` use the latest one instead, which is what makes running this loop as-is trustworthy. CI tracks its own benchmark history too (see [CI/CD and Testing — Benchmark Tracking](../ci-cd-testing.md#benchmark-tracking)), but only from pushes to `main` — the workflow's `store` job, the only one that writes history or can comment, is gated on `github.event_name == 'push'`. A PR gets no benchmark comparison from CI, so this loop's pasted table is the only before/after number the PR carries. `tests/test_perf_change_skill.py` enforces that both bodies take the same steps in the same order, carry the same benchmark, comparison and correctness gates word for word, and never tell the agent to pin the comparison to a specific saved run.
 
+### `/merge-pr [N]`
+
+**Args:** the PR number; "N is green", "merge N" and "merge PR N" all invoke it. **Sources:** `.agents/skills/merge-pr/SKILL.md` (Codex, Antigravity, Copilot), `.claude/skills/merge-pr/SKILL.md` (Claude, generated by `doit skills_sync`).
+
+Merges a finished PR and closes the issues it fully addresses. It checks that the PR is open, mergeable, clean and labelled `ready-to-merge`, that every `gh pr checks` job passes or is skipped, and compares each `Addresses #X` issue's success criteria with the diff. It then runs `doit pr_merge --pr=N --auto-close` from the main checkout when every linked issue is fully addressed; otherwise it merges without `--auto-close`, closes only the addressed issues and comments on the rest with what is missing.
+
+**Consent scope:** invoking `merge-pr` is consent to merge that PR and to close the issues it fully addresses. It never adds `ready-to-merge` (the human merge gate), never uses `--admin`, `--force` or `--no-verify`, and stops when a precondition or check fails. **Workflow position:** after the PR is reviewed and the user has added the `ready-to-merge` label. `tests/test_merge_pr_skill.py` enforces the contract.
+
 ## Codex
 
 Codex does not use repo-defined slash commands in this project. Instead, the Codex workflow is provided through **repo-scoped skills** under `.agents/skills/`, which Codex can invoke through its built-in `/skills` browser or explicit mentions such as `$implement-issue`, `$codex-review`, and `$ghi-status`.
@@ -260,6 +270,7 @@ Codex does not use repo-defined slash commands in this project. Instead, the Cod
 - `$security-triage` fixes or justifies each bandit and pip-audit finding, and stops to ask before a `skips` entry or an ignored advisory
 - `$dead-code-triage` triages a `doit deadcode` finding against `[tool.vulture]` in `pyproject.toml` — unused import, unused variable, or unreachable code — before fixing it, adding a documented exception, or asking
 - `$perf-change` takes a measured baseline before a performance change, profiles with `cProfile`, and compares after, so a speedup claim is backed by a pasted table
+- `$merge-pr` merges a PR that is open, clean, green and labelled `ready-to-merge`, then closes the issues it fully addresses and comments on the rest
 
 **Config and safety:** `.codex/config.toml` still configures approvals and hook wiring for Codex. The shared dangerous-command hook at `tools/hooks/ai/block-dangerous-commands.py` applies to Codex, and the approval-policy deny rules remain a secondary defense layer.
 
@@ -286,6 +297,7 @@ Antigravity (`agy`) does not use repo-defined slash commands in this project. In
 - The shared `security-triage` skill fixes or justifies each bandit and pip-audit finding, and stops to ask before a `skips` entry or an ignored advisory
 - The shared `dead-code-triage` skill triages a `doit deadcode` finding against `[tool.vulture]` in `pyproject.toml` — unused import, unused variable, or unreachable code — before fixing it, adding a documented exception, or asking
 - The shared `perf-change` skill takes a measured baseline before a performance change, profiles with `cProfile`, and compares after, so a speedup claim is backed by a pasted table
+- The shared `merge-pr` skill merges a PR that is open, clean, green and labelled `ready-to-merge`, then closes the issues it fully addresses and comments on the rest
 
 **Config and safety:** `.agents/hooks.json` wires the shared dangerous-command hook at `tools/hooks/ai/block-dangerous-commands.py` for Antigravity (a `PreToolUse` matcher on `run_command`, `write_file`, `edit_file` and `write_to_file`). Unlike the exit-code-2 CLIs, `agy` blocks by printing `{"decision":"deny"}` on stdout, which holds even under `--dangerously-skip-permissions`. Because `agy` only loads workspace customizations for an active/trusted workspace, headless `agy -p` invocations must pass `--add-dir <repo-root>`.
 

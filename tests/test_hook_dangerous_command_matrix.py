@@ -628,6 +628,16 @@ BASH_CASES = [
         "documented ENABLE_LSP_TOOL line with double quotes",
     ),
     ("cp .envrc.local.example .envrc.local", "ALLOW", "copy envrc.local example"),
+    # Gaps closed by #1061
+    ("cp src/.envrc.loca? .", "BLOCK", "glob source copied into a directory"),
+    ("sed -i s/a/b/ .envrc.loca? other.txt", "BLOCK", "sed -i glob target not last"),
+    ("git checkout HEAD~1 -- .", "BLOCK", "checkout another rev over the root"),
+    ("git restore --source=HEAD~1 :/", "BLOCK", "restore another source over :/"),
+    ("dd if=evil of=.envrc.loca?", "BLOCK", "dd of= glob"),
+    ("dd if=evil of=.envrc.local", "BLOCK", "dd of= literal"),
+    ("echo x > .envrc.@(local)", "BLOCK", "extglob redirect target"),
+    ("cp src/* build/", "ALLOW", "star source glob into a directory"),
+    ("git checkout -- .", "ALLOW", "checkout the index over the root"),
     (
         # The allowlist applies only to the top-level command: a wrapper can
         # export a function into its payload first (`export -f`).
@@ -1048,6 +1058,8 @@ def _outcome_exit_code(
 ) -> str:
     """Run the hook on *payload*; BLOCK is exit 2 (Claude/Gemini/Codex)."""
     monkeypatch.setattr(hook, "get_current_branch", lambda: FEATURE_BRANCH)
+    # The allowed example copy asks git about the checkout (#1061)
+    monkeypatch.setattr(hook, "_envrc_example_modified", lambda: False)
     monkeypatch.setattr(sys, "stdin", io.StringIO(payload))
     return "BLOCK" if int(hook.main()) == 2 else "ALLOW"
 
@@ -1065,6 +1077,8 @@ def _outcome_stdout(
     flow, which reads as ALLOW.
     """
     monkeypatch.setattr(hook, "get_current_branch", lambda: FEATURE_BRANCH)
+    # The allowed example copy asks git about the checkout (#1061)
+    monkeypatch.setattr(hook, "_envrc_example_modified", lambda: False)
     monkeypatch.setattr(sys, "stdin", io.StringIO(payload))
     hook.main()
     out = capsys.readouterr().out
