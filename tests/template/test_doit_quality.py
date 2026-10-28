@@ -188,6 +188,7 @@ class TestTaskCheck:
         """
         task = task_check()
         assert set(task["task_dep"]) == {
+            "env_check",
             "format_check",
             "lint",
             "type_check",
@@ -199,6 +200,13 @@ class TestTaskCheck:
             "docs_build",
             "test",
         }
+
+    def test_env_check_runs_first(self) -> None:
+        """``env_check`` is first so its warning prints before the rest of the set runs.
+
+        doit's sequential runner executes a task's ``task_dep`` in listed order (#1033).
+        """
+        assert task_check()["task_dep"][0] == "env_check"
 
     def test_check_gates_on_docs_build(self) -> None:
         """``docs_build`` must run as part of ``doit check``, not just on demand.

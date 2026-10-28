@@ -3,11 +3,28 @@
 from unittest.mock import MagicMock, patch
 
 from tools.doit.install import (
+    task_env_check,
     task_install,
     task_install_dev,
     task_install_gh,
     task_install_jq,
 )
+
+
+class TestTaskEnvCheck:
+    """``task_env_check`` wires the drift-warning helper as a doit task (#1033)."""
+
+    def test_returns_valid_doit_task(self) -> None:
+        result = task_env_check()
+        assert isinstance(result, dict)
+        assert "actions" in result
+        assert "title" in result
+
+    def test_action_is_warn_if_env_drifted(self) -> None:
+        from tools.doit.base import warn_if_env_drifted
+
+        result = task_env_check()
+        assert result["actions"] == [warn_if_env_drifted]
 
 
 class TestTaskInstall:

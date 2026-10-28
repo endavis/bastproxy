@@ -55,7 +55,6 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
-- [Auto-Checkpoint and Session-Restore Hooks](development/ai/auto-checkpoint-hook.md) - PreCompact and SessionStart hooks that preserve context across autocompact events
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [CI/CD Testing Guide](development/ci-cd-testing.md) - GitHub Actions pipelines for testing, linting, and coverage
@@ -97,7 +96,6 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
-- [Auto-Checkpoint and Session-Restore Hooks](development/ai/auto-checkpoint-hook.md) - PreCompact and SessionStart hooks that preserve context across autocompact events
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [Claude Code Statusline](development/ai/statusline.md) - Custom statusline showing git branch, Python version, and project info
@@ -155,7 +153,6 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
-- [Auto-Checkpoint and Session-Restore Hooks](development/ai/auto-checkpoint-hook.md) - PreCompact and SessionStart hooks that preserve context across autocompact events
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [CI/CD Testing Guide](development/ci-cd-testing.md) - GitHub Actions pipelines for testing, linting, and coverage

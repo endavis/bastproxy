@@ -104,11 +104,27 @@ class TestPreCommitInstall:
     def test_task_delegates_the_hook_set_to_the_config(self) -> None:
         """A single bare install, so the config decides which types are installed."""
         actions = task_pre_commit_install()["actions"]
-        assert actions == ["uv run pre-commit install"], (
+        assert actions[0] == "uv run pre-commit install", (
             "Enumerating --hook-type here re-creates the bug this fixed: the list "
             "drifts from `default_install_hook_types` and describes a hook set that "
             "is no longer the hook set."
         )
+
+    def test_task_uninstalls_post_checkout_and_post_merge(self) -> None:
+        """A repo that installed these before #1033 must lose them on the next run.
+
+        Either hook type reads `.pre-commit-config.yaml` from whatever branch was
+        just checked out, so it is code-from-the-branch regardless of what the
+        hook itself does (#1033).
+        """
+        actions = task_pre_commit_install()["actions"]
+        assert "uv run pre-commit uninstall -t post-checkout -t post-merge" in actions
+
+    def test_post_checkout_and_post_merge_are_not_declared(self) -> None:
+        """The config must not redeclare the hook types this task uninstalls."""
+        declared = self._declared_hook_types()
+        assert "post-checkout" not in declared
+        assert "post-merge" not in declared
 
     def test_config_declares_the_hook_types_the_task_relies_on(self) -> None:
         """The bare install is only sufficient while the config declares the set."""

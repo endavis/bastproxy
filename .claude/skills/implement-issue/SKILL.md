@@ -210,6 +210,8 @@ run the brief in the session itself instead of failing the step.
   `copilot --help`) for parallel subagent work; the `task` tool for the Coder brief, the same
   mechanism `.claude/agents/implement-worker.md` already documents being read through for Copilot.
   `copilot skill list | grep implement-issue` finds the skill.
+  A delegated Copilot run must set `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true`, as the
+  documented invocation does, or its dangerous-command hook does not load under `-p` (#1042).
 - **Antigravity CLI (`agy`):** no dedicated subagent/delegation flag found — `agy --help` lists no
   subagent-style option, and `agy agent` (the "list available agents" subcommand) returns no
   output for this workspace. Run both briefs in the session itself. `agy --sandbox --add-dir "$PWD"

@@ -4,7 +4,7 @@ The hook script lives at ``tools/hooks/ai/block-dangerous-commands.py``. Its
 filename contains hyphens, so it isn't directly importable as a module — we
 load it via ``importlib`` and invoke ``main()`` directly with a stubbed stdin.
 
-Pattern mirrors ``tests/test_bash_ban_raw_tools.py``.
+Pattern mirrors ``tests/test_hook_cbm_code_discovery_gate.py``.
 """
 
 from __future__ import annotations
@@ -408,6 +408,171 @@ def test_non_dict_tool_input_is_tolerated(
     payload = json.dumps({"tool_name": "Bash", "tool_input": "oops"})
     code, _ = _run_raw(hook, monkeypatch, capsys, payload)
     assert code == 0
+
+
+# --- Copilot apply_patch with bare patch text (issue #1042) -----------------
+#
+# Copilot CLI 1.0.104 in -p mode edits files through ``apply_patch`` and sends
+# the patch text itself as ``toolArgs`` -- not JSON. It also runs the
+# Claude-format hooks with ``tool_name: "Edit"`` and the same text as
+# ``tool_input``. Both shapes below are copied from a live probe's debug log.
+
+_BASHRC_PATCH = (
+    "*** Begin Patch\n*** Update File: /home/user/.bashrc\n@@\n"
+    "+export ALLOW_AI_READY_TO_MERGE=1\n*** End Patch\n"
+)
+_BENIGN_PATCH = (
+    "*** Begin Patch\n*** Add File: docs/x.md\n+Never run git reset --hard here.\n*** End Patch\n"
+)
+
+
+def test_copilot_apply_patch_text_blocks_env_persistence(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Copilot patch-text payload persisting the bypass var is denied."""
+    payload = json.dumps({"toolName": "apply_patch", "toolArgs": _BASHRC_PATCH})
+    code, out = _run_raw(hook, monkeypatch, capsys, payload)
+    assert code == 0
+    assert json.loads(out)["permissionDecision"] == "deny"
+
+
+def test_claude_format_patch_text_blocks_env_persistence(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Copilot's Claude-format ``Edit`` payload carrying patch text is denied."""
+    payload = json.dumps(
+        {"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": _BASHRC_PATCH}
+    )
+    code, _ = _run_raw(hook, monkeypatch, capsys, payload)
+    assert code == 2
+
+
+def test_copilot_apply_patch_text_checks_move_destination(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A patch-text ``*** Move to:`` onto a protected file is denied."""
+    patch = (
+        "*** Begin Patch\n*** Update File: notes.txt\n*** Move to: .envrc.local\n@@\n"
+        "+export ALLOW_AI_READY_TO_MERGE=1\n*** End Patch\n"
+    )
+    payload = json.dumps({"toolName": "apply_patch", "toolArgs": patch})
+    code, out = _run_raw(hook, monkeypatch, capsys, payload)
+    assert code == 0
+    assert json.loads(out)["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"toolName": "apply_patch", "toolArgs": _BENIGN_PATCH},
+        {"tool_name": "Edit", "tool_input": _BENIGN_PATCH},
+    ],
+    ids=["copilot", "claude-format"],
+)
+def test_patch_text_mentioning_dangerous_command_is_allowed(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    payload: dict[str, str],
+) -> None:
+    """Patch text is file content, not a shell command: it is not scanned as one."""
+    code, out = _run_raw(hook, monkeypatch, capsys, json.dumps(payload))
+    assert code == 0
+    assert out.strip() == ""
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "tool_name": "apply_patch",
+            "tool_input": {
+                "command": "apply_patch <<PATCH\n" + _BASHRC_PATCH + "PATCH",
+                "_raw_patch": "",
+            },
+        },
+        {
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": "/home/user/.bashrc",
+                "content": "export ALLOW_AI_READY_TO_MERGE=1",
+                "_raw_patch": "",
+            },
+        },
+        {
+            "toolName": "create",
+            "toolArgs": json.dumps(
+                {
+                    "_raw_patch": "",
+                    "path": "/home/user/.bashrc",
+                    "content": "export ALLOW_AI_READY_TO_MERGE=1",
+                }
+            ),
+        },
+    ],
+    ids=["codex-apply-patch", "claude-write", "copilot-json"],
+)
+def test_caller_supplied_raw_patch_key_does_not_skip_checks(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    payload: dict[str, object],
+) -> None:
+    """A tool call that sets the internal ``_raw_patch`` key itself is still checked."""
+    code, out = _run_raw(hook, monkeypatch, capsys, json.dumps(payload))
+    assert code == 2 or json.loads(out)["permissionDecision"] == "deny"
+
+
+# --- apply_patch with JSON path/content instead of a command (issue #1048) --
+#
+# No CLI is known to send this shape. Without a ``command`` the Codex branch
+# must fall through to the shape-based fallback rather than allow.
+
+_BASHRC_WRITE = {"path": "/home/user/.bashrc", "content": "export ALLOW_AI_READY_TO_MERGE=1"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"tool_name": "apply_patch", "tool_input": _BASHRC_WRITE},
+        {"toolName": "apply_patch", "toolArgs": json.dumps(_BASHRC_WRITE)},
+    ],
+    ids=["claude-format", "copilot"],
+)
+def test_apply_patch_json_path_content_blocks_env_persistence(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    payload: dict[str, object],
+) -> None:
+    """An ``apply_patch`` call with path + content and no command is still checked."""
+    code, out = _run_raw(hook, monkeypatch, capsys, json.dumps(payload))
+    assert code == 2 or json.loads(out)["permissionDecision"] == "deny"
+
+
+def test_apply_patch_json_path_content_ordinary_write_is_allowed(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The fall-through does not block an ordinary path + content write."""
+    payload = {"tool_name": "apply_patch", "tool_input": {"path": "docs/x.md", "content": "hi"}}
+    code, out = _run_raw(hook, monkeypatch, capsys, json.dumps(payload))
+    assert code == 0
+    assert out.strip() == ""
+
+
+def test_raw_patch_input_ignores_non_patch_strings(hook: types.ModuleType) -> None:
+    """Only a string naming a patch target is wrapped; anything else stays empty."""
+    assert hook._raw_patch_input("{not valid json") == {}
+    assert hook._raw_patch_input(42) == {}
+    assert hook._raw_patch_input(_BASHRC_PATCH) == {hook._RAW_PATCH_KEY: _BASHRC_PATCH}
 
 
 # --- Fail-closed behaviour (issue #679) ------------------------------------

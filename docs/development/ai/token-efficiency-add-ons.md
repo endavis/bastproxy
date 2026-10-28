@@ -187,75 +187,6 @@ in your local Claude Code settings:
 This is a **local-only** file (not committed). Do not commit Caveman plugin config — intensity
 preference varies by operator and can conflict with other contributors' expectations.
 
-## Bash raw-tool ban (opt-in)
-
-This hook enforces what `AGENTS.md` already asks for: prefer native file tools (`Read`, `Grep`,
-`Glob`, `Edit`, `Write`) over their raw shell equivalents. When an agent defects to `Bash`, the
-raw output bypasses every other token-efficiency control and lands in context uncompressed.
-
-**What it blocks:**
-
-- Leading banned commands: `cat`, `head`, `tail`, `find`, `grep`, `rg`, `wc`
-
-Each block message names the offending command, suggests the native replacement, and reminds the
-agent about the escape hatch.
-
-**Native tool replacements:**
-
-| Blocked command | Use instead |
-| :--- | :--- |
-| `cat` / `head` / `tail` | `Read` |
-| `find` | `Glob` |
-| `grep` / `rg` | `Grep` |
-| `wc` | `Read` (then count in the result) |
-
-**Opt-in via `.claude/settings.local.json`:**
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 $CLAUDE_PROJECT_DIR/tools/hooks/ai/bash-ban-raw-tools.py"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-This goes in `.claude/settings.local.json` (not committed) — each operator opts in individually.
-Do **not** add it to the committed `.claude/settings.json`.
-
-**Escape hatch:**
-
-```bash
-mkdir -p tmp/agents/claude && touch tmp/agents/claude/bash-raw-unlock
-```
-
-Run this from the project root. Allows all banned commands for 10 minutes. The file auto-expires —
-no cleanup needed. Useful when you need a one-off raw shell command without disabling the hook
-permanently.
-
-The unlock file is scoped to the project directory, so enabling the escape hatch in one project
-does not affect any other project running concurrently on the same machine. If you work across
-multiple projects, you must re-touch the file in each project root where you want raw commands
-allowed.
-
-**Why disabled by default:** humans share the repo. Raw shell commands are legitimate in human
-workflows. The hook is only beneficial when an AI agent is the primary operator of the terminal.
-Enable it locally for AI-heavy sessions; disable it when you are working interactively.
-
-**Related:** the always-on dangerous-command hook (committed in `.claude/settings.json`) is
-documented in [AI Command Blocking](command-blocking.md). The two hooks are complementary: the
-dangerous-command hook blocks security-relevant patterns for everyone; this hook enforces
-token-efficiency discipline only for operators who opt in.
-
 ## Codebase Memory MCP gate (opt-in)
 
 The [Codebase Memory MCP server](https://github.com/DeusData/codebase-memory-mcp) (CBM) builds a
@@ -598,10 +529,7 @@ These are not add-ons (they ship with the template) but they interact with the t
   `CLAUDE_CODE_SUBAGENT_MODEL` are already set via `.claude/settings.json`. Headroom and Caveman
   layer on top of these defaults, not instead of them. See
   [AI Agent Setup: Environment Variables](../AI_SETUP.md#environment-variables).
-- **PreCompact handoff hook** — ships with this project. Autocompact events now synthesize a
-  checkpoint automatically to `tmp/checkpoints/{inv_epoch}-auto-precompact.md` and the
-  `SessionStart` hook restores it into the next session, reducing context loss without any manual
-  `/checkpoint` invocation. See [Auto-Checkpoint and Session-Restore Hooks](auto-checkpoint-hook.md).
+
 ## Out of scope
 
 - No code is shipped here. All three tools are external; install them from their respective repos.

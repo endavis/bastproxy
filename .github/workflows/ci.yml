@@ -206,6 +206,10 @@ jobs:
 
       # Each check runs whether or not the one before it failed, so a PR shows
       # every failing check at once instead of one per push (#952).
+      - name: Check environment drift
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: uv run doit env_check
+
       - name: Check code formatting
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: uv run doit format_check
