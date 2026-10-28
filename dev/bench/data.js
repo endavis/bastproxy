@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793124488333,
+  "lastUpdate": 1793173864608,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -360,6 +360,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00004370342285591552",
             "extra": "mean: 282.8896112605812 usec\nrounds: 3712"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9889e0a1fa11fd5b07894c75110d1ecc5f1d4c3f",
+          "message": "chore: synchronize with pyproject-template (merges PR #26, addresses #25)\n\nSyncs template d80ce96..e1f39e6:\n- endavis/pyproject-template#1038 (remove PreCompact/SessionStart and bash-ban-raw-tools hooks)\n- endavis/pyproject-template#1039 (check Copilot and unknown edit tools, env-file shell writes)\n- endavis/pyproject-template#1044 (stop installing post-checkout/post-merge hooks; add doit env_check)\n- endavis/pyproject-template#1045 (manage.py repo: CodeQL default setup, rulesets, labels, admin check)\n- endavis/pyproject-template#1046 (Claude model pins to the 5.5 family)\n- endavis/pyproject-template#1047 (Copilot headless hooks and patch-text apply_patch edits)\n- endavis/pyproject-template#1049 (block reads of AI CLI credential stores)\n- endavis/pyproject-template#1050 (apply_patch with path/content)\n\nSkipped: uv.lock (msgpack already 1.2.4, endavis/pyproject-template#1041),\ntemplate-owned tests/template/test_repo_settings.py, and paths in\nsync-exclude.toml.\n\nAddresses #25\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sb5Ua6GvageApSGs7o\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-28T07:50:23Z",
+          "tree_id": "0dad7ece2b00028bc4926c0c1197fb13574e2202",
+          "url": "https://github.com/endavis/bastproxy/commit/9889e0a1fa11fd5b07894c75110d1ecc5f1d4c3f"
+        },
+        "date": 1793173863724,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2088.3385831358823,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012098988001603072",
+            "extra": "mean: 478.8495544139132 usec\nrounds: 2141"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1853.378578536394,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010970715350005163",
+            "extra": "mean: 539.5551732283948 usec\nrounds: 1905"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3483.5811896159657,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007953929081301473",
+            "extra": "mean: 287.0609139183695 usec\nrounds: 3578"
           }
         ]
       }
