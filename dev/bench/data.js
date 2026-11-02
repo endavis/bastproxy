@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793647130911,
+  "lastUpdate": 1793647244342,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -855,6 +855,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008482516024376676",
             "extra": "mean: 187.9583941555744 usec\nrounds: 5749"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3663603613790a6a50bf245cafe95b0d8c1b5dc7",
+          "message": "fix: process MUD lines read in the same pass as EOF (merges PR #71, addresses #64)\n\nmud_read returned on at_eof() before ProcessDataToClient ran, so lines\nthat arrived together with the disconnect (such as the goodbye message)\nwere dropped. Process non-empty data before marking the connection\nclosed.\n\nAddresses #64\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T19:19:59Z",
+          "tree_id": "cdeee818b12faedf44d83c21b0557a943a67739f",
+          "url": "https://github.com/endavis/bastproxy/commit/3663603613790a6a50bf245cafe95b0d8c1b5dc7"
+        },
+        "date": 1793647243327,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2935.620922749537,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008003613860595652",
+            "extra": "mean: 340.6434367089155 usec\nrounds: 3002"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2513.0737439749655,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011183733175692158",
+            "extra": "mean: 397.91908311384657 usec\nrounds: 2659"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4584.315441769251,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005190592800763254",
+            "extra": "mean: 218.13507658933352 usec\nrounds: 4609"
           }
         ]
       }
