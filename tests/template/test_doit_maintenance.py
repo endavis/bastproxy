@@ -11,10 +11,11 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
-from tools.doit.maintenance import task_cleanup, task_completions_install
+from tools.doit.maintenance import task_cleanup, task_completions_install, task_update_deps
 
 # FORCE_COLOR makes Rich color captured output, and the codes split substrings such as `[x]`.
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -82,6 +83,53 @@ class TestCleanup:
 
         assert f"  Removing {name}.egg-info..." in _lines(capsys)
         assert not Path(f"{name}.egg-info").exists()
+
+
+class TestCleanupLeavesTheUvCache:
+    def test_runs_no_uv_cache_command(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """tmp/.uv_cache is removed with tmp/; the shared uv cache is never touched (#1094)."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tmp" / ".uv_cache").mkdir(parents=True)
+        (tmp_path / "tmp" / ".uv_cache" / "x").write_text("", encoding="utf-8")
+
+        with (
+            patch("tools.doit.maintenance.subprocess.run") as mock_run,
+            patch("tools.doit.maintenance.subprocess.check_call") as mock_call,
+        ):
+            _run(task_cleanup)
+
+        assert not (tmp_path / "tmp" / ".uv_cache").exists()
+        assert mock_run.call_count == 0
+        assert mock_call.call_count == 0
+
+
+class TestUpdateDepsEnvironment:
+    @staticmethod
+    def _envs(monkeypatch: pytest.MonkeyPatch, value: str | None) -> list[dict[str, str] | None]:
+        if value is None:
+            monkeypatch.delenv("UV_CACHE_DIR", raising=False)
+        else:
+            monkeypatch.setenv("UV_CACHE_DIR", value)
+        with patch("tools.doit.maintenance.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1  # stop after the sync
+            with pytest.raises(SystemExit):
+                _run(task_update_deps)
+        return [call.kwargs.get("env") for call in mock_run.call_args_list]
+
+    def test_unset_injects_no_cache_dir(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for env in self._envs(monkeypatch, None):
+            assert env is None or "UV_CACHE_DIR" not in env
+
+    def test_a_set_value_is_inherited(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        value = str(tmp_path / "cache")
+        envs = self._envs(monkeypatch, value)
+        assert envs
+        for env in envs:
+            assert env is None or env["UV_CACHE_DIR"] == value
 
 
 class TestCompletionsInstall:

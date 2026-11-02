@@ -50,3 +50,25 @@ class TestDiscoverTasks:
 
         assert isinstance(result, dict)
         assert "actions" in result or "task_dep" in result
+
+
+class TestDefaultTasks:
+    """DOIT_CONFIG["default_tasks"] must name tasks, not doit commands (#1071)."""
+
+    def test_default_tasks_name_discovered_tasks(self) -> None:
+        """Every default task is a task_* function the dodo loader discovers."""
+        discovered = discover_tasks()
+        default_tasks = discovered["DOIT_CONFIG"]["default_tasks"]
+
+        assert default_tasks
+        for name in default_tasks:
+            assert f"task_{name}" in discovered, f"{name!r} is not a doit task"
+
+    def test_default_task_runs_doit_list(self) -> None:
+        """The default task lists the available tasks."""
+        from tools.doit.maintenance import task_default
+
+        task = task_default()
+
+        assert task["actions"] == ["uv run doit list"]
+        assert task_default.__doc__

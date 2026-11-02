@@ -3,7 +3,7 @@
 import hashlib
 import json
 import shutil
-import subprocess  # nosec B404 - needed for CompletedProcess in tests
+import subprocess  # nosec B404  # needed for CompletedProcess in tests
 import sys
 import tarfile
 import tempfile

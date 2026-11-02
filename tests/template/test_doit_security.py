@@ -13,6 +13,7 @@ Covers two concerns:
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 import pytest
@@ -84,6 +85,15 @@ class TestSecurityTaskGates:
         assert "bandit not installed. Run: doit install_dev" in action
         assert "uv run bandit -c pyproject.toml -r src/ tools/" in action
         assert "|| echo 'bandit not installed" not in action
+
+    def test_security_output_is_terse(self) -> None:
+        """#1075: quiet, one line per finding."""
+        action = task_security()["actions"][0]
+        assert isinstance(action, str)
+        tokens = shlex.split(action.split("uv run bandit", 1)[1])
+        assert "-q" in tokens
+        assert tokens[tokens.index("-f") + 1] == "custom"
+        assert "--msg-template" in tokens
 
     def test_licenses_gates_on_pip_licenses_package(self) -> None:
         action = task_licenses()["actions"][0]

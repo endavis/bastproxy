@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import os
 import shlex
-import subprocess  # nosec B404 - test invokes bash deliberately to verify shell-snippet behaviour
+import subprocess  # nosec B404  # test invokes bash deliberately to verify shell-snippet behaviour
 import sys
 from io import StringIO
 from pathlib import Path
@@ -453,3 +453,49 @@ class TestVerbatim:
 
         assert text.plain == "Stderr: [x]"
         assert text.style == "bold red"
+
+
+class TestNoUvCacheDefault:
+    """Importing base.py leaves uv's cache alone, so uv's shared default applies (#1094)."""
+
+    @staticmethod
+    def _imported_value(env_value: str | None) -> str:
+        env = {k: v for k, v in os.environ.items() if k != "UV_CACHE_DIR"}
+        if env_value is not None:
+            env["UV_CACHE_DIR"] = env_value
+        code = (
+            "import os; import tools.doit.base as b; "
+            "print(repr(os.environ.get('UV_CACHE_DIR'))); "
+            "print(hasattr(b, 'UV_CACHE_DIR'))"
+        )
+        result = subprocess.run(  # nosec B603
+            [sys.executable, "-c", code],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=Path(__file__).resolve().parents[2],
+        )
+        return result.stdout
+
+    def test_unset_stays_unset(self) -> None:
+        assert self._imported_value(None).splitlines()[0] == "None"
+
+    def test_a_set_value_is_unchanged(self, tmp_path: Path) -> None:
+        value = str(tmp_path / "cache")
+        assert self._imported_value(value).splitlines()[0] == repr(value)
+
+    def test_no_longer_exports_the_constant(self) -> None:
+        assert self._imported_value(None).splitlines()[1] == "False"
+
+    def test_envrc_leaves_uv_cache_unset(self) -> None:
+        """direnv must not point uv at a per-checkout cache; the other tool caches stay in tmp/."""
+        envrc = (Path(__file__).resolve().parents[2] / ".envrc").read_text(encoding="utf-8")
+        exports = {
+            line.split("=", 1)[0].split()[-1]: line
+            for line in envrc.splitlines()
+            if line.strip().startswith("export ")
+        }
+        assert "UV_CACHE_DIR" not in exports
+        for name in ("RUFF_CACHE_DIR", "MYPY_CACHE_DIR", "COVERAGE_FILE"):
+            assert "/tmp/" in exports[name], name

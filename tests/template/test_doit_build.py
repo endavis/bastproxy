@@ -14,7 +14,7 @@ nothing from an index, and nothing reaches the network or a real `gh`.
 
 from __future__ import annotations
 
-import subprocess  # nosec B404 - the point of this module is to drive subprocess-based checks
+import subprocess  # nosec B404  # the point of this module is to drive subprocess-based checks
 import zipfile
 from pathlib import Path
 
@@ -109,7 +109,7 @@ def _build_wheel(
 
 def _git(repo: Path, *args: str) -> str:
     """Run ``git`` in ``repo`` with a fixed identity and no signing; return stdout."""
-    result = subprocess.run(  # nosec B603 B607 - fixed argv, no shell
+    result = subprocess.run(  # nosec B603 B607  # fixed argv, no shell
         [
             "git",
             "-c",

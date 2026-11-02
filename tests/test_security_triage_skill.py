@@ -18,7 +18,10 @@ Scoped to the agents a project actually wires, per `tests/agent_roster.py` (#690
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -50,7 +53,7 @@ CONTRACT: tuple[tuple[str, str], ...] = (
     ("the tmp exclusion trap", "`[tool.bandit] exclude_dirs` in `pyproject.toml` excludes `tmp`"),
     ("bandit fix: subprocess", "`shell=True`"),
     ("bandit fix: yaml", "`yaml.safe_load`"),
-    ("bandit justify pattern", "`# nosec <ID> - <reason>`"),
+    ("bandit justify pattern", "`# nosec <ID> # <reason>`"),
     ("per-ID precision", "`# nosec B602` clears only"),
     ("bandit config pointer", "`[tool.bandit] skips` in `pyproject.toml`"),
     ("pip-audit locate: reverse-deps", "`uv tree --invert --package <package>`"),
@@ -285,3 +288,100 @@ def test_shared_skill_declares_the_frontmatter_agents_activate_on() -> None:
     # when it needs this, not just the skill's title.
     for phrase in ("bandit", "pip-audit", "nosec"):
         assert phrase in frontmatter.lower(), f"description never mentions {phrase!r}"
+
+
+# Bandit reads everything between `nosec` and the next `#` as a list of test IDs, so a reason
+# written inside that list prints a `Test in comment` warning per word (#1079).
+_NOSEC_COMMENT = re.compile(r"#\s*nosec\b([^#\n]*)")
+_NOSEC_ID_LIST = re.compile(r"(?:\s+B\d+)*\s*")
+
+
+def _noisy_nosec(line: str) -> bool:
+    """True when a `# nosec` comment carries anything but test IDs before its closing `#`."""
+    match = _NOSEC_COMMENT.search(line)
+    return match is not None and _NOSEC_ID_LIST.fullmatch(match.group(1)) is None
+
+
+def test_the_noisy_nosec_scanner_detects_a_violation() -> None:
+    noisy = "import os  # nosec B404 - " + "reason words"
+    quiet = "import os  # nosec B404  # " + "reason words"
+    assert _noisy_nosec(noisy)
+    assert not _noisy_nosec(quiet)
+    assert not _noisy_nosec("import os  # nosec B404 B603")
+    assert not _noisy_nosec("x = 1  # no suppression here")
+
+
+def test_no_nosec_comment_puts_its_reason_inside_the_id_list() -> None:
+    """Write `# nosec <ID>  # <reason>`; a reason before the second `#` is read as test IDs."""
+    this_file = Path(__file__).resolve()
+    offenders: list[str] = []
+    roots = [REPO_ROOT / name for name in ("src", "tools", "tests", "examples")]
+    paths = [REPO_ROOT / "bootstrap.py"]
+    for root in roots:
+        if root.is_dir():
+            paths.extend(root.rglob("*.py"))
+    for path in paths:
+        if not path.is_file() or path.resolve() == this_file:
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if _noisy_nosec(line):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{number}")
+    assert not offenders, (
+        "put the reason after a second `#`, not inside the nosec ID list: " + ", ".join(offenders)
+    )
+
+
+# A `# nosec` on a line where bandit finds nothing prints `nosec encountered ... but no failed
+# test` on every run and hides which suppressions still matter (#1084). Bandit has no setting that
+# makes it fatal, so scan its output.
+_STALE_NOSEC = "nosec encountered"
+requires_bandit = pytest.mark.skipif(
+    importlib.util.find_spec("bandit") is None,
+    reason="bandit is in the `security` extra and is not installed",
+)
+
+
+def _bandit_stale_nosec(*targets: Path, config: bool = True) -> list[str]:
+    """Run bandit over `targets` and return the stale-`nosec` warnings it printed.
+
+    `config=False` skips `pyproject.toml`, whose `exclude_dirs` lists `tmp` and so skips the
+    pytest temp directory the detector test writes to.
+    """
+    args = ["-c", "pyproject.toml"] if config else []
+    result = subprocess.run(  # nosec B603  # fixed argv, no shell
+        [sys.executable, "-m", "bandit", *args, "-r", *map(str, targets)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return [line for line in (result.stdout + result.stderr).splitlines() if _STALE_NOSEC in line]
+
+
+@requires_bandit
+def test_the_stale_nosec_guard_detects_a_violation(tmp_path: Path) -> None:
+    # Bandit only tests code inside a function, so both fixtures wrap the handler in one.
+    stale = tmp_path / "stale.py"
+    stale.write_text(
+        "def f() -> int:\n    try:\n        return 1\n"
+        "    except Exception:  # nosec B110\n        return 0\n",
+        encoding="utf-8",
+    )
+    assert _bandit_stale_nosec(stale, config=False), "bandit printed no warning for a stale nosec"
+    live = tmp_path / "live.py"
+    live.write_text(
+        "def f() -> None:\n    try:\n        return None\n"
+        "    except Exception:  # nosec B110\n        pass\n",
+        encoding="utf-8",
+    )
+    assert not _bandit_stale_nosec(live, config=False)
+
+
+@requires_bandit
+def test_no_nosec_comment_is_stale() -> None:
+    """Remove a `# nosec` that suppresses nothing, or move it to the line bandit reports."""
+    targets = [
+        REPO_ROOT / name for name in ("src", "tools", "bootstrap.py") if (REPO_ROOT / name).exists()
+    ]
+    stale = _bandit_stale_nosec(*targets)
+    assert not stale, "stale nosec comments:\n" + "\n".join(stale)
