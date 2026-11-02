@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793659047480,
+  "lastUpdate": 1793661301025,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1507,6 +1507,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005220458533069641",
             "extra": "mean: 144.44174075585778 usec\nrounds: 7329"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d59e6dd0ff2836f010c4c5a36c51036fd8bfe4b",
+          "message": "fix: import plugins under their real package name only, so reload loads new code (merges PR #109, addresses #95)\n\nEvery plugin module was imported twice: once as bastproxy.plugins.<id>\n(package_import_location, from discovery) and once as plugins.<id>, the\nplugin ID routed through the src/plugins shim, which is where the plugin\nclass came from. Unload deleted only the bastproxy.plugins.* modules, so\nthe next import found plugins.<id>.plugin still in sys.modules and\nreloaded the old code.\n\nPluginInfo.plugin_class_import_location is now derived from\npackage_import_location instead of the plugin ID, so the class is\nimported, and later deleted, under one name. Plugin IDs are unchanged.\nUnload also matches the package name exactly or with a trailing dot,\nso it no longer deletes a sibling package sharing a name prefix.\n\nAddresses #95\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T23:14:21Z",
+          "tree_id": "80ac5ea5ef7146d0d384cb6570896a075dc5e9b6",
+          "url": "https://github.com/endavis/bastproxy/commit/6d59e6dd0ff2836f010c4c5a36c51036fd8bfe4b"
+        },
+        "date": 1793661300245,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 412.54442819813863,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00026792014829172037",
+            "extra": "mean: 2.423981350003146 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 12870.255533283289,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007221663507131157",
+            "extra": "mean: 77.69853499908663 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 402.40549149836085,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006073477399832207",
+            "extra": "mean: 2.4850555500037785 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 976.1335827090364,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005656552975561649",
+            "extra": "mean: 1.0244499500004167 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3765.586010453124,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008125256061120625",
+            "extra": "mean: 265.56291563226495 usec\nrounds: 3947"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3306.796174669498,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007224332464403539",
+            "extra": "mean: 302.4075108287998 usec\nrounds: 3463"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 5391.724034511182,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011651553307639543",
+            "extra": "mean: 185.46943307914697 usec\nrounds: 6560"
           }
         ]
       }
