@@ -155,7 +155,7 @@ Same file, class `SendDataDirectlyToMud(BaseRecord)`. `_exec_()`:
 
 1. `message.lock()`
 2. For each line with `send` set: `line.format()`, `line.lock()`, `mud_connection.send_to(line)`
-3. Raises `ev_to_mud_data_read` with `data_list=[line.line ...]`
+3. Raises `ev_to_mud_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
 
 Code that wants to send to the MUD without the modify event calls this directly.
 
@@ -174,7 +174,7 @@ Same file, class `SendDataDirectlyToClient(BaseRecord)`. `_exec_()`:
 
 1. `message.lock()`
 2. For each line with `send` set: `line.format()`, `line.lock()`, then for each target client (`clients`, or every client) that passes `can_send_to_client()`, `plugins.core.clients:send.to.client`
-3. Raises `ev_to_client_data_read` with `data_list=[line.line ...]`
+3. Raises `ev_to_client_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
 
 `can_send_to_client(client_uuid, line)` refuses a client that is in `exclude_clients`, refuses internal lines to view-only clients that were not named in `clients`, and otherwise requires the client to be in `clients` (when set) and logged in, unless the line is `prelogin`.
 
@@ -208,9 +208,9 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 | Event | Raised by | `event_record["line"]` | Core listeners |
 |-------|-----------|------------------------|----------------|
 | `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch |
-| `ev_to_mud_data_read` | `SendDataDirectlyToMud` | formatted `line.line` string or bytes (#51) | none |
+| `ev_to_mud_data_read` | `SendDataDirectlyToMud` | `NetworkDataLine` (locked, after formatting) | none |
 | `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
-| `ev_to_client_data_read` | `SendDataDirectlyToClient` | formatted `line.line` string or bytes (#51) | none |
+| `ev_to_client_data_read` | `SendDataDirectlyToClient` | `NetworkDataLine` (locked, after formatting) | none |
 
 `ev_to_mud_data_modify` also carries `showinhistory` and `client_id`.
 
@@ -365,7 +365,6 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 | #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; appended lines get no parent |
 | #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
-| #51 | The read events pass strings, not `NetworkDataLine` records |
 | #52 | `client_read` strips leading whitespace from client input |
 | #43 | Planned replacement of the record tracking with pydatatracker |
 
