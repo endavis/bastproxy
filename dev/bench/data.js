@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793203357936,
+  "lastUpdate": 1793627799044,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -540,6 +540,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000011049031944437296",
             "extra": "mean: 287.64880027656125 usec\nrounds: 3615"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2a2c8ade34962fd80c35849266ec8fcd73d4aa5",
+          "message": "fix: stop importing psutil private addr type in proxy plugin (merges PR #38, addresses #37)\n\npsutil 7.2.2 (locked) no longer defines addr in psutil._common, so the\nproxy plugin's import failed and bastproxy exited at startup with a\nmisleading \"psutil is missing\" message.\n\nReplace the isinstance check against the private type with\nis_connected_address(), which checks the raddr shape (a non-empty tuple\nwith ip and port fields), and add tests for it and for the module import.\n\nAddresses #37\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T13:55:43Z",
+          "tree_id": "4f0b9aadb130c13b396469cc1ede2233a221241d",
+          "url": "https://github.com/endavis/bastproxy/commit/a2a2c8ade34962fd80c35849266ec8fcd73d4aa5"
+        },
+        "date": 1793627798378,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4450.24923251908,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010632821222099479",
+            "extra": "mean: 224.7065159166257 usec\nrounds: 4555"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3418.7691939301426,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000557208810066187",
+            "extra": "mean: 292.5029281811276 usec\nrounds: 3843"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 6559.978442016414,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000017243348065740097",
+            "extra": "mean: 152.4395253489002 usec\nrounds: 7022"
           }
         ]
       }
