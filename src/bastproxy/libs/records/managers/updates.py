@@ -32,6 +32,9 @@ class UpdateManager(deque):
             update: The update record to add.
 
         """
+        if self.maxlen is not None and len(self) == self.maxlen:
+            # append() will drop the oldest update, so drop its mapping too
+            self.uid_mapping.pop(self[0].uuid, None)
         self.append(update)
         self.uid_mapping[update.uuid] = update
 
