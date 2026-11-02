@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793627799044,
+  "lastUpdate": 1793629449201,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -585,6 +585,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000017243348065740097",
             "extra": "mean: 152.4395253489002 usec\nrounds: 7022"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19bf888e8262e5b479cd841c1dca5b8fe45a5692",
+          "message": "chore: upgrade telnetlib3 from 2.0.4 to 5.0.1 (merges PR #42, addresses #39)\n\nRaise the floor to telnetlib3>=5.0.1 and regenerate uv.lock. The new\ntransitive dependencies (blessed, jinxed, ansicon) install on Windows\nonly; wcwidth moves to 0.9.4.\n\nKeep negotiation the same as on 2.0.4 until ADR-0001 (#40) is decided:\n- the MUD connection uses MudTelnetClient, which skips telnetlib3's\n  GMCP and ZMP setup so the proxy sends no Core.Hello of its own\n- MCCP is refused on the MUD connection and on client listeners\n  (compression=False; 5.x accepts it passively by default)\n\nThe readline monkeypatch still relies on telnetlib3 internals; it was\nre-verified against 5.0.1, which has no public LF CR handling.\n\nAdd tests for the patched readline on every line separator, GMCP and\nMCCP2 refusal on the MUD side, and connect_to_mud's options. Remove the\npsutil._common mypy override left unused by #37.\n\nAddresses #39\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T14:23:22Z",
+          "tree_id": "cc0a90907263344f219932ffca311cf1bed1d419",
+          "url": "https://github.com/endavis/bastproxy/commit/19bf888e8262e5b479cd841c1dca5b8fe45a5692"
+        },
+        "date": 1793629448628,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2139.734396701418,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015060786742485727",
+            "extra": "mean: 467.34772387712457 usec\nrounds: 2115"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1905.2043110879479,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013368843833293254",
+            "extra": "mean: 524.8780900715893 usec\nrounds: 1954"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3504.611883483769,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010041274869720076",
+            "extra": "mean: 285.3383008579961 usec\nrounds: 3613"
           }
         ]
       }
