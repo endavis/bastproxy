@@ -532,7 +532,7 @@ class BaseListRecord(UserList, BaseRecord):
 
     def add_line_endings(self, actor=""):
         """Add line endings to the message."""
-        new_message = [f"{item}\n\r" for item in self.data]
+        new_message = [f"{item}\r\n" for item in self.data]
         self.replace(
             new_message,
             f"{actor}:add_line_endings",

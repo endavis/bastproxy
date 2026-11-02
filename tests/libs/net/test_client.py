@@ -55,3 +55,19 @@ async def test_client_read_keeps_leading_and_trailing_spaces(
     await client.client_read()
 
     assert sent == ["  look  "]
+
+
+async def test_register_client_ban_message_ends_with_crlf() -> None:
+    """The ban message sent to a banned client ends in CRLF (#69)."""
+    from bastproxy.libs.net.client import register_client
+
+    connection = MagicMock()
+    connection.addr = "1.2.3.4"
+    connection.port = 1234
+    connection.uuid = "test-uuid"
+    connection.api.return_value = MagicMock(return_value=True)
+    connection.writer.drain = AsyncMock()
+
+    assert await register_client(connection) is False
+
+    connection.writer.write.assert_called_once_with("You are banned from this proxy. Goodbye.\r\n")

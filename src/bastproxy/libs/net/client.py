@@ -484,7 +484,7 @@ async def register_client(connection) -> bool:
             level="warning",
             sources=[__name__],
         )()
-        connection.writer.write("You are banned from this proxy. Goodbye.\n\r")
+        connection.writer.write("You are banned from this proxy. Goodbye.\r\n")
         with contextlib.suppress(AttributeError):
             await connection.writer.drain()
         connection.connected = False
