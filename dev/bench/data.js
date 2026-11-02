@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793655043119,
+  "lastUpdate": 1793659047480,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1434,6 +1434,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000012386640530192774",
             "extra": "mean: 296.3695325306891 usec\nrounds: 3489"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0164c1698fd2192e76afc994e0164100f69d3026",
+          "message": "docs: trim info/todo.txt to unscoped ideas, revisit notes and rejections (merges PR #103, addresses #102)\n\nActionable items from the file are now GitHub issues (#89-#101, plus\nexisting #43, #47, #66, #79, #81-#83). This drops the DONE section, the\nitems those issues track, and stale notes whose code or premise is gone.\nWhat remains is grouped as unscoped, ideas, revisit and rejected (with\nthe reason), under a header that points to the issue tracker.\n\nAddresses #102\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T22:36:36Z",
+          "tree_id": "e97a1b516ee05228676abbabd01771fe150fb5c8",
+          "url": "https://github.com/endavis/bastproxy/commit/0164c1698fd2192e76afc994e0164100f69d3026"
+        },
+        "date": 1793659046836,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 434.1657912437823,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001459678860230543",
+            "extra": "mean: 2.3032675999996144 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10041.320536087826,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000024871511663478188",
+            "extra": "mean: 99.58849499984268 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 409.2826114849173,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004222943726511414",
+            "extra": "mean: 2.4432995000005064 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1135.2162938955262,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004301810331755515",
+            "extra": "mean: 880.8894000001288 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4271.806550815672,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000040333412414591594",
+            "extra": "mean: 234.09299744836449 usec\nrounds: 4311"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3713.4343687415485,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003710627667444634",
+            "extra": "mean: 269.2924933365367 usec\nrounds: 4052"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 6923.206510576794,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005220458533069641",
+            "extra": "mean: 144.44174075585778 usec\nrounds: 7329"
           }
         ]
       }
