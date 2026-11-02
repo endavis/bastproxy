@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793647417370,
+  "lastUpdate": 1793648722961,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -945,6 +945,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005204920938454939",
             "extra": "mean: 217.5754534781109 usec\nrounds: 4686"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99b92696827202e3c0a844d38ce1ad2615a474ea",
+          "message": "fix: make BaseRecord.__call__ exception-safe (merges PR #73, addresses #45)\n\nfix: make BaseRecord.__call__ exception-safe (addresses #45)\n\nWrap _exec_ in try/finally so a raising _exec_ still pops the record\nfrom the active stack, finishes timing and resets executing. The\nexception still propagates.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T19:44:32Z",
+          "tree_id": "659e8bbae0d3488db0611b9b5574eaf49741d784",
+          "url": "https://github.com/endavis/bastproxy/commit/99b92696827202e3c0a844d38ce1ad2615a474ea"
+        },
+        "date": 1793648721972,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2272.2169402044897,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000861069283495723",
+            "extra": "mean: 440.0988225666535 usec\nrounds: 2322"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2023.7346837004065,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001383035623277303",
+            "extra": "mean: 494.1359201155243 usec\nrounds: 2078"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3509.5647599464264,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000072700738674411375",
+            "extra": "mean: 284.9356169211321 usec\nrounds: 3605"
           }
         ]
       }
