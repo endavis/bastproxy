@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793650831229,
+  "lastUpdate": 1793651122566,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1170,6 +1170,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000015808300857529822",
             "extra": "mean: 291.59312812570346 usec\nrounds: 3559"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da07a1b4baccef9fba07c79075d04481b21ff605",
+          "message": "fix: pass NetworkDataLine records to the ev_to_*_data_read events (merges PR #78, addresses #51)\n\nSendDataDirectlyToMud and SendDataDirectlyToClient raised their read\nevents with line.line (the formatted string or bytes) instead of the\nlocked NetworkDataLine records, contradicting the registered argument\ndescriptions and the modify events. Pass the records so listeners can\nread originated, line_type, noansi and the UUID.\n\nUpdate docs/claude/data_flow.md and add tests for both records.\n\nAddresses #51\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T20:23:37Z",
+          "tree_id": "f00f5f14fa0b3079e0492f059e8f379b7664924f",
+          "url": "https://github.com/endavis/bastproxy/commit/da07a1b4baccef9fba07c79075d04481b21ff605"
+        },
+        "date": 1793651122130,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2106.761955686324,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005579540254300985",
+            "extra": "mean: 474.6620743273428 usec\nrounds: 2193"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1870.4392510633884,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001102515933022789",
+            "extra": "mean: 534.6337762274165 usec\nrounds: 1935"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3393.4875529266883,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004279347277462543",
+            "extra": "mean: 294.6820886782264 usec\nrounds: 3586"
           }
         ]
       }
