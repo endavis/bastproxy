@@ -365,7 +365,7 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 | #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
 | #43 | Planned replacement of the record tracking with pydatatracker |
-| #81 | Every record and update captures a call stack and data copy; the diagnostic capture is not configurable or cheap by default |
+| #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 

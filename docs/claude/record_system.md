@@ -380,7 +380,7 @@ while current.parent:
 | #48 | `AttributeMonitor` misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
 | #43 | Planned replacement of the tracking with pydatatracker |
-| #81 | The per-update diagnostic capture (call stacks, data copies) is not configurable or cheap by default |
+| #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond `max_records` are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 
