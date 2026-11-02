@@ -245,6 +245,9 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
+                    # telnetlib3 5.x accepts MCCP passively by default; refuse
+                    # it as telnetlib3 2.0.4 did.
+                    compression=False,
                 ),
                 self.ipv4_taskname,
                 startstring=f"{ipv4_address}:{listen_port}",
@@ -260,6 +263,9 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
+                    # telnetlib3 5.x accepts MCCP passively by default; refuse
+                    # it as telnetlib3 2.0.4 did.
+                    compression=False,
                 ),
                 self.ipv6_taskname,
                 startstring=f"{ipv6_address}:{listen_port}",
