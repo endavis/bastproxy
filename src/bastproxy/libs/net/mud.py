@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING
 
 # Third Party
 from telnetlib3 import open_connection
+from telnetlib3.client import TelnetClient
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -111,6 +112,10 @@ class MudConnection:
             term=self.term_type,
             shell=self.mud_telnet_handler,
             encoding="utf8",
+            client_factory=MudTelnetClient,
+            # telnetlib3 5.x accepts MCCP passively by default; the proxy
+            # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
+            compression=False,
         )
 
     def disconnect_from_mud(self) -> None:
@@ -401,6 +406,21 @@ class MudConnection:
         await asyncio.sleep(1)
 
 
+class MudTelnetClient(TelnetClient):
+    """telnetlib3 client for the MUD side that declines GMCP and ZMP.
+
+    telnetlib3 5.x enables GMCP/ZMP and sends Core.Hello on the proxy's behalf.
+    Until the protocol handling is decided (ADR-0001, #40) keep the 2.0.4
+    behavior of not negotiating them (#39).
+    """
+
+    def setup_gmcp(self) -> None:
+        """Do not negotiate GMCP (see #39, #40)."""
+
+    def setup_zmp(self) -> None:
+        """Do not negotiate ZMP (see #39, #40)."""
+
+
 async def unicode_readline_monkeypatch(self) -> str:
     r"""Read one line.
 
@@ -429,7 +449,8 @@ async def unicode_readline_monkeypatch(self) -> str:
     yield the partially read string.
 
     Note: this is a monkey-patch of the TelnetReaderUnicode.readline method
-    to support \n\r line endings.
+    to support \n\r line endings. Re-verified against telnetlib3 5.0.1: its
+    readline still has no \n\r support and no public hook for it.
     """
     if self._exception is not None:
         raise self._exception
