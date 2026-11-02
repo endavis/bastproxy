@@ -1034,8 +1034,10 @@ class CommandsPlugin(BasePlugin):
 
         event_record["line"].send = False
 
+        # leading whitespace is kept on the line for the MUD (#52), but a proxy
+        # command is parsed from the left-stripped text
         command_item, command_args, show_in_history, notes, message = self.find_command(
-            event_record["line"].line
+            event_record["line"].line.lstrip()
         )
 
         if message:
@@ -1168,7 +1170,7 @@ class CommandsPlugin(BasePlugin):
 
         self.current_input_event = event_record
 
-        if event_record["line"].line.startswith(commandprefix):
+        if event_record["line"].line.lstrip().startswith(commandprefix):
             self.run_internal_command_from_event()
 
         else:
