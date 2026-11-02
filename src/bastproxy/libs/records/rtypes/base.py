@@ -328,19 +328,23 @@ class BaseRecord(AttributeMonitor):
 
         self.addupdate("Info", f"{self.__class__.__name__} _exec_ start")
 
-        if self.track_record:
-            tracking_uuid = self.api("libs.timing:start")(
-                f"{self.__class__.__name__}:{self.uuid}.__call__"
-            )
-            RMANAGER.start(self)
-            self._exec_(*args, **kwargs)
-            RMANAGER.end(self)
-            self.execute_time_taken = self.api("libs.timing:finish")(tracking_uuid)
-        else:
-            self._exec_(*args, **kwargs)
+        try:
+            if self.track_record:
+                tracking_uuid = self.api("libs.timing:start")(
+                    f"{self.__class__.__name__}:{self.uuid}.__call__"
+                )
+                RMANAGER.start(self)
+                try:
+                    self._exec_(*args, **kwargs)
+                finally:
+                    RMANAGER.end(self)
+                    self.execute_time_taken = self.api("libs.timing:finish")(tracking_uuid)
+            else:
+                self._exec_(*args, **kwargs)
 
-        self.addupdate("Info", f"{self.__class__.__name__} _exec_ finish")
-        self.executing = False
+            self.addupdate("Info", f"{self.__class__.__name__} _exec_ finish")
+        finally:
+            self.executing = False
 
 
 class TrackedUserList(BaseRecord, UserList):
