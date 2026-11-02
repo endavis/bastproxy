@@ -22,6 +22,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 
 ### For Contributors
 <!-- BEGIN:audience=contributors -->
+- [ADR-0001: Terminate MUD telnet protocols at the proxy](decisions/0001-terminate-mud-telnet-protocols-at-the-proxy.md) - bastproxy terminates GMCP, MSDP, MSSP, MCCP and MXP on each link and re-sends them per client, instead of passing protocol bytes through.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -119,6 +120,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 
 ## Complete Index
 <!-- BEGIN:all -->
+- [ADR-0001: Terminate MUD telnet protocols at the proxy](decisions/0001-terminate-mud-telnet-protocols-at-the-proxy.md) - bastproxy terminates GMCP, MSDP, MSSP, MCCP and MXP on each link and re-sends them per client, instead of passing protocol bytes through.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
