@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793654643197,
+  "lastUpdate": 1793655043119,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1361,6 +1361,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000010558707773850709",
             "extra": "mean: 217.2734554835331 usec\nrounds: 4942"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b75428a609f6d1bc879e9c720ad7cf4b7faca23",
+          "message": "docs: refresh the Known Gaps tables for closed and new issues (merges PR #88, addresses #85)\n\n* docs: refresh the Known Gaps tables for closed and new issues\n\nRemove the rows and prose for #44, #45 and #52, which are fixed, and add\nrows for #81, #82 and #83 to data_flow.md and record_system.md.\n\nAddresses #85\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: word the #81 known-gap row from the code\n\nEach record and each update captures a formatted call stack and the event\nstack (base.py, update.py). The old wording claimed a data copy, which\nthey do not make.\n\nAddresses #85\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T21:29:44Z",
+          "tree_id": "6243a57921e422f79ef2afcefec4fdf2668213c4",
+          "url": "https://github.com/endavis/bastproxy/commit/6b75428a609f6d1bc879e9c720ad7cf4b7faca23"
+        },
+        "date": 1793655041836,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 216.02456622727385,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00022785497597441561",
+            "extra": "mean: 4.629103149999736 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 6631.071736696151,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000023401573101038182",
+            "extra": "mean: 150.80518499988926 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 210.19316846764883,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00024713557190876817",
+            "extra": "mean: 4.757528550000956 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 551.5185318225087,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011148675504773662",
+            "extra": "mean: 1.8131756999995474 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2175.054714023184,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000928604647979555",
+            "extra": "mean: 459.7585493149765 usec\nrounds: 2190"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1905.2393518132135,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000018911270033318537",
+            "extra": "mean: 524.8684366341172 usec\nrounds: 1949"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3374.165999659394,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012386640530192774",
+            "extra": "mean: 296.3695325306891 usec\nrounds: 3489"
           }
         ]
       }
