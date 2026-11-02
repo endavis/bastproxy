@@ -997,7 +997,10 @@ class PluginLoader:
             modules_to_delete.extend(
                 item
                 for item in sys.modules
-                if item.startswith(plugin_info.package_import_location)
+                if (
+                    item == plugin_info.package_import_location
+                    or item.startswith(f"{plugin_info.package_import_location}.")
+                )
                 and getattr(sys.modules[item], "CANRELOAD", True)
             )
 

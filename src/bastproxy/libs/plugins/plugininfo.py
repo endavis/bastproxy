@@ -94,7 +94,6 @@ class PluginInfo:
         self.package_import_location: str = ""
         self.plugin_id: str = plugin_id
         self.package: str = plugin_id.rsplit(".", 1)[0]
-        self.plugin_class_import_location = f"{self.plugin_id}.plugin"
         self.name: str = ""
         self.short_name: str = plugin_id.split(".")[-1]
         self.author: str = ""
@@ -112,6 +111,18 @@ class PluginInfo:
         self.last_updated = datetime.datetime.now(datetime.UTC)
         self.runtime_info: PluginRuntimeInfo = PluginRuntimeInfo()
         self.import_errors: list = []
+
+    @property
+    def plugin_class_import_location(self) -> str:
+        """Module name the plugin class is imported from.
+
+        Always the real package name (``package_import_location`` + ``.plugin``),
+        never the plugin ID, so each plugin module lives in ``sys.modules`` under
+        one name only. Empty until discovery has set ``package_import_location``.
+        """
+        if not self.package_import_location:
+            return ""
+        return f"{self.package_import_location}.plugin"
 
     def check_file_is_valid_python_code(self, file: Path) -> tuple[bool, Exception | None]:
         """Check if a file contains valid Python code.
