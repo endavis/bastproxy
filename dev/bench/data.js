@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793648722961,
+  "lastUpdate": 1793648936328,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -990,6 +990,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000072700738674411375",
             "extra": "mean: 284.9356169211321 usec\nrounds: 3605"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14aa84c57cd16d6d91247af5a345f0e762f2051a",
+          "message": "fix: compare and hash BaseListRecord by UUID (merges PR #74, addresses #44)\n\nfix: compare and hash BaseListRecord by UUID (addresses #44)\n\nUserList precedes BaseRecord in the MRO, so its content-based __eq__ and\n__hash__ = None overrode the UUID-based versions. Distinct LogRecords with\nthe same text compared equal and could not be hashed. Define __eq__ and\n__hash__ on BaseListRecord that delegate to BaseRecord, and add tests that\nthe record base classes compare and hash by UUID.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T19:47:58Z",
+          "tree_id": "1b0245c159f2f467131016361d7f8459af1b4a15",
+          "url": "https://github.com/endavis/bastproxy/commit/14aa84c57cd16d6d91247af5a345f0e762f2051a"
+        },
+        "date": 1793648935334,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2874.906335511806,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001028118700176443",
+            "extra": "mean: 347.837419135248 usec\nrounds: 2937"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2589.7381851988644,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000794670146286298",
+            "extra": "mean: 386.1394196970574 usec\nrounds: 2640"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4611.781939183582,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005933724695774787",
+            "extra": "mean: 216.83592441862692 usec\nrounds: 4644"
           }
         ]
       }
