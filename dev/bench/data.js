@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793645045687,
+  "lastUpdate": 1793647130911,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -810,6 +810,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005579471161621326",
             "extra": "mean: 214.68766871040702 usec\nrounds: 4730"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "25d5d607ea50104bf92368396753eafc743caf79",
+          "message": "fix: force binary mode so telnetlib3 uses UTF-8 on all links (merges PR #70, addresses #63)\n\ntelnetlib3 5.x falls back to US-ASCII unless BINARY is negotiated or\nforce_binary is set. Neither bastproxy link negotiates BINARY, so\nnon-ASCII input dropped clients and non-ASCII MUD output killed the\nclient write task. Pass force_binary=True to both create_server calls\nand to open_connection.\n\nAddresses #63\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T19:15:46Z",
+          "tree_id": "11fc7ec933b72bd4f154016c2d344101f25a07fd",
+          "url": "https://github.com/endavis/bastproxy/commit/25d5d607ea50104bf92368396753eafc743caf79"
+        },
+        "date": 1793647130107,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3475.8370917508387,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000954703448503716",
+            "extra": "mean: 287.7004800867358 usec\nrounds: 3691"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2988.636727675951,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000215391264546605",
+            "extra": "mean: 334.6007196992551 usec\nrounds: 3193"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 5320.326365271526,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008482516024376676",
+            "extra": "mean: 187.9583941555744 usec\nrounds: 5749"
           }
         ]
       }
