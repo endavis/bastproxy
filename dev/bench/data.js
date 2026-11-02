@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793650443249,
+  "lastUpdate": 1793650831229,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1125,6 +1125,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000007607516632773129",
             "extra": "mean: 177.94880595516236 usec\nrounds: 5978"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6bcda6b41011debb85d470128d411ccb10778944",
+          "message": "fix: send RFC 854 CRLF line endings to clients (merges PR #77, addresses #69)\n\nLines sent to clients ended in \\n\\r, so the \\r landed at the start of\nthe next line. Switch NetworkDataLine, BaseListRecord and the ban message\nto \\r\\n. The MUD-side readline patch still accepts \\n\\r as input.\n\nBREAKING CHANGE: every line the proxy sends to clients now ends in \\r\\n\ninstead of \\n\\r.\n\nAddresses #69\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T20:19:39Z",
+          "tree_id": "6c5e46a661e528c42c38e2130917946d019b90c4",
+          "url": "https://github.com/endavis/bastproxy/commit/6bcda6b41011debb85d470128d411ccb10778944"
+        },
+        "date": 1793650829323,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2102.133227483713,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000018017377290890442",
+            "extra": "mean: 475.7072420176792 usec\nrounds: 2161"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1861.0805386897255,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012136030126222296",
+            "extra": "mean: 537.3222594138992 usec\nrounds: 1912"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3429.43609963575,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015808300857529822",
+            "extra": "mean: 291.59312812570346 usec\nrounds: 3559"
           }
         ]
       }
