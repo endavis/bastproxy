@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793648936328,
+  "lastUpdate": 1793649775483,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1035,6 +1035,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005933724695774787",
             "extra": "mean: 216.83592441862692 usec\nrounds: 4644"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73d9bb12b251ad8fc232b9ff896548c6e1d49a9f",
+          "message": "fix: match watch regexes against the line text, not the record (merges PR #75, addresses #55)\n\nfix: match watch regexes against the line text, not the record (addresses #55)\n\nThe watch callback passed the NetworkDataLine record to re.match, which\nraised TypeError, so no watch ever fired. Match line.line instead, skip\nnon-I/O lines such as COMMAND-TELNET, and pass the text as the watch\nevent's data argument, as the event's argument description documents.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T20:02:07Z",
+          "tree_id": "48b4418a4d05da8dac94ae101ecef6eb100bf190",
+          "url": "https://github.com/endavis/bastproxy/commit/73d9bb12b251ad8fc232b9ff896548c6e1d49a9f"
+        },
+        "date": 1793649774478,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2142.630424501314,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001155098507218741",
+            "extra": "mean: 466.7160461108195 usec\nrounds: 2147"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1862.05932627894,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001101646440884597",
+            "extra": "mean: 537.0398170923788 usec\nrounds: 1919"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3323.4480254019213,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000074294536015807405",
+            "extra": "mean: 300.89232398303113 usec\nrounds: 3565"
           }
         ]
       }
