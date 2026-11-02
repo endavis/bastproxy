@@ -468,6 +468,30 @@ class BaseListRecord(UserList, BaseRecord):
         self.original_data = message[:]
         self.addupdate("Info", "Init", savedata=True)
 
+    def __eq__(self, other: object) -> bool:
+        """Compare by UUID, like every other record, not by list contents.
+
+        UserList is first in the MRO, so without this its content-based
+        ``__eq__`` would win over ``BaseRecord.__eq__``.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            True if other is a record with the same UUID, False otherwise.
+
+        """
+        return BaseRecord.__eq__(self, other)
+
+    def __hash__(self) -> int:
+        """Hash by class name and UUID (UserList sets ``__hash__`` to None).
+
+        Returns:
+            Hash value for the record.
+
+        """
+        return BaseRecord.__hash__(self)
+
     def one_line_summary(self):
         """Get a one line summary of the record."""
         if len(self.original_data) == 1 and not self.original_data[0].strip():
