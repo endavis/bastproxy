@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793647244342,
+  "lastUpdate": 1793647417370,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -900,6 +900,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005190592800763254",
             "extra": "mean: 218.13507658933352 usec\nrounds: 4609"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44c7a2e7088682cb8cd516c8e9c65c05b511b17e",
+          "message": "fix: treat a client connection reset in client_read as a normal disconnect (merges PR #72, addresses #68)\n\nclient_read caught only BrokenPipeError around reader.readline(). A client\nRST raises ConnectionResetError, which escaped and was logged at ERROR with a\ntraceback. Catch ConnectionError, the parent of both.\n\nAddresses #68\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T19:22:43Z",
+          "tree_id": "fb6d924e4ccc05e1030719f5c5b41b8541371962",
+          "url": "https://github.com/endavis/bastproxy/commit/44c7a2e7088682cb8cd516c8e9c65c05b511b17e"
+        },
+        "date": 1793647416930,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3000.098266700695,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000707147074910479",
+            "extra": "mean: 333.3224151686645 usec\nrounds: 3059"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2651.179012023658,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000831144032792887",
+            "extra": "mean: 377.19067458847115 usec\nrounds: 2735"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4596.106702361095,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005204920938454939",
+            "extra": "mean: 217.5754534781109 usec\nrounds: 4686"
           }
         ]
       }
