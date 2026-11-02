@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793638255967,
+  "lastUpdate": 1793640533961,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -675,6 +675,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000004992144362384757",
             "extra": "mean: 137.69287019857268 usec\nrounds: 7550"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ef37c6ed1a86692836bcad5bdd3edc7339caee2",
+          "message": "docs: update data_flow.md and record_system.md to match the code (merges PR #54, addresses #53)\n\n* docs: update data_flow.md to match the code and document tracking\n\nFix the parts of docs/claude/data_flow.md that no longer matched the\ncode:\n- remove the Aliases, Highlights and Substitutions plugins, which do\n  not exist, and add the watch plugin's ev_to_mud_data_modify hook\n- replace stale line numbers with file and symbol references\n- point Event at plugins/core/events/plugin/_event.py\n- drop the backpressure claim: both send queues are unbounded\n- say that the read events carry the formatted string (#51)\n- describe mud_read batching, the partial prompt line and EOF\n\nAdd sections on how each step is tracked (active-record stack, events\nas records, a real record tree), how changes are tracked\n(AttributeMonitor, TrackedUserList, addupdate, actor selection), how to\ninspect records with plugins.debug.records, and the known gaps with\nlinks to the open issues.\n\nAddresses #53\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* docs: correct record_system.md against the code\n\nFix the parts of docs/claude/record_system.md that did not match the\ncode:\n- drop the MudData and ClientData record types, which do not exist,\n  and list the real record types with their files and bases\n- records are mutable objects with a history, not immutable\n- BaseRecord adds no initial update; say which subclasses do\n- track_record=False only skips the timer and the active-stack push;\n  stacks and updates are still captured\n- remove the advice to pass track_record=False to LogRecord, which\n  raises TypeError from the logger call, and to pass savedata=False to\n  BaseRecord.addupdate, which does not accept it\n- import BaseListRecord from its module; libs.records does not export it\n- use record class names in the filter examples\n\nDocument TrackedUserList, how the actor is chosen, the execution steps\nand their missing try/finally, attribute monitoring limits, the\ndebug.records commands, the performance costs and the known gaps.\n\nIn data_flow.md, note that registered watches never fire (#55).\n\nAddresses #53\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T17:28:02Z",
+          "tree_id": "f79de19d3a50e5712b4ea1cb7ec36e45b1f06635",
+          "url": "https://github.com/endavis/bastproxy/commit/7ef37c6ed1a86692836bcad5bdd3edc7339caee2"
+        },
+        "date": 1793640533320,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2292.068938880692,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011848011828832812",
+            "extra": "mean: 436.28705185819575 usec\nrounds: 2314"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2016.8898494197115,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000897832525519187",
+            "extra": "mean: 495.8128974111871 usec\nrounds: 2086"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3465.0188043792195,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000023335262887129857",
+            "extra": "mean: 288.5987223896629 usec\nrounds: 3649"
           }
         ]
       }
