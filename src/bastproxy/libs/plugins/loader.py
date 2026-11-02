@@ -44,6 +44,7 @@ import weakref
 from collections.abc import KeysView
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 # Project
@@ -52,6 +53,9 @@ from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin, patch
+
+USER_PLUGIN_IMPORT_ROOT = "userplugins"
+PLUGIN_ID_PREFIX = "plugins."
 
 
 class PluginLoader:
@@ -81,17 +85,25 @@ class PluginLoader:
         self.plugins_info: dict[str, PluginInfo] = {}
         self.base_plugin_dir = API.BASEPLUGINPATH
         packaged_plugins = Path(__file__).resolve().parents[2] / "plugins"
-        self.plugin_search_paths: list[dict[str, Path | str]] = [
-            {"path": self.base_plugin_dir, "prefix": "plugins.", "strip": ""},
-        ]
+        # bundled plugins come first so they win any collision with a user plugin
+        self.plugin_search_paths: list[dict[str, Path | str]] = []
         if packaged_plugins.exists():
             self.plugin_search_paths.append(
                 {
                     "path": packaged_plugins,
-                    "prefix": "bastproxy.plugins.",
-                    "strip": "bastproxy.",
+                    "import_prefix": "bastproxy.plugins.",
+                    "id_prefix": PLUGIN_ID_PREFIX,
+                    "source": "bundled",
                 }
             )
+        self.plugin_search_paths.append(
+            {
+                "path": self.base_plugin_dir,
+                "import_prefix": f"{USER_PLUGIN_IMPORT_ROOT}.",
+                "id_prefix": PLUGIN_ID_PREFIX,
+                "source": "user",
+            }
+        )
 
         self.api("libs.api:add.apis.for.object")(__name__, self)
 
@@ -463,6 +475,54 @@ class PluginLoader:
 
         return False
 
+    def _discover_plugins(self) -> tuple[list[dict[str, Any]], dict[str, tuple]]:
+        """Search every plugin search path and return the plugins and import errors.
+
+        Plugin IDs are rewritten from the import location with the search path's
+        ``id_prefix``. A user plugin whose package matches a bundled package is
+        refused with an error log and the bundled plugin is kept.
+
+        Returns:
+            The discovered plugins and a dict of import errors by package name.
+
+        """
+        plugins: list[dict[str, Any]] = []
+        errors: dict[str, tuple] = {}
+        bundled_packages: set[str] = set()
+        seen_ids: set[str] = set()
+
+        for search in self.plugin_search_paths:
+            search_path = Path(search["path"])
+            import_prefix = str(search["import_prefix"])
+            id_prefix = str(search["id_prefix"])
+            is_user = search.get("source") == "user"
+
+            if is_user:
+                search_path.mkdir(parents=True, exist_ok=True)
+                imputils.register_import_root(import_prefix.rstrip("."), search_path)
+
+            _, plug, err = imputils.find_packages_and_plugins(search_path, import_prefix)
+            errors.update(err)
+
+            for p in plug:
+                plugin_id = id_prefix + p["package_import_location"].removeprefix(import_prefix)
+                p["plugin_id"] = plugin_id
+                package = plugin_id.rsplit(".", 1)[0]
+                if is_user and (package in bundled_packages or plugin_id in seen_ids):
+                    LogRecord(
+                        f"User plugin {p['package_import_location']} not loaded: "
+                        f"{plugin_id} collides with a bundled plugin or package",
+                        level="error",
+                        sources=[__name__],
+                    )()
+                    continue
+                seen_ids.add(plugin_id)
+                if not is_user:
+                    bundled_packages.add(package)
+                plugins.append(p)
+
+        return plugins, errors
+
     def update_all_plugin_information(self) -> None:
         """Update all plugin information.
 
@@ -483,27 +543,11 @@ class PluginLoader:
         """
         LogRecord("Read all plugin information", level="info", sources=[__name__])()
 
-        packages: list = []
-        plugins: list = []
-        errors: dict[str, tuple] = {}
-
-        for search in self.plugin_search_paths:
-            search_path = search["path"]
-            prefix = search["prefix"]
-            strip_prefix = search.get("strip", "")
-
-            pkg, plug, err = imputils.find_packages_and_plugins(search_path, prefix)
-
-            for p in plug:
-                plugin_id = p["plugin_id"]
-                if strip_prefix and plugin_id.startswith(strip_prefix):
-                    p["plugin_id"] = plugin_id[len(strip_prefix) :]
-            packages.extend(pkg)
-            plugins.extend(plug)
-            errors.update(err)
+        plugins, errors = self._discover_plugins()
 
         LogRecord(
-            f"Found {len(plugins)} total plugins from {self.base_plugin_dir}",
+            f"Found {len(plugins)} total plugins from "
+            f"{', '.join(str(search['path']) for search in self.plugin_search_paths)}",
             level="info",
             sources=[__name__],
         )()

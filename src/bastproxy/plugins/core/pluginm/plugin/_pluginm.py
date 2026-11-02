@@ -8,14 +8,32 @@
 """manages all plugins."""
 
 # Standard Library
+from importlib import import_module
 
 # 3rd Party
-
 # Project
+from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
+
+
+def _package_description(plugin_info: PluginInfo) -> str:
+    """Return the PACKAGE_DESCRIPTION of the package a plugin lives in.
+
+    Args:
+        plugin_info: The plugin whose package to describe.
+
+    Returns:
+        The description, or an empty string if the package has none.
+
+    """
+    package_location = plugin_info.package_import_location.rpartition(".")[0]
+    try:
+        return str(import_module(package_location).PACKAGE_DESCRIPTION)
+    except (ImportError, AttributeError, ValueError):
+        return ""
 
 
 class PluginManager(BasePlugin):
@@ -110,11 +128,7 @@ class PluginManager(BasePlugin):
             if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).package == package
         ]:
             plugins = sorted(plist)
-            mod = __import__(package)
-            try:
-                desc = getattr(mod, package).PACKAGE_DESCRIPTION
-            except AttributeError:
-                desc = ""
+            desc = _package_description(self.api("libs.plugins.loader:get.plugin.info")(plugins[0]))
             msg.extend(
                 self._command_helper_format_plugin_list(
                     plugins, f"Plugins in {package}{f' - {desc}' if desc else ''}"

@@ -271,8 +271,8 @@ PLUGIN_REQUIRED = False  # True for core plugins
 ### Plugin Class
 
 ```python
-from plugins._baseplugin import BasePlugin
-from libs.api import AddAPI
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.libs.api import AddAPI
 
 class YourPlugin(BasePlugin):
     """Your plugin implementation."""
