@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793651122566,
+  "lastUpdate": 1793653988121,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1215,6 +1215,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00004279347277462543",
             "extra": "mean: 294.6820886782264 usec\nrounds: 3586"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "339ffd3fa741da2f4aaedf66156ecb275c3f5566",
+          "message": "chore: add benchmarks for NetworkDataLine creation and attribute changes (merges PR #86, addresses #80)\n\nchore: add NetworkDataLine and NetworkData benchmarks\n\nBenchmark NetworkDataLine creation, a monitored attribute change, and\nbuilding and formatting a 15-line NetworkData, so changes to record\ntracking can show an improvement or a regression.\n\nAddresses #80\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T21:12:12Z",
+          "tree_id": "67022a1f9c6d5272fe8a5d879c7a416c498b2b6f",
+          "url": "https://github.com/endavis/bastproxy/commit/339ffd3fa741da2f4aaedf66156ecb275c3f5566"
+        },
+        "date": 1793653987331,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 234.70359787236507,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00021477386873149267",
+            "extra": "mean: 4.260693100000168 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7149.979288307423,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012384923656470784",
+            "extra": "mean: 139.86054499980582 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 221.67884304216798,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009813343227353109",
+            "extra": "mean: 4.5110303999997825 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 537.3268611952903,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007924153264767326",
+            "extra": "mean: 1.861064600000617 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2145.691434636198,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012689402034801034",
+            "extra": "mean: 466.0502362351789 usec\nrounds: 2125"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1889.4468627679764,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006370460100887895",
+            "extra": "mean: 529.2554237460976 usec\nrounds: 1954"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3420.2314650367857,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009613935933937068",
+            "extra": "mean: 292.37787273243646 usec\nrounds: 3528"
           }
         ]
       }
