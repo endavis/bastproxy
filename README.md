@@ -10,7 +10,7 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 
 - **Asynchronous Architecture**: Built on Python's asyncio for efficient handling of multiple connections
 - **Plugin System**: Highly modular with hot-reload capabilities
-- **Telnet Protocol Support**: GMCP, MSDP, MSSP, MCCP, MXP, and more
+- **Telnet Protocol Support (planned)**: GMCP, MSDP, MSSP, MCCP and MXP are not handled yet. The design is in [ADR-0001](docs/decisions/0001-terminate-mud-telnet-protocols-at-the-proxy.md) (Proposed), and the work is tracked in [#58](https://github.com/endavis/bastproxy/issues/58) (MCCP), [#59](https://github.com/endavis/bastproxy/issues/59) (GMCP and MSDP), [#60](https://github.com/endavis/bastproxy/issues/60) (MSSP) and [#61](https://github.com/endavis/bastproxy/issues/61) (MXP)
 - **Event-Driven**: Comprehensive event system for plugin interaction
 - **API Framework**: Centralized API registry for plugin communication
 - **Command System**: Flexible command parsing and execution
