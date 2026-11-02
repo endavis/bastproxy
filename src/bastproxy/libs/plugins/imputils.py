@@ -45,8 +45,9 @@ import pkgutil
 import re
 import sys
 from importlib import import_module
-from importlib.util import find_spec
+from importlib.util import find_spec, module_from_spec, spec_from_loader
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 # 3rd Party
@@ -79,6 +80,34 @@ def is_plugin(package_path: str) -> bool:
     """
     contents = Path(package_path).read_text(encoding="utf-8")
     return bool(NAMERE.search(contents))
+
+
+def register_import_root(name: str, directory: Path) -> ModuleType:
+    """Register a directory as a top-level import package.
+
+    A synthetic package module is placed in ``sys.modules`` with ``__path__``
+    set to ``directory``, so ``name.<pkg>.<plugin>`` imports from that directory.
+    Nothing is added to ``sys.path``. Calling it again with the same name reuses
+    the module and refreshes ``__path__``.
+
+    Args:
+        name: The top-level import name, for example ``userplugins``.
+        directory: The directory the package maps to.
+
+    Returns:
+        The registered package module.
+
+    """
+    module = sys.modules.get(name)
+    if module is None:
+        spec = spec_from_loader(name, None, is_package=True)
+        if spec is None:  # pragma: no cover - spec_from_loader always returns a spec here
+            msg = f"Could not create an import spec for '{name}'"
+            raise ImportError(msg)
+        module = module_from_spec(spec)
+        sys.modules[name] = module
+    module.__path__ = [str(directory)]
+    return module
 
 
 def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, tuple]]:

@@ -185,18 +185,54 @@ class Plugin(BasePlugin):
         return arg
 ```
 
+## User Plugins
+
+User plugins load from `$BASTPROXY_HOME/plugins` (created at startup). This is
+separate from `$BASTPROXY_HOME/data/plugins`, where plugin data lives.
+
+Layout, two levels deep like every bundled plugin:
+
+```text
+$BASTPROXY_HOME/plugins/
+    mine/                  # package
+        __init__.py        # optional PACKAGE_DESCRIPTION
+        myplugin/          # plugin (PLUGIN_NAME in __init__.py, plugin/ subpackage)
+```
+
+- **Import root vs ID:** the folder is registered as the import root
+  `userplugins`, so the plugin imports as `userplugins.mine.myplugin`. Its plugin
+  ID is `plugins.mine.myplugin`, the same namespace as bundled plugins, so
+  commands address it as `mine.myplugin` and its data lives in
+  `data/plugins/plugins.mine.myplugin`.
+- **Bundled names win:** a user plugin in a package named like a bundled one
+  (`core`, `debug`, `test`, ...) is skipped with an error log and the bundled
+  plugin is kept. Avoid package names ending in `plugins`; the command display
+  name strips `plugins.` from the whole string.
+- **Imports:** plugins import framework code from `bastproxy`, for example
+  `from bastproxy.plugins._baseplugin import BasePlugin`. The top-level
+  `plugins` import package no longer exists.
+
+See [ADR-0002](../decisions/0002-user-plugins-load-from-bastproxy-homeplugins-under-the-userplugins-import-root.md).
+
 ## Plugin Lifecycle
 
 ### 1. Discovery
 
-The plugin loader scans configured search paths for plugin packages:
+The plugin loader scans two search paths, bundled plugins first:
 
 ```python
 # In PluginLoader
 self.plugin_search_paths = [
-    {"path": self.base_plugin_dir, "prefix": "plugins.", "strip": ""},
+    {"path": <src/bastproxy/plugins>, "import_prefix": "bastproxy.plugins.",
+     "id_prefix": "plugins.", "source": "bundled"},
+    {"path": self.base_plugin_dir, "import_prefix": "userplugins.",
+     "id_prefix": "plugins.", "source": "user"},
 ]
 ```
+
+The plugin ID is `id_prefix + import_name.removeprefix(import_prefix)`, so
+`bastproxy.plugins.core.x` and `userplugins.mine.x` get the IDs `plugins.core.x`
+and `plugins.mine.x`. See [User Plugins](#user-plugins).
 
 For each directory found, it creates a `PluginInfo` object and extracts metadata from `__init__.py`.
 

@@ -38,7 +38,7 @@ def _write_plugin(root: Path, version: str) -> None:
     plugin_dir = root / ROOT_PKG / "test" / "zzrepro"
     (plugin_dir / "plugin").mkdir(parents=True, exist_ok=True)
     (root / ROOT_PKG / "__init__.py").write_text("")
-    # namespace shim like src/plugins/__init__.py: the alias resolves to the real tree
+    # a namespace alias like the ID prefix: the alias resolves to the real tree
     (root / ALIAS_PKG).mkdir(exist_ok=True)
     (root / ALIAS_PKG / "__init__.py").write_text(f"__path__ = [{str(root / ROOT_PKG)!r}]\n")
     (root / ROOT_PKG / "test" / "__init__.py").write_text("")

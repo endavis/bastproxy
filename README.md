@@ -88,6 +88,8 @@ BastProxy uses a powerful plugin system. Here's a minimal plugin example:
 
 ### Plugin Structure
 
+User plugins go in `$BASTPROXY_HOME/plugins/<package>/<plugin>`; see the [plugin system docs](docs/claude/plugin_system.md#user-plugins).
+
 ```python
 # plugins/your_plugin/__init__.py
 PLUGIN_NAME = 'Your Plugin'
@@ -96,8 +98,8 @@ PLUGIN_AUTHOR = 'Bast'
 PLUGIN_VERSION = 1
 
 # plugins/your_plugin/plugin/_yourplugin.py
-from plugins._baseplugin import BasePlugin
-from libs.api import AddAPI
+from bastproxy.plugins._baseplugin import BasePlugin
+from bastproxy.libs.api import AddAPI
 
 class YourPlugin(BasePlugin):
     """Your plugin implementation."""
