@@ -121,7 +121,7 @@ ProcessDataToMud(
 | `line_type` | `"IO"` or `"COMMAND-TELNET"` |
 | `send` | `False` means the line is dropped (gagged) before sending |
 | `is_prompt` | The client writer sends `IAC GA` after the line |
-| `had_line_endings` | `add_line_endings()` only adds `\n\r` when this is set |
+| `had_line_endings` | `add_line_endings()` only adds `\r\n` when this is set |
 | `preamble`, `prelogin`, `color` | Formatting and client-filter flags |
 | `was_sent` | Set by the writer coroutine |
 | `line_modified` | Set when `line` changes |
@@ -234,7 +234,7 @@ All three register at the default priority, 50.
          ├─ raise ev_to_mud_data_modify          commands: "#bp..." → run, send=False
          │                                       watch: match watch regexes
          └─ SendDataDirectlyToMud(...)()
-              ├─ lock message; per line: format() → "say hello\n\r", lock()
+              ├─ lock message; per line: format() → "say hello\r\n", lock()
               ├─ MudConnection.send_to(line)     → send_queue
               └─ raise ev_to_mud_data_read
   MudConnection.mud_write                       writer.write(line.line), was_sent = True
@@ -248,7 +248,7 @@ All three register at the default priority, 50.
     └─ ProcessDataToClient(NetworkData([...]))()
          ├─ raise ev_to_client_data_modify       triggers: match, gag or change lines
          └─ SendDataDirectlyToClient(...)()
-              ├─ lock message; per line: format() → adds "\n\r", lock()
+              ├─ lock message; per line: format() → adds "\r\n", lock()
               ├─ per client: can_send_to_client() → clients:send.to.client → send_queue
               └─ raise ev_to_client_data_read
   ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts
@@ -282,7 +282,7 @@ This is the tree bastproxy built for one `say tracking demo two` round trip agai
 ```
 ProcessDataToMud           23.14ms
  |-> NetworkData              'say tracking demo two'
- |   |-> NetworkDataLine      client 'say tracking demo two\n\r'
+ |   |-> NetworkDataLine      client 'say tracking demo two\r\n'
  |-> ProcessRaisedEvent       6.47ms ev_to_mud_data_modify 1
  |   |-> EventDataRecord      ev_to_mud_data_modify
  |-> SendDataDirectlyToMud    8.86ms
@@ -320,7 +320,7 @@ A locked attribute ignores writes: the attempt is recorded as an `Info` update a
 The update history of the MUD's `You say, "demo three"` line from the same session, from `#bp.debug.records.detail`:
 
 ```
-line      : changed from '…demo three…' to '…demo three…\n\r'
+line      : changed from '…demo three…' to '…demo three…\r\n'
 was_sent  : changed from 'False' to 'True'
 Updates:
   Modify  original input              Actor: libs/net/mud.py  mud_read      data.append(NetworkDataLine(...))

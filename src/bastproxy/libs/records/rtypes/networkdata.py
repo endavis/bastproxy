@@ -177,7 +177,7 @@ class NetworkDataLine(BaseRecord):
     def add_line_endings(self, actor=""):
         """Add line endings to the message."""
         if self.is_io and self.had_line_endings:
-            self.line = f"{self.line}\n\r"
+            self.line = f"{self.line}\r\n"
 
     def copy_attributes(self, new_line):
         """Copy the attributes from the current line to a new line."""
