@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793640533961,
+  "lastUpdate": 1793644567537,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -720,6 +720,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000023335262887129857",
             "extra": "mean: 288.5987223896629 usec\nrounds: 3649"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "083938a0ead192f43fab2ece400d6c4d4f0f912d",
+          "message": "chore: synchronize with pyproject-template bed58ba (merges PR #57, addresses #56)\n\nSyncs from template 4cadf97 to bed58ba (57 commits), per the plan approved\non #56. Takes the following template improvements:\n- Command hook hardening: quote-aware tokenizer, git checkout/restore\n  parsing, heredoc/extglob handling, patch/git apply/git am as writers\n  (endavis/pyproject-template#1089, #1100, #1108, #1109, #1111, #1115, #1116,\n  #1118, #1119, #1121, #1123, #1124, #1125, #1136, #1138, #1141, #1142, #1148)\n- Session-start template update notice hook\n  (endavis/pyproject-template#1087, #1152)\n- implement-issue per-issue worktrees, the parallel implement-issues skill,\n  the implement-planner agent, and ADR-9027 to ADR-9029\n  (endavis/pyproject-template#1077, #1082, #1098, #1126, #1127, #1129, #1135,\n  #1140, #1144, #1147, #1166, #1169, #1170, #1173)\n- Cross-agent roles from a per-user config, and ADR-9030\n  (endavis/pyproject-template#1153, #1154)\n- doit issue --upstream and the report-template-bug skill\n  (endavis/pyproject-template#1101)\n- doit task fixes: short failure output, real default task, ignored doit\n  state DBs, shared uv cache, worktree removal\n  (endavis/pyproject-template#1072, #1073, #1080, #1096, #1114)\n- bandit nosec comment format (endavis/pyproject-template#1083, #1085)\n- SECURITY.md advisory guidance (endavis/pyproject-template#1092)\n- Doc-scan test fixes (endavis/pyproject-template#1171)\n- Dev-dependency floor bumps: ruff 0.17.2, commitizen 4.19.3,\n  mkdocs-material 9.8.0, mkdocstrings 1.0.8, hypothesis 6.170.11, pip 26.2.2\n\nLocal customizations kept in the 3-way merges: pytest-asyncio and bandit\ndev deps, the ADR-0001 nav entry, no Reference/Examples nav sections,\nimport shutil in tests/conftest.py, and the bastproxy workflow setup.\n\n.envrc was merged and applied by the repo admin; it no longer sets\nUV_CACHE_DIR. tests/template/test_utils.py is added to sync-exclude.toml:\nit is template-owned (ADR-9017) and is now named by the adopted ADR-9017.\n\nThe sync point is recorded as bed58ba471887452b28e2bfa51d91ee361d4ecde.\n\nAddresses #56\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T18:34:28Z",
+          "tree_id": "616b9b3caa74c44df080614095f9a5ed8978696c",
+          "url": "https://github.com/endavis/bastproxy/commit/083938a0ead192f43fab2ece400d6c4d4f0f912d"
+        },
+        "date": 1793644566844,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2128.333682603798,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000016307352750943027",
+            "extra": "mean: 469.8511366773102 usec\nrounds: 2173"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1880.732922982081,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004080678992136997",
+            "extra": "mean: 531.7076059977751 usec\nrounds: 1934"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3485.7213619736117,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008995363620336133",
+            "extra": "mean: 286.8846635044291 usec\nrounds: 3584"
           }
         ]
       }
