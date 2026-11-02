@@ -173,6 +173,7 @@ nav:
       - ADR-9024 Implement-issue skill: decisions/9024-one-implement-issue-skill-takes-an-issue-to-a-green-pr.md
       - ADR-9025 Delegation context: decisions/9025-delegated-agents-receive-github-data-from-the-host-and-run-without-network.md
       - ADR-9026 Doc-scan sync-exclude: decisions/9026-doc-scanning-tests-honor-sync-excludetoml-and-discover-markdown-via-git.md
+      - ADR-0001 MUD protocols: decisions/0001-terminate-mud-telnet-protocols-at-the-proxy.md
   - All Documents: TABLE_OF_CONTENTS.md
 
 extra:

@@ -101,6 +101,7 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 
 ## ADR Statuses
 
+- **Proposed**: Under discussion, not yet in effect
 - **Accepted**: Decision is in effect
 - **Deprecated**: No longer relevant (kept for history)
 - **Superseded**: Replaced by a newer ADR
@@ -142,5 +143,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-
-_(No project-level ADRs yet.)_
+| [0001](0001-terminate-mud-telnet-protocols-at-the-proxy.md) | Terminate MUD telnet protocols at the proxy | Proposed |
