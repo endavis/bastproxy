@@ -22,6 +22,7 @@ from tools.doit.templates import (
     get_issue_template,
     get_pr_template,
     get_required_sections,
+    parse_issue_template,
 )
 
 
@@ -385,3 +386,26 @@ class TestGetAdrAllSections:
         all_sections = get_adr_all_sections()
         required_sections = get_adr_required_sections()
         assert len(all_sections) >= len(required_sections)
+
+
+class TestParseIssueTemplate:
+    """`parse_issue_template` is the pure core `get_issue_template` delegates to (#1090)."""
+
+    @pytest.mark.parametrize("issue_type", sorted(ISSUE_TYPE_TO_FILE))
+    def test_matches_get_issue_template(self, issue_type: str) -> None:
+        github_dir = Path(__file__).resolve().parents[2] / ".github"
+        text = (github_dir / "ISSUE_TEMPLATE" / ISSUE_TYPE_TO_FILE[issue_type]).read_text(
+            encoding="utf-8"
+        )
+
+        assert parse_issue_template(text, issue_type) == get_issue_template(issue_type)
+
+    def test_name_defaults_to_the_type(self) -> None:
+        assert parse_issue_template("body: []\n", "bug").name == "bug"
+
+    def test_string_labels_are_kept(self) -> None:
+        assert parse_issue_template("labels: bug\nbody: []\n", "bug").labels == "bug"
+
+    def test_non_mapping_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="not a YAML mapping"):
+            parse_issue_template("- a\n- b\n", "bug")

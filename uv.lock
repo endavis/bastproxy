@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -204,18 +204,18 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "bandit", marker = "extra == 'security'", specifier = ">=1.7" },
     { name = "codespell", marker = "extra == 'dev'", specifier = ">=2.4.3" },
-    { name = "commitizen", marker = "extra == 'dev'", specifier = ">=4.19.2" },
+    { name = "commitizen", marker = "extra == 'dev'", specifier = ">=4.19.3" },
     { name = "cyclonedx-bom", marker = "extra == 'security'", specifier = ">=7.5.0" },
     { name = "doit", marker = "extra == 'dev'", specifier = ">=0.36.0" },
     { name = "dumper", specifier = ">=1.2.0" },
     { name = "griffe", marker = "extra == 'dev'", specifier = ">=0.40" },
     { name = "humanize", specifier = ">=4.11.0" },
-    { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.170.2" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.7.7" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=1.0.7" },
+    { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.170.11" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.8.0" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=1.0.8" },
     { name = "mutmut", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.4.0" },
-    { name = "pip", marker = "extra == 'security'", specifier = ">=26.2.1" },
+    { name = "pip", marker = "extra == 'security'", specifier = ">=26.2.2" },
     { name = "pip-audit", marker = "extra == 'security'", specifier = ">=2.10.1" },
     { name = "pip-licenses", marker = "extra == 'security'", specifier = ">=4.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.7.0" },
@@ -234,7 +234,7 @@ requires-dist = [
     { name = "rapidfuzz", specifier = ">=3.10.0" },
     { name = "regex", specifier = ">=2024.9.11" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.17.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.17.2" },
     { name = "telnetlib3", specifier = ">=5.0.1" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.20260906" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
@@ -837,7 +837,7 @@ name = "jinxed"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ansicon", marker = "sys_platform == 'win32'" },
+    { name = "ansicon" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/39/d7/6e6d474ec5eaeca6a61acc17766bb19563b3a372b4b9d92910078f5fe49f/jinxed-2.1.0.tar.gz", hash = "sha256:7e755b831faa2443d44fb4ce7c0202eb9c3ed39bd5bf1193365888f4f6092b54", size = 61287, upload-time = "2026-07-03T15:46:48.153Z" }
 wheels = [

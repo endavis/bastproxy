@@ -268,3 +268,61 @@ def test_shared_skill_declares_the_frontmatter_agents_activate_on() -> None:
     # name what the user would actually say, not just the skill's own title.
     assert "migrate" in frontmatter.lower()
     assert "existing" in frontmatter.lower()
+
+
+def test_every_body_copies_the_shipped_tests() -> None:
+    """Every wired body tells the planner about the second, non-overwriting copy (#1175)."""
+    missing = [
+        surface
+        for surface, path in _wired_bodies()
+        if path.is_file() and "--ignore-existing" not in path.read_text(encoding="utf-8")
+    ]
+    assert not missing, f"no --ignore-existing shipped-tests copy in: {missing}"
+
+
+# A count restated in prose goes stale silently: the skill said "15-step" and
+# "four hook types" long after migration.md grew a 16th step and the pre-commit
+# config dropped to two hook types (#1174). The bodies name no count at all.
+_STATED_COUNT = re.compile(r"\b(\d+|four|two)[- ](step|hook type)s?\b|\bthe \d+ steps\b", re.I)
+
+
+def test_no_body_restates_a_step_or_hook_count() -> None:
+    """Bodies point at the checklist and the hook config, never at a count of either (#1174)."""
+    stale = [
+        f"{surface}: {m.group(0)!r}"
+        for surface, path in _wired_bodies()
+        if path.is_file()
+        for m in _STATED_COUNT.finditer(path.read_text(encoding="utf-8"))
+    ]
+    assert not stale, f"restated counts: {stale}"
+
+
+def test_the_stated_count_scanner_detects_a_violation() -> None:
+    """Guard against the count test passing on a pattern that matches nothing."""
+    for sample in (
+        "the authoritative 15-step checklist",
+        "declares four hook types",
+        "the 15 steps",
+    ):
+        assert _STATED_COUNT.search(sample), sample
+
+
+@pytest.mark.parametrize(
+    "required",
+    [
+        "version_provider",  # static version is a real option since #971
+        "update_changelog_on_bump",  # hand-written vs generated changelog (#971)
+        "README.template.md",  # configure installs it as README.md (#697)
+        "manage.py sync",  # records the sync point (ADR-9020)
+        ".copilot/",
+        ".codex/",
+    ],
+)
+def test_every_body_covers_the_post_812_processes(required: str) -> None:
+    """Each wired body names the processes added since the skill was written (#1174)."""
+    missing = [
+        surface
+        for surface, path in _wired_bodies()
+        if path.is_file() and required not in path.read_text(encoding="utf-8")
+    ]
+    assert not missing, f"{required!r} missing from: {missing}"

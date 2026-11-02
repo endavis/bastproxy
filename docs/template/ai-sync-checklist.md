@@ -65,7 +65,7 @@ This ensures the tooling suite in `tools/pyproject_template/` matches the versio
 you are about to adopt. Applying file diffs with a stale tooling version can produce incorrect results.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/endavis/pyproject-template/main/bootstrap.py | python3 - --sync
+curl -sSL https://raw.githubusercontent.com/endavis/pyproject-template/main/bootstrap.py | python3 - --sync --yes
 ```
 
 This will:
@@ -275,7 +275,7 @@ For each workflow file flagged as **Modified** or **Missing**:
 ## Phase 7: Pre-commit & Other Config
 
 - [ ] After adopting `.pre-commit-config.yaml`, run `doit pre_commit_install` **again** —
-      the config declares four hook types and `commit-msg` is newly among them. An earlier
+      the config declares `commit-msg` among its hook types. An earlier
       install leaves it absent, and conventional-commit enforcement silently does not run.
       Verify with `ls .git/hooks/`.
 
@@ -388,4 +388,5 @@ Once `tools/pyproject_template/manage.py` is installed and sync state is tracked
 - **Validate before commit:** Always run `doit check` before staging - mandatory per project workflow
 - **One PR per sync:** Keep all template synchronization changes in a single PR unless scope is too large
 - **manage.py is the official tool:** Use it for checking updates and marking sync state
+- **Drop stopgaps:** A local change made while waiting for an upstream fix (see [Reporting a template bug upstream](updates.md#reporting-a-template-bug-upstream)) links its upstream issue. When the sync brings in the fix, remove the stopgap.
 - **Read the CHANGELOG:** Review template CHANGELOG to understand why changes were made before applying

@@ -28,7 +28,7 @@ file, so that skip is a no-op here.
 from __future__ import annotations
 
 import re
-import subprocess  # nosec B404 - subprocess is required to build a test git repo
+import subprocess  # nosec B404  # subprocess is required to build a test git repo
 from pathlib import Path
 
 from doc_scan import committed_markdown_files, is_excluded, load_sync_excludes
@@ -153,7 +153,7 @@ def test_non_excluded_missing_target_still_fails(tmp_path: Path) -> None:
 
 
 def _git(args: list[str], cwd: Path) -> None:
-    subprocess.run(  # nosec B603 B607 - fixed argv, no shell, test fixture only
+    subprocess.run(  # nosec B603 B607  # fixed argv, no shell, test fixture only
         ["git", *args], cwd=cwd, check=True, capture_output=True
     )
 

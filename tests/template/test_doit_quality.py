@@ -54,6 +54,12 @@ class TestTaskLint:
         # Sanity check: the ruff invocation is still present.
         assert "ruff check" in action
 
+    def test_uses_concise_output_format(self) -> None:
+        """#1075: one line per violation instead of a snippet block."""
+        action = task_lint()["actions"][0]
+        assert isinstance(action, str)
+        assert "--output-format=concise" in action
+
     def test_includes_examples_when_present(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

@@ -54,7 +54,7 @@ from tools.doit.github import (
     task_pr_merge,
     task_publish_setup,
 )
-from tools.doit.templates import get_required_sections
+from tools.doit.templates import get_issue_template, get_required_sections
 
 
 class TestExtractLinkedIssues:
@@ -1947,6 +1947,260 @@ class TestCreateIssue:
         assert mock_subprocess.call_count == 0
 
 
+class TestIssueUpstream:
+    """`doit issue --upstream` files on the template repository (#1090). `gh` is mocked."""
+
+    UPSTREAM_YAML = (
+        'name: Bug\nlabels: ["bug", "needs-triage"]\n'
+        "body:\n"
+        "  - type: textarea\n"
+        "    id: bug-description\n"
+        "    attributes: {label: Bug Description}\n"
+        "    validations: {required: true}\n"
+    )
+    BODY = "## Bug Description\nthe hook crashes on x\n"
+
+    @staticmethod
+    def _register(
+        mock_subprocess: MagicMock,
+        *,
+        slug: str = "me/downstream",
+        template: object | None = None,
+    ) -> None:
+        mock_subprocess.register(
+            {
+                ("gh", "repo", "view"): {"stdout": slug + "\n"},
+                ("gh", "api"): (
+                    template
+                    if template is not None
+                    else {"stdout": TestIssueUpstream.UPSTREAM_YAML}
+                ),
+                ("gh", "issue", "create"): {"stdout": "https://github.com/u/p/issues/9\n"},
+            }
+        )
+
+    @staticmethod
+    def _create_calls(mock_subprocess: MagicMock) -> list[list[str]]:
+        calls = [c.args[0] for c in mock_subprocess.call_args_list]
+        return [c for c in calls if c[:3] == ["gh", "issue", "create"]]
+
+    def test_builds_the_gh_command_with_r_labels_and_footer(
+        self, mock_subprocess: MagicMock, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._register(mock_subprocess)
+
+        with patch.object(github_mod, "read_recorded_commit", return_value="abc1234"):
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        (cmd,) = self._create_calls(mock_subprocess)
+        assert cmd[:5] == ["gh", "issue", "create", "-R", "endavis/pyproject-template"]
+        assert cmd[cmd.index("--label") + 1] == "bug,needs-triage"
+        body = cmd[cmd.index("--body") + 1]
+        assert body.startswith(self.BODY.strip())
+        assert "Template commit: `abc1234`" in body
+        assert "me/downstream" not in body
+        assert "https://github.com/u/p/issues/9" in capsys.readouterr().out
+
+    def test_fetches_the_template_from_main(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        fetch = next(
+            c.args[0] for c in mock_subprocess.call_args_list if c.args[0][:2] == ["gh", "api"]
+        )
+        assert fetch[-1] == (
+            "repos/endavis/pyproject-template/contents/.github/ISSUE_TEMPLATE/bug_report.yml"
+            "?ref=main"
+        )
+
+    def test_validation_uses_the_upstream_template_not_the_local_one(
+        self, mock_subprocess: MagicMock
+    ) -> None:
+        """Local bug sections (Steps to Reproduce...) are not required; the upstream's are."""
+        self._register(mock_subprocess)
+
+        _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert len(self._create_calls(mock_subprocess)) == 1
+
+    def test_upstream_required_section_missing_is_rejected(
+        self, mock_subprocess: MagicMock
+    ) -> None:
+        self._register(mock_subprocess)
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body="## Other\ntext\n", upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+
+    def test_no_recorded_commit_says_so(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        with patch.object(github_mod, "read_recorded_commit", return_value=None):
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        (cmd,) = self._create_calls(mock_subprocess)
+        assert "not recorded" in cmd[cmd.index("--body") + 1]
+
+    def test_origin_only_with_include_origin(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        _issue_action()(
+            type="bug", title="bug: x", body=self.BODY, upstream=True, include_origin=True
+        )
+
+        (cmd,) = self._create_calls(mock_subprocess)
+        assert "Origin: `me/downstream`" in cmd[cmd.index("--body") + 1]
+
+    def test_fetch_failure_files_nothing(
+        self, mock_subprocess: MagicMock, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._register(
+            mock_subprocess,
+            template=subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 404"),
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+        assert "Could not fetch the upstream bug template" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("stdout", ["name: [unclosed\n", "- just\n- a list\n"])
+    def test_malformed_template_files_nothing(
+        self, mock_subprocess: MagicMock, stdout: str
+    ) -> None:
+        self._register(mock_subprocess, template={"stdout": stdout})
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+
+    def test_unknown_type_exits_without_gh_api(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="nope", title="x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+
+    @pytest.mark.parametrize("slug", ["endavis/pyproject-template", "Endavis/Pyproject-Template"])
+    def test_refused_in_the_template_repo(
+        self, mock_subprocess: MagicMock, slug: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._register(mock_subprocess, slug=slug)
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+        assert "no upstream" in _plain(capsys.readouterr().out)
+
+    def test_refused_when_the_slug_is_unreadable(self, mock_subprocess: MagicMock) -> None:
+        mock_subprocess.register(
+            {("gh", "repo", "view"): subprocess.CalledProcessError(1, ["gh"], stderr="no repo")}
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+
+    @pytest.mark.parametrize(
+        ("title", "body", "term"),
+        [
+            ("bug: a vulnerability", "## Bug Description\nx\n", "vulnerability"),
+            ("bug: x", "## Bug Description\nthis is a path traversal\n", "path traversal"),
+            ("bug: x", "## Bug Description\nhook bypass\n", "bypass"),
+            ("bug: CVE-2026-1", "## Bug Description\nx\n", "CVE-2026-1"),
+        ],
+    )
+    def test_security_content_is_refused(
+        self,
+        mock_subprocess: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+        title: str,
+        body: str,
+        term: str,
+    ) -> None:
+        self._register(mock_subprocess)
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title=title, body=body, upstream=True)
+
+        out = _plain(capsys.readouterr().out)
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+        assert term in out
+        assert "security/policy" in out
+
+    def test_ordinary_security_named_bug_is_filed(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        _issue_action()(
+            type="bug",
+            title="bug: security-triage skill crashes",
+            body="## Bug Description\ndoit audit fails\n",
+            upstream=True,
+        )
+
+        assert len(self._create_calls(mock_subprocess)) == 1
+
+    def test_title_is_prompted_before_the_security_check(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        with patch("builtins.input", return_value="bug: an exploit"), pytest.raises(SystemExit):
+            _issue_action()(type="bug", body=self.BODY, upstream=True)
+
+        assert not self._create_calls(mock_subprocess)
+
+    def test_gh_create_failure_exits(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+        mock_subprocess.register(
+            {("gh", "issue", "create"): subprocess.CalledProcessError(1, ["gh"], stderr="no")}
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+
+    def test_default_path_is_unchanged(self, mock_subprocess: MagicMock) -> None:
+        """No `-R`, no footer, no `gh api` or `gh repo view`, local validation."""
+        mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
+        body = TestCreateIssue._valid_body("bug")
+
+        _issue_action()(type="bug", title="bug: x", body=body)
+
+        (call,) = mock_subprocess.call_args_list
+        cmd = call.args[0]
+        assert cmd == [
+            "gh",
+            "issue",
+            "create",
+            "--title",
+            "bug: x",
+            "--body",
+            body,
+            "--label",
+            get_issue_template("bug").labels,
+        ]
+
+    def test_task_declares_the_flags(self) -> None:
+        params = {p["name"]: p for p in task_issue()["params"]}
+
+        assert params["upstream"]["long"] == "upstream"
+        assert params["include_origin"]["long"] == "include-origin"
+        assert params["upstream"]["default"] is False
+
+
 def _pr_action() -> Callable[..., None]:
     """Return the `create_pr` action that `doit pr` runs."""
     action: Callable[..., None] = task_pr()["actions"][0]
@@ -2355,6 +2609,20 @@ class TestDelegationContext:
         assert out_dir.is_dir()
         assert (out_dir / "issue.json").exists()
         assert (out_dir / "comments.json").exists()
+
+    def test_absolute_out_directory_receives_the_files(
+        self, tmp_path: Path, mock_subprocess: MagicMock
+    ) -> None:
+        """An absolute ``--out`` (a worktree's context dir, #1095) is written exactly there."""
+        mock_subprocess.register(
+            {("gh", "issue", "view"): {"stdout": json.dumps({"number": 1, "comments": []})}}
+        )
+        out_dir = (tmp_path / "worktrees" / "feat" / "1-x" / "tmp" / "agents" / "claude").resolve()
+        assert out_dir.is_absolute()
+
+        self._action()(kind="issue", n="1", out=str(out_dir))
+
+        assert sorted(p.name for p in out_dir.iterdir()) == ["comments.json", "issue.json"]
 
     def test_fetch_issue_context_helper_used_directly(
         self, tmp_path: Path, mock_subprocess: MagicMock

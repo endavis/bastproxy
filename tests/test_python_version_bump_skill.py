@@ -56,7 +56,10 @@ CONTRACT: tuple[tuple[str, str], ...] = (
     ("no workflow changes needed", "no workflow file changes"),
     ("the version-agreement test", "`tests/test_python_versions_agree.py`"),
     ("full-matrix label", "`full-matrix`"),
-    ("breaking change policy", "AGENTS.md's Breaking Changes Policy"),
+    (
+        "breaking change policy",
+        "AGENTS.md — Breaking Changes Policy](../../../AGENTS.md#breaking-changes-policy)",
+    ),
     ("breaking change is not a foregone conclusion", "not a foregone conclusion"),
     ("breaking change footer", "`BREAKING CHANGE:`"),
     (

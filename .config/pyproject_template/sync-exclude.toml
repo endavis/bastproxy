@@ -34,6 +34,7 @@ exclude = [
     # Template-owned management code and tests (ADR-9017). setup_repo.py is
     # shed by `cleanup --setup`; the tests are named by adopted ADRs and skills.
     "tools/pyproject_template/setup_repo.py",
+    "tests/template/test_utils.py",
     "tests/template/test_utils_properties.py",
     "tests/template/test_check_template_updates.py",
 

@@ -20,7 +20,7 @@ You are a senior coding partner. Your goal is efficient, tested, and compliant c
 - **Questions != Instructions:** If the user asks "What...", "How...", or "Can we...", answer with a **PLAN** or **EXPLANATION**.
 - **NEVER implement based on a question.** Wait for explicit "Do it" or "Proceed".
 - **Stop & Verify:** If the user says "Stop", "Wait", "Hold on", "Cancel", "Wrong", or "No", immediately halt and ask for clarification.
-- **Summary Before Commit:** At the end of any implementation (docs, fix, feature, chore, etc.), summarize what was changed for the user before committing and wait for the user's explicit instruction to commit the changes. **Exception:** the user saying "implement issue X", or approving work on an issue (including a "yes" to a fix the agent proposed and filed as an issue), runs the `implement-issue` skill and authorizes commit, push, and PR creation on that issue's own branch without a further wait. Issue work goes through `implement-issue`, never by hand. The user saying "N is green" or "merge N" runs the `merge-pr` skill, which counts as consent to merge that PR and close the issues it fully addresses, never adding `ready-to-merge` — see [Slash Commands and Workflows — merge-pr](docs/development/ai/slash-commands.md#merge-pr-n). A question is still not approval — see [Slash Commands and Workflows — implement issue N](docs/development/ai/slash-commands.md#implement-issue-n).
+- **Summary Before Commit:** At the end of any implementation (docs, fix, feature, chore, etc.), summarize what was changed for the user before committing and wait for the user's explicit instruction to commit the changes. **Exception:** the user saying "implement issue X", or approving work on an issue (including a "yes" to a fix the agent proposed and filed as an issue), runs the `implement-issue` skill and authorizes commit, push, and PR creation on that issue's own branch without a further wait. Issue work goes through `implement-issue`, never by hand. The user saying "N is green" or "merge N" runs the `merge-pr` skill, which counts as consent to merge that PR and close the issues it fully addresses, never adding `ready-to-merge` — see [Slash Commands and Workflows — merge-pr](docs/development/ai/slash-commands.md#merge-pr-n). The user saying "implement issues A, B" runs the `implement-issues` skill, with the same per-issue authorization — see [Slash Commands and Workflows — implement issues A, B](docs/development/ai/slash-commands.md#implement-issues-a-b). A question is still not approval — see [Slash Commands and Workflows — implement issue N](docs/development/ai/slash-commands.md#implement-issue-n).
 - **Failing Tests:** Never modify a test to make it pass. Stop, explain *why* the test broke (what behavior changed, what the test was asserting), and discuss with the user whether the code or the test should change. A failing test is a signal, not a problem to silence.
 
 ### 2. Task Planning Protocol
@@ -175,6 +175,12 @@ output, then file it as a private draft security advisory, one per finding:
 `description`, `severity` and `vulnerabilities` (package ecosystem `other`). If the call is refused,
 stop and ask the user; never fall back to a public issue. Do not keep extending the current PR;
 triage is the repo admin's call.
+
+A fix for a development-tooling (`tools/`) finding, once the repo admin picks it up, takes the
+normal issue and PR flow, worded neutrally: it describes the change, never the bypass, reproduction
+commands or advisory ID. Close the advisory after the merge; do not publish it. Package (`src/`)
+findings keep the private-fork, publish-after-fix track. See
+[SECURITY.md — Security Update Process](.github/SECURITY.md#security-update-process).
 
 ## Breaking Changes Policy
 
@@ -338,7 +344,7 @@ Where `<agent-type>` is one of: `claude`, `copilot`, `codex`, `antigravity`, or 
 - **No Speculation:** Don't read files you don't need.
 
 ## Critical Reminders
-- **Flow:** Issue (`doit issue`) -> **`git checkout main && git pull`** -> Branch -> Commit -> PR (`doit pr`) -> Merge (`doit pr_merge`). NEVER commit to main. Pull `main` before branching — local `main` may be behind the remote (e.g., after dependabot PRs merged via the web UI). `doit pr` enforces this by aborting if the branch is behind `origin/main`; pass `--no-update-check` to override. Saying "implement issue N", or approving work on an issue, runs this whole flow through branch, commit, and PR in one go via the `implement-issue` skill — it still never touches `main` or the merge step.
+- **Flow:** Issue (`doit issue`) -> **`git checkout main && git pull`** -> Branch -> Commit -> PR (`doit pr`) -> Merge (`doit pr_merge`). NEVER commit to main. Pull `main` before branching — local `main` may be behind the remote (e.g., after dependabot PRs merged via the web UI). `doit pr` enforces this by aborting if the branch is behind `origin/main`; pass `--no-update-check` to override. Saying "implement issue N", or approving work on an issue, runs this whole flow through branch (in its own worktree under `worktrees/`), commit, and PR in one go via the `implement-issue` skill — it still never touches `main` or the merge step.
 - **Scope:** Never mix refactoring, features, and docs in one PR. Create separate branches.
 - **Verify:** Check file paths (`ls`) and branch (`git status`) before assuming they exist.
 - **Security:** NEVER bypass security checks (e.g., `--no-verify`, ignoring secrets).
