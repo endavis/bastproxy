@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793629449201,
+  "lastUpdate": 1793638255967,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -630,6 +630,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000010041274869720076",
             "extra": "mean: 285.3383008579961 usec\nrounds: 3613"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "404147b6c7b456bbdfd2c35722012aac44479224",
+          "message": "docs: propose ADR-0001 to terminate MUD telnet protocols at the proxy (merges PR #41, addresses #40)\n\nRecord the proposed protocol-handling model for GMCP, MSDP, MSSP, MCCP\nand MXP: bastproxy terminates each protocol on every link, publishes\ndecoded data as events and re-encodes per client, instead of passing\nprotocol bytes through. The ADR compares pass-through, terminate and a\nhybrid, and is marked Proposed pending review.\n\nAdd the ADR to the decisions index, mkdocs nav and table of contents,\nand add a Proposed status to the ADR status list.\n\nAddresses #40\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T16:50:07Z",
+          "tree_id": "d4160bf3746cbcf44120ceb6b03b946d1f8ac45a",
+          "url": "https://github.com/endavis/bastproxy/commit/404147b6c7b456bbdfd2c35722012aac44479224"
+        },
+        "date": 1793638255195,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4285.835394527738,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000018507747101842343",
+            "extra": "mean: 233.32673981759194 usec\nrounds: 4493"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3964.7743134923853,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000088158505394664",
+            "extra": "mean: 252.22116593041244 usec\nrounds: 4074"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 7262.540163175174,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000004992144362384757",
+            "extra": "mean: 137.69287019857268 usec\nrounds: 7550"
           }
         ]
       }
