@@ -248,6 +248,9 @@ class Listeners:
                     # telnetlib3 5.x accepts MCCP passively by default; refuse
                     # it as telnetlib3 2.0.4 did.
                     compression=False,
+                    # without BINARY negotiated telnetlib3 5.x encodes as
+                    # US-ASCII regardless of encoding; force utf8 (#63).
+                    force_binary=True,
                 ),
                 self.ipv4_taskname,
                 startstring=f"{ipv4_address}:{listen_port}",
@@ -266,6 +269,9 @@ class Listeners:
                     # telnetlib3 5.x accepts MCCP passively by default; refuse
                     # it as telnetlib3 2.0.4 did.
                     compression=False,
+                    # without BINARY negotiated telnetlib3 5.x encodes as
+                    # US-ASCII regardless of encoding; force utf8 (#63).
+                    force_binary=True,
                 ),
                 self.ipv6_taskname,
                 startstring=f"{ipv6_address}:{listen_port}",
