@@ -13,11 +13,11 @@ import signal
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 try:
     import psutil
-    from psutil._common import addr as psutil_addr
 except ImportError:
     print("Please install required libraries. psutil is missing.")
     print("From the root of the project: uv sync --all-extras")
@@ -42,6 +42,29 @@ from bastproxy.libs.records import (
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
+
+
+def is_connected_address(raddr: Any) -> bool:
+    """Return True if a psutil connection's remote address is a populated address.
+
+    psutil reports ``raddr`` as an ``(ip, port)`` named tuple for a connected
+    socket and as an empty tuple otherwise. The named tuple type lives in a
+    private psutil module whose location changes between releases, so check
+    its shape instead of its type.
+
+    Args:
+        raddr: The ``raddr`` field of a psutil connection.
+
+    Returns:
+        True if ``raddr`` is a non-empty tuple with ``ip`` and ``port`` fields.
+
+    """
+    return (
+        isinstance(raddr, tuple)
+        and len(raddr) > 0
+        and hasattr(raddr, "ip")
+        and hasattr(raddr, "port")
+    )
 
 
 class ProxyPlugin(BasePlugin):
@@ -551,7 +574,7 @@ class ProxyPlugin(BasePlugin):
                             "status": conn.status,
                         }
                     )
-                elif isinstance(conn.raddr, psutil_addr):
+                elif is_connected_address(conn.raddr):
                     connected_ports_dicts.append(
                         {
                             "local_address": conn.laddr.ip,
