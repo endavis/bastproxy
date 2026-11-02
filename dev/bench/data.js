@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793661301025,
+  "lastUpdate": 1793663216109,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1580,6 +1580,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000011651553307639543",
             "extra": "mean: 185.46943307914697 usec\nrounds: 6560"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "16d5ca05e4d05ae9a1934de9bb3ab53385d2cc7b",
+          "message": "fix: load user plugins from BASTPROXY_HOME/plugins under the userplugins import root (merges PR #112, addresses #110)\n\nThe user-plugin search path pointed at BASTPROXY_HOME/data/plugins with the\nimport prefix plugins., which nothing made importable, so no user plugin\ncould ever load. That folder is also every plugin's data directory.\n\nUser plugins now live in BASTPROXY_HOME/plugins (created at startup). The\nfolder is registered as the import root userplugins with a synthetic package\nmodule in sys.modules, and a plugin at <package>/<plugin> keeps the usual ID\nplugins.<package>.<plugin>, so commands, data directories and ID lookups are\nunchanged. Bundled plugins are searched first. A user plugin in a package\nnamed like a bundled one is refused with an error log.\n\nThe plugin list's package description now imports the package from the\nplugin's real location; it never worked before. The discovery log names\nevery search path. ADR-0002 records the design.\n\nBREAKING CHANGE: the top-level `plugins` import package (the src/plugins\nnamespace shim) is removed. Import framework code from `bastproxy.plugins…`\ninstead, for example `from bastproxy.plugins._baseplugin import BasePlugin`.\nBundled plugins already do.\n\nAddresses #110\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T23:46:16Z",
+          "tree_id": "49acde6981a2e4db24a34bd155eee5c0442a30c7",
+          "url": "https://github.com/endavis/bastproxy/commit/16d5ca05e4d05ae9a1934de9bb3ab53385d2cc7b"
+        },
+        "date": 1793663215494,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 421.59604669393485,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001358575304077662",
+            "extra": "mean: 2.371938749999636 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 13006.728315550261,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006477093481830386",
+            "extra": "mean: 76.88328499984465 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 398.78156281300625,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000042770798771140627",
+            "extra": "mean: 2.5076384999998425 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1099.0767700175197,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007166557124216121",
+            "extra": "mean: 909.8545500002331 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4227.7207705707915,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000029877124381563096",
+            "extra": "mean: 236.53406983758495 usec\nrounds: 4310"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3627.9590751398905,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008241113886351653",
+            "extra": "mean: 275.637067367261 usec\nrounds: 3711"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 6484.779835803039,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000793915605251443",
+            "extra": "mean: 154.20723992492577 usec\nrounds: 6923"
           }
         ]
       }
