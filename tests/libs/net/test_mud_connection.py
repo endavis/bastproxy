@@ -8,7 +8,11 @@ import pytest
 from telnetlib3 import open_connection
 from telnetlib3.telopt import DO, DONT, GMCP, IAC, MCCP2_COMPRESS, WILL
 
-from bastproxy.libs.net.mud import MudTelnetClient, unicode_readline_monkeypatch
+from bastproxy.libs.net.mud import (
+    MudConnection,
+    MudTelnetClient,
+    unicode_readline_monkeypatch,
+)
 
 Handler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
@@ -115,3 +119,54 @@ async def test_connect_to_mud_uses_parity_options(monkeypatch: pytest.MonkeyPatc
     assert len(calls) == 1
     assert calls[0]["client_factory"] is MudTelnetClient
     assert calls[0]["compression"] is False
+
+
+def _make_recorder(calls: list[list[str]]) -> Callable[..., Callable[[], None]]:
+    def factory(data: object) -> Callable[[], None]:
+        def run() -> None:
+            calls.append([str(line) for line in data])  # type: ignore[attr-defined]
+
+        return run
+
+    return factory
+
+
+async def _run_mud_read(
+    monkeypatch: pytest.MonkeyPatch, payload: bytes
+) -> tuple[MudConnection, list[list[str]]]:
+    from telnetlib3.stream_reader import TelnetReaderUnicode
+
+    from bastproxy.libs.net import mud
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(mud, "ProcessDataToClient", _make_recorder(calls))
+    conn = MudConnection("127.0.0.1", "4000")
+    reader = TelnetReaderUnicode(fn_encoding=lambda **_kw: "utf8")
+    if payload:
+        reader.feed_data(payload)
+    reader.feed_eof()
+    conn.reader = reader
+    conn.connected = True
+    await asyncio.wait_for(conn.mud_read(), TIMEOUT)
+    return conn, calls
+
+
+@pytest.mark.asyncio
+async def test_mud_read_processes_data_read_with_eof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lines read in the same pass as EOF are delivered (#64)."""
+    conn, calls = await _run_mud_read(monkeypatch, b"Goodbye!\r\nConnection closed.\r\n")
+    assert conn.connected is False
+    flat = [line for call in calls for line in call]
+    assert len(flat) == 2
+    assert "Goodbye!" in flat[0]
+    assert "Connection closed." in flat[1]
+
+
+@pytest.mark.asyncio
+async def test_mud_read_eof_without_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EOF with nothing read does not call ProcessDataToClient."""
+    conn, calls = await _run_mud_read(monkeypatch, b"")
+    assert conn.connected is False
+    assert calls == []

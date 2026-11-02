@@ -270,6 +270,9 @@ class MudConnection:
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
+                # lines read in the same pass as the EOF must still reach the client
+                if len(data) > 0:
+                    ProcessDataToClient(data)()
                 self.connected = False
                 return
 
