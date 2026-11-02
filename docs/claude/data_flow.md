@@ -80,14 +80,14 @@ References in this page are to files and symbols, not line numbers, so they stay
 ```python
 ProcessDataToMud(
     NetworkData(
-        NetworkDataLine(inp.strip(), originated="client"),
+        NetworkDataLine(inp.rstrip("\r\n"), originated="client"),
         owner_id=f"client:{self.uuid}",
     ),
     client_id=self.uuid,
 )()
 ```
 
-`inp.strip()` removes leading as well as trailing whitespace (#52).
+`inp.rstrip("\r\n")` removes only the line ending, so leading whitespace in client input is kept.
 
 ### MudConnection
 
@@ -273,7 +273,7 @@ Every record captures, at creation (`BaseRecord.__init__` in `src/bastproxy/libs
 - the current event stack: the names of the events being processed, from `plugins.core.events:get.event.stack`
 - a parent: the one passed in, or the record on top of `RMANAGER.active_record_stack`
 
-Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` has no `try/finally`, so a record whose `_exec_()` raises stays on the stack (#45).
+Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` uses `try/finally`, so a record whose `_exec_()` raises is still popped and no longer executing.
 
 `RMANAGER` keeps the most recent records of each type (5000 per type by default, `RecordManager.max_records`) and finds children by scanning the stored records' `parents`.
 
@@ -361,12 +361,13 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #45 | A record whose `_exec_()` raises stays on the active stack; later records get it as their parent |
 | #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; appended lines get no parent |
 | #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
-| #52 | `client_read` strips leading whitespace from client input |
 | #43 | Planned replacement of the record tracking with pydatatracker |
+| #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
+| #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
+| #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 ## Best Practices
 

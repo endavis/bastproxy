@@ -60,7 +60,7 @@ class BaseRecord(AttributeMonitor):
 
 `BaseRecord` itself adds no update at creation. Subclasses usually do: `BaseListRecord` and `BaseDictRecord` add an `Info` "Init" update, and `TrackedUserList` and `NetworkDataLine` add a `Modify` "original input" update.
 
-Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation time (`__lt__`). `BaseListRecord` is the exception: it lists `UserList` before `BaseRecord` among its bases, so it compares by content and cannot be hashed (#44).
+Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation time (`__lt__`). `BaseListRecord` lists `UserList` before `BaseRecord` among its bases, so it overrides `__eq__` and `__hash__` to use the `BaseRecord` versions: it too compares and hashes by UUID, not by content.
 
 ### UpdateRecord
 
@@ -182,7 +182,7 @@ MyRecord()()  # calling the record runs _exec_()
 3. If `track_record` is set: starts a timer, pushes the record on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Otherwise it only runs `_exec_()`.
 4. Adds `Info` "_exec_ finish" and clears `executing`
 
-There is no `try/finally`. If `_exec_()` raises, the record stays executing and, when tracked, stays on the active stack, so later records get it as their parent (#45).
+`__call__` uses `try/finally`. If `_exec_()` raises, the record is still popped from the active stack and `executing` is cleared, so later records do not get it as their parent.
 
 `track_record=False` only skips the timer and the active-stack push, so records created inside it are not attributed to it. It does not reduce what is captured: the creation stack, the event stack and every update are still recorded. `LogRecord` and `CmdArgsRecord` use `track_record=False`.
 
@@ -375,13 +375,14 @@ while current.parent:
 
 | Issue | Gap |
 |-------|-----|
-| #44 | `BaseListRecord` (and `LogRecord`) compares by content and cannot be hashed |
-| #45 | `__call__` is not exception-safe: a raising `_exec_()` leaves the record executing and on the active stack |
 | #46 | `LogRecord`s without `sources`, or never called, are not logged |
 | #47 | `TrackedUserList` misses several mutations and its lock does not stop them; lines appended to `NetworkData` get no parent |
 | #48 | `AttributeMonitor` misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
 | #43 | Planned replacement of the tracking with pydatatracker |
+| #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
+| #82 | Records are kept only in memory: those beyond `max_records` are lost, and none survive a restart |
+| #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 ## Best Practices
 
