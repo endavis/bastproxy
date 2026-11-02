@@ -26,3 +26,32 @@ async def test_client_read_ends_on_connection_error(exc: type[ConnectionError]) 
 
     assert client.connected is False
     readline.assert_awaited_once()
+
+
+async def test_client_read_keeps_leading_and_trailing_spaces(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the line terminator is removed before the line goes to the MUD (#52)."""
+    from bastproxy.libs.net import client as client_module
+
+    readline = AsyncMock(side_effect=["  look  \r\n", ""])
+    client = _make_client(readline)
+    client.state = {"logged in": True}
+    client.view_only = False
+    client.max_lines_to_process = 100
+    client.data_logger = MagicMock()
+    sent: list[str] = []
+
+    class _FakeProcess:
+        def __init__(self, data: object, client_id: str) -> None:
+            sent.append(data.get_first_line())  # type: ignore[attr-defined]
+
+        def __call__(self) -> None:
+            return None
+
+    monkeypatch.setattr(client_module, "ProcessDataToMud", _FakeProcess)
+    monkeypatch.setattr(client_module, "LogRecord", MagicMock())
+
+    await client.client_read()
+
+    assert sent == ["  look  "]

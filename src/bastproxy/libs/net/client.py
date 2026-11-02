@@ -369,7 +369,7 @@ class ClientConnection:
                 # this is where we start processing data
                 ProcessDataToMud(
                     NetworkData(
-                        NetworkDataLine(inp.strip(), originated="client"),
+                        NetworkDataLine(inp.rstrip("\r\n"), originated="client"),
                         owner_id=f"client:{self.uuid}",
                     ),
                     client_id=self.uuid,
