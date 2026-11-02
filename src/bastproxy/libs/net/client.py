@@ -318,11 +318,14 @@ class ClientConnection:
         login state and handles view-only clients separately. The data is then
         processed and sent to the appropriate handler.
 
+        A broken pipe or a connection reset by the client (any ``ConnectionError``)
+        ends the loop with ``connected`` set to False instead of propagating.
+
         Returns:
             None
 
         Raises:
-            BrokenPipeError: If the connection is broken.
+            None
 
         """
         LogRecord(
@@ -336,7 +339,8 @@ class ClientConnection:
             try:
                 inp: str = await self.reader.readline()
                 count += 1
-            except BrokenPipeError:
+            except ConnectionError:
+                # BrokenPipeError and ConnectionResetError (a client RST) both end here.
                 self.connected = False
                 continue
             LogRecord(
