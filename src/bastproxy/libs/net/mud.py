@@ -116,6 +116,9 @@ class MudConnection:
             # telnetlib3 5.x accepts MCCP passively by default; the proxy
             # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
             compression=False,
+            # without BINARY negotiated telnetlib3 5.x decodes as US-ASCII
+            # regardless of encoding; force utf8 (#63).
+            force_binary=True,
         )
 
     def disconnect_from_mud(self) -> None:
