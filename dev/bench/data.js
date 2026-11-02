@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793644567537,
+  "lastUpdate": 1793645045687,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -765,6 +765,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008995363620336133",
             "extra": "mean: 286.8846635044291 usec\nrounds: 3584"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92274d5b29b7a2046562943feb87e0da3fded239",
+          "message": "docs: correct the README telnet protocol claim (merges PR #62, addresses #40)\n\nThe README listed GMCP, MSDP, MSSP, MCCP and MXP as supported, but\nbastproxy handles none of them yet: GAME_CAPABILITIES in\nsrc/bastproxy/libs/net/telnet.py is empty. Mark the feature as planned,\nlink ADR-0001 (Proposed), and link the implementation issues #58 (MCCP),\n#59 (GMCP and MSDP), #60 (MSSP) and #61 (MXP).\n\nADR-0001 stays Proposed at the repo admin's direction.\n\nAddresses #40\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T18:43:19Z",
+          "tree_id": "6b0bc32c45d08e520bb13718452fea99fc63687c",
+          "url": "https://github.com/endavis/bastproxy/commit/92274d5b29b7a2046562943feb87e0da3fded239"
+        },
+        "date": 1793645045061,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2972.6726362809604,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010211706471039635",
+            "extra": "mean: 336.3976200390084 usec\nrounds: 3074"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2557.1558317694135,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005352590959346279",
+            "extra": "mean: 391.0594683265955 usec\nrounds: 2731"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4657.9293818170045,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005579471161621326",
+            "extra": "mean: 214.68766871040702 usec\nrounds: 4730"
           }
         ]
       }
