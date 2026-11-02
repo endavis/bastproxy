@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793649775483,
+  "lastUpdate": 1793650443249,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1080,6 +1080,51 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000074294536015807405",
             "extra": "mean: 300.89232398303113 usec\nrounds: 3565"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d00b698f5c45a54d9d89c90134ad2ebd231ea38",
+          "message": "fix: keep leading whitespace in client input sent toward the MUD (merges PR #76, addresses #52)\n\nclient_read now removes only the line ending (rstrip(\"\\r\\n\")) instead of\nstrip(), so indentation and trailing spaces reach aliases, triggers and\nthe MUD. The commands plugin compares the left-stripped line against the\ncommand prefix and parses a recognized command from the left-stripped\ntext, so \"  #bp.foo\" is still a proxy command.\n\nAddresses #52\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T20:13:17Z",
+          "tree_id": "cccc1105d1255c4b02030177ef87afa8dd922c97",
+          "url": "https://github.com/endavis/bastproxy/commit/0d00b698f5c45a54d9d89c90134ad2ebd231ea38"
+        },
+        "date": 1793650441367,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3606.201521932546,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000017682891177819587",
+            "extra": "mean: 277.30008817258357 usec\nrounds: 3754"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3109.5658864164598,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008119323217565527",
+            "extra": "mean: 321.58829770043064 usec\nrounds: 3218"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 5619.593762556458,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007607516632773129",
+            "extra": "mean: 177.94880595516236 usec\nrounds: 5978"
           }
         ]
       }
