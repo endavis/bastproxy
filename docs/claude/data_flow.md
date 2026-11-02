@@ -219,7 +219,7 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 All three register at the default priority, 50.
 
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
-- **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It currently passes the `NetworkDataLine` record to `re.match` instead of its text, so a registered watch never fires (#55).
+- **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
 - **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
 
 ## Data Flow Paths
@@ -367,7 +367,6 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
 | #51 | The read events pass strings, not `NetworkDataLine` records |
 | #52 | `client_read` strips leading whitespace from client input |
-| #55 | The watch plugin matches regexes against the record instead of its text, so watches never fire |
 | #43 | Planned replacement of the record tracking with pydatatracker |
 
 ## Best Practices

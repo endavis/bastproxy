@@ -218,7 +218,10 @@ class WatchPlugin(BasePlugin):
         """Check input from the client and see if we are watching for it."""
         if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
             return
-        client_data = event_record["line"]
+        line = event_record["line"]
+        if not line.is_io:
+            return
+        client_data = line.line
         for watch_name in self.watch_data:
             cmdre = self.watch_data[watch_name]["compiled"]
             if match_data := cmdre.match(client_data):
