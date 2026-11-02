@@ -14,473 +14,179 @@ tags:
 
 ## Overview
 
-Data flow in bastproxy describes how network data moves through the system between MUDs (Multi-User Dungeons) and connected clients. The proxy sits between clients and the MUD, intercepting, processing, and potentially modifying all data in both directions.
+Data flow in bastproxy describes how network data moves between the MUD and the connected clients. The proxy sits in the middle, and every line in either direction passes through a fixed pipeline that plugins can hook.
 
-The data flow system is built on:
-- **Record-based tracking**: Every piece of data is wrapped in a record with full change history
-- **Event-driven processing**: Data transformation happens through prioritized events
-- **Plugin extensibility**: Plugins can intercept and modify data at multiple points
-- **Async I/O**: All network operations use asyncio with queue-based message passing
-- **Bidirectional flow**: Data flows from MUD to clients and from clients to MUD
+The pipeline is built on:
+
+- **Records**: every line, every batch of lines and every processing step is a record (see [Record System](record_system.md)). Records link to the record that was running when they were created, so one input line produces a tree of records.
+- **Events**: plugins change data in transit by registering callbacks on the modify events and observe it on the read events.
+- **Async I/O**: each connection has a reader coroutine and a writer coroutine joined by an `asyncio.Queue`.
+
+The two directions are separate pipelines. Nothing links a client command to the MUD output it causes.
+
+References in this page are to files and symbols, not line numbers, so they stay valid as the code changes.
 
 ## System Architecture
 
 ```
-                           BASTPROXY
-    ┌────────────────────────────────────────────────────────┐
-    │                                                        │
-    │   ┌──────────────────┐      ┌────────────────────┐    │
-    │   │ ClientConnection │      │   MudConnection    │    │
-    │   │  (client.py)     │      │    (mud.py)        │    │
-    │   │                  │      │                    │    │
-    │   │  client_read()   │      │    mud_read()      │    │
-    │   │  client_write()  │      │    mud_write()     │    │
-    │   │  send_queue      │      │    send_queue      │    │
-    │   └────────┬─────────┘      └─────────┬──────────┘    │
-    │            │                          │               │
-    │            ▼                          ▼               │
-    │   ┌────────────────────────────────────────────┐      │
-    │   │            Processing Records              │      │
-    │   │  ProcessDataToMud / SendDataDirectlyToMud  │      │
-    │   │  ProcessDataToClient / SendDataDirectlyToClient   │
-    │   └────────────────────┬───────────────────────┘      │
-    │                        │                              │
-    │                        ▼                              │
-    │   ┌────────────────────────────────────────────┐      │
-    │   │              Event System                  │      │
-    │   │  ev_to_mud_data_modify                     │      │
-    │   │  ev_to_client_data_modify                  │      │
-    │   │  ev_to_mud_data_read                       │      │
-    │   │  ev_to_client_data_read                    │      │
-    │   └────────────────────┬───────────────────────┘      │
-    │                        │                              │
-    │                        ▼                              │
-    │   ┌────────────────────────────────────────────┐      │
-    │   │                PLUGINS                     │      │
-    │   │  Commands, Triggers, Aliases, etc.         │      │
-    │   └────────────────────────────────────────────┘      │
-    │                                                        │
-    └────────────────────────────────────────────────────────┘
-            │                               │
-            ▼                               ▼
-    ┌───────────────┐               ┌───────────────┐
-    │   CLIENT(S)   │               │     MUD       │
-    │  (telnet)     │               │   (server)    │
-    └───────────────┘               └───────────────┘
+ client socket                                                    MUD socket
+     │                                                                ▲
+ ClientConnection.client_read                          MudConnection.mud_write
+     │ one NetworkDataLine per input line                             │ send_queue
+     ▼                                                                │
+ ProcessDataToMud ──► ev_to_mud_data_modify ──► SendDataDirectlyToMud
+ (split on separator)  (commands, watch)        (lock, format, queue,
+                                                 raise ev_to_mud_data_read)
+
+ MUD socket                                                       client socket(s)
+     │                                                                ▲
+ MudConnection.mud_read                                ClientConnection.client_write
+     │ up to max_lines_to_process lines → one NetworkData             │ send_queue
+     ▼                                                                │
+ ProcessDataToClient ──► ev_to_client_data_modify ──► SendDataDirectlyToClient
+                          (triggers)                   (lock, format, per-client
+                                                        filter, raise ev_to_client_data_read)
 ```
+
+| Component | File | Symbol |
+|-----------|------|--------|
+| Client connection | `src/bastproxy/libs/net/client.py` | `ClientConnection` |
+| MUD connection | `src/bastproxy/libs/net/mud.py` | `MudConnection` |
+| Line and batch records | `src/bastproxy/libs/records/rtypes/networkdata.py` | `NetworkDataLine`, `NetworkData` |
+| Client → MUD steps | `src/bastproxy/libs/records/rtypes/muddata.py` | `ProcessDataToMud`, `SendDataDirectlyToMud` |
+| MUD → client steps | `src/bastproxy/libs/records/rtypes/clientdata.py` | `ProcessDataToClient`, `SendDataDirectlyToClient` |
+| Events | `src/bastproxy/plugins/core/events/plugin/_event.py` | `Event` |
+| Event execution record | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` | `ProcessRaisedEvent` |
+| Event data record | `src/bastproxy/plugins/core/events/libs/data/_event.py` | `EventDataRecord` |
+| Record store | `src/bastproxy/libs/records/managers/records.py` | `RecordManager` (`RMANAGER`) |
 
 ## Connection Management
 
-### ClientConnection Class
+### ClientConnection
 
-**Location**: `libs/net/client.py:66-477`
+`src/bastproxy/libs/net/client.py`, class `ClientConnection`: one instance per connected client.
 
-Manages individual client connections to the proxy.
+| Method | Description |
+|--------|-------------|
+| `setup_client()` | Sends `WILL ECHO`, advertised telnet features and the password prompt (all `prelogin=True`) |
+| `client_read()` | Reader coroutine: one `readline()` per line, then login handling or `ProcessDataToMud` |
+| `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords |
+| `process_data_from_view_only_client()` | Refuses input from view-only clients |
+| `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
+| `client_write()` | Writer coroutine: writes queued lines, sends `IAC GA` after lines marked `is_prompt`, sets `was_sent` |
 
-```python
-class ClientConnection:
-    def __init__(self, addr, port, conn_type, reader, writer, rows=24):
-        self.uuid = uuid4().hex           # Unique client identifier
-        self.connected: bool = True        # Connection state
-        self.state = {"logged in": False}  # Login state
-        self.view_only = False             # View-only mode flag
-        self.send_queue: asyncio.Queue     # Outbound message queue
-        self.reader: TelnetReaderUnicode   # telnetlib3 reader
-        self.writer: TelnetWriterUnicode   # telnetlib3 writer
-```
-
-**Key Methods**:
-
-| Method | Lines | Description |
-|--------|-------|-------------|
-| `setup_client()` | 163-234 | Sends initial telnet options and login prompt |
-| `client_read()` | 330-399 | Async loop reading from client, creates `ProcessDataToMud` |
-| `client_write()` | 401-477 | Async loop writing from `send_queue` to client |
-| `send_to()` | 125-161 | Adds `NetworkDataLine` to `send_queue` |
-
-**Data Reception Flow** (`client_read` lines 330-399):
-```python
-async def client_read(self):
-    while self.connected:
-        inp: str = await self.reader.readline()  # Line 354
-
-        if not self.state["logged in"]:
-            self.process_data_from_not_logged_in_client(inp)
-            continue
-
-        if self.view_only:
-            self.process_data_from_view_only_client(inp)
-        else:
-            # Lines 383-389: Create and execute ProcessDataToMud
-            ProcessDataToMud(
-                NetworkData(
-                    NetworkDataLine(inp.strip(), originated="client"),
-                    owner_id=f"client:{self.uuid}",
-                ),
-                client_id=self.uuid,
-            )()
-```
-
-### MudConnection Class
-
-**Location**: `libs/net/mud.py:63-412`
-
-Manages the connection to the MUD server.
+`client_read()` builds the record for each line from a logged-in, non-view-only client:
 
 ```python
-class MudConnection:
-    def __init__(self, addr: str, port: str):
-        self.addr: str = addr
-        self.port: str = port
-        self.connected = True
-        self.send_queue: asyncio.Queue[NetworkDataLine]  # Outbound queue
-        self.reader: TelnetReaderUnicode | None = None
-        self.writer: TelnetWriterUnicode | None = None
+ProcessDataToMud(
+    NetworkData(
+        NetworkDataLine(inp.strip(), originated="client"),
+        owner_id=f"client:{self.uuid}",
+    ),
+    client_id=self.uuid,
+)()
 ```
 
-**Key Methods**:
+`inp.strip()` removes leading as well as trailing whitespace (#52).
 
-| Method | Lines | Description |
-|--------|-------|-------------|
-| `setup_mud()` | 167-201 | Advertises telnet features to MUD |
-| `mud_read()` | 203-279 | Async loop reading from MUD, creates `ProcessDataToClient` |
-| `mud_write()` | 281-351 | Async loop writing from `send_queue` to MUD |
-| `send_to()` | 131-165 | Adds `NetworkDataLine` to `send_queue` |
+### MudConnection
 
-**Data Reception Flow** (`mud_read` lines 203-279):
-```python
-async def mud_read(self):
-    while self.connected and self.reader:
-        data = NetworkData([], owner_id="mud_read")
-        while True:
-            inp = await self.reader.readline()  # Line 229
-            if not inp:
-                break
-            data.append(NetworkDataLine(inp.rstrip(), originated="mud"))
-            if len(self.reader._buffer) <= 0 or b"\n" not in self.reader._buffer:
-                break
+`src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD.
 
-        # Line 274: Create and execute ProcessDataToClient
-        ProcessDataToClient(data)()
-```
+| Method | Description |
+|--------|-------------|
+| `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=False` |
+| `setup_mud()` | Advertises the proxy's telnet features to the MUD |
+| `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
+| `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
+| `mud_write()` | Writer coroutine: writes queued lines (`send_iac` for `COMMAND-TELNET`), sets `was_sent` |
+
+`mud_read()` reads with the patched `unicode_readline_monkeypatch`, which splits on `\r\n`, `\n\r`, `\r\0`, `\r` and `\n`. It keeps reading complete lines into the same `NetworkData` until the reader's buffer holds no further newline or the batch reaches `max_lines_to_process` (15 by default). Then:
+
+- If the buffer still holds a partial line (usually a prompt), it is read as one more line with `had_line_endings=False`.
+- If the reader is at EOF, the connection is marked closed and the coroutine returns.
+- Otherwise `ProcessDataToClient(data)()` runs for the batch, followed by `await asyncio.sleep(0)`.
 
 ## Data Records
 
 ### NetworkDataLine
 
-**Location**: `libs/records/rtypes/networkdata.py:17-301`
+`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkDataLine(BaseRecord)`: one line of data.
 
-Represents a single line of network data with full change tracking.
+| Attribute | Meaning |
+|-----------|---------|
+| `line` | Current content. `bytes` for `COMMAND-TELNET` lines, `str` otherwise |
+| `original_line` | Content at creation (locked) |
+| `originated` | `"mud"`, `"client"` or `"internal"` |
+| `line_type` | `"IO"` or `"COMMAND-TELNET"` |
+| `send` | `False` means the line is dropped (gagged) before sending |
+| `is_prompt` | The client writer sends `IAC GA` after the line |
+| `had_line_endings` | `add_line_endings()` only adds `\n\r` when this is set |
+| `preamble`, `prelogin`, `color` | Formatting and client-filter flags |
+| `was_sent` | Set by the writer coroutine |
+| `line_modified` | Set when `line` changes |
+| `split_from` | The line this one was split from by command splitting |
 
-```python
-class NetworkDataLine(BaseRecord):
-    def __init__(
-        self,
-        line: str | bytes | bytearray,
-        originated: str = "internal",     # "mud", "client", or "internal"
-        line_type: str = "IO",            # "IO" or "COMMAND-TELNET"
-        had_line_endings: bool = True,
-        preamble: bool = True,
-        prelogin: bool = False,
-        color: str = "",
-    ):
-        self.line = line                  # Current content (mutable)
-        self.original_line = line         # Original content (locked)
-        self.send: bool = True            # Whether to send this line
-        self.is_prompt: bool = False      # Mark as MUD prompt
-        self.was_sent: bool = False       # Tracking flag
-```
+Properties: `noansi` (ANSI stripped), `colorcoded`, `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-**Key Properties**:
-
-| Property | Lines | Description |
-|----------|-------|-------------|
-| `noansi` | 103-113 | Line with ANSI codes stripped |
-| `colorcoded` | 115-125 | Line with ANSI converted to color codes |
-| `is_command_telnet` | 156-158 | True if telnet command |
-| `is_io` | 160-163 | True if normal I/O |
-| `internal` | 165-168 | True if originated internally |
-| `fromclient` | 170-173 | True if from client |
-| `frommud` | 175-178 | True if from MUD |
-
-**Key Methods**:
-
-| Method | Lines | Description |
-|--------|-------|-------------|
-| `lock()` | 127-137 | Lock all attributes to prevent modification |
-| `format()` | 239-249 | Apply preamble, colors, line endings |
-| `color_line()` | 201-226 | Apply color and convert to ANSI |
-| `add_preamble()` | 293-300 | Add "#BP:" prefix for internal messages |
-| `add_line_endings()` | 180-183 | Add `\n\r` to line |
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the content and flag attributes.
 
 ### NetworkData
 
-**Location**: `libs/records/rtypes/networkdata.py:303-412`
+`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkData(TrackedUserList)`: a batch of lines.
 
-Container for multiple `NetworkDataLine` objects with automatic conversion.
-
-```python
-class NetworkData(TrackedUserList):
-    def __init__(
-        self,
-        message: NetworkDataLine | str | bytes | list | None = None,
-        owner_id: str = "",
-    ):
-        # Automatically converts strings/bytes to NetworkDataLine
-        # All items are NetworkDataLine objects with parent tracking
-```
-
-**Key Features**:
-- Automatic conversion of strings/bytes to `NetworkDataLine`
-- Type validation on all list operations
-- Parent-child relationship tracking
-- Change history via `TrackedUserList`
+- Strings and bytes passed to the constructor, `append`, `insert`, `extend` or `__setitem__` are converted to `NetworkDataLine`. Other types raise `TypeError`.
+- Those four methods are tracked and respect `lock()`. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not (#47).
+- Only the constructor and `extend` set the batch as the parent of a `NetworkDataLine` passed in as an object. `append`, `insert` and `__setitem__` only do it for converted strings (#47).
 
 ## Processing Records
 
 ### ProcessDataToMud
 
-**Location**: `libs/records/rtypes/muddata.py:19-142`
+`src/bastproxy/libs/records/rtypes/muddata.py`, class `ProcessDataToMud(BaseRecord)`. `_exec_()`:
 
-Processes client input before sending to MUD. Allows plugins to modify/intercept commands.
-
-```python
-class ProcessDataToMud(BaseRecord):
-    def __init__(
-        self,
-        message: NetworkData,
-        show_in_history: bool = True,
-        client_id=None,
-        parent=None,
-    ):
-        self.message = message
-        self.client_id = client_id
-        self.modify_data_event_name = "ev_to_mud_data_modify"
-```
-
-**Execution Flow** (`_exec_` lines 123-142):
-```python
-def _exec_(self):
-    # Step 1: Split multi-commands (lines 83-121)
-    self.seperate_commands()
-
-    # Step 2: Raise modify event for client I/O lines
-    if data_for_event := [
-        line for line in self.message if line.fromclient and line.is_io
-    ]:
-        self.api("plugins.core.events:raise.event")(
-            self.modify_data_event_name,  # "ev_to_mud_data_modify"
-            event_args={
-                "showinhistory": self.show_in_history,
-                "client_id": self.client_id,
-            },
-            data_list=data_for_event,
-            key_name="line",
-        )
-
-    # Step 3: Send to MUD
-    SendDataDirectlyToMud(self.message, client_id=self.client_id, parent=self)()
-```
+1. `seperate_commands()`: each I/O line is split with `api.command_split_regex` (the proxy's `cmdseperator` setting, `|` by default). Each piece becomes a new `NetworkDataLine`, given the original's attributes by `copy_attributes()` (which also sets `split_from`).
+2. Raises `ev_to_mud_data_modify` with `data_list=[client I/O lines]`, `key_name="line"` and the event arguments `showinhistory` and `client_id`.
+3. Runs `SendDataDirectlyToMud(self.message, client_id=..., parent=self)()`.
 
 ### SendDataDirectlyToMud
 
-**Location**: `libs/records/rtypes/muddata.py:145-200`
+Same file, class `SendDataDirectlyToMud(BaseRecord)`. `_exec_()`:
 
-Sends data directly to MUD bypassing modification events.
+1. `message.lock()`
+2. For each line with `send` set: `line.format()`, `line.lock()`, `mud_connection.send_to(line)`
+3. Raises `ev_to_mud_data_read` with `data_list=[line.line ...]`
 
-```python
-class SendDataDirectlyToMud(BaseRecord):
-    def __init__(
-        self,
-        message: NetworkData,
-        show_in_history: bool = True,
-        client_id=None,
-        parent=None,
-    ):
-        self.message = message
-        self.read_data_event_name = "ev_to_mud_data_read"
-```
-
-**Execution Flow** (`_exec_` lines 185-200):
-```python
-def _exec_(self):
-    self.message.lock()
-    if mud_connection := self.api("plugins.core.proxy:get.mud.connection")():
-        for line in self.message:
-            if line.send:
-                line.format()        # Apply formatting
-                line.lock()          # Lock from further changes
-                mud_connection.send_to(line)  # Add to MUD's send_queue
-
-    # Raise read-only event for observation
-    if data_for_event := [line.line for line in self.message if line.send]:
-        self.api("plugins.core.events:raise.event")(
-            self.read_data_event_name,  # "ev_to_mud_data_read"
-            data_list=data_for_event,
-            key_name="line"
-        )
-```
+Code that wants to send to the MUD without the modify event calls this directly.
 
 ### ProcessDataToClient
 
-**Location**: `libs/records/rtypes/clientdata.py:19-177`
+`src/bastproxy/libs/records/rtypes/clientdata.py`, class `ProcessDataToClient(BaseRecord)`. `_exec_()`:
 
-Processes MUD output before sending to clients. Allows plugins to modify/filter output.
+1. Raises `ev_to_client_data_modify` with `data_list=[MUD I/O lines]`, `key_name="line"`
+2. If `send_to_clients` is still set, runs `SendDataDirectlyToClient(self.message, clients=..., exclude_clients=...)()`
 
-```python
-class ProcessDataToClient(BaseRecord):
-    def __init__(
-        self,
-        message: NetworkData,
-        clients: list | None = None,
-        exclude_clients: list | None = None,
-        preamble=True,
-        prelogin: bool = False,
-        error: bool = False,
-        color_for_all_lines=None,
-    ):
-        self.message = message
-        self.send_to_clients: bool = True
-        self.clients: list[str] = clients or []
-        self.exclude_clients: list[str] = exclude_clients or []
-        self.modify_data_event_name = "ev_to_client_data_modify"
-```
-
-**Execution Flow** (`_exec_` lines 162-176):
-```python
-def _exec_(self):
-    # Raise modify event for MUD I/O lines
-    if data_for_event := [
-        line for line in self.message if line.frommud and line.is_io
-    ]:
-        self.api("plugins.core.events:raise.event")(
-            self.modify_data_event_name,  # "ev_to_client_data_modify"
-            data_list=data_for_event,
-            key_name="line"
-        )
-
-    # Send to clients if not blocked
-    if self.send_to_clients:
-        SendDataDirectlyToClient(
-            self.message,
-            exclude_clients=self.exclude_clients,
-            clients=self.clients
-        )()
-```
+The constructor also accepts `preamble`, `prelogin`, `error` and `color_for_all_lines`, but `_exec_()` does not apply them, and the class's own `can_send_to_client()` is never called (#50).
 
 ### SendDataDirectlyToClient
 
-**Location**: `libs/records/rtypes/clientdata.py:179-283`
+Same file, class `SendDataDirectlyToClient(BaseRecord)`. `_exec_()`:
 
-Sends data directly to clients bypassing modification events.
+1. `message.lock()`
+2. For each line with `send` set: `line.format()`, `line.lock()`, then for each target client (`clients`, or every client) that passes `can_send_to_client()`, `plugins.core.clients:send.to.client`
+3. Raises `ev_to_client_data_read` with `data_list=[line.line ...]`
 
-```python
-class SendDataDirectlyToClient(BaseRecord):
-    def __init__(
-        self,
-        message: NetworkData,
-        clients: list | None = None,
-        exclude_clients: list | None = None,
-    ):
-        self.message = message
-        self.clients: list[str] = clients or []
-        self.exclude_clients: list[str] = exclude_clients or []
-        self.read_data_event_name = "ev_to_client_data_read"
-```
+`can_send_to_client(client_uuid, line)` refuses a client that is in `exclude_clients`, refuses internal lines to view-only clients that were not named in `clients`, and otherwise requires the client to be in `clients` (when set) and logged in, unless the line is `prelogin`.
 
-**Execution Flow** (`_exec_` lines 253-282):
-```python
-def _exec_(self):
-    self.message.lock()
-    for line in self.message:
-        if line.send:
-            line.format()  # Apply preamble, colors, line endings
-            line.lock()    # Lock from further changes
-
-            # Get target clients
-            clients = self.clients or self.api(
-                "plugins.core.clients:get.all.clients"
-            )(uuid_only=True)
-
-            for client_uuid in clients:
-                if self.can_send_to_client(client_uuid, line):
-                    self.api("plugins.core.clients:send.to.client")(
-                        client_uuid, line
-                    )
-
-    # Raise read-only event for observation
-    if data_for_event := [line.line for line in self.message if line.send]:
-        self.api("plugins.core.events:raise.event")(
-            self.read_data_event_name,  # "ev_to_client_data_read"
-            data_list=data_for_event,
-            key_name="line"
-        )
-```
-
-**Client Filtering** (`can_send_to_client` lines 229-251):
-- Checks `exclude_clients` list first
-- Blocks internal messages to view-only clients
-- Verifies client is logged in or `prelogin` flag is set
+Internal output (proxy messages, command output) starts here: code builds a `NetworkData` and calls `SendDataDirectlyToClient(...)()` directly, or `ProcessDataToClient(...)()` to let plugins see it first.
 
 ## Event Integration
 
-### Event System Overview
+### How a data event runs
 
-**Location**: `plugins/core/events/libs/_event.py:27-287`
+`Event.raise_event()` (`src/bastproxy/plugins/core/events/plugin/_event.py`) wraps the event arguments in an `EventDataRecord`, a dict record, and runs a `ProcessRaisedEvent` record for it. With `data_list` and `key_name`, `ProcessRaisedEvent._exec_multi()` reuses the same `EventDataRecord` for every item. It sets `event_data["line"]` to the item and calls every callback in priority order, lower numbers first, before moving to the next item. A callback registered while the event is running is picked up on a further pass.
 
-Events use priority-based execution where lower numbers execute first.
-
-```python
-class Event:
-    def __init__(self, name, created_by="", description=None, arg_descriptions=None):
-        self.name: str = name
-        self.priority_dictionary = {}  # {priority: {callback: executed}}
-        self.raised_count = 0
-```
-
-**Registration** (`register` lines 80-102):
-```python
-def register(self, func, func_owner_id, prio=50):
-    priority = prio or 50
-    if priority not in self.priority_dictionary:
-        self.priority_dictionary[priority] = {}
-
-    call_back = Callback(func.__name__, func_owner_id, func)
-    self.priority_dictionary[priority][call_back] = False
-```
-
-**Raising Events** (`raise_event` lines 254-286):
-```python
-def raise_event(self, data, actor, data_list=None, key_name=None):
-    self.raised_count += 1
-
-    if not isinstance(data, EventDataRecord):
-        data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
-
-    self.active_event = ProcessRaisedEvent(self, data, actor)
-    self.active_event(actor, data_list=data_list, key_name=key_name)
-```
-
-### Data Flow Events
-
-| Event | Type | Raised By | Purpose |
-|-------|------|-----------|---------|
-| `ev_to_mud_data_modify` | Modify | `ProcessDataToMud` | Intercept/modify client commands before MUD |
-| `ev_to_mud_data_read` | Read-only | `SendDataDirectlyToMud` | Observe data sent to MUD |
-| `ev_to_client_data_modify` | Modify | `ProcessDataToClient` | Intercept/modify MUD output before clients |
-| `ev_to_client_data_read` | Read-only | `SendDataDirectlyToClient` | Observe data sent to clients |
-
-### Event Priority Guidelines
-
-| Priority Range | Purpose | Examples |
-|----------------|---------|----------|
-| 1-25 | Early inspection | Logging, raw data capture |
-| 26-49 | Pre-processing | Command detection, prompt handling |
-| 50 | Default | Most plugin registrations |
-| 51-75 | Post-processing | Triggers, gagging, highlighting |
-| 76-99 | Final formatting | Color application, cleanup |
-
-### Using @RegisterToEvent Decorator
+Callbacks fetch the record with `plugins.core.events:get.current.event.record` and change the `NetworkDataLine` inside it directly:
 
 ```python
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -488,390 +194,195 @@ from bastproxy.plugins.core.events import RegisterToEvent
 class MyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
     def _eventcb_process_mud_output(self):
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+            return
         line = event_record["line"]
-
-        # Modify the line
         if "spam" in line.noansi:
-            line.send = False  # Gag this line
+            line.send = False  # gag this line
 ```
+
+An exception in a callback is caught and logged by `Event.raise_priority()`. The remaining callbacks still run.
+
+### Data flow events
+
+| Event | Raised by | `event_record["line"]` | Core listeners |
+|-------|-----------|------------------------|----------------|
+| `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch |
+| `ev_to_mud_data_read` | `SendDataDirectlyToMud` | formatted `line.line` string or bytes (#51) | none |
+| `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
+| `ev_to_client_data_read` | `SendDataDirectlyToClient` | formatted `line.line` string or bytes (#51) | none |
+
+`ev_to_mud_data_modify` also carries `showinhistory` and `client_id`.
+
+### Core listeners
+
+All three register at the default priority, 50.
+
+- **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
+- **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): matches client input against registered watch regexes and raises a per-watch event.
+- **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
 
 ## Data Flow Paths
 
-### Client Command to MUD
+### Client command to MUD
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        CLIENT COMMAND TO MUD                               │
-└────────────────────────────────────────────────────────────────────────────┘
-
-Client                                                                    MUD
-  │                                                                        │
-  │  "cast fireball"                                                       │
-  ▼                                                                        │
-┌─────────────────────────────────────────┐                                │
-│ ClientConnection.client_read()          │ libs/net/client.py:330-399     │
-│   inp = await self.reader.readline()    │ Line 354                       │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ProcessDataToMud(NetworkData(...))()    │ libs/net/client.py:383-389     │
-│   message = NetworkData(                │                                │
-│     NetworkDataLine(inp, "client")      │                                │
-│   )                                     │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ProcessDataToMud._exec_()               │ muddata.py:123-142             │
-│   1. seperate_commands()                │ Line 127 (split on |)          │
-│   2. raise "ev_to_mud_data_modify"      │ Lines 129-140                  │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ Event: ev_to_mud_data_modify            │                                │
-│                                         │                                │
-│ Priority 50: Commands plugin            │ _commands.py:1224-1260         │
-│   - Check for command prefix (#bp)      │                                │
-│   - Execute internal commands           │                                │
-│   - Set line.send = False if handled    │                                │
-│                                         │                                │
-│ Priority 50: Aliases plugin             │                                │
-│   - Expand alias patterns               │                                │
-│   - Modify line.line content            │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ SendDataDirectlyToMud._exec_()          │ muddata.py:185-200             │
-│   1. message.lock()                     │ Line 187                       │
-│   2. for line in message:               │                                │
-│        line.format()                    │ Line 191                       │
-│        line.lock()                      │ Line 192                       │
-│        mud_connection.send_to(line)     │ Line 193                       │
-│   3. raise "ev_to_mud_data_read"        │ Lines 197-200                  │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ MudConnection.send_to(line)             │ libs/net/mud.py:131-165        │
-│   send_queue.put_nowait(line)           │ Line 165                       │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ MudConnection.mud_write()               │ libs/net/mud.py:281-351        │
-│   msg = await send_queue.get()          │ Line 305                       │
-│   self.writer.write(msg.line)           │ Line 319                       │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    └──────────────────────────────────────────────────────▶
-                                                                    "cast fireball\n\r"
+"say hello" from a logged-in client
+  ClientConnection.client_read
+    └─ ProcessDataToMud(NetworkData(NetworkDataLine("say hello", originated="client")))()
+         ├─ seperate_commands()                 split on the command separator
+         ├─ raise ev_to_mud_data_modify          commands: "#bp..." → run, send=False
+         │                                       watch: match watch regexes
+         └─ SendDataDirectlyToMud(...)()
+              ├─ lock message; per line: format() → "say hello\n\r", lock()
+              ├─ MudConnection.send_to(line)     → send_queue
+              └─ raise ev_to_mud_data_read
+  MudConnection.mud_write                       writer.write(line.line), was_sent = True
 ```
 
-### MUD Response to Client
+### MUD output to clients
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        MUD RESPONSE TO CLIENT                              │
-└────────────────────────────────────────────────────────────────────────────┘
-
-MUD                                                                   Client
-  │                                                                        │
-  │  "You cast fireball!"                                                  │
-  ▼                                                                        │
-┌─────────────────────────────────────────┐                                │
-│ MudConnection.mud_read()                │ libs/net/mud.py:203-279        │
-│   data = NetworkData([])                │ Line 227                       │
-│   while True:                           │                                │
-│     inp = await reader.readline()       │ Line 229                       │
-│     data.append(NetworkDataLine(        │ Line 243                       │
-│       inp, originated="mud"))           │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ProcessDataToClient(data)()             │ libs/net/mud.py:274            │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ProcessDataToClient._exec_()            │ clientdata.py:162-176          │
-│   raise "ev_to_client_data_modify"      │ Lines 166-171                  │
-│     for frommud and is_io lines         │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ Event: ev_to_client_data_modify         │                                │
-│                                         │                                │
-│ Priority 50: Triggers plugin            │ _triggers.py:652-692           │
-│   - Match line against trigger patterns │                                │
-│   - Execute trigger actions             │                                │
-│   - Can gag (line.send = False)         │                                │
-│                                         │                                │
-│ Priority 50: Highlights plugin          │                                │
-│   - Apply color highlights              │                                │
-│   - Modify line.line with colors        │                                │
-│                                         │                                │
-│ Priority 50: Substitutions plugin       │                                │
-│   - Replace text patterns               │                                │
-│   - Modify line.line content            │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ SendDataDirectlyToClient._exec_()       │ clientdata.py:253-282          │
-│   1. message.lock()                     │ Line 255                       │
-│   2. for line in message:               │                                │
-│        line.format()                    │ Line 258                       │
-│        line.lock()                      │ Line 259                       │
-│        for client in clients:           │                                │
-│          if can_send_to_client():       │ Lines 261-268                  │
-│            send.to.client(uuid, line)   │ Line 266-267                   │
-│   3. raise "ev_to_client_data_read"     │ Lines 279-282                  │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ClientConnection.send_to(line)          │ libs/net/client.py:125-161     │
-│   send_queue.put_nowait(line)           │ Line 161                       │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ ClientConnection.client_write()         │ libs/net/client.py:401-477     │
-│   msg = await send_queue.get()          │ Line 424                       │
-│   self.writer.write(msg.line)           │ Line 438                       │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    └──────────────────────────────────────────────────────▶
-                                                             "You cast fireball!\n\r"
+'You say, "hello"' from the MUD
+  MudConnection.mud_read                        batch of complete lines (+ partial prompt line)
+    └─ ProcessDataToClient(NetworkData([...]))()
+         ├─ raise ev_to_client_data_modify       triggers: match, gag or change lines
+         └─ SendDataDirectlyToClient(...)()
+              ├─ lock message; per line: format() → adds "\n\r", lock()
+              ├─ per client: can_send_to_client() → clients:send.to.client → send_queue
+              └─ raise ev_to_client_data_read
+  ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts
 ```
 
-### Internal Message to Client
+### Internal message to clients
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                     INTERNAL MESSAGE TO CLIENT                             │
-└────────────────────────────────────────────────────────────────────────────┘
-
-Plugin                                                                Client
-  │                                                                        │
-  │  "Timer completed"                                                     │
-  ▼                                                                        │
-┌─────────────────────────────────────────┐                                │
-│ Plugin creates message:                 │                                │
-│   msg = NetworkData("Timer completed")  │                                │
-│   SendDataDirectlyToClient(msg)()       │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    ▼                                                      │
-┌─────────────────────────────────────────┐                                │
-│ SendDataDirectlyToClient._exec_()       │ clientdata.py:253-282          │
-│   line.format():                        │                                │
-│     - add_preamble() → "#BP: "          │ networkdata.py:293-300         │
-│     - color_line()                      │ networkdata.py:201-226         │
-│     - add_line_endings() → "\n\r"       │ networkdata.py:180-183         │
-│   send to all logged-in clients         │                                │
-└───────────────────┬─────────────────────┘                                │
-                    │                                                      │
-                    └──────────────────────────────────────────────────────▶
-                                                          "#BP: Timer completed\n\r"
+SendDataDirectlyToClient(NetworkData("Timer completed"))()
+  per line: format() → add_preamble() "#BP: ", color_line(), add_line_endings()
+  sent to every logged-in client (internal lines are not sent to view-only clients)
 ```
 
-## Plugin Interaction Patterns
+## How Each Step Is Tracked
 
-### Commands Plugin
+### The record tree
 
-**Location**: `plugins/core/commands/plugin/_commands.py:1224-1260`
+Every record captures, at creation (`BaseRecord.__init__` in `src/bastproxy/libs/records/rtypes/base.py`):
 
-```python
-@RegisterToEvent(event_name="ev_to_mud_data_modify")
-def _eventcb_check_for_command(self) -> None:
-    """Check if the line is a command from the client."""
-    commandprefix = self.api("plugins.core.settings:get")(
-        self.plugin_id, "cmdprefix"
-    )
+- a UUID, an owner ID and the creation time
+- a formatted call stack (10 frames)
+- the current event stack: the names of the events being processed, from `plugins.core.events:get.event.stack`
+- a parent: the one passed in, or the record on top of `RMANAGER.active_record_stack`
 
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` has no `try/finally`, so a record whose `_exec_()` raises stays on the stack (#45).
 
-    if event_record["line"].line.startswith(commandprefix):
-        self.run_internal_command_from_event()  # Handles #bp commands
-    else:
-        self.pass_through_command_from_event()  # Passes to MUD
+`RMANAGER` keeps the most recent records of each type (5000 per type by default, `RecordManager.max_records`) and finds children by scanning the stored records' `parents`.
+
+This is the tree bastproxy built for one `say tracking demo two` round trip against a real MUD (Evennia), printed by `#bp.debug.records.children`:
+
+```
+ProcessDataToMud           23.14ms
+ |-> NetworkData              'say tracking demo two'
+ |   |-> NetworkDataLine      client 'say tracking demo two\n\r'
+ |-> ProcessRaisedEvent       6.47ms ev_to_mud_data_modify 1
+ |   |-> EventDataRecord      ev_to_mud_data_modify
+ |-> SendDataDirectlyToMud    8.86ms
+     |-> NetworkData          (the same record, second parent)
+     |   |-> NetworkDataLine
+     |-> ProcessRaisedEvent   3.37ms ev_to_mud_data_read 1
+         |-> EventDataRecord
+
+ProcessDataToClient        22.07ms   'You say, "tracking demo two"'
+ |-> NetworkData                      ← no NetworkDataLine child: appended lines get no parent (#47)
+ |-> ProcessRaisedEvent       4.07ms ev_to_client_data_modify 1
+ |   |-> EventDataRecord
+ |-> SendDataDirectlyToClient 9.92ms
+     |-> NetworkData
+     |-> ProcessRaisedEvent   3.61ms ev_to_client_data_read 1
+         |-> EventDataRecord
 ```
 
-### Triggers Plugin
+The timings are from one run on a development machine and vary with load and plugins.
 
-**Location**: `plugins/core/triggers/plugin/_triggers.py:652-692`
+### How changes are tracked
 
-```python
-@RegisterToEvent(event_name="ev_to_client_data_modify")
-def _eventcb_check_trigger(self):
-    """Check a line of text from the mud to see if it matches any triggers."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+Three mechanisms add `UpdateRecord`s (`src/bastproxy/libs/records/rtypes/update.py`) to a record's `updates`, an `UpdateManager` deque that keeps the most recent 1000:
 
-    line = event_record["line"]
-    if line.internal:
-        return  # Don't process internal messages
+| Mechanism | Fires on | Example |
+|-----------|----------|---------|
+| `AttributeMonitor` (`src/bastproxy/libs/tracking/utils/attributes.py`) | Reassigning a monitored attribute | `line.send = False` → "send attribute changed", with the original and new values |
+| `TrackedUserList` (`src/bastproxy/libs/records/rtypes/base.py`) | `__setitem__`, `insert`, `append`, `extend` on `NetworkData` | Command splitting replacing a line |
+| `addupdate(...)` | Code recording what it did | Commands: "Antispam Command sent"; `ProcessRaisedEvent`: "Invoked" |
 
-    data = line.noansi
+Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). List and dict records also store a copy of their data. The **actor** is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`.
 
-    # Check against compiled regex patterns
-    if self.created_regex["created_regex_compiled"]:
-        match_data = self.created_regex["created_regex_compiled"].match(data)
-        if match_data:
-            self.process_match(line, match_data.groupdict().keys())
+A locked attribute ignores writes: the attempt is recorded as an `Info` update and no error is raised (#48). In-place changes to a monitored mutable attribute (for example `parents.append(...)`) are not seen, because `AttributeMonitor` only fires on reassignment (#48).
+
+The update history of the MUD's `You say, "demo three"` line from the same session, from `#bp.debug.records.detail`:
+
+```
+line      : changed from '…demo three…' to '…demo three…\n\r'
+was_sent  : changed from 'False' to 'True'
+Updates:
+  Modify  original input              Actor: libs/net/mud.py  mud_read      data.append(NetworkDataLine(...))
+  Modify  line attribute changed      Actor: libs/net/mud.py  mud_read      ProcessDataToClient(data)()
+  Modify  was_sent attribute changed  Actor: libs/net/client.py  client_write
 ```
 
-### Common Patterns
+The line ending was added by `SendDataDirectlyToClient` → `format()` → `add_line_endings()`. Record code is excluded from the actor search, so a change made by the pipeline is attributed to its entry point (`mud_read`). A change made by a plugin callback is attributed to the plugin's file.
 
-#### Gag (Hide) Lines
+### Inspecting records
 
-```python
-@RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
-def _eventcb_gag_spam(self):
-    """Gag spam lines."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
-    line = event_record["line"]
+The inspection commands live in `plugins.debug.records`, which is not loaded by default:
 
-    if "spam message" in line.noansi:
-        line.send = False  # Line will not be sent to clients
+```
+#bp.core.pluginm.load plugins.debug.records
+#bp.debug.records.types                       record types and how many of each are stored
+#bp.debug.records.list ProcessDataToMud -c 20 the most recent records of a type
+#bp.debug.records.children <uuid>             the tree under a record
+#bp.debug.records.detail <uuid> [-u <update>] attributes, stacks and updates
 ```
 
-#### Highlight Text
-
-```python
-@RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
-def _eventcb_highlight(self):
-    """Highlight important text."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
-    line = event_record["line"]
-
-    if "important" in line.noansi:
-        line.line = f"@R{line.noansi}@w"  # Make red
-        line.color = "@R"
-```
-
-#### Alias Expansion
-
-```python
-@RegisterToEvent(event_name="ev_to_mud_data_modify", priority=50)
-def _eventcb_alias(self):
-    """Expand aliases."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
-    line = event_record["line"]
-
-    if line.noansi == "gg":
-        line.line = "get gold from corpse"
-```
-
-#### Send Data to Clients
-
-```python
-from bastproxy.libs.records import SendDataDirectlyToClient, NetworkData
-
-# Send to all clients
-msg = NetworkData("Message to clients")
-SendDataDirectlyToClient(msg)()
-
-# Send to specific client
-SendDataDirectlyToClient(msg, clients=["client-uuid"])()
-```
-
-#### Send Data to MUD
-
-```python
-from bastproxy.libs.records import SendDataDirectlyToMud, NetworkData
-
-# Send directly (bypass events)
-command = NetworkData("look")
-SendDataDirectlyToMud(command)()
-
-# Or use ProcessDataToMud to go through event system
-from bastproxy.libs.records import ProcessDataToMud
-ProcessDataToMud(NetworkData("look"))()
-```
+Every line these commands print is itself a `NetworkDataLine`, so a long `detail` or `children` listing adds many records and can push the record you are looking for out of the store. Look up the UUIDs you need right after the data of interest arrives.
 
 ## Async Queue Pattern
 
-Both connection classes use async queues for outbound data:
+Both connection classes write through an `asyncio.Queue`:
 
 ```
-┌─────────────────┐     send_to(line)     ┌────────────────┐
-│  Plugin/Record  │ ───────────────────▶  │   send_queue   │
-└─────────────────┘                       │  asyncio.Queue │
-                                          └───────┬────────┘
-                                                  │
-                                    await queue.get()
-                                                  │
-                                                  ▼
-                                          ┌────────────────┐
-                                          │   *_write()    │
-                                          │  coroutine     │
-                                          └───────┬────────┘
-                                                  │
-                                        writer.write(line)
-                                                  │
-                                                  ▼
-                                          ┌────────────────┐
-                                          │    Network     │
-                                          └────────────────┘
+record / plugin ──send_to(line)──► send_queue ──await get()──► *_write() ──► socket
+                (call_soon_threadsafe)
 ```
 
-This pattern:
-- Allows thread-safe message queuing via `loop.call_soon_threadsafe`
-- Decouples data generation from network I/O
-- Enables backpressure handling through queue size
-- Supports batching multiple lines before yielding
+- `send_to()` uses `loop.call_soon_threadsafe(self.send_queue.put_nowait, line)`, so it can be called from any thread.
+- The queues are unbounded (`asyncio.Queue()`). There is no backpressure: a slow client or MUD makes its queue grow.
+- The writer coroutines yield with `await asyncio.sleep(0)` every `max_lines_to_process` lines, so one busy connection does not starve the others.
 
-## File Reference Summary
+## Known Gaps
 
-| Component | File Path | Key Lines |
-|-----------|-----------|-----------|
-| **Connection Classes** | | |
-| ClientConnection | `src/bastproxy/libs/net/client.py` | 66-477 |
-| MudConnection | `src/bastproxy/libs/net/mud.py` | 63-412 |
-| **Data Records** | | |
-| NetworkDataLine | `src/bastproxy/libs/records/rtypes/networkdata.py` | 17-301 |
-| NetworkData | `src/bastproxy/libs/records/rtypes/networkdata.py` | 303-412 |
-| **Processing Records** | | |
-| ProcessDataToMud | `src/bastproxy/libs/records/rtypes/muddata.py` | 19-142 |
-| SendDataDirectlyToMud | `src/bastproxy/libs/records/rtypes/muddata.py` | 145-200 |
-| ProcessDataToClient | `src/bastproxy/libs/records/rtypes/clientdata.py` | 19-177 |
-| SendDataDirectlyToClient | `src/bastproxy/libs/records/rtypes/clientdata.py` | 179-283 |
-| **Event System** | | |
-| Event class | `src/bastproxy/plugins/core/events/libs/_event.py` | 27-287 |
-| EventsPlugin | `src/bastproxy/plugins/core/events/plugin/_events.py` | 25-400 |
-| **Plugin Hooks** | | |
-| Commands (ev_to_mud_data_modify) | `src/bastproxy/plugins/core/commands/plugin/_commands.py` | 1224-1260 |
-| Triggers (ev_to_client_data_modify) | `src/bastproxy/plugins/core/triggers/plugin/_triggers.py` | 652-692 |
+| Issue | Gap |
+|-------|-----|
+| #45 | A record whose `_exec_()` raises stays on the active stack; later records get it as their parent |
+| #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; appended lines get no parent |
+| #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
+| #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
+| #51 | The read events pass strings, not `NetworkDataLine` records |
+| #52 | `client_read` strips leading whitespace from client input |
+| #43 | Planned replacement of the record tracking with pydatatracker |
 
 ## Best Practices
 
-### Event Registration
-1. Use descriptive function names starting with `_eventcb_`
-2. Choose appropriate priority (default 50 is usually fine)
-3. Always get event record via API, not from parameters
-4. Check for `None` event record before processing
+### Event callbacks
 
-### Data Modification
-1. **Check origin**: Use `line.frommud`, `line.fromclient`, `line.internal`
-2. **Use noansi**: Search/match against `line.noansi`, modify `line.line`
-3. **Preserve structure**: Don't add/remove line endings manually
-4. **Set flags**: Use `line.send = False` instead of removing from list
-
-### Performance
-1. Skip processing early if line doesn't match criteria
-2. Cache API lookups when used in loops
-3. Use batch operations when modifying multiple lines
-4. Don't block the event loop with synchronous operations
+1. Name callbacks `_eventcb_<what>` and register them with `@RegisterToEvent`
+2. Get the record with `plugins.core.events:get.current.event.record` and return early when it is `None`
+3. Check the origin first: `line.frommud`, `line.fromclient`, `line.internal`
+4. Match against `line.noansi`, change `line.line`
+5. Gag with `line.send = False`. Don't remove lines from the list
+6. Don't add line endings: `format()` does it at send time
+7. Keep callbacks fast and non-blocking. They run synchronously inside the pipeline, once per line
 
 ### Debugging
-1. Use `LogRecord` with appropriate sources
-2. Check `line.updates` to see modification history
-3. Trace data through parent chain
-4. Use data loggers (`data.client.*`, `data.mud`) for raw I/O
+
+1. Load `plugins.debug.records` and follow a record's tree and updates (see [Inspecting records](#inspecting-records))
+2. Use `LogRecord(..., sources=[...])()`. A `LogRecord` without `sources` is not logged (#46)
+3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log
