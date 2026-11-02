@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793653988121,
+  "lastUpdate": 1793654643197,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1288,6 +1288,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000009613935933937068",
             "extra": "mean: 292.37787273243646 usec\nrounds: 3528"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d937b949f0eef5c4ac8f33fae612dff46af79fc7",
+          "message": "fix: trim UpdateManager uid_mapping when the deque evicts an update (merges PR #87, addresses #84)\n\nWhen the 1000-entry deque was full, append() dropped the oldest update\nbut its uid_mapping entry stayed, so get_update() returned updates the\nrecord no longer listed and the dict grew without bound. add() now\nremoves the evicted update's mapping first.\n\nAddresses #84\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T21:23:18Z",
+          "tree_id": "3927ada8e493bc91c944f94409e99f4aa7dcb575",
+          "url": "https://github.com/endavis/bastproxy/commit/d937b949f0eef5c4ac8f33fae612dff46af79fc7"
+        },
+        "date": 1793654642365,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 304.06807354403827,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001929504551037061",
+            "extra": "mean: 3.28873724999994 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 9516.309312587682,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009007492765212996",
+            "extra": "mean: 105.08275500011877 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 287.34758168346144,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011353410364386369",
+            "extra": "mean: 3.4801058500001147 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 614.3656568615469,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0003428710130736306",
+            "extra": "mean: 1.6276951499998304 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2782.7494451948533,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011290022907752174",
+            "extra": "mean: 359.3568230610062 usec\nrounds: 2888"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2354.1610959743743,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000016068455825758408",
+            "extra": "mean: 424.77976622330743 usec\nrounds: 2481"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4602.495034538579,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010558707773850709",
+            "extra": "mean: 217.2734554835331 usec\nrounds: 4942"
           }
         ]
       }
