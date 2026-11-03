@@ -97,7 +97,7 @@ Every item in the issue's Description, with its current state.
 | Double-quoted name, author and purpose not parsed | **Fixed** | #119, PR #120 |
 | `_baseplugin` layout is flat | **Still open** | #94 |
 | Two test plugins use a layout the loader cannot import | **Fixed** (#98): all three affected test plugins moved | #98, see [PS-11](#ps-11-test-plugins-with-an-unloadable-layout) |
-| `patch()` copies functions onto `Plugin`; the loader skips patching on reload, so patched functions come from whichever copy loaded first | **Still true**, new details | PS-7 |
+| `patch()` copies functions onto `Plugin`; the loader skips patching on reload, so patched functions come from whichever copy loaded first | **Fixed** (#131): replaced by the `Settings` mixin, `patch()` removed | #131, PS-7 |
 | 36 `@RegisterPluginHook` uses with priorities: is the order documented and tested? | **Documented now; still untested** | Q3, PS-6 |
 | `attributes_to_save_on_reload`, `can_reload_f`, `reload_dependents_f` | **Partly broken** | PS-4, Q1 |
 | What other plugins keep pointing at an unloaded plugin | **No stale references found** among bundled plugins (no plugin stores a plugin instance); the event history keeps one alive, see PS-8 | PS-8 |
@@ -155,14 +155,14 @@ Two limits of reload:
 
 ## Q2: What Does patch() Do?
 
-`patch(full_import_location, override=False)` in `src/bastproxy/plugins/_baseplugin/_patch.py`
+`patch(full_import_location, override=False)` in `_patch.py` (removed, in `_baseplugin`)
 imports (or finds in `sys.modules`) a module, and for every module attribute that is a
 function whose attribute name starts with `_`, runs `setattr(Plugin, func.__name__, func)` on
 the **`Plugin` class in `_base.py`** (not on `BasePlugin`). If anything was added after startup
 it raises `ev_baseplugin_patched`. The loader calls it in `_import_single_plugin` for the first
 `_patch_base.py` found in the plugin package, and skips it when `has_been_reloaded` is set.
 
-Only `src/bastproxy/plugins/core/settings/_patch_base.py` uses it. It adds the `set` command
+Only `_patch_base.py` (removed, in the settings plugin) uses it. It adds the `set` command
 (`_command_settings_plugin_set`) and the `initialize` hook `_phook_settings_post_initialize`
 (priority 75) to every plugin.
 
@@ -224,7 +224,7 @@ priority.
 | `__init__` | 75 | `_phook_base_init` | Adds the APIs again |
 | `initialize` | 1 | `_phook_base_initialize` | Adds the `_version` setting, registers the disconnect callback, adds `ev_<id>_savestate` |
 | `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enables the `reset` command |
-| `initialize` | 75 | `_phook_settings_post_initialize` (patched in) | `settings:initialize.plugin.settings` |
+| `initialize` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | `settings:initialize.plugin.settings` |
 | `initialize` | 90 | `_phook_base_post_initialize_update_version` | Runs `version_functions` for a version bump |
 | `initialize` | 91 | `_phook_base_post_initialize_setup` | Adds APIs again, flags the plugin loaded, adds `ev_<id>_loaded`/`_unloaded`, raises the loaded events (not at startup) |
 | `uninitialize` | 100 | `_phook_base_unitialize_hook` | Saves, caches reload attributes, raises the unloaded events, removes the APIs |
@@ -435,9 +435,11 @@ priority order, tie order and `get.plugin.hooks`.
 
 ### PS-7: `patch()` has silent failure modes and one user
 
+**Status:** fixed in the PR for #131; the `set` command and the settings `initialize` hook are now the `Settings` mixin on `BasePlugin` (`src/bastproxy/plugins/_baseplugin/_settings.py`). `patch()`, `modules_patched`, the loader's `_patch_base.py` branch, `PluginInfo.has_been_reloaded` and the two `ev_baseplugin_patched` handlers are removed. Breaking for plugins that shipped a `_patch_base.py`.
+
 **Issue:** [#131](https://github.com/endavis/bastproxy/issues/131)
 **Location:** `_patch.py` `patch`; `loader.py` `_import_single_plugin`;
-`src/bastproxy/plugins/core/settings/_patch_base.py`.
+`_patch_base.py` (removed, in the settings plugin).
 
 **Evidence (verified):** see the table in Q2: `override=True` never overrides; a second patch
 of the same name returns `True` while skipping it; a patch function named `_command_help`

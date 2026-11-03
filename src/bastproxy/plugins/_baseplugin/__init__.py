@@ -9,13 +9,13 @@
 their base class.
 """
 
-__all__ = ["BasePlugin", "RegisterPluginHook", "patch"]
+__all__ = ["BasePlugin", "RegisterPluginHook"]
 
 from ._base import Plugin
 from ._commands import Commands
-from ._patch import patch
 from ._pluginhooks import RegisterPluginHook
+from ._settings import Settings
 
 
-class BasePlugin(Plugin, Commands):
+class BasePlugin(Plugin, Commands, Settings):
     pass
