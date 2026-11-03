@@ -104,6 +104,7 @@ nav:
       - Overview: claude/README.md
       - Data Flow: claude/data_flow.md
       - Plugin System: claude/plugin_system.md
+      - Plugin System Findings: claude/plugin_system_findings.md
       - API System: claude/api_system.md
       - Event System: claude/event_system.md
       - Event System Findings: claude/event_system_findings.md

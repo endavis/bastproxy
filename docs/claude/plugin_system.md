@@ -17,6 +17,8 @@ The plugin system in bastproxy is a modular architecture that allows functionali
 
 Each plugin is a Python package with a specific structure, metadata, and lifecycle. The system tracks plugin states, dependencies, file changes, and provides comprehensive loading/unloading mechanics.
 
+Known defects and design notes are in [Plugin System Findings](plugin_system_findings.md).
+
 ## Key Components
 
 ### BasePlugin Class
@@ -37,10 +39,11 @@ Key attributes:
 - **plugin_id**: Unique identifier (e.g., `plugins.core.events`)
 - **plugin_info**: Metadata and runtime information
 - **api**: API instance for registering and calling functions
-- **can_reload_f**: Whether the plugin can be reloaded
+- **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `unload.plugin`)
 - **can_reset_f**: Whether the plugin can be reset
-- **is_reloading_f**: Flag indicating plugin is being reloaded
-- **attributes_to_save_on_reload**: List of attributes to preserve during reload
+- **reload_dependents_f**: Whether reloading the plugin also reloads the plugins that depend on it
+- **is_reloading_f**: Set by the `<plugin_id>:set.reload` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
+- **attributes_to_save_on_reload**: List of attributes to preserve during reload (see [Reloading](#7-reloading))
 
 ### PluginLoader Class
 **Location**: `src/bastproxy/libs/plugins/loader.py`
@@ -82,11 +85,17 @@ class PluginInfo:
         self.is_required = False
         self.is_plugin = False
         self.is_valid_python_code = True
+        self.has_been_reloaded = False  # set by unload; skips _patch_base.py patching
         self.package_path = Path()
+        self.package_import_location = ""  # e.g. "bastproxy.plugins.core.events"
         self.data_directory = Path()
         self.runtime_info = PluginRuntimeInfo()
+        self.import_errors = []
         self.files = {}  # Track all Python files in the plugin
 ```
+
+The plugin class is imported from `plugin_class_import_location`, which is
+`package_import_location + ".plugin"`.
 
 Tracks:
 - Plugin metadata (name, author, version, purpose, dependencies)
@@ -149,7 +158,7 @@ PLUGIN_NAME = 'My Plugin'
 PLUGIN_AUTHOR = 'Your Name'
 PLUGIN_VERSION = 1
 PLUGIN_PURPOSE = 'Description of what this plugin does'
-PLUGIN_REQUIRED = False  # Whether this plugin is required to be loaded
+PLUGIN_REQUIRED = False
 PLUGIN_DEPENDENCIES = ['plugins.core.events']  # optional, see Dependencies
 ```
 
@@ -158,8 +167,15 @@ Metadata fields:
 - **PLUGIN_AUTHOR**: Plugin author
 - **PLUGIN_VERSION**: Integer version number
 - **PLUGIN_PURPOSE**: Brief description
-- **PLUGIN_REQUIRED**: Boolean indicating if the plugin is required
+- **PLUGIN_REQUIRED**: `True` marks the plugin as required. It only changes how the plugin is
+  shown in the plugin list (and all `plugins.core` plugins count as required); nothing refuses to
+  unload it. Use `can_reload_f = False` to block unloading.
 - **PLUGIN_DEPENDENCIES**: Optional list of plugin IDs that must be loaded first (see [Dependencies](#dependencies))
+
+The name, author, purpose, version and required lines are read with one regular expression per
+line, so each must be a single line with nothing after the value. A trailing comment on
+`PLUGIN_VERSION` raises an error during discovery, and on the others hides the value. Put
+comments on their own line. See [Plugin System Findings](plugin_system_findings.md#ps-5-one-badly-formatted-metadata-line-aborts-discovery).
 
 ### Plugin Class (plugin/__init__.py)
 
@@ -181,6 +197,19 @@ class Plugin(BasePlugin):
     def _api_my_function(self, arg):
         """Perform some action."""
         return arg
+```
+
+Attributes listed in `attributes_to_save_on_reload` are restored inside `BasePlugin.__init__`
+(the `__init__` hook at priority 75). A default assigned in the subclass `__init__` after
+`super().__init__()` overwrites the restored value, so set both the list and the defaults in an
+`__init__` plugin hook with a priority below 75, as the bundled plugins do:
+
+```python
+class Plugin(BasePlugin):
+    @RegisterPluginHook("__init__")
+    def _phook_init_plugin(self):
+        self.attributes_to_save_on_reload = ["clients"]
+        self.clients = {}
 ```
 
 ## User Plugins
@@ -236,32 +265,38 @@ For each directory found, it creates a `PluginInfo` object and extracts metadata
 
 ### 2. Loading
 
-When a plugin is loaded:
+`libs.plugins.loader:load.plugins` loads a list of plugins in three passes over the whole list
+(after ordering it so dependencies come first, see [Dependencies](#dependencies)):
 
-1. **Import**: The plugin package is imported
+1. **Import** (each plugin): the plugin class module is imported once
    ```python
-   plugin_module = importlib.import_module(plugin_info.package_import_location)
+   return_info = imputils.importmodule(plugin_info.plugin_class_import_location)
    ```
+   `importmodule` returns the module if it is already in `sys.modules`. Importing the `.plugin`
+   module imports the package first. If the package contains a `_patch_base.py` and the plugin
+   has not been unloaded before, `patch()` then copies its private functions onto the base
+   class (see [Patching](#patching-the-base-class)).
 
-2. **Class Import**: The Plugin class is imported
+2. **Instantiation** (each plugin): the plugin is instantiated
    ```python
-   plugin_class_module = importlib.import_module(plugin_info.plugin_class_import_location)
+   plugin_module = sys.modules[plugin_info.plugin_class_import_location]
+   plugin_instance = plugin_module.Plugin(plugin_id, plugin_info)
    ```
+   The `__init__` plugin hooks run inside the base `__init__`, in priority order. The base
+   class registers the plugin's APIs there.
 
-3. **Instantiation**: The plugin is instantiated
-   ```python
-   plugin_instance = plugin_class_module.Plugin(plugin_id, plugin_info)
-   ```
+3. **Initialization** (each plugin, dependencies first): `initialize()` runs the `initialize`
+   hooks. Its last base hook (priority 91) flags the plugin loaded, adds the
+   `ev_<plugin_id>_loaded` and `ev_<plugin_id>_unloaded` events and, unless the proxy is
+   starting up, raises `ev_<plugin_id>_loaded` and `ev_plugin_loaded`.
 
-4. **Hook Processing**: `__init__` plugin hooks are executed in priority order
-
-5. **API Registration**: Plugin APIs are automatically discovered and registered
-
-6. **Event Notification**: `ev_plugin_loaded` event is raised
+A plugin that fails any pass is reported in `bad_plugins`, and so is everything that depends
+on it. See the [findings](plugin_system_findings.md#ps-1-a-failed-load-leaves-registrations-behind)
+for what a failed load does not clean up.
 
 ### 3. Initialization
 
-After loading, plugins can have custom initialization:
+Plugins add their own initialization with an `initialize` hook:
 
 ```python
 class Plugin(BasePlugin):
@@ -271,7 +306,9 @@ class Plugin(BasePlugin):
         LogRecord("Initializing my plugin", sources=[self.plugin_id])()
 ```
 
-The `initialize` hook is called after all plugins are loaded.
+`initialize` runs after every plugin in the same `load.plugins` call has been imported and
+instantiated, and after the plugin's declared dependencies have been initialized. Other plugins
+in the batch that are not dependencies may not be initialized yet.
 
 ### 4. Runtime
 
@@ -295,13 +332,15 @@ class Plugin(BasePlugin):
         pass
 ```
 
-The `ev_plugin_save` event triggers the save hook.
+The `save.state` API (`<plugin_id>:save.state`, also the `save` command) runs the `save` hooks,
+then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 ### 6. Unloading
 
-When a plugin is unloaded:
+`libs.plugins.loader:unload.plugin` refuses when `can_reload_f` is false. Otherwise:
 
-1. **Uninitialize Hook**: `uninitialize` plugin hooks are executed
+1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
+   plugin is flagged loaded. A plugin that failed to load is not uninitialized.
    ```python
    @RegisterPluginHook("uninitialize", priority=50)
    def _phook_uninitialize(self):
@@ -309,39 +348,55 @@ When a plugin is unloaded:
        pass
    ```
 
-2. **API Removal**: All plugin APIs are removed
-   ```python
-   self.api("libs.api:remove")(plugin_id)
-   ```
+2. **Base uninitialize hook** (priority 100, always last):
+   - calls `save.state`
+   - caches `attributes_to_save_on_reload` if `is_reloading_f` is set
+   - raises `ev_<plugin_id>_unloaded` and `ev_plugin_unloaded`
+   - removes the plugin's APIs with `libs.api:remove`
 
-3. **Event Unregistration**: All event registrations are removed
+3. **`ev_plugin_unloaded` handlers** do the per-subsystem cleanup, each for the plugin ID in
+   the event: the events plugin removes the plugin's event registrations, the commands plugin
+   its command data, the settings plugin its settings (after saving), and the timers,
+   triggers, watch and cmdq plugins theirs. Event *definitions* the plugin added with
+   `add.event` are not removed.
 
-4. **Event Notification**: `ev_plugin_unloaded` event is raised
-
-5. **Module Cleanup**: Weak references to modules are maintained for garbage collection
+4. **Loader bookkeeping**: the plugin is removed from the `pluginstoload` setting, the
+   instance is deleted, every module under the plugin package is deleted from `sys.modules`
+   unless it sets `CANRELOAD = False`, a weak reference to each deleted module is kept (see
+   `get.unloaded.plugins.in.memory`), `has_been_reloaded` is set and the runtime info is reset.
 
 ### 7. Reloading
 
-Reloading a plugin:
+`libs.plugins.loader:reload.plugin`:
 
-1. **Save Attributes**: Specified attributes are cached
+1. **Check**: if the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set.
+
+2. **Unload**: dependents furthest first, then the plugin (see above). The `reload` command calls `<plugin_id>:set.reload` first, which sets `is_reloading_f`; the attributes named in `attributes_to_save_on_reload` are only cached in that case.
    ```python
-   # In plugin
+   # In a plugin's __init__ plugin hook, below priority 75
    self.attributes_to_save_on_reload = ['some_state', 'other_data']
    ```
 
-2. **Reload dependents**: If the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set. Dependents are unloaded furthest first, then the plugin; one load call then loads them again with dependencies first.
+3. **Load**: one `load.plugins` call loads them all again with dependencies first. The modules
+   were deleted from `sys.modules` on unload, so the edited code is imported fresh;
+   `importlib.reload` is not used.
 
-3. **Unload**: Plugin is unloaded (see above)
+4. **Restore Attributes**: the base `__init__` hook at priority 75 sets the cached attributes
+   on the new instance and clears the cache.
 
-4. **Module Reload**: Python modules are reloaded
-   ```python
-   importlib.reload(module)
-   ```
+Entries in `pluginstoload` are put back after the reload. `reload.plugin` returns `True` only if
+everything unloaded and loaded again.
 
-5. **Load**: Plugin is loaded again (see above)
+### Patching the base class
 
-6. **Restore Attributes**: Cached attributes are restored from the reload cache
+A plugin package may contain a `_patch_base.py`. When the plugin is first imported,
+`_baseplugin.patch()` copies each function in it whose name starts with `_` onto the base
+`Plugin` class with `setattr`, skipping names that already exist on that class, and raises
+`ev_baseplugin_patched` if it added anything after startup. It is applied once per process:
+after a plugin has been unloaded the loader does not patch again. Only
+`src/bastproxy/plugins/core/settings/_patch_base.py` uses it. See
+[Plugin System Findings](plugin_system_findings.md#q2-what-does-patch-do) for the failure modes
+before using it for anything new.
 
 ## Plugin Hooks
 
@@ -349,21 +404,41 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
 
 ### Available Hooks
 
-1. **`__init__`**: Called during `Plugin.__init__()`, after base initialization
-   - Use for: Early API registration, basic setup
+1. **`__init__`**: Called at the end of the base `Plugin.__init__()`; the base class's own `__init__` hooks (priority 1 and 75) are among them
+   - Use for: Defaults, `attributes_to_save_on_reload`, creating objects that have APIs
    - Priority order matters
 
-2. **`initialize`**: Called after all plugins are loaded
+2. **`initialize`**: Called by the loader once the plugin and every plugin in the same load call has been instantiated, dependencies first
    - Use for: Setup that requires other plugins to be available
    - Cross-plugin initialization
 
-3. **`save`**: Called when plugin state should be saved
+3. **`save`**: Called by the `save.state` API
    - Use for: Persisting data to disk
-   - Triggered by `ev_plugin_save` event
+   - `save.state` then raises `ev_<plugin_id>_save` and `ev_plugin_save`
 
 4. **`uninitialize`**: Called before plugin is unloaded
    - Use for: Cleanup, closing connections, saving state
    - Graceful shutdown
+
+The hook name is not validated: a misspelled name registers and never runs.
+
+### Base Class Hooks
+
+The base class registers these, which sets the order a plugin's own hooks run against:
+
+| Hook | Priority | Method | Purpose |
+| :--- | ---: | :--- | :--- |
+| `__init__` | 1 | `_phook_base_init_add_apis` | Add the plugin's APIs |
+| `__init__` | 75 | `_phook_base_init` | Add APIs again, restore reload attributes |
+| `initialize` | 1 | `_phook_base_initialize` | `_version` setting, disconnect callback, `ev_<id>_savestate` |
+| `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enable the `reset` command |
+| `initialize` | 75 | `_phook_settings_post_initialize` | Initialize the plugin's settings (added by `_patch_base.py`) |
+| `initialize` | 90 | `_phook_base_post_initialize_update_version` | Run `version_functions` after a version bump |
+| `initialize` | 91 | `_phook_base_post_initialize_setup` | Add APIs, flag the plugin loaded, raise the loaded events |
+| `uninitialize` | 100 | `_phook_base_unitialize_hook` | Save, cache reload attributes, raise the unloaded events, remove APIs |
+
+The default priority is 50. A plugin must call `plugins.core.settings:add` before priority 75
+and its `uninitialize` hooks run before the base hook at 100.
 
 ### Using Plugin Hooks
 
@@ -403,8 +478,12 @@ class Plugin(BasePlugin):
 ### Hook Execution Order
 
 - Hooks are executed in priority order (lower numbers first)
-- Multiple hooks at the same priority are executed in the order they're discovered
-- Hook functions must start with `_phook_` to be discovered
+- Multiple hooks at the same priority are executed in alphabetical order of the method name
+- Hook functions must start with `_phook_` to run
+- A hook that raises in `__init__` fails the load; in `initialize` the loader unloads the plugin;
+  in `uninitialize` the unload stops and returns `False`
+- `<plugin_id>:get.plugin.hooks` lists hooks but drops all but one of the hooks that share a
+  priority (see [findings](plugin_system_findings.md#ps-6-getpluginhooks-drops-hooks-that-share-a-priority))
 
 ## Dependencies
 
@@ -480,7 +559,7 @@ Each plugin has a data directory for persistent storage:
 ```python
 # Get the data directory
 data_dir = self.api(f"{self.plugin_id}:get.data.directory")()
-# Returns: Path to data/<plugin_id>/
+# Returns: Path to $BASTPROXY_HOME/data/plugins/<plugin_id>
 ```
 
 ## Common Plugin Patterns
@@ -507,7 +586,7 @@ class Plugin(BasePlugin):
 ### Listening to Events
 
 ```python
-from bastproxy.libs.events import RegisterToEvent
+from bastproxy.plugins.core.events import RegisterToEvent
 
 class Plugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_mud_data_modify", priority=50)
@@ -566,7 +645,8 @@ class Plugin(BasePlugin):
 - `src/bastproxy/plugins/_baseplugin/_pluginhooks.py` - RegisterPluginHook decorator
 - `src/bastproxy/plugins/_baseplugin/_commands.py` - Command-related base functionality
 - `src/bastproxy/plugins/_baseplugin/_patch.py` - Plugin patching mechanics
-- `src/bastproxy/plugins/_baseplugin/__init__.py` - Exports BasePlugin
+- `src/bastproxy/plugins/_baseplugin/__init__.py` - Exports `BasePlugin`, `RegisterPluginHook` and `patch`
+- `src/bastproxy/plugins/core/settings/_patch_base.py` - The only `_patch_base.py`: the `set` command and the settings `initialize` hook
 
 ### Plugin Loader
 - `src/bastproxy/libs/plugins/loader.py` - PluginLoader class
@@ -588,24 +668,37 @@ class Plugin(BasePlugin):
 - `libs.plugins.loader:is.plugin.instantiated` - Check if plugin has instance
 - `libs.plugins.loader:get.plugin.info` - Get PluginInfo for a plugin
 - `libs.plugins.loader:does.plugin.exist` - Check if plugin exists
+- `libs.plugins.loader:is.plugin.id` - Check if a string is a plugin ID
 - `libs.plugins.loader:get.not.loaded.plugins` - Get unloaded plugins
+- `libs.plugins.loader:get.packages.list` - Get the plugin packages
+- `libs.plugins.loader:get.plugins.in.package` - Get the loaded plugins in a package
+- `libs.plugins.loader:fuzzy.match.plugin.id` - Find a plugin ID from a partial string
+- `libs.plugins.loader:plugin.get.changed.files` - Files changed since the plugin loaded
+- `libs.plugins.loader:plugin.get.invalid.python.files` - Files with invalid Python syntax
+- `libs.plugins.loader:get.unloaded.plugins.in.memory` - Modules kept by weak reference after unload
+- `libs.plugins.loader:set.plugin.is.loaded` - Flag a plugin loaded (called by the base class)
+- `libs.plugins.reloadutils:add.cache`, `get.plugin.cache`, `remove.plugin.cache` - The reload cache
 
 ### Plugin Instance APIs
 - `<plugin_id>:data.get` - Get plugin data
 - `<plugin_id>:data.update` - Update plugin data
 - `<plugin_id>:get.data.directory` - Get plugin's data directory
-- `<plugin_id>:set.reload` - Set reload flag
+- `<plugin_id>:set.reload` - Set the `is_reloading_f` flag so reload attributes are cached
 - `<plugin_id>:get.plugin.hooks` - Get plugin hooks
+- `<plugin_id>:save.state` - Run the `save` hooks and raise the save events
+- `<plugin_id>:reset` - Raise `ev_plugin_reset`
 - `<plugin_id>:dump` - Dump plugin state
 
 ## Events
 
 ### Plugin Lifecycle Events
-- `ev_plugin_loaded` - A plugin was loaded
-- `ev_plugin_unloaded` - A plugin was unloaded
+- `ev_plugin_loaded` - A plugin was loaded (raised at the end of `initialize`, not at startup)
+- `ev_plugin_unloaded` - A plugin was unloaded (subsystems remove the plugin's data on this)
 - `ev_plugin_save` - Plugins should save their state
 - `ev_plugin_reset` - A plugin should reset to defaults
-- `ev_baseplugin_patched` - BasePlugin class was reloaded
+- `ev_baseplugin_patched` - `patch()` added functions to the base class after startup
+- `ev_<plugin_id>_loaded`, `ev_<plugin_id>_unloaded`, `ev_<plugin_id>_save`, `ev_<plugin_id>_savestate` - Per-plugin versions
+- `ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded` - Raised once after the startup load
 
 ## Best Practices
 
@@ -623,7 +716,7 @@ class Plugin(BasePlugin):
 4. **Fail Gracefully**: Handle missing dependencies
 
 ### Reloading
-1. **Save State**: Use `attributes_to_save_on_reload` for important state
+1. **Save State**: Use `attributes_to_save_on_reload` for important state, set in an `__init__` plugin hook below priority 75
 2. **Clean Up**: Implement `uninitialize` hook for cleanup
 3. **Test Reloads**: Ensure plugin can be reloaded without issues
 
