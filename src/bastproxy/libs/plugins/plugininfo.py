@@ -239,52 +239,45 @@ class PluginInfo:
         oldfiles = self.files
         self.files = {}
         for file in self.package_path.rglob("*.py"):
-            if "__init__" not in file.name:
-                if str(file.relative_to(self.package_path)) == file.name:
-                    parent_dir = "."
-                    parent_dir_imp_loc = ""
-                else:
-                    parent_dir = file.parent.name
-                    parent_dir_imp_loc = file.parent.name
-                if parent_dir not in self.files:
-                    self.files[parent_dir] = {"files": {}}
-                file_modified_time = datetime.datetime.fromtimestamp(
-                    file.stat().st_mtime, tz=datetime.UTC
+            rel_parent = file.parent.relative_to(self.package_path)
+            parent_dir = rel_parent.as_posix()  # "." for the package root
+            parent_dir_imp_loc = "" if parent_dir == "." else ".".join(rel_parent.parts)
+            if parent_dir not in self.files:
+                self.files[parent_dir] = {"files": {}}
+            file_modified_time = datetime.datetime.fromtimestamp(
+                file.stat().st_mtime, tz=datetime.UTC
+            )
+            has_changed = bool(
+                self.runtime_info.is_loaded and file_modified_time > self.runtime_info.imported_time
+            )
+
+            cached = oldfiles.get(parent_dir, {}).get("files", {}).get(file.name)
+            if cached is not None and file_modified_time == cached["modified_time"]:
+                cached["has_changed"] = has_changed
+                self.is_valid_python_code = (
+                    not cached["invalid_python_code"] and self.is_valid_python_code
                 )
-                if (
-                    parent_dir in oldfiles
-                    and file.name in oldfiles[parent_dir]
-                    and file_modified_time == oldfiles[parent_dir][file.name]["modified_time"]
-                ):
-                    self.files[parent_dir][file.name] = oldfiles[parent_dir][file.name]
-                    continue
+                self.files[parent_dir]["files"][file.name] = cached
+                continue
 
-                success, exception = self.check_file_is_valid_python_code(file)
-                self.is_valid_python_code = success and self.is_valid_python_code
+            success, exception = self.check_file_is_valid_python_code(file)
+            self.is_valid_python_code = success and self.is_valid_python_code
 
-                has_changed = False
-                if (
-                    self.runtime_info.is_loaded
-                    and file_modified_time > self.runtime_info.imported_time
-                ):
-                    has_changed = True
+            module_parts = [self.package_import_location]
+            if parent_dir_imp_loc:
+                module_parts.append(parent_dir_imp_loc)
+            if file.name != "__init__.py":
+                module_parts.append(file.stem)
+            full_import_location = ".".join(module_parts)
 
-                full_import_location = (
-                    f"{self.package_import_location}"
-                    f"{f'.{parent_dir_imp_loc}' if parent_dir_imp_loc else ''}."
-                    f"{file.name.replace('.py', '')}"
-                )
-
-                file_info = {
-                    "modified_time": file_modified_time,
-                    "invalid_python_code": not success,
-                    "exception": exception,
-                    "has_changed": has_changed,
-                    "full_import_location": full_import_location,
-                    "full_path": file,
-                }
-
-                self.files[parent_dir]["files"][file.name] = file_info
+            self.files[parent_dir]["files"][file.name] = {
+                "modified_time": file_modified_time,
+                "invalid_python_code": not success,
+                "exception": exception,
+                "has_changed": has_changed,
+                "full_import_location": full_import_location,
+                "full_path": file,
+            }
 
         return self.files
 
