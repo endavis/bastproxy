@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793710281077,
+  "lastUpdate": 1793711627311,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3186,6 +3186,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000009196595500346171",
             "extra": "mean: 293.90800113632366 usec\nrounds: 3520"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a799757ad35c51ca4d90dc09b6e7afee3531cd4",
+          "message": "fix: let add.timer accept a plugin_id for a plugin that is not loaded yet (merges PR #150, addresses #144)\n\n_api_add_timer looked the plugin up through get.plugin.instance, which\nreturns None until the loader marks the plugin loaded, so a plugin naming\nitself during startup raised AttributeError. Use a string id as-is and\nread .plugin_id only from a BasePlugin instance; is.plugin.id still\nvalidates it.\n\nAddresses #144\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T13:13:02Z",
+          "tree_id": "b904f347c194f48ea44ad123d0618d73879e7e27",
+          "url": "https://github.com/endavis/bastproxy/commit/4a799757ad35c51ca4d90dc09b6e7afee3531cd4"
+        },
+        "date": 1793711626917,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 223.08316211236985,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0008533207880622452",
+            "extra": "mean: 4.482633249999779 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7195.172729841992,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013006811042524499",
+            "extra": "mean: 138.9820699998623 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 223.78955975609244,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008988604902582261",
+            "extra": "mean: 4.468483699998771 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 548.9354700281314,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000539052969944487",
+            "extra": "mean: 1.8217077499997458 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2173.221843620363,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000016928090718932557",
+            "extra": "mean: 460.1463044077007 usec\nrounds: 2178"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1907.6768019159956,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011908986314809741",
+            "extra": "mean: 524.1978090815171 usec\nrounds: 1938"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3450.888505801427,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007899839523122502",
+            "extra": "mean: 289.7804430131138 usec\nrounds: 3571"
           }
         ]
       }
