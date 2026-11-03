@@ -60,14 +60,6 @@ class EventsPlugin(BasePlugin):
         self._register_all_plugin_events()
         self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_all_events_registered")
 
-    @RegisterToEvent(event_name="ev_baseplugin_patched")
-    def _eventcb_baseplugin_patched(self):
-        """A plugin was patched, so reload all events."""
-        if self.api.startup:
-            return
-
-        self._register_all_plugin_events()
-
     def _register_all_plugin_events(self):
         """Add commands on startup."""
         LogRecord(

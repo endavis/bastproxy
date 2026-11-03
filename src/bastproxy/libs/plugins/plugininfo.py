@@ -107,7 +107,6 @@ class PluginInfo:
         self.is_required: bool = False
         self.is_plugin: bool = False
         self.is_valid_python_code: bool = True
-        self.has_been_reloaded: bool = False
         self.files: dict = {}
 
         self.data_directory: Path = Path()

@@ -251,16 +251,6 @@ class CommandsPlugin(BasePlugin):
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
 
-    @RegisterToEvent(event_name="ev_baseplugin_patched")
-    def _eventcb_commands_baseplugin_patched(self):
-        """The base plugin was patched."""
-        LogRecord(
-            "commands - _eventcb_commands_baseplugin_patched: baseplugin patched, adding commands",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
-        self._add_commands_for_all_plugins()
-
     def _add_commands_for_all_plugins(self):
         """Add commands for all loaded plugins."""
         LogRecord(

@@ -52,7 +52,7 @@ from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins.dependency import PluginDependencyResolver
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.libs.records import LogRecord
-from bastproxy.plugins._baseplugin import BasePlugin, patch
+from bastproxy.plugins._baseplugin import BasePlugin
 
 USER_PLUGIN_IMPORT_ROOT = "userplugins"
 PLUGIN_ID_PREFIX = "plugins."
@@ -630,8 +630,7 @@ class PluginLoader:
 
         This method imports a single plugin based on the provided plugin ID. It
         attempts to import the plugin module, handles any import errors, and logs
-        the process. If the plugin has a patch file, it applies the patch to the
-        base plugin.
+        the process.
 
         Args:
             plugin_id: The ID of the plugin to import.
@@ -674,36 +673,6 @@ class PluginLoader:
         plugin_info.runtime_info.imported_time = datetime.datetime.now(datetime.UTC)
 
         LogRecord(f"{plugin_id:<30} : imported successfully", level="info", sources=[__name__])()
-
-        # check for patches to the base plugin
-        if (
-            patch_file := plugin_info.find_file_by_name("_patch_base.py")
-        ) and not plugin_info.has_been_reloaded:
-            if len(patch_file) > 1:
-                LogRecord(
-                    f"{plugin_id:<30} : found more than one _patch_base.py file, only "
-                    "the first will be used",
-                    level="warning",
-                    sources=[__name__],
-                )()
-            patch_file = patch_file[0]
-            LogRecord(
-                f"{plugin_id:<30} : attempting to patch base",
-                level="info",
-                sources=[__name__],
-            )()
-            if patch(patch_file["full_import_location"]):
-                LogRecord(
-                    f"{plugin_id:<30} : patching base successful",
-                    level="info",
-                    sources=[__name__],
-                )()
-            else:
-                LogRecord(
-                    f"{plugin_id:<30} : patching base failed",
-                    level="error",
-                    sources=[__name__],
-                )()
 
         return True
 
@@ -1243,8 +1212,6 @@ class PluginLoader:
                     level="error",
                     sources=[__name__, plugin_info.plugin_id],
                 )()
-
-        plugin_info.has_been_reloaded = True
 
         # set the appropriate plugin_info.runtime_info attributes to None
         plugin_info.reset_runtime_info()

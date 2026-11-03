@@ -327,7 +327,6 @@ This allows retrospective analysis of event execution.
 ## Common Event Names
 
 ### Core Events
-- `ev_baseplugin_patched` - Base plugin class was reloaded
 - `ev_plugin_loaded` - A plugin was loaded
 - `ev_plugin_unloaded` - A plugin was unloaded
 - `ev_plugin_save` - A plugin should save its state
