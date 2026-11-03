@@ -82,7 +82,7 @@ class MyPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         # Register a setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,           # Plugin ID
             "my_setting",             # Setting name
             "default_value",          # Default value
@@ -99,10 +99,10 @@ Retrieve settings anywhere in the code:
 
 ```python
 # Get a setting value
-value = self.api("plugins.core.settings:get")(plugin_id, "setting_name")
+value = self.api("plugins.core.settings:setting.get")(plugin_id, "setting_name")
 
 # Example
-max_retries = self.api("plugins.core.settings:get")(
+max_retries = self.api("plugins.core.settings:setting.get")(
     "plugins.core.proxy",
     "max_retries"
 )
@@ -114,14 +114,14 @@ Change settings programmatically or via commands:
 
 ```python
 # Change a setting
-success = self.api("plugins.core.settings:change")(
+success = self.api("plugins.core.settings:setting.set")(
     plugin_id,
     "setting_name",
     new_value
 )
 
 # Setting to "default" resets to default value
-self.api("plugins.core.settings:change")(
+self.api("plugins.core.settings:setting.set")(
     plugin_id,
     "setting_name",
     "default"
@@ -158,7 +158,7 @@ Settings are automatically persisted:
 
 Each non-hidden setting gets its own event:
 - **Event name**: `ev_{plugin_id}_var_{setting_name}_modified`
-- **When raised**: When the value of a loaded plugin's setting changes. It is not raised for hidden settings, during startup, or while the plugin is not loaded. Changes made while a plugin is loading are covered by the single `raise.event.all.settings` on `ev_plugin_loaded`.
+- **When raised**: When the value of a loaded plugin's setting changes. It is not raised for hidden settings, during startup, or while the plugin is not loaded. Changes made while a plugin is loading are covered by the single `setting.event.raise.all` on `ev_plugin_loaded`.
 - **Event args**:
   - `var`: Setting name
   - `newvalue`: New value
@@ -188,20 +188,20 @@ Settings system listens to:
 ## Common APIs
 
 ### Settings Management
-- `plugins.core.settings:add` - Register a new setting
-- `plugins.core.settings:get` - Get a setting value
-- `plugins.core.settings:change` - Change a setting value
-- `plugins.core.settings:change.from.user` - Validate user input (empty value, unknown, hidden or readonly setting) and change a setting, returning `(success, message lines)`; shared by `pset` and the per-plugin `set`
-- `plugins.core.settings:reset` - Reset all plugin settings to defaults
-- `plugins.core.settings:get.setting.info` - Get metadata for a setting
-- `plugins.core.settings:get.all.for.plugin` - Get all settings for a plugin
-- `plugins.core.settings:format.setting` - Format a setting for display
-- `plugins.core.settings:get.all.settings.formatted` - Get all settings formatted
-- `plugins.core.settings:is.setting.hidden` - Check if setting is hidden
-- `plugins.core.settings:save.plugin` - Save settings for a plugin
-- `plugins.core.settings:remove.plugin.settings` - Remove plugin settings
-- `plugins.core.settings:initialize.plugin.settings` - Initialize plugin settings
-- `plugins.core.settings:raise.event.all.settings` - Raise events for all settings
+- `plugins.core.settings:setting.add` - Register a new setting
+- `plugins.core.settings:setting.get` - Get a setting value
+- `plugins.core.settings:setting.set` - Change a setting value
+- `plugins.core.settings:setting.set.from.user` - Validate user input (empty value, unknown, hidden or readonly setting) and change a setting, returning `(success, message lines)`; shared by `pset` and the per-plugin `set`
+- `plugins.core.settings:setting.reset` - Reset all plugin settings to defaults
+- `plugins.core.settings:setting.info.get` - Get metadata for a setting
+- `plugins.core.settings:setting.list` - Get all settings for a plugin
+- `plugins.core.settings:setting.format` - Format a setting for display
+- `plugins.core.settings:setting.list.formatted` - Get all settings formatted
+- `plugins.core.settings:setting.is.hidden` - Check if setting is hidden
+- `plugins.core.settings:setting.save.for.plugin` - Save settings for a plugin
+- `plugins.core.settings:setting.remove.for.plugin` - Remove plugin settings
+- `plugins.core.settings:setting.initialize.for.plugin` - Initialize plugin settings
+- `plugins.core.settings:setting.event.raise.all` - Raise events for all settings
 
 ## Commands
 
@@ -228,7 +228,7 @@ Each plugin also gets a `set` command:
 #bp.<plugin>.set <name> <value>
 ```
 List or set settings for that specific plugin. `set` and `pset` share the
-`plugins.core.settings:change.from.user` API; `set` passes its own plugin id.
+`plugins.core.settings:setting.set.from.user` API; `set` passes its own plugin id.
 
 ## Common Patterns
 
@@ -239,7 +239,7 @@ class MyPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         # Simple string setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "server_url",
             "http://localhost",
@@ -248,7 +248,7 @@ class MyPlugin(BasePlugin):
         )
 
         # Integer setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "max_retries",
             3,
@@ -257,7 +257,7 @@ class MyPlugin(BasePlugin):
         )
 
         # Boolean setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "enable_logging",
             True,
@@ -266,7 +266,7 @@ class MyPlugin(BasePlugin):
         )
 
         # Color setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "highlight_color",
             "@R",
@@ -275,7 +275,7 @@ class MyPlugin(BasePlugin):
         )
 
         # Hidden setting (for internal use)
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "internal_state",
             "",
@@ -285,7 +285,7 @@ class MyPlugin(BasePlugin):
         )
 
         # Readonly setting
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "version",
             "1.0.0",
@@ -301,11 +301,11 @@ class MyPlugin(BasePlugin):
 class MyPlugin(BasePlugin):
     def connect_to_server(self):
         # Get settings
-        server_url = self.api("plugins.core.settings:get")(
+        server_url = self.api("plugins.core.settings:setting.get")(
             self.plugin_id,
             "server_url"
         )
-        max_retries = self.api("plugins.core.settings:get")(
+        max_retries = self.api("plugins.core.settings:setting.get")(
             self.plugin_id,
             "max_retries"
         )
@@ -354,7 +354,7 @@ class MyPlugin(BasePlugin):
 # Custom types can be added by extending that plugin
 
 # Example: Using timelength type
-self.api("plugins.core.settings:add")(
+self.api("plugins.core.settings:setting.add")(
     self.plugin_id,
     "timeout",
     "30s",
@@ -363,7 +363,7 @@ self.api("plugins.core.settings:add")(
 )
 
 # When retrieved, it's automatically validated
-timeout_seconds = self.api("plugins.core.settings:get")(
+timeout_seconds = self.api("plugins.core.settings:setting.get")(
     self.plugin_id,
     "timeout"
 )  # Returns integer seconds
@@ -425,7 +425,7 @@ timeout_seconds = self.api("plugins.core.settings:get")(
 Display additional information after a setting is changed:
 
 ```python
-self.api("plugins.core.settings:add")(
+self.api("plugins.core.settings:setting.add")(
     self.plugin_id,
     "log_level",
     "INFO",
@@ -469,7 +469,7 @@ class Plugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         # Register settings
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "api_key",
             "",
@@ -477,7 +477,7 @@ class Plugin(BasePlugin):
             "API key for external service"
         )
 
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "poll_interval",
             60,
@@ -485,7 +485,7 @@ class Plugin(BasePlugin):
             "Seconds between polling the service"
         )
 
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "enabled",
             True,
@@ -499,15 +499,15 @@ class Plugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         # Get settings and initialize
-        if self.api("plugins.core.settings:get")(self.plugin_id, "enabled"):
+        if self.api("plugins.core.settings:setting.get")(self.plugin_id, "enabled"):
             self.start_service()
 
     def start_service(self):
-        api_key = self.api("plugins.core.settings:get")(
+        api_key = self.api("plugins.core.settings:setting.get")(
             self.plugin_id,
             "api_key"
         )
-        poll_interval = self.api("plugins.core.settings:get")(
+        poll_interval = self.api("plugins.core.settings:setting.get")(
             self.plugin_id,
             "poll_interval"
         )
@@ -545,7 +545,7 @@ class Plugin(BasePlugin):
 ### Setting Not Found
 
 If settings aren't registered properly:
-- Check that `settings:add` is called during `__init__` hook
+- Check that `settings:setting.add` is called during `__init__` hook
 - Verify plugin_id is correct
 - Ensure settings system plugin is loaded
 

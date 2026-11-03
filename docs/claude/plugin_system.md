@@ -439,7 +439,7 @@ The base class registers these, which sets the order a plugin's own hooks run ag
 | `initialize` | 91 | `_phook_base_post_initialize_setup` | Add APIs, flag the plugin loaded, raise the loaded events |
 | `uninitialize` | 100 | `_phook_base_unitialize_hook` | Save, cache reload attributes, raise the unloaded events, remove APIs |
 
-The default priority is 50. A plugin must call `plugins.core.settings:add` before priority 75
+The default priority is 50. A plugin must call `plugins.core.settings:setting.add` before priority 75
 and its `uninitialize` hooks run before the base hook at 100.
 
 ### Using Plugin Hooks

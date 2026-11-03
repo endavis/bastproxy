@@ -268,7 +268,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
           the object or method
         """
         line_length = self.api("plugins.core.commands:get.output.line.length")()
-        header_color = self.api("plugins.core.settings:get")(
+        header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
         header = header_color + "-" * line_length + "@x"
@@ -319,7 +319,9 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             old_plugin_version - the version in the savestate file
             new_plugin_version - the latest version from the module
         """
-        old_plugin_version = self.api("plugins.core.settings:get")(self.plugin_id, "_version")
+        old_plugin_version = self.api("plugins.core.settings:setting.get")(
+            self.plugin_id, "_version"
+        )
 
         new_plugin_version = self.plugin_info.version
 
@@ -339,7 +341,9 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                         sources=[self.plugin_id, "plugin_upgrade"],
                     )()
 
-            self.api("plugins.core.settings:change")(self.plugin_id, "_version", new_plugin_version)
+            self.api("plugins.core.settings:setting.set")(
+                self.plugin_id, "_version", new_plugin_version
+            )
 
             self.api(f"{self.plugin_id}:save.state")()
 
@@ -444,7 +448,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @RegisterPluginHook("initialize", priority=1)
     def _phook_base_initialize(self):
         """Initialize the plugin, do most things here."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "_version", 1, int, "The version of the plugin", hidden=True
         )
 

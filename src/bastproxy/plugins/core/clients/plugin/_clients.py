@@ -68,7 +68,7 @@ class ClientPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "permbanips",
             [],
@@ -142,10 +142,12 @@ class ClientPlugin(BasePlugin):
     def _api_client_banned_add_by_ip(self, ip_address, how_long):
         """Add a banned ip."""
         if how_long == -1:
-            permbanips = self.api("plugins.core.settings:get")(self.plugin_id, "permbanips")
+            permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
             if ip_address not in permbanips:
                 permbanips.append(ip_address)
-                self.api("plugins.core.settings:change")(self.plugin_id, "permbanips", permbanips)
+                self.api("plugins.core.settings:setting.set")(
+                    self.plugin_id, "permbanips", permbanips
+                )
                 LogRecord(
                     f"{ip_address} has been banned with no expiration",
                     level="error",
@@ -171,7 +173,7 @@ class ClientPlugin(BasePlugin):
         required
           clientip - the client ip to check
         """
-        permbanips = self.api("plugins.core.settings:get")(self.plugin_id, "permbanips")
+        permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
         return clientip in self.banned or clientip in permbanips
 
     @AddAPI("client.banned.remove", description="remove a banned ip")
@@ -187,10 +189,10 @@ class ClientPlugin(BasePlugin):
             del self.banned[addr]
             LogRecord(msg, level="error", sources=[self.plugin_id])()
             return True
-        permbanips = self.api("plugins.core.settings:get")(self.plugin_id, "permbanips")
+        permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
         if addr in permbanips:
             permbanips.remove(addr)
-            self.api("plugins.core.settings:change")(self.plugin_id, "permbanips", permbanips)
+            self.api("plugins.core.settings:setting.set")(self.plugin_id, "permbanips", permbanips)
             LogRecord(msg, level="error", sources=[self.plugin_id])()
             return True
 
@@ -294,7 +296,7 @@ class ClientPlugin(BasePlugin):
         """Return the connected clients and banned ips as formatted tables."""
         tmsg: list[str] = []
 
-        color = self.api("plugins.core.settings:get")(
+        color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
 
@@ -329,7 +331,7 @@ class ClientPlugin(BasePlugin):
         banned_clients = [
             {"address": item, "until": self.banned[item].expires} for item in self.banned
         ]
-        permbanips = self.api("plugins.core.settings:get")(self.plugin_id, "permbanips")
+        permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
         banned_clients.extend({"address": item, "until": "Permanent"} for item in permbanips)
 
         if banned_clients:

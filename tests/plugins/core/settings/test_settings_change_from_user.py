@@ -1,4 +1,4 @@
-"""Tests for the settings change.from.user API and the pset command (#89)."""
+"""Tests for the settings setting.set.from.user API and the pset command (#89)."""
 
 from types import SimpleNamespace
 from typing import Any
@@ -31,9 +31,9 @@ def _stub(info: Any = None, change_error: Exception | None = None) -> MagicMock:
     infos = {PID: info if info is not None else _info()}
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:get.setting.info":
+        if name == "plugins.core.settings:setting.info.get":
             return lambda pid, _setting: infos.get(pid)
-        if name == "plugins.core.settings:change":
+        if name == "plugins.core.settings:setting.set":
             return change
         return MagicMock()
 
@@ -43,7 +43,7 @@ def _stub(info: Any = None, change_error: Exception | None = None) -> MagicMock:
 
 def test_empty_value_fails_without_changing() -> None:
     stub = _stub()
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "") == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "") == (
         False,
         ["please specify a value to set the setting to"],
     )
@@ -51,7 +51,7 @@ def test_empty_value_fails_without_changing() -> None:
 
 
 def test_unknown_name() -> None:
-    assert SettingsPlugin._api_change_from_user(_stub(), "nope", "5") == (
+    assert SettingsPlugin._api_setting_set_from_user(_stub(), "nope", "5") == (
         True,
         ["plugin setting nope does not exist"],
     )
@@ -59,7 +59,7 @@ def test_unknown_name() -> None:
 
 def test_setting_owned_by_another_plugin() -> None:
     stub = _stub()
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "5", OTHER) == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", OTHER) == (
         True,
         [f"plugin setting {OTHER} foo does not exist"],
     )
@@ -68,7 +68,7 @@ def test_setting_owned_by_another_plugin() -> None:
 
 def test_hidden_setting() -> None:
     stub = _stub(_info(hidden=True))
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "5", PID) == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", PID) == (
         True,
         [f"plugin setting {PID} foo does not exist"],
     )
@@ -77,7 +77,7 @@ def test_hidden_setting() -> None:
 
 def test_readonly_setting() -> None:
     stub = _stub(_info(readonly=True))
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "5", PID) == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", PID) == (
         True,
         ["foo is a readonly setting"],
     )
@@ -86,7 +86,7 @@ def test_readonly_setting() -> None:
 
 def test_success_uses_plugin_from_settings_map_when_empty() -> None:
     stub = _stub()
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "5") == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5") == (
         True,
         [f"{PID} : foo is now set to 5"],
     )
@@ -95,7 +95,7 @@ def test_success_uses_plugin_from_settings_map_when_empty() -> None:
 
 def test_success_with_aftersetmessage() -> None:
     stub = _stub(_info(aftersetmessage="restart needed"))
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "5", PID) == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", PID) == (
         True,
         [f"{PID} : foo is now set to 5", "\n", "restart needed"],
     )
@@ -103,7 +103,7 @@ def test_success_with_aftersetmessage() -> None:
 
 def test_value_error() -> None:
     stub = _stub(change_error=ValueError("bad"))
-    assert SettingsPlugin._api_change_from_user(stub, "foo", "bad", PID) == (
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "bad", PID) == (
         True,
         ["Cannot convert bad to int"],
     )
@@ -118,7 +118,7 @@ def test_pset_passes_args_through() -> None:
     def api(name: str) -> Any:
         if name == "plugins.core.commands:get.current.command.args":
             return lambda: args
-        if name == "plugins.core.settings:change.from.user":
+        if name == "plugins.core.settings:setting.set.from.user":
             return lambda *a: (calls.setdefault("args", a), (True, ["ok"]))[1]
         raise AssertionError(name)
 

@@ -39,7 +39,7 @@ def events() -> Iterator[dict[str, Event]]:
     """Register stand-in APIs routed to the events under test."""
     registry: dict[str, Event] = {}
     api = API("test127")
-    api.add("plugins.core.settings", "get", lambda *_a, **_k: False, description="stand-in")
+    api.add("plugins.core.settings", "setting.get", lambda *_a, **_k: False, description="stand-in")
     api.add(
         "plugins.core.events",
         "unregister.from.event",
@@ -50,7 +50,7 @@ def events() -> Iterator[dict[str, Event]]:
         yield registry
     finally:
         for full_name in (
-            "plugins.core.settings:get",
+            "plugins.core.settings:setting.get",
             "plugins.core.events:unregister.from.event",
         ):
             API._class_api.pop(full_name, None)

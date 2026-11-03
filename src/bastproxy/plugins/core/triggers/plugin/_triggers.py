@@ -117,7 +117,7 @@ class TriggersPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "enabled", "True", bool, "enable triggers"
         )
 

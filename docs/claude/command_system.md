@@ -390,7 +390,7 @@ def _command_status(self):
     line_length = self.api("plugins.core.commands:get.output.line.length")()
 
     # Get header color from settings
-    header_color = self.api("plugins.core.settings:get")(
+    header_color = self.api("plugins.core.settings:setting.get")(
         "plugins.core.commands",
         "output_header_color"
     )
@@ -510,7 +510,7 @@ def _command_process(self):
 Change the command prefix per plugin:
 
 ```python
-command_prefix = self.api("plugins.core.settings:get")(
+command_prefix = self.api("plugins.core.settings:setting.get")(
     "plugins.core.commands",
     "cmdprefix"
 )

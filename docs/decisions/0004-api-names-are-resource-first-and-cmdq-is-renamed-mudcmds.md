@@ -115,7 +115,7 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 
 - **Breaking for user plugins** under `BASTPROXY_HOME/plugins` that call or register APIs by name.
 - Each rename PR carries a `BREAKING CHANGE:` footer and an old-to-new table copied from the appendix, and is a minor version bump before 1.0.
-- **`plugins.core.settings` `_api_reset` overrides `BasePlugin._api_reset` by Python method name.** Renaming only the string would register the settings method under `plugin.reset`. The settings rename must also rename the method, for example to `_api_setting_reset`. After that, `plugins.core.settings:plugin.reset` exists for the first time.
+- **`plugins.core.settings` `_api_reset` overrides `BasePlugin._api_reset` by Python method name.** Renaming only the string would register the settings method under `plugin.reset`. The settings rename must also rename the method, for example to `_api_setting_reset`. After that, `plugins.core.settings:plugin.reset` exists for the first time, once the base-plugin rename lands. Until then the inherited base API is registered as `plugins.core.settings:reset` (#164).
 - **`does.plugin.exist` and `is.plugin.id` have the same body** (a dict lookup in the loader). They keep separate names here; merging them is optional cleanup in the loader follow-up.
 - **`plugins.core.pluginm:plugin.state.save` is the base API that saves pluginm itself.** `plugin.state.save.all` saves every plugin. The two read as similar, and the docs must say so.
 - **Several descriptions are wrong**: `is.mud.connected` says "get the mud connection", and `has.event` says "return the event". The follow-ups may fix them alongside the names.
@@ -128,6 +128,7 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 
 - Issue #99: Decide the API and plugin naming convention
 - Issue #160: ADR-0004 grammar test
+- Issue #164: Rename the plugins.core.settings APIs
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation

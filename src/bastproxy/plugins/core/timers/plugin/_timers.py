@@ -211,7 +211,7 @@ class TimersPlugin(BasePlugin):
         @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
-        output_header_color = self.api("plugins.core.settings:get")(
+        output_header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
         match: str = args["match"]

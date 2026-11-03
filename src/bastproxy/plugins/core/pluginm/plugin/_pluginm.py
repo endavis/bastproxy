@@ -229,7 +229,7 @@ class PluginManager(BasePlugin):
 
         from the pluginstoload setting.
         """
-        plugins_to_load_setting = self.api("plugins.core.settings:get")(
+        plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
 
@@ -265,7 +265,7 @@ class PluginManager(BasePlugin):
 
             plugins_to_load.append(plugin)
 
-        self.api("plugins.core.settings:change")(
+        self.api("plugins.core.settings:setting.set")(
             self.plugin_id, "pluginstoload", plugins_to_load_setting
         )
 
@@ -335,11 +335,11 @@ class PluginManager(BasePlugin):
             )
 
             # add the loaded plugins to the pluginstoload setting
-            plugins_to_load_setting = self.api("plugins.core.settings:get")(
+            plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
             plugins_to_load_setting.extend(plugin_response["loaded_plugins"])
-            self.api("plugins.core.settings:change")(
+            self.api("plugins.core.settings:setting.set")(
                 self.plugin_id, "pluginstoload", plugins_to_load_setting
             )
 
@@ -376,12 +376,12 @@ class PluginManager(BasePlugin):
             return False, [f"Plugin {plugin_id} is required and cannot be unloaded"]
 
         if self.api("libs.plugins.loader:unload.plugin")(plugin_id):
-            plugins_to_load_setting = self.api("plugins.core.settings:get")(
+            plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
             if plugin_id in plugins_to_load_setting:
                 plugins_to_load_setting.remove(plugin_id)
-                self.api("plugins.core.settings:change")(
+                self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
             return True, [f"Plugin {plugin_id} unloaded"]
@@ -405,13 +405,13 @@ class PluginManager(BasePlugin):
 
         self.api(f"{args['plugin']}:set.reload")()
 
-        plugins_to_load_setting = self.api("plugins.core.settings:get")(
+        plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
         if not self.api("libs.plugins.loader:reload.plugin")(args["plugin"]):
             if args["plugin"] in plugins_to_load_setting:
                 plugins_to_load_setting.remove(args["plugin"])
-                self.api("plugins.core.settings:change")(
+                self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
             return False, [f"{args['plugin']} not reloaded, please check logs"]
@@ -419,7 +419,7 @@ class PluginManager(BasePlugin):
         # add the loaded plugins to the pluginstoload setting
         if args["plugin"] not in plugins_to_load_setting:
             plugins_to_load_setting.append(args["plugin"])
-        self.api("plugins.core.settings:change")(
+        self.api("plugins.core.settings:setting.set")(
             self.plugin_id, "pluginstoload", plugins_to_load_setting
         )
         return True, [f"{args['plugin']} reloaded"]
@@ -448,7 +448,7 @@ class PluginManager(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize plugin."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "pluginstoload",
             [],

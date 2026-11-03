@@ -21,7 +21,7 @@ def _stub(banned: dict[str, Any] | None = None, permbanips: list[str] | None = N
     stub.banned = banned or {}
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda _pid, setting: list(permbanips or []) if setting == "permbanips" else "@w"
         if name == "plugins.core.utils:convert.data.to.output.table":
             return lambda *a, **k: UtilsPlugin._api_convert_data_to_output_table(utils, *a, **k)

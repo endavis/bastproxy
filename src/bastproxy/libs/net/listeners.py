@@ -111,8 +111,8 @@ class Listeners:
             )()
             sys.exit(1)
 
-        ipv4 = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv4")
-        ipv6 = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv6")
+        ipv4 = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "ipv4")
+        ipv6 = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "ipv6")
         self.ipv4_start = False
         self.ipv6_start = False
 
@@ -125,9 +125,11 @@ class Listeners:
                 _ = self.ipv6_task.result
                 self.ipv6_start = True
 
-        listen_port = self.api("plugins.core.settings:get")("plugins.core.proxy", "listenport")
+        listen_port = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "listenport"
+        )
         if ipv4 and not self.ipv4_start:
-            ipv4_address = self.api("plugins.core.settings:get")(
+            ipv4_address = self.api("plugins.core.settings:setting.get")(
                 "plugins.core.proxy", "ipv4address"
             )
             LogRecord(
@@ -138,7 +140,7 @@ class Listeners:
             )()
 
         if ipv6 and not self.ipv6_start:
-            ipv6_address = self.api("plugins.core.settings:get")(
+            ipv6_address = self.api("plugins.core.settings:setting.get")(
                 "plugins.core.proxy", "ipv6address"
             )
             LogRecord(
@@ -172,7 +174,11 @@ class Listeners:
                 msg
                 + " and ".join(tlist)
                 + " port "
-                + str(self.api("plugins.core.settings:get")("plugins.core.proxy", "listenport"))
+                + str(
+                    self.api("plugins.core.settings:setting.get")(
+                        "plugins.core.proxy", "listenport"
+                    )
+                )
             )
 
             LogRecord(msg, level="info", sources=["mudproxy"])()
@@ -194,11 +200,15 @@ class Listeners:
             None
 
         """
-        self.api("plugins.core.settings:change")("plugins.core.proxy", "ipv4", "default")
-        self.api("plugins.core.settings:change")("plugins.core.proxy", "ipv6", "default")
-        self.api("plugins.core.settings:change")("plugins.core.proxy", "ipv4address", "default")
-        self.api("plugins.core.settings:change")("plugins.core.proxy", "ipv6address", "default")
-        self.api("plugins.core.settings:change")("plugins.core.proxy", "listenport", "default")
+        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv4", "default")
+        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv6", "default")
+        self.api("plugins.core.settings:setting.set")(
+            "plugins.core.proxy", "ipv4address", "default"
+        )
+        self.api("plugins.core.settings:setting.set")(
+            "plugins.core.proxy", "ipv6address", "default"
+        )
+        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "listenport", "default")
 
     def _create_listeners(self) -> None:
         """Create listeners for both IPv4 and IPv6 addresses.
@@ -218,13 +228,19 @@ class Listeners:
             None
 
         """
-        listen_port = self.api("plugins.core.settings:get")("plugins.core.proxy", "listenport")
+        listen_port = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "listenport"
+        )
 
-        ipv4 = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv4")
-        ipv4_address = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv4address")
+        ipv4 = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "ipv4")
+        ipv4_address = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "ipv4address"
+        )
 
-        ipv6 = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv6")
-        ipv6_address = self.api("plugins.core.settings:get")("plugins.core.proxy", "ipv6address")
+        ipv6 = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "ipv6")
+        ipv6_address = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "ipv6address"
+        )
 
         if not ipv4 and not ipv6:
             LogRecord(
@@ -232,7 +248,7 @@ class Listeners:
                 level="error",
                 sources=["mudproxy"],
             )()
-            self.api("plugins.core.settings:change")("plugins.core.proxy", "ipv4", True)
+            self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv4", True)
             ipv4 = True
 
         # add IPv4 listener

@@ -186,13 +186,15 @@ class CommandClass:
             The formatted message with appropriate colors and formatting.
 
         """
-        simple = self.api("plugins.core.settings:get")("plugins.core.commands", "simple_output")
-        include_date = self.api("plugins.core.settings:get")(
+        simple = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.commands", "simple_output"
+        )
+        include_date = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "include_date"
         )
-        line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
         preamble_color = self.api("plugins.core.proxy:preamble.color.get")()
-        header_color = self.api("plugins.core.settings:get")(
+        header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "header_color"
         )
         command_indent = self.api("plugins.core.commands:get.command.indent")()

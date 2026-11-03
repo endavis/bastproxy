@@ -19,7 +19,7 @@ from ._pluginhooks import RegisterPluginHook
 if TYPE_CHECKING:
     from bastproxy.plugins._baseplugin import Plugin
 
-SETTINGS_INIT_API = "plugins.core.settings:initialize.plugin.settings"
+SETTINGS_INIT_API = "plugins.core.settings:setting.initialize.for.plugin"
 
 
 class Settings(Protocol):
@@ -49,11 +49,9 @@ class Settings(Protocol):
         args = self.api("plugins.core.commands:get.current.command.args")()
 
         if not args["name"] or args["name"] == "list":
-            return True, self.api("plugins.core.settings:get.all.settings.formatted")(
-                self.plugin_id
-            )
+            return True, self.api("plugins.core.settings:setting.list.formatted")(self.plugin_id)
 
-        return self.api("plugins.core.settings:change.from.user")(
+        return self.api("plugins.core.settings:setting.set.from.user")(
             args["name"], args["value"], self.plugin_id
         )
 

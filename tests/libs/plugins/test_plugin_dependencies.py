@@ -111,8 +111,10 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     apis: dict[str, Callable[..., Any]] = {
         "unload.plugin": loader._api_unload_plugin,
         "load.plugins": loader._api_load_plugins,
-        "plugins.core.settings:get": lambda _owner, name: list(settings[name]),
-        "plugins.core.settings:change": lambda _owner, name, value: settings.update({name: value}),
+        "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
+        "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
+            {name: value}
+        ),
     }
 
     def _api(name: str) -> Callable[..., Any]:

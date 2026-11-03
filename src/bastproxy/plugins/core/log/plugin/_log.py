@@ -62,31 +62,31 @@ class LogPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "color_error",
             "@x136",
             "color",
             "the color for error messages",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "color_warning",
             "@y",
             "color",
             "the color for warning messages",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "color_info", "@w", "color", "the color for info messages"
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "color_debug",
             "@x246",
             "color",
             "the color for debug messages",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "color_critical",
             "@r",
@@ -103,27 +103,37 @@ class LogPlugin(BasePlugin):
         match level:
             case "error":
                 try:
-                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_error")
+                    return self.api("plugins.core.settings:setting.get")(
+                        self.plugin_id, "color_error"
+                    )
                 except Exception:
                     return "@x136"
             case "warning":
                 try:
-                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_warning")
+                    return self.api("plugins.core.settings:setting.get")(
+                        self.plugin_id, "color_warning"
+                    )
                 except Exception:
                     return "@y"
             case "info":
                 try:
-                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_info")
+                    return self.api("plugins.core.settings:setting.get")(
+                        self.plugin_id, "color_info"
+                    )
                 except Exception:
                     return "@w"
             case "debug":
                 try:
-                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_debug")
+                    return self.api("plugins.core.settings:setting.get")(
+                        self.plugin_id, "color_debug"
+                    )
                 except Exception:
                     return "@x246"
             case "critical":
                 try:
-                    return self.api("plugins.core.settings:get")(self.plugin_id, "color_critical")
+                    return self.api("plugins.core.settings:setting.get")(
+                        self.plugin_id, "color_critical"
+                    )
                 except Exception:
                     return "@r"
             case _:

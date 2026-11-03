@@ -18,7 +18,7 @@ def make_utils_stub() -> MagicMock:
     stub.plugin_id = "plugins.core.utils"
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda _pid, setting: LINELEN if setting == "linelen" else SUB_COLOR
         if name == "plugins.core.colors:colorcode.strip":
             return lambda text: ColorsPlugin._api_colorcode_strip(colors, text)

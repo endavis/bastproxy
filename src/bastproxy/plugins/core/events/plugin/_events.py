@@ -41,7 +41,7 @@ class EventsPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "log_savestate",
             False,
@@ -49,7 +49,7 @@ class EventsPlugin(BasePlugin):
             "flag to log savestate events, reduces log spam if False",
         )
 
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "raised_history_size",
             10,
@@ -57,7 +57,7 @@ class EventsPlugin(BasePlugin):
             "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
         )
         self._apply_raised_history_size(
-            self.api("plugins.core.settings:get")(self.plugin_id, "raised_history_size")
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, "raised_history_size")
         )
 
         # Can't use decorator since this is the one that registers all events from decorators

@@ -180,22 +180,22 @@ class MudProxy:
         )
 
         args_listen_port: int = args["port"]
-        plugin_listen_port = self.api("plugins.core.settings:get")(
+        plugin_listen_port = self.api("plugins.core.settings:setting.get")(
             "plugins.core.proxy", "listenport"
         )
 
         args_ipv4_address = args["IPv4_address"]
-        plugin_ipv4_address = self.api("plugins.core.settings:get")(
+        plugin_ipv4_address = self.api("plugins.core.settings:setting.get")(
             "plugins.core.proxy", "ipv4address"
         )
 
         if args_listen_port not in (-1, plugin_listen_port):
-            self.api("plugins.core.settings:change")(
+            self.api("plugins.core.settings:setting.set")(
                 "plugins.core.proxy", "listenport", args_listen_port
             )
 
         if args_ipv4_address and plugin_ipv4_address != args_ipv4_address:
-            self.api("plugins.core.settings:change")(
+            self.api("plugins.core.settings:setting.set")(
                 "plugins.core.proxy", "ipv4address", args_ipv4_address
             )
 
