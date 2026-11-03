@@ -70,6 +70,15 @@ def plugin_module_names(package_import_location: str) -> list[str]:
     ]
 
 
+def reloadable_plugin_module_names(package_import_location: str) -> list[str]:
+    """Return the plugin's sys.modules names, minus modules that set CANRELOAD = False."""
+    return [
+        name
+        for name in plugin_module_names(package_import_location)
+        if getattr(sys.modules[name], "CANRELOAD", True)
+    ]
+
+
 class PluginLoader:
     """Manage the loading and unloading of plugins."""
 
@@ -953,7 +962,7 @@ class PluginLoader:
                 if plugin_info.runtime_info.plugin_instance:
                     del plugin_info.runtime_info.plugin_instance
                     plugin_info.runtime_info.plugin_instance = None
-                for name in plugin_module_names(plugin_info.package_import_location):
+                for name in reloadable_plugin_module_names(plugin_info.package_import_location):
                     sys.modules.pop(name, None)
 
         if bad_plugins and exit_on_error:
@@ -1162,9 +1171,7 @@ class PluginLoader:
         modules_to_delete = []
         if plugin_info.runtime_info.is_imported:
             modules_to_delete.extend(
-                item
-                for item in plugin_module_names(plugin_info.package_import_location)
-                if getattr(sys.modules[item], "CANRELOAD", True)
+                item for item in reloadable_plugin_module_names(plugin_info.package_import_location)
             )
 
         for item in modules_to_delete:

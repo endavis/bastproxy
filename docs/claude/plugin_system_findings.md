@@ -132,7 +132,7 @@ what it holds for that plugin.
 | Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `remove.all.data.for.plugin` | Broken for more than one watch (PS-3). |
 | cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
 | Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `_phook_base_init` (priority 75) after restoring | Works, but restored values can be overwritten (PS-4). |
-| `sys.modules` | import | `_api_unload_plugin`, and the failed-load cleanup in `_api_load_plugins` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` refuses names containing `baseplugin` or `baseconfig` (PS-10). |
+| `sys.modules` | import | `_api_unload_plugin`, and the failed-load cleanup in `_api_load_plugins` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
 | Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stays reachable through the event history once one of its callbacks has run (PS-8). |
 
 Reload (`PluginLoader._api_reload_plugin`) unloads the plugin and, if `reload_dependents_f` is
@@ -295,7 +295,7 @@ of this audit's page and is left for the event system audit.
 | 10 | **Silent failures** | cmdq and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `unload.plugin` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
 | 11 | **String concatenation for paths** | Loader and `PluginInfo` use `Path` throughout; `plugin_info.data_directory` is a `Path` | Yes | **Fits.** The only string "paths" are import locations, which are not file paths. |
 | 12 | **Repeated work in hooks** | `libs.api:add.apis.for.object` is called by three base hooks (priority 1, 75 and 91) | n/a | **Keep, document.** 75 picks up objects created by `__init__` hooks below 75 and 91 those created in `initialize`; neither is written down. Not filed separately. |
-| 13 | **Magic-string exclusion** | `imputils.deletemodule` skips any module whose name contains `baseplugin` or `baseconfig` | n/a | **Change** (PS-10). |
+| 13 | **Magic-string exclusion** | `imputils.deletemodule` skipped any module whose name contained `baseplugin` or `baseconfig` | n/a | **Changed** (PS-10, fixed): exact package prefix match. |
 | 14 | **Dead return value** | `update_all_plugin_information` returns `None`; two callers branch on it | n/a | **Change** (PS-9). |
 
 ---
@@ -480,6 +480,8 @@ the dead branches); correct the API name. The static name check in PS-12 would h
 last one.
 
 ### PS-10: Module cleanup ignores `CANRELOAD` in one path and uses a substring skip list in another
+
+**Status:** fixed in the PR for #129; `deletemodule` matches the bundled `_baseplugin` package by prefix and both cleanup paths share `reloadable_plugin_module_names`.
 
 **Issue:** [#129](https://github.com/endavis/bastproxy/issues/129)
 **Location:** `imputils.py` `deletemodule`; `loader.py` `_api_load_plugins` (failed-load

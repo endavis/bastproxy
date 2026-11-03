@@ -243,16 +243,26 @@ def importmodule(full_import_location) -> dict[str, Any]:
     return return_dict
 
 
+BUNDLED_BASEPLUGIN_PACKAGE = "bastproxy.plugins._baseplugin"
+
+
+def _is_in_package(module_name: str, package: str) -> bool:
+    """Return True if module_name is package or a module under it."""
+    return module_name == package or module_name.startswith(f"{package}.")
+
+
 def deletemodule(full_import_location, modules_to_keep=None) -> bool:
     """Delete a module.
 
-    This function deletes a module specified by its full import location. It
-    ensures that certain modules, specified in the exclusion list, are not
-    deleted.
+    This function deletes a module specified by its full import location. The
+    bundled base plugin package (``bastproxy.plugins._baseplugin``) and
+    anything in ``modules_to_keep`` are never deleted. A module is kept when
+    its name equals a kept package or lies under it (prefix match on a dotted
+    boundary, not a substring match).
 
     Args:
         full_import_location: The full import path of the module to delete.
-        modules_to_keep: A list of module names to exclude from deletion.
+        modules_to_keep: A list of package names to exclude from deletion.
 
     Returns:
         True if the module was deleted, False otherwise.
@@ -265,10 +275,10 @@ def deletemodule(full_import_location, modules_to_keep=None) -> bool:
         True
 
     """
-    all_modules_to_keep = ["baseplugin", "baseconfig"]
+    all_modules_to_keep = [BUNDLED_BASEPLUGIN_PACKAGE]
     if modules_to_keep:
         all_modules_to_keep.extend(modules_to_keep)
-    if [True for item in all_modules_to_keep if item in full_import_location]:
+    if any(_is_in_package(full_import_location, item) for item in all_modules_to_keep):
         return False
 
     if full_import_location in sys.modules:
