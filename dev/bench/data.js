@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793707751264,
+  "lastUpdate": 1793708597349,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3040,6 +3040,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00001428748039740278",
             "extra": "mean: 141.86527326699186 usec\nrounds: 7242"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e78aa635f4cca99146e7b8941a156406f03456b",
+          "message": "refactor: move _baseplugin supporting modules into libs/ (merges PR #147, addresses #94)\n\nMove _pluginhooks.py, _commands.py and _settings.py into\nplugins/_baseplugin/libs/, the layout the other plugins use. _base.py\nstays at the package root, and the package exports (BasePlugin,\nRegisterPluginHook) are unchanged.\n\nThe white-box settings-mixin test now imports the modules from their\nlibs/ paths, as agreed on the issue. A new layout test pins the exports,\nthe module locations and the BasePlugin MRO. The plugin and settings\ndocs point at the new paths.\n\nAddresses #94\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T12:22:31Z",
+          "tree_id": "fbf7a76eeb31450fd1d48bed5da1b055cbb4bfcc",
+          "url": "https://github.com/endavis/bastproxy/commit/0e78aa635f4cca99146e7b8941a156406f03456b"
+        },
+        "date": 1793708597009,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 232.38994596042718,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00022578814513524284",
+            "extra": "mean: 4.303112149999322 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7094.212885199348,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012612222851175282",
+            "extra": "mean: 140.95996499996488 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 219.14944266189926,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00010654004781225996",
+            "extra": "mean: 4.563096249999532 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 532.9496664215187,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00013962763595685087",
+            "extra": "mean: 1.8763497999998435 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2102.150036680357,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001726811071764118",
+            "extra": "mean: 475.70343817093357 usec\nrounds: 2143"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1871.306923105465,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003107440577539188",
+            "extra": "mean: 534.3858816812815 usec\nrounds: 1927"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3499.0243305655463,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008564807891299013",
+            "extra": "mean: 285.7939544073905 usec\nrounds: 3619"
           }
         ]
       }
