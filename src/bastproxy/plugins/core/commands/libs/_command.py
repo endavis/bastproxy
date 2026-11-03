@@ -7,6 +7,7 @@
 
 # Standard Library
 
+import dataclasses
 import datetime
 import shlex
 from collections.abc import Callable
@@ -19,6 +20,15 @@ from bastproxy.libs.api import API
 from bastproxy.libs.records import LogRecord
 
 from .data.cmdargs import CmdArgsRecord
+
+
+@dataclasses.dataclass
+class CommandStats:
+    """Error statistics for a command, kept as primitives so they can be saved across reloads."""
+
+    error_count: int = 0
+    last_error: str = ""
+    last_error_time: datetime.datetime | None = None
 
 
 class CommandClass:
@@ -45,7 +55,9 @@ class CommandClass:
         self.show_in_history = show_in_history
         self.full_cmd = self.api("plugins.core.commands:get.command.format")(self.plugin_id, name)
         self.short_help = shelp
-        self.count = 0
+        self.count = 0  # lifetime count, carried over when the plugin reloads
+        self.count_since_reload = 0  # calls since this instance was created
+        self.stats = CommandStats()
         self.current_args: CmdArgsRecord | dict = {}
         self.current_arg_string = ""
         self.last_run_start_time: datetime.datetime | None = None
@@ -84,7 +96,8 @@ class CommandClass:
         # run the command
         try:
             return_value = self()
-        except Exception:
+        except Exception as exc:
+            self.record_error(exc)
             actor = f"{self.plugin_id}:run_command:command_exception"
             message.extend([f"Error running command: {command_ran}"])
             LogRecord(
@@ -279,8 +292,18 @@ class CommandClass:
 
         return newmessage
 
+    def record_error(self, exc: BaseException) -> None:
+        """Record an exception raised by the command function.
+
+        Only a string summary is kept, never the exception or its traceback.
+        """
+        self.stats.error_count += 1
+        self.stats.last_error = f"{type(exc).__name__}: {exc}"
+        self.stats.last_error_time = datetime.datetime.now(datetime.UTC)
+
     def __call__(self, *args, **kwargs):
         self.count += 1
+        self.count_since_reload += 1
         return self.function(*args, **kwargs)
 
     def __repr__(self) -> str:

@@ -7,7 +7,9 @@
 
 # Standard Library
 import copy
+import dataclasses
 import types
+from typing import Any
 
 from bastproxy.libs import argp
 
@@ -23,7 +25,7 @@ from bastproxy.libs.records import (
 )
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
-from bastproxy.plugins.core.commands.libs._command import CommandClass
+from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -41,6 +43,9 @@ class CommandsPlugin(BasePlugin):
 
         # command counts saved when a plugin unloads, restored when it re-adds commands
         self.saved_command_counts: dict[str, dict[str, int]] = {}
+
+        # command error stats (as primitive dicts) saved the same way
+        self.saved_command_stats: dict[str, dict[str, dict[str, Any]]] = {}
 
         # a list of commands that should not be run again if already in the queue
         self.no_multiple_commands = {}
@@ -61,7 +66,11 @@ class CommandsPlugin(BasePlugin):
         self.current_command: CommandClass | None = None
         self.current_input_event: None = None
 
-        self.attributes_to_save_on_reload = ["current_input_event"]
+        self.attributes_to_save_on_reload = [
+            "current_input_event",
+            "saved_command_counts",
+            "saved_command_stats",
+        ]
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
@@ -498,10 +507,20 @@ class CommandsPlugin(BasePlugin):
             ]
             # drop the command data, keeping the counts for a reload
             removed = self.command_data.pop(plugin_id, {})
-            if removed:
-                self.saved_command_counts[plugin_id] = {
-                    name: cmd.count for name, cmd in removed.items()
-                }
+            CommandsPlugin._save_command_data(self, plugin_id, removed)
+
+    def _save_command_data(self, plugin_id: str, commands: dict[str, CommandClass]) -> None:
+        """Save the counts and error stats of a plugin's commands for a later re-add."""
+        if not commands:
+            return
+        self.saved_command_counts[plugin_id] = {name: cmd.count for name, cmd in commands.items()}
+        stats = {
+            name: dataclasses.asdict(cmd.stats)
+            for name, cmd in commands.items()
+            if hasattr(cmd, "stats")
+        }
+        if stats:
+            self.saved_command_stats[plugin_id] = stats
 
     @AddAPI("get.command.prefix", description="get the current command prefix")
     def _api_get_command_prefix(self):
@@ -673,11 +692,21 @@ class CommandsPlugin(BasePlugin):
 
         # update any items from the old command to the new command
         if command_name in plugin_command_data:
-            command.count = plugin_command_data[command_name].count
+            old = plugin_command_data[command_name]
+            command.count = old.count
+            if (old_stats := getattr(old, "stats", None)) is not None:
+                command.stats = old_stats
         elif command_name in (saved := self.saved_command_counts.get(plugin_id, {})):
             command.count = saved.pop(command_name)
             if not saved:
                 self.saved_command_counts.pop(plugin_id, None)
+
+        if command_name not in plugin_command_data and command_name in (
+            saved_stats := self.saved_command_stats.get(plugin_id, {})
+        ):
+            command.stats = CommandStats(**saved_stats.pop(command_name))
+            if not saved_stats:
+                self.saved_command_stats.pop(plugin_id, None)
 
         plugin_command_data[command_name] = command
 
@@ -1369,6 +1398,54 @@ class CommandsPlugin(BasePlugin):
 
         return True, message
 
+    def command_detail_data(self, command: CommandClass) -> list[dict[str, str]]:
+        """Build the rows shown by the detail command."""
+
+        def fmt(value: Any) -> str:
+            if value is None:
+                return "Never"
+            return str(value.strftime(self.api.time_format))
+
+        return [
+            {"item": "Plugin", "value": command.plugin_id},
+            {"item": "Group", "value": command.group},
+            {"item": "Function", "value": command.function.__name__},
+            {"item": "Calls (lifetime)", "value": str(command.count)},
+            {"item": "Calls since reload", "value": str(command.count_since_reload)},
+            {"item": "Errors", "value": str(command.stats.error_count)},
+            {"item": "Last error", "value": command.stats.last_error or "None"},
+            {"item": "Last error time", "value": fmt(command.stats.last_error_time)},
+            {"item": "Last run start", "value": fmt(command.last_run_start_time)},
+            {"item": "Last run end", "value": fmt(command.last_run_end_time)},
+        ]
+
+    @AddCommand(shelp="show details for a command", show_in_history=False)
+    @AddParser(description="show the usage and error details for a command")
+    @AddArgument("command", help="the command, e.g. core.commands.list", default="", nargs="?")
+    def _command_detail(self, _=None):
+        """@G%(name)s@w - @B%(cmdname)s@w.
+
+        show details for a command: call counts, errors and last run times.
+
+        @CUsage@w: @B%(cmdname)s@w @Ycommand@w
+          @Ycommand@w    = The command, such as core.commands.list
+        """
+        args = self.api("plugins.core.commands:get.current.command.args")()
+        if not args["command"]:
+            return False, []
+
+        command_item, _, _, _, message = self.find_command(args["command"])
+        if command_item is None:
+            return True, message
+
+        columns = [
+            {"name": "Item", "key": "item", "width": 20},
+            {"name": "Value", "key": "value", "width": 40},
+        ]
+        return True, self.api("plugins.core.utils:convert.data.to.output.table")(
+            f"Command: {command_item.full_cmd}", self.command_detail_data(command_item), columns
+        )
+
     @AddCommand(
         shelp="run a command in history",
         show_in_history=False,
@@ -1426,6 +1503,13 @@ class CommandsPlugin(BasePlugin):
                 f"{self.command_history_data.index(i)} : {i}" for i in self.command_history_data
             )
         return True, message
+
+    @RegisterPluginHook("uninitialize")
+    def _phook_commands_save_on_reload(self):
+        """Keep every command's counts and stats when this plugin itself reloads."""
+        if self.is_reloading_f:
+            for pid, cmds in list(self.command_data.items()):
+                CommandsPlugin._save_command_data(self, pid, cmds)
 
     @RegisterPluginHook("save")
     def _phook_commands_save(self):
