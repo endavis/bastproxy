@@ -49,7 +49,7 @@ from typing import Any
 from bastproxy.libs.exceptions import PluginDependencyError
 from bastproxy.plugins._baseplugin import BasePlugin
 
-REQUIREDRE = re.compile(r"^REQUIRED = (?P<value>.*)$")
+REQUIREDRE = re.compile(r"^PLUGIN_REQUIRED = (?P<value>.*)$")
 NAMERE = re.compile(r"^PLUGIN_NAME = \'(?P<value>.*)\'$")
 AUTHORRE = re.compile(r"^PLUGIN_AUTHOR = \'(?P<value>.*)\'$")
 VERSIONRE = re.compile(r"^PLUGIN_VERSION = (?P<value>.*)$")
