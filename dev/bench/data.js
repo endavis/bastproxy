@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793702111508,
+  "lastUpdate": 1793702281030,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2237,6 +2237,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000009582644981632782",
             "extra": "mean: 304.780194374035 usec\nrounds: 3555"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "456e9e88674e12032568f9cc18ce81094a7b9ab3",
+          "message": "fix: list every plugin hook that shares a priority in get.plugin.hooks (merges PR #135, addresses #126)\n\nfix: list every plugin hook that shares a priority in get.plugin.hooks (addresses #126)\n\nget.plugin.hooks dropped hooks sharing a priority and ignored the _phook_\nprefix. Both hook lookups now share one implementation, so the API lists\nthe same hooks, in the same order, that the plugin runs. Adds tests and\nmarks PS-6 fixed in the plugin system docs.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:37:25Z",
+          "tree_id": "94b26760edeccbe832495965337d72dec9d9055e",
+          "url": "https://github.com/endavis/bastproxy/commit/456e9e88674e12032568f9cc18ce81094a7b9ab3"
+        },
+        "date": 1793702280641,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 342.28262050067406,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002139924268356901",
+            "extra": "mean: 2.921562300000069 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10402.864990630544,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010960135148546163",
+            "extra": "mean: 96.12736499999386 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 329.8295702994866,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006828396233588764",
+            "extra": "mean: 3.0318688500003077 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 775.0177973151002,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006319336507456634",
+            "extra": "mean: 1.2902929499997384 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2922.6310281096635,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004047532191359515",
+            "extra": "mean: 342.1574568880126 usec\nrounds: 3027"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2617.8591851165825,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004018603024746564",
+            "extra": "mean: 381.99151645945636 usec\nrounds: 2734"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4466.759098083373,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006894005543005651",
+            "extra": "mean: 223.87596421510324 usec\nrounds: 4555"
           }
         ]
       }
