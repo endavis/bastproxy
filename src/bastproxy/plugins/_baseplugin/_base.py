@@ -69,7 +69,13 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _phook_base_init(self):
         self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
 
-        # load anything in the reload cache
+    def restore_reload_cache(self) -> None:
+        """Restore the attributes saved before a reload.
+
+        The plugin loader calls this right after the plugin is constructed, so
+        the restored values replace any default set in ``__init__`` or in an
+        ``__init__`` hook, whatever its priority (#124).
+        """
         cache = self.api("libs.plugins.reloadutils:get.plugin.cache")(self.plugin_id)
         for item in cache:
             LogRecord(f"loading {item} from cache", level="debug", sources=[self.plugin_id])()

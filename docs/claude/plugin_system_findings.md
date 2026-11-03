@@ -49,7 +49,7 @@ The gaps are in the paths the happy case does not cover:
   (PS-2) and watch deletes from a dict while iterating it (PS-3). Both only log an error, so
   unload "succeeds" and leaves data behind.
 - **`attributes_to_save_on_reload` is unreliable** for any plugin that sets defaults in its own
-  `__init__` (PS-4): the restored value is overwritten.
+  `__init__` (PS-4, fixed): the loader now restores them after construction.
 - **Metadata parsing is fragile**: one `PLUGIN_VERSION = 1  # note` line in any plugin aborts
   discovery for every plugin (PS-5).
 - **`patch()`** (runtime `setattr` onto the base class) has several silent failure modes and one
@@ -131,7 +131,7 @@ what it holds for that plugin.
 | Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `remove.data.for.owner` | Verified clean after unload. |
 | Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `remove.all.data.for.plugin` | Broken for more than one watch (PS-3). |
 | cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
-| Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `_phook_base_init` (priority 75) after restoring | Works, but restored values can be overwritten (PS-4). |
+| Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `BasePlugin.restore_reload_cache`, called by the loader after construction | Works (PS-4 fixed). |
 | `sys.modules` | import | `_api_unload_plugin`, and the failed-load cleanup in `_api_load_plugins` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
 | Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stays reachable through the event history once one of its callbacks has run (PS-8). |
 
@@ -220,7 +220,7 @@ priority.
 | Hook | Priority | Method | What it does |
 | :--- | ---: | :--- | :--- |
 | `__init__` | 1 | `_phook_base_init_add_apis` | Adds the plugin's APIs |
-| `__init__` | 75 | `_phook_base_init` | Adds the APIs again, restores the reload cache |
+| `__init__` | 75 | `_phook_base_init` | Adds the APIs again |
 | `initialize` | 1 | `_phook_base_initialize` | Adds the `_version` setting, registers the disconnect callback, adds `ev_<id>_savestate` |
 | `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enables the `reset` command |
 | `initialize` | 75 | `_phook_settings_post_initialize` (patched in) | `settings:initialize.plugin.settings` |
@@ -233,8 +233,8 @@ hook at 99. The orderings that matter and were undocumented:
 
 - A plugin's own `settings:add` calls must happen before priority 75, or they are missed by
   `initialize.plugin.settings`.
-- Reload attributes are restored at `__init__` priority 75, so a plugin that sets defaults in an
-  `__init__` hook must do it **below 75**, and in a hook, not in its own `__init__` (PS-4).
+- Reload attributes are restored by the loader right after construction, so defaults may be set in
+  `__init__` or in an `__init__` hook (PS-4, fixed).
 - A plugin's `uninitialize` hooks run before the base hook at 100, so they still have their APIs
   and settings.
 
@@ -261,7 +261,7 @@ Corrected in [Plugin System](plugin_system.md) in this change:
 | Saving | `ev_plugin_save` triggers the `save` hook | The `save.state` API runs the `save` hooks first, then raises `ev_<id>_save` and `ev_plugin_save` |
 | Unloading | Separate API removal and event unregistration steps | Both happen through the base `uninitialize` hook and the `ev_plugin_unloaded` handlers; order given in Q1 |
 | Reloading, step 4 | `importlib.reload(module)` | Modules are deleted from `sys.modules` and imported again; `importlib.reload` is not used |
-| Reloading, step 1 | Setting `attributes_to_save_on_reload` is enough | Only cached when `is_reloading_f` is set (the `reload` command does it) and restored at `__init__` priority 75 |
+| Reloading, step 1 | Setting `attributes_to_save_on_reload` is enough | Only cached when `is_reloading_f` is set (the `reload` command does it) and restored by the loader right after construction (`restore_reload_cache`) |
 | Hook ordering | Ties run "in the order they're discovered" | Alphabetical by method name |
 | `__init__` hook | "after base initialization" | Runs inside the base `__init__`; the base hooks sit at priority 1 and 75 |
 | Metadata | Example with a trailing comment on `PLUGIN_REQUIRED` | Metadata lines are matched one per line; a trailing comment breaks `PLUGIN_VERSION` and hides name, author, purpose and required (PS-5) |
@@ -371,6 +371,8 @@ the first.
 **Fix:** Iterate over `list(self.watch_data)`.
 
 ### PS-4: Reload attributes are overwritten by the plugin's own `__init__`
+
+**Status:** fixed in the PR for #124; the loader calls `BasePlugin.restore_reload_cache` right after the constructor returns, so a default set in `__init__` cannot overwrite it.
 
 **Issue:** [#124](https://github.com/endavis/bastproxy/issues/124)
 **Location:** `_base.py` `_phook_base_init` (priority 75, restores the cache inside
