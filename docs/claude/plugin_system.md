@@ -482,8 +482,9 @@ class Plugin(BasePlugin):
 - Hook functions must start with `_phook_` to run
 - A hook that raises in `__init__` fails the load; in `initialize` the loader unloads the plugin;
   in `uninitialize` the unload stops and returns `False`
-- `<plugin_id>:get.plugin.hooks` lists hooks but drops all but one of the hooks that share a
-  priority (see [findings](plugin_system_findings.md#ps-6-getpluginhooks-drops-hooks-that-share-a-priority))
+- `<plugin_id>:get.plugin.hooks` lists the same hooks, in the same order, that the plugin runs,
+  including hooks that share a priority (fixed for
+  [PS-6](plugin_system_findings.md#ps-6-getpluginhooks-drops-hooks-that-share-a-priority))
 
 ## Dependencies
 

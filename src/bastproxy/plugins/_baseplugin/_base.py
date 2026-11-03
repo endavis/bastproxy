@@ -100,52 +100,58 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         return kwargs
 
-    def _get_all_plugin_hook_functions(self) -> dict:
-        """Recursively search for functions that are commands in a plugin instance.
+    def _collect_plugin_hook_functions(self, obj, plugin_hook=None) -> dict:
+        """Collect the hook functions registered on obj.
 
-        and it's attributes that are registered to a load hook.
+        This is the one lookup behind both the run list and get.plugin.hooks.
+        Only methods whose name starts with _phook_ count, as only those run.
+        Hooks that share a priority are all kept, in dir() (alphabetical) order.
+
+        Arguments:
+          obj: the object to search
+          plugin_hook: limit the result to this hook name, or None for all hooks
+
+        Returns:
+          {hook name: {priority: [functions]}} with priorities in ascending order
         """
-        function_list = {}
-        for item in dir(self):
-            try:
-                attr = getattr(self, item)
-            except AttributeError:
-                continue
-            if isinstance(attr, types.MethodType) and (
-                item_plugin_hooks := getattr(attr, "plugin_hooks", None)
-            ):
-                for plugin_hook in item_plugin_hooks:
-                    if plugin_hook not in function_list:
-                        function_list[plugin_hook] = {}
-                    if item_plugin_hooks[plugin_hook] not in function_list[plugin_hook]:
-                        function_list[plugin_hook][item_plugin_hooks[plugin_hook]] = []
-                        function_list[plugin_hook][item_plugin_hooks[plugin_hook]].append(attr)
-
-        return function_list
-
-    def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
-        """Recursively search for functions that are commands in a plugin instance.
-
-        and it's attributes that are registered to a load hook.
-        """
-        function_list = {}
+        collected: dict = {}
         for item in dir(obj):
             if not item.startswith("_phook_"):
                 continue
             try:
-                attr = getattr(self, item)
+                attr = getattr(obj, item)
             except AttributeError:
                 continue
-            if (
-                isinstance(attr, types.MethodType)
-                and hasattr(attr, "plugin_hooks")
-                and plugin_hook in attr.plugin_hooks
-            ):  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                if attr.plugin_hooks[plugin_hook] not in function_list:  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                    function_list[attr.plugin_hooks[plugin_hook]] = []  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
-                function_list[attr.plugin_hooks[plugin_hook]].append(attr)  # pyright: ignore[reportGeneralTypeIssues, reportAttributeAccessIssue]
+            if not isinstance(attr, types.MethodType):
+                continue
+            hooks = getattr(attr, "plugin_hooks", None)
+            if not hooks:
+                continue
+            for hook_name, priority in hooks.items():
+                if plugin_hook is not None and hook_name != plugin_hook:
+                    continue
+                collected.setdefault(hook_name, {}).setdefault(priority, []).append(attr)
 
-        return function_list
+        return {
+            hook_name: dict(sorted(priorities.items()))
+            for hook_name, priorities in collected.items()
+        }
+
+    def _get_all_plugin_hook_functions(self) -> dict:
+        """Get every hook function in this plugin, as the plugin runs them.
+
+        Returns:
+          {hook name: {priority: [functions]}}
+        """
+        return self._collect_plugin_hook_functions(self)
+
+    def _get_plugin_hook_functions(self, obj, plugin_hook, recurse=True) -> dict:
+        """Get the functions registered to one hook.
+
+        Returns:
+          {priority: [functions]}
+        """
+        return self._collect_plugin_hook_functions(obj, plugin_hook).get(plugin_hook, {})
 
     # add a dump_object method that is just dumps
     # don't have to worry about importing dumper everywhere

@@ -412,6 +412,8 @@ before any plugin loads. The other lines fail quietly.
 
 ### PS-6: `get.plugin.hooks` drops hooks that share a priority
 
+**Status:** fixed in the PR for #126; both lookups now share `_collect_plugin_hook_functions`.
+
 **Issue:** [#126](https://github.com/endavis/bastproxy/issues/126)
 **Location:** `_base.py` `_get_all_plugin_hook_functions` (the `append` is inside the
 `if ... not in` block).
