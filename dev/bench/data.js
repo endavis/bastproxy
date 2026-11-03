@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793704484115,
+  "lastUpdate": 1793705133455,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2821,6 +2821,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000024556856917984108",
             "extra": "mean: 253.24968242796064 usec\nrounds: 4547"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c978b648b2a424adc79a3a9ec2f53e8a043fcc9",
+          "message": "fix: refuse to unload required plugins and test that literal API names exist (merges PR #143, addresses #130)\n\nunload.plugin now refuses a required plugin (PLUGIN_REQUIRED or any\nplugins.core plugin) unless the caller passes allow_required=True. Reload\nand the failed-load cleanups pass it, so required plugins still reload and\na required plugin that fails to load is still cleaned up. The pluginm\nunload command reports the refusal.\n\nA new static test scans src for literal api(\"...\") names and checks each\none is registered (AddAPI, libs.api:add, or a formatted per-instance\npattern). It found errors.clear in the errors plugin's clear command,\nwhich is not a registered API; the command now calls\nplugins.core.errors:clear.all.errors.\n\nAddresses #130\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T11:24:49Z",
+          "tree_id": "30384f33294d2eaffde40b5215948b7a24c9f33c",
+          "url": "https://github.com/endavis/bastproxy/commit/0c978b648b2a424adc79a3a9ec2f53e8a043fcc9"
+        },
+        "date": 1793705132615,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 329.88414716166545,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000410843814971398",
+            "extra": "mean: 3.031367249999839 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10587.43762411328,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000096817791216085",
+            "extra": "mean: 94.45155999998178 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 327.74551805958333,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008158731886323935",
+            "extra": "mean: 3.0511477499997497 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 795.4048507287316,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000058540292528420214",
+            "extra": "mean: 1.2572214000000415 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2987.864872358994,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008378937624857565",
+            "extra": "mean: 334.6871571238344 usec\nrounds: 3004"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2631.846837155298,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003239126660256991",
+            "extra": "mean: 379.9613206522598 usec\nrounds: 2760"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4613.033796388161,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006575669081299192",
+            "extra": "mean: 216.77708079723234 usec\nrounds: 4666"
           }
         ]
       }
