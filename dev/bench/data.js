@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793703116775,
+  "lastUpdate": 1793703495141,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2529,6 +2529,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000012804775888032982",
             "extra": "mean: 228.5738184492614 usec\nrounds: 4759"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "024bcab86c6bd4980dbe7545e6e3271b88f29800",
+          "message": "fix: make plugin module cleanup honour CANRELOAD and match the skip list exactly (merges PR #139, addresses #129)\n\nfix: honour CANRELOAD in failed-load cleanup and match the skip list exactly (addresses #129)\n\ndeletemodule skipped any module whose name contained \"baseplugin\" or\n\"baseconfig\", so userplugins.mine.mybaseplugin was never removed. It now\nkeeps only the bundled bastproxy.plugins._baseplugin package (and its\nsubmodules) plus caller-supplied names, matched on dotted prefix.\n\"baseconfig\" no longer exists and is dropped.\n\nThe failed-load cleanup in _api_load_plugins popped every plugin module\nwhile _api_unload_plugin honoured CANRELOAD. Both now use the shared\nreloadable_plugin_module_names helper.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:57:30Z",
+          "tree_id": "87cf3e844630782e5ce8dcc3dc8937f1c5859664",
+          "url": "https://github.com/endavis/bastproxy/commit/024bcab86c6bd4980dbe7545e6e3271b88f29800"
+        },
+        "date": 1793703494544,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 345.78052155387195,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00020525322797629685",
+            "extra": "mean: 2.8920079000002374 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10548.026959883942,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010465414187753502",
+            "extra": "mean: 94.80446000026177 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 328.39611665018344,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008912706502502333",
+            "extra": "mean: 3.0451030000005375 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 781.3632060991193,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007409821117572877",
+            "extra": "mean: 1.2798145499996139 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2973.2186852110954,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009690548718368425",
+            "extra": "mean: 336.33583865661774 usec\nrounds: 3037"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2466.570483624557,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004245296964680434",
+            "extra": "mean: 405.42121404555513 usec\nrounds: 2677"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4603.777491153773,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000515207771994882",
+            "extra": "mean: 217.21293045146402 usec\nrounds: 4673"
           }
         ]
       }
