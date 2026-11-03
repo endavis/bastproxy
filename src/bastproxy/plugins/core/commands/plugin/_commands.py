@@ -39,6 +39,9 @@ class CommandsPlugin(BasePlugin):
         # a dict of commands by plugin
         self.command_data: dict[str, dict[str, CommandClass]] = {}
 
+        # command counts saved when a plugin unloads, restored when it re-adds commands
+        self.saved_command_counts: dict[str, dict[str, int]] = {}
+
         # a list of commands that should not be run again if already in the queue
         self.no_multiple_commands = {}
 
@@ -498,11 +501,17 @@ class CommandsPlugin(BasePlugin):
             sources=[self.plugin_id, plugin_id],
         )()
         if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
-            # remove commands from _command_list that start with plugin_instance.plugin_id
-            new_commands = [
-                command for command in self.commands_list if not command.startswith(plugin_id)
+            # remove commands from _command_list that belong to plugin_id
+            prefix = f"{plugin_id}."
+            self.commands_list = [
+                command for command in self.commands_list if not command.startswith(prefix)
             ]
-            self.commands_list = new_commands
+            # drop the command data, keeping the counts for a reload
+            removed = self.command_data.pop(plugin_id, {})
+            if removed:
+                self.saved_command_counts[plugin_id] = {
+                    name: cmd.count for name, cmd in removed.items()
+                }
 
     @AddAPI("get.command.prefix", description="get the current command prefix")
     def _api_get_command_prefix(self):
@@ -675,6 +684,10 @@ class CommandsPlugin(BasePlugin):
         # update any items from the old command to the new command
         if command_name in plugin_command_data:
             command.count = plugin_command_data[command_name].count
+        elif command_name in (saved := self.saved_command_counts.get(plugin_id, {})):
+            command.count = saved.pop(command_name)
+            if not saved:
+                self.saved_command_counts.pop(plugin_id, None)
 
         plugin_command_data[command_name] = command
 
