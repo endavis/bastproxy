@@ -445,15 +445,34 @@ class SettingsPlugin(BasePlugin):
         """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:get.current.command.args")()
 
-        if not args["value"]:
-            return False, ["please specify a value to set the setting to"]
+        return self.api(f"{self.plugin_id}:change.from.user")(
+            args["name"], args["value"], args["plugin"]
+        )
 
-        setting_name = args["name"]
+    @AddAPI(
+        "change.from.user",
+        description="validate and change a setting from user input, returning a message",
+    )
+    def _api_change_from_user(
+        self, setting_name: str, value: str, plugin_id: str = ""
+    ) -> tuple[bool, list[str]]:
+        """Validate user input and change a setting.
+
+        @Ysetting_name@w = the name of the setting to change
+        @Yvalue@w        = the value to set it as
+        @Yplugin_id@w    = the plugin that owns the setting, looked up from the
+                           settings map when empty
+
+        Returns:
+          a tuple of (success, list of message lines to show the user)
+        """
+        if not value:
+            return False, ["please specify a value to set the setting to"]
 
         if setting_name not in self.settings_map:
             return True, [f"plugin setting {setting_name} does not exist"]
 
-        plugin_id = args["plugin"] or self.settings_map[setting_name]
+        plugin_id = plugin_id or self.settings_map[setting_name]
 
         if not (
             setting_info := self.api("plugins.core.settings:get.setting.info")(
@@ -466,7 +485,7 @@ class SettingsPlugin(BasePlugin):
         if setting_info.readonly:
             return True, [f"{setting_name} is a readonly setting"]
 
-        val = args["value"]
+        val = value
         try:
             self.api("plugins.core.settings:change")(plugin_id, setting_name, val)
             tsetting_name = self.format_setting_for_print(plugin_id, setting_name)

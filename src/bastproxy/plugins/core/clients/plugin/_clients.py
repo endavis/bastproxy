@@ -286,10 +286,13 @@ class ClientPlugin(BasePlugin):
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
-    @AddParser(description="list clients that are connected")
-    def _command_show(self):
-        """Show all clients."""
-        tmsg = []
+    @AddAPI(
+        "get.clients.formatted",
+        description="get the connected and banned clients as formatted tables",
+    )
+    def _api_get_clients_formatted(self) -> list[str]:
+        """Return the connected clients and banned ips as formatted tables."""
+        tmsg: list[str] = []
 
         color = self.api("plugins.core.settings:get")(
             "plugins.core.commands", "output_header_color"
@@ -342,7 +345,12 @@ class ClientPlugin(BasePlugin):
                 )
             )
 
-        return True, tmsg
+        return tmsg
+
+    @AddParser(description="list clients that are connected")
+    def _command_show(self):
+        """Show all clients."""
+        return True, self.api(f"{self.plugin_id}:get.clients.formatted")()
 
     @AddParser(description="add or remove a banned ip")
     @AddArgument(

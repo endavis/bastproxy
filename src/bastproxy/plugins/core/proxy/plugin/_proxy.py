@@ -282,9 +282,7 @@ class ProxyPlugin(BasePlugin):
 
         tmsg.append("")
 
-        _, nmsg = self.api("plugins.core.commands:run")("plugins.core.clients", "show", "")
-
-        tmsg.extend(nmsg)
+        tmsg.extend(self.api("plugins.core.clients:get.clients.formatted")())
         return True, tmsg
 
     @AddParser(description="disconnect from the mud")
