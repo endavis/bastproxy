@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793702461430,
+  "lastUpdate": 1793702930353,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2383,6 +2383,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00003047172664829666",
             "extra": "mean: 293.2654997224505 usec\nrounds: 3604"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7b84ca10453bb0a13084c925f81676952b236bf9",
+          "message": "fix: correct dead and misnamed API calls in the loader, base plugin and triggers (merges PR #137, addresses #128)\n\nCall is.mud.connected in the base plugin post-initialize hook instead of\ntesting the API item for truthiness, drop the loader's branches on the\nNone return of update_all_plugin_information, and use the existing\nlibs.api:get.caller.owner name in trigger removal.\n\nAddresses #128\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:48:02Z",
+          "tree_id": "0fd3d097128719e7085afff441c436ac342be944",
+          "url": "https://github.com/endavis/bastproxy/commit/7b84ca10453bb0a13084c925f81676952b236bf9"
+        },
+        "date": 1793702929763,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 233.339152811111,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00024289026496133027",
+            "extra": "mean: 4.285607400012736 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7072.775286116669,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000014055986048815323",
+            "extra": "mean: 141.38721499648454 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 221.20725207186547,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009492813050895038",
+            "extra": "mean: 4.52064744999916 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 550.6629761971656,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011683447413518376",
+            "extra": "mean: 1.8159927999988668 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2120.5032889406075,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010984770499396993",
+            "extra": "mean: 471.58615844429784 usec\nrounds: 2108"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1912.348846745993,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009230822847175449",
+            "extra": "mean: 522.9171454264614 usec\nrounds: 1946"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3439.853208268818,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012044873756011512",
+            "extra": "mean: 290.71007960344684 usec\nrounds: 3530"
           }
         ]
       }
