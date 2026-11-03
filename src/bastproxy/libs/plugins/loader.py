@@ -741,6 +741,8 @@ class PluginLoader:
         try:
             plugin_module = sys.modules[str(plugin_info.plugin_class_import_location)]
             plugin_instance = plugin_module.Plugin(plugin_info.plugin_id, plugin_info)
+            # restore after construction so a default set in __init__ cannot overwrite it
+            plugin_instance.restore_reload_cache()
         except Exception:  # pylint: disable=broad-except
             LogRecord(
                 f"Could not instantiate plugin {plugin_id}",

@@ -25,11 +25,15 @@ PLUGIN_ID = PACKAGE
 
 _BROKEN_INIT = (
     "class Plugin:\n"
+    "    def restore_reload_cache(self):\n"
+    "        pass\n\n"
     "    def __init__(self, plugin_id, plugin_info):\n"
     "        raise RuntimeError('boom')\n"
 )
 _BROKEN_INITIALIZE = (
     "class Plugin:\n"
+    "    def restore_reload_cache(self):\n"
+    "        pass\n\n"
     "    def __init__(self, plugin_id, plugin_info):\n"
     "        pass\n\n"
     "    def initialize(self):\n"
@@ -39,6 +43,8 @@ _GOOD = (
     "VERSION = 'fixed'\n\n\n"
     "class Plugin:\n"
     "    version = VERSION\n\n"
+    "    def restore_reload_cache(self):\n"
+    "        pass\n\n"
     "    def __init__(self, plugin_id, plugin_info):\n"
     "        self.info = plugin_info\n\n"
     "    def initialize(self):\n"

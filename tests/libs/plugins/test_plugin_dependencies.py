@@ -31,6 +31,9 @@ class Plugin:
     can_reload_f = {can_reload}
     reload_dependents_f = {reload_dependents}
 
+    def restore_reload_cache(self):
+        pass
+
     def __init__(self, plugin_id, plugin_info):
         self.info = plugin_info
         {recorder}.events.append(("init", plugin_id))

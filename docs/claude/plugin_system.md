@@ -199,10 +199,11 @@ class Plugin(BasePlugin):
         return arg
 ```
 
-Attributes listed in `attributes_to_save_on_reload` are restored inside `BasePlugin.__init__`
-(the `__init__` hook at priority 75). A default assigned in the subclass `__init__` after
-`super().__init__()` overwrites the restored value, so set both the list and the defaults in an
-`__init__` plugin hook with a priority below 75, as the bundled plugins do:
+Attributes listed in `attributes_to_save_on_reload` are restored by the plugin loader right
+after the plugin is constructed (`BasePlugin.restore_reload_cache`, called from
+`_instantiate_single_plugin` before `initialize`). The restored value therefore replaces any
+default, whether it is set in the subclass `__init__` after `super().__init__()` or in an
+`__init__` plugin hook of any priority. The bundled plugins use a hook:
 
 ```python
 class Plugin(BasePlugin):
@@ -373,7 +374,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 2. **Unload**: dependents furthest first, then the plugin (see above). The `reload` command calls `<plugin_id>:set.reload` first, which sets `is_reloading_f`; the attributes named in `attributes_to_save_on_reload` are only cached in that case.
    ```python
-   # In a plugin's __init__ plugin hook, below priority 75
+   # In the plugin's __init__ or an __init__ plugin hook
    self.attributes_to_save_on_reload = ['some_state', 'other_data']
    ```
 
@@ -381,8 +382,9 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    were deleted from `sys.modules` on unload, so the edited code is imported fresh;
    `importlib.reload` is not used.
 
-4. **Restore Attributes**: the base `__init__` hook at priority 75 sets the cached attributes
-   on the new instance and clears the cache.
+4. **Restore Attributes**: right after constructing the new instance, the loader calls
+   `restore_reload_cache`, which sets the cached attributes on it and clears the cache. A failure
+   there is handled like an instantiation failure.
 
 Entries in `pluginstoload` are put back after the reload. `reload.plugin` returns `True` only if
 everything unloaded and loaded again.
@@ -404,7 +406,7 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
 
 ### Available Hooks
 
-1. **`__init__`**: Called at the end of the base `Plugin.__init__()`; the base class's own `__init__` hooks (priority 1 and 75) are among them
+1. **`__init__`**: Called at the end of the base `Plugin.__init__()`; the base class's own `__init__` hooks (priority 1 and 75) are among them; reload attributes are restored afterwards, by the loader
    - Use for: Defaults, `attributes_to_save_on_reload`, creating objects that have APIs
    - Priority order matters
 
@@ -429,7 +431,7 @@ The base class registers these, which sets the order a plugin's own hooks run ag
 | Hook | Priority | Method | Purpose |
 | :--- | ---: | :--- | :--- |
 | `__init__` | 1 | `_phook_base_init_add_apis` | Add the plugin's APIs |
-| `__init__` | 75 | `_phook_base_init` | Add APIs again, restore reload attributes |
+| `__init__` | 75 | `_phook_base_init` | Add APIs again |
 | `initialize` | 1 | `_phook_base_initialize` | `_version` setting, disconnect callback, `ev_<id>_savestate` |
 | `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enable the `reset` command |
 | `initialize` | 75 | `_phook_settings_post_initialize` | Initialize the plugin's settings (added by `_patch_base.py`) |
@@ -717,7 +719,7 @@ class Plugin(BasePlugin):
 4. **Fail Gracefully**: Handle missing dependencies
 
 ### Reloading
-1. **Save State**: Use `attributes_to_save_on_reload` for important state, set in an `__init__` plugin hook below priority 75
+1. **Save State**: Use `attributes_to_save_on_reload` for important state, set in `__init__` or an `__init__` plugin hook (the loader restores them after construction)
 2. **Clean Up**: Implement `uninitialize` hook for cleanup
 3. **Test Reloads**: Ensure plugin can be reloaded without issues
 
