@@ -98,7 +98,6 @@ class ProcessRaisedEvent(BaseRecord):
             )()
 
         self.current_record = None
-        self.current_callback = None
         self.event.reset_event()
 
     def get_attributes_to_format(self):

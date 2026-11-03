@@ -184,6 +184,8 @@ self.raised_count = 0
 self.raised_events = {}
 ```
 
+Plugin retention is not part of this bug: the unloaded-plugin leak (PS-8, [#127](https://github.com/endavis/bastproxy/issues/127)) came from `Event.current_callback`, not from this dictionary, and is fixed. The unbounded growth below is still open, tracked as [#153](https://github.com/endavis/bastproxy/issues/153); see [Plugin System Findings PS-8](plugin_system_findings.md#ps-8-an-unloaded-plugin-instance-stays-alive-through-the-last-run-callback).
+
 Every raised event is stored in `self.raised_events` dictionary indefinitely. In a long-running proxy with frequent events, this will cause continuous memory growth.
 
 **Impact:**
