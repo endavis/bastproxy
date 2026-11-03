@@ -53,12 +53,9 @@ class Settings(Protocol):
                 self.plugin_id
             )
 
-        arg_string = f"-p {self.plugin_id} {args.arg_string}"
-        _retval, return_string = self.api("plugins.core.commands:run")(
-            "plugins.core.settings", "pset", argument_string=arg_string
+        return self.api("plugins.core.settings:change.from.user")(
+            args["name"], args["value"], self.plugin_id
         )
-
-        return True, return_string
 
     @RegisterPluginHook("initialize", priority=75)
     def _phook_settings_post_initialize(self: "Plugin"):

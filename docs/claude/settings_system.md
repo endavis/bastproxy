@@ -191,6 +191,7 @@ Settings system listens to:
 - `plugins.core.settings:add` - Register a new setting
 - `plugins.core.settings:get` - Get a setting value
 - `plugins.core.settings:change` - Change a setting value
+- `plugins.core.settings:change.from.user` - Validate user input (empty value, unknown, hidden or readonly setting) and change a setting, returning `(success, message lines)`; shared by `pset` and the per-plugin `set`
 - `plugins.core.settings:reset` - Reset all plugin settings to defaults
 - `plugins.core.settings:get.setting.info` - Get metadata for a setting
 - `plugins.core.settings:get.all.for.plugin` - Get all settings for a plugin
@@ -226,7 +227,8 @@ Each plugin also gets a `set` command:
 ```
 #bp.<plugin>.set <name> <value>
 ```
-List or set settings for that specific plugin.
+List or set settings for that specific plugin. `set` and `pset` share the
+`plugins.core.settings:change.from.user` API; `set` passes its own plugin id.
 
 ## Common Patterns
 

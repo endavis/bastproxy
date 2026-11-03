@@ -66,8 +66,8 @@ def test_hook_without_settings_plugin_is_a_noop() -> None:
 class _Args(dict):
     arg_string = ""
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name=name, value="")
+    def __init__(self, name: str, value: str = "") -> None:
+        super().__init__(name=name, value=value)
         self.arg_string = f"{name} 5"
 
 
@@ -82,18 +82,19 @@ def test_set_list_returns_formatted_settings() -> None:
         assert stub._command_settings_plugin_set() == (True, "fmt plugins.test.stub")
 
 
-def test_set_with_name_runs_pset() -> None:
-    run = MagicMock(return_value=(True, "done"))
-    stub = _Stub(
-        {
-            "plugins.core.commands:get.current.command.args": lambda: _Args("foo"),
-            "plugins.core.commands:run": run,
-        }
-    )
-    assert stub._command_settings_plugin_set() == (True, "done")
-    run.assert_called_once_with(
-        "plugins.core.settings", "pset", argument_string="-p plugins.test.stub foo 5"
-    )
+def test_set_with_name_calls_change_from_user() -> None:
+    for result in ((True, ["done"]), (False, ["failed"])):
+        change = MagicMock(return_value=result)
+        stub: Any = _Stub(
+            {
+                "plugins.core.commands:get.current.command.args": lambda: _Args("foo", "5"),
+                "plugins.core.settings:change.from.user": change,
+            }
+        )
+        assert stub._command_settings_plugin_set() == result
+        change.assert_called_once_with("foo", "5", "plugins.test.stub")
+        requested = [c.args[0] for c in stub.api.call_args_list]
+        assert "plugins.core.commands:run" not in requested
 
 
 def test_patch_machinery_removed() -> None:
