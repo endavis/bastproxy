@@ -385,12 +385,9 @@ class TimersPlugin(BasePlugin):
 
         this function returns no values
         """
-        plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(name)
         LogRecord(f"removing timers for {name}", level="debug", sources=[self.plugin_id, name])()
         timers_to_remove: list[str] = [
-            i
-            for i in self.timer_lookup
-            if plugin_instance.plugin_id == self.timer_lookup[i].owner_id
+            i for i in self.timer_lookup if self.timer_lookup[i].owner_id == name
         ]
         for i in timers_to_remove:
             self.api(f"{self.plugin_id}:remove.timer")(i)

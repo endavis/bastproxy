@@ -133,8 +133,10 @@ class SettingsPlugin(BasePlugin):
     def _eventcb_settings_plugin_unloaded(self):
         if event_record := self.api("plugins.core.events:get.current.event.record")():
             plugin_id = event_record["plugin_id"]
-            self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
-            self.api(f"{self.plugin_id}:remove.plugin.settings")(plugin_id)
+            # a plugin that failed to load may never have added a setting
+            if plugin_id in self.settings_values or plugin_id in self.settings_info:
+                self.api(f"{self.plugin_id}:save.plugin")(plugin_id)
+                self.api(f"{self.plugin_id}:remove.plugin.settings")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_save")
     def _eventcb_settings_plugin_save(self):
@@ -256,17 +258,12 @@ class SettingsPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, plugin_id],
         )()
-        if plugin_id not in self.settings_info:
-            self.settings_info[plugin_id] = {}
-
-        for i in self.settings_info[plugin_id]:
+        for i in self.settings_info.pop(plugin_id, {}):
             if i in self.settings_map:
                 del self.settings_map[i]
 
-        del self.settings_info[plugin_id]
-
-        self.settings_values[plugin_id].close()
-        del self.settings_values[plugin_id]
+        if (values := self.settings_values.pop(plugin_id, None)) is not None:
+            values.close()
 
     @AddAPI("save.plugin", description="save the settings for a plugin")
     def _api_save_plugin(self, plugin_id):

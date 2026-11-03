@@ -825,6 +825,9 @@ class PluginLoader:
                     sources=[__name__, plugin_info.plugin_id],
                 )()
                 sys.exit(1)
+            # a hook above priority 91 may already have set the flag; a failed
+            # initialize must take the never-loaded cleanup path, not uninitialize()
+            plugin_info.runtime_info.is_loaded = False
             self.api(f"{__name__}:unload.plugin")(plugin_id, allow_required=True)
             return False
 
@@ -1092,14 +1095,49 @@ class PluginLoader:
         """
         self.plugins_info[plugin_id].runtime_info.is_loaded = True
 
+    def _remove_plugin_registrations(self, plugin_id: str) -> None:
+        """Remove what a plugin that is not loaded registered.
+
+        Raises ev_plugin_unloaded (the subsystems clean up on it) and removes the
+        plugin's APIs. Each step is isolated so one failure does not skip the other.
+
+        Args:
+            plugin_id: The ID of the plugin to clean up.
+
+        """
+        try:
+            if self.api("libs.api:has")("plugins.core.events:raise.event"):
+                self.api("plugins.core.events:raise.event")(
+                    "ev_plugin_unloaded", event_args={"plugin_id": plugin_id}
+                )
+        except Exception:  # pylint: disable=broad-except
+            LogRecord(
+                f"could not raise ev_plugin_unloaded for {plugin_id}",
+                level="error",
+                sources=[__name__, plugin_id],
+                exc_info=True,
+            )()
+
+        try:
+            self.api("libs.api:remove")(plugin_id)
+        except Exception:  # pylint: disable=broad-except
+            LogRecord(
+                f"could not remove the apis for {plugin_id}",
+                level="error",
+                sources=[__name__, plugin_id],
+                exc_info=True,
+            )()
+
     @AddAPI("unload.plugin", "unload a plugin")
     def _api_unload_plugin(self, plugin_id: str, *, allow_required: bool = False) -> bool:
         """Unload a plugin.
 
-        This method unloads a plugin by running its uninitialize method, removing
-        it from the list of plugins to load at startup, and deleting its instance
-        and imported modules. It ensures that the plugin is properly unloaded and
-        its runtime information is reset.
+        A loaded plugin runs its uninitialize method. A plugin that is not loaded
+        (its __init__ or initialize failed) is not uninitialized; instead its
+        registrations are removed by raising ev_plugin_unloaded and removing its
+        APIs. Either way the plugin is removed from the list of plugins to load
+        at startup, and its instance and imported modules are deleted and its
+        runtime information is reset.
 
         Args:
             plugin_id: The ID of the plugin to unload.
@@ -1120,6 +1158,7 @@ class PluginLoader:
 
         if (
             plugin_info.runtime_info.plugin_instance
+            and plugin_info.runtime_info.is_loaded
             and not plugin_info.runtime_info.plugin_instance.can_reload_f
         ):
             LogRecord(
@@ -1140,11 +1179,8 @@ class PluginLoader:
             return False
 
         try:
-            # run the uninitialize method if it exists
-            if plugin_info.runtime_info.plugin_instance:
-                if plugin_info.runtime_info.is_loaded:
-                    plugin_info.runtime_info.plugin_instance.uninitialize()
-
+            if plugin_info.runtime_info.plugin_instance and plugin_info.runtime_info.is_loaded:
+                plugin_info.runtime_info.plugin_instance.uninitialize()
                 LogRecord(
                     f"{plugin_info.plugin_id:<30} : successfully ran uninitialize "
                     f"method ({plugin_info.name})",
@@ -1152,11 +1188,14 @@ class PluginLoader:
                     sources=[__name__, plugin_info.plugin_id],
                 )()
             else:
+                # never loaded: no uninitialize, but remove what it registered
                 LogRecord(
-                    f"{plugin_info.plugin_id:<30} : plugin instance not found ({plugin_info.name})",
+                    f"{plugin_info.plugin_id:<30} : plugin not loaded, removing its "
+                    f"registrations ({plugin_info.name})",
                     level="info",
                     sources=[__name__, plugin_info.plugin_id],
                 )()
+                self._remove_plugin_registrations(plugin_id)
 
         except Exception:  # pylint: disable=broad-except
             LogRecord(
