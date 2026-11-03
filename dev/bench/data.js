@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793667521054,
+  "lastUpdate": 1793668199407,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2018,6 +2018,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000055481318302431084",
             "extra": "mean: 308.504458830313 usec\nrounds: 3607"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e3522ef7dd959dce709365af877b80be20635ab0",
+          "message": "fix: parse double-quoted plugin name, author and purpose metadata (merges PR #120, addresses #119)\n\nNAMERE, AUTHORRE and PURPOSERE only matched single-quoted values, but\nevery bundled plugin writes them in double quotes, so name, author and\npurpose stayed empty and is_plugin stayed False after update_from_init.\nThe three regexes now accept either quote, with the closing quote\nmatching the opening one.\n\nAddresses #119\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T01:09:16Z",
+          "tree_id": "1358465fe52d1430bd96994807aee9bc8eb27c55",
+          "url": "https://github.com/endavis/bastproxy/commit/e3522ef7dd959dce709365af877b80be20635ab0"
+        },
+        "date": 1793668198531,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 336.98581020150175,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00023184608868823787",
+            "extra": "mean: 2.96748400000002 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10484.84546649222,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011882804802591566",
+            "extra": "mean: 95.37574999992415 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 321.4684989642124,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009986666134211793",
+            "extra": "mean: 3.1107247000003113 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 773.9692770574923,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009238673912377948",
+            "extra": "mean: 1.2920409499997731 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2913.931565728241,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002855492916477051",
+            "extra": "mean: 343.17895854567985 usec\nrounds: 2943"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2645.8745702796623,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000020762018672325275",
+            "extra": "mean: 377.946865370229 usec\nrounds: 2674"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4591.903548179583,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000074474927686174255",
+            "extra": "mean: 217.77460904997466 usec\nrounds: 4663"
           }
         ]
       }
