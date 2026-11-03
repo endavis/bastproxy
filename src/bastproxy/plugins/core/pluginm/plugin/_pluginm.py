@@ -396,6 +396,9 @@ class PluginManager(BasePlugin):
         if not self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id):
             return True, [f"Plugin {plugin_id} is not loaded"]
 
+        if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).is_required:
+            return False, [f"Plugin {plugin_id} is required and cannot be unloaded"]
+
         if self.api("libs.plugins.loader:unload.plugin")(plugin_id):
             plugins_to_load_setting = self.api("plugins.core.settings:get")(
                 self.plugin_id, "pluginstoload"
