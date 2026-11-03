@@ -21,7 +21,7 @@ class AsyncPlugin(BasePlugin):
     def _command_tasks(self):
         """List records of a specific type."""
         line_length = self.api("plugins.core.commands:get.output.line.length")()
-        header_color = self.api("plugins.core.settings:get")(
+        header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
 

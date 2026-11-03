@@ -54,7 +54,7 @@ class ProcessRaisedEvent(BaseRecord):
         self.addupdate("Info", "Invoked", extra={"data": f"{self.event_data.data}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
-        log_savestate = self.api("plugins.core.settings:get")(
+        log_savestate = self.api("plugins.core.settings:setting.get")(
             "plugins.core.events", "log_savestate"
         )
         log: bool = True if log_savestate else not self.event_name.endswith("_savestate")
@@ -112,7 +112,7 @@ class ProcessRaisedEvent(BaseRecord):
         return attributes
 
     def format_simple(self):
-        subheader_color = self.api("plugins.core.settings:get")(
+        subheader_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
         message = [

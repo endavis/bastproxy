@@ -413,8 +413,10 @@ class UtilsPlugin(BasePlugin):
 
         Widths and padding ignore color codes, so colored cells stay aligned.
         """
-        line_length_default = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
-        output_color = color or self.api("plugins.core.settings:get")(
+        line_length_default = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "linelen"
+        )
+        output_color = color or self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
         temp_data = [{item["key"]: item["name"] for item in columns}, *list(data)]
@@ -497,7 +499,9 @@ class UtilsPlugin(BasePlugin):
         spacechar = " " if space else ""
 
         if not line_length:
-            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+            line_length = self.api("plugins.core.settings:setting.get")(
+                "plugins.core.proxy", "linelen"
+            )
 
         capchar_len = len(capchar + spacechar)
 

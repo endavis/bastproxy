@@ -106,8 +106,10 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     apis: dict[str, Callable[..., Any]] = {
         "unload.plugin": loader._api_unload_plugin,
         "load.plugins": loader._api_load_plugins,
-        "plugins.core.settings:get": lambda _owner, name: list(settings[name]),
-        "plugins.core.settings:change": lambda _owner, name, value: settings.update({name: value}),
+        "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
+        "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
+            {name: value}
+        ),
     }
 
     def _api(name: str) -> Callable[..., Any]:
@@ -207,7 +209,7 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
             "libs.plugins.loader:is.plugin.loaded": lambda _pid: True,
             "libs.plugins.loader:get.plugin.info": lambda _pid: info,
             "libs.plugins.loader:unload.plugin": unload,
-            "plugins.core.settings:get": lambda *_a: [],
+            "plugins.core.settings:setting.get": lambda *_a: [],
         }.get(name, MagicMock())
 
     stub = MagicMock()

@@ -21,7 +21,7 @@ def test_listeners_pass_force_binary() -> None:
     }
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda _plugin, key: settings[key]
         return MagicMock()
 

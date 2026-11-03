@@ -127,7 +127,7 @@ what it holds for that plugin.
 | Event registrations | `plugins.core.events:register.to.event`, `RegisterToEvent` | events `_eventcb_plugin_unloaded` calls `remove.events.for.owner`, which calls `Event.removeowner` | Verified clean after unload, and after a failed load (PS-1, fixed). |
 | Event definitions (`ev_<id>_loaded`, `_unloaded`, `_save`, `_savestate`, `ev_<custom>`, `watch_<name>`) | `plugins.core.events:add.event` | **Nothing** | Verified: all stay in the events plugin with `created_by` set to the unloaded plugin. See [Other Observations](#other-observations). |
 | Commands | `update_commands_for_plugin` on `ev_plugin_loaded` | commands `_eventcb_plugin_unloaded` calls `remove.data.for.plugin` | Verified clean (#96). |
-| Settings | `plugins.core.settings:add`, `initialize.plugin.settings` | settings `_eventcb_settings_plugin_unloaded` saves then calls `remove.plugin.settings` | Verified clean after unload. After a failed load the handler also runs (it tolerates a plugin with no settings), so the settings and the open `PersistentDict` are closed (PS-1, fixed). |
+| Settings | `plugins.core.settings:setting.add`, `setting.initialize.for.plugin` | settings `_eventcb_settings_plugin_unloaded` saves then calls `setting.remove.for.plugin` | Verified clean after unload. After a failed load the handler also runs (it tolerates a plugin with no settings), so the settings and the open `PersistentDict` are closed (PS-1, fixed). |
 | Timers | `plugins.core.timers:add.timer` | timers `_eventcb_plugin_unloaded` calls `remove.data.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `get.plugin.instance`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
 | Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `remove.data.for.owner` | Verified clean after unload. |
 | Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `remove.all.data.for.plugin` | Broken for more than one watch (PS-3). |
@@ -224,7 +224,7 @@ priority.
 | `__init__` | 75 | `_phook_base_init` | Adds the APIs again |
 | `initialize` | 1 | `_phook_base_initialize` | Adds the `_version` setting, registers the disconnect callback, adds `ev_<id>_savestate` |
 | `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enables the `reset` command |
-| `initialize` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | `settings:initialize.plugin.settings` |
+| `initialize` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | `settings:setting.initialize.for.plugin` |
 | `initialize` | 90 | `_phook_base_post_initialize_update_version` | Runs `version_functions` for a version bump |
 | `initialize` | 91 | `_phook_base_post_initialize_setup` | Adds APIs again, flags the plugin loaded, adds `ev_<id>_loaded`/`_unloaded`, raises the loaded events (not at startup) |
 | `uninitialize` | 100 | `_phook_base_unitialize_hook` | Saves, caches reload attributes, raises the unloaded events, removes the APIs |
@@ -232,8 +232,8 @@ priority.
 Everything else in the tree uses the default priority 50, except the log plugin's `__init__`
 hook at 99. The orderings that matter and were undocumented:
 
-- A plugin's own `settings:add` calls must happen before priority 75, or they are missed by
-  `initialize.plugin.settings`.
+- A plugin's own `settings:setting.add` calls must happen before priority 75, or they are missed by
+  `setting.initialize.for.plugin`.
 - Reload attributes are restored by the loader right after construction, so defaults may be set in
   `__init__` or in an `__init__` hook (PS-4, fixed).
 - A plugin's `uninitialize` hooks run before the base hook at 100, so they still have their APIs
@@ -326,7 +326,7 @@ plugins.zprobe.pc  api_class (9 APIs)
 The leftover `_eventcb_x` and the timer callback are bound methods of an instance the loader
 has deleted, so the instance stays alive and the timer would fire into it (**read**, I did not
 let the timer fire). The settings entry holds the plugin's `PersistentDict`, which
-`remove.plugin.settings` closes and a failed load never does (**read**). #111 removed the
+`setting.remove.for.plugin` closes and a failed load never does (**read**). #111 removed the
 modules; this is the same cleanup for the registries.
 
 **Fix:** Give the loader one cleanup path that does not depend on `is_loaded`: raise

@@ -20,10 +20,13 @@ def _stub(event_plugin: str = PID) -> MagicMock:
     def api(name: str) -> Any:
         if name == "plugins.core.events:get.current.event.record":
             return lambda: {"plugin_id": event_plugin}
-        if name == "plugins.core.settings:save.plugin":
-            return lambda p: (stub.order.append("save"), SettingsPlugin._api_save_plugin(stub, p))
-        if name == "plugins.core.settings:remove.plugin.settings":
-            return lambda p: SettingsPlugin._api_remove_plugin_settings(stub, p)
+        if name == "plugins.core.settings:setting.save.for.plugin":
+            return lambda p: (
+                stub.order.append("save"),
+                SettingsPlugin._api_setting_save_for_plugin(stub, p),
+            )
+        if name == "plugins.core.settings:setting.remove.for.plugin":
+            return lambda p: SettingsPlugin._api_setting_remove_for_plugin(stub, p)
         return MagicMock()
 
     stub.api = api
@@ -63,7 +66,7 @@ def test_unloaded_event_syncs_then_closes_and_removes_entries() -> None:
 def test_remove_plugin_settings_for_unknown_plugin_is_a_noop() -> None:
     stub = _stub()
 
-    SettingsPlugin._api_remove_plugin_settings(stub, PID)
+    SettingsPlugin._api_setting_remove_for_plugin(stub, PID)
 
     assert list(stub.settings_info) == [OTHER]
     assert list(stub.settings_values) == [OTHER]

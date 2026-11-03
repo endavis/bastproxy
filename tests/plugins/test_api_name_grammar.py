@@ -373,22 +373,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.proxy", "is.mud.connected"): "shape",
     ("plugins.core.proxy", "restart"): "shape",
     ("plugins.core.proxy", "shutdown"): "shape",
-    # plugins.core.settings
-    ("plugins.core.settings", "add"): "shape",
-    ("plugins.core.settings", "add.setting.to.map"): "shape",
-    ("plugins.core.settings", "change"): "shape",
-    ("plugins.core.settings", "change.from.user"): "shape",
-    ("plugins.core.settings", "format.setting"): "shape",
-    ("plugins.core.settings", "get"): "shape",
-    ("plugins.core.settings", "get.all.for.plugin"): "shape",
-    ("plugins.core.settings", "get.all.settings.formatted"): "shape",
-    ("plugins.core.settings", "get.setting.info"): "shape",
-    ("plugins.core.settings", "initialize.plugin.settings"): "shape",
-    ("plugins.core.settings", "is.setting.hidden"): "shape",
-    ("plugins.core.settings", "raise.event.all.settings"): "shape",
-    ("plugins.core.settings", "remove.plugin.settings"): "shape",
-    ("plugins.core.settings", "reset"): "shape",
-    ("plugins.core.settings", "save.plugin"): "shape",
     # plugins.core.sqldb
     ("plugins.core.sqldb", "baseclass"): "shape",
     ("plugins.core.sqldb", "{database_name}.get.single.row"): "review",  # rules 3/5, left to review

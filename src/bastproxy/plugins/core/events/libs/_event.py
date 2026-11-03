@@ -142,10 +142,10 @@ class Event:
 
     def detail(self) -> list[str]:
         """Format a detail of the event."""
-        header_color = self.api("plugins.core.settings:get")(
+        header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
-        subheader_color = self.api("plugins.core.settings:get")(
+        subheader_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
 

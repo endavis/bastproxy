@@ -284,8 +284,8 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
                 "libs.api:has": lambda _name: True,
                 "plugins.core.events:raise.event": world.raise_event,
                 "unload.plugin": loader._api_unload_plugin,
-                "plugins.core.settings:get": lambda _owner, name: list(settings[name]),
-                "plugins.core.settings:change": lambda _owner, name, value: settings.update(
+                "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
+                "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
                     {name: value}
                 ),
             }

@@ -21,7 +21,7 @@ class RecordPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the instance."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "showLogRecords",
             False,
@@ -49,7 +49,7 @@ class RecordPlugin(BasePlugin):
     def _command_list(self):
         """List records of a specific type."""
         line_length = self.api("plugins.core.commands:get.output.line.length")()
-        header_color = self.api("plugins.core.settings:get")(
+        header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
 
@@ -135,7 +135,9 @@ class RecordPlugin(BasePlugin):
                 tmsg.append(f"update {args['update']} in record {args['uid']} not found")
 
         else:
-            showlogrecords = self.api("plugins.core.settings:get")(self.plugin_id, "showLogRecords")
+            showlogrecords = self.api("plugins.core.settings:setting.get")(
+                self.plugin_id, "showLogRecords"
+            )
             update_filter = [] if showlogrecords else ["LogRecord"]
             data = record.get_formatted_details(
                 update_filter=update_filter,

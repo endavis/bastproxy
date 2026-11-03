@@ -13,7 +13,7 @@ from bastproxy.plugins._baseplugin.libs._settings import Settings
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
 from bastproxy.plugins.core.events.plugin._events import EventsPlugin
 
-INIT_API = "plugins.core.settings:initialize.plugin.settings"
+INIT_API = "plugins.core.settings:setting.initialize.for.plugin"
 
 
 class _Stub(BasePlugin):
@@ -76,7 +76,7 @@ def test_set_list_returns_formatted_settings() -> None:
         stub = _Stub(
             {
                 "plugins.core.commands:get.current.command.args": lambda n=name: _Args(n),
-                "plugins.core.settings:get.all.settings.formatted": lambda pid: f"fmt {pid}",
+                "plugins.core.settings:setting.list.formatted": lambda pid: f"fmt {pid}",
             }
         )
         assert stub._command_settings_plugin_set() == (True, "fmt plugins.test.stub")
@@ -88,7 +88,7 @@ def test_set_with_name_calls_change_from_user() -> None:
         stub: Any = _Stub(
             {
                 "plugins.core.commands:get.current.command.args": lambda: _Args("foo", "5"),
-                "plugins.core.settings:change.from.user": change,
+                "plugins.core.settings:setting.set.from.user": change,
             }
         )
         assert stub._command_settings_plugin_set() == result

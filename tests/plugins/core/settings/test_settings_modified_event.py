@@ -33,9 +33,9 @@ def _stub(
     def api(name: str) -> Any:
         if name == "libs.plugins.loader:is.plugin.loaded":
             return lambda pid: loaded if pid == PID else False
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda _pid, setting: values[setting]
-        if name == "plugins.core.settings:is.setting.hidden":
+        if name == "plugins.core.settings:setting.is.hidden":
             return lambda _pid, _setting: hidden
         if name == "libs.api:has":
             return lambda _name: True
@@ -51,7 +51,7 @@ def _stub(
 
 def test_loaded_plugin_change_raises_event() -> None:
     stub, raise_event = _stub()
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", 5) is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", 5) is True
     raise_event.assert_called_once_with(
         f"ev_{PID}_var_foo_modified",
         event_args={"var": "foo", "newvalue": 5, "oldvalue": 1},
@@ -60,32 +60,32 @@ def test_loaded_plugin_change_raises_event() -> None:
 
 def test_plugin_not_loaded_stores_without_event() -> None:
     stub, raise_event = _stub(loaded=False)
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", 5) is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", 5) is True
     assert stub.values["foo"] == 5
     raise_event.assert_not_called()
 
 
 def test_hidden_setting_no_event() -> None:
     stub, raise_event = _stub(hidden=True)
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", 5) is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", 5) is True
     raise_event.assert_not_called()
 
 
 def test_startup_no_event() -> None:
     stub, raise_event = _stub(startup=True)
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", 5) is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", 5) is True
     raise_event.assert_not_called()
 
 
 def test_same_value_no_event() -> None:
     stub, raise_event = _stub(old=5)
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", 5) is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", 5) is True
     raise_event.assert_not_called()
 
 
 def test_default_keyword_raises_with_default() -> None:
     stub, raise_event = _stub()
-    assert SettingsPlugin._api_setting_change(stub, PID, "foo", "default") is True
+    assert SettingsPlugin._api_setting_set(stub, PID, "foo", "default") is True
     raise_event.assert_called_once_with(
         f"ev_{PID}_var_foo_modified",
         event_args={"var": "foo", "newvalue": 7, "oldvalue": 1},

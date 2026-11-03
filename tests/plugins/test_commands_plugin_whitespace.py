@@ -20,7 +20,7 @@ def _run(text: str) -> MagicMock:
     record: dict[str, Any] = {"line": line, "showinhistory": False}
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda plugin_id, key: "#bp"
         if name == "plugins.core.events:get.current.event.record":
             return lambda: record

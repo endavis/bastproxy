@@ -75,28 +75,28 @@ class CommandsPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the instance."""
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "cmdprefix",
             "#bp",
             str,
             "the prefix to signify the input is a command",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "spamcount",
             20,
             int,
             "the # of times a command can be run before an antispam command",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "antispamcommand",
             "look",
             str,
             "the antispam command to send",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "cmdcount",
             0,
@@ -104,7 +104,7 @@ class CommandsPlugin(BasePlugin):
             "the # of times the current command has been run",
             readonly=True,
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "lastcmd",
             "",
@@ -112,44 +112,44 @@ class CommandsPlugin(BasePlugin):
             "the last command that was sent to the mud",
             readonly=True,
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "historysize", 50, int, "the size of the history to keep"
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "header_color",
             "@M",
             "color",
             "the color to use for the command headers",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "output_header_color",
             "@B",
             "color",
             "the color to use for the header in the output of a command",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "output_subheader_color",
             "@G",
             "color",
             "the color to use for a subheader in the output of a command",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "command_indent", 0, int, "the indent for a command"
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "simple_output",
             True,
             bool,
             "show simple output for commands",
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "multiline_headers", True, bool, "headers are multiline"
         )
-        self.api("plugins.core.settings:add")(
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
             "include_date",
             True,
@@ -160,7 +160,7 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("get.command.indent", description="indent for commands")
     def _api_get_command_indent(self):
         """Return the command indent."""
-        return self.api("plugins.core.settings:get")(self.plugin_id, "command_indent")
+        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent")
 
     @AddAPI("get.command.count", description="get a command count for a specific plugin")
     def _api_get_command_count(self, plugin_id):
@@ -170,17 +170,19 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("get.output.indent", description="indent for command output")
     def _api_get_output_indent(self):
         """Return the output indent."""
-        if self.api("plugins.core.settings:get")(self.plugin_id, "simple_output"):
-            return self.api("plugins.core.settings:get")(self.plugin_id, "command_indent")
+        if self.api("plugins.core.settings:setting.get")(self.plugin_id, "simple_output"):
+            return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent")
 
-        return self.api("plugins.core.settings:get")(self.plugin_id, "command_indent") * 2
+        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent") * 2
 
     @AddAPI("format.output.header", description="format a header with the header color")
     def _api_format_output_header(self, header_text, line_length=None):
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
-        color = self.api("plugins.core.settings:get")(
+            line_length = self.api("plugins.core.settings:setting.get")(
+                "plugins.core.proxy", "linelen"
+            )
+        color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
 
@@ -193,8 +195,10 @@ class CommandsPlugin(BasePlugin):
     def _api_format_output_subheader(self, header_text, line_length=None):
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
-        color = self.api("plugins.core.settings:get")(
+            line_length = self.api("plugins.core.settings:setting.get")(
+                "plugins.core.proxy", "linelen"
+            )
+        color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
 
@@ -204,21 +208,27 @@ class CommandsPlugin(BasePlugin):
     def _api_format_header(self, header_text, color, line_length=None):
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+            line_length = self.api("plugins.core.settings:setting.get")(
+                "plugins.core.proxy", "linelen"
+            )
 
         return self._format_output_header(header_text, color, line_length)
 
     def _format_output_header(self, header_text, color, line_length=None):
         """Format an output header."""
         if not line_length:
-            line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+            line_length = self.api("plugins.core.settings:setting.get")(
+                "plugins.core.proxy", "linelen"
+            )
 
         if not color:
-            color = self.api("plugins.core.settings:get")(
+            color = self.api("plugins.core.settings:setting.get")(
                 "plugins.core.commands", "output_header_color"
             )
 
-        if _ := self.api("plugins.core.settings:get")("plugins.core.commands", "multiline_headers"):
+        if _ := self.api("plugins.core.settings:setting.get")(
+            "plugins.core.commands", "multiline_headers"
+        ):
             return [
                 self.api("plugins.core.utils:cap.line")(
                     f"{'-' * (line_length - 2)}",
@@ -249,14 +259,14 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("get.command.line.length", description="get line length for command")
     def _api_get_command_line_length(self):
         """Return the line length for output."""
-        line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
         command_indent = self.api(f"{self.plugin_id}:get.command.indent")()
         return line_length - 2 * command_indent
 
     @AddAPI("get.output.line.length", description="get line length for command output")
     def _api_get_output_line_length(self):
         """Return the line length for output."""
-        line_length = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
+        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
         output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
         return line_length - 2 * output_indent
 
@@ -528,7 +538,7 @@ class CommandsPlugin(BasePlugin):
 
         returns the current command prefix as a string
         """
-        return self.api("plugins.core.settings:get")(self.plugin_id, "cmdprefix")
+        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
 
     @AddAPI("command.help.format", description="format a help string for a command")
     def _api_command_help_format(self, plugin_id, command_name):
@@ -620,7 +630,7 @@ class CommandsPlugin(BasePlugin):
         self.command_history_data.append(command)
 
         # if the size is greater than historysize, pop the first item
-        if len(self.command_history_data) >= self.api("plugins.core.settings:get")(
+        if len(self.command_history_data) >= self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "historysize"
         ):
             self.command_history_data.pop(0)
@@ -729,32 +739,36 @@ class CommandsPlugin(BasePlugin):
         original_command = event_record["line"].line
 
         # if the command is the same as the last command, do antispam checks
-        if original_command == self.api("plugins.core.settings:get")(self.plugin_id, "lastcmd"):
-            self.api("plugins.core.settings:change")(
+        if original_command == self.api("plugins.core.settings:setting.get")(
+            self.plugin_id, "lastcmd"
+        ):
+            self.api("plugins.core.settings:setting.set")(
                 self.plugin_id,
                 "cmdcount",
-                self.api("plugins.core.settings:get")(self.plugin_id, "cmdcount") + 1,
+                self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdcount") + 1,
             )
 
             # if the command has been sent spamcount times, then we send an antispam
             # command in between
-            if self.api("plugins.core.settings:get")(self.plugin_id, "cmdcount") == self.api(
-                "plugins.core.settings:get"
-            )(self.plugin_id, "spamcount"):
+            if self.api("plugins.core.settings:setting.get")(
+                self.plugin_id, "cmdcount"
+            ) == self.api("plugins.core.settings:setting.get")(self.plugin_id, "spamcount"):
                 event_record.addupdate("Modify", "Antispam Command sent", savedata=False)
                 LogRecord(
-                    f"sending antspam command: {self.api('plugins.core.settings:get')('plugins.core.commands', 'antispamcommand')}",
+                    f"sending antspam command: {self.api('plugins.core.settings:setting.get')('plugins.core.commands', 'antispamcommand')}",
                     level="debug",
                     sources=[self.plugin_id],
                 )()
                 SendDataDirectlyToMud(
                     NetworkData(
-                        self.api("plugins.core.settings:get")(self.plugin_id, "antispamcommand")
+                        self.api("plugins.core.settings:setting.get")(
+                            self.plugin_id, "antispamcommand"
+                        )
                     ),
                     show_in_history=False,
                 )()
 
-                self.api("plugins.core.settings:change")(self.plugin_id, "cmdcount", 0)
+                self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)
                 return
 
             # if the command is seen multiple times in a row and it has been flagged to only be sent once,
@@ -770,13 +784,15 @@ class CommandsPlugin(BasePlugin):
                 return
         else:
             # the command does not match the last command
-            self.api("plugins.core.settings:change")(self.plugin_id, "cmdcount", 0)
+            self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)
             LogRecord(
                 f"resetting command to {original_command}",
                 level="debug",
                 sources=[self.plugin_id],
             )()
-            self.api("plugins.core.settings:change")(self.plugin_id, "lastcmd", original_command)
+            self.api("plugins.core.settings:setting.set")(
+                self.plugin_id, "lastcmd", original_command
+            )
 
     def proxy_help(self, header, header2, data):
         """Print the proxy help.
@@ -934,7 +950,7 @@ class CommandsPlugin(BasePlugin):
         # copy the command
         command = command_line
 
-        commandprefix = self.api("plugins.core.settings:get")(self.plugin_id, "cmdprefix")
+        commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
         command_str = command
 
         if command_str in [
@@ -1006,7 +1022,7 @@ class CommandsPlugin(BasePlugin):
         self, command_str: str
     ) -> tuple[bool, str, str, str, list, str]:
         """Split a command string into its parts."""
-        commandprefix = self.api("plugins.core.settings:get")(self.plugin_id, "cmdprefix")
+        commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
 
         cmd_args_split = command_str.split(" ", 1)
         command_str = cmd_args_split[0]
@@ -1186,7 +1202,7 @@ class CommandsPlugin(BasePlugin):
         if it is, the command is parsed and executed
         and the output sent to the client.
         """
-        commandprefix = self.api("plugins.core.settings:get")(self.plugin_id, "cmdprefix")
+        commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
 
         if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
             return
@@ -1259,7 +1275,7 @@ class CommandsPlugin(BasePlugin):
 
         """
         message = []
-        output_header_color = self.api("plugins.core.settings:get")(
+        output_header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
         for i in command_list:
@@ -1290,7 +1306,7 @@ class CommandsPlugin(BasePlugin):
         if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
             return []
 
-        output_subheader_color = self.api("plugins.core.settings:get")(
+        output_subheader_color = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "output_subheader_color"
         )
 
@@ -1467,7 +1483,7 @@ class CommandsPlugin(BasePlugin):
         if len(self.command_history_data) < abs(args["number"]):
             return True, ["# is outside of history length"]
 
-        if len(self.command_history_data) >= self.api("plugins.core.settings:get")(
+        if len(self.command_history_data) >= self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "historysize"
         ):
             command = self.command_history_data[args["number"] - 1]

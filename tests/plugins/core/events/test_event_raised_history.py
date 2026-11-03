@@ -19,12 +19,12 @@ def restore_cap() -> Iterator[None]:
     """Restore the class-level cap after each test."""
     saved = Event.MAX_RAISED_EVENTS
     api = API("test153")
-    api.add("plugins.core.settings", "get", lambda *_a, **_k: False, description="stand-in")
+    api.add("plugins.core.settings", "setting.get", lambda *_a, **_k: False, description="stand-in")
     try:
         yield
     finally:
         Event.MAX_RAISED_EVENTS = saved
-        API._class_api.pop("plugins.core.settings:get", None)
+        API._class_api.pop("plugins.core.settings:setting.get", None)
 
 
 def _event(name: str = "ev_test153_main") -> Event:
@@ -114,9 +114,9 @@ def _stub(settings_value: Any = None, record: Any = None) -> MagicMock:
     calls: dict[str, MagicMock] = {"add": MagicMock()}
 
     def api(name: str) -> Any:
-        if name == "plugins.core.settings:add":
+        if name == "plugins.core.settings:setting.add":
             return calls["add"]
-        if name == "plugins.core.settings:get":
+        if name == "plugins.core.settings:setting.get":
             return lambda *_a, **_k: settings_value
         if name == "plugins.core.events:get.current.event.record":
             return lambda: record

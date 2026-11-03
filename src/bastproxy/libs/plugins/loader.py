@@ -1019,7 +1019,7 @@ class PluginLoader:
         unload_order, _ = PluginDependencyResolver(
             self.plugins_info, [pid for pid in loaded if pid not in to_reload]
         ).resolve(to_reload)
-        pluginstoload = self.api("plugins.core.settings:get")(
+        pluginstoload = self.api("plugins.core.settings:setting.get")(
             "plugins.core.pluginm", "pluginstoload"
         )
         restore = [pid for pid in to_reload if pid in pluginstoload]
@@ -1036,10 +1036,12 @@ class PluginLoader:
         if result["bad_plugins"]:
             ok = False
 
-        current = self.api("plugins.core.settings:get")("plugins.core.pluginm", "pluginstoload")
+        current = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.pluginm", "pluginstoload"
+        )
         missing = [pid for pid in restore if pid not in current]
         if missing:
-            self.api("plugins.core.settings:change")(
+            self.api("plugins.core.settings:setting.set")(
                 "plugins.core.pluginm", "pluginstoload", [*current, *missing]
             )
 
@@ -1176,12 +1178,12 @@ class PluginLoader:
             return False
 
         # remove from pluginstoload so it doesn't load at startup
-        plugins_to_load = self.api("plugins.core.settings:get")(
+        plugins_to_load = self.api("plugins.core.settings:setting.get")(
             "plugins.core.pluginm", "pluginstoload"
         )
         if plugin_info.plugin_id in plugins_to_load:
             plugins_to_load.remove(plugin_info.plugin_id)
-            self.api("plugins.core.settings:change")(
+            self.api("plugins.core.settings:setting.set")(
                 "plugins.core.pluginm", "pluginstoload", plugins_to_load
             )
 
