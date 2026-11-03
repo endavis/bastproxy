@@ -23,9 +23,14 @@ failed, so a PR shows every failing check at once.
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 WORKFLOW_PATH = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
@@ -216,3 +221,85 @@ class TestLintJob:
         assert install.get("id") == "install"
         for step in _lint_check_steps():
             assert "steps.install.outcome == 'success'" in step.get("if", ""), step["name"]
+
+
+def _set_matrix_script() -> str:
+    """Return the shell script of the ``Set matrix`` step."""
+    steps: list[dict[str, Any]] = _load_workflow()["jobs"]["setup"]["steps"]
+    return str(next(s for s in steps if s.get("id") == "set-matrix")["run"])
+
+
+# GitHub runs the step as `bash -e {0}` on the ubuntu-latest setup job. The
+# Windows runner's `bash` resolves to wsl.exe with no distribution installed
+# (see tests/test_daily_check_workflow.py).
+_needs_bash = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="the Set matrix step runs under bash on Linux; the Windows runner has no usable bash",
+)
+
+
+def _run_matrix(tmp_path: Path, *, full_matrix: str, all_os: str) -> list[tuple[str, str]]:
+    """Run the Set matrix script and return its (os, python-version) pairs."""
+    output = tmp_path / "out"
+    env = {
+        **os.environ,
+        "OLDEST": "3.11",
+        "NEWEST": "3.14",
+        "FULL_MATRIX": full_matrix,
+        "ALL_OS": all_os,
+        "GITHUB_OUTPUT": str(output),
+    }
+    subprocess.run(["bash", "-e", "-c", _set_matrix_script()], env=env, check=True)
+    line = next(ln for ln in output.read_text().splitlines() if ln.startswith("matrix="))
+    include = json.loads(line.removeprefix("matrix="))["include"]
+    return [(e["os"], e["python-version"]) for e in include]
+
+
+class TestOsMatrix:
+    """Pull requests skip macOS and old-Python Windows; other callers run all (#1190)."""
+
+    def test_all_os_input_defaults_false_on_both_triggers(self) -> None:
+        workflow = _load_workflow()
+        triggers = workflow.get("on") or workflow.get(True)
+        assert triggers is not None
+        for trigger in ("workflow_call", "workflow_dispatch"):
+            all_os = triggers[trigger]["inputs"]["all_os"]
+            assert all_os["type"] == "boolean"
+            assert all_os["default"] is False
+
+    @_needs_bash
+    def test_default_is_linux_bookends_only(self, tmp_path: Path) -> None:
+        # bastproxy: pull requests stay ubuntu-only (kept from the #9 sync); upstream
+        # also runs Windows on the newest version here (#148).
+        pairs = _run_matrix(tmp_path, full_matrix="false", all_os="false")
+        assert sorted(pairs) == [
+            ("ubuntu-latest", "3.11"),
+            ("ubuntu-latest", "3.14"),
+        ]
+
+    @_needs_bash
+    def test_all_os_runs_bookends_everywhere(self, tmp_path: Path) -> None:
+        pairs = _run_matrix(tmp_path, full_matrix="false", all_os="true")
+        assert len(pairs) == 6
+        assert {os_name for os_name, _ in pairs} == {
+            "ubuntu-latest",
+            "windows-latest",
+            "macos-latest",
+        }
+
+    @_needs_bash
+    def test_full_matrix_runs_middle_versions_only(self, tmp_path: Path) -> None:
+        pairs = _run_matrix(tmp_path, full_matrix="true", all_os="true")
+        assert {v for _, v in pairs} == {"3.12", "3.13"}
+        assert len(pairs) == 6
+
+    def test_callers_pass_all_os(self) -> None:
+        workflows = Path(__file__).parent.parent / ".github" / "workflows"
+        for name, job in (
+            ("release.yml", "test"),
+            ("testpypi.yml", "test"),
+            ("ci-full-matrix.yml", "dispatch"),
+            ("nightly-matrix.yml", "test"),
+        ):
+            data = yaml.safe_load((workflows / name).read_text(encoding="utf-8"))
+            assert data["jobs"][job]["with"]["all_os"] is True, name

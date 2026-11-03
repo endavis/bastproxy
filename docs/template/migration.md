@@ -123,6 +123,7 @@ Everything else is copied, including the parts a hand-written list tends to miss
 - Select **[2] Configure project** to run the configurator.
 - Provide project name, package name (import), PyPI name, author, GitHub user, description.
 - **What it does:** Rewrites placeholders (badges/links/docs/workflows), renames `src/package_name → src/<your_package>`.
+- When it detects a migration backup in `tmp/`, the configurator prints pointers to the remaining steps (step 6 cleanup) at the end of its run.
 
 See [Template Management](manage.md) for full documentation on the management script.
 

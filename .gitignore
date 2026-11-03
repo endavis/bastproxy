@@ -91,9 +91,11 @@ site/
 # Project specific
 *.log
 # doit's dependency database; the filename depends on the dbm backend
-# (dbm.sqlite3/dbm.gnu: .doit.db, dbm.ndbm: .doit.db.db, dbm.dumb: .doit.db.dat/.dir/.bak)
+# (dbm.sqlite3/dbm.gnu: .doit.db, dbm.ndbm: .doit.db.db, dbm.dumb: .doit.db.dat/.dir/.bak);
+# the dbm.sqlite3 backend also leaves SQLite's WAL and shared-memory files (.doit.db-wal, .doit.db-shm)
 .doit.db
 .doit.db.*
+.doit.db-*
 coverage.xml
 .nfs*
 tools/hooks/ai/hook-debug.jsonl
