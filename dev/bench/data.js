@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793704293487,
+  "lastUpdate": 1793704484115,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2748,6 +2748,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00003736618532104556",
             "extra": "mean: 316.5846844444534 usec\nrounds: 3375"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c54fc6d6f4d05c6e34889aa20f5aa6422e3cb80b",
+          "message": "chore: move test plugins cmddec, _sqldb and exception to the plugin/ layout (merges PR #142, addresses #98)\n\n* chore: move test plugins cmddec, _sqldb and exception to the plugin/ layout (addresses #98)\n\nThe loader imports <package>.plugin, so these three test plugins failed to\nload. Move each to the layout of plugins/test/newmon, fix cmddec's outdated\nheader, rename cmddec's cmd_raise to _command_raise so it registers, and add\ntests that every discovered plugin imports.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: make the _sqldb test plugin initialize (addresses #98)\n\ninitialize read a nonexistent self.data_directory and called the sqldb\nbase class instead of passing it on, so the plugin loaded but failed in\ninitialize. Use plugin_info.data_directory, pass the class, and add a test\nthat runs initialize against the real Sqldb class.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: restore the baseclass call in the _sqldb test plugin (addresses #98)\n\nself.api(name) returns an APIItem; calling it returns the Sqldb class. The\nprevious commit dropped that call, so Statdb subclassed the APIItem and\ninitialize failed with a TypeError on a real load. Restore the call and make\nthe initialize test use a real API instance so it fails on the broken form.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T11:14:01Z",
+          "tree_id": "438aa9be38d6b698a1d2c7174b2e0b4304e37b80",
+          "url": "https://github.com/endavis/bastproxy/commit/c54fc6d6f4d05c6e34889aa20f5aa6422e3cb80b"
+        },
+        "date": 1793704483193,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 294.8074792185217,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00020637563332145378",
+            "extra": "mean: 3.3920442000006545 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 8936.640337122308,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001281618302479549",
+            "extra": "mean: 111.89887499959639 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 276.95489861485805,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008314212653188063",
+            "extra": "mean: 3.6106961999998077 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 657.7128056912778,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00010116261870171122",
+            "extra": "mean: 1.5204204500001595 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2556.212057559733,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000016746599677954384",
+            "extra": "mean: 391.20385065182813 usec\nrounds: 2685"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2332.541151179848,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013307116477167866",
+            "extra": "mean: 428.71698083190483 usec\nrounds: 2452"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3948.6722763589637,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000024556856917984108",
+            "extra": "mean: 253.24968242796064 usec\nrounds: 4547"
           }
         ]
       }
