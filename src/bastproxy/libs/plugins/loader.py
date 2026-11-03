@@ -36,7 +36,6 @@ Classes:
 """
 
 # Standard Library
-import contextlib
 import datetime
 import sys
 import traceback
@@ -56,6 +55,18 @@ from bastproxy.plugins._baseplugin import BasePlugin, patch
 
 USER_PLUGIN_IMPORT_ROOT = "userplugins"
 PLUGIN_ID_PREFIX = "plugins."
+
+
+def plugin_module_names(package_import_location: str) -> list[str]:
+    """Return the sys.modules names of a plugin package and everything under it.
+
+    The result is a snapshot, so callers may delete entries while iterating it.
+    """
+    return [
+        name
+        for name in list(sys.modules)
+        if name == package_import_location or name.startswith(f"{package_import_location}.")
+    ]
 
 
 class PluginLoader:
@@ -900,11 +911,8 @@ class PluginLoader:
                 if plugin_info.runtime_info.plugin_instance:
                     del plugin_info.runtime_info.plugin_instance
                     plugin_info.runtime_info.plugin_instance = None
-                for item in plugin_info.files:
-                    with contextlib.suppress(Exception):
-                        del sys.modules[item["full_import_location"]]
-                with contextlib.suppress(Exception):
-                    del sys.modules[plugin_info.package_import_location]
+                for name in plugin_module_names(plugin_info.package_import_location):
+                    sys.modules.pop(name, None)
 
         if bad_plugins and exit_on_error:
             sys.exit(1)
@@ -1040,12 +1048,8 @@ class PluginLoader:
         if plugin_info.runtime_info.is_imported:
             modules_to_delete.extend(
                 item
-                for item in sys.modules
-                if (
-                    item == plugin_info.package_import_location
-                    or item.startswith(f"{plugin_info.package_import_location}.")
-                )
-                and getattr(sys.modules[item], "CANRELOAD", True)
+                for item in plugin_module_names(plugin_info.package_import_location)
+                if getattr(sys.modules[item], "CANRELOAD", True)
             )
 
         for item in modules_to_delete:
