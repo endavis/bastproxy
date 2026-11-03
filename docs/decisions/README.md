@@ -148,3 +148,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-terminate-mud-telnet-protocols-at-the-proxy.md) | Terminate MUD telnet protocols at the proxy | Proposed |
+| [0004](0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md) | API names are resource-first and cmdq is renamed mudcmds | Accepted |

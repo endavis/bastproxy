@@ -298,39 +298,21 @@ class YourPlugin(BasePlugin):
 
 ### API Naming Conventions
 
-When adding new APIs with `@AddAPI`, follow these naming patterns:
+API names follow [ADR-0004](docs/decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md), which is the source for the rules and the closed action list. Summary:
 
-1. **Verb-First for Actions** (most common):
-   - Pattern: `<verb>.<noun>[.<modifier>]`
-   - Examples: `add.timer`, `get.plugin.info`, `remove.timer`, `set.reload`
-   - Verbs: `add`, `get`, `remove`, `set`, `update`, `change`
-
-2. **Noun-First for Resource Operations**:
-   - Pattern: `<resource>.<verb>[.<modifier>]`
-   - Examples: `client.add`, `timer.remove`, `plugin.get`
-   - Use when grouping APIs by resource type
-
-3. **Domain-First for Utilities/Converters**:
-   - Pattern: `<domain>.<operation>`
-   - Examples: `colorcode.to.html`, `format.time`, `convert.seconds.to.dhms`
-   - Use for conversion, formatting, and utility functions
-
-4. **Boolean Checks**:
-   - Pattern: `is.<condition>` or `<resource>.is.<condition>`
-   - Examples: `is.plugin.loaded`, `timer.is.enabled`
-   - Avoid: `has.*`, `does.*`, `can.*` (use `is.*` consistently)
-
-5. **Dot Notation**:
-   - Use dots to create hierarchies: `plugin.dependency.add`
-   - Keep API names concise but descriptive
-   - Maximum 3-4 levels deep
+1. **Shape**: `<resource>.<action>[.<qualifier>]`. The resource is the singular noun, always named (no bare verbs). The action is one word from the ADR's closed action list. The qualifier says how, which or for whom.
+2. **Booleans**: `<resource>.is.<state>`, `<resource>.has.<thing>`, or `<resource>.exists`. No `can.*`, `does.*` or `check`.
+3. **Collections and setters**: `.get` returns one item, `.list` returns a collection (a filter goes in the qualifier), `.set` sets a value, `.count` returns a number. A boolean state's setter is `<resource>.<state>.set`.
+4. **Conversions**: `<source>.to.<target>`.
+5. **Per-owner cleanup**: `<resource>.remove.for.plugin` or `.for.owner`.
+6. **Dynamic names**: a placeholder counts as one resource segment, as in `{database_name}.select`.
 
 **Examples:**
 ```python
 @AddAPI('timer.add', description='add a timer')
-@AddAPI('is.timer.exists', description='check if a timer exists')
+@AddAPI('timer.exists', description='check if a timer exists')
 @AddAPI('colorcode.to.ansicode', description='convert color codes')
-@AddAPI('get.plugin.info', description='get plugin information')
+@AddAPI('plugin.info.get', description='get plugin information')
 ```
 
 ## Questions?

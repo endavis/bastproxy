@@ -178,6 +178,7 @@ nav:
       - ADR-0001 MUD protocols: decisions/0001-terminate-mud-telnet-protocols-at-the-proxy.md
       - ADR-0002 User plugins: decisions/0002-user-plugins-load-from-bastproxy-homeplugins-under-the-userplugins-import-root.md
       - ADR-0003 Plugin dependencies: decisions/0003-plugins-declare-dependencies-as-plugin-dependencies-metadata.md
+      - ADR-0004 API naming: decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md
       - ADR-9027 implement-issue worktree: decisions/9027-implement-issue-works-in-a-per-issue-worktree.md
       - ADR-9028 implement-issues parallel: decisions/9028-implement-issues-runs-issues-in-parallel-background-agents.md
       - ADR-9029 implement-issue host plan and checking budget: decisions/9029-implement-issue-host-plan-and-coder-checking-budget.md
