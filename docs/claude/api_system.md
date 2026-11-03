@@ -125,6 +125,13 @@ Examples:
 
 The top-level API typically corresponds to the plugin or module that owns the functionality.
 
+The `<api_name>` part follows `<resource>.<action>[.<qualifier>]`, defined in [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md). New names are resource-first:
+
+- `plugins.core.events:event.raise`
+- `libs.plugins.loader:plugin.instance.get`
+
+Many names on this page and in the other `docs/claude/` pages are the current names, pending rename by the ADR-0004 follow-up issues. The ADR appendix maps each old name to its new one.
+
 ### 2. Registering APIs
 
 #### Using the AddAPI Decorator
@@ -135,8 +142,8 @@ The most common way to register APIs is using the `@AddAPI` decorator:
 from bastproxy.libs.api import AddAPI
 
 class MyPlugin(BasePlugin):
-    @AddAPI("do.something", description="Does something useful")
-    def _api_do_something(self, arg1: str, arg2: int) -> bool:
+    @AddAPI("thing.add", description="Add a thing")
+    def _api_thing_add(self, arg1: str, arg2: int) -> bool:
         """Perform an action with the given arguments."""
         # Implementation
         return True
@@ -357,8 +364,8 @@ This walks the call stack to find the owner ID (typically a plugin ID), enabling
 API functions in plugins follow the naming pattern `_api_<name>`:
 
 ```python
-@AddAPI("my.function")
-def _api_my_function(self):
+@AddAPI("thing.get")
+def _api_thing_get(self):
     pass
 ```
 
@@ -377,7 +384,7 @@ Periods (`.`) in the API name create a logical grouping:
 - `plugins.core.events:get.current.event.record`
 - `plugins.core.events:get.event.stack`
 
-This creates a namespace without deep nesting.
+This creates a namespace without deep nesting. The segments follow the grammar in [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md).
 
 ### Template-Based API Names
 

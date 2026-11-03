@@ -729,7 +729,7 @@ class Plugin(BasePlugin):
 3. **Memory Awareness**: Clean up large data structures on unload
 
 ### API Design
-1. **Consistent Naming**: Use clear, consistent API names
+1. **Consistent Naming**: Name APIs `<resource>.<action>[.<qualifier>]` per [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md)
 2. **Version Compatibility**: Maintain backward compatibility
 3. **Error Handling**: Return sensible defaults, log errors
 4. **Documentation**: Document all public APIs

@@ -1,5 +1,7 @@
 # API Naming Analysis
 
+> **Superseded by [ADR-0004](../docs/decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md).** The counts below are out of date, and the "Decision" (document the existing patterns, do not rename) was not adopted. The body is kept for history.
+
 After analyzing 167 @AddAPI decorators across the codebase, here are the patterns found:
 
 ## Common Patterns
