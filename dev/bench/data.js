@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793718200889,
+  "lastUpdate": 1793719277267,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3697,6 +3697,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000009735223398854405",
             "extra": "mean: 215.80866532901612 usec\nrounds: 4736"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a12c7593d442761fd72d51454d42c4f2a4174ad",
+          "message": "fix: bound the per-event raised_events history (merges PR #159, addresses #153)\n\nEvent.raised_events kept every ProcessRaisedEvent an event ever raised.\nIt is now an OrderedDict capped at Event.MAX_RAISED_EVENTS: each raise\ninserts its record and evicts the oldest before the callbacks run, and\nraise_event returns its own record, so a cap of 0 and nested re-raises\nwork. raised_count still counts every raise. The full record history\nstays in the records manager.\n\nThe cap is the new plugins.core.events setting raised_history_size\n(int, default 10, 0 keeps none, negative values are used as 0 with a\nwarning). EventsPlugin applies it to the class attribute at initialize\nand on the setting's modified event, so there is no settings lookup per\nraise; a lowered cap applies on each event's next raise.\n\nraise_event's return annotation is corrected to ProcessRaisedEvent,\nwhich it has always returned.\n\nAddresses #153\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T15:20:26Z",
+          "tree_id": "9bfff27181e728b3af53f8cc527b1836a69e8aad",
+          "url": "https://github.com/endavis/bastproxy/commit/8a12c7593d442761fd72d51454d42c4f2a4174ad"
+        },
+        "date": 1793719276286,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 234.10411136562803,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00021991402969286943",
+            "extra": "mean: 4.271603750000708 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7124.757967501575,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012148076061907413",
+            "extra": "mean: 140.3556450003407 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 220.82925337481063,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00014887236196522993",
+            "extra": "mean: 4.528385550000991 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 565.3593419732525,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007927761449526617",
+            "extra": "mean: 1.768786550001522 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2150.5442804068953,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012661580083002115",
+            "extra": "mean: 464.9985629734601 usec\nrounds: 2112"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1911.7204046563347,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012519271381796514",
+            "extra": "mean: 523.0890445926728 usec\nrounds: 1951"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3446.567408521191,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008377384928937994",
+            "extra": "mean: 290.1437521655981 usec\nrounds: 3579"
           }
         ]
       }
