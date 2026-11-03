@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793701713971,
+  "lastUpdate": 1793702111508,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2164,6 +2164,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000013396010489353427",
             "extra": "mean: 221.57491166917964 usec\nrounds: 4619"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "610f0aa952cf2426dbf1bc4a5781fdaadc83497e",
+          "message": "fix: stop the watch unload cleanup from mutating its dict while iterating (merges PR #134, addresses #123)\n\n_api_remove_all_data_for_plugin iterated watch_data.keys() while\nwatch.remove deleted from it, raising RuntimeError after the first\nremoval. Iterate over a copy of the keys instead.\n\nAddresses #123\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:34:22Z",
+          "tree_id": "605bdd8d7d67bda537f504d90f17a870ef42fa02",
+          "url": "https://github.com/endavis/bastproxy/commit/610f0aa952cf2426dbf1bc4a5781fdaadc83497e"
+        },
+        "date": 1793702110659,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 233.1658402064458,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00019228253010801358",
+            "extra": "mean: 4.28879290000026 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7069.291819881422,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013247922111133322",
+            "extra": "mean: 141.45688500050824 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 222.0436275982434,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00010441450201756927",
+            "extra": "mean: 4.503619449999974 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 556.8359224197623,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006281405936361121",
+            "extra": "mean: 1.795861150003475 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2132.2578427253693,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009948610524006168",
+            "extra": "mean: 468.98643304875304 usec\nrounds: 2106"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1911.2171102504506,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011584019476162287",
+            "extra": "mean: 523.2267933541876 usec\nrounds: 1926"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3281.0530948502887,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009582644981632782",
+            "extra": "mean: 304.780194374035 usec\nrounds: 3555"
           }
         ]
       }
