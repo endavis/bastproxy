@@ -1537,6 +1537,9 @@ class TestReleaseRefusesMajorVersionZeroFromOne:
         monkeypatch.setattr("tools.doit.release.run_streamed", lambda *a, **kw: None)
         monkeypatch.setattr("tools.doit.release.validate_merge_commits", lambda _console: True)
         monkeypatch.setattr("tools.doit.release.validate_issue_links", lambda _console: True)
+        # These tests are about major_version_zero, not the changelog: keep the result
+        # independent of the cwd's pyproject.toml and CHANGELOG.md (#1188).
+        monkeypatch.setattr("tools.doit.release._changelog_is_handwritten_enabled", lambda: False)
         return calls
 
     def test_refuses_1_0_while_the_setting_is_on(
@@ -1562,6 +1565,24 @@ class TestReleaseRefusesMajorVersionZeroFromOne:
     ) -> None:
         self._walk_to_branch_creation(monkeypatch, next_version)
         monkeypatch.setattr("tools.doit.release._major_version_zero_enabled", lambda: enabled)
+
+        with pytest.raises(_ReachedBranchCreation):
+            _release_action()()
+
+    def test_reaches_branch_creation_with_a_handwritten_changelog_and_empty_unreleased(
+        self, monkeypatch: MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A hand-written changelog with an empty Unreleased must not stop this flow (#1188)."""
+        (tmp_path / "pyproject.toml").write_text(
+            "[tool.commitizen]\nupdate_changelog_on_bump = false\n", encoding="utf-8"
+        )
+        (tmp_path / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-01-01\n\n### Added\n- First\n",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        self._walk_to_branch_creation(monkeypatch, "0.4.0")
+        monkeypatch.setattr("tools.doit.release._major_version_zero_enabled", lambda: True)
 
         with pytest.raises(_ReachedBranchCreation):
             _release_action()()

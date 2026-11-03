@@ -15,4 +15,5 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       full_matrix: true
+      all_os: true
     secrets: inherit

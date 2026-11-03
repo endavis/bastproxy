@@ -1,0 +1,58 @@
+name: Nightly Matrix
+
+# Runs the all-operating-system matrix on main. Pull requests run Linux plus
+# Windows on the newest Python only (#1190); this catches macOS and the other
+# combinations within a day instead of at release time.
+
+on:
+  schedule:
+    - cron: "43 4 * * *"  # Daily at 04:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run CI on all operating systems
+    uses: ./.github/workflows/ci.yml
+    with:
+      all_os: true
+    secrets: inherit
+
+  report:
+    name: Report failure
+    needs: test
+    if: ${{ always() && needs.test.result == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          today="$(date -u +%Y-%m-%d)"
+          existing="$(gh issue list --state open --label automated --json number,title \
+            --jq '[.[] | select(.title | contains("Nightly OS matrix failed"))][0].number // empty')"
+          {
+            echo "The nightly all-operating-system CI run failed on \`main\`."
+            echo
+            echo "- Run: ${RUN_URL}"
+            echo "- Seen: ${today} (UTC)"
+            echo
+            echo "Close this issue once the nightly matrix passes again."
+          } > "${RUNNER_TEMP}/nightly-issue-body.md"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" \
+              --body "Still failing as of ${today} (UTC). Run: ${RUN_URL}"
+          else
+            gh issue create --title "🚨 Nightly OS matrix failed on main" \
+              --label automated --label needs-triage \
+              --assignee "${OWNER}" \
+              --body-file "${RUNNER_TEMP}/nightly-issue-body.md"
+          fi

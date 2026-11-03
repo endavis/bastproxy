@@ -18,6 +18,11 @@ do not exist -- placeholders substituted during setup, files created at runtime,
 worked examples. Each entry states which, so the list stays a set of decisions
 rather than a pile of suppressions.
 
+The configurator rewrites `__PACKAGE_NAME__` in docs, so the literal
+`src/__PACKAGE_NAME__/` entry stops matching in a configured project (#1179).
+`ALLOWED_PATTERNS` exempts, for any package name, only the pure worked-example
+modules; real package paths such as `cli.py` stay checked.
+
 Discovery is `doc_scan.committed_markdown_files()` -- git-tracked plus untracked-
 but-not-ignored markdown -- rather than `rglob()` minus a hardcoded skip set. A
 downstream project can also silence a path it deliberately did not adopt via
@@ -77,13 +82,23 @@ ALLOWED: dict[str, str] = {
     ".claude/commands/ghi-finalize.md": "historical reference to a file removed by #976",
 }
 
+# Package-agnostic exemptions, as compiled regex -> reason. These are worked
+# examples that exist in no project, whatever its package is named.
+ALLOWED_PATTERNS: dict[re.Pattern[str], str] = {
+    re.compile(r"src/[A-Za-z0-9_]+/(?:cache|farewell|provider)\.py"): (
+        "worked-example modules in the tutorials, in any package name"
+    ),
+}
+
 
 def _markdown_files(root: Path = REPO_ROOT) -> list[Path]:
     return committed_markdown_files(root)
 
 
 def _is_allowed(raw: str) -> bool:
-    return any(raw.startswith(prefix) or raw == prefix for prefix in ALLOWED)
+    return any(raw.startswith(prefix) or raw == prefix for prefix in ALLOWED) or any(
+        pattern.fullmatch(raw) for pattern in ALLOWED_PATTERNS
+    )
 
 
 def _documented_paths(root: Path = REPO_ROOT) -> list[tuple[Path, str]]:
@@ -219,6 +234,22 @@ def test_every_allowlist_entry_carries_a_reason() -> None:
     """The list is decisions, not suppressions."""
     for prefix, reason in ALLOWED.items():
         assert reason.strip(), f"{prefix} is allowlisted without a reason"
+    for pattern, reason in ALLOWED_PATTERNS.items():
+        assert reason.strip(), f"{pattern.pattern} is allowlisted without a reason"
+
+
+def test_configured_package_worked_examples_are_allowed() -> None:
+    """After configuration the placeholder is gone; worked examples stay exempt (#1179)."""
+    for name in ("cache", "farewell", "provider"):
+        assert _is_allowed(f"src/mypkg/{name}.py")
+
+
+def test_configured_package_real_paths_are_still_checked(tmp_path: Path) -> None:
+    """Only the worked-example modules are exempt, not the whole package."""
+    doc = tmp_path / "readme.md"
+    pairs = [(doc, "src/mypkg/cli.py"), (doc, "src/mypkg/cache.py")]
+
+    assert _unallowed_missing(pairs, [], root=tmp_path) == {"readme.md: src/mypkg/cli.py"}
 
 
 def test_never_committed_entries_are_allowlisted() -> None:

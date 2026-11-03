@@ -414,12 +414,21 @@ def test_worktrees_directory_is_gitignored() -> None:
 
 @pytest.mark.parametrize(
     "name",
-    [".doit.db", ".doit.db.db", ".doit.db.dat", ".doit.db.dir", ".doit.db.bak"],
+    [
+        ".doit.db",
+        ".doit.db.db",
+        ".doit.db.dat",
+        ".doit.db.dir",
+        ".doit.db.bak",
+        ".doit.db-wal",
+        ".doit.db-shm",
+    ],
 )
 def test_doit_state_database_is_gitignored(name: str) -> None:
-    """Every name a `dbm` backend gives doit's state database is ignored (#1069).
+    """Every name a `dbm` backend gives doit's state database is ignored (#1069, #1186).
 
-    Python 3.13+ prefers `dbm.sqlite3`, which writes `.doit.db` as given;
+    Python 3.13+ prefers `dbm.sqlite3`, which writes `.doit.db` as given, plus
+    SQLite's `.doit.db-wal` and `.doit.db-shm` files in WAL mode (#1186);
     `dbm.ndbm` appends `.db` and `dbm.dumb` writes `.dat`/`.dir`/`.bak`.
     """
     result = subprocess.run(["git", "check-ignore", "-q", name], cwd=REPO_ROOT, check=False)

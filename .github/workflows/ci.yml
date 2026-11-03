@@ -7,10 +7,26 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: 'Run the full Python-version matrix (middle versions) instead of the bookend versions.'
+        required: false
+        type: boolean
+        default: false
+      all_os:
+        description: 'Run every Python version on all three operating systems, not just Linux plus Windows on the newest.'
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       full_matrix:
         description: 'Run the full Python-version matrix (middle versions) instead of the bookend versions.'
+        required: false
+        type: boolean
+        default: false
+      all_os:
+        description: 'Run every Python version on all three operating systems, not just Linux plus Windows on the newest.'
         required: false
         type: boolean
         default: false
@@ -45,6 +61,8 @@ jobs:
         env:
           OLDEST: ${{ steps.pv.outputs.oldest }}
           NEWEST: ${{ steps.pv.outputs.newest }}
+          FULL_MATRIX: ${{ inputs.full_matrix }}
+          ALL_OS: ${{ inputs.all_os }}
         run: |
           oldest="$OLDEST"
           newest="$NEWEST"
@@ -52,29 +70,40 @@ jobs:
           oldest_minor=${oldest#3.}
           newest_minor=${newest#3.}
 
-          if [[ "${{ inputs.full_matrix }}" == "true" ]]; then
-            # Middle versions only (bookends already tested)
-            versions=""
+          # Versions to test: middle versions only for the full matrix
+          # (bookends are already tested), else the bookends.
+          versions=()
+          if [[ "$FULL_MATRIX" == "true" ]]; then
             for ((i=oldest_minor+1; i<newest_minor; i++)); do
-              if [[ -n "$versions" ]]; then
-                versions="$versions,"
-              fi
-              versions="$versions\"3.$i\""
+              versions+=("3.$i")
             done
-
-            if [[ -z "$versions" ]]; then
-              echo "No middle versions to test (oldest=$oldest, newest=$newest)"
-              echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
-            else
-              echo "Middle versions: $versions"
-              echo "matrix={\"os\":[\"ubuntu-latest\",\"windows-latest\",\"macos-latest\"],\"python-version\":[$versions]}" >> $GITHUB_OUTPUT
-            fi
           else
-            # Bookend versions (oldest + newest)
-            echo "Bookend versions: $oldest, $newest"
-            # bastproxy: bookend runs are ubuntu-only; the full matrix covers other OSes
-            echo "matrix={\"os\":[\"ubuntu-latest\"],\"python-version\":[\"$oldest\",\"$newest\"]}" >> $GITHUB_OUTPUT
+            versions=("$oldest" "$newest")
           fi
+
+          if [[ ${#versions[@]} -eq 0 ]]; then
+            echo "No middle versions to test (oldest=$oldest, newest=$newest)"
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # all_os=true: every version on every OS. Otherwise Linux only;
+          # macOS and Windows run nightly, on release and with the
+          # full-matrix label (#1190).
+          # bastproxy: pull requests stay ubuntu-only (kept from the #9 sync);
+          # upstream also adds Windows on the newest version here.
+          include=""
+          for v in "${versions[@]}"; do
+            oses=(ubuntu-latest)
+            if [[ "$ALL_OS" == "true" ]]; then
+              oses=(ubuntu-latest windows-latest macos-latest)
+            fi
+            for os in "${oses[@]}"; do
+              include="${include:+$include,}{\"os\":\"$os\",\"python-version\":\"$v\"}"
+            done
+          done
+          echo "Matrix: $include"
+          echo "matrix={\"include\":[$include]}" >> $GITHUB_OUTPUT
 
   test:
     needs: setup
