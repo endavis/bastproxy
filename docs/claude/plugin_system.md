@@ -292,8 +292,9 @@ For each directory found, it creates a `PluginInfo` object and extracts metadata
    starting up, raises `ev_<plugin_id>_loaded` and `ev_plugin_loaded`.
 
 A plugin that fails any pass is reported in `bad_plugins`, and so is everything that depends
-on it. See the [findings](plugin_system_findings.md#ps-1-a-failed-load-leaves-registrations-behind)
-for what a failed load does not clean up.
+on it. A failed load runs the same subsystem cleanup as an unload: the loader raises
+`ev_plugin_unloaded` and removes the plugin's APIs (see the
+[findings](plugin_system_findings.md#ps-1-a-failed-load-leaves-registrations-behind)).
 
 ### 3. Initialization
 
@@ -338,10 +339,12 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 ### 6. Unloading
 
-`libs.plugins.loader:unload.plugin` refuses when `can_reload_f` is false, or when the plugin is required and `allow_required` is not passed (reload and failed-load cleanup pass it). Otherwise:
+`libs.plugins.loader:unload.plugin` refuses a loaded plugin when `can_reload_f` is false (a plugin that failed to load is always cleaned up), or when the plugin is required and `allow_required` is not passed (reload and failed-load cleanup pass it). Otherwise:
 
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
-   plugin is flagged loaded. A plugin that failed to load is not uninitialized.
+   plugin is flagged loaded. A plugin that failed to load is not uninitialized, but the loader
+   raises `ev_plugin_unloaded` and calls `libs.api:remove` for it, so the events, commands,
+   settings, timers, triggers, watch and cmdq cleanup handlers run.
    ```python
    @RegisterPluginHook("uninitialize", priority=50)
    def _phook_uninitialize(self):
@@ -482,8 +485,10 @@ class Plugin(BasePlugin):
 - Hooks are executed in priority order (lower numbers first)
 - Multiple hooks at the same priority are executed in alphabetical order of the method name
 - Hook functions must start with `_phook_` to run
-- A hook that raises in `__init__` fails the load; in `initialize` the loader unloads the plugin;
-  in `uninitialize` the unload stops and returns `False`
+- A hook that raises in `__init__` fails the load; in `initialize` the loader unloads the plugin
+  (clearing its loaded flag first, so it is cleaned up rather than uninitialized); in
+  `uninitialize` the unload stops and returns `False`. A failed `__init__` or `initialize`
+  still has its registrations removed
 - `<plugin_id>:get.plugin.hooks` lists the same hooks, in the same order, that the plugin runs,
   including hooks that share a priority (fixed for
   [PS-6](plugin_system_findings.md#ps-6-getpluginhooks-drops-hooks-that-share-a-priority))
