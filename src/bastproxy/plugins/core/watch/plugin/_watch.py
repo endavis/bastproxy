@@ -208,8 +208,7 @@ class WatchPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, plugin],
         )()
-        watches = self.watch_data.keys()
-        for i in watches:
+        for i in list(self.watch_data):
             if self.watch_data[i]["owner"] == plugin:
                 self.api(f"{self.plugin_id}:watch.remove")(i)
 
