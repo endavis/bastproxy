@@ -410,6 +410,8 @@ class UtilsPlugin(BasePlugin):
             'name'  : string for the column name,
             'key'   : dictionary key,
             'width' : the width of the column.
+
+        Widths and padding ignore color codes, so colored cells stay aligned.
         """
         line_length_default = self.api("plugins.core.settings:get")("plugins.core.proxy", "linelen")
         output_color = color or self.api("plugins.core.settings:get")(
@@ -417,24 +419,30 @@ class UtilsPlugin(BasePlugin):
         )
         temp_data = [{item["key"]: item["name"] for item in columns}, *list(data)]
         color_end = "@w"
+        strip = self.api("plugins.core.colors:colorcode.strip")
 
         for column in columns:
-            column["width"] = max(len(str(item[column["key"]])) for item in temp_data)
+            column["width"] = max(len(strip(str(item[column["key"]]))) for item in temp_data)
 
-        # build the template string
-        template_strings = ["{" + item["key"] + ":<" + str(item["width"]) + "}" for item in columns]
-        template_string = f"{f' {output_color}|{color_end} '.join(template_strings)}"
+        separator = f" {output_color}|{color_end} "
+
+        def build_line(item):
+            cells = []
+            for column in columns:
+                cell = str(item[column["key"]])
+                cells.append(cell + " " * (column["width"] - len(strip(cell))))
+            return separator.join(cells)
 
         # build the header dict
         header_dict = {item["key"]: item["name"] for item in columns}
 
-        subheader_msg = template_string.format(**header_dict)
-        data_msg = [template_string.format(**item) for item in data]
+        subheader_msg = build_line(header_dict)
+        data_msg = [build_line(item) for item in data]
 
         largest_line = max(
             [
-                len(self.api("plugins.core.colors:colorcode.strip")(subheader_msg)),
-                *[len(self.api("plugins.core.colors:colorcode.strip")(line)) for line in data_msg],
+                len(strip(subheader_msg)),
+                *[len(strip(line)) for line in data_msg],
             ]
         )
 
@@ -444,10 +452,7 @@ class UtilsPlugin(BasePlugin):
         else:
             line_length = line_length_default
 
-        return [
-            *self.api("plugins.core.commands:format.header")(
-                table_name, color=output_color, line_length=line_length
-            ),
+        column_lines = [
             self.api("plugins.core.utils:cap.line")(
                 subheader_msg, "|", color=output_color, line_length=line_length
             ),
@@ -459,6 +464,13 @@ class UtilsPlugin(BasePlugin):
                 space=False,
                 fullcolor=True,
             ),
+        ]
+
+        return [
+            *self.api("plugins.core.commands:format.header")(
+                table_name, color=output_color, line_length=line_length
+            ),
+            *column_lines,
             *[
                 self.api("plugins.core.utils:cap.line")(
                     line, "|", color=output_color, line_length=line_length

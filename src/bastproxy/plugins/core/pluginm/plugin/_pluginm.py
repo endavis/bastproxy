@@ -44,60 +44,42 @@ class PluginManager(BasePlugin):
         """Initialize the instance."""
         self.can_reload_f: bool = False
 
-        self.plugin_info_line_format = (
-            "{plugin_id:<30} : {name:<25} {author:<10} {version:<5} {purpose}@w"
-        )
-
         self.api("libs.api:add")(
             self.plugin_id, "save.all.plugins.state", self._api_save_all_plugins_state
         )
 
     def _command_helper_format_plugin_list(
-        self, plugins, header="", columnheader=True, required_color_line=True
+        self, plugins, header="", required_color_line=True
     ) -> list[str]:
         """Format a list of loaded plugins to return to client.
 
         plugins = a list of plugin_info objects
         """
-        line_length = self.api("plugins.core.commands:get.output.line.length")()
-        header_color = self.api("plugins.core.settings:get")(
-            "plugins.core.commands", "output_header_color"
-        )
-
-        required_color = "@x75"
-        msg = []
-
-        if columnheader:
-            msg.extend(
-                [
-                    self.api("plugins.core.utils:center.colored.string")(
-                        f"@x86{header}@w", "-", line_length, filler_color=header_color
-                    ),
-                    self.plugin_info_line_format.format(
-                        plugin_id="Id/Location",
-                        name="Name",
-                        author="Author",
-                        version="Vers",
-                        purpose="Purpose",
-                    ),
-                ]
-            )
-        msg.append(header_color + "-" * line_length + "@w")
+        # three digits: a cell starting with a digit (Vers) would otherwise extend the code
+        required_color = "@x075"
+        columns = [
+            {"name": "Id/Location", "key": "plugin_id"},
+            {"name": "Name", "key": "name"},
+            {"name": "Author", "key": "author"},
+            {"name": "Vers", "key": "version"},
+            {"name": "Purpose", "key": "purpose"},
+        ]
 
         foundrequired = False
+        data = []
         for plugin_id in plugins:
             plugin_info = self.api("libs.plugins.loader:get.plugin.info")(plugin_id)
             plugin_color = required_color if plugin_info.is_required else ""
             if plugin_color:
                 foundrequired = True
-            msg.append(
-                "".join(
-                    [
-                        plugin_color,
-                        self.plugin_info_line_format.format(**plugin_info.__dict__),
-                    ]
-                )
+            data.append(
+                {
+                    column["key"]: f"{plugin_color}{getattr(plugin_info, column['key'])}"
+                    for column in columns
+                }
             )
+
+        msg = self.api("plugins.core.utils:convert.data.to.output.table")(header, data, columns)
 
         if foundrequired and required_color_line:
             msg.extend(("", f"* {required_color}Required plugins appear in this color@w"))
@@ -146,25 +128,19 @@ class PluginManager(BasePlugin):
         Returns:
           a list of strings
         """
-        msg = []
         packages_list = self.api("libs.plugins.loader:get.packages.list")()
         packages = {
             package: self.api("libs.plugins.loader:get.plugins.in.package")(package)
             for package in packages_list
         }
-        msg.extend(
-            self._command_helper_format_plugin_list(
-                packages["plugins.core"], required_color_line=False
-            )
-        )
-        del packages["plugins.core"]
+        # one table so every row shares one column layout; core plugins come first
+        all_plugins = list(packages.pop("plugins.core"))
         for plugins_list in packages.values():
-            if plugins_list:
-                msg.extend(
-                    self._command_helper_format_plugin_list(
-                        plugins_list, required_color_line=False, columnheader=False
-                    )
-                )
+            all_plugins.extend(plugins_list)
+
+        msg = self._command_helper_format_plugin_list(
+            all_plugins, "Plugins", required_color_line=False
+        )
 
         return msg
 
