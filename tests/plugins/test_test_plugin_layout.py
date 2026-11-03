@@ -118,6 +118,31 @@ def test_exception_lists_command_raise() -> None:
     assert _command_names(module.Plugin) == ["_command_raise"]
 
 
+def test_sqldb_initialize_creates_statdb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``_sqldb`` initialize builds its database from the base class and data dir."""
+    from types import SimpleNamespace
+
+    from bastproxy.plugins._baseplugin import BasePlugin
+    from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
+
+    monkeypatch.setattr(BasePlugin, "initialize", lambda self: None)
+    info = _info_for(_by_suffix("test._sqldb"))
+    module = imputils.importmodule(info.plugin_class_import_location)["module"]
+
+    def fake_api(name: str) -> Any:
+        assert name == "plugins.core.sqldb:baseclass"
+        return Sqldb
+
+    fake = SimpleNamespace(
+        api=fake_api,
+        plugin_id="plugins.test._sqldb",
+        plugin_info=SimpleNamespace(data_directory=tmp_path),
+    )
+    module.Plugin.initialize(fake)
+    assert isinstance(fake.statdb, Sqldb)
+    assert (tmp_path / "stats.sqlite").exists()
+
+
 def test_every_test_plugin_has_plugin_subpackage() -> None:
     """Every plugin under plugins/test has a plugin/ sub-package."""
     missing = [

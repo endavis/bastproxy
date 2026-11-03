@@ -68,8 +68,8 @@ class SQLDBPlugin(BasePlugin):
         BasePlugin.initialize(self)
 
         self.statdb = dbcreate(
-            self.api("plugins.core.sqldb:baseclass")(),
+            self.api("plugins.core.sqldb:baseclass"),
             self.plugin_id,
             dbname="stats",
-            dbdir=self.data_directory,
+            dbdir=self.plugin_info.data_directory,
         )
