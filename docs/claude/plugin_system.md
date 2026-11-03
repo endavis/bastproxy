@@ -149,7 +149,7 @@ PLUGIN_NAME = 'My Plugin'
 PLUGIN_AUTHOR = 'Your Name'
 PLUGIN_VERSION = 1
 PLUGIN_PURPOSE = 'Description of what this plugin does'
-REQUIRED = False  # Whether this plugin is required to be loaded
+PLUGIN_REQUIRED = False  # Whether this plugin is required to be loaded
 PLUGIN_DEPENDENCIES = ['plugins.core.events']  # optional, see Dependencies
 ```
 
@@ -158,7 +158,7 @@ Metadata fields:
 - **PLUGIN_AUTHOR**: Plugin author
 - **PLUGIN_VERSION**: Integer version number
 - **PLUGIN_PURPOSE**: Brief description
-- **REQUIRED**: Boolean indicating if the plugin is required
+- **PLUGIN_REQUIRED**: Boolean indicating if the plugin is required
 - **PLUGIN_DEPENDENCIES**: Optional list of plugin IDs that must be loaded first (see [Dependencies](#dependencies))
 
 ### Plugin Class (plugin/__init__.py)
