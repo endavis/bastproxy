@@ -39,7 +39,6 @@ import inspect
 import logging
 import traceback
 from collections.abc import Callable
-from functools import lru_cache
 from itertools import chain
 
 # Third Party
@@ -128,7 +127,6 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
     return caller_id
 
 
-@lru_cache(maxsize=128)
 def get_args(api_function: Callable) -> str:
     """Retrieve the arguments of a given function.
 
