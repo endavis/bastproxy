@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793716626319,
+  "lastUpdate": 1793718200889,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3624,6 +3624,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000015151889573151989",
             "extra": "mean: 217.6934409642561 usec\nrounds: 4692"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "276ce6bf5e94483a7022d08fd453cdf94c329306",
+          "message": "fix: raise a setting's modified event when a loaded plugin's setting changes (merges PR #158, addresses #157)\n\nSettingsPlugin._api_setting_change stored the new value and then returned\nbefore raising ev_<plugin_id>_var_<setting>_modified whenever the plugin\nwas loaded, so no handler ever saw a live change. The condition was\ninverted: the settings plugin already raises every setting's event once\non ev_plugin_loaded, so the early return is only for a plugin that is\nnot loaded yet. Hidden settings and startup stay silent as before.\n\nThe two handlers that listen (triggers enabled, proxy cmdseperator) now\napply live changes.\n\nAddresses #157\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T15:02:35Z",
+          "tree_id": "043d0ca6a2993eb309c366c2695d5eaf517846be",
+          "url": "https://github.com/endavis/bastproxy/commit/276ce6bf5e94483a7022d08fd453cdf94c329306"
+        },
+        "date": 1793718200099,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 343.57421562093197,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001774175348111927",
+            "extra": "mean: 2.910579299999938 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10501.995379305672,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011529935145844344",
+            "extra": "mean: 95.21999999833497 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 324.7486303522282,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00017208750006339173",
+            "extra": "mean: 3.0793047500011994 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 775.2271211978399,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000777139951674811",
+            "extra": "mean: 1.2899445499982676 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2934.33409317955,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000036368553970758305",
+            "extra": "mean: 340.79282325906934 usec\nrounds: 3044"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2671.9680935958927,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000024587662759408793",
+            "extra": "mean: 374.25596600377656 usec\nrounds: 2765"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4633.734231549168,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009735223398854405",
+            "extra": "mean: 215.80866532901612 usec\nrounds: 4736"
           }
         ]
       }
