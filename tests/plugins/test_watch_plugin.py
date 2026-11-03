@@ -78,3 +78,27 @@ def test_telnet_command_line_is_skipped() -> None:
 
     assert stub.watch_data["sayw"]["hits"] == 0
     raise_event.assert_not_called()
+
+
+def test_remove_all_data_for_plugin_removes_every_owned_watch() -> None:
+    """Issue #123: removing watches must not mutate the dict being iterated."""
+    stub = MagicMock()
+    stub.plugin_id = "plugins.core.watch"
+    stub.watch_data = {
+        "a": {"owner": "plugins.x"},
+        "b": {"owner": "plugins.x"},
+        "c": {"owner": "plugins.x"},
+        "d": {"owner": "plugins.other"},
+    }
+
+    def remove(name: str) -> None:
+        del stub.watch_data[name]
+
+    def api(name: str) -> Any:
+        if name == "plugins.core.watch:watch.remove":
+            return remove
+        raise AssertionError(name)
+
+    stub.api = api
+    WatchPlugin._api_remove_all_data_for_plugin(stub, "plugins.x")
+    assert list(stub.watch_data) == ["d"]
