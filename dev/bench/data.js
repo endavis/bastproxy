@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793703495141,
+  "lastUpdate": 1793703699979,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2602,6 +2602,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00000515207771994882",
             "extra": "mean: 217.21293045146402 usec\nrounds: 4673"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4f3454f92998fd7eb9f857b5949ce2dd1649b50",
+          "message": "fix: make PluginInfo.get_file_data use its cache and key files by full path (merges PR #140, addresses #132)\n\nfix: make PluginInfo.get_file_data use its cache and key files by relative path\n\nThe cache lookup read oldfiles[dir][name] while entries are stored under\n[\"files\"], so it never hit and every call re-parsed every file. Directories\nwere keyed by their bare name, so same-named directories collided, and\n__init__.py files were skipped so edits there were never reported.\n\nLook up cached entries under [\"files\"], key by the directory path relative\nto the package, and scan __init__.py files.\n\nAddresses #132\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T11:00:49Z",
+          "tree_id": "cff0b52958d2b0ee8b2f8861d5dfbc7a061e602a",
+          "url": "https://github.com/endavis/bastproxy/commit/b4f3454f92998fd7eb9f857b5949ce2dd1649b50"
+        },
+        "date": 1793703699146,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 226.9614213131969,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00027464702384848497",
+            "extra": "mean: 4.40603515000042 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7048.391329780508,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013212453669515462",
+            "extra": "mean: 141.87634500014923 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 217.59125652179583,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009218259052742428",
+            "extra": "mean: 4.5957729000008385 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 528.7422852202238,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011559807204066311",
+            "extra": "mean: 1.891280550000829 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2181.173019960521,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001226654108259733",
+            "extra": "mean: 458.46890221395637 usec\nrounds: 2168"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1881.4000795282486,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013047495753963369",
+            "extra": "mean: 531.519059067301 usec\nrounds: 1930"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3460.5681017874977,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000014279074362127006",
+            "extra": "mean: 288.96989470701845 usec\nrounds: 3552"
           }
         ]
       }
