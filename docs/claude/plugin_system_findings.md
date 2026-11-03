@@ -540,7 +540,7 @@ checks the names exist after startup (f-string names excluded).
   but entries are stored under `["files"]`, so it never hits. It also keys by the parent
   directory's *name* only, so same-named directories in different parents collide, and it skips
   `__init__.py`, so edits there are never reported as changed. It is called on each load, on
-  `help` and on `find_file_by_name`. Filed as [#132](https://github.com/endavis/bastproxy/issues/132); not a correctness problem for load.
+  `help` and on `find_file_by_name`. Filed as [#132](https://github.com/endavis/bastproxy/issues/132); not a correctness problem for load. Fixed in #132: the cache now hits, files are keyed by their path relative to the package, and `__init__.py` files are scanned.
 - **Unloading a plugin that others depend on is not blocked** (documented, #97). The dependents
   then fail on their next API call to the unloaded plugin. Unverified whether the `unload`
   command warns; it does not appear to.
