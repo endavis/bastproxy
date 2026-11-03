@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793703699979,
+  "lastUpdate": 1793704293487,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2675,6 +2675,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000014279074362127006",
             "extra": "mean: 288.96989470701845 usec\nrounds: 3552"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b6f7f4f3d8e75ea8e53d06ed35e069aec666619",
+          "message": "fix: stop a plugin's __init__ defaults overwriting restored reload attributes (merges PR #141, addresses #124)\n\nfix: restore reload attributes from the loader so __init__ defaults cannot overwrite them\n\nThe cache was restored in the priority-75 __init__ hook, so a default set\nin a plugin's own __init__ after super().__init__() replaced the restored\nvalue. The loader now calls BasePlugin.restore_reload_cache() right after\nthe constructor returns, before initialize. Bundled plugins that set the\nlist in hooks below priority 75 are unaffected.\n\nAddresses #124\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T11:10:38Z",
+          "tree_id": "615c795b59e340f1b512ba6381786fc027750861",
+          "url": "https://github.com/endavis/bastproxy/commit/3b6f7f4f3d8e75ea8e53d06ed35e069aec666619"
+        },
+        "date": 1793704292816,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 234.85108075355916,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00023099686734038576",
+            "extra": "mean: 4.25801744999994 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7169.179296722569,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013551869424970689",
+            "extra": "mean: 139.48598000013135 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 221.6186929605421,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011066636436199042",
+            "extra": "mean: 4.512254750000011 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 550.4872954825854,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008734143676842472",
+            "extra": "mean: 1.8165723500001008 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2137.621754513577,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003195377651319878",
+            "extra": "mean: 467.80961032442025 usec\nrounds: 2189"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1893.5209516047153,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000018888050080393943",
+            "extra": "mean: 528.116680807003 usec\nrounds: 1933"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3158.71249980021,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003736618532104556",
+            "extra": "mean: 316.5846844444534 usec\nrounds: 3375"
           }
         ]
       }
