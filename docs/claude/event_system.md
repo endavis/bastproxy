@@ -316,13 +316,15 @@ This allows debugging of how event data changes through the callback chain.
 
 ### Event History
 
-The `Event` class maintains a dictionary of raised events:
+The `Event` class keeps a bounded history of its raises:
 
 ```python
-self.raised_events = {}  # Maps UUID to ProcessRaisedEvent instances
+self.raised_events: OrderedDict[str, ProcessRaisedEvent]  # UUID -> record, newest last
 ```
 
-This allows retrospective analysis of event execution. The history is unbounded (see Bug #3 in [Event System Findings](event_system_findings.md), tracked as #153) but it holds no callbacks, so it does not keep unloaded plugins alive.
+The history is an `OrderedDict` capped at `Event.MAX_RAISED_EVENTS`. `EventsPlugin` sets that class attribute from the `plugins.core.events` setting `raised_history_size` (default 10; 0 keeps none; a negative value is clamped to 0), at initialize and whenever the setting changes. The oldest entry is evicted when a new raise is inserted, so a lowered cap applies on each event's next raise. `raise_event` returns the record of that raise even when the cap is 0.
+
+The long history is in the records manager (`RMANAGER` keeps the last 5000 `ProcessRaisedEvent` records, indexed by UUID), which the debug records plugin reads. The per-event history holds no callbacks, so it does not keep unloaded plugins alive (Bug #3 in [Event System Findings](event_system_findings.md), #153).
 
 ## Common Event Names
 

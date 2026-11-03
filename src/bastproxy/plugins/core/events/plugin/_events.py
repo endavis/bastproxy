@@ -49,11 +49,42 @@ class EventsPlugin(BasePlugin):
             "flag to log savestate events, reduces log spam if False",
         )
 
+        self.api("plugins.core.settings:add")(
+            self.plugin_id,
+            "raised_history_size",
+            10,
+            int,
+            "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
+        )
+        self._apply_raised_history_size(
+            self.api("plugins.core.settings:get")(self.plugin_id, "raised_history_size")
+        )
+
         # Can't use decorator since this is the one that registers all events from decorators
         self.api("plugins.core.events:register.to.event")(
             f"ev_{plugin_loader.__name__}_post_startup_plugins_loaded",
             self._eventcb_post_startup_plugins_loaded,
         )
+
+    def _apply_raised_history_size(self, value) -> None:
+        """Write the raised_history_size setting onto Event.MAX_RAISED_EVENTS."""
+        if value is None:
+            return
+        size = int(value)
+        if size < 0:
+            LogRecord(
+                f"raised_history_size {size} is negative, using 0",
+                level="warning",
+                sources=[self.plugin_id],
+            )()
+            size = 0
+        Event.MAX_RAISED_EVENTS = size
+
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_raised_history_size_modified")
+    def _eventcb_raised_history_size_modified(self):
+        """Apply a changed raised_history_size."""
+        if event_record := self.api("plugins.core.events:get.current.event.record")():
+            self._apply_raised_history_size(event_record["newvalue"])
 
     def _eventcb_post_startup_plugins_loaded(self):
         """Register all events in all plugins."""
