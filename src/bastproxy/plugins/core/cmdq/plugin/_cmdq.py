@@ -26,6 +26,7 @@ class CMDQPlugin(BasePlugin):
         self.queue = []
         self.cmds = {}
         self.current_command = {}
+        self.timing_uid = None
 
         self.reload_dependents_f = True
 
@@ -51,10 +52,9 @@ class CMDQPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, plugin_id],
         )()
-        tkeys = self.cmds.keys()
-        for i in tkeys:  # iterate keys since we are deleting things
+        for i in list(self.cmds):  # copy keys since we are deleting things
             if self.cmds[i]["owner"] == plugin_id:
-                self.api(f"{self.plugin_id}:remove.command.type")(i)
+                self.api(f"{self.plugin_id}:type.remove")(i)
 
     @AddAPI("type.remove", description="remove a command type")
     def _api_type_remove(self, cmdtype):
@@ -78,7 +78,7 @@ class CMDQPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
             return
-        self.api("libs.timing:timing.start")(f"cmd_{cmdtype}")
+        self.timing_uid = self.api("libs.timing:start")(f"cmd_{cmdtype}")
 
     @AddAPI("type.add", description="add a command type")
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
@@ -100,17 +100,23 @@ class CMDQPlugin(BasePlugin):
             }
 
             self.api("plugins.core.events:add.event")(
-                f"cmd_{self.current_command['ctype']}_send",
+                f"cmd_{cmdtype}_send",
                 self.cmds[cmdtype]["owner"],
                 description=[f"event for the command {self.cmds[cmdtype]['ctype']} being sent"],
                 arg_descriptions={"None": None},
             )
             self.api("plugins.core.events:add.event")(
-                f"cmd_{self.current_command['ctype']}_completed",
+                f"cmd_{cmdtype}_completed",
                 self.cmds[cmdtype]["owner"],
                 description=[f"event for the command {self.cmds[cmdtype]['ctype']} completing"],
                 arg_descriptions={"None": None},
             )
+
+    def _finish_timing(self):
+        """Finish the timer started for the current command, if any."""
+        if self.timing_uid:
+            self.api("libs.timing:finish")(self.timing_uid)
+            self.timing_uid = None
 
     def sendnext(self):
         """Send the next command."""
@@ -157,7 +163,7 @@ class CMDQPlugin(BasePlugin):
                 )()
                 self.cmds[cmdtype]["afterf"]()
 
-            self.api("libs.timing:timing.finish")(f"cmd_{self.current_command['ctype']}")
+            self._finish_timing()
             self.api("plugins.core.events:raise.event")(
                 f"cmd_{self.current_command['ctype']}_completed"
             )
@@ -192,7 +198,7 @@ class CMDQPlugin(BasePlugin):
     def _command_fixqueue(self):
         """Finish the last command."""
         if self.current_command:
-            self.api("libs.timing:timing.finish")(f"cmd_{self.current_command['ctype']}")
+            self._finish_timing()
             self.current_command = {}
             self.sendnext()
 
