@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793715213915,
+  "lastUpdate": 1793716626319,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3551,6 +3551,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008583312147602151",
             "extra": "mean: 288.5899434963991 usec\nrounds: 3575"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4cc2d4909b184a6c75a1e613c4ec15e27d0431a1",
+          "message": "refactor: replace internal plugins.core.commands:run calls with direct API calls (merges PR #156, addresses #89)\n\nProxy info and the per-plugin set command ran other plugins' commands\nthrough plugins.core.commands:run, which tied them to that command's\nargument syntax, hid pset's failures (set always returned True) and\ncounted those calls in the commands' stats.\n\n- plugins.core.clients:get.clients.formatted holds the clients and\n  banned-IP tables that clients show built; show and proxy info both\n  call it.\n- plugins.core.settings:change.from.user holds pset's checks and\n  messages; pset and the per-plugin set both call it, and set returns\n  its result as is.\n\nOutput is unchanged except for set with a name and no value: it now\nshows set's own help and is reported as a failure, instead of pset's\nhelp (with a -p option set does not take) reported as success.\nplugins.core.commands:run itself is kept.\n\nAddresses #89\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T14:36:17Z",
+          "tree_id": "2dbabb455364cb23f106acab66f50aa48626b731",
+          "url": "https://github.com/endavis/bastproxy/commit/4cc2d4909b184a6c75a1e613c4ec15e27d0431a1"
+        },
+        "date": 1793716624295,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 337.82801685834283,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00020629097998792767",
+            "extra": "mean: 2.960086049995425 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10497.305105493262,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011476685392381583",
+            "extra": "mean: 95.26254500087816 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 323.9535026299787,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008009317853227073",
+            "extra": "mean: 3.0868627499984314 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 774.0554868544803,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007398280896008154",
+            "extra": "mean: 1.2918970499953275 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2926.906214748946,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007645959921043341",
+            "extra": "mean: 341.6576844727409 usec\nrounds: 3014"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2672.554342049697,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007895250987883932",
+            "extra": "mean: 374.17386964452027 usec\nrounds: 2754"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4593.615662330376,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015151889573151989",
+            "extra": "mean: 217.6934409642561 usec\nrounds: 4692"
           }
         ]
       }
