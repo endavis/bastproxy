@@ -60,7 +60,16 @@ class CommandClass:
         self.show_in_history = True
         self.format = True
         self.preamble = True
+        self.count = 0                      # lifetime calls, kept across plugin reloads
+        self.count_since_reload = 0         # calls since this instance was created
+        self.stats = CommandStats()         # error_count, last_error, last_error_time
 ```
+
+`count` and `stats` carry over when the plugin reloads or unloads and loads again, and when the
+commands plugin itself reloads. They reset when the proxy restarts. `count_since_reload` resets
+whenever the command is rebuilt. Only an exception raised by the command function counts as an
+error: bad arguments and a function returning `False` do not. `stats.last_error` is the string
+`"<ExceptionType>: <message>"`, never the exception object.
 
 ### Command Decorators
 **Location**: `src/bastproxy/plugins/core/commands/libs/_utils.py`
@@ -273,6 +282,14 @@ Lists available commands:
 - No args: Lists all plugins
 - `plugin`: Lists commands in plugin
 - `plugin command`: Shows help for specific command
+
+### Command Detail
+```
+#bp.core.commands.detail <command>
+```
+Shows the details of one command: plugin, group, function, lifetime calls, calls since reload,
+error count, last error and its time, and the last run start and end. The command is a
+`package.plugin.command` name such as `core.commands.list`; fuzzy partial names work.
 
 ### Command History
 ```
