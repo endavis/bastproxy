@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793711627311,
+  "lastUpdate": 1793712140123,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3259,6 +3259,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000007899839523122502",
             "extra": "mean: 289.7804430131138 usec\nrounds: 3571"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2af67427baf63eca264d0dbe29cf7a6d7b40338a",
+          "message": "refactor: render the plugin list with the shared output table helper (merges PR #151, addresses #93)\n\nConvert PluginManager._command_helper_format_plugin_list to\nplugins.core.utils:convert.data.to.output.table, keeping the Id/Location,\nName, Author, Vers and Purpose columns and the required-plugin colour\n(now @x075, so a cell starting with a digit cannot extend the code).\n\nThe full listing is one table titled \"Plugins\", with core plugins first and\nthen the other packages, so every row shares one column layout.\n\nThe table helper now measures and pads columns by their colour-stripped\nlength so colour-coded cells stay aligned. Output for cells without colour\ncodes is unchanged.\n\nAddresses #93\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T13:21:39Z",
+          "tree_id": "3baa055f5945568278d0bd831c178b75e0ff0a26",
+          "url": "https://github.com/endavis/bastproxy/commit/2af67427baf63eca264d0dbe29cf7a6d7b40338a"
+        },
+        "date": 1793712139740,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 434.8148606153685,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00017473093565750157",
+            "extra": "mean: 2.299829399999709 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 13611.750806697593,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008741381500832113",
+            "extra": "mean: 73.46593499992338 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 422.55170268689875,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005551734363613635",
+            "extra": "mean: 2.3665742999998685 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1136.2276763929276,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008112083033692255",
+            "extra": "mean: 880.1052999999115 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4526.355062606196,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004612160803624495",
+            "extra": "mean: 220.9283156465895 usec\nrounds: 4787"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3892.8187866640133,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009386662633541224",
+            "extra": "mean: 256.883265007298 usec\nrounds: 4098"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 7118.415043700085,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005178787357087909",
+            "extra": "mean: 140.48071008236818 usec\nrounds: 7409"
           }
         ]
       }
