@@ -50,10 +50,12 @@ from bastproxy.libs.exceptions import PluginDependencyError
 from bastproxy.plugins._baseplugin import BasePlugin
 
 REQUIREDRE = re.compile(r"^PLUGIN_REQUIRED = (?P<value>.*)$")
-NAMERE = re.compile(r"^PLUGIN_NAME = \'(?P<value>.*)\'$")
-AUTHORRE = re.compile(r"^PLUGIN_AUTHOR = \'(?P<value>.*)\'$")
+# Name, author and purpose accept single or double quotes; the closing quote must
+# match the opening one (backreference \1).
+NAMERE = re.compile(r"^PLUGIN_NAME = (['\"])(?P<value>.*)\1$")
+AUTHORRE = re.compile(r"^PLUGIN_AUTHOR = (['\"])(?P<value>.*)\1$")
 VERSIONRE = re.compile(r"^PLUGIN_VERSION = (?P<value>.*)$")
-PURPOSERE = re.compile(r"^PLUGIN_PURPOSE = \'(?P<value>.*)\'$")
+PURPOSERE = re.compile(r"^PLUGIN_PURPOSE = (['\"])(?P<value>.*)\1$")
 
 
 class PluginRuntimeInfo:
