@@ -50,7 +50,8 @@ class Event:
         self.priority_dictionary = {}
         self.raised_count = 0
         # NOTE : this is an unbound dictionary, may need to limit the size
-        #           because of how many events will be raised
+        #           because of how many events will be raised (Event System Findings Bug #3, #153)
+        #           it holds no callbacks, so it does not keep unloaded plugins alive
         self.raised_events = {}
         self.current_callback = None
         self.active_event = None
@@ -138,6 +139,9 @@ class Event:
             )
         for event_function in plugins_to_unregister:
             self.api("plugins.core.events:unregister.from.event")(self.name, event_function.func)
+        # an unload during a raise must not leave the callback (and its owner) referenced
+        if self.current_callback is not None and self.current_callback.owner_id == owner_id:
+            self.current_callback = None
 
     def detail(self) -> list[str]:
         """Format a detail of the event."""
@@ -274,6 +278,10 @@ class Event:
         self.active_event = ProcessRaisedEvent(self, data, actor)  # type: ignore
         uuid = self.active_event.uuid
         self.raised_events[uuid] = self.active_event
-        self.active_event(actor, data_list=data_list, key_name=key_name)
-        self.active_event = None
+        try:
+            self.active_event(actor, data_list=data_list, key_name=key_name)
+        finally:
+            # do not keep the last callback (and so its owner instance) alive after the raise
+            self.active_event = None
+            self.current_callback = None
         return self.raised_events[uuid]

@@ -27,7 +27,7 @@ The `Event` class is the core of the event system. Each event has:
 - **arg_descriptions**: Dictionary of argument names and their descriptions
 - **priority_dictionary**: Maps priorities to registered callbacks
 - **raised_count**: Number of times the event has been raised
-- **current_callback**: The currently executing callback
+- **current_callback**: The currently executing callback; cleared when the raise finishes, so an unloaded plugin is not kept alive
 - **active_event**: The currently active ProcessRaisedEvent instance
 
 ```python
@@ -322,7 +322,7 @@ The `Event` class maintains a dictionary of raised events:
 self.raised_events = {}  # Maps UUID to ProcessRaisedEvent instances
 ```
 
-This allows retrospective analysis of event execution.
+This allows retrospective analysis of event execution. The history is unbounded (see Bug #3 in [Event System Findings](event_system_findings.md), tracked as #153) but it holds no callbacks, so it does not keep unloaded plugins alive.
 
 ## Common Event Names
 

@@ -100,7 +100,7 @@ Every item in the issue's Description, with its current state.
 | `patch()` copies functions onto `Plugin`; the loader skips patching on reload, so patched functions come from whichever copy loaded first | **Fixed** (#131): replaced by the `Settings` mixin, `patch()` removed | #131, PS-7 |
 | 36 `@RegisterPluginHook` uses with priorities: is the order documented and tested? | **Documented now; still untested** | Q3, PS-6 |
 | `attributes_to_save_on_reload`, `can_reload_f`, `reload_dependents_f` | **Partly broken** | PS-4, Q1 |
-| What other plugins keep pointing at an unloaded plugin | **No stale references found** among bundled plugins (no plugin stores a plugin instance); the event history keeps one alive, see PS-8 | PS-8 |
+| What other plugins keep pointing at an unloaded plugin | **No stale references found** among bundled plugins (no plugin stores a plugin instance); `Event.current_callback` kept one alive until the fix for #127, see PS-8 | PS-8 |
 
 The "36 uses" figure was a `grep` count that includes one commented-out line in the timers
 plugin (a `stats` hook, which is not a hook name the base class processes).
@@ -134,7 +134,7 @@ what it holds for that plugin.
 | cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
 | Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `BasePlugin.restore_reload_cache`, called by the loader after construction | Works (PS-4 fixed). |
 | `sys.modules` | import | `_api_unload_plugin`, and the failed-load cleanup in `_api_load_plugins` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
-| Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stays reachable through the event history once one of its callbacks has run (PS-8). |
+| Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stayed reachable through `Event.current_callback` once one of its callbacks had run, fixed in the PR for #127 (PS-8). |
 
 Reload (`PluginLoader._api_reload_plugin`) unloads the plugin and, if `reload_dependents_f` is
 set, its loaded dependents (furthest first), then loads them again with one `load.plugins` call.
@@ -450,22 +450,24 @@ plugin.
 the loader's `_patch_base.py` branch, `has_been_reloaded` and the two `ev_baseplugin_patched`
 handlers. This is a refactor and needs the settings plugin's tests to pass unchanged.
 
-### PS-8: An unloaded plugin instance stays alive through the event history
+### PS-8: An unloaded plugin instance stays alive through the last-run callback
+
+**Status:** fixed in the PR for #127; `Event.raise_event` clears `current_callback` and `active_event` after each raise, and `Event.removeowner` clears `current_callback` when it belongs to the removed owner. The dead `current_callback = None` in `ProcessRaisedEvent._exec_once` is removed. The unbounded `raised_events` growth is a separate memory problem, tracked as [#153](https://github.com/endavis/bastproxy/issues/153) (Bug #3 in [Event System Findings](event_system_findings.md)) and is still open.
 
 **Issue:** [#127](https://github.com/endavis/bastproxy/issues/127)
-**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py` `Event.raised_events`
-(`ProcessRaisedEvent` per raise, never trimmed) holding `Callback` objects whose function is a
-bound method.
+**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py` `Event.raise_priority` set
+`Event.current_callback` to each callback it ran and nothing cleared it.
 
 **Evidence (verified):** A user plugin with a `RegisterToEvent("ev_plugin_loaded")` callback was
-loaded and unloaded; after `gc.collect()` the instance was still alive. The reference chain:
-instance, bound method, `Callback`, `Event`, `ProcessRaisedEvent`, `Event.raised_events`. The
-bundled plugins I unloaded were collected because none of their callbacks had run on a retained
-event. It is the unbounded history already described as Bug #3 in
-[Event System Findings](event_system_findings.md), now with a plugin-unload consequence.
+loaded and unloaded; after `gc.collect()` the instance was still alive. The first diagnosis blamed
+`raised_events`, but a probe with a real `Event` showed the chain is instance, bound method,
+`Callback`, `Event.current_callback`. `raised_events` holds `ProcessRaisedEvent` objects that
+reach a callback only through `.event`, so the history does not keep an owner alive. If another
+owner's callback ran last the instance was collected. The bundled plugins I unloaded were
+collected because none of their callbacks was the last one run on its event.
 
-**Fix:** Cap or trim `raised_events`, and drop an owner's callbacks from retained events in
-`removeowner`. This belongs with the event system audit; cross-link rather than duplicate.
+**Fix:** Clear `current_callback` after each raise and on `removeowner`. Regression tests are in
+`tests/plugins/core/events/test_event_unload_retention.py`.
 
 ### PS-9: Dead and wrong calls in the loader and the base class
 
