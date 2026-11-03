@@ -30,7 +30,6 @@ class Plugin:
         self.plugin_id = plugin_id  # Unique identifier (e.g., "plugins.core.commands")
         self.plugin_info = plugin_info  # PluginInfo object
         self.api = API(owner_id=self.plugin_id)  # Plugin's API instance
-        self.dependencies = []  # List of plugin IDs this plugin depends on
         self.data = {}  # Plugin-specific data storage
 ```
 
@@ -38,7 +37,6 @@ Key attributes:
 - **plugin_id**: Unique identifier (e.g., `plugins.core.events`)
 - **plugin_info**: Metadata and runtime information
 - **api**: API instance for registering and calling functions
-- **dependencies**: List of plugin IDs this plugin depends on
 - **can_reload_f**: Whether the plugin can be reloaded
 - **can_reset_f**: Whether the plugin can be reset
 - **is_reloading_f**: Flag indicating plugin is being reloaded
@@ -61,7 +59,7 @@ Responsibilities:
 - Discovering plugins in search paths
 - Loading and instantiating plugins
 - Managing plugin lifecycle
-- Tracking dependencies
+- Resolving declared dependencies and ordering loads
 - Handling reload mechanics
 - Maintaining weak references to unloaded modules
 
@@ -80,6 +78,7 @@ class PluginInfo:
         self.author = ""
         self.purpose = ""
         self.version = -1
+        self.dependencies: list[str] = []  # from PLUGIN_DEPENDENCIES
         self.is_required = False
         self.is_plugin = False
         self.is_valid_python_code = True
@@ -90,7 +89,7 @@ class PluginInfo:
 ```
 
 Tracks:
-- Plugin metadata (name, author, version, purpose)
+- Plugin metadata (name, author, version, purpose, dependencies)
 - File system paths
 - Python file validity
 - Changed files since loading
@@ -151,6 +150,7 @@ PLUGIN_AUTHOR = 'Your Name'
 PLUGIN_VERSION = 1
 PLUGIN_PURPOSE = 'Description of what this plugin does'
 REQUIRED = False  # Whether this plugin is required to be loaded
+PLUGIN_DEPENDENCIES = ['plugins.core.events']  # optional, see Dependencies
 ```
 
 Metadata fields:
@@ -159,6 +159,7 @@ Metadata fields:
 - **PLUGIN_VERSION**: Integer version number
 - **PLUGIN_PURPOSE**: Brief description
 - **REQUIRED**: Boolean indicating if the plugin is required
+- **PLUGIN_DEPENDENCIES**: Optional list of plugin IDs that must be loaded first (see [Dependencies](#dependencies))
 
 ### Plugin Class (plugin/__init__.py)
 
@@ -172,9 +173,6 @@ from bastproxy.libs.records import LogRecord
 class Plugin(BasePlugin):
     def __init__(self, plugin_id, plugin_info):
         super().__init__(plugin_id, plugin_info)
-
-        # Add dependencies
-        self.dependencies = ['plugins.core.events']
 
         # Initialize plugin-specific state
         self.some_data = {}
@@ -332,16 +330,18 @@ Reloading a plugin:
    self.attributes_to_save_on_reload = ['some_state', 'other_data']
    ```
 
-2. **Unload**: Plugin is unloaded (see above)
+2. **Reload dependents**: If the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set. Dependents are unloaded furthest first, then the plugin; one load call then loads them again with dependencies first.
 
-3. **Module Reload**: Python modules are reloaded
+3. **Unload**: Plugin is unloaded (see above)
+
+4. **Module Reload**: Python modules are reloaded
    ```python
    importlib.reload(module)
    ```
 
-4. **Load**: Plugin is loaded again (see above)
+5. **Load**: Plugin is loaded again (see above)
 
-5. **Restore Attributes**: Cached attributes are restored from the reload cache
+6. **Restore Attributes**: Cached attributes are restored from the reload cache
 
 ## Plugin Hooks
 
@@ -410,39 +410,26 @@ class Plugin(BasePlugin):
 
 ### Declaring Dependencies
 
-Plugins declare dependencies in their `__init__` method:
+Plugins declare dependencies as metadata in the package `__init__.py`, next to `PLUGIN_NAME`:
 
 ```python
-class Plugin(BasePlugin):
-    def __init__(self, plugin_id, plugin_info):
-        super().__init__(plugin_id, plugin_info)
-
-        # Add explicit dependencies
-        self.dependencies = [
-            'plugins.core.events',
-            'plugins.core.commands',
-        ]
+# plugins/core/myplugin/__init__.py
+PLUGIN_DEPENDENCIES = ["plugins.core.ssc"]
 ```
 
-Or dynamically via API:
+The value must be a list or tuple of full plugin IDs. The loader reads it with `ast.literal_eval` before importing the plugin, so no plugin code runs; the result is stored on `PluginInfo.dependencies`. An invalid value gives no dependencies and an entry in `import_errors`. Duplicates and self-references are dropped.
 
-```python
-self.api(f"{self.plugin_id}:dependency.add")('plugins.core.settings')
-```
-
-### Automatic Dependencies
-
-Some dependencies are automatic:
-- Plugins in `plugins.core` are automatically available
-- Plugins in `plugins.client` are automatically available
+There is no runtime API for adding dependencies: the loader needs them before it instantiates the plugin.
 
 ### Dependency Resolution
 
-When loading plugins:
-1. Dependencies are checked
-2. Missing dependencies are loaded first
-3. Circular dependencies are detected and reported
-4. Load order respects dependency graph
+When loading plugins (`libs.plugins.loader:load.plugins`):
+1. Each requested plugin's `PLUGIN_DEPENDENCIES` is read.
+2. Dependencies that are not loaded are pulled into the load, and the plugins are ordered so dependencies come first. Otherwise the requested order is kept.
+3. Import, instantiate and initialize each run in that order, so a dependency's `initialize()` runs before its dependent's.
+4. A missing, circular or failing dependency fails the dependent with a logged error. Unrelated plugins still load. With `exit_on_error` set (startup) any failure exits.
+
+Unloading a plugin that others depend on is not blocked.
 
 ### Reload with Dependents
 
@@ -451,6 +438,8 @@ Plugins can specify whether dependent plugins should be reloaded:
 ```python
 self.reload_dependents_f = True  # Reload plugins that depend on this one
 ```
+
+See [Reloading](#7-reloading). `libs.plugins.loader:reload.plugin` returns `True` only when everything unloaded and loaded again.
 
 ## Plugin Data
 
@@ -604,7 +593,6 @@ class Plugin(BasePlugin):
 ### Plugin Instance APIs
 - `<plugin_id>:data.get` - Get plugin data
 - `<plugin_id>:data.update` - Update plugin data
-- `<plugin_id>:dependency.add` - Add a dependency
 - `<plugin_id>:get.data.directory` - Get plugin's data directory
 - `<plugin_id>:set.reload` - Set reload flag
 - `<plugin_id>:get.plugin.hooks` - Get plugin hooks
@@ -623,7 +611,7 @@ class Plugin(BasePlugin):
 
 ### Plugin Design
 1. **Single Responsibility**: Each plugin should have a clear, focused purpose
-2. **Explicit Dependencies**: Declare all dependencies explicitly
+2. **Explicit Dependencies**: Declare all dependencies in `PLUGIN_DEPENDENCIES`
 3. **Namespace APIs**: Use descriptive, namespaced API names
 4. **Document APIs**: Include docstrings and descriptions
 5. **Handle Errors Gracefully**: Don't crash the proxy
@@ -631,7 +619,7 @@ class Plugin(BasePlugin):
 ### Initialization
 1. **Minimal `__init__`**: Keep initialization simple
 2. **Use Hooks**: Use appropriate hooks for different initialization stages
-3. **Check Dependencies**: Verify required plugins are loaded
+3. **Rely on Dependencies**: Declared dependencies are initialized before your plugin
 4. **Fail Gracefully**: Handle missing dependencies
 
 ### Reloading

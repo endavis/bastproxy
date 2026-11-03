@@ -13,3 +13,6 @@ PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = True
+
+# plugins that must be loaded (and initialized) before this one
+PLUGIN_DEPENDENCIES = ["plugins.core.ssc"]

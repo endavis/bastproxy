@@ -73,8 +73,6 @@ class ProxyPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         """Initialize the instance."""
-        self.api(f"{self.plugin_id}:dependency.add")("core.ssc")
-
         self.proxypw = None
         self.proxyvpw = None
         self.mudpw = None

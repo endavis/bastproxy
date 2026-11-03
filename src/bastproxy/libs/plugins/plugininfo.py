@@ -46,6 +46,7 @@ from typing import Any
 
 # 3rd Party
 # Project
+from bastproxy.libs.exceptions import PluginDependencyError
 from bastproxy.plugins._baseplugin import BasePlugin
 
 REQUIREDRE = re.compile(r"^REQUIRED = (?P<value>.*)$")
@@ -100,6 +101,7 @@ class PluginInfo:
         self.purpose: str = ""
         self.version: int = -1
         self.is_dev = self.short_name.startswith("_")
+        self.dependencies: list[str] = []
         self.is_required: bool = False
         self.is_plugin: bool = False
         self.is_valid_python_code: bool = True
@@ -345,6 +347,7 @@ class PluginInfo:
           a PLUGIN_PURPOSE line
           a PLUGIN_AUTHOR line
           a PLUGIN_VERSION line
+          a PLUGIN_DEPENDENCIES list (parsed separately, see _parse_dependencies)
 
         Returns:
             None
@@ -392,6 +395,64 @@ class PluginInfo:
                 and self.version > -1
             ):
                 break
+
+        self._parse_dependencies(contents)
+
+    def _parse_dependencies(self, contents: str) -> None:
+        """Parse the top-level ``PLUGIN_DEPENDENCIES`` assignment of the init file.
+
+        The value is read with ``ast.literal_eval`` so no code is executed. It must
+        be a list or tuple of strings; anything else gives an empty list and an
+        entry in ``import_errors``. Duplicates and self-references are dropped.
+        The list is reset on every call.
+
+        Args:
+            contents: The text of the package ``__init__.py``.
+
+        """
+        self.dependencies = []
+        self.import_errors = [
+            err
+            for err in self.import_errors
+            if not (isinstance(err, tuple) and isinstance(err[1], PluginDependencyError))
+        ]
+        try:
+            tree = ast.parse(contents)
+        except SyntaxError:
+            return
+
+        value_node: ast.expr | None = None
+        for node in tree.body:
+            if (
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(t, ast.Name) and t.id == "PLUGIN_DEPENDENCIES" for t in node.targets
+                )
+            ) or (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == "PLUGIN_DEPENDENCIES"
+                and node.value is not None
+            ):
+                value_node = node.value
+        if value_node is None:
+            return
+
+        try:
+            value = ast.literal_eval(value_node)
+        except (ValueError, TypeError, SyntaxError):
+            value = None
+        if not isinstance(value, list | tuple) or not all(isinstance(v, str) for v in value):
+            msg = (
+                f"{self.plugin_id}: PLUGIN_DEPENDENCIES must be a list or tuple of "
+                "plugin ID strings"
+            )
+            self.import_errors.append((self.package_import_location, PluginDependencyError(msg)))
+            return
+
+        for dep in value:
+            if dep != self.plugin_id and dep not in self.dependencies:
+                self.dependencies.append(dep)
 
     def reset_runtime_info(self) -> None:
         """Reset the runtime information for the plugin.
