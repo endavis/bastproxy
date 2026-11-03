@@ -39,7 +39,6 @@ import pprint
 import types
 from collections.abc import Callable
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -576,7 +575,6 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         return get_caller_owner_id(ignore_owner_list)
 
-    @lru_cache(maxsize=128)
     def _api_get_function_owner_plugin(self, tcallable: Callable) -> str:
         """Get the plugin ID of the plugin that owns the function.
 
