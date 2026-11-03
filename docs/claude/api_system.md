@@ -130,7 +130,7 @@ The `<api_name>` part follows `<resource>.<action>[.<qualifier>]`, defined in [A
 - `plugins.core.events:event.raise`
 - `libs.plugins.loader:plugin.instance.get`
 
-Many names on this page and in the other `docs/claude/` pages are the current names, pending rename by the ADR-0004 follow-up issues. The ADR appendix maps each old name to its new one.
+Many names on this page and in the other `docs/claude/` pages are the current names, pending rename by the ADR-0004 follow-up issues. The ADR appendix maps each old name to its new one. `tests/plugins/test_api_name_grammar.py` checks every registered name against the grammar. A new name must conform, and the names that do not conform yet are in its `LEGACY_NAMES`, which rename PRs shrink.
 
 ### 2. Registering APIs
 

@@ -298,7 +298,7 @@ class YourPlugin(BasePlugin):
 
 ### API Naming Conventions
 
-API names follow [ADR-0004](docs/decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md), which is the source for the rules and the closed action list. Summary:
+API names follow [ADR-0004](docs/decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md), which is the source for the rules and the closed action list. `tests/plugins/test_api_name_grammar.py` checks every registered name against the grammar. A new name must conform, and the names that do not conform yet are in its `LEGACY_NAMES`, which rename PRs shrink. Summary:
 
 1. **Shape**: `<resource>.<action>[.<qualifier>]`. The resource is the singular noun, always named (no bare verbs). The action is one word from the ADR's closed action list. The qualifier says how, which or for whom.
 2. **Booleans**: `<resource>.is.<state>`, `<resource>.has.<thing>`, or `<resource>.exists`. No `can.*`, `does.*` or `check`.

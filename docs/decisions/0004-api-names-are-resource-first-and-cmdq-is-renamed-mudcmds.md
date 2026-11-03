@@ -121,12 +121,13 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 - **Several descriptions are wrong**: `is.mud.connected` says "get the mud connection", and `has.event` says "return the event". The follow-ups may fix them alongside the names.
 - `errors:get` returns all errors, so it becomes `error.list` by rule 6.
 - Follow-up issues are filed from #99, one per plugin or small batch, plus one for the `cmdq` rename. The existing test in `tests/plugins/test_api_names_exist.py` catches missed callers in `src`.
-- The grammar becomes a test in a follow-up: a static scan of every registered API name against the closed action list and boolean forms, with an allowlist of legacy names that may only shrink. Each rename PR removes its names from that allowlist.
+- The grammar is a test, `tests/plugins/test_api_name_grammar.py`: a static scan of every registered API name against the closed action list and boolean forms. Names that do not conform yet are in its `LEGACY_NAMES` allowlist, keyed by owner and name, which may only shrink. Each rename PR removes its names from it. Rule 3 and 5 misnames that already parse are tagged `review` there.
 - Renaming `plugins.core.cmdq` moves its package and tests, and changes the plugin ID. The follow-up checks whether it persists settings or data under its plugin ID and says how users migrate.
 
 ## Related Issues
 
 - Issue #99: Decide the API and plugin naming convention
+- Issue #160: ADR-0004 grammar test
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation
