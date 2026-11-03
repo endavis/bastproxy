@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793702930353,
+  "lastUpdate": 1793703116775,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2456,6 +2456,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000012044873756011512",
             "extra": "mean: 290.71007960344684 usec\nrounds: 3530"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9da6319838bea0db3e7eb9a2ad5ede8819d3a2b",
+          "message": "fix: parse plugin metadata so a trailing comment cannot abort discovery (merges PR #138, addresses #125)\n\n* fix: parse plugin metadata with ast so a trailing comment cannot abort discovery\n\nPluginInfo.update_from_init matched PLUGIN_NAME, PLUGIN_PURPOSE, PLUGIN_AUTHOR,\nPLUGIN_VERSION and PLUGIN_REQUIRED with one-line regexes. A trailing comment\non the version line raised ValueError and stopped discovery for every plugin;\non the other lines the value was silently dropped.\n\nRead the five values with ast.literal_eval, as _parse_dependencies does for\nPLUGIN_DEPENDENCIES. A value of the wrong type or a non-literal is recorded in\nthat plugin's import_errors and parsing carries on.\n\nAddresses #125\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n* fix: record a plugin __init__.py syntax error in import_errors\n\nA syntax error anywhere in a plugin package __init__.py made the ast based\nmetadata parse return silently, so the plugin dropped out of discovery with no\nmessage. Record the error in that plugin's import_errors and fall back to\nparsing each PLUGIN_ line on its own, so the plugin is still discovered and the\nfailure is logged by the loader.\n\nAddresses #125\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:51:10Z",
+          "tree_id": "6c8335a4d2043d58e564e19a3cc9b494beb35852",
+          "url": "https://github.com/endavis/bastproxy/commit/f9da6319838bea0db3e7eb9a2ad5ede8819d3a2b"
+        },
+        "date": 1793703116095,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 297.12419434770845,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00019785584400229336",
+            "extra": "mean: 3.365596000000437 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 9208.799726407975,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010340413469150683",
+            "extra": "mean: 108.5917850002005 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 275.4528599960998,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00015584078127827786",
+            "extra": "mean: 3.630385249999435 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 701.7540166207233,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008885412660672533",
+            "extra": "mean: 1.4250007499999384 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2713.993239379033,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000024238786065669706",
+            "extra": "mean: 368.4607557197902 usec\nrounds: 2841"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2278.9388903644785,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000022763918067212234",
+            "extra": "mean: 438.8007086228041 usec\nrounds: 2447"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4374.954256722885,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012804775888032982",
+            "extra": "mean: 228.5738184492614 usec\nrounds: 4759"
           }
         ]
       }
