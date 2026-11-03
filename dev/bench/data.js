@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793666660127,
+  "lastUpdate": 1793667521054,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1945,6 +1945,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00002650697263311097",
             "extra": "mean: 290.77831747370084 usec\nrounds: 3594"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b1cf356547ee6ad46d6f9780860e5d50af841e7f",
+          "message": "fix: parse PLUGIN_REQUIRED metadata from plugin __init__.py (merges PR #118, addresses #117)\n\nREQUIREDRE matched \"REQUIRED = \", but plugins write\n\"PLUGIN_REQUIRED = True\", so the flag was never read and is_required\ncame only from the loader's plugins.core rule. The regex now matches\nPLUGIN_REQUIRED; the plugins.core rule stays. The plugin_system doc\nexample and field list use the real name.\n\nAddresses #117\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T00:58:00Z",
+          "tree_id": "680eed34fdc5899a30db2b9fb44fd4cef8671723",
+          "url": "https://github.com/endavis/bastproxy/commit/b1cf356547ee6ad46d6f9780860e5d50af841e7f"
+        },
+        "date": 1793667520418,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 266.4861311954744,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00022070631160596758",
+            "extra": "mean: 3.7525405000025103 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 8188.08154292267,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013361267571050328",
+            "extra": "mean: 122.12873000322588 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 254.34876618183694,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009358628543786815",
+            "extra": "mean: 3.931609400004277 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 606.6954853100192,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008562740052812904",
+            "extra": "mean: 1.6482733499969981 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2258.9358491301837,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000029726926101750954",
+            "extra": "mean: 442.68632081121547 usec\nrounds: 2316"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2039.8870863244742,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011767577759557591",
+            "extra": "mean: 490.22321220819526 usec\nrounds: 2097"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3241.4442364673596,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000055481318302431084",
+            "extra": "mean: 308.504458830313 usec\nrounds: 3607"
           }
         ]
       }
