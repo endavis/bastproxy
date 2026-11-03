@@ -122,6 +122,7 @@ def test_sqldb_initialize_creates_statdb(tmp_path: Path, monkeypatch: pytest.Mon
     """``_sqldb`` initialize builds its database from the base class and data dir."""
     from types import SimpleNamespace
 
+    from bastproxy.libs.api import API
     from bastproxy.plugins._baseplugin import BasePlugin
     from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
 
@@ -129,12 +130,13 @@ def test_sqldb_initialize_creates_statdb(tmp_path: Path, monkeypatch: pytest.Mon
     info = _info_for(_by_suffix("test._sqldb"))
     module = imputils.importmodule(info.plugin_class_import_location)["module"]
 
-    def fake_api(name: str) -> Any:
-        assert name == "plugins.core.sqldb:baseclass"
-        return Sqldb
+    # A real API instance: ``api(name)`` returns an APIItem, which must be called
+    # to get the Sqldb class (as the sqldb plugin's ``_api_baseclass`` does).
+    real_api = API("plugins.test._sqldb")
+    real_api.add("plugins.core.sqldb", "baseclass", lambda: Sqldb, instance=True)
 
     fake = SimpleNamespace(
-        api=fake_api,
+        api=real_api,
         plugin_id="plugins.test._sqldb",
         plugin_info=SimpleNamespace(data_directory=tmp_path),
     )
