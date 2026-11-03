@@ -42,6 +42,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
+from bastproxy.libs.exceptions import APINotFoundError
+
 from ._apiitem import APIItem
 
 # Third Party
@@ -668,7 +670,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             The callable associated with the specified API location.
 
         Raises:
-            AttributeError: If the API location is not found in the API.
+            APINotFoundError: If the API location is not found in the API.
 
         """
         if "." in api_location:
@@ -690,7 +692,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             return self._class_api[api_location]
 
         msg = f"{self.owner_id} : {api_location} is not in the api"
-        raise AttributeError(msg)
+        raise APINotFoundError(msg)
 
     __call__ = get
 
@@ -746,7 +748,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         try:
             API_item = self.get(api_location)
-        except AttributeError:
+        except APINotFoundError:
             return False
 
         if not API_item:
@@ -1158,11 +1160,11 @@ def test() -> None:  # sourcery skip: no-long-functions
     print("api2 api_has a.test:three", api2("libs.api:has")("a.test:three"))
     try:
         print("api2 called a.test:three", api2("a.test:three")("success"))
-    except AttributeError:
+    except APINotFoundError:
         print("a.test:three was not in the api")
     try:
         print("doesn't exist", api2("a.test:four")("success"))
-    except AttributeError:
+    except APINotFoundError:
         print("a.test:four was not in the api")
 
 

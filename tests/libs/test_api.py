@@ -18,6 +18,7 @@ Test Classes:
 import pytest
 
 from bastproxy.libs.api import API
+from bastproxy.libs.exceptions import APINotFoundError
 
 
 def helper_function_one() -> str:
@@ -125,11 +126,32 @@ class TestAPIBasics:
         assert has_result is False
 
     def test_api_get_raises_attribute_error(self) -> None:
-        """Test that get() raises AttributeError for nonexistent APIs."""
+        """Test that get() raises APINotFoundError (an AttributeError) for nonexistent APIs."""
         api = API(owner_id="test_owner")
 
-        with pytest.raises(AttributeError, match="nonexistent:api is not in the api"):
+        with pytest.raises(APINotFoundError, match="nonexistent:api is not in the api"):
             api.get("nonexistent:api")
+        with pytest.raises(AttributeError):
+            api.get("nonexistent:api")
+
+    def test_api_has_only_swallows_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that _api_has returns False for not-found but propagates other AttributeErrors."""
+        api = API(owner_id="test_owner")
+
+        def raise_not_found(_location: str) -> None:
+            msg = "missing"
+            raise APINotFoundError(msg)
+
+        def raise_attribute_error(_location: str) -> None:
+            msg = "unrelated bug"
+            raise AttributeError(msg)
+
+        monkeypatch.setattr(api, "get", raise_not_found)
+        assert api._api_has("x:y") is False
+
+        monkeypatch.setattr(api, "get", raise_attribute_error)
+        with pytest.raises(AttributeError, match="unrelated bug"):
+            api._api_has("x:y")
 
 
 class TestAPINamespaces:

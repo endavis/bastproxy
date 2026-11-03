@@ -132,11 +132,13 @@ class APIRegistrationError(APIException):
     """
 
 
-class APINotFoundError(APIException):
+class APINotFoundError(APIException, AttributeError):
     """Exception raised when an API cannot be found.
 
     This exception is raised when attempting to invoke or look up an API
-    that has not been registered or has been removed.
+    that has not been registered or has been removed. It is also an
+    `AttributeError` for backward compatibility with callers that caught
+    `AttributeError` from an API lookup.
 
     """
 

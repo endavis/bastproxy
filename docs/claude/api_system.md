@@ -180,7 +180,7 @@ if self.api("libs.api:has")("some.plugin:some.function"):
     result = self.api("some.plugin:some.function")(args)
 ```
 
-The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`.
+The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`. `get` raises `APINotFoundError` (from `bastproxy.libs.exceptions`, a subclass of `APIException` and `AttributeError`) when the API does not exist.
 
 ### 4. Class vs Instance APIs
 
@@ -472,7 +472,7 @@ Events are raised when the flag changes:
    ```
 2. Use the API for cross-plugin communication instead of direct imports
 3. Cache frequently-used API lookups if performance is critical
-4. Handle potential AttributeError exceptions when calling APIs
+4. A missing API raises `APINotFoundError` (from `bastproxy.libs.exceptions`, which is also an `AttributeError`). Catch `APINotFoundError` rather than `AttributeError`, so an `AttributeError` raised inside the API function itself is not mistaken for a missing API
 
 ### Statistics
 - API statistics are automatically tracked

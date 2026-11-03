@@ -210,6 +210,8 @@ class TestAPIExceptions:
         error = APINotFoundError("API not found")
 
         assert isinstance(error, APIException)
+        assert isinstance(error, BastProxyError)
+        assert isinstance(error, AttributeError)
         assert str(error) == "API not found"
 
     def test_api_invocation_error(self) -> None:
