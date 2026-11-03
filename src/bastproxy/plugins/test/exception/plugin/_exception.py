@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/test/exception/_plugin.py
+# Filename: plugins/test/exception/plugin/_exception.py
 #
 # File Description: a plugin to test exception handling
 #

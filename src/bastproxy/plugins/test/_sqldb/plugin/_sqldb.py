@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/test/sqldb/_plugin.py
+# Filename: plugins/test/_sqldb/plugin/_sqldb.py
 #
 # File Description: a plugin to test the sqldb plugin
 #

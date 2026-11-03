@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/test/cmddec/_init_.py
+# Filename: plugins/test/cmddec/__init__.py
 #
 # File Description: a plugin to test command decorators
 #
@@ -11,7 +11,3 @@ PLUGIN_NAME = "Test command decorators"
 PLUGIN_PURPOSE = "Test command decorators"
 PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
-
-__all__ = ["Plugin"]
-
-from ._plugin import CMDDecPlugin as Plugin
