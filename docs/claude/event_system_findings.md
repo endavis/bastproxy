@@ -174,6 +174,8 @@ Update all 8 locations listed above to use `EventDataRecord` instead of `EventAr
 
 ### Bug #3: Memory Leak - Unbounded Event History ⚠️ HIGH SEVERITY
 
+**Status:** fixed in the PR for #153. `Event.raised_events` is an `OrderedDict` capped at `Event.MAX_RAISED_EVENTS`, set from the `raised_history_size` setting on `plugins.core.events` through a class attribute, so there is no per-raise settings lookup. The issue text below describes the original code.
+
 **Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16224`
 
 **Issue:**
@@ -184,7 +186,7 @@ self.raised_count = 0
 self.raised_events = {}
 ```
 
-Plugin retention is not part of this bug: the unloaded-plugin leak (PS-8, [#127](https://github.com/endavis/bastproxy/issues/127)) came from `Event.current_callback`, not from this dictionary, and is fixed. The unbounded growth below is still open, tracked as [#153](https://github.com/endavis/bastproxy/issues/153); see [Plugin System Findings PS-8](plugin_system_findings.md#ps-8-an-unloaded-plugin-instance-stays-alive-through-the-last-run-callback).
+Plugin retention is not part of this bug: the unloaded-plugin leak (PS-8, [#127](https://github.com/endavis/bastproxy/issues/127)) came from `Event.current_callback`, not from this dictionary, and is fixed. The unbounded growth below was tracked as [#153](https://github.com/endavis/bastproxy/issues/153) and is fixed (see Status); see [Plugin System Findings PS-8](plugin_system_findings.md#ps-8-an-unloaded-plugin-instance-stays-alive-through-the-last-run-callback).
 
 Every raised event is stored in `self.raised_events` dictionary indefinitely. In a long-running proxy with frequent events, this will cause continuous memory growth.
 
@@ -193,11 +195,11 @@ Every raised event is stored in `self.raised_events` dictionary indefinitely. In
 - Potential OOM (Out of Memory) crashes
 - Performance degradation as dictionary grows
 
-**Calculation:**
+**Calculation (superseded by the fix):**
 - If 100 events/second with 1KB each = 360MB/hour
 - 24-hour session = 8.6GB of event history
 
-**Recommendation:**
+**Recommendation (superseded by the fix):**
 Implement size-limited history using `collections.OrderedDict`:
 
 ```python

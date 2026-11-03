@@ -452,7 +452,7 @@ handlers. This is a refactor and needs the settings plugin's tests to pass uncha
 
 ### PS-8: An unloaded plugin instance stays alive through the last-run callback
 
-**Status:** fixed in the PR for #127; `Event.raise_event` clears `current_callback` and `active_event` after each raise, and `Event.removeowner` clears `current_callback` when it belongs to the removed owner. The dead `current_callback = None` in `ProcessRaisedEvent._exec_once` is removed. The unbounded `raised_events` growth is a separate memory problem, tracked as [#153](https://github.com/endavis/bastproxy/issues/153) (Bug #3 in [Event System Findings](event_system_findings.md)) and is still open.
+**Status:** fixed in the PR for #127; `Event.raise_event` clears `current_callback` and `active_event` after each raise, and `Event.removeowner` clears `current_callback` when it belongs to the removed owner. The dead `current_callback = None` in `ProcessRaisedEvent._exec_once` is removed. The unbounded `raised_events` growth is a separate memory problem, tracked as [#153](https://github.com/endavis/bastproxy/issues/153) (Bug #3 in [Event System Findings](event_system_findings.md)) and is fixed in the PR for #153.
 
 **Issue:** [#127](https://github.com/endavis/bastproxy/issues/127)
 **Location:** `src/bastproxy/plugins/core/events/plugin/_event.py` `Event.raise_priority` set

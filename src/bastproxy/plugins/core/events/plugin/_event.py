@@ -12,6 +12,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
 """
 
 # Standard Library
+from collections import OrderedDict
 from collections.abc import Callable
 
 # 3rd Party
@@ -25,6 +26,10 @@ from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaise
 
 class Event:
     """Base class for an event."""
+
+    # Number of recent raises each event keeps in raised_events. EventsPlugin sets
+    # this from its raised_history_size setting; RMANAGER keeps the long history.
+    MAX_RAISED_EVENTS: int = 10
 
     def __init__(
         self,
@@ -49,10 +54,9 @@ class Event:
         self.api = API(owner_id=self.owner_id)
         self.priority_dictionary = {}
         self.raised_count = 0
-        # NOTE : this is an unbound dictionary, may need to limit the size
-        #           because of how many events will be raised (Event System Findings Bug #3, #153)
+        # bounded to the newest MAX_RAISED_EVENTS raises (Event System Findings Bug #3, #153)
         #           it holds no callbacks, so it does not keep unloaded plugins alive
-        self.raised_events = {}
+        self.raised_events: OrderedDict[str, ProcessRaisedEvent] = OrderedDict()
         self.current_callback = None
         self.active_event = None
 
@@ -250,7 +254,7 @@ class Event:
 
     def raise_event(
         self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
-    ) -> EventDataRecord | None:
+    ) -> ProcessRaisedEvent | None:
         """Raise this event."""
         self.raised_count = self.raised_count + 1
 
@@ -275,13 +279,16 @@ class Event:
         if actor and not self.created_by:
             self.created_by = actor
 
-        self.active_event = ProcessRaisedEvent(self, data, actor)  # type: ignore
-        uuid = self.active_event.uuid
-        self.raised_events[uuid] = self.active_event
+        raised = ProcessRaisedEvent(self, data, actor)  # type: ignore
+        self.active_event = raised
+        self.raised_events[raised.uuid] = raised
+        # evict the oldest before the callbacks run; a lowered cap shrinks here
+        while len(self.raised_events) > max(0, self.MAX_RAISED_EVENTS):
+            self.raised_events.popitem(last=False)
         try:
-            self.active_event(actor, data_list=data_list, key_name=key_name)
+            raised(actor, data_list=data_list, key_name=key_name)
         finally:
             # do not keep the last callback (and so its owner instance) alive after the raise
             self.active_event = None
             self.current_callback = None
-        return self.raised_events[uuid]
+        return raised
