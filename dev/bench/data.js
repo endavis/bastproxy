@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793664980833,
+  "lastUpdate": 1793665356431,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1799,6 +1799,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000022963664275822096",
             "extra": "mean: 290.74092119179204 usec\nrounds: 3591"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3f75c3cf59a4edfc4f4791694976cb691c5f44d5",
+          "message": "fix: clear a plugin's command data on unload so removed commands stay gone (merges PR #115, addresses #96)\n\nremove.data.for.plugin only filtered commands_list and never cleared\ncommand_data[plugin_id], so a command deleted from a plugin's source was\nstill listed and still ran after reload. It now pops the plugin's command\ndata, saves the per-command call counts, and update_command restores the\ncount for commands the reloaded plugin still defines. The commands_list\nfilter now matches \"<plugin_id>.\" so a plugin id that prefixes another no\nlonger removes the other's entries.\n\nAddresses #96\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T00:21:50Z",
+          "tree_id": "9a3fd22cb577400d71642fd82a00a911118a2913",
+          "url": "https://github.com/endavis/bastproxy/commit/3f75c3cf59a4edfc4f4791694976cb691c5f44d5"
+        },
+        "date": 1793665355656,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 347.07673922239667,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00021224239043281682",
+            "extra": "mean: 2.8812071999997357 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10422.800376145622,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001271935838088068",
+            "extra": "mean: 95.94350499973814 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 329.15485508200294,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000836731605684992",
+            "extra": "mean: 3.038083699998495 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 781.2619020363418,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007421033869297481",
+            "extra": "mean: 1.2799805000007325 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2879.831615268587,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007858733024508582",
+            "extra": "mean: 347.2425244233369 usec\nrounds: 2948"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2525.4992460460785,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002502991232259792",
+            "extra": "mean: 395.9613140117147 usec\nrounds: 2605"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4595.711085442549,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000053423153957710335",
+            "extra": "mean: 217.5941832304508 usec\nrounds: 4699"
           }
         ]
       }
