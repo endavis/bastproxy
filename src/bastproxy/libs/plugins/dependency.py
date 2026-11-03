@@ -6,154 +6,146 @@
 # By: Bast
 """Module for resolving plugin dependencies in the bastproxy project.
 
-This module provides the `PluginDependencyResolver` class, which is used to resolve
-dependencies among plugins to ensure they are loaded in the correct order. It includes
-methods for resolving dependencies and handling circular references, making it a
-valuable tool for managing plugin relationships in the application.
+Plugins declare their dependencies in the package ``__init__.py`` as
+``PLUGIN_DEPENDENCIES = ["plugins.core.ssc"]``; the list is stored on
+``PluginInfo.dependencies``. This module orders plugins so dependencies come first
+and finds the plugins that depend on a given plugin.
 
-Key Components:
-    - PluginDependencyResolver: A class that resolves plugin dependencies.
-    - Methods for resolving dependencies and handling circular references.
-
-Features:
-    - Automatic resolution of plugin dependencies.
-    - Detection and handling of circular references.
-    - Logging of errors when required plugins cannot be loaded.
-
-Usage:
-    - Instantiate PluginDependencyResolver with a list of plugins to resolve
-        dependencies.
-    - Use `resolve` method to start the dependency resolution process.
-    - Access resolved and unresolved plugins through the class attributes.
+The resolver is pure: it does no logging and never exits. Callers log the failures
+it returns.
 
 Classes:
-    - `PluginDependencyResolver`: Represents a class that resolves plugin dependencies.
+    - `PluginDependencyResolver`: orders plugins and finds dependents.
+    - `CircularDependencyError`: a dependency cycle, carrying the cycle path.
 
 """
 
 # Standard Library
-import sys
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 # 3rd Party
 # Project
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.exceptions import PluginDependencyError
+
+if TYPE_CHECKING:
+    from bastproxy.libs.plugins.plugininfo import PluginInfo
 
 
-class CircularDependencyError(Exception):
+class CircularDependencyError(PluginDependencyError):
     """Exception raised when a circular dependency is detected."""
+
+    def __init__(self, cycle: list[str]) -> None:
+        """Store the cycle path (first and last entries are the same plugin)."""
+        self.cycle = cycle
+        super().__init__(f"Circular dependency detected: {' -> '.join(cycle)}")
 
 
 class PluginDependencyResolver:
-    """Resolve plugin dependencies.
-
-    This class resolves dependencies among plugins to ensure they are loaded in the
-    correct order. It includes methods for resolving dependencies and handling circular
-    references.
-
-    """
+    """Resolve plugin dependencies against a set of ``PluginInfo`` objects."""
 
     def __init__(
         self,
-        plugin_list: list,
-        resolved: list[str] | None = None,
-        broken_modules: list[str] | None = None,
+        plugins_info: Mapping[str, "PluginInfo"],
+        loaded: Iterable[str] | None = None,
     ) -> None:
-        """Initialize the PluginDependencyResolver.
-
-        This method initializes the PluginDependencyResolver with a list of plugins,
-        resolved plugins, and broken modules. It also creates a lookup dictionary for
-        quick access to plugins by their ID.
+        """Initialize the resolver.
 
         Args:
-            plugin_list: The list of plugins to resolve dependencies for.
-            resolved: The list of already resolved plugins.
-            broken_modules: The list of broken modules.
+            plugins_info: Every known plugin, by plugin ID.
+            loaded: Plugin IDs that are already loaded; they satisfy a dependency
+                and are never added to an order.
 
         """
-        self.plugin_list = plugin_list
-        self.unresolved: list[str] = []
-        self.resolved: list[str] = []
-        self.broken_modules: list[str] = []
-        self.plugin_lookup: dict = {}
-        for plugin in plugin_list:
-            self.plugin_lookup[plugin.plugin_id] = plugin
-        if resolved:
-            self.resolved.extend(resolved)
-        if broken_modules:
-            self.broken_modules.extend(broken_modules)
+        self.plugins_info = plugins_info
+        self.loaded: set[str] = set(loaded or [])
 
-    def resolve(self) -> tuple[list[str], list[str]]:
-        """Resolve plugin dependencies.
+    def resolve(
+        self, plugin_ids: Iterable[str]
+    ) -> tuple[list[str], dict[str, PluginDependencyError]]:
+        """Order plugins so that dependencies come before their dependents.
 
-        This method resolves the dependencies among plugins to ensure they are loaded
-        in the correct order. It iterates through the list of plugins and uses the
-        resolve_helper method to handle each plugin's dependencies.
-
-        Returns:
-            A tuple containing two lists:
-            - resolved: The list of resolved plugins.
-            - unresolved: The list of unresolved plugins.
-
-        Raises:
-            Exception: If a circular reference is detected among the plugins.
-
-        Example:
-            >>> resolver = PluginDependencyResolver(plugin_list)
-            >>> resolved, unresolved = resolver.resolve()
-            >>> print(resolved, unresolved)
-
-        """
-        for plugin in self.plugin_list:
-            self.resolve_helper(plugin)
-
-        return self.resolved, self.unresolved
-
-    def resolve_helper(self, plugin) -> None:
-        """Resolve a plugin's dependencies helper method.
-
-        This method assists in resolving the dependencies of a given plugin by
-        recursively resolving its dependencies and ensuring there are no circular
-        references.
+        Dependencies that are not in ``plugin_ids`` and not loaded are pulled into
+        the order. Otherwise the input order is kept. A plugin with a missing,
+        circular or failing dependency fails, and so does everything depending on it.
 
         Args:
-            plugin: The plugin whose dependencies need to be resolved.
+            plugin_ids: The plugin IDs to order.
 
         Returns:
-            None
-
-        Raises:
-            Exception: If a circular reference is detected among the plugins.
-
-        Example:
-            >>> resolver = PluginDependencyResolver(plugin_list)
-            >>> resolver.resolve_helper(plugin)
+            ``(order, failed)``: the plugins that can be loaded, in load order, and
+            a map of each failed plugin to the error explaining why.
 
         """
-        if plugin.plugin_id in self.resolved:
-            return
-        self.unresolved.append(plugin.plugin_id)
-        for edge in plugin.plugininstance.dependencies:
-            edge_plugin = None
-            try:
-                edge_plugin = self.plugin_lookup[edge]
-            except KeyError:
-                if "REQUIRED" in plugin.module.__dict__ and plugin.module.REQUIRED:
-                    LogRecord(
-                        f"Required plugin {plugin.plugin_id} could not be loaded, "
-                        f"dependency {edge} would not load",
-                        level="error",
-                        sources=[plugin.plugin_id, __name__],
-                    )()
-                    sys.exit(1)
+        order: list[str] = []
+        failed: dict[str, PluginDependencyError] = {}
+        done: set[str] = set()
+        stack: list[str] = []
 
-            if (
-                edge_plugin
-                and plugin.plugin_id != edge_plugin.plugin_id
-                and edge_plugin.plugin_id not in self.resolved
-            ):
-                if edge_plugin.plugin_id in self.unresolved:
-                    msg = f"Circular reference detected: {plugin.plugin_id} -> {plugin.plugin_id}"
-                    raise CircularDependencyError(msg)
-                self.resolve_helper(edge_plugin)
-        self.resolved.append(plugin.plugin_id)
-        self.unresolved.remove(plugin.plugin_id)
+        def visit(plugin_id: str) -> bool:
+            if plugin_id in self.loaded:
+                return True
+            if plugin_id in done:
+                return plugin_id not in failed
+            if plugin_id in stack:
+                cycle = [*stack[stack.index(plugin_id) :], plugin_id]
+                error = CircularDependencyError(cycle)
+                for member in cycle[:-1]:
+                    failed[member] = error
+                return False
+            if plugin_id not in self.plugins_info:
+                failed[plugin_id] = PluginDependencyError(f"plugin {plugin_id} does not exist")
+                done.add(plugin_id)
+                return False
+
+            stack.append(plugin_id)
+            bad: list[str] = []
+            for dependency in self.plugins_info[plugin_id].dependencies:
+                if not visit(dependency):
+                    bad.append(dependency)
+            stack.pop()
+            done.add(plugin_id)
+
+            if bad:
+                failed.setdefault(
+                    plugin_id,
+                    PluginDependencyError(
+                        f"{plugin_id} depends on {', '.join(bad)}, which could not be loaded"
+                    ),
+                )
+                return False
+            order.append(plugin_id)
+            return True
+
+        for plugin_id in plugin_ids:
+            visit(plugin_id)
+
+        return order, failed
+
+    def dependents_of(self, plugin_id: str, candidates: Iterable[str]) -> list[str]:
+        """Return the plugins among ``candidates`` that depend on ``plugin_id``.
+
+        The result is the transitive closure, nearest dependents first. It never
+        includes ``plugin_id`` itself.
+
+        Args:
+            plugin_id: The plugin whose dependents to find.
+            candidates: The plugin IDs to search (for example the loaded plugins).
+
+        """
+        candidate_list = [c for c in candidates if c in self.plugins_info]
+        found: list[str] = []
+        frontier = [plugin_id]
+        while frontier:
+            next_frontier: list[str] = []
+            for target in frontier:
+                for candidate in candidate_list:
+                    if (
+                        candidate != plugin_id
+                        and candidate not in found
+                        and target in self.plugins_info[candidate].dependencies
+                    ):
+                        found.append(candidate)
+                        next_frontier.append(candidate)
+            frontier = next_frontier
+        return found

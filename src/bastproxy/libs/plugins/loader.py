@@ -49,6 +49,7 @@ from typing import Any
 # Project
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.plugins import imputils
+from bastproxy.libs.plugins.dependency import PluginDependencyResolver
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin, patch
@@ -860,17 +861,54 @@ class PluginLoader:
             None
 
         """
+        bad_plugins: list[str] = []
+        known_plugins = []
+        for plugin_id in plugins_to_load:
+            if plugin_id in self.plugins_info:
+                known_plugins.append(plugin_id)
+            else:
+                LogRecord(
+                    f"{plugin_id:<30} : unknown plugin, cannot load",
+                    level="error",
+                    sources=[__name__],
+                )()
+                bad_plugins.append(plugin_id)
+
         plugins_not_loaded = [
             plugin_id
-            for plugin_id in plugins_to_load
+            for plugin_id in known_plugins
             if not self.plugins_info[plugin_id].runtime_info.is_loaded
         ]
-        already_loaded_plugins = set(plugins_to_load) - set(plugins_not_loaded)
+        already_loaded_plugins = set(known_plugins) - set(plugins_not_loaded)
 
-        bad_plugins = []
+        # read the declared dependencies, then order the plugins so that
+        # dependencies (pulled in if needed) are loaded first
+        self._read_dependencies(plugins_not_loaded)
+        resolver = PluginDependencyResolver(
+            self.plugins_info,
+            loaded=[
+                plugin_id
+                for plugin_id, info in self.plugins_info.items()
+                if info.runtime_info.is_loaded
+            ],
+        )
+        load_order, failed_plugins = resolver.resolve(plugins_not_loaded)
+        for plugin_id, error in failed_plugins.items():
+            LogRecord(
+                f"{plugin_id:<30} : not loading, {error}",
+                level="error",
+                sources=[__name__, plugin_id],
+            )()
+            if plugin_id not in bad_plugins:
+                bad_plugins.append(plugin_id)
+
+        plugins_not_loaded = load_order
 
         # import bastproxy.plugins
         for plugin_id in plugins_not_loaded:
+            if self._dependency_failed(plugin_id, bad_plugins):
+                bad_plugins.append(plugin_id)
+                continue
             LogRecord(
                 f"{plugin_id:<30} : attempting to load",
                 level="info",
@@ -885,6 +923,9 @@ class PluginLoader:
 
         # instantiate plugins
         for plugin_id in plugins_not_loaded:
+            if self._dependency_failed(plugin_id, bad_plugins):
+                bad_plugins.append(plugin_id)
+                continue
             if not self._instantiate_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
@@ -892,8 +933,11 @@ class PluginLoader:
             plugin_id for plugin_id in plugins_not_loaded if plugin_id not in bad_plugins
         ]
 
-        # run the initialize method for each plugin
+        # run the initialize method for each plugin, dependencies first
         for plugin_id in plugins_not_loaded:
+            if self._dependency_failed(plugin_id, bad_plugins):
+                bad_plugins.append(plugin_id)
+                continue
             if not self._run_initialize_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
@@ -905,8 +949,11 @@ class PluginLoader:
         #   were not imported
         #   their initialize method did not run
         #   could not be instantiated
-        for plugin_id in plugins_to_load:
-            plugin_info = self.plugins_info[plugin_id]
+        #   had a dependency that failed
+        for plugin_id in [*load_order, *failed_plugins, *known_plugins]:
+            plugin_info = self.plugins_info.get(plugin_id)
+            if plugin_info is None or plugin_id in already_loaded_plugins:
+                continue
             if not plugin_info.runtime_info.is_loaded:
                 if plugin_info.runtime_info.plugin_instance:
                     del plugin_info.runtime_info.plugin_instance
@@ -923,29 +970,102 @@ class PluginLoader:
             "already_loaded_plugins": already_loaded_plugins,
         }
 
+    def _read_dependencies(self, plugin_ids: list[str]) -> None:
+        """Read ``PLUGIN_DEPENDENCIES`` for the plugins and their unloaded dependencies."""
+        seen: set[str] = set()
+        queue = list(plugin_ids)
+        while queue:
+            plugin_id = queue.pop(0)
+            if plugin_id in seen or plugin_id not in self.plugins_info:
+                continue
+            seen.add(plugin_id)
+            plugin_info = self.plugins_info[plugin_id]
+            if plugin_info.runtime_info.is_loaded:
+                continue
+            plugin_info.update_from_init()
+            queue.extend(plugin_info.dependencies)
+
+    def _dependency_failed(self, plugin_id: str, bad_plugins: list[str]) -> bool:
+        """Return True (and log) if one of the plugin's dependencies failed to load."""
+        failed = [
+            dependency
+            for dependency in self.plugins_info[plugin_id].dependencies
+            if dependency in bad_plugins
+        ]
+        if failed:
+            LogRecord(
+                f"{plugin_id:<30} : not loading, dependency failed: {', '.join(failed)}",
+                level="error",
+                sources=[__name__, plugin_id],
+            )()
+        return bool(failed)
+
     @AddAPI("reload.plugin", "reload a plugin")
     def _api_reload_plugin(self, plugin_id: str) -> bool:
-        """Reload a plugin.
+        """Reload a plugin, and its dependents if it sets ``reload_dependents_f``.
 
-        This method reloads a plugin by first unloading it and then loading it again.
-        It ensures that the plugin is properly reloaded with its latest state and
-        dependencies.
+        Nothing is unloaded unless every plugin to reload has ``can_reload_f``.
+        Dependents are unloaded furthest first, then the plugin; everything is loaded
+        again with one load call so dependencies initialize before dependents.
+        Plugins that were in ``pluginstoload`` are put back.
 
         Args:
             plugin_id: The ID of the plugin to reload.
 
         Returns:
-            True if the plugin was reloaded successfully, False otherwise.
-
-        Raises:
-            None
+            True if everything was unloaded and loaded again, False otherwise.
 
         """
-        return (
-            self.api(f"{__name__}:load.plugins")([plugin_id], exit_on_error=False)
-            if self.api(f"{__name__}:unload.plugin")(plugin_id)
-            else False
+        if plugin_id not in self.plugins_info:
+            return False
+
+        loaded = [pid for pid, info in self.plugins_info.items() if info.runtime_info.is_loaded]
+        to_reload = [plugin_id]
+        instance = self.plugins_info[plugin_id].runtime_info.plugin_instance
+        if instance and instance.reload_dependents_f:
+            to_reload.extend(
+                PluginDependencyResolver(self.plugins_info, loaded).dependents_of(plugin_id, loaded)
+            )
+
+        for pid in to_reload:
+            pid_instance = self.plugins_info[pid].runtime_info.plugin_instance
+            if pid_instance and not pid_instance.can_reload_f:
+                LogRecord(
+                    f"{pid:<30} : cannot reload {plugin_id}, {pid} cannot be unloaded",
+                    level="error",
+                    sources=[__name__, plugin_id],
+                )()
+                return False
+
+        # unload furthest dependent first
+        unload_order, _ = PluginDependencyResolver(
+            self.plugins_info, [pid for pid in loaded if pid not in to_reload]
+        ).resolve(to_reload)
+        pluginstoload = self.api("plugins.core.settings:get")(
+            "plugins.core.pluginm", "pluginstoload"
         )
+        restore = [pid for pid in to_reload if pid in pluginstoload]
+
+        unloaded: list[str] = []
+        ok = True
+        for pid in reversed(unload_order):
+            if not self.api(f"{__name__}:unload.plugin")(pid):
+                ok = False
+                break
+            unloaded.append(pid)
+
+        result = self.api(f"{__name__}:load.plugins")(unloaded, exit_on_error=False)
+        if result["bad_plugins"]:
+            ok = False
+
+        current = self.api("plugins.core.settings:get")("plugins.core.pluginm", "pluginstoload")
+        missing = [pid for pid in restore if pid not in current]
+        if missing:
+            self.api("plugins.core.settings:change")(
+                "plugins.core.pluginm", "pluginstoload", [*current, *missing]
+            )
+
+        return ok and plugin_id in result["loaded_plugins"]
 
     @AddAPI("set.plugin.is.loaded", "set the is_loaded flag for a plugin")
     def _api_set_plugin_is_loaded(self, plugin_id: str) -> None:

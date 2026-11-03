@@ -48,11 +48,6 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         self.attributes_to_save_on_reload = []
 
-        # add any dependencies that are not in the packages plugins.core or plugins.client to this list
-        self.dependencies = []
-        with contextlib.suppress(ValueError):
-            self.dependencies.remove(self.plugin_id)
-
         self.version_functions = {}
         self.is_character_active_priority = None
         self.loaded_time = datetime.datetime.now(datetime.UTC)
@@ -195,15 +190,6 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             return self.api(f"{plugin_id}:data.update")(datatype, newdata)
 
         return False
-
-    @AddAPI("dependency.add", description="add a dependency for this plugin")
-    def _api_dependency_add(self, dependency):
-        """Add a depencency.
-
-        @Ydependency@w    = the name of the plugin that will be a dependency.
-        """
-        if dependency not in self.dependencies:
-            self.dependencies.append(dependency)
 
     @AddAPI("get.data.directory", description="get the data directory for this plugin")
     def _api_get_data_directory(self):
