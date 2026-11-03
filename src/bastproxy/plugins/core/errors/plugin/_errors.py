@@ -92,6 +92,6 @@ class ErrorPlugin(BasePlugin):
     @AddParser(description="clear errors")
     def _command_clear(self):
         """Clear errors."""
-        self.api("errors.clear")()
+        self.api("plugins.core.errors:clear.all.errors")()
 
         return True, ["Errors cleared"]

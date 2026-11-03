@@ -753,7 +753,7 @@ class PluginLoader:
             if exit_on_error:
                 sys.exit(1)
             else:
-                self.api(f"{__name__}:unload.plugin")(plugin_id)
+                self.api(f"{__name__}:unload.plugin")(plugin_id, allow_required=True)
                 return False
 
         # set the plugin instance
@@ -825,7 +825,7 @@ class PluginLoader:
                     sources=[__name__, plugin_info.plugin_id],
                 )()
                 sys.exit(1)
-            self.api(f"{__name__}:unload.plugin")(plugin_id)
+            self.api(f"{__name__}:unload.plugin")(plugin_id, allow_required=True)
             return False
 
         LogRecord(
@@ -1055,7 +1055,7 @@ class PluginLoader:
         unloaded: list[str] = []
         ok = True
         for pid in reversed(unload_order):
-            if not self.api(f"{__name__}:unload.plugin")(pid):
+            if not self.api(f"{__name__}:unload.plugin")(pid, allow_required=True):
                 ok = False
                 break
             unloaded.append(pid)
@@ -1093,7 +1093,7 @@ class PluginLoader:
         self.plugins_info[plugin_id].runtime_info.is_loaded = True
 
     @AddAPI("unload.plugin", "unload a plugin")
-    def _api_unload_plugin(self, plugin_id: str) -> bool:
+    def _api_unload_plugin(self, plugin_id: str, *, allow_required: bool = False) -> bool:
         """Unload a plugin.
 
         This method unloads a plugin by running its uninitialize method, removing
@@ -1103,6 +1103,8 @@ class PluginLoader:
 
         Args:
             plugin_id: The ID of the plugin to unload.
+            allow_required: Unload the plugin even if it is required. Only the
+                reload and failed-load cleanup paths pass this.
 
         Returns:
             True if the plugin was unloaded successfully, False otherwise.
@@ -1123,6 +1125,15 @@ class PluginLoader:
             LogRecord(
                 f"{plugin_info.plugin_id:<30} : this plugin cannot be unloaded "
                 f"({plugin_info.name})",
+                level="error",
+                sources=[__name__, plugin_info.plugin_id],
+            )()
+            return False
+
+        if plugin_info.is_required and not allow_required:
+            LogRecord(
+                f"{plugin_info.plugin_id:<30} : this plugin is required and "
+                f"cannot be unloaded ({plugin_info.name})",
                 level="error",
                 sources=[__name__, plugin_info.plugin_id],
             )()

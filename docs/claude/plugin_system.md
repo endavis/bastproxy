@@ -39,7 +39,7 @@ Key attributes:
 - **plugin_id**: Unique identifier (e.g., `plugins.core.events`)
 - **plugin_info**: Metadata and runtime information
 - **api**: API instance for registering and calling functions
-- **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `unload.plugin`)
+- **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `unload.plugin`; a required plugin is also refused, see `PLUGIN_REQUIRED`)
 - **can_reset_f**: Whether the plugin can be reset
 - **reload_dependents_f**: Whether reloading the plugin also reloads the plugins that depend on it
 - **is_reloading_f**: Set by the `<plugin_id>:set.reload` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
@@ -167,9 +167,9 @@ Metadata fields:
 - **PLUGIN_AUTHOR**: Plugin author
 - **PLUGIN_VERSION**: Integer version number
 - **PLUGIN_PURPOSE**: Brief description
-- **PLUGIN_REQUIRED**: `True` marks the plugin as required. It only changes how the plugin is
-  shown in the plugin list (and all `plugins.core` plugins count as required); nothing refuses to
-  unload it. Use `can_reload_f = False` to block unloading.
+- **PLUGIN_REQUIRED**: `True` marks the plugin as required, and all `plugins.core` plugins count
+  as required. `unload.plugin` and the `unload` command refuse a required plugin. Reload is still
+  allowed, subject to `can_reload_f`. Use `can_reload_f = False` to block reload as well.
 - **PLUGIN_DEPENDENCIES**: Optional list of plugin IDs that must be loaded first (see [Dependencies](#dependencies))
 
 The name, author, purpose, version and required lines are read with one regular expression per
@@ -338,7 +338,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 ### 6. Unloading
 
-`libs.plugins.loader:unload.plugin` refuses when `can_reload_f` is false. Otherwise:
+`libs.plugins.loader:unload.plugin` refuses when `can_reload_f` is false, or when the plugin is required and `allow_required` is not passed (reload and failed-load cleanup pass it). Otherwise:
 
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
    plugin is flagged loaded. A plugin that failed to load is not uninitialized.
