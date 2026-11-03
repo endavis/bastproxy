@@ -331,11 +331,8 @@ class TimersPlugin(BasePlugin):
         plugin_id: str = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if "plugin_id" in kwargs:
-            plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(
-                kwargs["plugin_id"]
-            )
-            plugin_id = plugin_instance.plugin_id
-            del kwargs["plugin_id"]
+            given = kwargs.pop("plugin_id")
+            plugin_id = given.plugin_id if isinstance(given, BasePlugin) else given
 
         if not plugin_id or not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
             LogRecord(
