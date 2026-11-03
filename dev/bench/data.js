@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793665356431,
+  "lastUpdate": 1793666660127,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1872,6 +1872,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000053423153957710335",
             "extra": "mean: 217.5941832304508 usec\nrounds: 4699"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80d4179540d114ce7c019006c1884e26e45a6404",
+          "message": "fix: resolve declared plugin dependencies on load and reload (merges PR #116, addresses #97)\n\nPlugins declare dependencies in their package __init__.py as\nPLUGIN_DEPENDENCIES, read with ast before import. The loader pulls in\nunloaded dependencies, loads them first, and fails a plugin whose\ndependency is missing, circular or failed to load. Reloading a plugin\nwith reload_dependents_f also reloads its loaded dependents, refusing\nup front if any of them cannot reload, and reload now returns a real\nresult instead of an always-truthy dict.\n\nThe proxy plugin declares its dependency on plugins.core.ssc this way.\nADR-0003 records the decision.\n\nBREAKING CHANGE: the <plugin_id>:dependency.add API and\nBasePlugin.dependencies are removed. Declare dependencies with\nPLUGIN_DEPENDENCIES = [\"plugins.<pkg>.<plugin>\"] in the plugin\npackage's __init__.py instead.\n\nAddresses #97\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T00:43:40Z",
+          "tree_id": "b53c3cff1b5ae0bfc4bcc900ac62929ea445d610",
+          "url": "https://github.com/endavis/bastproxy/commit/80d4179540d114ce7c019006c1884e26e45a6404"
+        },
+        "date": 1793666659537,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 238.40010073831425,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002095823021104388",
+            "extra": "mean: 4.194629100000569 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7127.2487227019965,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013341025697731408",
+            "extra": "mean: 140.30659499994158 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 218.05769339929154,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0004249814288014617",
+            "extra": "mean: 4.585942299998891 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 550.3766943209155,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00010484541317157656",
+            "extra": "mean: 1.8169373999999294 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2102.028550508683,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000013054481174391581",
+            "extra": "mean: 475.7309313225093 usec\nrounds: 2155"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1907.40830239217,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012637686645971354",
+            "extra": "mean: 524.2715986639322 usec\nrounds: 1946"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3439.0459670035198,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002650697263311097",
+            "extra": "mean: 290.77831747370084 usec\nrounds: 3594"
           }
         ]
       }
