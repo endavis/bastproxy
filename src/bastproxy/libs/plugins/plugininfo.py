@@ -40,22 +40,22 @@ Classes:
 # Standard Library
 import ast
 import datetime
-import re
 from pathlib import Path
 from typing import Any
 
 # 3rd Party
 # Project
-from bastproxy.libs.exceptions import PluginDependencyError
+from bastproxy.libs.exceptions import PluginDependencyError, PluginValidationError
 from bastproxy.plugins._baseplugin import BasePlugin
 
-REQUIREDRE = re.compile(r"^PLUGIN_REQUIRED = (?P<value>.*)$")
-# Name, author and purpose accept single or double quotes; the closing quote must
-# match the opening one (backreference \1).
-NAMERE = re.compile(r"^PLUGIN_NAME = (['\"])(?P<value>.*)\1$")
-AUTHORRE = re.compile(r"^PLUGIN_AUTHOR = (['\"])(?P<value>.*)\1$")
-VERSIONRE = re.compile(r"^PLUGIN_VERSION = (?P<value>.*)$")
-PURPOSERE = re.compile(r"^PLUGIN_PURPOSE = (['\"])(?P<value>.*)\1$")
+# Expected type of each metadata assignment in a plugin's __init__.py.
+_METADATA_TYPES: dict[str, type] = {
+    "PLUGIN_NAME": str,
+    "PLUGIN_PURPOSE": str,
+    "PLUGIN_AUTHOR": str,
+    "PLUGIN_VERSION": int,
+    "PLUGIN_REQUIRED": bool,
+}
 
 
 class PluginRuntimeInfo:
@@ -343,13 +343,19 @@ class PluginInfo:
         metadata such as the plugin name, purpose, author, version, and required
         status. It updates the corresponding attributes of the PluginInfo instance.
 
-        It looks for the following items:
-          a PLUGIN_REQUIRED line
-          a PLUGIN_NAME line
-          a PLUGIN_PURPOSE line
-          a PLUGIN_AUTHOR line
-          a PLUGIN_VERSION line
-          a PLUGIN_DEPENDENCIES list (parsed separately, see _parse_dependencies)
+        The values are read from the top-level assignments of the file with ``ast``
+        (the last assignment wins), so trailing comments and quote style do not
+        matter and no code is executed. It looks for:
+          PLUGIN_REQUIRED (bool)
+          PLUGIN_NAME (str)
+          PLUGIN_PURPOSE (str)
+          PLUGIN_AUTHOR (str)
+          PLUGIN_VERSION (int)
+          PLUGIN_DEPENDENCIES (parsed separately, see _parse_dependencies)
+
+        A value of the wrong type, or one that is not a literal, adds an entry to
+        ``import_errors`` and is skipped. A file with a syntax error adds an entry to
+        ``import_errors`` and keeps only the single-line assignments that parse.
 
         Returns:
             None
@@ -359,46 +365,85 @@ class PluginInfo:
 
         """
         contents = self.package_init_file_path.read_text()
-
-        for tline in contents.splitlines():
-            if name_match := NAMERE.match(tline):
-                self.is_plugin = True
-                gdict = name_match.groupdict()
-                self.name = gdict["value"]
-                continue
-
-            if purpose_match := PURPOSERE.match(tline):
-                gdict = purpose_match.groupdict()
-                self.purpose = gdict["value"]
-                continue
-
-            if author_match := AUTHORRE.match(tline):
-                gdict = author_match.groupdict()
-                self.author = gdict["value"]
-                continue
-
-            if version_match := VERSIONRE.match(tline):
-                gdict = version_match.groupdict()
-                self.version = int(gdict["value"])
-                continue
-
-            if required_match := REQUIREDRE.match(tline):
-                gdict = required_match.groupdict()
-                if gdict["value"].lower() == "true":
-                    self.is_required = True
-                continue
-
-            if (
-                self.is_required
-                and self.is_plugin
-                and self.name
-                and self.author
-                and self.purpose
-                and self.version > -1
-            ):
-                break
-
+        self._parse_metadata(contents)
         self._parse_dependencies(contents)
+
+    def _parse_metadata(self, contents: str) -> None:
+        """Parse the PLUGIN_NAME/PURPOSE/AUTHOR/VERSION/REQUIRED assignments.
+
+        Args:
+            contents: The text of the package ``__init__.py``.
+
+        """
+        self.import_errors = [
+            err
+            for err in self.import_errors
+            if not (isinstance(err, tuple) and isinstance(err[1], PluginValidationError))
+        ]
+        body: list[ast.stmt]
+        try:
+            body = ast.parse(contents).body
+        except SyntaxError as exc:
+            msg = (
+                f"{self.plugin_id}: syntax error in {self.package_init_file_path.name} "
+                f"line {exc.lineno}: {exc.msg}"
+            )
+            self.import_errors.append((self.package_import_location, PluginValidationError(msg)))
+            # Tolerant fallback: keep the single-line PLUGIN_* assignments that parse
+            # on their own so the plugin is still discovered and fails at import.
+            body = []
+            for line in contents.splitlines():
+                if line.startswith("PLUGIN_"):
+                    try:
+                        body.extend(ast.parse(line).body)
+                    except SyntaxError:
+                        continue
+
+        value_nodes: dict[str, ast.expr] = {}
+        for node in body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id in _METADATA_TYPES:
+                        value_nodes[target.id] = node.value
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id in _METADATA_TYPES
+                and node.value is not None
+            ):
+                value_nodes[node.target.id] = node.value
+
+        values: dict[str, Any] = {}
+        for key, value_node in value_nodes.items():
+            expected = _METADATA_TYPES[key]
+            try:
+                value = ast.literal_eval(value_node)
+            except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+                value = None
+                valid = False
+            else:
+                valid = isinstance(value, expected) and (
+                    expected is bool or not isinstance(value, bool)
+                )
+            if not valid:
+                msg = f"{self.plugin_id}: {key} must be a literal {expected.__name__}"
+                self.import_errors.append(
+                    (self.package_import_location, PluginValidationError(msg))
+                )
+                continue
+            values[key] = value
+
+        if "PLUGIN_NAME" in values:
+            self.is_plugin = True
+            self.name = values["PLUGIN_NAME"]
+        if "PLUGIN_PURPOSE" in values:
+            self.purpose = values["PLUGIN_PURPOSE"]
+        if "PLUGIN_AUTHOR" in values:
+            self.author = values["PLUGIN_AUTHOR"]
+        if "PLUGIN_VERSION" in values:
+            self.version = values["PLUGIN_VERSION"]
+        if "PLUGIN_REQUIRED" in values:
+            self.is_required = values["PLUGIN_REQUIRED"]
 
     def _parse_dependencies(self, contents: str) -> None:
         """Parse the top-level ``PLUGIN_DEPENDENCIES`` assignment of the init file.

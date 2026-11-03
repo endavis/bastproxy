@@ -389,6 +389,8 @@ is set outside a hook. The loader option removes the trap.
 
 ### PS-5: One badly formatted metadata line aborts discovery
 
+**Status:** fixed in the PR for #125; `update_from_init` now reads the five values with `ast`.
+
 **Issue:** [#125](https://github.com/endavis/bastproxy/issues/125)
 **Location:** `plugininfo.py` `PluginInfo.update_from_init`, the `VERSIONRE`, `NAMERE`,
 `AUTHORRE`, `PURPOSERE` and `REQUIREDRE` patterns.
