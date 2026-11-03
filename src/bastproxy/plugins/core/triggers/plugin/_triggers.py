@@ -400,7 +400,7 @@ class TriggersPlugin(BasePlugin):
                                   False if it wasn't
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get:caller:owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             LogRecord(
