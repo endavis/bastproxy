@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793712140123,
+  "lastUpdate": 1793712396025,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3332,6 +3332,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000005178787357087909",
             "extra": "mean: 140.48071008236818 usec\nrounds: 7409"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bccd41997fe9a8f0b1055350b19a95caaebdd80e",
+          "message": "refactor: raise APINotFoundError instead of a bare AttributeError for a missing API (merges PR #152, addresses #91)\n\nAPINotFoundError now subclasses both APIException and AttributeError, so\nexisting `except AttributeError` handlers keep working. API.get raises it\nwith the same message. The API-lookup call sites (_api_has and the demo\ntest()) catch only APINotFoundError, so an AttributeError raised inside an\nAPI function is no longer mistaken for a missing API. The API system\ndocs say to catch APINotFoundError.\n\nAddresses #91\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T13:25:50Z",
+          "tree_id": "273551a28534b7116959631b9526a943760f8142",
+          "url": "https://github.com/endavis/bastproxy/commit/bccd41997fe9a8f0b1055350b19a95caaebdd80e"
+        },
+        "date": 1793712395641,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 264.3657959726431,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002439478275090678",
+            "extra": "mean: 3.7826375999998163 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 8162.268509906803,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012930468163872766",
+            "extra": "mean: 122.51495999993979 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 250.28228713460058,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00012915002428451477",
+            "extra": "mean: 3.9954885000000218 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 599.5576583508083,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001379616733845187",
+            "extra": "mean: 1.667896300000038 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2272.142019525242,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009756177742280744",
+            "extra": "mean: 440.11333420476393 usec\nrounds: 2295"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1955.5828109997517,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006164774194380534",
+            "extra": "mean: 511.3565093614064 usec\nrounds: 2083"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3547.580533226685,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008436931315056438",
+            "extra": "mean: 281.8822548590475 usec\nrounds: 3653"
           }
         ]
       }
