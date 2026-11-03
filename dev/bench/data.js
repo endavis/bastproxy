@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793708597349,
+  "lastUpdate": 1793710281077,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3113,6 +3113,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000008564807891299013",
             "extra": "mean: 285.7939544073905 usec\nrounds: 3619"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f3a220c2c5ef920722d2d1b6dcb54e4a66593c52",
+          "message": "chore: synchronize with pyproject-template f4a9ff2 (merges PR #149, addresses #148)\n\nSyncs the following template improvements:\n- endavis/pyproject-template#1181 (configure.py no longer deletes itself while the suite imports it)\n- endavis/pyproject-template#1182 (worked-example doc paths stay exempt under any package name)\n- endavis/pyproject-template#1183 (migration doc: configurator prints the step 6 cleanup pointers)\n- endavis/pyproject-template#1185 (ordinary field name in the factory_boy example)\n- endavis/pyproject-template#1187 (ignore SQLite WAL/SHM files beside doit's database)\n- endavis/pyproject-template#1189 (major_version_zero release tests independent of the changelog)\n- endavis/pyproject-template#1191 (all_os CI input; release, TestPyPI, full-matrix and a new\n  nightly workflow run all three OSes)\n\nLocal divergence kept: with all_os off, pull requests stay ubuntu-only on\nboth bookends, so the default-case matrix test and the CI docs say so.\nSkipped: README.md (project-owned), the two template-owned configure\ntests, and tools/pyproject_template/setup_repo.py (sync-excluded).\n\nAddresses #148\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T12:50:34Z",
+          "tree_id": "ba856dc97636c0efdbf43d0d7636499038063dd4",
+          "url": "https://github.com/endavis/bastproxy/commit/f3a220c2c5ef920722d2d1b6dcb54e4a66593c52"
+        },
+        "date": 1793710280493,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 233.50496960457843,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00021043972149109",
+            "extra": "mean: 4.28256409999932 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7129.608547783718,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011086898077841234",
+            "extra": "mean: 140.26015499979394 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 220.7654206467251,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008415216198220329",
+            "extra": "mean: 4.529694900000791 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 556.561679932688,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006066240783970839",
+            "extra": "mean: 1.7967460499992427 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2179.9907930069216,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011808975302138355",
+            "extra": "mean: 458.7175336739254 usec\nrounds: 2153"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1909.1420023125568,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001183976525894525",
+            "extra": "mean: 523.7955054095993 usec\nrounds: 1941"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3402.4252355626377,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009196595500346171",
+            "extra": "mean: 293.90800113632366 usec\nrounds: 3520"
           }
         ]
       }
