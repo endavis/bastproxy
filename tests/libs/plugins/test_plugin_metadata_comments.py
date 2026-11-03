@@ -96,11 +96,27 @@ def test_rerun_does_not_accumulate_errors(tmp_path: Path) -> None:
     assert len(info.import_errors) == 1
 
 
-def test_syntax_error_parses_nothing(tmp_path: Path) -> None:
-    info = _parse(tmp_path, 'PLUGIN_NAME = "Thing"\nPLUGIN_VERSION = (\n')
-    assert info.name == ""
-    assert info.is_plugin is False
-    assert info.import_errors == []
+_BROKEN = 'PLUGIN_NAME = "Thing"\nPLUGIN_VERSION = (\n'
+
+
+def test_syntax_error_is_recorded_and_plugin_still_discovered(tmp_path: Path) -> None:
+    info = _parse(tmp_path, _BROKEN)
+    assert info.is_plugin is True
+    assert info.name == "Thing"
+    assert info.version == -1
+    assert len(info.import_errors) == 1
+    location, exc = info.import_errors[0]
+    assert location == info.package_import_location
+    assert isinstance(exc, PluginValidationError)
+    assert info.plugin_id in str(exc)
+    assert "line 2" in str(exc)
+
+
+def test_syntax_error_rerun_does_not_duplicate(tmp_path: Path) -> None:
+    info = _parse(tmp_path, _BROKEN)
+    info.update_from_init()
+    info.update_from_init()
+    assert len(info.import_errors) == 1
 
 
 def test_one_bad_plugin_does_not_stop_others(tmp_path: Path) -> None:

@@ -354,8 +354,8 @@ class PluginInfo:
           PLUGIN_DEPENDENCIES (parsed separately, see _parse_dependencies)
 
         A value of the wrong type, or one that is not a literal, adds an entry to
-        ``import_errors`` and is skipped. A file with a syntax error yields no
-        metadata.
+        ``import_errors`` and is skipped. A file with a syntax error adds an entry to
+        ``import_errors`` and keeps only the single-line assignments that parse.
 
         Returns:
             None
@@ -380,13 +380,27 @@ class PluginInfo:
             for err in self.import_errors
             if not (isinstance(err, tuple) and isinstance(err[1], PluginValidationError))
         ]
+        body: list[ast.stmt]
         try:
-            tree = ast.parse(contents)
-        except SyntaxError:
-            return
+            body = ast.parse(contents).body
+        except SyntaxError as exc:
+            msg = (
+                f"{self.plugin_id}: syntax error in {self.package_init_file_path.name} "
+                f"line {exc.lineno}: {exc.msg}"
+            )
+            self.import_errors.append((self.package_import_location, PluginValidationError(msg)))
+            # Tolerant fallback: keep the single-line PLUGIN_* assignments that parse
+            # on their own so the plugin is still discovered and fails at import.
+            body = []
+            for line in contents.splitlines():
+                if line.startswith("PLUGIN_"):
+                    try:
+                        body.extend(ast.parse(line).body)
+                    except SyntaxError:
+                        continue
 
         value_nodes: dict[str, ast.expr] = {}
-        for node in tree.body:
+        for node in body:
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name) and target.id in _METADATA_TYPES:
