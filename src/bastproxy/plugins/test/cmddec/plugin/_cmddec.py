@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/test/cmddec/_init_.py
+# Filename: plugins/test/cmddec/plugin/_cmddec.py
 #
 # File Description: a plugin to test command decorators
 #
@@ -18,6 +18,6 @@ class CMDDecPlugin(BasePlugin):
     """a plugin to test command decorators"""
 
     @AddParser(description="raise a test error")
-    def cmd_raise(self):
+    def _command_raise(self):
         """Test errors"""
         return True, ["@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"]

@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/test/sqldb/_plugin.py
+# Filename: plugins/test/_sqldb/plugin/_sqldb.py
 #
 # File Description: a plugin to test the sqldb plugin
 #
@@ -71,5 +71,5 @@ class SQLDBPlugin(BasePlugin):
             self.api("plugins.core.sqldb:baseclass")(),
             self.plugin_id,
             dbname="stats",
-            dbdir=self.data_directory,
+            dbdir=self.plugin_info.data_directory,
         )

@@ -95,7 +95,7 @@ Every item in the issue's Description, with its current state.
 | `PLUGIN_REQUIRED` not parsed | **Fixed** | #117, PR #118 |
 | Double-quoted name, author and purpose not parsed | **Fixed** | #119, PR #120 |
 | `_baseplugin` layout is flat | **Still open** | #94 |
-| Two test plugins use a layout the loader cannot import | **Still open**, and wider: a third plugin is affected | #98, see [PS-11](#ps-11-test-plugins-with-an-unloadable-layout) |
+| Two test plugins use a layout the loader cannot import | **Fixed** (#98): all three affected test plugins moved | #98, see [PS-11](#ps-11-test-plugins-with-an-unloadable-layout) |
 | `patch()` copies functions onto `Plugin`; the loader skips patching on reload, so patched functions come from whichever copy loaded first | **Still true**, new details | PS-7 |
 | 36 `@RegisterPluginHook` uses with priorities: is the order documented and tested? | **Documented now; still untested** | Q3, PS-6 |
 | `attributes_to_save_on_reload`, `can_reload_f`, `reload_dependents_f` | **Partly broken** | PS-4, Q1 |
@@ -500,6 +500,7 @@ than a substring; make the failed-load cleanup apply the same `CANRELOAD` rule a
 ### PS-11: Test plugins with an unloadable layout
 
 **Issue:** [#98](https://github.com/endavis/bastproxy/issues/98) (commented)
+**Status:** fixed in the PR for #98; all three test plugins now use the `plugin/` layout and a test checks every discovered plugin imports.
 **Location:** `src/bastproxy/plugins/test/cmddec`, `.../test/_sqldb`, `.../test/exception`.
 
 **Evidence (verified):** `load.plugins` returned `plugins.test.cmddec` and
