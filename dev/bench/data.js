@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793706170645,
+  "lastUpdate": 1793707751264,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2967,6 +2967,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000040917934432698626",
             "extra": "mean: 140.60991535847003 usec\nrounds: 7644"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5536bf49ac099c41ee2ca08f701c79216cb89c6f",
+          "message": "refactor: replace BasePlugin patch() with a settings mixin (merges PR #146, addresses #131)\n\nThe settings plugin's `set` command and its post-initialize hook reached\nevery plugin by patching functions onto the base class from\ncore/settings/_patch_base.py. patch() had silent failure modes\n(override=True never overrode, a second patch of the same name reported\nsuccess without applying, a patched name could replace an existing base\nmethod) and this was its only user.\n\nThe two functions now live in a Settings mixin\n(plugins/_baseplugin/_settings.py) on BasePlugin, beside the Commands\nmixin, with the same names, decorators and hook priority. The hook\nchecks that the settings API exists before calling it, so a BasePlugin\ninitialized without the settings plugin is unaffected.\n\nRemoved: _baseplugin/_patch.py (patch, modules_patched), the `patch`\nexport, core/settings/_patch_base.py, the loader's _patch_base.py\nbranch, PluginInfo.has_been_reloaded, and the ev_baseplugin_patched\nhandlers in the events and commands plugins.\n\nAddresses #131\n\nBREAKING CHANGE: bastproxy.plugins._baseplugin no longer exports `patch`,\nand a plugin package's `_patch_base.py` is no longer applied to the base\nclass. Put such methods on a mixin class or on the plugin class itself.\nPluginInfo.has_been_reloaded and the ev_baseplugin_patched event are\nremoved.\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T12:08:15Z",
+          "tree_id": "2f0d00de30d2e0509a986953f472e8087bb89077",
+          "url": "https://github.com/endavis/bastproxy/commit/5536bf49ac099c41ee2ca08f701c79216cb89c6f"
+        },
+        "date": 1793707750745,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 437.2482324676515,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001172933370127314",
+            "extra": "mean: 2.2870304000004893 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 13337.499968326514,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006380179127855583",
+            "extra": "mean: 74.9765699999827 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 410.112874956435,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004716842644857045",
+            "extra": "mean: 2.438353100000157 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1148.5880063062104,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004715211097819572",
+            "extra": "mean: 870.6341999999978 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4256.389787818986,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005144281827678426",
+            "extra": "mean: 234.94088884007246 usec\nrounds: 4561"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3687.2287720187796,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009474660246910306",
+            "extra": "mean: 271.2063888166326 usec\nrounds: 3845"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 7048.941414422048,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001428748039740278",
+            "extra": "mean: 141.86527326699186 usec\nrounds: 7242"
           }
         ]
       }
