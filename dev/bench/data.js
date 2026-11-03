@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793664134996,
+  "lastUpdate": 1793664980833,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -1726,6 +1726,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000010439546388649905",
             "extra": "mean: 215.85106345736727 usec\nrounds: 5027"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "06ec0735f5e10f51790b3032bb498a7b21c626e0",
+          "message": "fix: drop the API lru_caches that kept unloaded plugins alive (merges PR #114, addresses #100)\n\nAPI._api_get_function_owner_plugin and get_args were lru_cached on\ncallables, so the caches held strong references to the bound methods of\nunloaded plugins, and through them to the old instance and module, until\n128 newer entries pushed them out.\n\nMeasured (200000 calls each, Python on the dev box):\n- owner lookup: 0.066 us uncached, 0.087 us cached (cache is slower)\n- get_args: 8.4 us uncached, 0.083 us cached; only called when showing\n  API detail, a human command path\n\nThe caches do not pay for themselves, so remove both. Tests check that\nthe instance and a module-level function are garbage-collected after\nuse, and that the results are unchanged.\n\nAddresses #100\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T00:15:29Z",
+          "tree_id": "92060442e388a8eb76a8f59fd35d6c5100d0280d",
+          "url": "https://github.com/endavis/bastproxy/commit/06ec0735f5e10f51790b3032bb498a7b21c626e0"
+        },
+        "date": 1793664980150,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 234.0222315971224,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002853587702661026",
+            "extra": "mean: 4.273098300000555 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 7048.144429730273,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001458607196178299",
+            "extra": "mean: 141.88131499999201 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 219.62102832252367,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011419308184136423",
+            "extra": "mean: 4.553298050000265 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 534.725387499609,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000058076754988489394",
+            "extra": "mean: 1.8701187999994318 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2145.695097235792,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010819190485580315",
+            "extra": "mean: 466.04944070956657 usec\nrounds: 2142"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1849.6564250179183,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000340540386507748",
+            "extra": "mean: 540.6409463261874 usec\nrounds: 1919"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3439.4883111082027,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000022963664275822096",
+            "extra": "mean: 290.74092119179204 usec\nrounds: 3591"
           }
         ]
       }
