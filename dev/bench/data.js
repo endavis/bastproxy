@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793702281030,
+  "lastUpdate": 1793702461430,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -2310,6 +2310,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000006894005543005651",
             "extra": "mean: 223.87596421510324 usec\nrounds: 4555"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "907f32b1cbeba5d22d368c169e5035ea02dd958d",
+          "message": "fix: make cmdq unload cleanup remove the plugin's command types (merges PR #136, addresses #122)\n\nUnloading a plugin called the unregistered remove.command.type API and\ndeleted from self.cmds while iterating it, so owned types were left behind.\nCall type.remove over a copy of the keys. type.add now names its events from\ncmdtype instead of the current command, and the timing calls use the\nregistered libs.timing start/finish APIs with the returned uid.\n\nAddresses #122\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-03T10:40:22Z",
+          "tree_id": "e088590a885ff6b1a26872bac2d3401080325be7",
+          "url": "https://github.com/endavis/bastproxy/commit/907f32b1cbeba5d22d368c169e5035ea02dd958d"
+        },
+        "date": 1793702461001,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 231.6825170136897,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002510265378216203",
+            "extra": "mean: 4.316251450000053 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 6912.308211528014,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015211562149535804",
+            "extra": "mean: 144.6694750000077 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 214.73205095860942,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00015105678844517173",
+            "extra": "mean: 4.656966649998395 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 526.6269012448344,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009160889427624669",
+            "extra": "mean: 1.898877550000222 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2161.433378031497,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002839029495239474",
+            "extra": "mean: 462.6559440433643 usec\nrounds: 2216"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1889.7206527789522,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011891373864505452",
+            "extra": "mean: 529.1787431806058 usec\nrounds: 1943"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3409.8794469394124,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003047172664829666",
+            "extra": "mean: 293.2654997224505 usec\nrounds: 3604"
           }
         ]
       }
