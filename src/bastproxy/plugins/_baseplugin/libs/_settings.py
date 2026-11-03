@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_settings.py
+# Filename: plugins/_baseplugin/libs/_settings.py
 #
 # File Description: holds the settings command and hook for the base plugin
 #

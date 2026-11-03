@@ -178,7 +178,7 @@ Settings system listens to:
 - `src/bastproxy/plugins/core/settings/plugin/_settings.py` - Main settings plugin
 - `src/bastproxy/plugins/core/settings/libs/_settinginfo.py` - SettingInfo class
 - `src/bastproxy/plugins/core/settings/__init__.py` - Plugin metadata
-- `src/bastproxy/plugins/_baseplugin/_settings.py` - BasePlugin "set" command
+- `src/bastproxy/plugins/_baseplugin/libs/_settings.py` - BasePlugin "set" command
 
 ### Integration
 - Uses `PersistentDict` for storage (libs/persistentdict.py)

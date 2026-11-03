@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_commands.py
+# Filename: plugins/_baseplugin/libs/_commands.py
 #
 # File Description: holds commands for the base plugin
 #

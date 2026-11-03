@@ -118,7 +118,7 @@ class PluginRuntimeInfo:
 ```
 
 ### RegisterPluginHook Decorator
-**Location**: `src/bastproxy/plugins/_baseplugin/_pluginhooks.py`
+**Location**: `src/bastproxy/plugins/_baseplugin/libs/_pluginhooks.py`
 
 Decorator for registering functions to plugin lifecycle hooks:
 
@@ -392,8 +392,8 @@ everything unloaded and loaded again.
 ### Base class mixins
 
 `BasePlugin` is `class BasePlugin(Plugin, Commands, Settings)`. The `Commands` mixin
-(`src/bastproxy/plugins/_baseplugin/_commands.py`) adds the `help`, `reset` and `save` commands, and the `Settings` mixin
-(`src/bastproxy/plugins/_baseplugin/_settings.py`) adds the `set` command and the settings `initialize` hook. Every
+(`src/bastproxy/plugins/_baseplugin/libs/_commands.py`) adds the `help`, `reset` and `save` commands, and the `Settings` mixin
+(`src/bastproxy/plugins/_baseplugin/libs/_settings.py`) adds the `set` command and the settings `initialize` hook. Every
 plugin inherits them, so they are present before any plugin initializes and survive reloads.
 
 A `_patch_base.py` in a plugin package is no longer applied: the loader ignores it, and
@@ -647,9 +647,9 @@ class Plugin(BasePlugin):
 
 ### Core Plugin System
 - `src/bastproxy/plugins/_baseplugin/_base.py` - BasePlugin class
-- `src/bastproxy/plugins/_baseplugin/_pluginhooks.py` - RegisterPluginHook decorator
-- `src/bastproxy/plugins/_baseplugin/_commands.py` - Command-related base functionality
-- `src/bastproxy/plugins/_baseplugin/_settings.py` - The `set` command and the settings `initialize` hook
+- `src/bastproxy/plugins/_baseplugin/libs/_pluginhooks.py` - RegisterPluginHook decorator
+- `src/bastproxy/plugins/_baseplugin/libs/_commands.py` - Command-related base functionality
+- `src/bastproxy/plugins/_baseplugin/libs/_settings.py` - The `set` command and the settings `initialize` hook
 - `src/bastproxy/plugins/_baseplugin/__init__.py` - Exports `BasePlugin` and `RegisterPluginHook`
 
 ### Plugin Loader

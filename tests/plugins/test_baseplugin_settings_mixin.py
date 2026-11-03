@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import bastproxy.plugins._baseplugin as baseplugin_pkg
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins._baseplugin._commands import Commands
-from bastproxy.plugins._baseplugin._settings import Settings
+from bastproxy.plugins._baseplugin.libs._commands import Commands
+from bastproxy.plugins._baseplugin.libs._settings import Settings
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
 from bastproxy.plugins.core.events.plugin._events import EventsPlugin
 

@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_baseplugin.py
+# Filename: plugins/_baseplugin/_base.py
 #
 # File Description: holds the BasePlugin class
 #
@@ -18,7 +18,7 @@ from pathlib import Path
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.records import LogRecord
 
-from ._pluginhooks import RegisterPluginHook
+from .libs._pluginhooks import RegisterPluginHook
 
 
 class Plugin:  # pylint: disable=too-many-instance-attributes

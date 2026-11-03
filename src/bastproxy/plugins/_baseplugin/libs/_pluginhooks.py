@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_pluginhooks.py
+# Filename: plugins/_baseplugin/libs/_pluginhooks.py
 #
 # File Description: holds the RegisterPluginHook decorator
 #
