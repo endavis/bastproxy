@@ -191,11 +191,9 @@ class SettingsPlugin(BasePlugin):
         self.settings_values[plugin_id][setting] = value
         self.settings_values[plugin_id].sync()
 
-        if (
-            self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id)
-            # or self.api("libs.plugins.loader:is.plugin.instantiated")(plugin_id)
-            or self.api("plugins.core.settings:is.setting.hidden")(plugin_id, setting)
-        ):
+        if not self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id) or self.api(
+            "plugins.core.settings:is.setting.hidden"
+        )(plugin_id, setting):
             return True
         if self.api.startup:
             return True

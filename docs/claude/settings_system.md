@@ -158,7 +158,7 @@ Settings are automatically persisted:
 
 Each non-hidden setting gets its own event:
 - **Event name**: `ev_{plugin_id}_var_{setting_name}_modified`
-- **When raised**: When the setting value changes
+- **When raised**: When the value of a loaded plugin's setting changes. It is not raised for hidden settings, during startup, or while the plugin is not loaded. Changes made while a plugin is loading are covered by the single `raise.event.all.settings` on `ev_plugin_loaded`.
 - **Event args**:
   - `var`: Setting name
   - `newvalue`: New value
