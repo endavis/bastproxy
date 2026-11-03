@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/_baseplugin/_init_.py
+# Filename: plugins/_baseplugin/__init__.py
 #
 # File Description: holds the BasePlugin class
 #
@@ -12,9 +12,9 @@ their base class.
 __all__ = ["BasePlugin", "RegisterPluginHook"]
 
 from ._base import Plugin
-from ._commands import Commands
-from ._pluginhooks import RegisterPluginHook
-from ._settings import Settings
+from .libs._commands import Commands
+from .libs._pluginhooks import RegisterPluginHook
+from .libs._settings import Settings
 
 
 class BasePlugin(Plugin, Commands, Settings):

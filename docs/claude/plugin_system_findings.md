@@ -95,7 +95,7 @@ Every item in the issue's Description, with its current state.
 | API `lru_cache`s kept unloaded plugins alive | **Fixed** (verified: instances of the bundled plugins I unloaded were collected) | #100, PR #114 |
 | `PLUGIN_REQUIRED` not parsed | **Fixed** | #117, PR #118 |
 | Double-quoted name, author and purpose not parsed | **Fixed** | #119, PR #120 |
-| `_baseplugin` layout is flat | **Still open** | #94 |
+| `_baseplugin` layout is flat | **Fixed** | #94 |
 | Two test plugins use a layout the loader cannot import | **Fixed** (#98): all three affected test plugins moved | #98, see [PS-11](#ps-11-test-plugins-with-an-unloadable-layout) |
 | `patch()` copies functions onto `Plugin`; the loader skips patching on reload, so patched functions come from whichever copy loaded first | **Fixed** (#131): replaced by the `Settings` mixin, `patch()` removed | #131, PS-7 |
 | 36 `@RegisterPluginHook` uses with priorities: is the order documented and tested? | **Documented now; still untested** | Q3, PS-6 |
@@ -435,7 +435,7 @@ priority order, tie order and `get.plugin.hooks`.
 
 ### PS-7: `patch()` has silent failure modes and one user
 
-**Status:** fixed in the PR for #131; the `set` command and the settings `initialize` hook are now the `Settings` mixin on `BasePlugin` (`src/bastproxy/plugins/_baseplugin/_settings.py`). `patch()`, `modules_patched`, the loader's `_patch_base.py` branch, `PluginInfo.has_been_reloaded` and the two `ev_baseplugin_patched` handlers are removed. Breaking for plugins that shipped a `_patch_base.py`.
+**Status:** fixed in the PR for #131; the `set` command and the settings `initialize` hook are now the `Settings` mixin on `BasePlugin` (`src/bastproxy/plugins/_baseplugin/libs/_settings.py`). `patch()`, `modules_patched`, the loader's `_patch_base.py` branch, `PluginInfo.has_been_reloaded` and the two `ev_baseplugin_patched` handlers are removed. Breaking for plugins that shipped a `_patch_base.py`.
 
 **Issue:** [#131](https://github.com/endavis/bastproxy/issues/131)
 **Location:** `_patch.py` `patch`; `loader.py` `_import_single_plugin`;
