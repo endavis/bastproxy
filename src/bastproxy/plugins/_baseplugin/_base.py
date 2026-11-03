@@ -347,7 +347,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
 
         if (
-            self.api("plugins.core.proxy:is.mud.connected")
+            self.api("plugins.core.proxy:is.mud.connected")()
             and self.api("libs.api:is.character.active")()
         ):
             self._eventcb_baseplugin_after_character_is_active()

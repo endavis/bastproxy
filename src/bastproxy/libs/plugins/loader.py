@@ -190,12 +190,7 @@ class PluginLoader:
             None
 
         """
-        if self.update_all_plugin_information():
-            LogRecord(
-                "conflicts with plugins, see console and correct",
-                level="error",
-                sources=[__name__],
-            )()
+        self.update_all_plugin_information()
 
         all_plugins_by_id = list(self.plugins_info.keys())
 
@@ -1202,8 +1197,8 @@ class PluginLoader:
 
         This method loads all core and client plugins during the startup process.
         It first updates the plugin information, then loads core plugins, and
-        finally loads client plugins. If there are conflicts with plugins, it logs
-        the errors and exits the application.
+        finally loads client plugins. A core or client plugin that fails to load
+        exits the application.
 
         Args:
             None
@@ -1212,16 +1207,10 @@ class PluginLoader:
             None
 
         Raises:
-            SystemExit: If there are conflicts with plugins.
+            SystemExit: If a core or client plugin fails to load.
 
         """
-        if self.update_all_plugin_information():
-            LogRecord(
-                "conflicts with plugins, see console and correct",
-                level="error",
-                sources=[__name__],
-            )(actor=f"{__name__}.read_all_plugin_information")
-            sys.exit(1)
+        self.update_all_plugin_information()
 
         # load all core plugins first
         core_plugins = [

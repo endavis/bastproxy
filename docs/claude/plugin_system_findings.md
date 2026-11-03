@@ -460,6 +460,8 @@ event. It is the unbounded history already described as Bug #3 in
 
 ### PS-9: Dead and wrong calls in the loader and the base class
 
+**Status:** fixed in the PR for #128; the missing call and the API name are corrected and the dead loader branches were dropped.
+
 **Issue:** [#128](https://github.com/endavis/bastproxy/issues/128)
 **Location:** `_base.py` `_phook_base_post_initialize_setup` (`self.api("plugins.core.proxy:is.mud.connected")`
 without `()`); `loader.py` `_api_get_not_loaded_plugins` and `_load_core_and_client_plugins_on_startup`
