@@ -147,7 +147,7 @@ class TriggersPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
-            self.api(f"{self.plugin_id}:remove.data.for.owner")(event_record["plugin_id"])
+            self.api(f"{self.plugin_id}:trigger.remove.for.owner")(event_record["plugin_id"])
 
     def rebuild_regexes(self):
         """Rebuild a regex for priority.
@@ -473,8 +473,8 @@ class TriggersPlugin(BasePlugin):
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         return self.triggers.get(trigger_id, None)
 
-    @AddAPI("remove.data.for.owner", description="remove all triggers related to a owner")
-    def _api_remove_data_for_owner(self, owner_id):
+    @AddAPI("trigger.remove.for.owner", description="remove all triggers related to a owner")
+    def _api_trigger_remove_for_owner(self, owner_id):
         """Remove all triggers related to a owner.
 
         @Yowner_id@w   = The owner id.
@@ -482,7 +482,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         LogRecord(
-            f"_api_remove_data_for_owner - removing triggers for {owner_id}",
+            f"_api_trigger_remove_for_owner - removing triggers for {owner_id}",
             level="debug",
             sources=[self.plugin_id, owner_id],
         )()

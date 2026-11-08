@@ -135,7 +135,7 @@ class TimersPlugin(BasePlugin):
                 "debug",
                 sources=[self.plugin_id, event_record["plugin_id"]],
             )()
-            self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record["plugin_id"])
+            self.api(f"{self.plugin_id}:timer.remove.for.plugin")(event_record["plugin_id"])
 
     @AddParser(description="toggle log flag for a timer")
     @AddArgument("timername", help="the timer name", default="", nargs="?")
@@ -290,8 +290,8 @@ class TimersPlugin(BasePlugin):
 
         return True, message
 
-    @AddAPI("has.timer", description="check if a timer exists")
-    def _api_has_timer(self, name: str):
+    @AddAPI("timer.exists", description="check if a timer exists")
+    def _api_timer_exists(self, name: str):
         """Check if a timer exists.
 
         @Yname@w   = the name of the timer to check.
@@ -300,8 +300,8 @@ class TimersPlugin(BasePlugin):
         """
         return name in self.timer_lookup
 
-    @AddAPI("get.timer.next.fire", description="get the next fire time for a timer")
-    def _api_get_timer_next_fire(self, name: str) -> datetime.datetime | None:
+    @AddAPI("timer.next.fire.get", description="get the next fire time for a timer")
+    def _api_timer_next_fire_get(self, name: str) -> datetime.datetime | None:
         """Get the next fire time for a timer.
 
         @Yname@w   = the name of the timer to check.
@@ -312,8 +312,8 @@ class TimersPlugin(BasePlugin):
             return self.timer_lookup[name].next_fire_datetime
         return None
 
-    @AddAPI("add.timer", description="add a timer")
-    def _api_add_timer(self, name: str, func: Callable, seconds: int, **kwargs) -> Timer | None:
+    @AddAPI("timer.add", description="add a timer")
+    def _api_timer_add(self, name: str, func: Callable, seconds: int, **kwargs) -> Timer | None:
         """Add a timer.
 
         @Yname@w   = The timer name
@@ -336,7 +336,7 @@ class TimersPlugin(BasePlugin):
 
         if not plugin_id or not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             LogRecord(
-                f"_api_add_timer: timer {name} has no plugin, not adding",
+                f"_api_timer_add: timer {name} has no plugin, not adding",
                 "error",
                 sources=[self.plugin_id],
             )()
@@ -344,14 +344,14 @@ class TimersPlugin(BasePlugin):
 
         if seconds <= 0:
             LogRecord(
-                f"_api_add_timer: timer {name} has seconds <= 0, not adding",
+                f"_api_timer_add: timer {name} has seconds <= 0, not adding",
                 "error",
                 sources=[self.plugin_id, plugin_id],
             )()
             return None
         if not func:
             LogRecord(
-                f"_api_add_timer: timer {name} has no function, not adding",
+                f"_api_timer_add: timer {name} has no function, not adding",
                 "error",
                 sources=[self.plugin_id, plugin_id],
             )()
@@ -359,7 +359,7 @@ class TimersPlugin(BasePlugin):
 
         if "unique" in kwargs and kwargs["unique"] and name in self.timer_lookup:
             LogRecord(
-                f"_api_add_timer: timer {name} already exists, not adding",
+                f"_api_timer_add: timer {name} already exists, not adding",
                 "error",
                 sources=[self.plugin_id, plugin_id],
             )()
@@ -367,15 +367,15 @@ class TimersPlugin(BasePlugin):
 
         timer = Timer(name, func, seconds, plugin_id, **kwargs)
         LogRecord(
-            f"_api_add_timer: adding timer {name}",
+            f"_api_timer_add: adding timer {name}",
             level="debug",
             sources=[self.plugin_id, plugin_id],
         )()
         self._add_timer_internal(timer)
         return timer
 
-    @AddAPI("remove.data.for.plugin", description="remove all data for a plugin")
-    def _api_remove_data_for_plugin(self, name: str):
+    @AddAPI("timer.remove.for.plugin", description="remove all data for a plugin")
+    def _api_timer_remove_for_plugin(self, name: str):
         """Remove all timers associated with a plugin.
 
         @Yname@w   = the name of the plugin.
@@ -387,10 +387,10 @@ class TimersPlugin(BasePlugin):
             i for i in self.timer_lookup if self.timer_lookup[i].owner_id == name
         ]
         for i in timers_to_remove:
-            self.api(f"{self.plugin_id}:remove.timer")(i)
+            self.api(f"{self.plugin_id}:timer.remove")(i)
 
-    @AddAPI("remove.timer", description="remove a timer")
-    def _api_remove_timer(self, name: str):
+    @AddAPI("timer.remove", description="remove a timer")
+    def _api_timer_remove(self, name: str):
         """Remove a timer.
 
         @Yname@w   = the name of the timer to remove.
@@ -400,7 +400,7 @@ class TimersPlugin(BasePlugin):
         try:
             if timer := self.timer_lookup[name]:
                 LogRecord(
-                    f"_api_remove_timer - removing {timer}",
+                    f"_api_timer_remove - removing {timer}",
                     level="debug",
                     sources=[self.plugin_id, timer.owner_id],
                 )()
@@ -408,14 +408,14 @@ class TimersPlugin(BasePlugin):
 
         except KeyError:
             LogRecord(
-                f"_api_remove_timer - could not remove timer {name}",
+                f"_api_timer_remove - could not remove timer {name}",
                 level="error",
                 sources=[self.plugin_id],
                 stack_info=True,
             )()
 
-    @AddAPI("toggle.timer", description="toggle a timer to be enabled/disabled")
-    def _api_toggle_timer(self, name: str, flag: bool):
+    @AddAPI("timer.toggle", description="toggle a timer to be enabled/disabled")
+    def _api_timer_toggle(self, name: str, flag: bool):
         """Toggle a timer to be enabled/disabled.
 
         @Yname@w   = the name of the timer to toggle
@@ -495,7 +495,7 @@ class TimersPlugin(BasePlugin):
                 )()
             self._add_timer_internal(timer)
         else:
-            self.api(f"{self.plugin_id}:remove.timer")(timer.name)
+            self.api(f"{self.plugin_id}:timer.remove")(timer.name)
 
     async def check_for_timers_to_fire(self):
         # this is a callback, so disable unused-argument

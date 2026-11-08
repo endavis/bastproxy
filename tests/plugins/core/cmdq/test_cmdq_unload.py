@@ -58,14 +58,14 @@ def test_type_add_without_current_command() -> None:
 
 
 def test_timing_uses_registered_api() -> None:
-    """start/finish use libs.timing:start/finish with the returned uid."""
+    """start/finish use libs.timing:timing.start/finish with the returned uid."""
     stub = _stub()
     seen: list[tuple[str, Any]] = []
 
     def api(name: str) -> Any:
         def call(*a: Any, **k: Any) -> Any:
             seen.append((name, a))
-            return "uid1" if name == "libs.timing:start" else None
+            return "uid1" if name == "libs.timing:timing.start" else None
 
         return call
 
@@ -76,5 +76,5 @@ def test_timing_uses_registered_api() -> None:
     stub.sendnext = lambda: None
     CMDQPlugin._api_finish(stub, "t1")
 
-    assert ("libs.timing:start", ("cmd_t1",)) in seen
-    assert ("libs.timing:finish", ("uid1",)) in seen
+    assert ("libs.timing:timing.start", ("cmd_t1",)) in seen
+    assert ("libs.timing:timing.finish", ("uid1",)) in seen

@@ -29,7 +29,7 @@ class BanRecord:
         if not copy and self.how_long > 0:
             api_call = self.api(f"{self.plugin_id}:client.banned.remove")
             callback = partial(api_call, self.ip_addr, auto=True)
-            self.api("plugins.core.timers:add.timer")(
+            self.api("plugins.core.timers:timer.add")(
                 self.timer_name,
                 callback,
                 self.how_long,
@@ -40,13 +40,13 @@ class BanRecord:
 
     @property
     def expires(self) -> str:
-        if next_fire := self.api("plugins.core.timers:get.timer.next.fire")(self.timer_name):
+        if next_fire := self.api("plugins.core.timers:timer.next.fire.get")(self.timer_name):
             return next_fire.strftime(self.api.time_format)
         return "Permanent"
 
     def remove(self):
-        if self.api("plugins.core.timers:has.timer")(self.timer_name):
-            self.api("plugins.core.timers:remove.timer")(self.timer_name)
+        if self.api("plugins.core.timers:timer.exists")(self.timer_name):
+            self.api("plugins.core.timers:timer.remove")(self.timer_name)
 
     def copy(self, newclass):
         newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)

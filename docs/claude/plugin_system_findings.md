@@ -128,9 +128,9 @@ what it holds for that plugin.
 | Event definitions (`ev_<id>_loaded`, `_unloaded`, `_save`, `_savestate`, `ev_<custom>`, `watch_<name>`) | `plugins.core.events:event.add` | **Nothing** | Verified: all stay in the events plugin with `created_by` set to the unloaded plugin. See [Other Observations](#other-observations). |
 | Commands | `update_commands_for_plugin` on `ev_plugin_loaded` | commands `_eventcb_plugin_unloaded` calls `command.remove.for.plugin` | Verified clean (#96). |
 | Settings | `plugins.core.settings:setting.add`, `setting.initialize.for.plugin` | settings `_eventcb_settings_plugin_unloaded` saves then calls `setting.remove.for.plugin` | Verified clean after unload. After a failed load the handler also runs (it tolerates a plugin with no settings), so the settings and the open `PersistentDict` are closed (PS-1, fixed). |
-| Timers | `plugins.core.timers:add.timer` | timers `_eventcb_plugin_unloaded` calls `remove.data.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `plugin.instance.get`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
-| Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `remove.data.for.owner` | Verified clean after unload. |
-| Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `remove.all.data.for.plugin` | Broken for more than one watch (PS-3). |
+| Timers | `plugins.core.timers:timer.add` | timers `_eventcb_plugin_unloaded` calls `timer.remove.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `plugin.instance.get`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
+| Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `trigger.remove.for.owner` | Verified clean after unload. |
+| Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `watch.remove.for.plugin` | Broken for more than one watch (PS-3). |
 | cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
 | Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `BasePlugin.restore_reload_cache`, called by the loader after construction | Works (PS-4 fixed). |
 | `sys.modules` | import | `_api_plugin_unload`, and the failed-load cleanup in `_api_plugin_load` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
@@ -305,12 +305,12 @@ of this audit's page and is left for the event system audit.
 
 ### PS-1: A failed load leaves registrations behind
 
-**Status:** fixed in the PR for #121; `plugin.unload` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `add.timer(plugin_id=...)` calls `plugin.instance.get`, so it fails for a plugin that is still initializing; event definitions created with `event.add` are not removed by a clean unload either.
+**Status:** fixed in the PR for #121; `plugin.unload` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `timer.add(plugin_id=...)` calls `plugin.instance.get`, so it fails for a plugin that is still initializing; event definitions created with `event.add` are not removed by a clean unload either.
 
 **Issue:** [#121](https://github.com/endavis/bastproxy/issues/121)
 **Location:** `loader.py` `_instantiate_single_plugin`, `_run_initialize_single_plugin`,
 `_api_plugin_unload` (skips `uninitialize` unless `is_loaded`); timers
-`_api_remove_data_for_plugin` (needs `plugin.instance.get`, which needs the loaded flag).
+`_api_timer_remove_for_plugin` (needs `plugin.instance.get`, which needs the loaded flag).
 
 **Evidence (verified):** Two throwaway user plugins. `pb` registers a timer, a watch and an
 event callback in an `initialize` hook and then raises. `pc` raises in `__init__` after
@@ -357,10 +357,10 @@ and add a test that adds a type, unloads its owner and checks it is gone. Also c
 
 **Issue:** [#123](https://github.com/endavis/bastproxy/issues/123)
 **Location:** `src/bastproxy/plugins/core/watch/plugin/_watch.py`
-`_api_remove_all_data_for_plugin`.
+`_api_watch_remove_for_plugin`.
 
 **Evidence (verified):** Three watches owned by one plugin, then
-`plugins.core.watch:remove.all.data.for.plugin`:
+`plugins.core.watch:watch.remove.for.plugin`:
 
 ```text
 watch cleanup raised RuntimeError dictionary changed size during iteration

@@ -246,10 +246,6 @@ def appendix_rows() -> list[tuple[Key, str, str]]:
 #           or a noun in the qualifier), which the ADR leaves to review.
 # ---------------------------------------------------------------------------
 LEGACY_NAMES: dict[Key, str] = {
-    # libs.timing
-    ("libs.timing", "finish"): "shape",
-    ("libs.timing", "start"): "shape",
-    ("libs.timing", "toggle"): "shape",
     # plugins.core.cmdq
     ("plugins.core.cmdq", "finish"): "shape",
     ("plugins.core.cmdq", "queue.add.command"): "shape",
@@ -261,17 +257,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.sqldb", "{database_name}.get.single.row"): "review",  # rules 3/5, left to review
     # plugins.core.ssc
     ("plugins.core.ssc", "ssc.{name}"): "shape",
-    # plugins.core.timers
-    ("plugins.core.timers", "add.timer"): "shape",
-    ("plugins.core.timers", "get.timer.next.fire"): "shape",
-    ("plugins.core.timers", "has.timer"): "shape",
-    ("plugins.core.timers", "remove.data.for.plugin"): "shape",
-    ("plugins.core.timers", "remove.timer"): "shape",
-    ("plugins.core.timers", "toggle.timer"): "shape",
-    # plugins.core.triggers
-    ("plugins.core.triggers", "remove.data.for.owner"): "shape",
-    # plugins.core.watch
-    ("plugins.core.watch", "remove.all.data.for.plugin"): "shape",
 }
 
 

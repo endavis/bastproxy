@@ -78,7 +78,7 @@ class CMDQPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
             return
-        self.timing_uid = self.api("libs.timing:start")(f"cmd_{cmdtype}")
+        self.timing_uid = self.api("libs.timing:timing.start")(f"cmd_{cmdtype}")
 
     @AddAPI("type.add", description="add a command type")
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
@@ -115,7 +115,7 @@ class CMDQPlugin(BasePlugin):
     def _finish_timing(self):
         """Finish the timer started for the current command, if any."""
         if self.timing_uid:
-            self.api("libs.timing:finish")(self.timing_uid)
+            self.api("libs.timing:timing.finish")(self.timing_uid)
             self.timing_uid = None
 
     def sendnext(self):
