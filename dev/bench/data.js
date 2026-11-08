@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794146335390,
+  "lastUpdate": 1794146931958,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4792,6 +4792,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000011495128834016503",
             "extra": "mean: 220.21673899039882 usec\nrounds: 4655"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a91cd0bd87977a34036634d256fd9f94cd09e97",
+          "message": "fix: stop timing.finish logging an error for a timer started while disabled (merges PR #191, addresses #190)\n\ntiming.start returns None while timing is disabled, but timing.finish\nonly checked whether timing was enabled when it ran. A record timed\nacross a toggle that turned timing back on, such as the toggle command\nitself, called finish(None) and logged \"finishtimer - None not found\" at\nERROR. finish now returns None for a None uid without logging.\n\nTurning timing off had the reverse problem: a timer started while\nenabled and finished while disabled was never removed from the timing\ndict. finish now removes a known timer whatever the enabled state, and\nonly logs and returns the elapsed time while timing is enabled.\ntest_finish_timer_when_disabled asserted the old leak, so its final\nassertion now expects the entry to be removed.\n\nAddresses #190\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T14:08:11Z",
+          "tree_id": "178b4181fd0131e1107838edd308ad7489a05fef",
+          "url": "https://github.com/endavis/bastproxy/commit/6a91cd0bd87977a34036634d256fd9f94cd09e97"
+        },
+        "date": 1794146930803,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 346.7536773357333,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001886677154839935",
+            "extra": "mean: 2.8838915500001505 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10608.073327243746,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008792559452862054",
+            "extra": "mean: 94.26782500002062 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 328.08509280580904,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000707664527752324",
+            "extra": "mean: 3.0479897500002906 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 788.629508205483,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000057838258653681485",
+            "extra": "mean: 1.2680225500000475 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2961.9861807844736,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000014959837018711371",
+            "extra": "mean: 337.61129828605505 usec\nrounds: 3034"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2687.2440242858643,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001904097652218459",
+            "extra": "mean: 372.1284672930849 usec\nrounds: 2767"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4608.6846951122125,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007413039924362364",
+            "extra": "mean: 216.98164794405662 usec\nrounds: 4718"
           }
         ]
       }
