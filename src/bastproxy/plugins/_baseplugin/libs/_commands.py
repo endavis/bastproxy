@@ -77,7 +77,7 @@ class Commands(Protocol):
                 if msg[-1] != "":
                     msg.append("")
                 msg.append(
-                    self.api("plugins.core.utils:center.colored.string")(
+                    self.api("plugins.core.utils:string.center.colored")(
                         "@x86Files that have change since loading@w",
                         "-",
                         60,
@@ -95,7 +95,7 @@ class Commands(Protocol):
                 if msg[-1] != "":
                     msg.append("")
                 msg.append(
-                    self.api("plugins.core.utils:center.colored.string")(
+                    self.api("plugins.core.utils:string.center.colored")(
                         "@x86Files that are invalid python@w",
                         "-",
                         60,

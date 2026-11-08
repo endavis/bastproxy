@@ -270,9 +270,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.errors", "add"): "shape",
     ("plugins.core.errors", "clear.all.errors"): "shape",
     ("plugins.core.errors", "get"): "shape",
-    # plugins.core.fuzzy
-    ("plugins.core.fuzzy", "get.best.match"): "shape",
-    ("plugins.core.fuzzy", "get.top.matches"): "shape",
     # plugins.core.log
     ("plugins.core.log", "can.log.to.client"): "shape",
     ("plugins.core.log", "can.log.to.console"): "shape",
@@ -301,21 +298,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.timers", "toggle.timer"): "shape",
     # plugins.core.triggers
     ("plugins.core.triggers", "remove.data.for.owner"): "shape",
-    # plugins.core.utils
-    ("plugins.core.utils", "cap.line"): "shape",
-    ("plugins.core.utils", "center.colored.string"): "shape",
-    ("plugins.core.utils", "check.list.for.match"): "shape",
-    ("plugins.core.utils", "convert.data.to.output.table"): "review",  # rules 3/5, left to review
-    ("plugins.core.utils", "convert.seconds.to.dhms"): "review",  # rules 3/5, left to review
-    ("plugins.core.utils", "convert.timedelta.to.string"): "review",  # rules 3/5, left to review
-    ("plugins.core.utils", "convert.timelength.to.secs"): "review",  # rules 3/5, left to review
-    ("plugins.core.utils", "convert.to.readable.number"): "review",  # rules 3/5, left to review
-    ("plugins.core.utils", "dedent.list.of.strings"): "shape",
-    ("plugins.core.utils", "dump.object.as.string"): "shape",
-    ("plugins.core.utils", "format.list.into.columns"): "shape",
-    ("plugins.core.utils", "format.time"): "shape",
-    ("plugins.core.utils", "get.keys.from.dict"): "shape",
-    ("plugins.core.utils", "verify.value"): "shape",
     # plugins.core.watch
     ("plugins.core.watch", "remove.all.data.for.plugin"): "shape",
 }

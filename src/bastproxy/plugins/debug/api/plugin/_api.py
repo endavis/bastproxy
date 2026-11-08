@@ -90,11 +90,7 @@ class APIPlugin(BasePlugin):
                 {"name": "Description", "key": "description", "width": 10},
             ]
 
-            tmsg.extend(
-                self.api("plugins.core.utils:convert.data.to.output.table")(
-                    "APIs", apilist, api_columns
-                )
-            )
+            tmsg.extend(self.api("plugins.core.utils:table.format")("APIs", apilist, api_columns))
         else:
             tmsg.append(f"{args['toplevel']} does not exist in the api")
 

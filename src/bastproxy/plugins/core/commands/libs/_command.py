@@ -207,7 +207,7 @@ class CommandClass:
 
         newmessage = [
             "",
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 f"Begin Command: {command}",
                 "-",
                 line_length,
@@ -216,7 +216,7 @@ class CommandClass:
         ]
         if include_date:
             newmessage.append(
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     f"Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else 'Unknown'}",
                     "-",
                     line_length,
@@ -228,7 +228,7 @@ class CommandClass:
             newmessage.extend(
                 (
                     command_indent_string
-                    + self.api("plugins.core.utils:center.colored.string")(
+                    + self.api("plugins.core.utils:string.center.colored")(
                         "Full Command Line",
                         "-",
                         command_line_length,
@@ -244,7 +244,7 @@ class CommandClass:
             ]:
                 newmessage.append(
                     command_indent_string
-                    + self.api("plugins.core.utils:center.colored.string")(
+                    + self.api("plugins.core.utils:string.center.colored")(
                         "Arguments", "-", command_line_length, filler_color=header_color
                     )
                 )
@@ -252,7 +252,7 @@ class CommandClass:
 
             newmessage.append(
                 command_indent_string
-                + self.api("plugins.core.utils:center.colored.string")(
+                + self.api("plugins.core.utils:string.center.colored")(
                     "Output", "-", command_line_length, filler_color=header_color
                 )
             )
@@ -262,7 +262,7 @@ class CommandClass:
         if not simple:
             newmessage.append(
                 command_indent_string
-                + self.api("plugins.core.utils:center.colored.string")(
+                + self.api("plugins.core.utils:string.center.colored")(
                     "End Output",
                     "-",
                     command_line_length,
@@ -272,7 +272,7 @@ class CommandClass:
 
         if include_date:
             newmessage.append(
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     f"Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else 'Unknown'}",
                     "-",
                     line_length,
@@ -282,7 +282,7 @@ class CommandClass:
 
         newmessage.extend(
             [
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     f"End Command: {command}",
                     "-",
                     line_length,

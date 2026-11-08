@@ -171,7 +171,7 @@ class Event:
             f"{'Created by':<13} : {self.created_by}",
             f"{'Raised':<13} : {self.raised_count}",
             "",
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 "@x86Registrations@w", "-", 60, filler_color=header_color
             ),
             f"{'priority':<13} : {'owner':<25} - function name",
@@ -191,7 +191,7 @@ class Event:
             message.extend(function_message)
         message.extend((header_color + "-" * 60 + "@w", ""))
         message.append(
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 "@x86Data Keys@w", "-", 60, filler_color=header_color
             )
         )

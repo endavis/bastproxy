@@ -127,7 +127,7 @@ class RecordChangeLogEntry(ChangeLogEntry):
 
         actor_msg = []
         if self.actor:
-            actor = self.api("plugins.core.utils:dedent.list.of.strings")(self.actor)
+            actor = self.api("plugins.core.utils:string.dedent")(self.actor)
             actor_msg.extend((f"{'Actor':<15} : {actor[0]}", f"{'':<15} : {actor[1]}"))
         else:
             actor_msg.append(f"{'Actor':<15} : Unknown")

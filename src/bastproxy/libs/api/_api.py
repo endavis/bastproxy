@@ -891,7 +891,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         tmsg.extend(
             [
                 "",
-                *self("plugins.core.utils:convert.data.to.output.table")(
+                *self("plugins.core.utils:table.format")(
                     f"Stats for {stats_by_caller} (Unique Callers: {len(stats_keys)})",
                     stats_caller_data,
                     stats_caller_columns,
@@ -929,7 +929,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         tmsg.extend(
             [
                 "",
-                *self("plugins.core.utils:convert.data.to.output.table")(
+                *self("plugins.core.utils:table.format")(
                     f"Callers (Total Calls {api_data.stats.count})",
                     stats_caller_data,
                     stats_caller_columns,
