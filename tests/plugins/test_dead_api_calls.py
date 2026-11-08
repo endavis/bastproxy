@@ -70,5 +70,5 @@ def test_update_all_plugin_information_result_not_branched_on() -> None:
     loader.api = lambda _name: lambda *_a, **_k: []
     PluginLoader._load_core_and_client_plugins_on_startup(loader)
     loader.update_all_plugin_information.assert_called_once_with()
-    PluginLoader._api_get_not_loaded_plugins(loader)
+    PluginLoader._api_plugin_list_not_loaded(loader)
     assert loader.update_all_plugin_information.call_count == 2

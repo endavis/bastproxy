@@ -445,7 +445,7 @@ class ProxyPlugin(BasePlugin):
 
     def timer_restart(self):
         """A function to restart the proxy after a timer."""
-        self.api("plugins.core.pluginm:save.all.plugins.state")()
+        self.api("plugins.core.pluginm:plugin.state.save.all")()
 
         self.api(f"{self.plugin_id}:shutdown")()
 

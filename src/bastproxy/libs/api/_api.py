@@ -756,8 +756,8 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         # return False for apis in plugins that have not been instantiated
         return bool(
-            not self("libs.plugins.loader:is.plugin.id")(API_item.owner_id)
-            or self("libs.plugins.loader:is.plugin.instantiated")(API_item.owner_id)
+            not self("libs.plugins.loader:plugin.id.is.valid")(API_item.owner_id)
+            or self("libs.plugins.loader:plugin.is.instantiated")(API_item.owner_id)
         )
 
     def _api_api_detail_get(

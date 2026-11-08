@@ -246,33 +246,6 @@ def appendix_rows() -> list[tuple[Key, str, str]]:
 #           or a noun in the qualifier), which the ADR leaves to review.
 # ---------------------------------------------------------------------------
 LEGACY_NAMES: dict[Key, str] = {
-    # libs.plugins.loader
-    ("libs.plugins.loader", "does.plugin.exist"): "shape",
-    ("libs.plugins.loader", "fuzzy.match.plugin.id"): "review",  # rules 3/5, left to review
-    ("libs.plugins.loader", "get.all.plugins"): "shape",
-    ("libs.plugins.loader", "get.loaded.plugins.list"): "shape",
-    ("libs.plugins.loader", "get.not.loaded.plugins"): "shape",
-    ("libs.plugins.loader", "get.packages.list"): "shape",
-    ("libs.plugins.loader", "get.plugin.info"): "shape",
-    ("libs.plugins.loader", "get.plugin.instance"): "shape",
-    ("libs.plugins.loader", "get.plugins.in.package"): "shape",
-    ("libs.plugins.loader", "get.unloaded.plugins.in.memory"): "shape",
-    ("libs.plugins.loader", "is.plugin.id"): "shape",
-    ("libs.plugins.loader", "is.plugin.instantiated"): "shape",
-    ("libs.plugins.loader", "is.plugin.loaded"): "shape",
-    ("libs.plugins.loader", "load.plugins"): "shape",
-    ("libs.plugins.loader", "plugin.get.changed.files"): "review",  # rules 3/5, left to review
-    (
-        "libs.plugins.loader",
-        "plugin.get.invalid.python.files",
-    ): "review",  # rules 3/5, left to review
-    ("libs.plugins.loader", "reload.plugin"): "shape",
-    ("libs.plugins.loader", "set.plugin.is.loaded"): "shape",
-    ("libs.plugins.loader", "unload.plugin"): "shape",
-    # libs.plugins.reloadutils
-    ("libs.plugins.reloadutils", "add.cache"): "shape",
-    ("libs.plugins.reloadutils", "get.plugin.cache"): "shape",
-    ("libs.plugins.reloadutils", "remove.plugin.cache"): "shape",
     # libs.timing
     ("libs.timing", "finish"): "shape",
     ("libs.timing", "start"): "shape",
@@ -309,8 +282,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.log", "set.log.to.client"): "shape",
     ("plugins.core.log", "set.log.to.console"): "shape",
     ("plugins.core.log", "set.log.to.file"): "shape",
-    # plugins.core.pluginm
-    ("plugins.core.pluginm", "save.all.plugins.state"): "shape",
     # plugins.core.proxy
     ("plugins.core.proxy", "get.mud.connection"): "shape",
     ("plugins.core.proxy", "is.mud.connected"): "shape",
@@ -489,7 +460,7 @@ def test_scan_is_not_vacuous() -> None:
     assert len(found) >= 150
     for key in [
         ("libs.asynch", "task.add"),
-        ("plugins.core.pluginm", "save.all.plugins.state"),
+        ("plugins.core.pluginm", "plugin.state.save.all"),
         ("libs.api", "api.add"),
         ("plugins._baseplugin", "data.get"),
         ("plugins.core.sqldb", "{database_name}.select"),

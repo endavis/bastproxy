@@ -119,7 +119,7 @@ APIs follow a hierarchical naming scheme:
 ```
 
 Examples:
-- `libs.plugins.loader:get.plugin.instance` - Get a plugin instance
+- `libs.plugins.loader:plugin.instance.get` - Get a plugin instance
 - `plugins.core.events:event.raise` - Raise an event
 - `plugins.core.commands:output.line.length.get` - Get output line length
 
@@ -449,14 +449,14 @@ Events are raised when the flag changes:
 - `libs.api:stack.dump` - Return a stack dump
 
 ### Plugin Loader APIs
-- `libs.plugins.loader:get.plugin.instance` - Get a loaded plugin instance
-- `libs.plugins.loader:is.plugin.id` - Check if a string is a plugin ID
-- `libs.plugins.loader:is.plugin.loaded` - Check if a plugin is loaded
-- `libs.plugins.loader:is.plugin.instantiated` - Check if a plugin has an instance
-- `libs.plugins.loader:get.all.plugins` - Get all plugin information
-- `libs.plugins.loader:load.plugins` - Load a list of plugins
-- `libs.plugins.loader:unload.plugin` - Unload a plugin
-- `libs.plugins.loader:reload.plugin` - Reload a plugin
+- `libs.plugins.loader:plugin.instance.get` - Get a loaded plugin instance
+- `libs.plugins.loader:plugin.id.is.valid` - Check if a string is a plugin ID
+- `libs.plugins.loader:plugin.is.loaded` - Check if a plugin is loaded
+- `libs.plugins.loader:plugin.is.instantiated` - Check if a plugin has an instance
+- `libs.plugins.loader:plugin.list` - Get all plugin information
+- `libs.plugins.loader:plugin.load` - Load a list of plugins
+- `libs.plugins.loader:plugin.unload` - Unload a plugin
+- `libs.plugins.loader:plugin.reload` - Reload a plugin
 
 ### Event System APIs
 - `plugins.core.events:event.add` - Create a new event
@@ -470,7 +470,7 @@ Events are raised when the flag changes:
 ## Best Practices
 
 ### API Design
-1. Use clear, descriptive names: `get.plugin.instance` not `get_inst`
+1. Use clear, descriptive names: `plugin.instance.get` not `get_inst`
 2. Group related functions with dot notation: `settings.get`, `settings.set`, `settings.list`
 3. Include comprehensive descriptions
 4. Document parameters in the function docstring

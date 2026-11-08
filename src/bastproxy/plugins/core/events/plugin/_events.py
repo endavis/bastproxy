@@ -98,7 +98,7 @@ class EventsPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id],
         )()
-        for plugin_id in self.api("libs.plugins.loader:get.loaded.plugins.list")():
+        for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
             LogRecord(
                 f"_register_all_plugin_events: registering events in {plugin_id}",
                 level="debug",
@@ -113,7 +113,7 @@ class EventsPlugin(BasePlugin):
 
     def _register_events_for_plugin(self, plugin_id):
         """Register all events in a plugin."""
-        plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(plugin_id)
+        plugin_instance = self.api("libs.plugins.loader:plugin.instance.get")(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
         LogRecord(
             f"_register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations",

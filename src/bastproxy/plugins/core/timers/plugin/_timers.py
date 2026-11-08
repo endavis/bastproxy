@@ -334,7 +334,7 @@ class TimersPlugin(BasePlugin):
             given = kwargs.pop("plugin_id")
             plugin_id = given.plugin_id if isinstance(given, BasePlugin) else given
 
-        if not plugin_id or not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if not plugin_id or not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             LogRecord(
                 f"_api_add_timer: timer {name} has no plugin, not adding",
                 "error",

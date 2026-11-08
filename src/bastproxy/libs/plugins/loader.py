@@ -129,10 +129,10 @@ class PluginLoader:
         self.api("libs.api:api.add.for.object")(__name__, self)
 
     @AddAPI(
-        "get.unloaded.plugins.in.memory",
+        "plugin.module.list.stale",
         description="get all stale plugin modules in memory",
     )
-    def _api_get_unloaded_plugins_in_memory(self) -> KeysView[str]:
+    def _api_plugin_module_list_stale(self) -> KeysView[str]:
         """Get all stale plugin modules in memory.
 
         This method retrieves all plugin modules that are currently in memory but
@@ -180,10 +180,10 @@ class PluginLoader:
                 del self.weak_references_to_modules[module_import_path]
 
     @AddAPI(
-        "get.not.loaded.plugins",
+        "plugin.list.not.loaded",
         description="get a list of plugins that are not loaded",
     )
-    def _api_get_not_loaded_plugins(self) -> list[str]:
+    def _api_plugin_list_not_loaded(self) -> list[str]:
         """Get a list of plugins that are not loaded.
 
         This method retrieves a list of plugins that are currently not loaded by
@@ -203,14 +203,14 @@ class PluginLoader:
 
         all_plugins_by_id = list(self.plugins_info.keys())
 
-        loaded_plugins_by_id = self.api(f"{__name__}:get.loaded.plugins.list")()
+        loaded_plugins_by_id = self.api(f"{__name__}:plugin.list.loaded")()
 
         pdiff = set(all_plugins_by_id) - set(loaded_plugins_by_id)
 
         return sorted(pdiff)
 
-    @AddAPI("get.all.plugins", description="get all plugins")
-    def _api_get_all_plugins(self) -> KeysView[str]:
+    @AddAPI("plugin.list", description="get all plugins")
+    def _api_plugin_list(self) -> KeysView[str]:
         """Get all plugins.
 
         This method retrieves all plugins currently managed by the PluginLoader.
@@ -227,8 +227,8 @@ class PluginLoader:
         """
         return self.plugins_info.keys()
 
-    @AddAPI("get.plugin.info", description="get the plugin info for a plugin")
-    def _api_get_plugin_info(self, plugin_id: str) -> PluginInfo:
+    @AddAPI("plugin.info.get", description="get the plugin info for a plugin")
+    def _api_plugin_info_get(self, plugin_id: str) -> PluginInfo:
         """Get the plugin info for a plugin.
 
         This method retrieves the plugin information for a given plugin ID from the
@@ -246,8 +246,8 @@ class PluginLoader:
         """
         return self.plugins_info[plugin_id]
 
-    @AddAPI("does.plugin.exist", description="check if a plugin exists")
-    def _api_does_plugin_exist(self, plugin_id: str) -> bool:
+    @AddAPI("plugin.exists", description="check if a plugin exists")
+    def _api_plugin_exists(self, plugin_id: str) -> bool:
         """Check if a plugin exists.
 
         This method checks if a plugin with the given ID exists in the internal
@@ -266,10 +266,10 @@ class PluginLoader:
         return plugin_id in self.plugins_info
 
     @AddAPI(
-        "plugin.get.changed.files",
+        "plugin.file.list.changed",
         description=("get the list of files that have changed since loading for a plugin"),
     )
-    def _api_plugin_get_changed_files(self, plugin: str) -> list[dict]:
+    def _api_plugin_file_list_changed(self, plugin: str) -> list[dict]:
         """Get the list of files that have changed since loading for a plugin.
 
         This method retrieves a list of files that have changed since the plugin was
@@ -288,10 +288,10 @@ class PluginLoader:
         return self.plugins_info[plugin].get_changed_files()
 
     @AddAPI(
-        "plugin.get.invalid.python.files",
+        "plugin.file.list.invalid",
         description=("get the list of files that have invalid python syntax for a plugin"),
     )
-    def _api_plugin_get_invalid_python_files(self, plugin: str) -> list[dict]:
+    def _api_plugin_file_list_invalid(self, plugin: str) -> list[dict]:
         """Get the list of files that have invalid Python syntax for a plugin.
 
         This method retrieves a list of files that have invalid Python syntax since
@@ -311,8 +311,8 @@ class PluginLoader:
         """
         return self.plugins_info[plugin].get_invalid_python_files()
 
-    @AddAPI("get.loaded.plugins.list", description="get the list of loaded plugins")
-    def _api_get_loaded_plugins_list(self) -> list[str]:
+    @AddAPI("plugin.list.loaded", description="get the list of loaded plugins")
+    def _api_plugin_list_loaded(self) -> list[str]:
         """Get the list of loaded plugins.
 
         This method retrieves a list of plugins that are currently loaded by
@@ -334,8 +334,8 @@ class PluginLoader:
             if plugin_info.runtime_info.is_loaded
         ]
 
-    @AddAPI("get.packages.list", description="get the list of packages")
-    def _api_get_packages_list(self, active_only: bool = False) -> list[str]:
+    @AddAPI("package.list", description="get the list of packages")
+    def _api_package_list(self, active_only: bool = False) -> list[str]:
         """Get the list of packages.
 
         This method retrieves a list of packages managed by the PluginLoader. If
@@ -363,10 +363,10 @@ class PluginLoader:
         return list(set(packages))
 
     @AddAPI(
-        "get.plugins.in.package",
+        "plugin.list.in.package",
         description="get the list of plugins in a package that have been loaded",
     )
-    def _api_get_plugins_in_package(self, package: str) -> list[str]:
+    def _api_plugin_list_in_package(self, package: str) -> list[str]:
         """Get the list of plugins in a package that have been loaded.
 
         This method retrieves a list of plugins that belong to a specified package
@@ -384,12 +384,12 @@ class PluginLoader:
         """
         return [
             plugin_id
-            for plugin_id in self.api(f"{__name__}:get.loaded.plugins.list")()
+            for plugin_id in self.api(f"{__name__}:plugin.list.loaded")()
             if self.plugins_info[plugin_id].package == package
         ]
 
-    @AddAPI("get.plugin.instance", description="get a loaded plugin instance")
-    def _api_get_plugin_instance(self, plugin_name: str) -> BasePlugin | None:
+    @AddAPI("plugin.instance.get", description="get a loaded plugin instance")
+    def _api_plugin_instance_get(self, plugin_name: str) -> BasePlugin | None:
         """Get a loaded plugin instance.
 
         This method retrieves the instance of a loaded plugin based on the provided
@@ -420,7 +420,7 @@ class PluginLoader:
 
         if not plugin_instance and not self.api.startup:
             LogRecord(
-                f"api_get_plugin_instance - plugin not found: {plugin_name}",
+                f"api_plugin_instance_get - plugin not found: {plugin_name}",
                 level="debug",
                 sources=[__name__],
                 stack_info=True,
@@ -428,8 +428,8 @@ class PluginLoader:
 
         return plugin_instance
 
-    @AddAPI("is.plugin.id", description="check if a str is a plugin id")
-    def _api_is_plugin_id(self, plugin_id: str) -> bool:
+    @AddAPI("plugin.id.is.valid", description="check if a str is a plugin id")
+    def _api_plugin_id_is_valid(self, plugin_id: str) -> bool:
         """Check if a string is a plugin ID.
 
         This method checks if a given string is a valid plugin ID by looking it up
@@ -447,8 +447,8 @@ class PluginLoader:
         """
         return plugin_id in self.plugins_info
 
-    @AddAPI("is.plugin.loaded", description="check if a plugin is loaded")
-    def _api_is_plugin_loaded(self, pluginname: str) -> bool:
+    @AddAPI("plugin.is.loaded", description="check if a plugin is loaded")
+    def _api_plugin_is_loaded(self, pluginname: str) -> bool:
         """Check if a plugin is loaded.
 
         This method checks if a plugin with the given name is currently loaded by
@@ -469,8 +469,8 @@ class PluginLoader:
 
         return False
 
-    @AddAPI("is.plugin.instantiated", description="check if a plugin has an instance")
-    def _api_is_plugin_instantiated(self, pluginname: str) -> bool:
+    @AddAPI("plugin.is.instantiated", description="check if a plugin has an instance")
+    def _api_plugin_is_instantiated(self, pluginname: str) -> bool:
         """Check if a plugin has an instance.
 
         This method checks if a plugin with the given name has an instance
@@ -722,7 +722,7 @@ class PluginLoader:
             if exit_on_error:
                 sys.exit(1)
             else:
-                self.api(f"{__name__}:unload.plugin")(plugin_id, allow_required=True)
+                self.api(f"{__name__}:plugin.unload")(plugin_id, allow_required=True)
                 return False
 
         # set the plugin instance
@@ -797,7 +797,7 @@ class PluginLoader:
             # a hook above priority 91 may already have set the flag; a failed
             # initialize must take the never-loaded cleanup path, not uninitialize()
             plugin_info.runtime_info.is_loaded = False
-            self.api(f"{__name__}:unload.plugin")(plugin_id, allow_required=True)
+            self.api(f"{__name__}:plugin.unload")(plugin_id, allow_required=True)
             return False
 
         LogRecord(
@@ -815,8 +815,8 @@ class PluginLoader:
 
         return True
 
-    @AddAPI("load.plugins", "load a list of plugins")
-    def _api_load_plugins(
+    @AddAPI("plugin.load", "load a list of plugins")
+    def _api_plugin_load(
         self,
         plugins_to_load: list[str],
         exit_on_error: bool = False,
@@ -978,8 +978,8 @@ class PluginLoader:
             )()
         return bool(failed)
 
-    @AddAPI("reload.plugin", "reload a plugin")
-    def _api_reload_plugin(self, plugin_id: str) -> bool:
+    @AddAPI("plugin.reload", "reload a plugin")
+    def _api_plugin_reload(self, plugin_id: str) -> bool:
         """Reload a plugin, and its dependents if it sets ``reload_dependents_f``.
 
         Nothing is unloaded unless every plugin to reload has ``can_reload_f``.
@@ -1027,12 +1027,12 @@ class PluginLoader:
         unloaded: list[str] = []
         ok = True
         for pid in reversed(unload_order):
-            if not self.api(f"{__name__}:unload.plugin")(pid, allow_required=True):
+            if not self.api(f"{__name__}:plugin.unload")(pid, allow_required=True):
                 ok = False
                 break
             unloaded.append(pid)
 
-        result = self.api(f"{__name__}:load.plugins")(unloaded, exit_on_error=False)
+        result = self.api(f"{__name__}:plugin.load")(unloaded, exit_on_error=False)
         if result["bad_plugins"]:
             ok = False
 
@@ -1047,8 +1047,8 @@ class PluginLoader:
 
         return ok and plugin_id in result["loaded_plugins"]
 
-    @AddAPI("set.plugin.is.loaded", "set the is_loaded flag for a plugin")
-    def _api_set_plugin_is_loaded(self, plugin_id: str) -> None:
+    @AddAPI("plugin.loaded.set", "set the is_loaded flag for a plugin")
+    def _api_plugin_loaded_set(self, plugin_id: str) -> None:
         """Set the is_loaded flag for a plugin.
 
         This method sets the is_loaded flag to True for the specified plugin ID,
@@ -1099,8 +1099,8 @@ class PluginLoader:
                 exc_info=True,
             )()
 
-    @AddAPI("unload.plugin", "unload a plugin")
-    def _api_unload_plugin(self, plugin_id: str, *, allow_required: bool = False) -> bool:
+    @AddAPI("plugin.unload", "unload a plugin")
+    def _api_plugin_unload(self, plugin_id: str, *, allow_required: bool = False) -> bool:
         """Unload a plugin.
 
         A loaded plugin runs its uninitialize method. A plugin that is not loaded
@@ -1258,7 +1258,7 @@ class PluginLoader:
             core_plugins.remove("plugins.core.log")
             core_plugins.insert(0, "plugins.core.log")
 
-        self.api(f"{__name__}:load.plugins")(core_plugins, exit_on_error=True)
+        self.api(f"{__name__}:plugin.load")(core_plugins, exit_on_error=True)
 
     def load_plugins_on_startup(self) -> None:
         """Load plugins on startup.
@@ -1313,8 +1313,8 @@ class PluginLoader:
                         sources=[__name__],
                     )()
 
-    @AddAPI("fuzzy.match.plugin.id", description="find a plugin id from a string")
-    def _api_fuzzy_match_plugin_id(
+    @AddAPI("plugin.id.match", description="find a plugin id from a string")
+    def _api_plugin_id_match(
         self, plugin_id_string: str, active_only: bool = False
     ) -> tuple[str, str]:
         """Find a plugin ID from a string using fuzzy matching.
@@ -1336,7 +1336,7 @@ class PluginLoader:
 
         """
         LogRecord(
-            f"_api_fuzzy_match_plugin_id: attempting to find {plugin_id_string}",
+            f"_api_plugin_id_match: attempting to find {plugin_id_string}",
             level="debug",
             sources=[__name__],
         )()
@@ -1344,7 +1344,7 @@ class PluginLoader:
         psplit = plugin_id_string.split(".", 1)
 
         LogRecord(
-            f"_api_fuzzy_match_plugin_id: {psplit = }",
+            f"_api_plugin_id_match: {psplit = }",
             level="debug",
             sources=[__name__],
         )()
@@ -1360,12 +1360,12 @@ class PluginLoader:
             tmp_plugin = psplit[2]
 
         LogRecord(
-            f"_api_fuzzy_match_plugin_id: {tmp_package = }, {tmp_plugin = }",
+            f"_api_plugin_id_match: {tmp_package = }, {tmp_plugin = }",
             level="debug",
             sources=[__name__],
         )()
 
-        package_list = self.api(f"{__name__}:get.packages.list")(active_only)
+        package_list = self.api(f"{__name__}:package.list")(active_only)
 
         # try and find the package
         new_package = self.api("plugins.core.fuzzy:get.best.match")(
@@ -1378,7 +1378,7 @@ class PluginLoader:
         if not tmp_plugin:
             return new_package, ""
 
-        loaded_list = self.api(f"{__name__}:get.loaded.plugins.list")()
+        loaded_list = self.api(f"{__name__}:plugin.list.loaded")()
 
         # try and find the plugin
         new_plugin = self.api("plugins.core.fuzzy:get.best.match")(
@@ -1386,7 +1386,7 @@ class PluginLoader:
         )
 
         LogRecord(
-            f"_api_fuzzy_match_plugin_id: {new_package = }, {new_plugin = }",
+            f"_api_plugin_id_match: {new_package = }, {new_plugin = }",
             level="debug",
             sources=[__name__],
         )()

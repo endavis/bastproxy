@@ -39,7 +39,7 @@ Key attributes:
 - **plugin_id**: Unique identifier (e.g., `plugins.core.events`)
 - **plugin_info**: Metadata and runtime information
 - **api**: API instance for registering and calling functions
-- **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `unload.plugin`; a required plugin is also refused, see `PLUGIN_REQUIRED`)
+- **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `plugin.unload`; a required plugin is also refused, see `PLUGIN_REQUIRED`)
 - **can_reset_f**: Whether the plugin can be reset
 - **reload_dependents_f**: Whether reloading the plugin also reloads the plugins that depend on it
 - **is_reloading_f**: Set by the `<plugin_id>:plugin.reloading.set` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
@@ -167,7 +167,7 @@ Metadata fields:
 - **PLUGIN_VERSION**: Integer version number
 - **PLUGIN_PURPOSE**: Brief description
 - **PLUGIN_REQUIRED**: `True` marks the plugin as required, and all `plugins.core` plugins count
-  as required. `unload.plugin` and the `unload` command refuse a required plugin. Reload is still
+  as required. `plugin.unload` and the `unload` command refuse a required plugin. Reload is still
   allowed, subject to `can_reload_f`. Use `can_reload_f = False` to block reload as well.
 - **PLUGIN_DEPENDENCIES**: Optional list of plugin IDs that must be loaded first (see [Dependencies](#dependencies))
 
@@ -265,7 +265,7 @@ For each directory found, it creates a `PluginInfo` object and extracts metadata
 
 ### 2. Loading
 
-`libs.plugins.loader:load.plugins` loads a list of plugins in three passes over the whole list
+`libs.plugins.loader:plugin.load` loads a list of plugins in three passes over the whole list
 (after ordering it so dependencies come first, see [Dependencies](#dependencies)):
 
 1. **Import** (each plugin): the plugin class module is imported once
@@ -305,7 +305,7 @@ class Plugin(BasePlugin):
         LogRecord("Initializing my plugin", sources=[self.plugin_id])()
 ```
 
-`initialize` runs after every plugin in the same `load.plugins` call has been imported and
+`initialize` runs after every plugin in the same `plugin.load` call has been imported and
 instantiated, and after the plugin's declared dependencies have been initialized. Other plugins
 in the batch that are not dependencies may not be initialized yet.
 
@@ -332,11 +332,13 @@ class Plugin(BasePlugin):
 ```
 
 The `plugin.state.save` API (`<plugin_id>:plugin.state.save`, also the `save` command) runs the `save` hooks,
-then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
+then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it. It saves one plugin; the
+pluginm API `plugin.state.save.all` (`plugins.core.pluginm:plugin.state.save.all`) saves every loaded plugin
+by calling `plugin.state.save` on each.
 
 ### 6. Unloading
 
-`libs.plugins.loader:unload.plugin` refuses a loaded plugin when `can_reload_f` is false (a plugin that failed to load is always cleaned up), or when the plugin is required and `allow_required` is not passed (reload and failed-load cleanup pass it). Otherwise:
+`libs.plugins.loader:plugin.unload` refuses a loaded plugin when `can_reload_f` is false (a plugin that failed to load is always cleaned up), or when the plugin is required and `allow_required` is not passed (reload and failed-load cleanup pass it). Otherwise:
 
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
    plugin is flagged loaded. A plugin that failed to load is not uninitialized, but the loader
@@ -364,11 +366,11 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 4. **Loader bookkeeping**: the plugin is removed from the `pluginstoload` setting, the
    instance is deleted, every module under the plugin package is deleted from `sys.modules`
    unless it sets `CANRELOAD = False`, a weak reference to each deleted module is kept (see
-   `get.unloaded.plugins.in.memory`) and the runtime info is reset.
+   `plugin.module.list.stale`) and the runtime info is reset.
 
 ### 7. Reloading
 
-`libs.plugins.loader:reload.plugin`:
+`libs.plugins.loader:plugin.reload`:
 
 1. **Check**: if the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set.
 
@@ -378,7 +380,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    self.attributes_to_save_on_reload = ['some_state', 'other_data']
    ```
 
-3. **Load**: one `load.plugins` call loads them all again with dependencies first. The modules
+3. **Load**: one `plugin.load` call loads them all again with dependencies first. The modules
    were deleted from `sys.modules` on unload, so the edited code is imported fresh;
    `importlib.reload` is not used.
 
@@ -386,7 +388,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    `restore_reload_cache`, which sets the cached attributes on it and clears the cache. A failure
    there is handled like an instantiation failure.
 
-Entries in `pluginstoload` are put back after the reload. `reload.plugin` returns `True` only if
+Entries in `pluginstoload` are put back after the reload. `plugin.reload` returns `True` only if
 everything unloaded and loaded again.
 
 ### Base class mixins
@@ -507,7 +509,7 @@ There is no runtime API for adding dependencies: the loader needs them before it
 
 ### Dependency Resolution
 
-When loading plugins (`libs.plugins.loader:load.plugins`):
+When loading plugins (`libs.plugins.loader:plugin.load`):
 1. Each requested plugin's `PLUGIN_DEPENDENCIES` is read.
 2. Dependencies that are not loaded are pulled into the load, and the plugins are ordered so dependencies come first. Otherwise the requested order is kept.
 3. Import, instantiate and initialize each run in that order, so a dependency's `initialize()` runs before its dependent's.
@@ -523,7 +525,7 @@ Plugins can specify whether dependent plugins should be reloaded:
 self.reload_dependents_f = True  # Reload plugins that depend on this one
 ```
 
-See [Reloading](#7-reloading). `libs.plugins.loader:reload.plugin` returns `True` only when everything unloaded and loaded again.
+See [Reloading](#7-reloading). `libs.plugins.loader:plugin.reload` returns `True` only when everything unloaded and loaded again.
 
 ## Plugin Data
 
@@ -662,26 +664,26 @@ class Plugin(BasePlugin):
 ## Common APIs
 
 ### Plugin Loader APIs
-- `libs.plugins.loader:load.plugins` - Load a list of plugins
-- `libs.plugins.loader:unload.plugin` - Unload a plugin
-- `libs.plugins.loader:reload.plugin` - Reload a plugin
-- `libs.plugins.loader:get.plugin.instance` - Get a plugin instance
-- `libs.plugins.loader:get.loaded.plugins.list` - Get loaded plugins
-- `libs.plugins.loader:get.all.plugins` - Get all discovered plugins
-- `libs.plugins.loader:is.plugin.loaded` - Check if plugin is loaded
-- `libs.plugins.loader:is.plugin.instantiated` - Check if plugin has instance
-- `libs.plugins.loader:get.plugin.info` - Get PluginInfo for a plugin
-- `libs.plugins.loader:does.plugin.exist` - Check if plugin exists
-- `libs.plugins.loader:is.plugin.id` - Check if a string is a plugin ID
-- `libs.plugins.loader:get.not.loaded.plugins` - Get unloaded plugins
-- `libs.plugins.loader:get.packages.list` - Get the plugin packages
-- `libs.plugins.loader:get.plugins.in.package` - Get the loaded plugins in a package
-- `libs.plugins.loader:fuzzy.match.plugin.id` - Find a plugin ID from a partial string
-- `libs.plugins.loader:plugin.get.changed.files` - Files changed since the plugin loaded
-- `libs.plugins.loader:plugin.get.invalid.python.files` - Files with invalid Python syntax
-- `libs.plugins.loader:get.unloaded.plugins.in.memory` - Modules kept by weak reference after unload
-- `libs.plugins.loader:set.plugin.is.loaded` - Flag a plugin loaded (called by the base class)
-- `libs.plugins.reloadutils:add.cache`, `get.plugin.cache`, `remove.plugin.cache` - The reload cache
+- `libs.plugins.loader:plugin.load` - Load a list of plugins
+- `libs.plugins.loader:plugin.unload` - Unload a plugin
+- `libs.plugins.loader:plugin.reload` - Reload a plugin
+- `libs.plugins.loader:plugin.instance.get` - Get a plugin instance
+- `libs.plugins.loader:plugin.list.loaded` - Get loaded plugins
+- `libs.plugins.loader:plugin.list` - Get all discovered plugins
+- `libs.plugins.loader:plugin.is.loaded` - Check if plugin is loaded
+- `libs.plugins.loader:plugin.is.instantiated` - Check if plugin has instance
+- `libs.plugins.loader:plugin.info.get` - Get PluginInfo for a plugin
+- `libs.plugins.loader:plugin.exists` - Check if plugin exists
+- `libs.plugins.loader:plugin.id.is.valid` - Check if a string is a plugin ID
+- `libs.plugins.loader:plugin.list.not.loaded` - Get unloaded plugins
+- `libs.plugins.loader:package.list` - Get the plugin packages
+- `libs.plugins.loader:plugin.list.in.package` - Get the loaded plugins in a package
+- `libs.plugins.loader:plugin.id.match` - Find a plugin ID from a partial string
+- `libs.plugins.loader:plugin.file.list.changed` - Files changed since the plugin loaded
+- `libs.plugins.loader:plugin.file.list.invalid` - Files with invalid Python syntax
+- `libs.plugins.loader:plugin.module.list.stale` - Modules kept by weak reference after unload
+- `libs.plugins.loader:plugin.loaded.set` - Flag a plugin loaded (called by the base class)
+- `libs.plugins.reloadutils:cache.add`, `cache.get`, `cache.remove` - The reload cache
 
 ### Plugin Instance APIs
 - `<plugin_id>:data.get` - Get plugin data

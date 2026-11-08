@@ -23,9 +23,9 @@ Features:
 
 Usage:
     - Instantiate ReloadHelper to create an object that manages plugin cache.
-    - Use `add.cache` API to add data to the cache.
-    - Use `get.plugin.cache` API to retrieve cache for a plugin.
-    - Use `remove.plugin.cache` API to remove the cache for a plugin.
+    - Use `cache.add` API to add data to the cache.
+    - Use `cache.get` API to retrieve cache for a plugin.
+    - Use `cache.remove` API to remove the cache for a plugin.
 
 Classes:
     - `ReloadHelper`: Represents a class that manages plugin cache and supports
@@ -65,14 +65,14 @@ class ReloadHelper:
         self.reload_cache = {}
         self.api("libs.api:api.add.for.object")(__name__, self)
 
-    @AddAPI("add.cache", description="add data to the cache")
-    def _api_add_cache(self, plugin_id: str, data_name: str, data: Any) -> None:
+    @AddAPI("cache.add", description="add data to the cache")
+    def _api_cache_add(self, plugin_id: str, data_name: str, data: Any) -> None:
         if plugin_id not in self.reload_cache:
             self.reload_cache[plugin_id] = {}
         self.reload_cache[plugin_id][data_name] = data
 
-    @AddAPI("get.plugin.cache", description="get cache for a plugin")
-    def _api_get_plugin_cache(self, plugin_id: str) -> dict:
+    @AddAPI("cache.get", description="get cache for a plugin")
+    def _api_cache_get(self, plugin_id: str) -> dict:
         """Retrieve cache for a plugin.
 
         This method retrieves the cache entries for a specified plugin from the
@@ -91,8 +91,8 @@ class ReloadHelper:
         """
         return self.reload_cache.get(plugin_id, {})
 
-    @AddAPI("remove.plugin.cache", description="remove the cache for a plugin")
-    def _api_remove_plugin_cache(self, plugin_id: str) -> None:
+    @AddAPI("cache.remove", description="remove the cache for a plugin")
+    def _api_cache_remove(self, plugin_id: str) -> None:
         """Remove the cache for a plugin.
 
         This method removes the cache entries for a specified plugin from the

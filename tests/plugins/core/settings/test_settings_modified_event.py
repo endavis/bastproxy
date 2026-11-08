@@ -31,7 +31,7 @@ def _stub(
     raise_event = MagicMock()
 
     def api(name: str) -> Any:
-        if name == "libs.plugins.loader:is.plugin.loaded":
+        if name == "libs.plugins.loader:plugin.is.loaded":
             return lambda pid: loaded if pid == PID else False
         if name == "plugins.core.settings:setting.get":
             return lambda _pid, setting: values[setting]

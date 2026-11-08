@@ -104,8 +104,8 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     setattr(loader, "test_settings", settings)  # noqa: B010
 
     apis: dict[str, Callable[..., Any]] = {
-        "unload.plugin": loader._api_unload_plugin,
-        "load.plugins": loader._api_load_plugins,
+        "plugin.unload": loader._api_plugin_unload,
+        "plugin.load": loader._api_plugin_load,
         "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
         "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
             {name: value}
@@ -113,7 +113,7 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     }
 
     def _api(name: str) -> Callable[..., Any]:
-        key = name.split(":", 1)[1] if name.endswith((":unload.plugin", ":load.plugins")) else name
+        key = name.split(":", 1)[1] if name.endswith((":plugin.unload", ":plugin.load")) else name
         return apis.get(key, MagicMock())
 
     loader.api = MagicMock(side_effect=_api)
@@ -146,14 +146,14 @@ def _loaded(env: Env, **kwargs: Any) -> tuple[PluginLoader, str]:
     _write_plugin(root, "a", **kwargs)
     loader = factory()
     pid = _package("a")
-    assert loader._api_load_plugins([pid])["bad_plugins"] == []
+    assert loader._api_plugin_load([pid])["bad_plugins"] == []
     return loader, pid
 
 
 def test_required_plugin_is_not_unloaded(env: Env) -> None:
     loader, pid = _loaded(env)
     loader.plugins_info[pid].is_required = True
-    assert loader._api_unload_plugin(pid) is False
+    assert loader._api_plugin_unload(pid) is False
     assert ("uninitialize", pid) not in _events()
     assert loader.plugins_info[pid].runtime_info.is_loaded
     assert any(n.startswith(f"{pid}") for n in sys.modules)
@@ -162,27 +162,27 @@ def test_required_plugin_is_not_unloaded(env: Env) -> None:
 def test_required_plugin_unloads_with_allow_required(env: Env) -> None:
     loader, pid = _loaded(env)
     loader.plugins_info[pid].is_required = True
-    assert loader._api_unload_plugin(pid, allow_required=True) is True
+    assert loader._api_plugin_unload(pid, allow_required=True) is True
     assert ("uninitialize", pid) in _events()
     assert not loader.plugins_info[pid].runtime_info.is_loaded
 
 
 def test_non_required_plugin_still_unloads(env: Env) -> None:
     loader, pid = _loaded(env)
-    assert loader._api_unload_plugin(pid) is True
+    assert loader._api_plugin_unload(pid) is True
     assert ("uninitialize", pid) in _events()
 
 
 def test_cannot_reload_plugin_refused_even_with_allow_required(env: Env) -> None:
     loader, pid = _loaded(env, can_reload=False)
-    assert loader._api_unload_plugin(pid, allow_required=True) is False
+    assert loader._api_plugin_unload(pid, allow_required=True) is False
     assert ("uninitialize", pid) not in _events()
 
 
 def test_required_reloadable_plugin_can_be_reloaded(env: Env) -> None:
     loader, pid = _loaded(env)
     loader.plugins_info[pid].is_required = True
-    assert loader._api_reload_plugin(pid) is True
+    assert loader._api_plugin_reload(pid) is True
     kinds = [e[0] for e in _events() if e[1] == pid]
     assert kinds == ["init", "initialize", "uninitialize", "init", "initialize"]
 
@@ -193,7 +193,7 @@ def test_failed_initialize_of_required_plugin_is_cleaned_up(env: Env) -> None:
     loader = factory()
     pid = _package("a")
     loader.plugins_info[pid].is_required = True
-    result = loader._api_load_plugins([pid], exit_on_error=False)
+    result = loader._api_plugin_load([pid], exit_on_error=False)
     assert pid in result["bad_plugins"]
     assert not [n for n in sys.modules if n.startswith(f"{ROOT_PKG}.test.a")]
 
@@ -206,9 +206,9 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
     def api(name: str) -> Any:
         return {
             "plugins.core.commands:command.current.args.get": lambda: {"plugin": "p.x"},
-            "libs.plugins.loader:is.plugin.loaded": lambda _pid: True,
-            "libs.plugins.loader:get.plugin.info": lambda _pid: info,
-            "libs.plugins.loader:unload.plugin": unload,
+            "libs.plugins.loader:plugin.is.loaded": lambda _pid: True,
+            "libs.plugins.loader:plugin.info.get": lambda _pid: info,
+            "libs.plugins.loader:plugin.unload": unload,
             "plugins.core.settings:setting.get": lambda *_a: [],
         }.get(name, MagicMock())
 

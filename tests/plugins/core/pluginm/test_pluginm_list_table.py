@@ -34,7 +34,7 @@ def _stub() -> MagicMock:
     stub = MagicMock()
 
     def api(name: str) -> Any:
-        if name == "libs.plugins.loader:get.plugin.info":
+        if name == "libs.plugins.loader:plugin.info.get":
             return INFOS.__getitem__
         if name == "plugins.core.utils:convert.data.to.output.table":
             return lambda *a, **k: UtilsPlugin._api_convert_data_to_output_table(utils, *a, **k)
@@ -109,9 +109,9 @@ def _strip(line: str) -> str:
 
 def _wrap_api(inner: Any, packages: dict[str, list[str]]) -> Any:
     def api(name: str) -> Any:
-        if name == "libs.plugins.loader:get.packages.list":
+        if name == "libs.plugins.loader:package.list":
             return lambda: list(packages)
-        if name == "libs.plugins.loader:get.plugins.in.package":
+        if name == "libs.plugins.loader:plugin.list.in.package":
             return packages.__getitem__
         return inner(name)
 

@@ -71,7 +71,7 @@ class Commands(Protocol):
             msg.pop()
 
         file_header = False
-        for file in self.api("libs.plugins.loader:plugin.get.changed.files")(self.plugin_id):
+        for file in self.api("libs.plugins.loader:plugin.file.list.changed")(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != "":
@@ -89,7 +89,7 @@ class Commands(Protocol):
             msg.append("@B" + "-" * 60 + "@w")
 
         file_header = False
-        for file in self.api("libs.plugins.loader:plugin.get.invalid.python.files")(self.plugin_id):
+        for file in self.api("libs.plugins.loader:plugin.file.list.invalid")(self.plugin_id):
             if not file_header:
                 file_header = True
                 if msg[-1] != "":

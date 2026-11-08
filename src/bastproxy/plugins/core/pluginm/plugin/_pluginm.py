@@ -45,7 +45,7 @@ class PluginManager(BasePlugin):
         self.can_reload_f: bool = False
 
         self.api("libs.api:api.add")(
-            self.plugin_id, "save.all.plugins.state", self._api_save_all_plugins_state
+            self.plugin_id, "plugin.state.save.all", self._api_plugin_state_save_all
         )
 
     def _command_helper_format_plugin_list(
@@ -68,7 +68,7 @@ class PluginManager(BasePlugin):
         foundrequired = False
         data = []
         for plugin_id in plugins:
-            plugin_info = self.api("libs.plugins.loader:get.plugin.info")(plugin_id)
+            plugin_info = self.api("libs.plugins.loader:plugin.info.get")(plugin_id)
             plugin_color = required_color if plugin_info.is_required else ""
             if plugin_color:
                 foundrequired = True
@@ -103,14 +103,14 @@ class PluginManager(BasePlugin):
             else:
                 package = f"plugins.{package}"
 
-        loaded_plugins_by_id = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
         if plist := [
             plugin_id
             for plugin_id in loaded_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).package == package
+            if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).package == package
         ]:
             plugins = sorted(plist)
-            desc = _package_description(self.api("libs.plugins.loader:get.plugin.info")(plugins[0]))
+            desc = _package_description(self.api("libs.plugins.loader:plugin.info.get")(plugins[0]))
             msg.extend(
                 self._command_helper_format_plugin_list(
                     plugins, f"Plugins in {package}{f' - {desc}' if desc else ''}"
@@ -128,9 +128,9 @@ class PluginManager(BasePlugin):
         Returns:
           a list of strings
         """
-        packages_list = self.api("libs.plugins.loader:get.packages.list")()
+        packages_list = self.api("libs.plugins.loader:package.list")()
         packages = {
-            package: self.api("libs.plugins.loader:get.plugins.in.package")(package)
+            package: self.api("libs.plugins.loader:plugin.list.in.package")(package)
             for package in packages_list
         }
         # one table so every row shares one column layout; core plugins come first
@@ -147,13 +147,13 @@ class PluginManager(BasePlugin):
     # get plugins that are change on disk
     def _get_changed_plugins(self):
         """Create a message of loaded plugins that are changed on disk."""
-        loaded_plugins_by_id = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         msg = []
         if list_to_format := [
             plugin_id
             for plugin_id in loaded_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).get_changed_files()
+            if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).get_changed_files()
         ]:
             msg = self._command_helper_format_plugin_list(list_to_format, "Changed Plugins")
 
@@ -161,12 +161,12 @@ class PluginManager(BasePlugin):
 
     def _get_invalid_plugins(self):
         """Create a message of plugins that are invalid python code."""
-        all_plugins_by_id = self.api("libs.plugins.loader:get.all.plugins")()
+        all_plugins_by_id = self.api("libs.plugins.loader:plugin.list")()
         msg = []
         if list_to_format := [
             plugin_id
             for plugin_id in all_plugins_by_id
-            if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).get_invalid_python_files()
+            if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).get_invalid_python_files()
         ]:
             msg = self._command_helper_format_plugin_list(
                 list_to_format, "Plugins with invalid python code"
@@ -178,7 +178,7 @@ class PluginManager(BasePlugin):
     def _get_not_loaded_plugins(self):
         """Create a message of all not loaded plugins."""
         msg = []
-        not_loaded_plugins = self.api("libs.plugins.loader:get.not.loaded.plugins")()
+        not_loaded_plugins = self.api("libs.plugins.loader:plugin.list.not.loaded")()
         msg = self._command_helper_format_plugin_list(not_loaded_plugins, "Not Loaded Plugins")
 
         return msg or ["There are no plugins that are not loaded"]
@@ -236,7 +236,7 @@ class PluginManager(BasePlugin):
         plugins_to_load = []
 
         for plugin in plugins_to_load_setting[:]:
-            if not self.api("libs.plugins.loader:does.plugin.exist")(plugin):
+            if not self.api("libs.plugins.loader:plugin.exists")(plugin):
                 LogRecord(
                     f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
                     level="error",
@@ -245,7 +245,7 @@ class PluginManager(BasePlugin):
                 plugins_to_load_setting.remove(plugin)
                 continue
 
-            if self.api("libs.plugins.loader:is.plugin.loaded")(plugin):
+            if self.api("libs.plugins.loader:plugin.is.loaded")(plugin):
                 LogRecord(
                     f"plugin {plugin} was marked to load at startup and is already loaded, removing from startup",
                     level="debug",
@@ -254,7 +254,7 @@ class PluginManager(BasePlugin):
                 plugins_to_load_setting.remove(plugin)
                 continue
 
-            if self.api("libs.plugins.loader:get.plugin.info")(plugin).is_dev:
+            if self.api("libs.plugins.loader:plugin.info.get")(plugin).is_dev:
                 LogRecord(
                     f"plugin {plugin} was marked to load at startup and is a dev plugin, removing from startup",
                     level="debug",
@@ -271,18 +271,22 @@ class PluginManager(BasePlugin):
 
         if plugins_to_load_setting:
             LogRecord("Loading other plugins", level="info", sources=[self.plugin_id])()
-            self.api("libs.plugins.loader:load.plugins")(plugins_to_load_setting)
+            self.api("libs.plugins.loader:plugin.load")(plugins_to_load_setting)
             LogRecord("Finished loading other plugins", level="info", sources=[self.plugin_id])()
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
     def _eventcb_shutdown(self, _=None):
         """Do tasks on shutdown."""
-        self.api(f"{self.plugin_id}:save.all.plugins.state")()
+        self.api(f"{self.plugin_id}:plugin.state.save.all")()
 
     # save all plugins
-    def _api_save_all_plugins_state(self, _=None):
-        """Save all plugins."""
-        for plugin_id in self.api("libs.plugins.loader:get.loaded.plugins.list")():
+    def _api_plugin_state_save_all(self, _=None):
+        """Save every loaded plugin.
+
+        Unlike the base ``plugin.state.save`` API, which saves one plugin, this
+        calls ``plugin.state.save`` on each loaded plugin.
+        """
+        for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
             self.api(f"{plugin_id}:plugin.state.save")()
 
     @AddParser(description="load a plugin")
@@ -309,15 +313,15 @@ class PluginManager(BasePlugin):
         if not plugin_id:
             return False, ["No plugin specified"]
 
-        if self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id):
+        if self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
             return True, [f"Plugin {plugin_id} is already loaded"]
 
-        not_loaded_plugins_by_id = self.api("libs.plugins.loader:get.not.loaded.plugins")()
+        not_loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.not.loaded")()
 
         if plugin_id and plugin_id not in not_loaded_plugins_by_id:
             return True, [f"Plugin {plugin_id} not found"]
 
-        plugin_response = self.api("libs.plugins.loader:load.plugins")([plugin_id])
+        plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
 
         tmsg = []
         if plugin_response["loaded_plugins"]:
@@ -369,13 +373,13 @@ class PluginManager(BasePlugin):
         if not plugin_id:
             return False, ["No plugin specified"]
 
-        if not self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id):
+        if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
             return True, [f"Plugin {plugin_id} is not loaded"]
 
-        if self.api("libs.plugins.loader:get.plugin.info")(plugin_id).is_required:
+        if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).is_required:
             return False, [f"Plugin {plugin_id} is required and cannot be unloaded"]
 
-        if self.api("libs.plugins.loader:unload.plugin")(plugin_id):
+        if self.api("libs.plugins.loader:plugin.unload")(plugin_id):
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
@@ -400,7 +404,7 @@ class PluginManager(BasePlugin):
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
         self.api(f"{args['plugin']}:plugin.reloading.set")()
@@ -408,7 +412,7 @@ class PluginManager(BasePlugin):
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
-        if not self.api("libs.plugins.loader:reload.plugin")(args["plugin"]):
+        if not self.api("libs.plugins.loader:plugin.reload")(args["plugin"]):
             if args["plugin"] in plugins_to_load_setting:
                 plugins_to_load_setting.remove(args["plugin"])
                 self.api("plugins.core.settings:setting.set")(
@@ -432,16 +436,16 @@ class PluginManager(BasePlugin):
         """
         self._load_other_plugins_after_core_and_client_plugins()
 
-        loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
         for plugin_id in loaded_plugins:
             self.api("plugins.core.events:event.raise")(f"ev_{plugin_id}_loaded")
             self.api("plugins.core.events:event.raise")(
                 "ev_plugin_loaded", event_args={"plugin_id": plugin_id}
             )
 
-        self.api(f"{self.plugin_id}:save.all.plugins.state")()
+        self.api(f"{self.plugin_id}:plugin.state.save.all")()
         self.api("plugins.core.timers:add.timer")(
-            "global_save", self._api_save_all_plugins_state, 60, unique=True, log=False
+            "global_save", self._api_plugin_state_save_all, 60, unique=True, log=False
         )
 
     # initialize this plugin

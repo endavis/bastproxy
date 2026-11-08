@@ -277,7 +277,7 @@ class CommandsPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id],
         )()
-        for plugin_id in self.api("libs.plugins.loader:get.loaded.plugins.list")():
+        for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
             LogRecord(
                 f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}",
                 level="debug",
@@ -308,7 +308,7 @@ class CommandsPlugin(BasePlugin):
 
     def update_commands_for_plugin(self, plugin_id):
         """Update all commands for a plugin."""
-        plugin_instance = self.api("libs.plugins.loader:get.plugin.instance")(plugin_id)
+        plugin_instance = self.api("libs.plugins.loader:plugin.instance.get")(plugin_id)
         command_functions = self.get_command_functions_in_object(plugin_instance)
         LogRecord(
             f"update_commands_for_plugin: {plugin_id} has {len(command_functions)} commands",
@@ -507,7 +507,7 @@ class CommandsPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, plugin_id],
         )()
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             # remove commands from _command_list that belong to plugin_id
             prefix = f"{plugin_id}."
             self.commands_list = [
@@ -549,7 +549,7 @@ class CommandsPlugin(BasePlugin):
         """
         # get the command data for the plugin
 
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id) and (
+        if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id) and (
             command_data := self.get_command_data_from_plugin(plugin_id, command_name)
         ):
             return command_data.arg_parser.format_help()
@@ -564,7 +564,7 @@ class CommandsPlugin(BasePlugin):
 
         returns a dictionary of commands
         """
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             return self.command_data[plugin_id]
         return {}
 
@@ -657,7 +657,7 @@ class CommandsPlugin(BasePlugin):
 
         """
         # find the instance
-        if self.api("libs.plugins.loader:is.plugin.id")(plugin_id) and (
+        if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id) and (
             data := self.command_data[plugin_id]
         ):
             # return the command
@@ -678,7 +678,7 @@ class CommandsPlugin(BasePlugin):
             True if successful, False if not successful.
 
         """
-        if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             LogRecord(
                 f"commands - update_command: plugin {plugin_id} does not exist",
                 level="debug",
@@ -882,7 +882,7 @@ class CommandsPlugin(BasePlugin):
 
         plugins = [
             line.replace("plugins.", "")
-            for line in self.api("libs.plugins.loader:get.plugins.in.package")(package)
+            for line in self.api("libs.plugins.loader:plugin.list.in.package")(package)
         ]
 
         message.extend(
@@ -918,7 +918,7 @@ class CommandsPlugin(BasePlugin):
             *self.api(f"{self.plugin_id}:output.header.format")("Available Packages"),
             *[
                 line.replace("plugins.", "")
-                for line in self.api("libs.plugins.loader:get.packages.list")(active_only=True)
+                for line in self.api("libs.plugins.loader:package.list")(active_only=True)
             ],
         ]
         return self.proxy_help("Proxy Help", "", message)
@@ -931,7 +931,7 @@ class CommandsPlugin(BasePlugin):
             *self.api(f"{self.plugin_id}:output.header.format")("Available Packages"),
             *[
                 line.replace("plugins.", "")
-                for line in self.api("libs.plugins.loader:get.packages.list")(active_only=True)
+                for line in self.api("libs.plugins.loader:package.list")(active_only=True)
             ],
         ]
         return self.proxy_help("Proxy Help", "", message)
@@ -1055,7 +1055,7 @@ class CommandsPlugin(BasePlugin):
 
         plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
 
-        new_package, new_plugin = self.api("libs.plugins.loader:fuzzy.match.plugin.id")(
+        new_package, new_plugin = self.api("libs.plugins.loader:plugin.id.match")(
             plugin_id_temp_str, active_only=True
         )
 
@@ -1236,7 +1236,7 @@ class CommandsPlugin(BasePlugin):
 
         this function returns no values
         """
-        if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             LogRecord(
                 f"remove command: plugin {plugin_id} does not exist",
                 level="warning",
@@ -1301,7 +1301,7 @@ class CommandsPlugin(BasePlugin):
             A list of strings for the list of commands.
 
         """
-        if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             return []
 
         output_subheader_color = self.api("plugins.core.settings:setting.get")(
@@ -1361,12 +1361,12 @@ class CommandsPlugin(BasePlugin):
         if package:
             plugin_id_list = [
                 item.replace("plugins.", "")
-                for item in self.api("libs.plugins.loader:get.plugins.in.package")(package)
+                for item in self.api("libs.plugins.loader:plugin.list.in.package")(package)
             ]
         else:
             plugin_id_list = [
                 item.replace("plugins.", "")
-                for item in self.api("libs.plugins.loader:get.loaded.plugins.list")()
+                for item in self.api("libs.plugins.loader:plugin.list.loaded")()
             ]
 
         if plugin_id_list := sorted(plugin_id_list):
@@ -1398,7 +1398,7 @@ class CommandsPlugin(BasePlugin):
         command = args["command"]
         plugin_id = args["plugin"]
 
-        if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             return True, self.api(f"{self.plugin_id}:plugin.list.formatted")(package=plugin_id)
 
         if plugin_commands := self.command_data[plugin_id]:

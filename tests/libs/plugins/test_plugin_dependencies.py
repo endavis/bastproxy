@@ -109,8 +109,8 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     setattr(loader, "test_settings", settings)  # noqa: B010
 
     apis: dict[str, Callable[..., Any]] = {
-        "unload.plugin": loader._api_unload_plugin,
-        "load.plugins": loader._api_load_plugins,
+        "plugin.unload": loader._api_plugin_unload,
+        "plugin.load": loader._api_plugin_load,
         "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
         "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
             {name: value}
@@ -118,7 +118,7 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     }
 
     def _api(name: str) -> Callable[..., Any]:
-        key = name.split(":", 1)[1] if name.endswith((":unload.plugin", ":load.plugins")) else name
+        key = name.split(":", 1)[1] if name.endswith((":plugin.unload", ":plugin.load")) else name
         return apis.get(key, MagicMock())
 
     loader.api = MagicMock(side_effect=_api)
@@ -217,7 +217,7 @@ def test_dependency_loads_and_initializes_first(env: Env) -> None:
     _write_plugin(root, "b", _dep("a"))
     loader = factory()
 
-    result = loader._api_load_plugins([_package("b")])
+    result = loader._api_plugin_load([_package("b")])
     assert result["bad_plugins"] == []
     assert result["loaded_plugins"] == [_package("a"), _package("b")]
     assert [e for e in _events() if e[0] == "initialize"] == [
@@ -231,7 +231,7 @@ def test_missing_dependency_fails_dependent_and_leaves_no_modules(env: Env) -> N
     _write_plugin(root, "b", f"PLUGIN_DEPENDENCIES = ['{ROOT_PKG}.test.ghost']\n")
     loader = factory()
 
-    result = loader._api_load_plugins([_package("b")])
+    result = loader._api_plugin_load([_package("b")])
     assert _package("b") in result["bad_plugins"]
     assert result["loaded_plugins"] == []
     assert not [n for n in sys.modules if n.startswith(_package("b"))]
@@ -245,7 +245,7 @@ def test_failing_dependency_fails_dependent_but_not_unrelated(env: Env) -> None:
     _write_plugin(root, "c")
     loader = factory()
 
-    result = loader._api_load_plugins([_package("b"), _package("c")])
+    result = loader._api_plugin_load([_package("b"), _package("c")])
     assert set(result["bad_plugins"]) == {_package("a"), _package("b")}
     assert result["loaded_plugins"] == [_package("c")]
     assert ("initialize", _package("b")) not in _events()
@@ -256,7 +256,7 @@ def test_unknown_plugin_id_is_reported_not_raised(env: Env) -> None:
     root, factory = env
     _write_plugin(root, "a")
     loader = factory()
-    result = loader._api_load_plugins(["nope", _package("a")])
+    result = loader._api_plugin_load(["nope", _package("a")])
     assert result["bad_plugins"] == ["nope"]
     assert result["loaded_plugins"] == [_package("a")]
 
@@ -273,12 +273,12 @@ def test_reload_with_flag_reloads_dependents_in_order(env: Env) -> None:
     root, factory = env
     ids = _chain(root, flag=True)
     loader = factory()
-    assert loader._api_load_plugins(ids)["bad_plugins"] == []
+    assert loader._api_plugin_load(ids)["bad_plugins"] == []
     old = {p: loader.plugins_info[p].runtime_info.plugin_instance for p in ids}
     _settings(loader)["pluginstoload"] = [ids[1], ids[2]]
     sys.modules[RECORDER].events.clear()
 
-    assert loader._api_reload_plugin(ids[0]) is True
+    assert loader._api_plugin_reload(ids[0]) is True
 
     events = _events()
     assert [e[1] for e in events if e[0] == "uninitialize"] == [ids[2], ids[1], ids[0]]
@@ -294,10 +294,10 @@ def test_reload_without_flag_reloads_only_the_plugin(env: Env) -> None:
     root, factory = env
     ids = _chain(root, flag=False)
     loader = factory()
-    loader._api_load_plugins(ids)
+    loader._api_plugin_load(ids)
     sys.modules[RECORDER].events.clear()
 
-    assert loader._api_reload_plugin(ids[0]) is True
+    assert loader._api_plugin_reload(ids[0]) is True
     assert _events() == [
         ("uninitialize", ids[0]),
         ("init", ids[0]),
@@ -310,10 +310,10 @@ def test_reload_refused_when_a_dependent_cannot_reload(env: Env) -> None:
     root, factory = env
     ids = _chain(root, flag=True, c_can_reload=False)
     loader = factory()
-    loader._api_load_plugins(ids)
+    loader._api_plugin_load(ids)
     sys.modules[RECORDER].events.clear()
 
-    assert loader._api_reload_plugin(ids[0]) is False
+    assert loader._api_plugin_reload(ids[0]) is False
     assert _events() == []
     assert all(loader.plugins_info[p].runtime_info.is_loaded for p in ids)
 
@@ -322,8 +322,8 @@ def test_reload_returns_false_when_new_code_fails(env: Env) -> None:
     root, factory = env
     _write_plugin(root, "a")
     loader = factory()
-    loader._api_load_plugins([_package("a")])
+    loader._api_plugin_load([_package("a")])
     _write_plugin(root, "a", fail_init=True)
 
-    assert loader._api_reload_plugin(_package("a")) is False
+    assert loader._api_plugin_reload(_package("a")) is False
     assert not loader.plugins_info[_package("a")].runtime_info.is_loaded

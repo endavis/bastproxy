@@ -178,7 +178,7 @@ class SettingsPlugin(BasePlugin):
 
         if value == "default":
             value = self.settings_info[plugin_id][setting].default
-        elif self.api("libs.plugins.loader:is.plugin.loaded")("plugins.core.utils"):
+        elif self.api("libs.plugins.loader:plugin.is.loaded")("plugins.core.utils"):
             value = self.api("plugins.core.utils:verify.value")(
                 value, self.settings_info[plugin_id][setting].stype
             )
@@ -191,7 +191,7 @@ class SettingsPlugin(BasePlugin):
         self.settings_values[plugin_id][setting] = value
         self.settings_values[plugin_id].sync()
 
-        if not self.api("libs.plugins.loader:is.plugin.loaded")(plugin_id) or self.api(
+        if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id) or self.api(
             "plugins.core.settings:setting.is.hidden"
         )(plugin_id, setting):
             return True
@@ -383,14 +383,14 @@ class SettingsPlugin(BasePlugin):
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
-        loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         default_message = ["No settings found"]
 
         settings = {}
         if args["plugin"]:
             default_message = [f"No settings found for {args['plugin']}"]
-            if self.api("libs.plugins.loader:is.plugin.loaded")(args["plugin"]):
+            if self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
                 settings[args["plugin"]] = self.api(f"{self.plugin_id}:setting.list")(
                     args["plugin"]
                 )

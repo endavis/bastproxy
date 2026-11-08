@@ -11,7 +11,7 @@ The loader imports the plugin class from ``<package>.plugin``
 bundled plugin and check that import step, then check the three test plugins
 that used the old flat layout.
 
-Covered of the ``load.plugins`` success criterion: discovery, metadata parsing
+Covered of the ``plugin.load`` success criterion: discovery, metadata parsing
 (``update_from_init``), the module import the loader performs in
 ``_import_single_plugin`` and the command lookup the commands plugin performs
 (``_command_`` prefix plus ``command_data``). Instantiation and the initialize

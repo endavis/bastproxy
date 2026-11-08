@@ -11,7 +11,7 @@ OTHER = "plugins.test.b"
 
 
 def _stub() -> tuple[MagicMock, list[str], list[str]]:
-    """Build a stub timers plugin; ``get.plugin.instance`` returns None (not loaded)."""
+    """Build a stub timers plugin; ``plugin.instance.get`` returns None (not loaded)."""
     stub = MagicMock()
     stub.plugin_id = "plugins.core.timers"
     stub.timer_lookup = {
@@ -24,7 +24,7 @@ def _stub() -> tuple[MagicMock, list[str], list[str]]:
 
     def api(name: str) -> Any:
         looked_up.append(name)
-        if name == "libs.plugins.loader:get.plugin.instance":
+        if name == "libs.plugins.loader:plugin.instance.get":
             return lambda _plugin_id: None
         if name == "plugins.core.timers:remove.timer":
             return removed.append
@@ -47,4 +47,4 @@ def test_remove_data_for_plugin_does_not_look_up_the_instance() -> None:
 
     TimersPlugin._api_remove_data_for_plugin(stub, PID)
 
-    assert "libs.plugins.loader:get.plugin.instance" not in looked_up
+    assert "libs.plugins.loader:plugin.instance.get" not in looked_up

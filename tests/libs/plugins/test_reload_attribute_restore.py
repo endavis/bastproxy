@@ -84,12 +84,12 @@ def test_restored_value_survives_init_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A value restored from the reload cache is not overwritten by a default."""
-    helper._api_add_cache(PLUGIN_ID, "counter", 42)
+    helper._api_cache_add(PLUGIN_ID, "counter", 42)
 
     instance = _load(plugin_cls, tmp_path, monkeypatch)
 
     assert instance.counter == 42  # type: ignore[attr-defined]
-    assert helper._api_get_plugin_cache(PLUGIN_ID) == {}
+    assert helper._api_cache_get(PLUGIN_ID) == {}
 
 
 def test_no_cache_keeps_defaults(

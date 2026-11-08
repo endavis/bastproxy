@@ -10,7 +10,7 @@ PID = "plugins.test.a"
 
 
 def _stub() -> tuple[MagicMock, list[str]]:
-    """Build a stub timers plugin; ``get.plugin.instance`` returns None (not loaded)."""
+    """Build a stub timers plugin; ``plugin.instance.get`` returns None (not loaded)."""
     stub = MagicMock()
     stub.plugin_id = "plugins.core.timers"
     stub.timer_lookup = {}
@@ -20,9 +20,9 @@ def _stub() -> tuple[MagicMock, list[str]]:
         looked_up.append(name)
         if name == "libs.api:caller.owner.get":
             return lambda **_kw: "plugins.test.caller"
-        if name == "libs.plugins.loader:get.plugin.instance":
+        if name == "libs.plugins.loader:plugin.instance.get":
             return lambda _plugin_id: None
-        if name == "libs.plugins.loader:is.plugin.id":
+        if name == "libs.plugins.loader:plugin.id.is.valid":
             return lambda _plugin_id: True
         return MagicMock()
 
@@ -37,7 +37,7 @@ def test_add_timer_accepts_string_plugin_id_for_unloaded_plugin() -> None:
 
     assert timer is not None
     assert timer.owner_id == PID
-    assert "libs.plugins.loader:get.plugin.instance" not in looked_up
+    assert "libs.plugins.loader:plugin.instance.get" not in looked_up
     stub._add_timer_internal.assert_called_once_with(timer)
 
 
