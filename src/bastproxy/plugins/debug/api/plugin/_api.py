@@ -50,7 +50,7 @@ class APIPlugin(BasePlugin):
             api = API(owner_id=f"{self.plugin_id}:_command_detail")
         if args["api"]:
             tmsg.extend(
-                api("libs.api:detail")(
+                api("libs.api:api.detail.get")(
                     args["api"],
                     stats_by_plugin=args["stats"],
                     stats_by_caller=args["statsdetail"],
@@ -83,7 +83,7 @@ class APIPlugin(BasePlugin):
         api = self.api
         if args["noplugin"]:
             api = API(owner_id=f"{self.plugin_id}:_command_list")
-        if apilist := api("libs.api:list.data")(args["toplevel"]):
+        if apilist := api("libs.api:data.list")(args["toplevel"]):
             api_columns = [
                 {"name": "API", "key": "full_api_name", "width": 5},
                 {"name": "Called", "key": "called_count", "width": 7},

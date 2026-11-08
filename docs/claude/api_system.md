@@ -156,7 +156,7 @@ The decorator marks the function with API metadata. During plugin initialization
 APIs can also be registered manually:
 
 ```python
-self.api("libs.api:add")(
+self.api("libs.api:api.add")(
     "my.plugin",           # top-level API
     "function.name",       # API name
     my_function,           # callable
@@ -182,7 +182,7 @@ result = self.api("plugins.core.events:event.raise")(
 api_item = self.api.get("plugins.core.events:event.raise")
 
 # Check if API exists
-if self.api("libs.api:has")("some.plugin:some.function"):
+if self.api("libs.api:api.exists")("some.plugin:some.function"):
     # API exists and its plugin is loaded
     result = self.api("some.plugin:some.function")(args)
 ```
@@ -211,7 +211,7 @@ Plugins automatically discover API functions during initialization:
 
 ```python
 # In BasePlugin.__initialize__()
-self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
+self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 ```
 
 This process:
@@ -224,7 +224,7 @@ This process:
 When a plugin is unloaded, all its APIs are removed:
 
 ```python
-self.api("libs.api:remove")("my.plugin")
+self.api("libs.api:api.toplevel.remove")("my.plugin")
 ```
 
 This removes all APIs with the top-level name `my.plugin:*`.
@@ -280,28 +280,28 @@ class AnotherPlugin(BasePlugin):
         )
 
         # Check if API exists before calling
-        if self.api("libs.api:has")("plugins.my.plugin:get.status"):
+        if self.api("libs.api:api.exists")("plugins.my.plugin:get.status"):
             status = self.api("plugins.my.plugin:get.status")()
 
         # Get detailed info about an API
-        details = self.api("libs.api:detail")("plugins.my.plugin:process.data")
+        details = self.api("libs.api:api.detail.get")("plugins.my.plugin:process.data")
 ```
 
 ### Listing APIs
 
 ```python
 # List all APIs
-all_apis = self.api("libs.api:list")()
+all_apis = self.api("libs.api:api.list.formatted")()
 
 # List APIs for a specific top-level
-plugin_apis = self.api("libs.api:list")("plugins.core.events")
+plugin_apis = self.api("libs.api:api.list.formatted")("plugins.core.events")
 
 # Get API data as a list of dicts
-api_data = self.api("libs.api:list.data")("plugins.core.events")
+api_data = self.api("libs.api:data.list")("plugins.core.events")
 # Returns: [{"toplevel": "...", "name": "...", "full_api_name": "...", ...}, ...]
 
 # Get children of a top-level API
-children = self.api("libs.api:get.children")("plugins.core.events")
+children = self.api("libs.api:api.list.in.toplevel")("plugins.core.events")
 # Returns: ["event.add", "event.raise", "event.current.record.get", ...]
 ```
 
@@ -309,7 +309,7 @@ children = self.api("libs.api:get.children")("plugins.core.events")
 
 ```python
 # Get detailed information about an API
-details = self.api("libs.api:detail")(
+details = self.api("libs.api:api.detail.get")(
     "plugins.core.events:event.raise",
     stats_by_plugin=True,        # Include statistics by plugin
     stats_by_caller="plugins.",  # Include stats for callers starting with "plugins."
@@ -403,7 +403,7 @@ The `{plugin_id}` is replaced with the actual plugin ID during registration.
 APIs can be overwritten with the `force` parameter:
 
 ```python
-self.api("libs.api:add")(
+self.api("libs.api:api.add")(
     "my.plugin",
     "function",
     new_function,
@@ -419,12 +419,12 @@ The API system tracks whether the character is active and ready for commands:
 
 ```python
 # Check if character is active
-if self.api("libs.api:is.character.active")():
+if self.api("libs.api:character.is.active")():
     # Send commands to the mud
     pass
 
 # Set the character as active
-self.api("libs.api:is.character.active:set")(True)
+self.api("libs.api:character.active.set")(True)
 ```
 
 Events are raised when the flag changes:
@@ -434,15 +434,19 @@ Events are raised when the flag changes:
 ## Common APIs
 
 ### Core API Functions
-- `libs.api:add` - Add a function to the API
-- `libs.api:has` - Check if an API exists
-- `libs.api:remove` - Remove a top-level API
-- `libs.api:detail` - Get detailed information about an API
-- `libs.api:list` - List all APIs or APIs for a top-level
-- `libs.api:list.data` - Get API data as structured dictionaries
-- `libs.api:get.children` - Get child APIs under a top-level
+- `libs.api:api.add` - Add a function to the API
+- `libs.api:api.exists` - Check if an API exists
+- `libs.api:api.toplevel.remove` - Remove a top-level API
+- `libs.api:api.detail.get` - Get detailed information about an API
+- `libs.api:api.list.formatted` - List all APIs or APIs for a top-level
+- `libs.api:data.list` - Get API data as structured dictionaries
+- `libs.api:api.list.in.toplevel` - Get child APIs under a top-level
 - `libs.api:data.get` - Get the raw APIItem for an API
-- `libs.api:add.apis.for.object` - Discover and register APIs in an object
+- `libs.api:api.add.for.object` - Discover and register APIs in an object
+- `libs.api:function.owner.get` - Get the plugin ID that owns a function
+- `libs.api:caller.owner.get` - Get the owner on top of the frame stack
+- `libs.api:character.is.active` / `libs.api:character.active.set` - Read and set the character-active flag
+- `libs.api:stack.dump` - Return a stack dump
 
 ### Plugin Loader APIs
 - `libs.plugins.loader:get.plugin.instance` - Get a loaded plugin instance
@@ -474,7 +478,7 @@ Events are raised when the flag changes:
 ### API Usage
 1. Always check if an API exists before calling (especially for optional plugins):
    ```python
-   if self.api("libs.api:has")("optional.plugin:function"):
+   if self.api("libs.api:api.exists")("optional.plugin:function"):
        result = self.api("optional.plugin:function")()
    ```
 2. Use the API for cross-plugin communication instead of direct imports

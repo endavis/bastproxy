@@ -44,7 +44,7 @@ class PluginManager(BasePlugin):
         """Initialize the instance."""
         self.can_reload_f: bool = False
 
-        self.api("libs.api:add")(
+        self.api("libs.api:api.add")(
             self.plugin_id, "save.all.plugins.state", self._api_save_all_plugins_state
         )
 

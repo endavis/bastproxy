@@ -182,7 +182,7 @@ class TrackedRecord(TrackedAttr):
         self.tracked_dict = {}
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
-        if self.api("libs.api:has")("plugins.core.events:event.stack.get"):
+        if self.api("libs.api:api.exists")("plugins.core.events:event.stack.get"):
             self.event_stack = self.api("plugins.core.events:event.stack.get")()
         else:
             self.event_stack = ["No event stack available"]
@@ -297,7 +297,7 @@ class TrackedRecord(TrackedAttr):
             None
 
         """
-        if "event_stack" not in change_log_entry.extra and self.api("libs.api:has")(
+        if "event_stack" not in change_log_entry.extra and self.api("libs.api:api.exists")(
             "plugins.core.events:event.stack.get"
         ):
             change_log_entry.extra["event_stack"] = self.api(

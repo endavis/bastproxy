@@ -29,7 +29,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         The only things that should be done are:
               initializing class variables and initializing the class
-              only use libs.api:add
+              only use libs.api:api.add
               anything that needs to be done so another plugin can interact with this plugin.
 
         Arguments and examples:
@@ -63,11 +63,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @RegisterPluginHook("__init__", priority=1)
     def _phook_base_init_add_apis(self):
         """Load any apis that were added in the __init__ method."""
-        self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
+        self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 
     @RegisterPluginHook("__init__", priority=75)
     def _phook_base_init(self):
-        self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
+        self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 
     def restore_reload_cache(self) -> None:
         """Restore the attributes saved before a reload.
@@ -354,11 +354,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         # initialize function) creates new objects that have apis
         # an example is the plugins.core.proxy plugin initialziing
         # new ssc objects in the initialize function
-        self.api("libs.api:add.apis.for.object")(self.plugin_id, self)
+        self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 
         if (
             self.api("plugins.core.proxy:is.mud.connected")()
-            and self.api("libs.api:is.character.active")()
+            and self.api("libs.api:character.is.active")()
         ):
             self._eventcb_baseplugin_after_character_is_active()
         else:
@@ -439,7 +439,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         )
 
         # remove anything out of the api
-        self.api("libs.api:remove")(self.plugin_id)
+        self.api("libs.api:api.toplevel.remove")(self.plugin_id)
 
     def uninitialize(self, _=None):
         """Uninitialize stuff."""

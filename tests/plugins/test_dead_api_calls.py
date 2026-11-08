@@ -15,9 +15,9 @@ def _base_stub(mud_connected: bool, character_active: bool) -> tuple[MagicMock, 
     def api(name: str) -> Any:
         if name == "plugins.core.proxy:is.mud.connected":
             return lambda: mud_connected
-        if name == "libs.api:is.character.active":
+        if name == "libs.api:character.is.active":
             return lambda: character_active
-        if name == "libs.api:add.apis.for.object":
+        if name == "libs.api:api.add.for.object":
             return MagicMock()
         if name == "plugins.core.events:event.register":
             return register
@@ -47,7 +47,7 @@ def test_post_initialize_runs_callback_when_connected_and_active() -> None:
 
 
 def test_trigger_remove_uses_existing_owner_api_name() -> None:
-    """With no owner_id, the owner is found through `libs.api:get.caller.owner`."""
+    """With no owner_id, the owner is found through `libs.api:caller.owner.get`."""
     names: list[str] = []
 
     def api(name: str) -> Any:
@@ -59,7 +59,7 @@ def test_trigger_remove_uses_existing_owner_api_name() -> None:
     stub.api = MagicMock(side_effect=api)
     stub.api.startup = True
     assert TriggersPlugin._api_trigger_remove(stub, "trig") is False
-    assert names == ["libs.api:get.caller.owner"]
+    assert names == ["libs.api:caller.owner.get"]
 
 
 def test_update_all_plugin_information_result_not_branched_on() -> None:

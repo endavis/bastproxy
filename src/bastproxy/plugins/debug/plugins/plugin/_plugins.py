@@ -93,7 +93,7 @@ class PluginsPlugin(BasePlugin):
 
         for plugin in loaded_plugins:
             api = f"{plugin}:summary.get.for.plugin"
-            if self.api("libs.api:has")(api):
+            if self.api("libs.api:api.exists")(api):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []
@@ -127,7 +127,7 @@ class PluginsPlugin(BasePlugin):
 
         for plugin in loaded_plugins:
             api = f"{plugin}:detail.get.for.plugin"
-            if self.api("libs.api:has")(api):
+            if self.api("libs.api:api.exists")(api):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []

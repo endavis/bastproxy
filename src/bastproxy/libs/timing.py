@@ -121,7 +121,7 @@ class Timing:
 
         self.timing: dict[str, Any] = {}
 
-        self.api("libs.api:add.apis.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(__name__, self)
 
     @AddAPI("toggle", description="toggle the enabled flag")
     def _api_toggle(self, tbool: bool | None = None) -> None:
@@ -164,7 +164,7 @@ class Timing:
         """
         uid = uuid4().hex
         if self.enabled:
-            owner_id = self.api("libs.api:get.caller.owner")()
+            owner_id = self.api("libs.api:caller.owner.get")()
             self.timing[uid] = {
                 "name": timername,
                 "start": default_timer(),
@@ -218,7 +218,7 @@ class Timing:
                     )()
                 del self.timing[uid]
                 return time_taken
-            owner_id = self.api("libs.api:get.caller.owner")()
+            owner_id = self.api("libs.api:caller.owner.get")()
             LogRecord(
                 f"finishtimer - {uid} not found - called from {owner_id}",
                 level="error",

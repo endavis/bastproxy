@@ -114,15 +114,15 @@ class TestAPIBasics:
         api.add("test", "function", helper_function_one, description="Test")
 
         # The built-in has API requires plugin loader APIs which don't exist
-        # in tests, so we test the underlying _api_has method is added
-        assert api("libs.api:has") is not None
+        # in tests, so we test the underlying _api_api_exists method is added
+        assert api("libs.api:api.exists") is not None
 
     def test_api_has_nonexistent_api(self) -> None:
         """Test that has() returns False for nonexistent APIs."""
         api = API(owner_id="test_owner")
 
         # Use the built-in has API
-        has_result = api("libs.api:has")("nonexistent:api")
+        has_result = api("libs.api:api.exists")("nonexistent:api")
         assert has_result is False
 
     def test_api_get_raises_attribute_error(self) -> None:
@@ -135,7 +135,7 @@ class TestAPIBasics:
             api.get("nonexistent:api")
 
     def test_api_has_only_swallows_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that _api_has returns False for not-found but propagates other AttributeErrors."""
+        """Test that _api_api_exists returns False for not-found but propagates other AttributeErrors."""
         api = API(owner_id="test_owner")
 
         def raise_not_found(_location: str) -> None:
@@ -147,11 +147,11 @@ class TestAPIBasics:
             raise AttributeError(msg)
 
         monkeypatch.setattr(api, "get", raise_not_found)
-        assert api._api_has("x:y") is False
+        assert api._api_api_exists("x:y") is False
 
         monkeypatch.setattr(api, "get", raise_attribute_error)
         with pytest.raises(AttributeError, match="unrelated bug"):
-            api._api_has("x:y")
+            api._api_api_exists("x:y")
 
 
 class TestAPINamespaces:
@@ -178,7 +178,7 @@ class TestAPINamespaces:
         api.add("parent", "child3", helper_function_three, description="Child 3")
 
         # Get children using the built-in API
-        children = api("libs.api:get.children")("parent")
+        children = api("libs.api:api.list.in.toplevel")("parent")
 
         assert "child1" in children
         assert "child2" in children
@@ -191,8 +191,8 @@ class TestAPINamespaces:
         api.add("parent", "child1", helper_function_one, description="Child 1")
 
         # Should work with or without trailing colon
-        children_with_colon = api("libs.api:get.children")("parent:")
-        children_without_colon = api("libs.api:get.children")("parent")
+        children_with_colon = api("libs.api:api.list.in.toplevel")("parent:")
+        children_without_colon = api("libs.api:api.list.in.toplevel")("parent")
 
         assert children_with_colon == children_without_colon
 
@@ -322,3 +322,53 @@ class TestAPIInstancePriority:
 
         assert instance_api_item.tfunction == helper_function_two
         assert instance_api_item.instance is True
+
+
+RENAMED_LIBS_API_NAMES: list[tuple[str, str]] = [
+    ("add", "api.add"),
+    ("has", "api.exists"),
+    ("add.apis.for.object", "api.add.for.object"),
+    ("remove", "api.toplevel.remove"),
+    ("get.children", "api.list.in.toplevel"),
+    ("detail", "api.detail.get"),
+    ("list", "api.list.formatted"),
+    ("list.data", "data.list"),
+    ("get.function.owner.plugin", "function.owner.get"),
+    ("get.caller.owner", "caller.owner.get"),
+    ("is.character.active", "character.is.active"),
+    ("is.character.active:set", "character.active.set"),
+    ("stackdump", "stack.dump"),
+]
+
+
+class TestLibsApiRenames:
+    """Test the ADR-0004 names of the APIs libs.api registers on itself."""
+
+    @pytest.mark.parametrize(("old", "new"), RENAMED_LIBS_API_NAMES)
+    def test_new_name_registered_old_name_gone(self, old: str, new: str) -> None:
+        """The new name resolves and the old name does not."""
+        api = API(owner_id="test_owner")
+
+        assert api.get(f"libs.api:{new}") is not None
+        with pytest.raises(APINotFoundError):
+            api.get(f"libs.api:{old}")
+
+    def test_character_active_round_trip(self) -> None:
+        """character.active.set is read back by character.is.active."""
+        api = API(owner_id="test_owner")
+        raised: list[str] = []
+
+        def fake_event_raise(event_name: str, **_kwargs: object) -> None:
+            raised.append(event_name)
+
+        api.add("plugins.core.events", "event.raise", fake_event_raise, instance=True, force=True)
+        original = API.is_character_active
+        try:
+            api("libs.api:character.active.set")(True)
+            assert api("libs.api:character.is.active")() is True
+            api("libs.api:character.active.set")(False)
+            assert api("libs.api:character.is.active")() is False
+        finally:
+            API.is_character_active = original
+
+        assert raised == ["ev_libs.api_character_active", "ev_libs.api_character_inactive"]

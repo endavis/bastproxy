@@ -189,7 +189,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_register(self, trigger_name, function, **kwargs):
         """Register a function to a trigger."""
         if trigger_name not in self.triggers:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
         return self.api("plugins.core.events:event.register")(
             self.triggers[trigger_name].event_name, function, *kwargs
@@ -199,7 +199,7 @@ class TriggersPlugin(BasePlugin):
     def _api_trigger_unregister(self, trigger_name, function):
         """Unregister a function from a trigger."""
         if trigger_name not in self.triggers:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
         return self.api("plugins.core.events:event.unregister")(
             self.triggers[trigger_name].event_name, function
@@ -208,7 +208,7 @@ class TriggersPlugin(BasePlugin):
     @AddAPI("trigger.update", description="update a trigger without deleting it")
     def _api_trigger_update(self, trigger_name, trigger_data):
         """Update a trigger without deleting it."""
-        owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+        owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
         if trigger_id not in self.triggers:
@@ -305,7 +305,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             print("could not add a owner for trigger name", trigger_name)
@@ -400,7 +400,7 @@ class TriggersPlugin(BasePlugin):
                                   False if it wasn't
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
             LogRecord(
@@ -468,7 +468,7 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_name@w   = The trigger name.
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         return self.triggers.get(trigger_id, None)
@@ -504,7 +504,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
@@ -537,7 +537,7 @@ class TriggersPlugin(BasePlugin):
         this function returns no values
         """
         if not owner_id:
-            owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:

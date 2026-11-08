@@ -88,7 +88,7 @@ class CustomColorFormatter(logging.Formatter):
                     record.msg += "\n".join(formatted_exc_no_newline)
                 record.exc_info = None
                 record.exc_text = None
-            if self.api("libs.api:has")("plugins.core.log:get.level.color") and (
+            if self.api("libs.api:api.exists")("plugins.core.log:get.level.color") and (
                 color := self.api("plugins.core.log:get.level.color")(record.levelno)
             ):
                 log_fmt = f"\x1b[{ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
@@ -115,7 +115,7 @@ class CustomConsoleHandler(logging.StreamHandler):
         update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
-                not self.api("libs.api:has")("plugins.core.log:can.log.to.console")
+                not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.console")
                 or self.api("plugins.core.log:can.log.to.console")(record.name, record.levelno)
             )
             if isinstance(record.msg, LogRecord):
@@ -148,7 +148,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
-                not self.api("libs.api:has")("plugins.core.log:can.log.to.file")
+                not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.file")
                 or self.api("plugins.core.log:can.log.to.file")(record.name, record.levelno)
             )
             if isinstance(record.msg, LogRecord):
@@ -171,7 +171,7 @@ class CustomClientHandler(logging.Handler):
         if self.api.startup:
             return
 
-        if not self.api("libs.api:has")("plugins.core.log:can.log.to.client"):
+        if not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.client"):
             return
 
         update_type_counts(record.name, record.levelno)
@@ -180,7 +180,7 @@ class CustomClientHandler(logging.Handler):
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if isinstance(record.msg, LogRecord):
-                if self.api("libs.api:has")("plugins.core.log:get.level.color"):
+                if self.api("libs.api:api.exists")("plugins.core.log:get.level.color"):
                     color = self.api("plugins.core.log:get.level.color")(record.levelno)
                 else:
                     color = None

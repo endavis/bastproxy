@@ -28,7 +28,7 @@ def _stub() -> MagicMock:
             return lambda: {"plugin_id": PID}
         if name == "plugins.core.cmdq:remove.mud.commands.for.plugin":
             return lambda p: CMDQPlugin._api_remove_mud_commands_for_plugin(stub, p)
-        if name == "libs.api:get.caller.owner":
+        if name == "libs.api:caller.owner.get":
             return lambda **k: PID
         return lambda *a, **k: None
 

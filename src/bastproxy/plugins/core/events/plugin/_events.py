@@ -273,7 +273,7 @@ class EventsPlugin(BasePlugin):
         this function returns no values
         """
         priority = kwargs.get("prio", 50)
-        func_owner_id = self.api("libs.api:get.function.owner.plugin")(func)
+        func_owner_id = self.api("libs.api:function.owner.get")(func)
 
         if not func_owner_id:
             LogRecord(
@@ -385,7 +385,7 @@ class EventsPlugin(BasePlugin):
             event_args = {}
 
         if not calledfrom:
-            calledfrom = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            calledfrom = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not calledfrom:
             LogRecord(

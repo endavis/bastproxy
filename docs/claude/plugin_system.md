@@ -340,7 +340,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
    plugin is flagged loaded. A plugin that failed to load is not uninitialized, but the loader
-   raises `ev_plugin_unloaded` and calls `libs.api:remove` for it, so the events, commands,
+   raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` for it, so the events, commands,
    settings, timers, triggers, watch and cmdq cleanup handlers run.
    ```python
    @RegisterPluginHook("uninitialize", priority=50)
@@ -353,7 +353,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    - calls `plugin.state.save`
    - caches `attributes_to_save_on_reload` if `is_reloading_f` is set
    - raises `ev_<plugin_id>_unloaded` and `ev_plugin_unloaded`
-   - removes the plugin's APIs with `libs.api:remove`
+   - removes the plugin's APIs with `libs.api:api.toplevel.remove`
 
 3. **`ev_plugin_unloaded` handlers** do the per-subsystem cleanup, each for the plugin ID in
    the event: the events plugin removes the plugin's event registrations, the commands plugin

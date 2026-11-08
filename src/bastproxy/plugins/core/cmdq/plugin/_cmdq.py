@@ -83,7 +83,7 @@ class CMDQPlugin(BasePlugin):
     @AddAPI("type.add", description="add a command type")
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
         """Add a command type."""
-        owner = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+        owner = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         beforef = kwargs.get("beforef")
         afterf = kwargs.get("afterf")
         if "plugin" in kwargs:
@@ -173,7 +173,7 @@ class CMDQPlugin(BasePlugin):
     @AddAPI("queue.add.command", description="add a command to the plugin")
     def _api_queue_add_command(self, cmdtype, arguments=""):
         """Add a command to the queue."""
-        plugin = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+        plugin = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]["cmd"]
         if arguments:
             cmd = f"{cmd} {arguments!s}"

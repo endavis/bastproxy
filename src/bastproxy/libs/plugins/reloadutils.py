@@ -63,7 +63,7 @@ class ReloadHelper:
         """
         self.api = API(owner_id=f"{__name__}")
         self.reload_cache = {}
-        self.api("libs.api:add.apis.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(__name__, self)
 
     @AddAPI("add.cache", description="add data to the cache")
     def _api_add_cache(self, plugin_id: str, data_name: str, data: Any) -> None:

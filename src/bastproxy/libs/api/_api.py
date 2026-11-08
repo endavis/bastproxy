@@ -130,57 +130,57 @@ class API:  # sourcery skip: upper-camel-case-classes
         # added functions
         self.add(
             APILOCATION,
-            "add",
+            "api.add",
             self.add,
             instance=True,
             description="add a function to the api",
         )
         self.add(
             APILOCATION,
-            "has",
-            self._api_has,
+            "api.exists",
+            self._api_api_exists,
             instance=True,
             description="check to see if something exists in the api",
         )
         self.add(
             APILOCATION,
-            "add.apis.for.object",
-            self._api_add_apis_for_object,
+            "api.add.for.object",
+            self._api_api_add_for_object,
             instance=True,
             description="add apis for an object",
         )
         self.add(
             APILOCATION,
-            "remove",
-            self._api_remove,
+            "api.toplevel.remove",
+            self._api_api_toplevel_remove,
             instance=True,
             description="remove a toplevel api",
         )
         self.add(
             APILOCATION,
-            "get.children",
-            self._api_get_children,
+            "api.list.in.toplevel",
+            self._api_api_list_in_toplevel,
             instance=True,
             description="return a list of apis in a toplevel api",
         )
         self.add(
             APILOCATION,
-            "detail",
-            self._api_detail,
+            "api.detail.get",
+            self._api_api_detail_get,
             instance=True,
             description="return the detail of an api function",
         )
         self.add(
             APILOCATION,
-            "list",
-            self._api_list,
+            "api.list.formatted",
+            self._api_api_list_formatted,
             instance=True,
             description="return a formatted list of functions in an api",
         )
         self.add(
             APILOCATION,
-            "list.data",
-            self._api_list_data,
+            "data.list",
+            self._api_data_list,
             instance=True,
             description="return a dict of api data",
         )
@@ -193,41 +193,41 @@ class API:  # sourcery skip: upper-camel-case-classes
         )
         self.add(
             APILOCATION,
-            "get.function.owner.plugin",
-            self._api_get_function_owner_plugin,
+            "function.owner.get",
+            self._api_function_owner_get,
             instance=True,
             description="get the plugin_id of the plugin that owns the function",
         )
         self.add(
             APILOCATION,
-            "get.caller.owner",
-            self._api_get_caller_owner,
+            "caller.owner.get",
+            self._api_caller_owner_get,
             instance=True,
             description="get the plugin on the top of the frame stack",
         )
         self.add(
             APILOCATION,
-            "is.character.active",
-            self._api_is_character_active_get,
+            "character.is.active",
+            self._api_character_is_active,
             instance=True,
             description="returns the is_character_active flag",
         )
         self.add(
             APILOCATION,
-            "is.character.active:set",
-            self._api_is_character_active_set,
+            "character.active.set",
+            self._api_character_active_set,
             instance=True,
             description="set the is_character_active flag",
         )
         self.add(
             APILOCATION,
-            "stackdump",
+            "stack.dump",
             stackdump,
             instance=True,
             description="return a stackdump",
         )
 
-    def _api_add_apis_for_object(self, toplevel, item) -> None:
+    def _api_api_add_for_object(self, toplevel, item) -> None:
         """Add APIs for an object to a top-level API.
 
         This method adds all API callables found in the given object to the specified
@@ -255,20 +255,20 @@ class API:  # sourcery skip: upper-camel-case-classes
                     toplevel = toplevel.removeprefix(prefix)
 
         LogRecord(
-            f"_api_add_apis_for_object: {item} {toplevel}",
+            f"_api_api_add_for_object: {item} {toplevel}",
             level=self.log_level,
             sources=[__name__, toplevel],
         )()
         api_functions = self.get_api_functions_in_object(item)
         LogRecord(
-            f"_api_add_apis_for_object: {toplevel}:{item} has {len(api_functions)} api functions",
+            f"_api_api_add_for_object: {toplevel}:{item} has {len(api_functions)} api functions",
             level=self.log_level,
             sources=[__name__, toplevel],
         )()
         if api_functions:
             names = [item.__name__ for item in api_functions]
             LogRecord(
-                f"_api_add_apis_for_object {names = }",
+                f"_api_api_add_for_object {names = }",
                 level=self.log_level,
                 sources=[__name__, toplevel],
             )()
@@ -288,7 +288,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                     instance = func.api["instance"]  # type: ignore
                     if not instance:
                         func.api["addedin"][toplevel].append(api_name)  # type: ignore
-                    self(f"{APILOCATION}:add")(
+                    self(f"{APILOCATION}:api.add")(
                         toplevel,
                         api_name,
                         func,
@@ -372,7 +372,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             arg_descriptions={"is_character_active": "The state of the is_character_active flag"},
         )
 
-    def _api_is_character_active_get(self) -> bool:
+    def _api_character_is_active(self) -> bool:
         """Return the is_character_active flag.
 
         This method returns the current state of the is_character_active flag,
@@ -390,7 +390,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         return self.is_character_active
 
-    def _api_is_character_active_set(self, flag: bool) -> None:
+    def _api_character_active_set(self, flag: bool) -> None:
         """Set the is_character_active flag.
 
         This method sets the is_character_active flag to the given value and raises
@@ -497,13 +497,13 @@ class API:  # sourcery skip: upper-camel-case-classes
 
                     added_in = self._class_api[api_item.full_api_name].owner_id
                     LogRecord(
-                        f"libs.api:add - {api_item.full_api_name} already exists from "
+                        f"libs.api:api.add - {api_item.full_api_name} already exists from "
                         f"plugin {added_in}",
                         level="error",
                         sources=[__name__, self.owner_id],
                     )()
                 except ImportError:
-                    print(f"libs.api:add - {api_item.full_api_name} already exists")
+                    print(f"libs.api:api.add - {api_item.full_api_name} already exists")
                     return False
         else:
             self._class_api[api_item.full_api_name] = api_item
@@ -559,7 +559,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         return True
 
     # find the caller of this api
-    def _api_get_caller_owner(self, ignore_owner_list: list[str] | None = None) -> str:
+    def _api_caller_owner_get(self, ignore_owner_list: list[str] | None = None) -> str:
         """Get the plugin on the top of the frame stack.
 
         This method retrieves the owner identifier of the caller at the top of the
@@ -577,7 +577,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         return get_caller_owner_id(ignore_owner_list)
 
-    def _api_get_function_owner_plugin(self, tcallable: Callable) -> str:
+    def _api_function_owner_get(self, tcallable: Callable) -> str:
         """Get the plugin ID of the plugin that owns the function.
 
         This method retrieves the plugin identifier of the plugin that owns the
@@ -599,7 +599,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             plugin_id = tcallable.__self__.plugin_id  # type: ignore
         return plugin_id
 
-    def _api_remove(self, top_level_api: str) -> None:
+    def _api_api_toplevel_remove(self, top_level_api: str) -> None:
         """Remove a top-level API.
 
         This method removes all API callables associated with the specified top-level
@@ -619,7 +619,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         from bastproxy.libs.records import LogRecord
 
         LogRecord(
-            f"libs.api:remove - {top_level_api}",
+            f"libs.api:api.toplevel.remove - {top_level_api}",
             level="debug",
             sources=[__name__, top_level_api],
         )()
@@ -627,7 +627,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         class_keys = [item for item in self._class_api if item.startswith(api_toplevel)]
         LogRecord(
-            f"libs.api:remove class api - {class_keys =}",
+            f"libs.api:api.toplevel.remove class api - {class_keys =}",
             level="debug",
             sources=[__name__, top_level_api],
         )()
@@ -641,7 +641,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         instance_keys = [item for item in self._instance_api if item.startswith(api_toplevel)]
         LogRecord(
-            f"libs.api:remove instance api - {instance_keys =}",
+            f"libs.api:api.toplevel.remove instance api - {instance_keys =}",
             level="debug",
             sources=[__name__, top_level_api],
         )()
@@ -696,7 +696,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
     __call__ = get
 
-    def _api_get_children(self, parent_api: str) -> list[str]:
+    def _api_api_list_in_toplevel(self, parent_api: str) -> list[str]:
         """Return a list of APIs in a top-level API.
 
         This method retrieves a list of all API callables that are part of the
@@ -729,7 +729,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         return list(set(api_data))
 
-    def _api_has(self, api_location: str) -> bool:
+    def _api_api_exists(self, api_location: str) -> bool:
         """Check if an API location exists.
 
         This method checks whether the specified API location exists in the API.
@@ -760,7 +760,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             or self("libs.plugins.loader:is.plugin.instantiated")(API_item.owner_id)
         )
 
-    def _api_detail(
+    def _api_api_detail_get(
         self,
         api_location: str,
         stats_by_plugin: bool = False,
@@ -983,7 +983,7 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         return sorted(set(api_data))
 
-    def _api_list_data(self, top_level_api: str = "") -> list[dict]:
+    def _api_data_list(self, top_level_api: str = "") -> list[dict]:
         """Return a dict of API data.
 
         This method retrieves a dictionary containing data for all API callables,
@@ -1024,7 +1024,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         all_api_data.sort(key=lambda x: x["full_api_name"])
         return all_api_data
 
-    def _api_list(self, top_level_api: str = "") -> list[str]:
+    def _api_api_list_formatted(self, top_level_api: str = "") -> list[str]:
         """Return a formatted list of functions in an API.
 
         This method retrieves a list of all API callables, either for a specified
@@ -1104,35 +1104,35 @@ def test() -> None:  # sourcery skip: no-long-functions
     print("-" * 80)
     api = API()
     print("adding a.test:api")
-    api("libs.api:add")("a.test", "api", testapi)
+    api("libs.api:api.add")("a.test", "api", testapi)
     print("adding a.test:instance")
-    api("libs.api:add")("a.test", "instance", testapi)
+    api("libs.api:api.add")("a.test", "instance", testapi)
     print("adding a.test:some:api")
-    api("libs.api:add")("a.test", "some:api", testapi)
+    api("libs.api:api.add")("a.test", "some:api", testapi)
     print("called api a.test:api", api("a.test:api")("success"))
     print("called api a.test:instance", api("a.test:instance")("success"))
     print("called api a.test:some.api", api("a.test:some.api")("success"))
     print("dict api._class_api:\n", pprint.pformat(api._class_api))
     print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
     print("adding a.instance.api in instance api")
-    api("libs.api:add")("a.instance", "api", instancetestapi, instance=True)
+    api("libs.api:api.add")("a.instance", "api", instancetestapi, instance=True)
     print("adding a.test.instance in instance api")
-    api("libs.api:add")("a.test", "instance", instancetestapi, instance=True)
+    api("libs.api:api.add")("a.test", "instance", instancetestapi, instance=True)
     print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
     print("called api a.instance:api", api("a.instance:api")("success"))
     print("called api a.test:instance", api("a.test:instance")("success"))
     print("called api a.test:api", api("a.test:api")("success"))
-    print("api.has a.test:instance", api("libs.api:has")("a.test:instance"))
-    print("api.has a.test:instance2", api("libs.api:has")("a.test:instance2"))
-    print("api.has a.instance:api", api("libs.api:has")("a.instance:api"))
-    print("api.has a.test:some.api", api("libs.api:has")("a.test:some.api"))
+    print("api.has a.test:instance", api("libs.api:api.exists")("a.test:instance"))
+    print("api.has a.test:instance2", api("libs.api:api.exists")("a.test:instance2"))
+    print("api.has a.instance:api", api("libs.api:api.exists")("a.instance:api"))
+    print("api.has a.test:some.api", api("libs.api:api.exists")("a.test:some.api"))
     print("dict api._class_api:\n", pprint.pformat(api._class_api))
     print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
-    print("\n".join(api("libs.api:list")(top_level_api="test")))
+    print("\n".join(api("libs.api:api.list.formatted")(top_level_api="test")))
     print("--------------------")
-    print("\n".join(api("libs.api:list")()))
+    print("\n".join(api("libs.api:api.list.formatted")()))
     print("--------------------")
-    print("\n".join(api("libs.api:detail")("a.test:instance")))
+    print("\n".join(api("libs.api:api.detail.get")("a.test:instance")))
     print("--------------------")
 
     print("-" * 80)
@@ -1143,21 +1143,21 @@ def test() -> None:  # sourcery skip: no-long-functions
     print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
     print("api2 dict api2.api:\n", pprint.pformat(api2._class_api))
     print("api2 dict api2._instance_api:\n", pprint.pformat(api2._instance_api))
-    print("api2 api_has a.instance:api", api2("libs.api:has")("a.instance:api"))
-    print("api2 api_has a.instance:api", api2("libs.api:has")("a.test:instance"))
+    print("api2 api_has a.instance:api", api2("libs.api:api.exists")("a.instance:api"))
+    print("api2 api_has a.instance:api", api2("libs.api:api.exists")("a.test:instance"))
     print("api2 called a.test:api", api2("a.test:api")("success"))
     print("api2 called a.test:instance", api2("a.test:instance")("success"))
     print("api2 adding a.instance.api in instance api")
-    api2("libs.api:add")("a.instance", "api", instancetestapi2, instance=True)
+    api2("libs.api:api.add")("a.instance", "api", instancetestapi2, instance=True)
     print("api2 dict api._instance_api:\n", pprint.pformat(api2._instance_api))
     print("api2 called a.instance:api", api2("a.instance:api")("success"))
     print("api2 adding a.test.instance in instance api")
-    api2("libs.api:add")("a.test", "instance", instancetestapi2, instance=True)
+    api2("libs.api:api.add")("a.test", "instance", instancetestapi2, instance=True)
     print("api2 dict api2:class api:\n", pprint.pformat(api2._class_api))
     print("api2 dict api2:instance api:\n", pprint.pformat(api2._instance_api))
     print("api2 called a.test:instance", api2("a.test:instance")("success"))
     print("api2 called a.test:api", api2("a.test:api")("success"))
-    print("api2 api_has a.test:three", api2("libs.api:has")("a.test:three"))
+    print("api2 api_has a.test:three", api2("libs.api:api.exists")("a.test:three"))
     try:
         print("api2 called a.test:three", api2("a.test:three")("success"))
     except APINotFoundError:
