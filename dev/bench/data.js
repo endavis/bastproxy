@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794143345878,
+  "lastUpdate": 1794144080501,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4500,6 +4500,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000058299357402720775",
             "extra": "mean: 216.95646575046914 usec\nrounds: 4730"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a0f4d6b661584b3d188e0672f798b6e6a4e7b42a",
+          "message": "refactor: rename plugins.core.clients, proxy and errors APIs to the ADR-0004 form (merges PR #184, addresses #168)\n\nRename the 14 APIs of plugins.core.clients, plugins.core.errors and\nplugins.core.proxy to the resource-first form, with no aliases (ADR-0004\ndecision 6). Each _api_* method, every caller in src, the tests and\ndocs/claude use the new names, the 14 rows are removed from the grammar\ntest's legacy allowlist, and a test pins each new name registered and each\nold one gone. Wrong descriptions (mud.is.connected, client.list,\nerror.list) are fixed. Behaviour is unchanged.\n\nBREAKING CHANGE: these API names changed (old -> new):\n- plugins.core.clients: get.client -> client.get\n- plugins.core.clients: send.to.client -> client.send\n- plugins.core.clients: client.banned.check -> client.is.banned\n- plugins.core.clients: client.logged.in -> client.logged.in.set\n- plugins.core.clients: client.logged.in.view.only -> client.logged.in.set.view.only\n- plugins.core.clients: get.all.clients -> client.list\n- plugins.core.clients: get.clients.formatted -> client.list.formatted\n- plugins.core.errors: add -> error.add\n- plugins.core.errors: get -> error.list\n- plugins.core.errors: clear.all.errors -> error.clear\n- plugins.core.proxy: is.mud.connected -> mud.is.connected\n- plugins.core.proxy: get.mud.connection -> mud.connection.get\n- plugins.core.proxy: shutdown -> proxy.shutdown\n- plugins.core.proxy: restart -> proxy.restart\n\nAddresses #168\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T13:20:31Z",
+          "tree_id": "3362208f44254d25e57a1b5c6b57e300a817e5da",
+          "url": "https://github.com/endavis/bastproxy/commit/a0f4d6b661584b3d188e0672f798b6e6a4e7b42a"
+        },
+        "date": 1794144079632,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 392.54614536955467,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0005924989365382593",
+            "extra": "mean: 2.5474712000001176 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 13682.341590436214,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006113559237392643",
+            "extra": "mean: 73.08690500016368 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 362.5208540121642,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0010436475380094805",
+            "extra": "mean: 2.7584619999997173 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1185.3321312485182,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006974172943837954",
+            "extra": "mean: 843.6453999999926 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4310.847408738121,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002697445781151062",
+            "extra": "mean: 231.97295222581812 usec\nrounds: 4605"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 3731.9275230308162,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008514234902162788",
+            "extra": "mean: 267.95804415512026 usec\nrounds: 3918"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 7416.60405965411,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000035129149035914025",
+            "extra": "mean: 134.83259884937655 usec\nrounds: 7648"
           }
         ]
       }
