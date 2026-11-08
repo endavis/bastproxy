@@ -57,7 +57,7 @@ def _fake_api(name: str, requested: list[str]) -> Any:
     requested.append(name)
     if name == "plugins.core.commands:command.current.args.get":
         return lambda: {"plugin": "x"}
-    if name == "libs.plugins.loader:get.loaded.plugins.list":
+    if name == "libs.plugins.loader:plugin.list.loaded":
         return lambda: ["plugins.test.a"]
     if name == "libs.api:api.exists":
         return lambda api: True

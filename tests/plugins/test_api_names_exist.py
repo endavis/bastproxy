@@ -201,8 +201,8 @@ def test_scan_is_not_vacuous() -> None:
     assert len(calls) >= 100
     for known in (
         "libs.api:caller.owner.get",
-        "libs.plugins.loader:unload.plugin",
-        "plugins.core.pluginm:save.all.plugins.state",
+        "libs.plugins.loader:plugin.unload",
+        "plugins.core.pluginm:plugin.state.save.all",
         "libs.asynch:task.add",
         "plugins.core.errors:clear.all.errors",
     ):

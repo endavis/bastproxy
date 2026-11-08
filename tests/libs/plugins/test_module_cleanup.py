@@ -120,7 +120,7 @@ def test_failed_load_cleanup_keeps_canreload_false_module(
     loader.plugins_info = {package: info}
     loader.weak_references_to_modules = {}
     try:
-        result = loader._api_load_plugins([package])
+        result = loader._api_plugin_load([package])
         assert result["bad_plugins"] == [package]
         assert plugin_module_names(package) == [f"{package}.plugin._keep"]
     finally:

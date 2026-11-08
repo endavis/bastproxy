@@ -156,7 +156,7 @@ def test_user_plugin_imports_unloads_and_reloads(tmp_path: Path) -> None:
         return sys.modules[info.plugin_class_import_location].Plugin
 
     assert _import().version == "v1"
-    assert loader._api_unload_plugin(info.plugin_id)
+    assert loader._api_plugin_unload(info.plugin_id)
     assert [n for n in sys.modules if n.startswith(f"{ROOT}.mine.zzu")] == []
 
     _write_plugin(tmp_path, "mine", "zzu", "version-two")

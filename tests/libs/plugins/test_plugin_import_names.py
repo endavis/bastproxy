@@ -117,7 +117,7 @@ def test_reload_runs_changed_code(plugin_env: tuple[PluginLoader, Path]) -> None
     assert _import(loader).version == "v7"
 
     for expected in ("version-eight", "version-number-nine"):
-        assert loader._api_unload_plugin(PLUGIN_ID)
+        assert loader._api_plugin_unload(PLUGIN_ID)
         _write_plugin(root, expected)
         assert _import(loader).version == expected
 
@@ -126,5 +126,5 @@ def test_unload_leaves_no_modules(plugin_env: tuple[PluginLoader, Path]) -> None
     """After unload none of the plugin's modules remain in sys.modules."""
     loader, _ = plugin_env
     _import(loader)
-    assert loader._api_unload_plugin(PLUGIN_ID)
+    assert loader._api_plugin_unload(PLUGIN_ID)
     assert _plugin_modules() == []

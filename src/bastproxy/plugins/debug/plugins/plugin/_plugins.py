@@ -33,7 +33,7 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return False, ["Please enter a plugin id"]
 
-        if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
+        if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
             return True, [f"Plugin {args['plugin']} not found"]
 
         return (
@@ -89,7 +89,7 @@ class PluginsPlugin(BasePlugin):
 
         data = {}
 
-        loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         for plugin in loaded_plugins:
             api = f"{plugin}:summary.get.for.plugin"
@@ -123,7 +123,7 @@ class PluginsPlugin(BasePlugin):
 
         data = {}
 
-        loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
+        loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         for plugin in loaded_plugins:
             api = f"{plugin}:detail.get.for.plugin"

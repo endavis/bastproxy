@@ -87,7 +87,7 @@ Every item in the issue's Description, with its current state.
 
 | Item from the issue | Status | Where |
 | :--- | :--- | :--- |
-| Every plugin imported twice through the `src/plugins` shim, so reload never loads new code | **Fixed** (verified: a changed `CODE_VERSION` constant was picked up by `reload.plugin`) | #95, PR #109 |
+| Every plugin imported twice through the `src/plugins` shim, so reload never loads new code | **Fixed** (verified: a changed `CODE_VERSION` constant was picked up by `plugin.reload`) | #95, PR #109 |
 | The `src/plugins` shim itself; user plugins load from `BASTPROXY_HOME/plugins` under `userplugins.` | **Fixed** | #110, PR #112 |
 | A failed load left some of a plugin's modules in `sys.modules` | **Fixed** for modules, and for registrations by #121 (see PS-1) | #111, PR #113 |
 | Dependencies declared but never used | **Fixed** (`PLUGIN_DEPENDENCIES`, `src/bastproxy/libs/plugins/dependency.py`, reload of dependents; `dependency.add` removed) | #97, PR #116 |
@@ -109,7 +109,7 @@ plugin (a `stats` hook, which is not a hook name the base class processes).
 
 ## Q1: Does Unload and Reload Leave Anything Behind?
 
-The unload sequence in `src/bastproxy/libs/plugins/loader.py` (`PluginLoader._api_unload_plugin`)
+The unload sequence in `src/bastproxy/libs/plugins/loader.py` (`PluginLoader._api_plugin_unload`)
 is: refuse if `can_reload_f` is false; run `uninitialize()` **only if the plugin is flagged
 loaded**; drop the plugin from the `pluginstoload` setting; delete the instance; delete every
 module under the plugin package that does not set `CANRELOAD = False` (keeping a weak reference
@@ -128,24 +128,24 @@ what it holds for that plugin.
 | Event definitions (`ev_<id>_loaded`, `_unloaded`, `_save`, `_savestate`, `ev_<custom>`, `watch_<name>`) | `plugins.core.events:event.add` | **Nothing** | Verified: all stay in the events plugin with `created_by` set to the unloaded plugin. See [Other Observations](#other-observations). |
 | Commands | `update_commands_for_plugin` on `ev_plugin_loaded` | commands `_eventcb_plugin_unloaded` calls `command.remove.for.plugin` | Verified clean (#96). |
 | Settings | `plugins.core.settings:setting.add`, `setting.initialize.for.plugin` | settings `_eventcb_settings_plugin_unloaded` saves then calls `setting.remove.for.plugin` | Verified clean after unload. After a failed load the handler also runs (it tolerates a plugin with no settings), so the settings and the open `PersistentDict` are closed (PS-1, fixed). |
-| Timers | `plugins.core.timers:add.timer` | timers `_eventcb_plugin_unloaded` calls `remove.data.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `get.plugin.instance`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
+| Timers | `plugins.core.timers:add.timer` | timers `_eventcb_plugin_unloaded` calls `remove.data.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `plugin.instance.get`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
 | Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `remove.data.for.owner` | Verified clean after unload. |
 | Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `remove.all.data.for.plugin` | Broken for more than one watch (PS-3). |
 | cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
 | Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `BasePlugin.restore_reload_cache`, called by the loader after construction | Works (PS-4 fixed). |
-| `sys.modules` | import | `_api_unload_plugin`, and the failed-load cleanup in `_api_load_plugins` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
+| `sys.modules` | import | `_api_plugin_unload`, and the failed-load cleanup in `_api_plugin_load` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
 | Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stayed reachable through `Event.current_callback` once one of its callbacks had run, fixed in the PR for #127 (PS-8). |
 
-Reload (`PluginLoader._api_reload_plugin`) unloads the plugin and, if `reload_dependents_f` is
-set, its loaded dependents (furthest first), then loads them again with one `load.plugins` call.
+Reload (`PluginLoader._api_plugin_reload`) unloads the plugin and, if `reload_dependents_f` is
+set, its loaded dependents (furthest first), then loads them again with one `plugin.load` call.
 Verified: a reload picks up edited code, restores the setting `pluginstoload` entry, and the old
 instance was collected.
 
 Two limits of reload:
 
-- `reload.plugin` does not set `is_reloading_f` (**read**). Only the `<plugin>:plugin.reloading.set` API
+- `plugin.reload` does not set `is_reloading_f` (**read**). Only the `<plugin>:plugin.reloading.set` API
   does, and only the `reload` command (`_command_reload` in the pluginm plugin) calls it.
-  Calling `reload.plugin` directly drops `attributes_to_save_on_reload`. The reload probe
+  Calling `plugin.reload` directly drops `attributes_to_save_on_reload`. The reload probe
   called `plugin.reloading.set` first.
 - A plugin whose unload fails part-way is left flagged loaded (**read**). Nothing is
   half-removed, because the failing hook runs before the base hook at priority 100, but the
@@ -266,7 +266,7 @@ Corrected in [Plugin System](plugin_system.md) in this change:
 | Hook ordering | Ties run "in the order they're discovered" | Alphabetical by method name |
 | `__init__` hook | "after base initialization" | Runs inside the base `__init__`; the base hooks sit at priority 1 and 75 |
 | Metadata | Example with a trailing comment on `PLUGIN_REQUIRED` | Metadata lines are matched one per line; a trailing comment breaks `PLUGIN_VERSION` and hides name, author, purpose and required (PS-5) |
-| `PLUGIN_REQUIRED` | Plugin "is required to be loaded" | Required plugins (and every `plugins.core` plugin) are refused by `unload.plugin` and the `unload` command; reload is still allowed (PS-12) |
+| `PLUGIN_REQUIRED` | Plugin "is required to be loaded" | Required plugins (and every `plugins.core` plugin) are refused by `plugin.unload` and the `unload` command; reload is still allowed (PS-12) |
 | Data directory | `data/<plugin_id>/` | `$BASTPROXY_HOME/data/plugins/<plugin_id>` |
 | `RegisterToEvent` import | `from bastproxy.libs.events import ...` | `from bastproxy.plugins.core.events import RegisterToEvent` |
 | `ev_baseplugin_patched` | "BasePlugin class was reloaded" | Raised when `patch()` adds functions after startup |
@@ -292,8 +292,8 @@ of this audit's page and is left for the event system audit.
 | 6 | **Hard dependency of the base class on concrete plugins** (tight coupling) | `_base.py` calls events, settings, commands, proxy and utils APIs; `_commands.py` imports `bastproxy.plugins.core.commands`; `loader.py` and `plugininfo.py` import `bastproxy.plugins._baseplugin` | Yes | **Keep, document.** `libs` importing `plugins` inverts the stated layering (`libs` is the framework). `plugininfo.py` imports `BasePlugin` only for an annotation; `TYPE_CHECKING` removes that edge for free. No dependency injection exists, and adding it here is out of scope. |
 | 7 | **Hidden global state** | `_patch.py` `modules_patched` and `API = APIClass(__name__)`; `reloadutils.HELPER`; `API` class-level flags (`startup`, `shutdown`, paths) set from `src/bastproxy/__init__.py` | Yes | **Keep `HELPER` and the API flags** (the architecture relies on them). **Remove `modules_patched`** with `patch()`. |
 | 8 | **Import-time side effects** | `src/bastproxy/__init__.py` creates directories, prints two banner lines (the string `last updated ...`) and raises if `BASTPROXY_HOME` is wrong; `reloadutils` instantiates `ReloadHelper` and registers APIs on import; `_patch.py` creates an `API` object on import | Yes | **Change (low).** The environment check and `mkdir` are fine for an application entry point but make `import bastproxy` unusable in tools. The banner `print`s belong in `main`. Not filed separately. |
-| 9 | **Catch-all `except`** | `loader.py` in `_instantiate_single_plugin`, `_run_initialize_single_plugin`, `_api_unload_plugin` (two, one an `except Exception` around a dict lookup); `imputils.importmodule`; `plugininfo.check_file_is_valid_python_code`; `_patch.py` `patch` | Mostly justified: each logs with `exc_info` and either exits or unloads | **Keep**, with one change: the dict-lookup `except Exception` in `_api_unload_plugin` should be `except KeyError`. |
-| 10 | **Silent failures** | cmdq and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `unload.plugin` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
+| 9 | **Catch-all `except`** | `loader.py` in `_instantiate_single_plugin`, `_run_initialize_single_plugin`, `_api_plugin_unload` (two, one an `except Exception` around a dict lookup); `imputils.importmodule`; `plugininfo.check_file_is_valid_python_code`; `_patch.py` `patch` | Mostly justified: each logs with `exc_info` and either exits or unloads | **Keep**, with one change: the dict-lookup `except Exception` in `_api_plugin_unload` should be `except KeyError`. |
+| 10 | **Silent failures** | cmdq and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `plugin.unload` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
 | 11 | **String concatenation for paths** | Loader and `PluginInfo` use `Path` throughout; `plugin_info.data_directory` is a `Path` | Yes | **Fits.** The only string "paths" are import locations, which are not file paths. |
 | 12 | **Repeated work in hooks** | `libs.api:api.add.for.object` is called by three base hooks (priority 1, 75 and 91) | n/a | **Keep, document.** 75 picks up objects created by `__init__` hooks below 75 and 91 those created in `initialize`; neither is written down. Not filed separately. |
 | 13 | **Magic-string exclusion** | `imputils.deletemodule` skipped any module whose name contained `baseplugin` or `baseconfig` | n/a | **Changed** (PS-10, fixed): exact package prefix match. |
@@ -305,16 +305,16 @@ of this audit's page and is left for the event system audit.
 
 ### PS-1: A failed load leaves registrations behind
 
-**Status:** fixed in the PR for #121; `unload.plugin` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `add.timer(plugin_id=...)` calls `get.plugin.instance`, so it fails for a plugin that is still initializing; event definitions created with `event.add` are not removed by a clean unload either.
+**Status:** fixed in the PR for #121; `plugin.unload` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `add.timer(plugin_id=...)` calls `plugin.instance.get`, so it fails for a plugin that is still initializing; event definitions created with `event.add` are not removed by a clean unload either.
 
 **Issue:** [#121](https://github.com/endavis/bastproxy/issues/121)
 **Location:** `loader.py` `_instantiate_single_plugin`, `_run_initialize_single_plugin`,
-`_api_unload_plugin` (skips `uninitialize` unless `is_loaded`); timers
-`_api_remove_data_for_plugin` (needs `get.plugin.instance`, which needs the loaded flag).
+`_api_plugin_unload` (skips `uninitialize` unless `is_loaded`); timers
+`_api_remove_data_for_plugin` (needs `plugin.instance.get`, which needs the loaded flag).
 
 **Evidence (verified):** Two throwaway user plugins. `pb` registers a timer, a watch and an
 event callback in an `initialize` hook and then raises. `pc` raises in `__init__` after
-`super().__init__()`. After `load.plugins` returned both as bad, the registries still held:
+`super().__init__()`. After `plugin.load` returned both as bad, the registries still held:
 
 ```text
 plugins.zprobe.pb  api_class (9 APIs), event_regs {'ev_libs.net.mud_muddisconnect': [...],
@@ -383,7 +383,7 @@ the first.
 
 **Evidence (verified):** A plugin with `self.attributes_to_save_on_reload = ["counter"]` and
 `self.counter = 0` after `super().__init__()`: set `counter = 41`, ran `plugin.reloading.set` and
-`reload.plugin`; the new instance printed `counter restored 0`. Bundled plugins avoid this by
+`plugin.reload`; the new instance printed `counter restored 0`. Bundled plugins avoid this by
 setting both the list and the defaults in an `__init__` hook below priority 75
 (`_phook_init_plugin` in the clients, proxy and commands plugins). The documented example
 shows the failing form.
@@ -475,7 +475,7 @@ collected because none of their callbacks was the last one run on its event.
 
 **Issue:** [#128](https://github.com/endavis/bastproxy/issues/128)
 **Location:** `_base.py` `_phook_base_post_initialize_setup` (`self.api("plugins.core.proxy:is.mud.connected")`
-without `()`); `loader.py` `_api_get_not_loaded_plugins` and `_load_core_and_client_plugins_on_startup`
+without `()`); `loader.py` `_api_plugin_list_not_loaded` and `_load_core_and_client_plugins_on_startup`
 (branch on the return value of `update_all_plugin_information`, which returns `None`);
 triggers `_api_trigger_remove` (`libs.api:get:caller:owner`, colons for dots).
 
@@ -493,8 +493,8 @@ last one.
 **Status:** fixed in the PR for #129; `deletemodule` matches the bundled `_baseplugin` package by prefix and both cleanup paths share `reloadable_plugin_module_names`.
 
 **Issue:** [#129](https://github.com/endavis/bastproxy/issues/129)
-**Location:** `imputils.py` `deletemodule`; `loader.py` `_api_load_plugins` (failed-load
-cleanup pops every name from `plugin_module_names`) versus `_api_unload_plugin` (honours
+**Location:** `imputils.py` `deletemodule`; `loader.py` `_api_plugin_load` (failed-load
+cleanup pops every name from `plugin_module_names`) versus `_api_plugin_unload` (honours
 `CANRELOAD`).
 
 **Evidence:** `deletemodule` **verified**: a module named `userplugins.mine.mybaseplugin`
@@ -510,7 +510,7 @@ than a substring; make the failed-load cleanup apply the same `CANRELOAD` rule a
 **Status:** fixed in the PR for #98; all three test plugins now use the `plugin/` layout and a test checks every discovered plugin imports.
 **Location:** `src/bastproxy/plugins/test/cmddec`, `.../test/_sqldb`, `.../test/exception`.
 
-**Evidence (verified):** `load.plugins` returned `plugins.test.cmddec` and
+**Evidence (verified):** `plugin.load` returned `plugins.test.cmddec` and
 `plugins.test._sqldb` as bad: the loader imports `<package>.plugin` and these have `_plugin.py`.
 `plugins.test.exception` is a third case not in #98's description: its `__init__.py` is empty
 and the metadata is in the `__init__.py` of its `plugin` package, so it is discovered as
@@ -521,10 +521,10 @@ imports.
 
 ### PS-12: Nothing stops unloading a required plugin, and nothing checks API names
 
-**Status:** fixed in the PR for #130; `unload.plugin` refuses required plugins (reload and failed-load cleanup pass `allow_required=True`), and a static test checks that literal API names are registered. It found and fixed `errors.clear`.
+**Status:** fixed in the PR for #130; `plugin.unload` refuses required plugins (reload and failed-load cleanup pass `allow_required=True`), and a static test checks that literal API names are registered. It found and fixed `errors.clear`.
 
 **Issue:** [#130](https://github.com/endavis/bastproxy/issues/130)
-**Location:** `loader.py` `_api_unload_plugin` (checks `can_reload_f` only);
+**Location:** `loader.py` `_api_plugin_unload` (checks `can_reload_f` only);
 `PluginInfo.is_required` (used for colouring in the pluginm list).
 
 **Evidence (read):** Bundled core plugins with `can_reload_f` left `True` (for example settings,

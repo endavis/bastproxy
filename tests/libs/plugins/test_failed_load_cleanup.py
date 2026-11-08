@@ -4,7 +4,7 @@
 # File Description: Tests that a failed plugin load leaves no modules behind
 #
 # By: Bast
-"""Tests for the failed-load cleanup in ``_api_load_plugins`` (issue #111)."""
+"""Tests for the failed-load cleanup in ``_api_plugin_load`` (issue #111)."""
 
 from __future__ import annotations
 
@@ -121,12 +121,12 @@ def test_failed_load_leaves_no_modules_and_reload_gets_new_code(
     root, factory = make_loader
     loader = factory(broken)
 
-    result = loader._api_load_plugins([PLUGIN_ID])
+    result = loader._api_plugin_load([PLUGIN_ID])
     assert result["bad_plugins"] == [PLUGIN_ID]
     assert _plugin_modules() == []
 
     _write_plugin(root, _GOOD)
-    result = loader._api_load_plugins([PLUGIN_ID])
+    result = loader._api_plugin_load([PLUGIN_ID])
     assert result["bad_plugins"] == []
     info = loader.plugins_info[PLUGIN_ID]
     assert sys.modules[info.plugin_class_import_location].Plugin.version == "fixed"
@@ -283,7 +283,7 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
                 # the fake events API is not in the real API, so report it present
                 "libs.api:api.exists": lambda _name: True,
                 "plugins.core.events:event.raise": world.raise_event,
-                "unload.plugin": loader._api_unload_plugin,
+                "plugin.unload": loader._api_plugin_unload,
                 "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
                 "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
                     {name: value}
@@ -292,7 +292,7 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
         )
 
         def _api(name: str) -> Callable[..., Any]:
-            key = name.split(":", 1)[1] if name.endswith(":unload.plugin") else name
+            key = name.split(":", 1)[1] if name.endswith(":plugin.unload") else name
             return env.routes.get(key) or MagicMock()
 
         loader.api = MagicMock(side_effect=_api)
@@ -341,7 +341,7 @@ def test_failed_load_removes_registrations_and_frees_instance(
     env = cleanup_env(code)
     no_log_capture()
 
-    result = env.loader._api_load_plugins([PLUGIN_ID])
+    result = env.loader._api_plugin_load([PLUGIN_ID])
 
     assert result["bad_plugins"] == [PLUGIN_ID]
     _assert_cleaned(env)
@@ -362,7 +362,7 @@ def test_failed_initialize_closes_settings_stand_in(cleanup_env: Callable[[str],
 
     sys.modules[WORLD_MODULE].register = _spy  # type: ignore[attr-defined]
 
-    env.loader._api_load_plugins([PLUGIN_ID])
+    env.loader._api_plugin_load([PLUGIN_ID])
 
     assert len(seen) == 1
     assert seen[0].closed is True
@@ -374,7 +374,7 @@ def test_cleanup_continues_when_event_raise_fails(cleanup_env: Callable[[str], _
     raise_event = MagicMock(side_effect=RuntimeError("event boom"))
     env.routes["plugins.core.events:event.raise"] = raise_event
 
-    result = env.loader._api_load_plugins([PLUGIN_ID])
+    result = env.loader._api_plugin_load([PLUGIN_ID])
 
     assert result["bad_plugins"] == [PLUGIN_ID]
     raise_event.assert_called_once()
@@ -393,7 +393,7 @@ def test_cleanup_skips_event_when_events_api_missing(
     env.routes["plugins.core.events:event.raise"] = raise_event
     env.routes["libs.api:api.toplevel.remove"] = remove
 
-    env.loader._api_load_plugins([PLUGIN_ID])
+    env.loader._api_plugin_load([PLUGIN_ID])
 
     raise_event.assert_not_called()
     remove.assert_called_once_with(PLUGIN_ID)
@@ -412,7 +412,7 @@ def test_failed_initialize_cleans_up_plugin_with_can_reload_false(
     )
     env = cleanup_env(code)
 
-    result = env.loader._api_load_plugins([PLUGIN_ID])
+    result = env.loader._api_plugin_load([PLUGIN_ID])
 
     assert result["bad_plugins"] == [PLUGIN_ID]
     _assert_cleaned(env)
@@ -432,7 +432,7 @@ def test_initialize_failure_after_loaded_flag_does_not_uninitialize(
     )
     env = cleanup_env(code)
 
-    result = env.loader._api_load_plugins([PLUGIN_ID])
+    result = env.loader._api_plugin_load([PLUGIN_ID])
 
     assert result["bad_plugins"] == [PLUGIN_ID]
     assert env.world.uninitialized == []
@@ -459,7 +459,7 @@ def test_loaded_plugin_with_can_reload_false_still_refused() -> None:
     """The can_reload_f refusal still protects a loaded plugin."""
     loader, instance = _loaded_loader(can_reload=False)
 
-    assert loader._api_unload_plugin(PLUGIN_ID) is False
+    assert loader._api_plugin_unload(PLUGIN_ID) is False
     instance.uninitialize.assert_not_called()
 
 
@@ -467,6 +467,6 @@ def test_loaded_unload_still_uses_uninitialize() -> None:
     """A loaded plugin is uninitialized, not cleaned up through the failed-load path."""
     loader, instance = _loaded_loader(can_reload=True)
 
-    assert loader._api_unload_plugin(PLUGIN_ID) is True
+    assert loader._api_plugin_unload(PLUGIN_ID) is True
     instance.uninitialize.assert_called_once_with()
     loader._remove_plugin_registrations.assert_not_called()  # type: ignore[attr-defined]

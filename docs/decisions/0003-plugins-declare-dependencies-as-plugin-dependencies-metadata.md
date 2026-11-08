@@ -22,8 +22,8 @@ Plugin dependencies were declared at runtime through the `dependency.add` API an
 
 - Plugins declare dependencies as package metadata in `__init__.py`: `PLUGIN_DEPENDENCIES = ["plugins.core.ssc"]`, a list or tuple of full plugin IDs.
 - The loader reads the value with `ast.literal_eval` before importing the plugin (no plugin code runs) and stores it on `PluginInfo.dependencies`. An invalid value gives no dependencies and an `import_errors` entry.
-- `load.plugins` pulls in unloaded dependencies and imports, instantiates and initializes in dependency order. A missing, circular or failing dependency fails the dependent with a logged error. `exit_on_error` behavior is unchanged.
-- `reload.plugin` also reloads the loaded dependents of a plugin whose `reload_dependents_f` is set, all or nothing on `can_reload_f`.
+- `plugin.load` pulls in unloaded dependencies and imports, instantiates and initializes in dependency order. A missing, circular or failing dependency fails the dependent with a logged error. `exit_on_error` behavior is unchanged.
+- `plugin.reload` also reloads the loaded dependents of a plugin whose `reload_dependents_f` is set, all or nothing on `can_reload_f`.
 - The `dependency.add` API and `BasePlugin.dependencies` are removed. This is a breaking change for plugins that called `dependency.add`: declare `PLUGIN_DEPENDENCIES` instead.
 - Blocking the unload of a plugin that others depend on is out of scope.
 
