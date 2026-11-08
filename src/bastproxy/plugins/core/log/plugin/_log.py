@@ -385,13 +385,7 @@ class LogPlugin(BasePlugin):
 
           if no arguments, types that are sent to file will be listed"""
     )
-    @AddArgument("logtype", help="the logtype to toggle", default="list", nargs="?")
-    @AddArgument(
-        "-n",
-        "--notimestamp",
-        help="do not log to file with a timestamp",
-        action="store_false",
-    )
+    @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
     def _command_file(self):
         """Toggle a logtype to log to a file."""
         args = self.api("plugins.core.commands:command.current.args.get")()
