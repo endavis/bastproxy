@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794139434093,
+  "lastUpdate": 1794140438171,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4208,6 +4208,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000006415545940113532",
             "extra": "mean: 285.52402896593503 usec\nrounds: 3694"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2ee58385c053b5c817c1f38ae128bca8f2b58a0",
+          "message": "refactor: rename plugins.core.commands APIs and the summary/detail interface to the ADR-0004 form (merges PR #180, addresses #166, #165)\n\nRename the 20 plugins.core.commands APIs, and the plugins.core.events\nsummary/detail pair, to the resource-first names in the ADR-0004 appendix.\nEach _api_* method is renamed to match, every caller in src, tests and docs\nis updated, and the renamed names leave the grammar test's LEGACY_NAMES.\nADR-0004 lists #166 as a related issue. A new test pins the names that\ndebug/plugins builds for the summary/detail interface.\n\nBREAKING CHANGE: plugins.core.commands APIs renamed, no aliases:\nget.command.indent -> command.indent.get\nget.command.count -> command.count\nget.output.indent -> output.indent.get\nformat.output.header -> output.header.format\nformat.output.subheader -> output.subheader.format\nformat.header -> header.format\nget.command.line.length -> command.line.length.get\nget.output.line.length -> output.line.length.get\nadd.command.by.func -> command.add.by.func\nget.command.format -> command.format\nget.current.command.args -> command.current.args.get\nset.current.command -> command.current.set\nremove.data.for.plugin -> command.remove.for.plugin\nget.command.prefix -> command.prefix.get\nget.commands.for.plugin.data -> command.data.get\nrun -> command.run\nget.summary.data.for.plugin -> summary.get.for.plugin\nget.detailed.data.for.plugin -> detail.get.for.plugin\nlist.commands.formatted -> command.list.formatted\nlist.plugins.formatted -> plugin.list.formatted\nplugins.core.events APIs renamed, no aliases:\nget.summary.data.for.plugin -> summary.get.for.plugin\nget.detailed.data.for.plugin -> detail.get.for.plugin\n\nAddresses #166\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T12:19:48Z",
+          "tree_id": "cc997fc630e9dc863b57af4e3b33fb697134051a",
+          "url": "https://github.com/endavis/bastproxy/commit/f2ee58385c053b5c817c1f38ae128bca8f2b58a0"
+        },
+        "date": 1794140437247,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 345.51277377993495,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001778863232878789",
+            "extra": "mean: 2.8942490000005705 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10505.628548049883,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000897422561017047",
+            "extra": "mean: 95.18707000026438 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 325.35326898673515,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00006933753895891693",
+            "extra": "mean: 3.073582149994536 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 790.8141245586924,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007242247296296472",
+            "extra": "mean: 1.2645196499974531 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2967.6128090309176,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012229097435684498",
+            "extra": "mean: 336.97118335547043 usec\nrounds: 3016"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2645.0650004213285,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010346396496681865",
+            "extra": "mean: 378.0625428262487 usec\nrounds: 2767"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4630.780279407626,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000004957462286541949",
+            "extra": "mean: 215.94632862346063 usec\nrounds: 4671"
           }
         ]
       }
