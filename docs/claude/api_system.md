@@ -208,7 +208,7 @@ The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `ap
 - Stored in `_instance_api`
 - Specific to one API instance
 - Can override class APIs
-- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object registers for itself, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` raises (see the findings page)
+- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object registers for itself, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` is safe: removal skips the `addedin` bookkeeping that instance APIs never had
 
 When looking up an API, instance APIs take precedence over class APIs.
 
@@ -237,7 +237,7 @@ When a plugin is unloaded, all its APIs are removed. `_phook_base_unitialize_hoo
 self.api("libs.api:api.toplevel.remove")("my.plugin")
 ```
 
-This removes all APIs with the top-level name `my.plugin:*`, class and instance, and takes the names out of the shared `addedin` lists so a subclass's APIs can be added again. It removes by top-level name, not by owner, so an API another owner force-overrode in a different top-level is left. It does not remove statistics. It expects every registered function to be a bound method carrying `@AddAPI` metadata, and raises for an instance API or a function added by hand with `api.add`.
+This removes all APIs with the top-level name `my.plugin:*`, class and instance, and takes the names out of the shared `addedin` lists so a subclass's APIs can be added again. It removes by top-level name, not by owner, so an API another owner force-overrode in a different top-level is left. It does not remove statistics. A registered function without `@AddAPI` metadata (added by hand with `api.add`) or an instance API has no `addedin` entry to clean, so removal skips that step and still deletes the key.
 
 ## Important Files
 

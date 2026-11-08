@@ -632,11 +632,9 @@ class API:  # sourcery skip: upper-camel-case-classes
             sources=[__name__, top_level_api],
         )()
         for i in class_keys:
-            func = self._class_api[i].tfunction
-            api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
             # clean up decorated functions so that subclasses APIs can be reloaded
             # this affects apis that are part of a subclass, such as the baseplugin APIs
-            self._class_api[i].tfunction.api["addedin"][top_level_api].remove(api_name)  # type: ignore
+            self._discard_addedin(self._class_api[i].tfunction, top_level_api)
             del self._class_api[i]
 
         instance_keys = [item for item in self._instance_api if item.startswith(api_toplevel)]
@@ -646,14 +644,39 @@ class API:  # sourcery skip: upper-camel-case-classes
             sources=[__name__, top_level_api],
         )()
         for i in instance_keys:
-            func = self._instance_api[i].tfunction
-            api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
-            # clean up decorated functions so that subclasses APIs can be reloaded
-            # this affects apis that are part of a subclass, such as the baseplugin APIs
-            self._instance_api[i].tfunction.api["addedin"][top_level_api].remove(  # type: ignore
-                api_name
-            )
+            self._discard_addedin(self._instance_api[i].tfunction, top_level_api)
             del self._instance_api[i]
+
+    @staticmethod
+    def _discard_addedin(func: Any, top_level_api: str) -> None:
+        """Remove a function's name from its ``api["addedin"]`` list, if present.
+
+        Instance APIs are never recorded in ``addedin``, and functions added with
+        ``api.add`` may carry no ``api`` metadata, so a missing entry is not an error.
+
+        Args:
+            func: The callable stored in the API item.
+            top_level_api: The top-level API being removed.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
+        api_meta = getattr(func, "api", None)
+        if not isinstance(api_meta, dict):
+            return
+        added = api_meta.get("addedin", {}).get(top_level_api)
+        if not added:
+            return
+        try:
+            api_name = api_meta["name"].format(**func.__self__.__dict__)
+        except (AttributeError, KeyError, IndexError):
+            return
+        if api_name in added:
+            added.remove(api_name)
 
     def get(self, api_location: str, get_class: bool = False) -> APIItem:
         """Get a callable from the API.
