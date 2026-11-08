@@ -190,7 +190,9 @@ class APIItem:
             "",
         ]
 
-        args = get_args(self.tfunction)
+        # Unwrap decorators such as functools.lru_cache so inspection sees the real function
+        func = inspect.unwrap(self.tfunction)
+        args = get_args(func)
 
         location_split = self.full_api_name.split(":")
         name = location_split[0]
@@ -202,10 +204,13 @@ class APIItem:
         }
 
         tmsg.append(f"@G{self.full_api_name}@w({args})")
-        if self.tfunction.__doc__:
-            tmsg.append(self.tfunction.__doc__ % tdict)
+        if doc := (func.__doc__ or self.tfunction.__doc__):
+            # str.replace, not %, so a literal "%" in a docstring is safe
+            for key, value in tdict.items():
+                doc = doc.replace(f"%({key})s", value)
+            tmsg.append(doc)
 
-        if sourcefile := inspect.getsourcefile(self.tfunction):
+        if sourcefile := inspect.getsourcefile(func):
             from ._api import API
 
             tmsg.append("")
@@ -213,7 +218,7 @@ class APIItem:
 
         if show_function_code:
             tmsg.append("")
-            text_list, _ = inspect.getsourcelines(self.tfunction)
+            text_list, _ = inspect.getsourcelines(func)
             tmsg.extend([i.replace("@", "@@").rstrip("\n") for i in text_list])
 
         if self.overwritten_api:

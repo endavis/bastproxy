@@ -1064,7 +1064,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                 tmsg.extend(
                     (
                         f"   @C{i:<60}@w : called {api_data.count} times @w",
-                        f"        {api_data.description[0]}@w",
+                        f"        {api_data.description[0] if api_data.description else ''}@w",
                     )
                 )
         return tmsg
