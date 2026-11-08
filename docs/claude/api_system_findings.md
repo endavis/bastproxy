@@ -440,6 +440,10 @@ Today nothing hits it: no `@AddAPI(instance=True)` user exists, and the two manu
 with no `.api`, and delete every key before reporting an error. Add tests for both cases (lines
 649-656 are uncovered).
 
+**Fixed in #195:** `_api_api_toplevel_remove` now tolerates instance APIs and functions with no `.api`
+(via `_discard_addedin`) and always deletes every key; regression tests are in
+`tests/libs/test_api.py::TestToplevelRemove`.
+
 ### AS-3: Stats, `addedin` keys and overrides outlive the plugin
 
 **Issue:** #196

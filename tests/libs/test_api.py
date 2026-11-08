@@ -17,7 +17,7 @@ Test Classes:
 
 import pytest
 
-from bastproxy.libs.api import API
+from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.exceptions import APINotFoundError
 
 
@@ -372,3 +372,77 @@ class TestLibsApiRenames:
             API.is_character_active = original
 
         assert raised == ["ev_libs.api_character_active", "ev_libs.api_character_inactive"]
+
+
+class _ToplevelRemoveOwner:
+    """Object carrying one class API and one instance API for removal tests."""
+
+    def __init__(self) -> None:
+        """Initialize the owner."""
+        self.label = "owner"
+
+    @AddAPI("toplevel.remove.class", description="class api")
+    def _api_class(self) -> str:
+        """Class API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "class"
+
+    @AddAPI("toplevel.remove.instance", description="instance api", instance=True)
+    def _api_instance(self) -> str:
+        """Instance API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "instance"
+
+
+class TestToplevelRemove:
+    """Test api.toplevel.remove cleans up without raising."""
+
+    def test_instance_api_removed_without_error(self) -> None:
+        """An instance API is deleted and does not raise ValueError."""
+        api = API(owner_id="test_owner")
+        owner = _ToplevelRemoveOwner()
+        api("libs.api:api.add.for.object")("tlr_instance", owner)
+        assert api.get("tlr_instance:toplevel.remove.instance") is not None
+
+        api("libs.api:api.toplevel.remove")("tlr_instance")
+
+        with pytest.raises(APINotFoundError):
+            api.get("tlr_instance:toplevel.remove.instance")
+
+    def test_class_api_name_removed_from_addedin(self) -> None:
+        """A normal class API is deleted and its name leaves addedin."""
+        api = API(owner_id="test_owner")
+        owner = _ToplevelRemoveOwner()
+        api("libs.api:api.add.for.object")("tlr_class", owner)
+        assert owner._api_class.api["addedin"]["tlr_class"] == ["toplevel.remove.class"]  # type: ignore[attr-defined]
+
+        api("libs.api:api.toplevel.remove")("tlr_class")
+
+        assert owner._api_class.api["addedin"]["tlr_class"] == []  # type: ignore[attr-defined]
+        with pytest.raises(APINotFoundError):
+            api.get("tlr_class:toplevel.remove.class")
+
+    def test_function_without_api_attribute_removed(self) -> None:
+        """A class API added by api.add without .api metadata does not raise."""
+        api = API(owner_id="test_owner")
+        api.add("tlr_plain", "plain.func", helper_function_one)
+        assert api.get("tlr_plain:plain.func") is not None
+
+        api("libs.api:api.toplevel.remove")("tlr_plain")
+
+        with pytest.raises(APINotFoundError):
+            api.get("tlr_plain:plain.func")
