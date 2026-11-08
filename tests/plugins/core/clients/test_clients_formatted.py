@@ -25,8 +25,8 @@ def _stub(banned: dict[str, Any] | None = None, permbanips: list[str] | None = N
             return lambda _pid, setting: list(permbanips or []) if setting == "permbanips" else "@w"
         if name == "plugins.core.utils:table.format":
             return lambda *a, **k: UtilsPlugin._api_table_format(utils, *a, **k)
-        if name == f"{PID}:get.clients.formatted":
-            return lambda: ClientPlugin._api_get_clients_formatted(stub)
+        if name == f"{PID}:client.list.formatted":
+            return lambda: ClientPlugin._api_client_list_formatted(stub)
         raise AssertionError(name)
 
     stub.api = api
@@ -34,7 +34,7 @@ def _stub(banned: dict[str, Any] | None = None, permbanips: list[str] | None = N
 
 
 def test_one_client_no_bans() -> None:
-    text = "\n".join(ClientPlugin._api_get_clients_formatted(_stub()))
+    text = "\n".join(ClientPlugin._api_client_list_formatted(_stub()))
 
     for word in ("Clients", "State", "Client IP", "Port", "Term Type", "Connected", "View Only"):
         assert word in text
@@ -46,7 +46,7 @@ def test_one_client_no_bans() -> None:
 def test_bans_follow_clients_table() -> None:
     stub = _stub(banned={"1.2.3.4": SimpleNamespace(expires="tomorrow")}, permbanips=["9.9.9.9"])
 
-    msg = ClientPlugin._api_get_clients_formatted(stub)
+    msg = ClientPlugin._api_client_list_formatted(stub)
 
     text = "\n".join(msg)
     assert "" in msg
@@ -59,4 +59,4 @@ def test_bans_follow_clients_table() -> None:
 
 def test_show_returns_api_output() -> None:
     stub = _stub()
-    assert ClientPlugin._command_show(stub) == (True, ClientPlugin._api_get_clients_formatted(stub))
+    assert ClientPlugin._command_show(stub) == (True, ClientPlugin._api_client_list_formatted(stub))

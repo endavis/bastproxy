@@ -13,7 +13,7 @@ def _base_stub(mud_connected: bool, character_active: bool) -> tuple[MagicMock, 
     register = MagicMock()
 
     def api(name: str) -> Any:
-        if name == "plugins.core.proxy:is.mud.connected":
+        if name == "plugins.core.proxy:mud.is.connected":
             return lambda: mud_connected
         if name == "libs.api:character.is.active":
             return lambda: character_active

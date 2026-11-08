@@ -195,13 +195,13 @@ class ProxyPlugin(BasePlugin):
             desc="Mud password",
         )
 
-    @AddAPI("is.mud.connected", description="get the mud connection")
-    def _api_is_mud_connected(self) -> bool:
-        """Get the mud connection."""
+    @AddAPI("mud.is.connected", description="check if the mud is connected")
+    def _api_mud_is_connected(self) -> bool:
+        """Check if the mud is connected."""
         return bool(self.mud_connection and self.mud_connection.connected)
 
-    @AddAPI("get.mud.connection", description="get the mud connection")
-    def _api_get_mud_connection(self) -> MudConnection | None:
+    @AddAPI("mud.connection.get", description="get the mud connection")
+    def _api_mud_connection_get(self) -> MudConnection | None:
         """Get the mud connection."""
         return self.mud_connection
 
@@ -286,7 +286,7 @@ class ProxyPlugin(BasePlugin):
 
         tmsg.append("")
 
-        tmsg.extend(self.api("plugins.core.clients:get.clients.formatted")())
+        tmsg.extend(self.api("plugins.core.clients:client.list.formatted")())
         return True, tmsg
 
     @AddParser(description="disconnect from the mud")
@@ -314,8 +314,8 @@ class ProxyPlugin(BasePlugin):
 
         return True, ["Connecting to the mud"]
 
-    @AddAPI("shutdown", description="shutdown the proxy")
-    def _api_shutdown(self):
+    @AddAPI("proxy.shutdown", description="shutdown the proxy")
+    def _api_proxy_shutdown(self):
         """Shutdown the proxy."""
         self.api.__class__.shutdown = True
         LogRecord(
@@ -326,7 +326,7 @@ class ProxyPlugin(BasePlugin):
         SendDataDirectlyToClient(
             NetworkData(
                 [NetworkDataLine("Shutting down proxy")],
-                owner_id=f"{self.plugin_id}:_api_shutdown",
+                owner_id=f"{self.plugin_id}:_api_proxy_shutdown",
             )
         )()
         self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_shutdown")
@@ -354,7 +354,7 @@ class ProxyPlugin(BasePlugin):
         """Restart the proxy."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
-        self.api(f"{self.plugin_id}:restart")(args["seconds"])
+        self.api(f"{self.plugin_id}:proxy.restart")(args["seconds"])
         return True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
@@ -421,8 +421,8 @@ class ProxyPlugin(BasePlugin):
             new_message = NetworkData(tmsg, owner_id=f"{self.plugin_id}:_eventcb_client_logged_in")
             SendDataDirectlyToClient(new_message)()
 
-    @AddAPI("restart", description="restart the proxy")
-    def _api_restart(self, restart_in=None):
+    @AddAPI("proxy.restart", description="restart the proxy")
+    def _api_proxy_restart(self, restart_in=None):
         """Restart the proxy after 10 seconds."""
         restart_in = restart_in or 10
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
@@ -430,7 +430,7 @@ class ProxyPlugin(BasePlugin):
         SendDataDirectlyToClient(
             NetworkData(
                 [f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds"],
-                owner_id=f"{self.plugin_id}:_api_restart",
+                owner_id=f"{self.plugin_id}:_api_proxy_restart",
             )
         )()
         LogRecord(
@@ -447,7 +447,7 @@ class ProxyPlugin(BasePlugin):
         """A function to restart the proxy after a timer."""
         self.api("plugins.core.pluginm:plugin.state.save.all")()
 
-        self.api(f"{self.plugin_id}:shutdown")()
+        self.api(f"{self.plugin_id}:proxy.shutdown")()
 
         time.sleep(5)
 

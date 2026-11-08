@@ -21,7 +21,7 @@ def _fake_api(calls: list[tuple[str, dict[str, Any]]]) -> Callable[[str], Callab
                 calls.append((event_name, kwargs))
 
             return raise_event
-        if name == "plugins.core.clients:get.all.clients":
+        if name == "plugins.core.clients:client.list":
             return lambda uuid_only=False: []
         return MagicMock()
 
