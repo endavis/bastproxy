@@ -106,6 +106,7 @@ nav:
       - Plugin System: claude/plugin_system.md
       - Plugin System Findings: claude/plugin_system_findings.md
       - API System: claude/api_system.md
+      - API System Findings: claude/api_system_findings.md
       - Event System: claude/event_system.md
       - Event System Findings: claude/event_system_findings.md
       - Command System: claude/command_system.md

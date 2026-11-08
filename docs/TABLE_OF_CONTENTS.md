@@ -63,6 +63,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Command Blocking](development/ai/command-blocking.md) - Hooks that block dangerous commands from AI agents
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
+- [API System Analysis and Findings](claude/api_system_findings.md) - Audit of API registration, removal, call cost, caller tracking and the patterns the API system uses, with defects and a patterns review
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
@@ -106,6 +107,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Command Blocking](development/ai/command-blocking.md) - Hooks that block dangerous commands from AI agents
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
+- [API System Analysis and Findings](claude/api_system_findings.md) - Audit of API registration, removal, call cost, caller tracking and the patterns the API system uses, with defects and a patterns review
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
@@ -173,6 +175,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Command Blocking](development/ai/command-blocking.md) - Hooks that block dangerous commands from AI agents
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
+- [API System Analysis and Findings](claude/api_system_findings.md) - Audit of API registration, removal, call cost, caller tracking and the patterns the API system uses, with defects and a patterns review
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together

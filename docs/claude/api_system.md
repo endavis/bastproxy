@@ -15,7 +15,9 @@ tags:
 
 The API system in bastproxy is a centralized registry for exposing and consuming functionality across plugins and modules. It provides a standardized way for components to publish callable functions and for other components to discover and invoke them using a hierarchical naming scheme.
 
-The API system is both class-based and instance-based, allowing for shared functionality (class API) and per-instance overrides (instance API).
+The API system is both class-based and instance-based, allowing for shared functionality (class API) and per-instance overrides (instance API). In practice every plugin API is a class API; the only instance APIs are the 14 `libs.api:` built-ins every `API` object carries.
+
+An audit of this system, with measurements, defects and a patterns review, is in [API System Analysis and Findings](api_system_findings.md).
 
 ## Key Components
 
@@ -24,9 +26,10 @@ The API system is both class-based and instance-based, allowing for shared funct
 
 The `API` class is the core of the API system. It provides:
 - **_class_api**: Class-level dictionary storing all shared API functions
-- **_instance_api**: Instance-level dictionary for overriding specific APIs
-- **stats**: Global statistics tracking API usage
+- **_instance_api**: Instance-level dictionary for overriding specific APIs. Every `API` object registers 14 built-in `libs.api:` instance APIs here when it is constructed
+- **stats**: an unused `ClassVar`. The call statistics are kept by the module-level `STATS_MANAGER` in `_apistats.py` (see API Statistics)
 - **BASEPATH** and related paths: File system paths for the proxy
+- **startup**, **shutdown**, **quiet_mode**, **LOG_IN_UTC_TZ**, **proxy_start_time**, **command_split_regex**: process-wide flags and settings set from `src/bastproxy/__init__.py` and the proxy plugin
 - **is_character_active**: Global flag indicating if the character is ready for commands
 
 ```python
@@ -49,17 +52,19 @@ class APIItem:
     def __init__(self, full_api_name: str, tfunction: Callable,
                  owner_id: str | None, description: list | str = ""):
         self.full_api_name = full_api_name
-        self.owner_id = owner_id
+        self.owner_id = owner_id or "unknown"
         self.tfunction = tfunction
         self.instance = False
         self.overwritten_api = None
+        # always a list of lines: split from a string, or taken from the
+        # comment above the function when no description is given
         self.description = description
 ```
 
 Key features:
 - Wraps the actual function to be called
-- Tracks call statistics automatically when invoked
-- Provides detailed information about the API including owner, description, and source
+- Tracks call statistics automatically when invoked (`__call__` finds the caller, records the call, then calls the function)
+- Exposes `count` and `stats` for the API's statistics, and `detail()` for owner, description and source
 - Supports function overriding with tracking of the overwritten API
 
 ### AddAPI Decorator
@@ -84,7 +89,7 @@ class AddAPI:
         return func
 ```
 
-The decorator attaches metadata to functions, which is later processed during plugin initialization.
+The decorator attaches metadata to functions, which is later processed during plugin initialization. The metadata dict lives on the function object, which is shared by every instance of the class; `addedin` records, per top-level API, the names registered from it. Discovery only finds methods whose name starts with `_api_`, so a decorated method with another name is silently ignored. Names and descriptions may contain `{attribute}` fields, filled from the plugin object's `__dict__`.
 
 ### API Statistics
 **Location**: `src/bastproxy/libs/api/_apistats.py`
@@ -106,8 +111,10 @@ class StatsManager:
 
 Statistics include:
 - Total call count per API
-- Calls grouped by calling plugin
-- Detailed call tracking with full caller information
+- Calls grouped by the part of the caller ID before the first `:` (a plugin ID for plugin-owned callers, a module name such as `bastproxy.libs.net.client` for module-owned ones)
+- Detailed call tracking with the full caller ID
+
+The one `STATS_MANAGER` instance is created when `_apistats.py` is imported. Entries are not removed when a plugin is unloaded, and a reloaded plugin keeps counting on the same entry.
 
 ## How It Works
 
@@ -187,7 +194,7 @@ if self.api("libs.api:api.exists")("some.plugin:some.function"):
     result = self.api("some.plugin:some.function")(args)
 ```
 
-The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`. `get` raises `APINotFoundError` (from `bastproxy.libs.exceptions`, a subclass of `APIException` and `AttributeError`) when the API does not exist.
+The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`. `get` checks the instance APIs first, then the class APIs (`get_class=True` skips the instance APIs). `get` raises `APINotFoundError` (from `bastproxy.libs.exceptions`, a subclass of `APIException` and `AttributeError`) when the API does not exist.
 
 ### 4. Class vs Instance APIs
 
@@ -201,33 +208,36 @@ The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `ap
 - Stored in `_instance_api`
 - Specific to one API instance
 - Can override class APIs
-- Used for per-instance customization
+- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object registers for itself, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` raises (see the findings page)
 
 When looking up an API, instance APIs take precedence over class APIs.
 
 ### 5. API Discovery
 
-Plugins automatically discover API functions during initialization:
+Plugins automatically discover API functions during initialization. `BasePlugin` calls the same line from three hooks, in `src/bastproxy/plugins/_baseplugin/_base.py`:
 
 ```python
-# In BasePlugin.__initialize__()
+# _phook_base_init_add_apis (__init__ hook, priority 1)
+# _phook_base_init (__init__ hook, priority 75)
+# _phook_base_post_initialize_setup (initialize hook, priority 91)
 self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 ```
 
-This process:
-1. Scans the plugin object for methods with the `api` attribute (added by `@AddAPI`)
-2. Extracts metadata (name, description, instance flag)
+The later calls pick up objects created by hooks that ran in between; a name already recorded in `addedin` is skipped. This process:
+1. Scans the plugin object with `dir()`, and one level into each of its attributes, for bound methods whose name starts with `_api_` and that have the `api` attribute (added by `@AddAPI`)
+2. Extracts metadata (name, description, instance flag), filling `{attribute}` fields from the object's `__dict__`
 3. Registers each API function with the full API name
+4. For a module that passes `__name__` as the top-level API (the timing, loader and reloadutils modules), strips a leading `bastproxy.`
 
 ### 6. API Removal
 
-When a plugin is unloaded, all its APIs are removed:
+When a plugin is unloaded, all its APIs are removed. `_phook_base_unitialize_hook` (the last `uninitialize` hook, priority 100) does it after the unloaded events are raised:
 
 ```python
 self.api("libs.api:api.toplevel.remove")("my.plugin")
 ```
 
-This removes all APIs with the top-level name `my.plugin:*`.
+This removes all APIs with the top-level name `my.plugin:*`, class and instance, and takes the names out of the shared `addedin` lists so a subclass's APIs can be added again. It removes by top-level name, not by owner, so an API another owner force-overrode in a different top-level is left. It does not remove statistics. It expects every registered function to be a bound method carrying `@AddAPI` metadata, and raises for an instance API or a function added by hand with `api.add`.
 
 ## Important Files
 
@@ -326,9 +336,9 @@ print(f"Description: {api_item.description}")
 ## Integration Points
 
 ### Plugin System
-- Plugins inherit the `api` property from `BasePlugin`
+- Plugins get an `api` attribute (an `API(owner_id=<plugin id>)`) from `BasePlugin.__init__`
 - All plugins share the same class-level `_class_api` registry
-- Each plugin instance can have instance-specific overrides
+- Each plugin's `API` object can hold instance-specific overrides (none do today)
 - APIs are automatically discovered and registered during plugin initialization
 - APIs are automatically removed when plugins are unloaded
 
@@ -357,7 +367,9 @@ caller_id = get_caller_owner_id()
 STATS_MANAGER.add_call(self.full_api_name, caller_id)
 ```
 
-This walks the call stack to find the owner ID (typically a plugin ID), enabling detailed usage tracking.
+This walks the call stack, from the caller upward, and takes the first frame whose `self` is not an `APIItem` and has a truthy `owner_id` (or an `api` whose `owner_id` is truthy) that is not in the ignore list. That is usually a plugin ID, but any object with an `owner_id` counts, so a helper such as a `Callback` or a `Timer` is the caller with a compound ID like `plugins.example.myplugin:Timer:name`. If no frame matches, the caller is `unknown`: a warning is logged and a stack dump is logged for every such call.
+
+`libs.api:caller.owner.get` runs the same walk, but through a frame whose `self` is the `API` object it was called on. Pass `ignore_owner_list=[<your own ID>]` to get your caller; without it, the answer is that `API`'s own owner.
 
 ### API Function Naming Convention
 
@@ -411,7 +423,7 @@ self.api("libs.api:api.add")(
 )
 ```
 
-The original API is preserved in `api_item.overwritten_api` for reference.
+The original API is preserved in `api_item.overwritten_api` for reference; it is not restored when the overriding owner is unloaded. Without `force`, adding a different function under an existing name logs an error and keeps the first one: `api.add` returns `True` for a class API and `False` for an instance API. Adding the same function again is a no-op that returns `True`. Nothing in `src` uses `force` today.
 
 ### Character Active Flag
 
@@ -449,6 +461,7 @@ Events are raised when the flag changes:
 - `libs.api:stack.dump` - Return a stack dump
 
 ### Plugin Loader APIs
+A selection; `libs.api:api.list.formatted` called with `libs.plugins.loader` lists them all.
 - `libs.plugins.loader:plugin.instance.get` - Get a loaded plugin instance
 - `libs.plugins.loader:plugin.id.is.valid` - Check if a string is a plugin ID
 - `libs.plugins.loader:plugin.is.loaded` - Check if a plugin is loaded
@@ -482,11 +495,11 @@ Events are raised when the flag changes:
        result = self.api("optional.plugin:function")()
    ```
 2. Use the API for cross-plugin communication instead of direct imports
-3. Cache frequently-used API lookups if performance is critical
+3. Do not cache API lookups for speed. A lookup is about 0.2 microseconds of a call that takes about 2 (Python 3.12, see the benchmark table in the findings page), and a cached `APIItem` goes stale when the plugin it came from is reloaded
 4. A missing API raises `APINotFoundError` (from `bastproxy.libs.exceptions`, which is also an `AttributeError`). Catch `APINotFoundError` rather than `AttributeError`, so an `AttributeError` raised inside the API function itself is not mistaken for a missing API
 
 ### Statistics
 - API statistics are automatically tracked
 - Use them to identify heavily-used APIs
-- Monitor unknown callers to identify tracking issues
-- Statistics persist for the lifetime of the proxy process
+- Monitor unknown callers to identify tracking issues. Each call with an unknown caller costs about 1.3 ms (a stack dump and two log entries), against about 2 microseconds for a known one, so an unknown caller is a defect to fix, not a state to live with
+- Statistics persist for the lifetime of the proxy process; unloading a plugin does not clear them
