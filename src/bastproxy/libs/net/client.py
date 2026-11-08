@@ -244,8 +244,8 @@ class ClientConnection:
 
         """
         # sourcery skip: extract-duplicate-method
-        dpw = self.api("plugins.core.proxy:ssc.proxypw")()
-        vpw = self.api("plugins.core.proxy:ssc.proxypwview")()
+        dpw = self.api("plugins.core.proxy:ssc.proxypw.get")()
+        vpw = self.api("plugins.core.proxy:ssc.proxypwview.get")()
         if inp.strip() == dpw:
             networkdata = NetworkData(
                 [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],

@@ -131,9 +131,9 @@ def test_sqldb_initialize_creates_statdb(tmp_path: Path, monkeypatch: pytest.Mon
     module = imputils.importmodule(info.plugin_class_import_location)["module"]
 
     # A real API instance: ``api(name)`` returns an APIItem, which must be called
-    # to get the Sqldb class (as the sqldb plugin's ``_api_baseclass`` does).
+    # to get the Sqldb class (as the sqldb plugin's ``_api_baseclass_get`` does).
     real_api = API("plugins.test._sqldb")
-    real_api.add("plugins.core.sqldb", "baseclass", lambda: Sqldb, instance=True)
+    real_api.add("plugins.core.sqldb", "baseclass.get", lambda: Sqldb, instance=True)
 
     fake = SimpleNamespace(
         api=real_api,

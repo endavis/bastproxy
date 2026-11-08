@@ -31,8 +31,8 @@ class SSC:
         self.default = kwargs.get("default", "")
         self.desc = kwargs.get("desc", "setting")
 
-    @AddAPI("ssc.{name}", description="get the {desc} value")
-    def _api_getss(self, quiet=False):
+    @AddAPI("ssc.{name}.get", description="get the {desc} value")
+    def _api_ssc_get(self, quiet=False):
         """Read the secret from a file."""
         first_line = ""
         try:

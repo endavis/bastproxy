@@ -37,7 +37,7 @@ for an example of using sqldb
 ### call the function in initialize
 
 ```python
-    mydb = dbcreate(self.api('sqldb.baseclass')(), self,
+    mydb = dbcreate(self.api('plugins.core.sqldb:baseclass.get')(), self,
                            dbname='mydb')
 ```
 """

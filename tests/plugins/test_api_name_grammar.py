@@ -251,12 +251,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.cmdq", "queue.add.command"): "shape",
     ("plugins.core.cmdq", "remove.mud.commands.for.plugin"): "shape",
     ("plugins.core.cmdq", "start"): "shape",
-    # plugins.core.commands
-    # plugins.core.sqldb
-    ("plugins.core.sqldb", "baseclass"): "shape",
-    ("plugins.core.sqldb", "{database_name}.get.single.row"): "review",  # rules 3/5, left to review
-    # plugins.core.ssc
-    ("plugins.core.ssc", "ssc.{name}"): "shape",
 }
 
 

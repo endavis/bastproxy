@@ -207,7 +207,7 @@ def test_scan_is_not_vacuous() -> None:
         "plugins.core.errors:error.clear",
     ):
         assert known in registered
-    assert not _missing({"plugins.core.proxy:ssc.proxypw": [("x", 1)]}, registered, patterns)
+    assert not _missing({"plugins.core.proxy:ssc.proxypw.get": [("x", 1)]}, registered, patterns)
     bad = {"plugins.core.errors:no.such": [("x", 1)], "errors.clear": [("x", 2)]}
     assert set(_missing(bad, registered, patterns)) == set(bad)
 
