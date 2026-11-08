@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794139044291,
+  "lastUpdate": 1794139434093,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4135,6 +4135,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000025215910790292718",
             "extra": "mean: 224.71470940840535 usec\nrounds: 5038"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbc737f56cc658ac6d6401c00ac2ad713e998841",
+          "message": "refactor: rename plugins.core.events APIs to the ADR-0004 form (merges PR #179, addresses #165)\n\nRename 13 of the 15 plugins.core.events APIs to the resource-first form\nfrom ADR-0004, rename the matching _api_* methods, and update every\ncaller in src, tests and docs/claude. The 13 renamed rows are removed\nfrom the grammar test's LEGACY_NAMES.\n\nget.summary.data.for.plugin and get.detailed.data.for.plugin are left\nuntouched (methods, LEGACY_NAMES rows and callers); #166 renames them for\nboth providers and the caller.\n\nAdds #165 to ADR-0004's related issues.\n\nBREAKING CHANGE: plugins.core.events API names changed, no aliases:\nregister.event.by.func -> event.register.by.func,\nget.current.event.name -> event.current.name.get,\nget.current.event.record -> event.current.record.get,\nget.event.stack -> event.stack.get,\nadd.event -> event.add,\nget.event -> event.get,\nhas.event -> event.exists,\nis.registered.to.event -> event.is.registered,\nregister.to.event -> event.register,\nunregister.from.event -> event.unregister,\nremove.events.for.owner -> event.unregister.for.owner,\nraise.event -> event.raise,\nget.event.detail -> event.detail.get.\n\nAddresses #165\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T12:03:13Z",
+          "tree_id": "bc189d5a9f37a025c60021b3dfe931aeff02a6c4",
+          "url": "https://github.com/endavis/bastproxy/commit/bbc737f56cc658ac6d6401c00ac2ad713e998841"
+        },
+        "date": 1794139433731,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 290.7033405986533,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00020498467556676964",
+            "extra": "mean: 3.439932949998692 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 8878.493159899572,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001086664394168707",
+            "extra": "mean: 112.63172499997864 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 272.80619183848506,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00011049582194697053",
+            "extra": "mean: 3.665605950000028 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 653.5459475153777,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008283335684563686",
+            "extra": "mean: 1.5301142999994966 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2173.4230529551637,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008087645480835901",
+            "extra": "mean: 460.1037053694255 usec\nrounds: 2179"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1858.1270396295852,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00003360046039447562",
+            "extra": "mean: 538.1763349180627 usec\nrounds: 1893"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3502.332198174841,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006415545940113532",
+            "extra": "mean: 285.52402896593503 usec\nrounds: 3694"
           }
         ]
       }
