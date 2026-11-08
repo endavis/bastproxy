@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/cmdq/_cmdq.py
+# Filename: plugins/core/mudcmds/plugin/_mudcmds.py
 #
 # File Description: a command queue plugin
 #
@@ -18,7 +18,7 @@ from bastproxy.plugins.core.commands import AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
-class CMDQPlugin(BasePlugin):
+class MUDCmdsPlugin(BasePlugin):
     """a plugin to handle sending a command to the mud."""
 
     @RegisterPluginHook("__init__")
@@ -34,13 +34,13 @@ class CMDQPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
-            self.api(f"{self.plugin_id}:remove.mud.commands.for.plugin")(event_record["plugin_id"])
+            self.api(f"{self.plugin_id}:type.remove.for.plugin")(event_record["plugin_id"])
 
     @AddAPI(
-        "remove.mud.commands.for.plugin",
+        "type.remove.for.plugin",
         description="remove all mud commands related to a plugin",
     )
-    def _api_remove_mud_commands_for_plugin(self, plugin_id):
+    def _api_type_remove_for_plugin(self, plugin_id):
         """Remove all commands related to a plugin.
 
         @Yplugin_id@w   = The plugin name.
@@ -48,7 +48,7 @@ class CMDQPlugin(BasePlugin):
         this function returns no values
         """
         LogRecord(
-            f"_api_remove_commands_for_plugin - removing cmdq data for plugin {plugin_id}",
+            f"_api_type_remove_for_plugin - removing mudcmds data for plugin {plugin_id}",
             level="debug",
             sources=[self.plugin_id, plugin_id],
         )()
@@ -63,13 +63,13 @@ class CMDQPlugin(BasePlugin):
             del self.cmds[cmdtype]
         else:
             LogRecord(
-                f"_api_command_type_remove - {cmdtype} not found",
+                f"_api_type_remove - {cmdtype} not found",
                 level="debug",
                 sources=[self.plugin_id],
             )()
 
-    @AddAPI("start", description="tell the plugin a command has started")
-    def _api_start(self, cmdtype):
+    @AddAPI("command.start", description="tell the plugin a command has started")
+    def _api_command_start(self, cmdtype):
         """Tell the plugin a command has started."""
         if self.current_command and cmdtype != self.current_command["ctype"]:
             LogRecord(
@@ -144,8 +144,8 @@ class CMDQPlugin(BasePlugin):
         """Check for a command in the queue."""
         return any(i["cmd"] == cmd for i in self.queue)
 
-    @AddAPI("finish", description="tell the plugin a command has finished")
-    def _api_finish(self, cmdtype):
+    @AddAPI("command.finish", description="tell the plugin a command has finished")
+    def _api_command_finish(self, cmdtype):
         """Tell the plugin that a command has finished."""
         LogRecord(
             f"_api_command_finish - got command finish for {cmdtype}",
@@ -170,8 +170,8 @@ class CMDQPlugin(BasePlugin):
             self.current_command = {}
             self.sendnext()
 
-    @AddAPI("queue.add.command", description="add a command to the plugin")
-    def _api_queue_add_command(self, cmdtype, arguments=""):
+    @AddAPI("command.queue", description="add a command to the plugin")
+    def _api_command_queue(self, cmdtype, arguments=""):
         """Add a command to the queue."""
         plugin = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype]["cmd"]
@@ -182,7 +182,7 @@ class CMDQPlugin(BasePlugin):
         ):
             return
         LogRecord(
-            f"_api_queue_add_command - adding {cmd} to queue",
+            f"_api_command_queue - adding {cmd} to queue",
             level="debug",
             sources=[self.plugin_id],
         )()

@@ -60,7 +60,7 @@ _APPENDIX_OWNERS: dict[str, str] = {
     "every plugin (BasePlugin)": "plugins._baseplugin",
     "sqldb database object (dynamic)": "plugins.core.sqldb",
     "ssc object (dynamic)": "plugins.core.ssc",
-    "plugins.core.cmdq → plugins.core.mudcmds": "plugins.core.cmdq",
+    "plugins.core.cmdq → plugins.core.mudcmds": "plugins.core.mudcmds",
 }
 
 Site = tuple[str, int]
@@ -245,13 +245,7 @@ def appendix_rows() -> list[tuple[Key, str, str]]:
 # "review": the name already parses, but breaks rule 3 or 5 (wrong resource noun,
 #           or a noun in the qualifier), which the ADR leaves to review.
 # ---------------------------------------------------------------------------
-LEGACY_NAMES: dict[Key, str] = {
-    # plugins.core.cmdq
-    ("plugins.core.cmdq", "finish"): "shape",
-    ("plugins.core.cmdq", "queue.add.command"): "shape",
-    ("plugins.core.cmdq", "remove.mud.commands.for.plugin"): "shape",
-    ("plugins.core.cmdq", "start"): "shape",
-}
+LEGACY_NAMES: dict[Key, str] = {}
 
 
 # ---------------------------------------------------------------------------
