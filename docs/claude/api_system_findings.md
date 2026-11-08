@@ -124,7 +124,7 @@ and each `API` object holds `_instance_api`. A name is `"<toplevel>:<name>"`.
 
 | Case | Result (verified) |
 | :--- | :--- |
-| Class API, same name, different function, no `force` | Logs an error and **returned `True`** when audited; the first function stays registered (AS-1, fixed in #194: now returns `False`). |
+| Class API, same name, different function, no `force` | Logs an error and **returned `True`** when audited; the first function stays registered (AS-1, fixed in #194: now returns `False`). Fixed in #209: `_api_api_add_for_object` records the name in `addedin` only when `add` returned `True`, so a refused add can be retried. |
 | Instance API, same name, different function, no `force` | Logs an error and returns `False`. The two paths disagree. |
 | Class API with `force=True` | Replaces the entry and keeps the old one in `overwritten_api`. |
 | Lookup order | `API.get` checks `_instance_api` first, then `_class_api`. |

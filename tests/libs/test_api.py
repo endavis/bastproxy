@@ -637,3 +637,70 @@ class TestToplevelRemoveLeftovers:
         restored = API._class_api["p.victim2:f"]
         assert restored.tfunction == helper_function_one
         assert restored.owner_id == "p.victim2"
+
+
+class _RefusedOwner:
+    """A stand-in plugin whose class API name collides with a hand-added one."""
+
+    @AddAPI("f", description="Refused api")
+    def _api_f(self) -> str:
+        """Refused API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "f"
+
+    @AddAPI("inst", description="Instance api", instance=True)
+    def _api_inst(self) -> str:
+        """Instance API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "inst"
+
+
+class TestAddedinRefusedAdd:
+    """Test that a refused add is not recorded in addedin (#209)."""
+
+    def test_refused_add_not_recorded_and_retry_registers(self) -> None:
+        """A refused class API is not recorded, so a retry registers it."""
+        api = API(owner_id="test_owner")
+        owner = _RefusedOwner()
+        api.add("t209", "f", helper_function_one)
+
+        api("libs.api:api.add.for.object")("t209", owner)
+        assert "f" not in owner._api_f.api["addedin"].get("t209", [])  # type: ignore[attr-defined]
+
+        del API._class_api["t209:f"]
+        api("libs.api:api.add.for.object")("t209", owner)
+
+        assert api.get("t209:f") is not None
+        assert owner._api_f.api["addedin"]["t209"] == ["f"]  # type: ignore[attr-defined]
+
+    def test_successful_add_still_recorded(self) -> None:
+        """A successful class add is recorded in addedin."""
+        api = API(owner_id="test_owner")
+        owner = _RefusedOwner()
+
+        api("libs.api:api.add.for.object")("t209ok", owner)
+
+        assert owner._api_f.api["addedin"]["t209ok"] == ["f"]  # type: ignore[attr-defined]
+
+    def test_instance_api_not_recorded(self) -> None:
+        """An instance API is still never recorded in addedin."""
+        api = API(owner_id="test_owner")
+        owner = _RefusedOwner()
+
+        api("libs.api:api.add.for.object")("t209inst", owner)
+
+        assert "inst" not in owner._api_inst.api["addedin"]["t209inst"]  # type: ignore[attr-defined]
