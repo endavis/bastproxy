@@ -534,7 +534,8 @@ class TestToplevelRemove:
 
         api("libs.api:api.toplevel.remove")("tlr_class")
 
-        assert owner._api_class.api["addedin"]["tlr_class"] == []  # type: ignore[attr-defined]
+        # The name leaves addedin, and #196 also prunes the now-empty toplevel entry
+        assert "tlr_class" not in owner._api_class.api["addedin"]  # type: ignore[attr-defined]
         with pytest.raises(APINotFoundError):
             api.get("tlr_class:toplevel.remove.class")
 
@@ -548,3 +549,91 @@ class TestToplevelRemove:
 
         with pytest.raises(APINotFoundError):
             api.get("tlr_plain:plain.func")
+
+
+class _Owner:
+    """A stand-in plugin with one class API, as the plugin base class registers them."""
+
+    @AddAPI("thing.get", description="Get a thing")
+    def _api_thing_get(self) -> str:
+        """Get a thing.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "thing"
+
+
+class TestToplevelRemoveLeftovers:
+    """Test that removing a top-level API prunes stats, addedin keys and overrides (#196)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_registries(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Give each test copies of the shared class registry and stats, restored afterwards."""
+        monkeypatch.setattr(API, "_class_api", dict(API._class_api))
+        monkeypatch.setattr(STATS_MANAGER, "stats", dict(STATS_MANAGER.stats))
+
+    def test_stats_pruned_and_reload_starts_at_zero(self) -> None:
+        """Removal deletes the toplevel's stats; a reload counts from zero."""
+        api = API(owner_id="p.stats")
+        owner = _Owner()
+        api._api_api_add_for_object("p.stats", owner)
+        api("p.stats:thing.get")()
+        api("p.stats:thing.get")()
+        STATS_MANAGER.add_call("p.other:keep", "x")
+        assert STATS_MANAGER.stats["p.stats:thing.get"].count == 2
+
+        api._api_api_toplevel_remove("p.stats")
+
+        assert not [k for k in STATS_MANAGER.stats if k.startswith("p.stats:")]
+        assert "p.other:keep" in STATS_MANAGER.stats
+        api._api_api_add_for_object("p.stats", owner)
+        api("p.stats:thing.get")()
+        assert STATS_MANAGER.stats["p.stats:thing.get"].count == 1
+
+    def test_addedin_key_removed(self) -> None:
+        """The now-empty addedin entry is deleted, other toplevels' entries stay."""
+        api = API(owner_id="p.added")
+        owner = _Owner()
+        api._api_api_add_for_object("p.added", owner)
+        api._api_api_add_for_object("p.added.keep", owner)
+        addedin = _Owner._api_thing_get.api["addedin"]  # type: ignore[attr-defined]
+        assert "p.added" in addedin
+
+        api._api_api_toplevel_remove("p.added")
+
+        assert "p.added" not in addedin
+        assert "p.added.keep" in addedin
+
+    def test_force_override_without_original_is_removed(self) -> None:
+        """An entry the removed owner added in another toplevel is deleted."""
+        over = API(owner_id="p.over")
+        over.add("p.victim", "solo", helper_function_two, force=True, description="over")
+        over._api_api_add_for_object("p.over", _Owner())
+        keeper = API(owner_id="p.keeper")
+        keeper.add("p.victim", "kept", helper_function_one, description="keeper")
+
+        over._api_api_toplevel_remove("p.over")
+
+        assert "p.victim:solo" not in API._class_api
+        assert "p.over:thing.get" not in API._class_api
+        assert over.get("libs.api:api.add") is not None
+        assert API._class_api["p.victim:kept"].tfunction == helper_function_one
+
+    def test_force_override_with_original_is_restored(self) -> None:
+        """The overwritten API is put back when the overriding owner is removed."""
+        victim = API(owner_id="p.victim2")
+        victim.add("p.victim2", "f", helper_function_one, description="victim")
+        over = API(owner_id="p.over2")
+        over.add("p.victim2", "f", helper_function_two, force=True, description="over")
+        assert API._class_api["p.victim2:f"].owner_id == "p.over2"
+
+        over._api_api_toplevel_remove("p.over2")
+
+        restored = API._class_api["p.victim2:f"]
+        assert restored.tfunction == helper_function_one
+        assert restored.owner_id == "p.victim2"

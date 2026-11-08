@@ -114,7 +114,7 @@ Statistics include:
 - Calls grouped by the part of the caller ID before the first `:` (a plugin ID for plugin-owned callers, a module name such as `bastproxy.libs.net.client` for module-owned ones)
 - Detailed call tracking with the full caller ID
 
-The one `STATS_MANAGER` instance is created when `_apistats.py` is imported. Entries are not removed when a plugin is unloaded, and a reloaded plugin keeps counting on the same entry.
+The one `STATS_MANAGER` instance is created when `_apistats.py` is imported. Removing a top-level API deletes the entries whose key starts with `"<toplevel>:"`, so a reloaded plugin counts from zero (#196).
 
 ## How It Works
 
@@ -237,7 +237,7 @@ When a plugin is unloaded, all its APIs are removed. `_phook_base_unitialize_hoo
 self.api("libs.api:api.toplevel.remove")("my.plugin")
 ```
 
-This removes all APIs with the top-level name `my.plugin:*`, class and instance, and takes the names out of the shared `addedin` lists so a subclass's APIs can be added again. It removes by top-level name, not by owner, so an API another owner force-overrode in a different top-level is left. It does not remove statistics. A registered function without `@AddAPI` metadata (added by hand with `api.add`) or an instance API has no `addedin` entry to clean, so removal skips that step and still deletes the key.
+This removes all APIs with the top-level name `my.plugin:*`, class and instance, and takes the names out of the shared `addedin` lists so a subclass's APIs can be added again. A registered function without `@AddAPI` metadata (added by hand with `api.add`) or an instance API has no `addedin` entry to clean, so removal skips that step and still deletes the key. It also deletes the top-level's statistics, deletes its (now empty) `addedin` entry, and undoes force-overrides the removed owner made in another top-level: the saved `overwritten_api` is restored, or the entry is deleted when none was saved (#196).
 
 ## Important Files
 

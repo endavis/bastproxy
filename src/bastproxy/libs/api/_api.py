@@ -49,7 +49,7 @@ from ._apiitem import APIItem
 
 # Third Party
 # Project
-from ._apistats import APIStatItem
+from ._apistats import STATS_MANAGER, APIStatItem
 from ._functools import get_caller_owner_id, stackdump
 
 logger = logging.getLogger(__name__)
@@ -631,6 +631,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         )()
         api_toplevel = f"{top_level_api}:"
 
+        removed_funcs = self._toplevel_funcs(top_level_api)
         class_keys = [item for item in self._class_api if item.startswith(api_toplevel)]
         LogRecord(
             f"libs.api:api.toplevel.remove class api - {class_keys =}",
@@ -652,6 +653,83 @@ class API:  # sourcery skip: upper-camel-case-classes
         for i in instance_keys:
             self._discard_addedin(self._instance_api[i].tfunction, top_level_api)
             del self._instance_api[i]
+        self._prune_toplevel_leftovers(top_level_api, removed_funcs)
+
+    def _toplevel_funcs(self, top_level_api: str) -> list[Callable]:
+        """Collect the functions registered under a top-level API.
+
+        Args:
+            top_level_api: The top-level API whose functions to collect.
+
+        Returns:
+            The functions of every class and instance API key that starts with
+            ``"<top_level_api>:"``.
+
+        Raises:
+            None
+
+        """
+        api_toplevel = f"{top_level_api}:"
+        funcs: list[Callable] = [
+            item.tfunction for key, item in self._class_api.items() if key.startswith(api_toplevel)
+        ]
+        funcs.extend(
+            item.tfunction
+            for key, item in self._instance_api.items()
+            if key.startswith(api_toplevel)
+        )
+        return funcs
+
+    def _prune_toplevel_leftovers(self, top_level_api: str, removed_funcs: list[Callable]) -> None:
+        """Remove what a removed top-level API left behind.
+
+        Removing the keys of a top-level API leaves three things: its statistics,
+        its entry in each function's shared ``addedin`` dict, and any API it
+        force-overrode in another top-level. This prunes all three.
+
+        Args:
+            top_level_api: The top-level API that was removed.
+            removed_funcs: The functions that were registered under it, taken
+                before its keys were deleted.
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
+        api_toplevel = f"{top_level_api}:"
+
+        # statistics are keyed by full API name, a reload starts from zero
+        for key in [k for k in STATS_MANAGER.stats if k.startswith(api_toplevel)]:
+            del STATS_MANAGER.stats[key]
+
+        # the addedin dict is shared per function, drop this toplevel's entry
+        for func in removed_funcs:
+            func_api = getattr(func, "api", None)
+            if isinstance(func_api, dict):
+                addedin = func_api.get("addedin")
+                if isinstance(addedin, dict):
+                    addedin.pop(top_level_api, None)
+
+        # undo force-overrides this owner made in another top-level; the owner's own
+        # API object registers the libs.api built-ins under its id, so skip those
+        builtin_prefix = f"{APILOCATION}:"
+        for registry in (self._class_api, self._instance_api):
+            for key in [
+                k
+                for k, item in registry.items()
+                if not k.startswith((api_toplevel, builtin_prefix))
+                and item.owner_id == top_level_api
+            ]:
+                restore: APIItem | None = registry[key].overwritten_api
+                while restore is not None and restore.owner_id == top_level_api:
+                    restore = restore.overwritten_api
+                if restore is None:
+                    del registry[key]
+                else:
+                    registry[key] = restore
 
     @staticmethod
     def _discard_addedin(func: Any, top_level_api: str) -> None:
