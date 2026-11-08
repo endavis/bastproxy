@@ -32,7 +32,7 @@ CHANGE_ROUNDS = 200
 
 
 def _get_keys_from_dict(d: dict[Any, Any]) -> list[Any]:
-    """Stand-in for plugins.core.utils:get.keys.from.dict."""
+    """Stand-in for plugins.core.utils:dict.key.list."""
     keys: list[Any] = []
     for k, v in d.items():
         keys.append(k)
@@ -42,7 +42,7 @@ def _get_keys_from_dict(d: dict[Any, Any]) -> list[Any]:
 
 
 def _dedent_list_of_strings(list_of_strings: list[str]) -> list[str]:
-    """Stand-in for plugins.core.utils:dedent.list.of.strings."""
+    """Stand-in for plugins.core.utils:string.dedent."""
     if not list_of_strings:
         return list_of_strings
     new_data = [list_of_strings[0].lstrip()]
@@ -57,8 +57,8 @@ def _get_current_command_args() -> dict[str, Any]:
 
 
 STAND_IN_APIS: dict[str, Callable[..., Any]] = {
-    "plugins.core.utils:get.keys.from.dict": _get_keys_from_dict,
-    "plugins.core.utils:dedent.list.of.strings": _dedent_list_of_strings,
+    "plugins.core.utils:dict.key.list": _get_keys_from_dict,
+    "plugins.core.utils:string.dedent": _dedent_list_of_strings,
     "plugins.core.commands:command.current.args.get": _get_current_command_args,
 }
 

@@ -113,11 +113,11 @@ class SettingsPlugin(BasePlugin):
 
         with contextlib.suppress(KeyError):
             returnval = (
-                self.api("plugins.core.utils:verify.value")(
+                self.api("plugins.core.utils:value.verify")(
                     self.settings_values[plugin_id][setting],
                     self.settings_info[plugin_id][setting].stype,
                 )
-                if self.api("libs.api:api.exists")("plugins.core.utils:verify.value")
+                if self.api("libs.api:api.exists")("plugins.core.utils:value.verify")
                 else self.settings_values[plugin_id][setting]
             )
 
@@ -179,7 +179,7 @@ class SettingsPlugin(BasePlugin):
         if value == "default":
             value = self.settings_info[plugin_id][setting].default
         elif self.api("libs.plugins.loader:plugin.is.loaded")("plugins.core.utils"):
-            value = self.api("plugins.core.utils:verify.value")(
+            value = self.api("plugins.core.utils:value.verify")(
                 value, self.settings_info[plugin_id][setting].stype
             )
 
@@ -323,8 +323,8 @@ class SettingsPlugin(BasePlugin):
         elif setting_info.stype == "color":
             value = f"{value}{value.replace('@', '@@')}@w"
         elif setting_info.stype == "timelength":
-            value = self.api("plugins.core.utils:format.time")(
-                self.api("plugins.core.utils:verify.value")(value, "timelength")
+            value = self.api("plugins.core.utils:timelength.format")(
+                self.api("plugins.core.utils:value.verify")(value, "timelength")
             )
 
         return str(value)

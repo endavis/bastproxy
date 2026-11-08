@@ -1368,7 +1368,7 @@ class PluginLoader:
         package_list = self.api(f"{__name__}:package.list")(active_only)
 
         # try and find the package
-        new_package = self.api("plugins.core.fuzzy:get.best.match")(
+        new_package = self.api("plugins.core.fuzzy:string.match.best")(
             tmp_package, tuple(package_list), scorer="token_set_ratio", score_cutoff=90
         )
 
@@ -1381,7 +1381,7 @@ class PluginLoader:
         loaded_list = self.api(f"{__name__}:plugin.list.loaded")()
 
         # try and find the plugin
-        new_plugin = self.api("plugins.core.fuzzy:get.best.match")(
+        new_plugin = self.api("plugins.core.fuzzy:string.match.best")(
             f"{new_package}.{tmp_plugin}", tuple(loaded_list), scorer="token_set_ratio"
         )
 

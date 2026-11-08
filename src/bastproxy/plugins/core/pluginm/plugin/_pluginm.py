@@ -79,7 +79,7 @@ class PluginManager(BasePlugin):
                 }
             )
 
-        msg = self.api("plugins.core.utils:convert.data.to.output.table")(header, data, columns)
+        msg = self.api("plugins.core.utils:table.format")(header, data, columns)
 
         if foundrequired and required_color_line:
             msg.extend(("", f"* {required_color}Required plugins appear in this color@w"))

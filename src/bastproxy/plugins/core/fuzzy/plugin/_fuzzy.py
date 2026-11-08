@@ -38,10 +38,10 @@ class FuzzyPlugin(BasePlugin):
 
     @lru_cache(maxsize=128)
     @AddAPI(
-        "get.best.match",
+        "string.match.best",
         description="get the best match for a string in a list of strings",
     )
-    def _api_get_best_match(
+    def _api_string_match_best(
         self,
         item_to_match,
         list_to_match: tuple,
@@ -63,19 +63,19 @@ class FuzzyPlugin(BasePlugin):
         found = ""
         scorer_inst = rapidfuzz.fuzz.__dict__[scorer]
         LogRecord(
-            f"_api_get_best_match - {item_to_match=}, {scorer=} {score_cutoff=}",
+            f"_api_string_match_best - {item_to_match=}, {scorer=} {score_cutoff=}",
             level="debug",
             sources=[self.plugin_id],
         )()
         LogRecord(
-            f"_api_get_best_match - {list_to_match=}",
+            f"_api_string_match_best - {list_to_match=}",
             level="debug",
             sources=[self.plugin_id],
         )()
 
         if item_to_match in list_to_match:
             LogRecord(
-                f"_api_get_best_match (exact) matched {item_to_match} to {found}",
+                f"_api_string_match_best (exact) matched {item_to_match} to {found}",
                 level="debug",
                 sources=[self.plugin_id],
             )()
@@ -85,7 +85,7 @@ class FuzzyPlugin(BasePlugin):
         if len(matching_startswith) == 1:
             found = matching_startswith[0]
             LogRecord(
-                f"_api_get_best_match (startswith) matched {item_to_match} to {found}",
+                f"_api_string_match_best (startswith) matched {item_to_match} to {found}",
                 level="debug",
                 sources=[self.plugin_id],
             )()
@@ -94,7 +94,7 @@ class FuzzyPlugin(BasePlugin):
                 rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst)
             )
             LogRecord(
-                f"_api_get_best_match - extract for {item_to_match} - {sorted_extract}",
+                f"_api_string_match_best - extract for {item_to_match} - {sorted_extract}",
                 level="debug",
                 sources=[self.plugin_id],
             )()
@@ -102,7 +102,7 @@ class FuzzyPlugin(BasePlugin):
             if maxscore > score_cutoff and len(sorted_extract[maxscore]) == 1:
                 found = sorted_extract[maxscore][0]
                 LogRecord(
-                    f"_api_get_best_match - (score) matched {item_to_match} to {found}",
+                    f"_api_string_match_best - (score) matched {item_to_match} to {found}",
                     level="debug",
                     sources=[self.plugin_id],
                 )
@@ -110,8 +110,8 @@ class FuzzyPlugin(BasePlugin):
         return found
 
     @lru_cache(maxsize=128)
-    @AddAPI("get.top.matches", description="get the top fuzzy matches for a string")
-    def _api_get_top_matches(
+    @AddAPI("string.match.top", description="get the top fuzzy matches for a string")
+    def _api_string_match_top(
         self,
         item_to_match,
         list_to_match: tuple,
@@ -130,12 +130,12 @@ class FuzzyPlugin(BasePlugin):
         found = []
 
         LogRecord(
-            f"_api_get_top_matches - {item_to_match =} {items =} {score_cutoff =}",
+            f"_api_string_match_top - {item_to_match =} {items =} {score_cutoff =}",
             level="debug",
             sources=[self.plugin_id],
         )()
         LogRecord(
-            f"_api_get_top_matches - list_to_match: {list_to_match}",
+            f"_api_string_match_top - list_to_match: {list_to_match}",
             level="debug",
             sources=[self.plugin_id],
         )()
@@ -146,7 +146,7 @@ class FuzzyPlugin(BasePlugin):
         sorted_extract = sort_fuzzy_result(extract)
 
         LogRecord(
-            f"__api_get_top_matches - extract for {item_to_match} - {sorted_extract}",
+            f"_api_string_match_top - extract for {item_to_match} - {sorted_extract}",
             level="debug",
             sources=[self.plugin_id],
         )()
@@ -157,7 +157,7 @@ class FuzzyPlugin(BasePlugin):
                 break
 
         LogRecord(
-            f"_api_get_top_matches - (score) matched {item_to_match} to {found}",
+            f"_api_string_match_top - (score) matched {item_to_match} to {found}",
             level="debug",
             sources=[self.plugin_id],
         )

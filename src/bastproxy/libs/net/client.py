@@ -118,7 +118,7 @@ class ClientConnection:
             The duration of the connection in a human-readable format.
 
         """
-        return self.api("plugins.core.utils:convert.timedelta.to.string")(
+        return self.api("plugins.core.utils:timedelta.to.string")(
             self.connected_time, datetime.datetime.now(datetime.UTC)
         )
 

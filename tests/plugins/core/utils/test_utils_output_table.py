@@ -1,4 +1,4 @@
-"""Tests for plugins.core.utils:convert.data.to.output.table (#93)."""
+"""Tests for plugins.core.utils:table.format (#93)."""
 
 from typing import Any
 from unittest.mock import MagicMock
@@ -11,7 +11,7 @@ SUB_COLOR = "@C"
 
 
 def make_utils_stub() -> MagicMock:
-    """Build a stub utils plugin wired to the real colors and cap.line code."""
+    """Build a stub utils plugin wired to the real colors and line.cap code."""
     colors = MagicMock()
     colors.plugin_id = "plugins.core.colors"
     stub = MagicMock()
@@ -24,8 +24,8 @@ def make_utils_stub() -> MagicMock:
             return lambda text: ColorsPlugin._api_colorcode_strip(colors, text)
         if name == "plugins.core.commands:header.format":
             return lambda text, color, line_length: [f"HEADER {text} {color} {line_length}"]
-        if name == "plugins.core.utils:cap.line":
-            return lambda *a, **k: UtilsPlugin._api_cap_line(stub, *a, **k)
+        if name == "plugins.core.utils:line.cap":
+            return lambda *a, **k: UtilsPlugin._api_line_cap(stub, *a, **k)
         raise AssertionError(name)
 
     stub.api = api
@@ -54,7 +54,7 @@ def legacy_table(stub: MagicMock, table_name: str, data: list[dict], columns: li
     sub = template.format(**{c["key"]: c["name"] for c in columns})
     lines = [template.format(**i) for i in data]
     ll = LINELEN
-    cap = stub.api("plugins.core.utils:cap.line")
+    cap = stub.api("plugins.core.utils:line.cap")
     rule = "-" * (ll - 2)
     return [
         f"HEADER {table_name} {SUB_COLOR} {ll}",
@@ -72,7 +72,7 @@ def test_uncolored_output_is_unchanged() -> None:
     data = [{"n": "alpha", "v": 1}, {"n": "be", "v": 22}]
 
     expected = legacy_table(stub, "T", data, [dict(c) for c in columns])
-    result = UtilsPlugin._api_convert_data_to_output_table(stub, "T", data, columns)
+    result = UtilsPlugin._api_table_format(stub, "T", data, columns)
 
     assert result == expected
 
@@ -83,7 +83,7 @@ def test_colored_cells_are_aligned() -> None:
     columns: list[dict[str, Any]] = [{"name": "Name", "key": "n"}, {"name": "Vers", "key": "v"}]
     data = [{"n": "@x075alpha", "v": "@x0751"}, {"n": "beta", "v": "2"}]
 
-    result = UtilsPlugin._api_convert_data_to_output_table(stub, "T", data, columns)
+    result = UtilsPlugin._api_table_format(stub, "T", data, columns)
 
     strip = stub.api("plugins.core.colors:colorcode.strip")
     rows = [strip(line) for line in result[1:]]

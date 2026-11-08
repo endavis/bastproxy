@@ -244,7 +244,7 @@ class ProxyPlugin(BasePlugin):
         if self.api.proxy_start_time:
             started = self.api.proxy_start_time.strftime(self.api.time_format)
 
-        uptime = self.api("plugins.core.utils:convert.timedelta.to.string")(
+        uptime = self.api("plugins.core.utils:timedelta.to.string")(
             self.api.proxy_start_time, datetime.datetime.now(datetime.UTC)
         )
 
@@ -269,7 +269,7 @@ class ProxyPlugin(BasePlugin):
                         template
                         % (
                             "Uptime",
-                            self.api("plugins.core.utils:convert.timedelta.to.string")(
+                            self.api("plugins.core.utils:timedelta.to.string")(
                                 self.mud_connection.connected_time,
                                 datetime.datetime.now(datetime.UTC),
                             ),
@@ -543,7 +543,7 @@ class ProxyPlugin(BasePlugin):
 
             msg.extend(
                 [
-                    *self.api("plugins.core.utils:convert.data.to.output.table")(
+                    *self.api("plugins.core.utils:table.format")(
                         "Network Addresses", nic_addresses, nic_addresses_columns
                     ),
                 ]
@@ -588,11 +588,11 @@ class ProxyPlugin(BasePlugin):
             msg.extend(
                 [
                     "",
-                    *self.api("plugins.core.utils:convert.data.to.output.table")(
+                    *self.api("plugins.core.utils:table.format")(
                         "Listening Ports", listening_ports_dicts, listening_port_columns
                     ),
                     "",
-                    *self.api("plugins.core.utils:convert.data.to.output.table")(
+                    *self.api("plugins.core.utils:table.format")(
                         "Connected Ports", connected_ports_dicts, connected_port_columns
                     ),
                 ]
@@ -612,7 +612,7 @@ class ProxyPlugin(BasePlugin):
             msg.extend(
                 [
                     "",
-                    *self.api("plugins.core.utils:convert.data.to.output.table")(
+                    *self.api("plugins.core.utils:table.format")(
                         "Open Files", open_files_dicts, open_files_columns
                     ),
                 ]

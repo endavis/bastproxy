@@ -163,7 +163,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     # don't have to worry about importing dumper everywhere
     def dump_object_as_string(self, object):
         """Dump an object as a string."""
-        return self.api("plugins.core.utils:dump.object.as.string")(object)
+        return self.api("plugins.core.utils:object.dump")(object)
 
     @AddAPI("data.get", description="get the data for a specific datatype")
     def _api_data_get(self, datatype, plugin_id=None):

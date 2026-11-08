@@ -230,7 +230,7 @@ class CommandsPlugin(BasePlugin):
             "plugins.core.commands", "multiline_headers"
         ):
             return [
-                self.api("plugins.core.utils:cap.line")(
+                self.api("plugins.core.utils:line.cap")(
                     f"{'-' * (line_length - 2)}",
                     "+",
                     color=color,
@@ -238,10 +238,10 @@ class CommandsPlugin(BasePlugin):
                     space=False,
                     fullcolor=True,
                 ),
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     header_text, " ", line_length, filler_color=color, endcaps=True
                 ),
-                self.api("plugins.core.utils:cap.line")(
+                self.api("plugins.core.utils:line.cap")(
                     f"{'-' * (line_length - 2)}",
                     "+",
                     color=color,
@@ -251,7 +251,7 @@ class CommandsPlugin(BasePlugin):
                 ),
             ]
         return [
-            *self.api("plugins.core.utils:center.colored.string")(
+            *self.api("plugins.core.utils:string.center.colored")(
                 header_text, "-", line_length, filler_color=color
             ),
         ]
@@ -830,7 +830,7 @@ class CommandsPlugin(BasePlugin):
         message = []
         if command:
             message = [
-                self.api("plugins.core.utils:cap.line")(
+                self.api("plugins.core.utils:line.cap")(
                     f"{'-' * (80 - 2)}",
                     "+",
                     color="@B",
@@ -838,7 +838,7 @@ class CommandsPlugin(BasePlugin):
                     space=False,
                     fullcolor=True,
                 ),
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     f"@RError - Plugin {plugin_id.replace('plugins.', '')} has no command{f' : {command}' if command else ''}@w",
                     filler_character="-",
                     length=80,
@@ -863,7 +863,7 @@ class CommandsPlugin(BasePlugin):
         message = []
         if plugin_id:
             message = [
-                self.api("plugins.core.utils:cap.line")(
+                self.api("plugins.core.utils:line.cap")(
                     f"{'-' * (80 - 2)}",
                     "+",
                     color="@B",
@@ -871,7 +871,7 @@ class CommandsPlugin(BasePlugin):
                     space=False,
                     fullcolor=True,
                 ),
-                self.api("plugins.core.utils:center.colored.string")(
+                self.api("plugins.core.utils:string.center.colored")(
                     f"@RError - Unknown plugin{f' : {plugin_id}' if plugin_id else ''}@w",
                     filler_character="-",
                     length=80,
@@ -890,7 +890,7 @@ class CommandsPlugin(BasePlugin):
                 *self.api(f"{self.plugin_id}:output.header.format")(
                     f"Available Plugins in {package}"
                 ),
-                *self.api("plugins.core.utils:format.list.into.columns")(
+                *self.api("plugins.core.utils:column.format")(
                     plugins, cols=3, columnwise=False, gap=6
                 ),
             ]
@@ -900,7 +900,7 @@ class CommandsPlugin(BasePlugin):
     def error_package_not_found(self, package=None):
         """Package not found."""
         message = [
-            self.api("plugins.core.utils:cap.line")(
+            self.api("plugins.core.utils:line.cap")(
                 f"{'-' * (80 - 2)}",
                 "+",
                 color="@B",
@@ -908,7 +908,7 @@ class CommandsPlugin(BasePlugin):
                 space=False,
                 fullcolor=True,
             ),
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 f"@RError - Unknown package{f' : {package}' if package else ''}@w",
                 filler_character="-",
                 length=80,
@@ -996,7 +996,7 @@ class CommandsPlugin(BasePlugin):
             actor=f"{self.plugin_id}:find_command"
         )
 
-        new_command = self.api("plugins.core.fuzzy:get.best.match")(
+        new_command = self.api("plugins.core.fuzzy:string.match.best")(
             temp_command, tuple(command_list), scorer="token_set_ratio"
         )
 
@@ -1136,12 +1136,12 @@ class CommandsPlugin(BasePlugin):
         if plugin_id == self.plugin_id:
             msg.extend(
                 (
-                    self.api("plugins.core.utils:center.colored.string")(
+                    self.api("plugins.core.utils:string.center.colored")(
                         "Overall Command Data", "=", 80, filler_color="@G"
                     ),
                     f"Total Commands for all plugins : {len(self.commands_list)}",
                     "",
-                    self.api("plugins.core.utils:center.colored.string")(
+                    self.api("plugins.core.utils:string.center.colored")(
                         f"{self.plugin_id} specific data", "=", 80, filler_color="@G"
                     ),
                 )
@@ -1188,7 +1188,7 @@ class CommandsPlugin(BasePlugin):
         count = len(data)
 
         return [
-            *self.api("plugins.core.utils:convert.data.to.output.table")(
+            *self.api("plugins.core.utils:table.format")(
                 f"{count} Commands for plugin: {plugin_id}", data, columns
             )
         ]
@@ -1370,7 +1370,7 @@ class CommandsPlugin(BasePlugin):
             ]
 
         if plugin_id_list := sorted(plugin_id_list):
-            return self.api("plugins.core.utils:format.list.into.columns")(
+            return self.api("plugins.core.utils:column.format")(
                 plugin_id_list, cols=3, columnwise=False, gap=6
             )
         return ["No plugins found"]
@@ -1456,7 +1456,7 @@ class CommandsPlugin(BasePlugin):
             {"name": "Item", "key": "item", "width": 20},
             {"name": "Value", "key": "value", "width": 40},
         ]
-        return True, self.api("plugins.core.utils:convert.data.to.output.table")(
+        return True, self.api("plugins.core.utils:table.format")(
             f"Command: {command_item.full_cmd}", self.command_detail_data(command_item), columns
         )
 

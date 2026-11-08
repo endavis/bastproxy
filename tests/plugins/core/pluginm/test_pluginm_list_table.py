@@ -36,8 +36,8 @@ def _stub() -> MagicMock:
     def api(name: str) -> Any:
         if name == "libs.plugins.loader:plugin.info.get":
             return INFOS.__getitem__
-        if name == "plugins.core.utils:convert.data.to.output.table":
-            return lambda *a, **k: UtilsPlugin._api_convert_data_to_output_table(utils, *a, **k)
+        if name == "plugins.core.utils:table.format":
+            return lambda *a, **k: UtilsPlugin._api_table_format(utils, *a, **k)
         raise AssertionError(name)
 
     stub.api = api

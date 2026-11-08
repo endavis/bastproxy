@@ -141,7 +141,7 @@ class RecordManager:
         rfilter = self.default_filter[:]
         rfilter.extend(record_filter)
         children = self.get_all_children_dict(record, record_filter)
-        return self.api("plugins.core.utils:get.keys.from.dict")(children)
+        return self.api("plugins.core.utils:dict.key.list")(children)
 
     def format_all_children(self, record, record_filter=None):
         """Format all children as a tree structure with indentation.

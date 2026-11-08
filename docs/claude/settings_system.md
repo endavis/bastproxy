@@ -350,7 +350,7 @@ class MyPlugin(BasePlugin):
 ### Validating Custom Types
 
 ```python
-# Settings system uses plugins.core.utils:verify.value for validation
+# Settings system uses plugins.core.utils:value.verify for validation
 # Custom types can be added by extending that plugin
 
 # Example: Using timelength type

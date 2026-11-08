@@ -323,7 +323,7 @@ class ClientPlugin(BasePlugin):
         ]
 
         tmsg.extend(
-            self.api("plugins.core.utils:convert.data.to.output.table")(
+            self.api("plugins.core.utils:table.format")(
                 "Clients", clients, clients_columns, color=color
             )
         )
@@ -342,7 +342,7 @@ class ClientPlugin(BasePlugin):
 
             tmsg.append("")
             tmsg.extend(
-                self.api("plugins.core.utils:convert.data.to.output.table")(
+                self.api("plugins.core.utils:table.format")(
                     "Banned IPs", banned_clients, banned_clients_columns, color=color
                 )
             )

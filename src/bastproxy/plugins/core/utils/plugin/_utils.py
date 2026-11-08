@@ -40,10 +40,10 @@ class UtilsPlugin(BasePlugin):
     """a plugin to handle ansi colors."""
 
     @AddAPI(
-        "format.list.into.columns",
+        "column.format",
         description="formt the given list in evenly-spaced columns.",
     )
-    def _api_format_list_into_columns(self, obj, cols=4, columnwise=True, gap=4):
+    def _api_column_format(self, obj, cols=4, columnwise=True, gap=4):
         """Format the given list in evenly-spaced columns.
 
         Parameters
@@ -75,25 +75,25 @@ class UtilsPlugin(BasePlugin):
             plist = zip(*plist, strict=False)
         return ["".join([c.ljust(max_len + gap) for c in p]) for p in plist]
 
-    @AddAPI("dump.object.as.string", description="dump an object as a string")
-    def _api_dump_object_as_string(self, object):
+    @AddAPI("object.dump", description="dump an object as a string")
+    def _api_object_dump(self, object):
         """Dump an object as a string."""
         return dumps(object)
 
     @AddAPI(
-        "get.keys.from.dict",
+        "dict.key.list",
         description="get all keys from a dictionary and any nested dictionaries",
     )
-    def _api_get_keys_from_dict(self, d):
+    def _api_dict_key_list(self, d):
         keys = []
         for k, v in d.items():
             keys.append(k)
             if isinstance(v, dict):
-                keys.extend(self._api_get_keys_from_dict(v))
+                keys.extend(self._api_dict_key_list(v))
         return keys
 
-    @AddAPI("dedent.list.of.strings", description="dedent a list of strings")
-    def _api_dedent_list_of_strings(self, list_of_strings):
+    @AddAPI("string.dedent", description="dedent a list of strings")
+    def _api_string_dedent(self, list_of_strings):
         """Dedent a list of strings."""
         if len(list_of_strings) == 0:
             return list_of_strings
@@ -103,10 +103,10 @@ class UtilsPlugin(BasePlugin):
         return new_data
 
     @AddAPI(
-        "convert.timedelta.to.string",
+        "timedelta.to.string",
         description="take two times and return a string of the difference",
     )
-    def _api_convert_timedelta_to_string(
+    def _api_timedelta_to_string(
         self, start_time, end_time, fmin=False, colorn="", colors="", nosec=False
     ):
         """Take two times and return a string of the difference.
@@ -148,10 +148,10 @@ class UtilsPlugin(BasePlugin):
         return ":".join(message)
 
     @AddAPI(
-        "convert.to.readable.number",
+        "number.to.readable",
         description="convert a number to a shorter readable number",
     )
-    def _api_convert_to_readable_number(self, num, places=2):
+    def _api_number_to_readable(self, num, places=2):
         """Convert a number to a shorter readable number."""
         converted_string = ""
         nform = f"%00.0{places}f"
@@ -170,10 +170,10 @@ class UtilsPlugin(BasePlugin):
         return converted_string
 
     @AddAPI(
-        "convert.seconds.to.dhms",
+        "seconds.to.dhms",
         description="convert seconds to years, days, hours, mins, secs",
     )
-    def _api_convert_seconds_to_dhms(self, seconds):
+    def _api_seconds_to_dhms(self, seconds):
         """Convert seconds to years, days, hours, mins, secs."""
         seconds = int(seconds)
         converted_time = {"years": 0, "days": 0, "hours": 0, "mins": 0, "secs": 0}
@@ -191,11 +191,11 @@ class UtilsPlugin(BasePlugin):
         converted_time["secs"] = int(seconds % 60)
         return converted_time
 
-    @AddAPI("format.time", description="format a length of time into a string")
-    def _api_format_time(self, length, nosec=False):
+    @AddAPI("timelength.format", description="format a length of time into a string")
+    def _api_timelength_format(self, length, nosec=False):
         """Format a length of time into a string."""
         message = []
-        converted_time = self.api(f"{self.plugin_id}:convert.seconds.to.dhms")(length)
+        converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(length)
         years = False
         days = False
         hours = False
@@ -267,14 +267,14 @@ class UtilsPlugin(BasePlugin):
         try:
             ttime = int(usertime)
         except ValueError:
-            ttime = self.api(f"{self.plugin_id}:convert.timelength.to.secs")(usertime)
+            ttime = self.api(f"{self.plugin_id}:timelength.to.seconds")(usertime)
 
         if ttime == 0 or ttime:
             return ttime
         raise ValueError
 
-    @AddAPI("verify.value", description="verify that a value is of a certain type")
-    def _api_verify_value(self, value, vtype):
+    @AddAPI("value.verify", description="verify that a value is of a certain type")
+    def _api_value_verify(self, value, vtype):
         """Verify values."""
         vtab = {
             bool: self.verify_bool,
@@ -284,8 +284,8 @@ class UtilsPlugin(BasePlugin):
         }
         return vtab[vtype](value) if vtype in vtab else vtype(value)
 
-    @AddAPI("center.colored.string", description="center a string with color codes")
-    def _api_center_colored_string(
+    @AddAPI("string.center.colored", description="center a string with color codes")
+    def _api_string_center_colored(
         self,
         string_to_center,
         filler_character="",
@@ -322,7 +322,7 @@ class UtilsPlugin(BasePlugin):
             new_str += filler_character * (length - new_length)
 
         if endcaps:
-            new_str = self.api("plugins.core.utils:cap.line")(
+            new_str = self.api("plugins.core.utils:line.cap")(
                 new_str,
                 capchar,
                 color=filler_color,
@@ -333,8 +333,8 @@ class UtilsPlugin(BasePlugin):
 
         return f"{new_str}{filler_color_end}"
 
-    @AddAPI("check.list.for.match", description="check a list for a match of arg")
-    def _api_check_list_for_match(self, arg, item_list: list[str]) -> list[str]:
+    @AddAPI("string.match.in.list", description="check a list for a match of arg")
+    def _api_string_match_in_list(self, arg, item_list: list[str]) -> list[str]:
         """Check a list for a match of arg."""
         string_to_match = str(arg)
         match = f"{string_to_match}*"
@@ -353,8 +353,8 @@ class UtilsPlugin(BasePlugin):
 
         return matches["partofstring"]
 
-    @AddAPI("convert.timelength.to.secs", description="converts a time length to seconds")
-    def _api_convert_timelength_to_secs(self, timel):
+    @AddAPI("timelength.to.seconds", description="converts a time length to seconds")
+    def _api_timelength_to_seconds(self, timel):
         """Converts a time length to seconds.
 
         Format is 1d:2h:30m:40s, any part can be missing
@@ -400,10 +400,10 @@ class UtilsPlugin(BasePlugin):
         )
 
     @AddAPI(
-        "convert.data.to.output.table",
+        "table.format",
         description="converts a list of dicts to a table with a header",
     )
-    def _api_convert_data_to_output_table(self, table_name, data, columns, color=""):
+    def _api_table_format(self, table_name, data, columns, color=""):
         """Columns is a list of dicts.
 
         dict format:
@@ -455,10 +455,10 @@ class UtilsPlugin(BasePlugin):
             line_length = line_length_default
 
         column_lines = [
-            self.api("plugins.core.utils:cap.line")(
+            self.api("plugins.core.utils:line.cap")(
                 subheader_msg, "|", color=output_color, line_length=line_length
             ),
-            self.api("plugins.core.utils:cap.line")(
+            self.api("plugins.core.utils:line.cap")(
                 f"{'-' * (line_length - 2)}",
                 "+",
                 color=output_color,
@@ -474,12 +474,12 @@ class UtilsPlugin(BasePlugin):
             ),
             *column_lines,
             *[
-                self.api("plugins.core.utils:cap.line")(
+                self.api("plugins.core.utils:line.cap")(
                     line, "|", color=output_color, line_length=line_length
                 )
                 for line in data_msg
             ],
-            self.api("plugins.core.utils:cap.line")(
+            self.api("plugins.core.utils:line.cap")(
                 f"{'-' * (line_length - 2)}",
                 "+",
                 color=output_color,
@@ -489,8 +489,8 @@ class UtilsPlugin(BasePlugin):
             ),
         ]
 
-    @AddAPI("cap.line", description="caps the line with a character")
-    def _api_cap_line(
+    @AddAPI("line.cap", description="caps the line with a character")
+    def _api_line_cap(
         self, line, capchar="|", color="", line_length=None, space=True, fullcolor=False
     ):
         """Cap a line with delimiters."""

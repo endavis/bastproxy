@@ -116,7 +116,7 @@ class ProcessRaisedEvent(BaseRecord):
             "plugins.core.commands", "output_subheader_color"
         )
         message = [
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 f"{subheader_color}Stack: {self.created}@w",
                 "-",
                 50,
@@ -128,13 +128,13 @@ class ProcessRaisedEvent(BaseRecord):
         ]
 
         message.append(
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 f"{subheader_color}Event Stack@w", "-", 40, filler_color=subheader_color
             )
         )
         message.extend([f"  {event}" for event in self.event_stack])
         message.append(
-            self.api("plugins.core.utils:center.colored.string")(
+            self.api("plugins.core.utils:string.center.colored")(
                 f"{subheader_color}Function Stack@w",
                 "-",
                 40,
