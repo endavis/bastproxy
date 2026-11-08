@@ -458,7 +458,7 @@ reload resets counts) or keep them on purpose and prune only names that no longe
 
 ### AS-4: `libs.api:caller.owner.get` returns the owner of the API it was called through
 
-**Issue:** #197
+**Issue:** #197 (fixed: `get_caller_owner_id` skips every `API` frame, and `libs.timing` passes its own API owner as the ignore list; the findings below describe the code at audit time)
 **Location:** `_api.py` `_api_caller_owner_get`; `src/bastproxy/libs/timing.py` `_api_timing_start`,
 `_api_timing_finish`.
 
