@@ -244,7 +244,7 @@ class LogPlugin(BasePlugin):
     )
     def _command_client(self):
         """Toggle logtypes shown to client."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         level = args["level"]
         if args["logtype"]:
@@ -319,7 +319,7 @@ class LogPlugin(BasePlugin):
     @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
     def _command_console(self):
         """Toggle logtypes to the console."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         if args["logtype"]:
             for i in args["logtype"]:
@@ -394,7 +394,7 @@ class LogPlugin(BasePlugin):
     )
     def _command_file(self):
         """Toggle a logtype to log to a file."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         if args["logtype"]:
             for i in args["logtype"]:
@@ -433,7 +433,7 @@ class LogPlugin(BasePlugin):
     )
     def _command_types(self):
         """List log types."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         types = []
         types.extend(self.handlers["client"].keys())
         types.extend(self.handlers["console"].keys())
@@ -481,7 +481,7 @@ class LogPlugin(BasePlugin):
     )
     def _command_test(self):
         """Send test records to logging facilities."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         logtype = args["logtype"]
         message = args["message"]
         level = args["loglevel"]

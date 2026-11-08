@@ -329,8 +329,8 @@ class EventsPlugin(BasePlugin):
         for event in self.events:
             self.events[event].removeowner(owner_id)
 
-    @AddAPI("get.detailed.data.for.plugin", description="get detailed data for a plugin")
-    def _api_get_detailed_data_for_plugin(self, owner_name):
+    @AddAPI("detail.get.for.plugin", description="get detailed data for a plugin")
+    def _api_detail_get_for_plugin(self, owner_name):
         """Return all events for an owner."""
         owner_events = {}
         for event in self.events.values():
@@ -436,7 +436,7 @@ class EventsPlugin(BasePlugin):
         @CUsage@w: raise @Y<event_name>@w
           @Yevent_name@w  = the event_name to raise.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if self.api(f"{self.plugin_id}:event.get")(args["event"]):
             self.api(f"{self.plugin_id}:event.raise")(args["event"])
@@ -455,7 +455,7 @@ class EventsPlugin(BasePlugin):
         @CUsage@w: detail show @Y<event_name>@w
           @Yevent_name@w  = the event_name to get info for.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args["event"]:
             for event_name in args["event"]:
@@ -507,7 +507,7 @@ class EventsPlugin(BasePlugin):
         list events and the owner_ids registered with them
         @CUsage@w: list.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         match = args["match"]
         show_registered_only = args["show_registered_only"]
         show_no_description_or_args = args["show_no_description_or_args"]
@@ -549,18 +549,18 @@ class EventsPlugin(BasePlugin):
     )
     def _command_owner(self):
         """Show all registrations for a specific owner."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["owner"]:
             return False, ["Please provide an owner"]
 
         owner_name = args["owner"]
 
-        data = self.api(f"{self.plugin_id}:get.detailed.data.for.plugin")(owner_name)
+        data = self.api(f"{self.plugin_id}:detail.get.for.plugin")(owner_name)
 
         return True, data or ["No registrations"]
 
-    @AddAPI("get.summary.data.for.plugin", description="get summary data for a plugin")
-    def _api_get_summary_data_for_plugin(self, plugin_id):
+    @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
+    def _api_summary_get_for_plugin(self, plugin_id):
         """Return a summary of the data in this plugin for a specific plugin_id."""
         msg = []
         if plugin_id == self.plugin_id:

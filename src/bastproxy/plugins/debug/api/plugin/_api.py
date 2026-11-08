@@ -43,7 +43,7 @@ class APIPlugin(BasePlugin):
           @CUsage@w: detail @Y<api>@w
           @Yapi@w = (optional) the api to detail.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         api = self.api
         if args["noplugin"]:
@@ -78,7 +78,7 @@ class APIPlugin(BasePlugin):
           @CUsage@w: list @Y<apiname>@w
           @Yapiname@w = (optional) the toplevel api to show.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         api = self.api
         if args["noplugin"]:
@@ -111,7 +111,7 @@ class APIPlugin(BasePlugin):
           -a @Yapiname@w  = the api to call
             @Yarguments@w = (optional) arguments to the api.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         api = args["api"]
         try:
             returnstuff = self.api(api)(*args["arguments"])

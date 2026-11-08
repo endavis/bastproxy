@@ -250,11 +250,11 @@ class ProxyPlugin(BasePlugin):
 
         tmsg = [
             *(
-                *self.api("plugins.core.commands:format.output.header")("Proxy Info"),
+                *self.api("plugins.core.commands:output.header.format")("Proxy Info"),
                 template % ("Started", started),
                 template % ("Uptime", uptime),
                 "",
-                *self.api("plugins.core.commands:format.output.header")("Mud Info"),
+                *self.api("plugins.core.commands:output.header.format")("Mud Info"),
             ),
         ]
         if self.mud_connection and self.mud_connection.connected:
@@ -352,7 +352,7 @@ class ProxyPlugin(BasePlugin):
     )
     def _command_restart(self):
         """Restart the proxy."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
         self.api(f"{self.plugin_id}:restart")(args["seconds"])
         return True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
@@ -370,7 +370,7 @@ class ProxyPlugin(BasePlugin):
                     (
                         divider,
                         "Please set the mudhost.",
-                        f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'set')} mudhost 'host'",
+                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')} mudhost 'host'",
                     )
                 )
             if self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudport") == 0:
@@ -378,13 +378,13 @@ class ProxyPlugin(BasePlugin):
                     (
                         divider,
                         "Please set the mudport.",
-                        f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'set')} mudport 'port'",
+                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')} mudport 'port'",
                     )
                 )
             tmsg.extend(
                 (
                     divider,
-                    f"Connect to the mud with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'connect')}",
+                    f"Connect to the mud with {self.api('plugins.core.commands:command.format')(self.plugin_id, 'connect')}",
                 )
             )
         else:
@@ -400,7 +400,7 @@ class ProxyPlugin(BasePlugin):
                     divider,
                     "The proxy password is still the default password.",
                     "Please set the proxy password!",
-                    f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
+                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
                 )
             )
         if self.api(f"{self.plugin_id}:ssc.proxypwview")(quiet=True) == "defaultviewpass":
@@ -409,7 +409,7 @@ class ProxyPlugin(BasePlugin):
                     divider,
                     "The proxy view password is still the default password.",
                     "Please set the proxy view password!",
-                    f"{self.api('plugins.core.commands:get.command.format')(self.plugin_id, 'proxypwview')} 'This is a view password'",
+                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypwview')} 'This is a view password'",
                 )
             )
         if tmsg[-1] != divider:
@@ -483,7 +483,7 @@ class ProxyPlugin(BasePlugin):
     @AddArgument("-p", "--ports", help="show network ports", action="store_false", default=True)
     def _command_resource(self):
         """Output proxy resource usage."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         cpu_percent = psutil.cpu_percent()
         virtual_memory = psutil.virtual_memory()
@@ -499,32 +499,32 @@ class ProxyPlugin(BasePlugin):
         uname = platform.uname()
 
         msg = [
-            *self.api("plugins.core.commands:format.output.header")("OS Info"),
+            *self.api("plugins.core.commands:output.header.format")("OS Info"),
             f"{'OS':<{column_width}} : {uname.system}",
             f"{'Hostname':<{column_width}} : {uname.node}",
             f"{'Platform':<{column_width}} : {platform.platform()}",
-            *self.api("plugins.core.commands:format.output.header")("Python Info"),
+            *self.api("plugins.core.commands:output.header.format")("Python Info"),
             f"{'Python Version':<{column_width}} : {platform.python_version()}",
             f"{'Python Path':<{column_width}} :",
             *[f"     {i}" for i in sys.path],
-            *self.api("plugins.core.commands:format.output.header")("CPU Info"),
+            *self.api("plugins.core.commands:output.header.format")("CPU Info"),
             f"{'CPU Percent':<{column_width}} : {cpu_percent}",
             f"{'CPU Count':<{column_width}} : {cpu_count}",
-            *self.api("plugins.core.commands:format.output.header")("Load Info"),
+            *self.api("plugins.core.commands:output.header.format")("Load Info"),
             f"{'1 Minute':<{column_width}} : {load_average[0]}",
             f"{'5 Minute':<{column_width}} : {load_average[1]}",
             f"{'15 Minute':<{column_width}} : {load_average[2]}",
-            *self.api("plugins.core.commands:format.output.header")("Memory Info"),
+            *self.api("plugins.core.commands:output.header.format")("Memory Info"),
             f"{'Total':<{column_width}} : {humanize.naturalsize(virtual_memory.total, binary=True)}",
             f"{'Available':<{column_width}} : {humanize.naturalsize(virtual_memory.available, binary=True)}",
             f"{'Used':<{column_width}} : {humanize.naturalsize(virtual_memory.used, binary=True)}",
             f"{'Used Percent':<{column_width}} : {virtual_memory.percent}%",
-            *self.api("plugins.core.commands:format.output.header")("Process Info"),
+            *self.api("plugins.core.commands:output.header.format")("Process Info"),
             f"{'CPU Percentage':<{column_width}} : {process.cpu_percent()}",
             f"{'Memory Percentage':<{column_width}} : {process.memory_percent():.2}%",
             f"{'Memory RSS':<{column_width}} : {humanize.naturalsize(mem_info.rss, binary=True)}",
             f"{'Memory VMS':<{column_width}} : {humanize.naturalsize(mem_info.vms, binary=True)}",
-            *self.api("plugins.core.commands:format.output.header")("Network Info"),
+            *self.api("plugins.core.commands:output.header.format")("Network Info"),
         ]
 
         if args["networkinterfaces"]:

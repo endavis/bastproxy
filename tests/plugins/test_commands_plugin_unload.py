@@ -38,7 +38,7 @@ def test_remove_data_clears_data_and_list() -> None:
     stub = _stub()
     _populate(stub)
 
-    CommandsPlugin._api_remove_data_for_plugin(stub, PID)
+    CommandsPlugin._api_command_remove_for_plugin(stub, PID)
 
     assert PID not in stub.command_data
     assert stub.commands_list == [f"{SIBLING}.x"]
@@ -50,7 +50,7 @@ def test_remove_data_leaves_prefix_sibling_untouched() -> None:
     stub = _stub()
     _populate(stub)
 
-    CommandsPlugin._api_remove_data_for_plugin(stub, PID)
+    CommandsPlugin._api_command_remove_for_plugin(stub, PID)
 
     assert stub.command_data[SIBLING]["x"].count == 7
     assert f"{SIBLING}.x" in stub.commands_list
@@ -61,7 +61,7 @@ def test_update_command_after_unload_restores_count() -> None:
     """A redefined command gets its old count; an undefined one stays absent."""
     stub = _stub()
     _populate(stub)
-    CommandsPlugin._api_remove_data_for_plugin(stub, PID)
+    CommandsPlugin._api_command_remove_for_plugin(stub, PID)
 
     new = _cmd()
     CommandsPlugin.update_command(stub, PID, "x", new)
@@ -75,7 +75,7 @@ def test_saved_entry_dropped_when_empty() -> None:
     """The plugin's saved entry is removed once all counts are restored."""
     stub = _stub()
     stub.command_data[PID] = {"x": _cmd(3)}
-    CommandsPlugin._api_remove_data_for_plugin(stub, PID)
+    CommandsPlugin._api_command_remove_for_plugin(stub, PID)
 
     CommandsPlugin.update_command(stub, PID, "x", _cmd())
 

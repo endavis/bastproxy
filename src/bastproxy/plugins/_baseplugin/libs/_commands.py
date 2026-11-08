@@ -48,7 +48,7 @@ class Commands(Protocol):
         show the help for this plugin
         @CUsage@w: help.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         width = 25
 
         msg = [
@@ -110,7 +110,7 @@ class Commands(Protocol):
             msg.append("")
 
         if args["commands"]:
-            cmd_output = self.api("plugins.core.commands:list.commands.formatted")(self.plugin_id)
+            cmd_output = self.api("plugins.core.commands:command.list.formatted")(self.plugin_id)
             msg.extend(cmd_output)
             msg.extend(("@G" + "-" * 60 + "@w", ""))
         if args["api"] and (api_list := self.api("libs.api:list")(self.plugin_id)):

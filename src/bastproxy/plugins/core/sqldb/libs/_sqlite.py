@@ -142,7 +142,7 @@ class Sqldb:
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
     def _command_dbselect(self):
         """Run a cmd against the database."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args:
             if sqlstmt := args["stmt"]:
@@ -157,7 +157,7 @@ class Sqldb:
     @AddArgument("table", help="the table (not required)", default="", nargs="?")
     def _command_dbtables(self):
         """Show tables and fields."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args:
             if args["table"]:
@@ -195,7 +195,7 @@ class Sqldb:
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
     def _command_dbmodify(self):
         """Run a cmd against the database."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args:
             if sqlstmt := args["stmt"]:
@@ -226,7 +226,7 @@ class Sqldb:
     @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?")
     def _command_dbremove(self):
         """Remove a table from the database."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if not args["table"] or args["table"] not in self.tables:
             message.append("Please include a valid table")
@@ -243,7 +243,7 @@ class Sqldb:
     @AddArgument("name", help="the name to backup to", default="", nargs="?")
     def _command_dbbackup(self):
         """Backup the database."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args["name"]:
             name = args["name"]

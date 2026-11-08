@@ -157,26 +157,26 @@ class CommandsPlugin(BasePlugin):
             "include the date in the output of a command",
         )
 
-    @AddAPI("get.command.indent", description="indent for commands")
-    def _api_get_command_indent(self):
+    @AddAPI("command.indent.get", description="indent for commands")
+    def _api_command_indent_get(self):
         """Return the command indent."""
         return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent")
 
-    @AddAPI("get.command.count", description="get a command count for a specific plugin")
-    def _api_get_command_count(self, plugin_id):
+    @AddAPI("command.count", description="get a command count for a specific plugin")
+    def _api_command_count(self, plugin_id):
         """Get the command count for a specific plugin."""
         return len(self.command_data[plugin_id]) if plugin_id in self.command_data else 0
 
-    @AddAPI("get.output.indent", description="indent for command output")
-    def _api_get_output_indent(self):
+    @AddAPI("output.indent.get", description="indent for command output")
+    def _api_output_indent_get(self):
         """Return the output indent."""
         if self.api("plugins.core.settings:setting.get")(self.plugin_id, "simple_output"):
             return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent")
 
         return self.api("plugins.core.settings:setting.get")(self.plugin_id, "command_indent") * 2
 
-    @AddAPI("format.output.header", description="format a header with the header color")
-    def _api_format_output_header(self, header_text, line_length=None):
+    @AddAPI("output.header.format", description="format a header with the header color")
+    def _api_output_header_format(self, header_text, line_length=None):
         """Format an output header."""
         if line_length is None:
             line_length = self.api("plugins.core.settings:setting.get")(
@@ -189,10 +189,10 @@ class CommandsPlugin(BasePlugin):
         return self._format_output_header(header_text, color, line_length)
 
     @AddAPI(
-        "format.output.subheader",
+        "output.subheader.format",
         description="format a header with the subheader color",
     )
-    def _api_format_output_subheader(self, header_text, line_length=None):
+    def _api_output_subheader_format(self, header_text, line_length=None):
         """Format an output header."""
         if line_length is None:
             line_length = self.api("plugins.core.settings:setting.get")(
@@ -204,8 +204,8 @@ class CommandsPlugin(BasePlugin):
 
         return self._format_output_header(header_text, color, line_length)
 
-    @AddAPI("format.header", description="format a header with the specified color")
-    def _api_format_header(self, header_text, color, line_length=None):
+    @AddAPI("header.format", description="format a header with the specified color")
+    def _api_header_format(self, header_text, color, line_length=None):
         """Format an output header."""
         if line_length is None:
             line_length = self.api("plugins.core.settings:setting.get")(
@@ -256,18 +256,18 @@ class CommandsPlugin(BasePlugin):
             ),
         ]
 
-    @AddAPI("get.command.line.length", description="get line length for command")
-    def _api_get_command_line_length(self):
+    @AddAPI("command.line.length.get", description="get line length for command")
+    def _api_command_line_length_get(self):
         """Return the line length for output."""
         line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
-        command_indent = self.api(f"{self.plugin_id}:get.command.indent")()
+        command_indent = self.api(f"{self.plugin_id}:command.indent.get")()
         return line_length - 2 * command_indent
 
-    @AddAPI("get.output.line.length", description="get line length for command output")
-    def _api_get_output_line_length(self):
+    @AddAPI("output.line.length.get", description="get line length for command output")
+    def _api_output_line_length_get(self):
         """Return the line length for output."""
         line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
-        output_indent = self.api(f"{self.plugin_id}:get.output.indent")()
+        output_indent = self.api(f"{self.plugin_id}:output.indent.get")()
         return line_length - 2 * output_indent
 
     def _add_commands_for_all_plugins(self):
@@ -319,7 +319,7 @@ class CommandsPlugin(BasePlugin):
             command_names = [command.__name__ for command in command_functions]
             LogRecord(f"{command_names = }", level="debug", sources=[self.plugin_id])()
             for command in command_functions:
-                self.api(f"{self.plugin_id}:add.command.by.func")(command)
+                self.api(f"{self.plugin_id}:command.add.by.func")(command)
 
     def get_command_functions_in_object(self, base, recurse=True):
         """Recursively search for functions that are commands in a plugin instance.
@@ -345,8 +345,8 @@ class CommandsPlugin(BasePlugin):
 
         return function_list
 
-    @AddAPI("add.command.by.func", description="add a command based on a decorated function")
-    def _api_add_command_by_func(self, func, force=False):
+    @AddAPI("command.add.by.func", description="add a command based on a decorated function")
+    def _api_command_add_by_func(self, func, force=False):
         """Add a command based on the new decorator stuff."""
         LogRecord(
             f"adding command from func {func.__name__}",
@@ -417,9 +417,7 @@ class CommandsPlugin(BasePlugin):
         parser.add_argument("-h", "--help", help="show help", action="store_true")
         parser.formatter_class = argp.CustomFormatter
 
-        parser.prog = self.api("plugins.core.commands:get.command.format")(
-            self.plugin_id, command_name
-        )
+        parser.prog = self.api("plugins.core.commands:command.format")(self.plugin_id, command_name)
 
         command_kwargs = copy.deepcopy(command_data.command["kwargs"])
 
@@ -464,7 +462,7 @@ class CommandsPlugin(BasePlugin):
         """
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             if event_record["plugin_id"] != self.plugin_id:
-                self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record["plugin_id"])
+                self.api(f"{self.plugin_id}:command.remove.for.plugin")(event_record["plugin_id"])
             else:
                 LogRecord(
                     f"{self.plugin_id}_plugin_unloaded: {self.plugin_id} is me!",
@@ -472,8 +470,8 @@ class CommandsPlugin(BasePlugin):
                     sources=[self.plugin_id],
                 )()
 
-    @AddAPI("get.command.format", description="get a command string formatted for a plugin")
-    def _api_get_command_format(self, plugin_id, command):
+    @AddAPI("command.format", description="get a command string formatted for a plugin")
+    def _api_command_format(self, plugin_id, command):
         """Return a command string formatted for the plugin.
 
         EX: plugin_id: plugins.core.proxy
@@ -481,23 +479,23 @@ class CommandsPlugin(BasePlugin):
             returns:
                #bp.core.proxy.info
         """
-        return f"{self.api('plugins.core.commands:get.command.prefix')()}.{plugin_id.replace('plugins.', '')}.{command}"
+        return f"{self.api('plugins.core.commands:command.prefix.get')()}.{plugin_id.replace('plugins.', '')}.{command}"
 
     @AddAPI(
-        "get.current.command.args",
+        "command.current.args.get",
         description="get the currently executing command args",
     )
-    def _api_get_current_command_args(self):
+    def _api_command_current_args_get(self):
         """Get the current command args."""
         return self.current_command.current_args if self.current_command else {}
 
-    @AddAPI("set.current.command", description="set the currently executing command")
-    def _api_set_current_command(self, command):
+    @AddAPI("command.current.set", description="set the currently executing command")
+    def _api_command_current_set(self, command):
         """Set the current command."""
         self.current_command = command
 
-    @AddAPI("remove.data.for.plugin", description="remove all command data for a plugin")
-    def _api_remove_data_for_plugin(self, plugin_id):
+    @AddAPI("command.remove.for.plugin", description="remove all command data for a plugin")
+    def _api_command_remove_for_plugin(self, plugin_id):
         """Remove all command data for a plugin.
 
         @Yplugin@w    = the plugin to remove commands for.
@@ -532,8 +530,8 @@ class CommandsPlugin(BasePlugin):
         if stats:
             self.saved_command_stats[plugin_id] = stats
 
-    @AddAPI("get.command.prefix", description="get the current command prefix")
-    def _api_get_command_prefix(self):
+    @AddAPI("command.prefix.get", description="get the current command prefix")
+    def _api_command_prefix_get(self):
         """Get the current command prefix.
 
         returns the current command prefix as a string
@@ -558,8 +556,8 @@ class CommandsPlugin(BasePlugin):
 
         return ""
 
-    @AddAPI("get.commands.for.plugin.data", description="get the command data for a plugin")
-    def _api_get_commands_for_plugin_data(self, plugin_id):
+    @AddAPI("command.data.get", description="get the command data for a plugin")
+    def _api_command_data_get(self, plugin_id):
         """Get the data for commands for the specified plugin.
 
         @Yplugin@w   = the plugin the command is in.
@@ -570,8 +568,8 @@ class CommandsPlugin(BasePlugin):
             return self.command_data[plugin_id]
         return {}
 
-    @AddAPI("run", description="run a command and return the output")
-    def _api_run(
+    @AddAPI("command.run", description="run a command and return the output")
+    def _api_command_run(
         self, plugin_id: str, command_name: str, argument_string: str = "", format=False
     ) -> tuple[bool | None, list[str]]:
         """Run a command and return the output.
@@ -808,7 +806,7 @@ class CommandsPlugin(BasePlugin):
         """
         newoutput = [
             "",
-            *self.api(f"{self.plugin_id}:format.output.header")(header),
+            *self.api(f"{self.plugin_id}:output.header.format")(header),
             "To send a command to the proxy, prefix it with a #bp",
             "Commands are not required to start with 'plugins'",
             "However, they must include the package",
@@ -853,7 +851,7 @@ class CommandsPlugin(BasePlugin):
             [
                 *[
                     line.replace("plugins.", "")
-                    for line in self.api(f"{self.plugin_id}:list.commands.formatted")(plugin_id)
+                    for line in self.api(f"{self.plugin_id}:command.list.formatted")(plugin_id)
                 ],
             ]
         )
@@ -889,7 +887,7 @@ class CommandsPlugin(BasePlugin):
 
         message.extend(
             [
-                *self.api(f"{self.plugin_id}:format.output.header")(
+                *self.api(f"{self.plugin_id}:output.header.format")(
                     f"Available Plugins in {package}"
                 ),
                 *self.api("plugins.core.utils:format.list.into.columns")(
@@ -917,7 +915,7 @@ class CommandsPlugin(BasePlugin):
                 filler_color="@B",
                 endcaps=True,
             ),
-            *self.api(f"{self.plugin_id}:format.output.header")("Available Packages"),
+            *self.api(f"{self.plugin_id}:output.header.format")("Available Packages"),
             *[
                 line.replace("plugins.", "")
                 for line in self.api("libs.plugins.loader:get.packages.list")(active_only=True)
@@ -930,7 +928,7 @@ class CommandsPlugin(BasePlugin):
         # found just the command prefix
         # get the list of packages
         message = [
-            *self.api(f"{self.plugin_id}:format.output.header")("Available Packages"),
+            *self.api(f"{self.plugin_id}:output.header.format")("Available Packages"),
             *[
                 line.replace("plugins.", "")
                 for line in self.api("libs.plugins.loader:get.packages.list")(active_only=True)
@@ -989,7 +987,7 @@ class CommandsPlugin(BasePlugin):
         )
         temp_command = command_split[2] if len(command_split) > 2 else ""
         # try and find the command
-        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(new_plugin)
+        command_data = self.api(f"{self.plugin_id}:command.data.get")(new_plugin)
         command_list = list(command_data.keys())
         LogRecord(f"{command_list=}", level="debug", sources=[self.plugin_id])(
             actor=f"{self.plugin_id}:find_command"
@@ -1130,8 +1128,8 @@ class CommandsPlugin(BasePlugin):
                     message = NetworkData(message, owner_id="run_internal_command_from_event")
                 SendDataDirectlyToClient(message, clients=clients)()
 
-    @AddAPI("get.summary.data.for.plugin", description="get summary data for a plugin")
-    def _api_get_summary_data_for_plugin(self, plugin_id):
+    @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
+    def _api_summary_get_for_plugin(self, plugin_id):
         """Return stats for the plugin."""
         msg = []
 
@@ -1149,7 +1147,7 @@ class CommandsPlugin(BasePlugin):
                 )
             )
 
-        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(plugin_id)
+        command_data = self.api(f"{self.plugin_id}:command.data.get")(plugin_id)
 
         commands = [command.name for command in command_data.values()]
 
@@ -1165,10 +1163,10 @@ class CommandsPlugin(BasePlugin):
 
         return msg
 
-    @AddAPI("get.detailed.data.for.plugin", description="get detailed data for a plugin")
-    def _api_get_detailed_data_for_plugin(self, plugin_id):
+    @AddAPI("detail.get.for.plugin", description="get detailed data for a plugin")
+    def _api_detail_get_for_plugin(self, plugin_id):
         """Get detailed data for a plugin."""
-        command_data = self.api(f"{self.plugin_id}:get.commands.for.plugin.data")(plugin_id)
+        command_data = self.api(f"{self.plugin_id}:command.data.get")(plugin_id)
 
         if not command_data:
             return ["None"]
@@ -1290,10 +1288,10 @@ class CommandsPlugin(BasePlugin):
         return message
 
     @AddAPI(
-        "list.commands.formatted",
+        "command.list.formatted",
         description="return a formatted list of commands for a plugin",
     )
-    def _api_list_commands_formatted(self, plugin_id):
+    def _api_command_list_formatted(self, plugin_id):
         """Build a table of commands for a plugin.
 
         Args:
@@ -1312,7 +1310,7 @@ class CommandsPlugin(BasePlugin):
 
         commands: dict[str, CommandClass] = self.command_data[plugin_id]
 
-        message = self.api(f"{self.plugin_id}:format.output.header")(
+        message = self.api(f"{self.plugin_id}:output.header.format")(
             f"Available Commands in {plugin_id.replace('plugins.', '')}"
         )
 
@@ -1357,8 +1355,8 @@ class CommandsPlugin(BasePlugin):
 
         return message
 
-    @AddAPI("list.plugins.formatted", description="return a formatted list of all plugins")
-    def _api_list_plugins_formatted(self, package=None):
+    @AddAPI("plugin.list.formatted", description="return a formatted list of all plugins")
+    def _api_plugin_list_formatted(self, package=None):
         """List all plugins."""
         if package:
             plugin_id_list = [
@@ -1394,21 +1392,21 @@ class CommandsPlugin(BasePlugin):
         @CUsage@w: @B%(cmdname)s@w @Yplugin@w
           @Yplugin@w    = The plugin to list commands for (optional)
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         message = []
         command = args["command"]
         plugin_id = args["plugin"]
 
         if not self.api("libs.plugins.loader:is.plugin.id")(plugin_id):
-            return True, self.api(f"{self.plugin_id}:list.plugins.formatted")(package=plugin_id)
+            return True, self.api(f"{self.plugin_id}:plugin.list.formatted")(package=plugin_id)
 
         if plugin_commands := self.command_data[plugin_id]:
             if command and command in plugin_commands:
                 help_message = plugin_commands[command].arg_parser.format_help().splitlines()
                 message.extend(help_message)
             else:
-                message.extend(self.api(f"{self.plugin_id}:list.commands.formatted")(plugin_id))
+                message.extend(self.api(f"{self.plugin_id}:command.list.formatted")(plugin_id))
         else:
             message.append(f"There are no commands in plugin {plugin_id}")
 
@@ -1446,7 +1444,7 @@ class CommandsPlugin(BasePlugin):
         @CUsage@w: @B%(cmdname)s@w @Ycommand@w
           @Ycommand@w    = The command, such as core.commands.list
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["command"]:
             return False, []
 
@@ -1479,7 +1477,7 @@ class CommandsPlugin(BasePlugin):
         @CUsage@w: @B%(cmdname)s@w @Ynumber@w
           @Ynumber@w    = The number of the command to rerun
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if len(self.command_history_data) < abs(args["number"]):
             return True, ["# is outside of history length"]
 
@@ -1507,7 +1505,7 @@ class CommandsPlugin(BasePlugin):
 
         @CUsage@w: @B%(cmdname)s@w
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         message = []
         if args["clear"]:

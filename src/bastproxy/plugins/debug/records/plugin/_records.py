@@ -48,12 +48,12 @@ class RecordPlugin(BasePlugin):
     )
     def _command_list(self):
         """List records of a specific type."""
-        line_length = self.api("plugins.core.commands:get.output.line.length")()
+        line_length = self.api("plugins.core.commands:output.line.length.get")()
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
 
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         rtypes = [rtype for rtype, _ in RMANAGER.get_types()]
         if not args["recordtype"] or args["recordtype"] not in rtypes:
             return True, ["Valid Types:", *[f"    {rtype}" for rtype in rtypes]]
@@ -115,7 +115,7 @@ class RecordPlugin(BasePlugin):
     )
     def _command_detail(self):
         """Get the details of a specific record."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
 
         if not args["uid"]:
@@ -164,7 +164,7 @@ class RecordPlugin(BasePlugin):
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
     def _command_children(self):
         """Get the children of a specific record."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["uid"]:
             return True, ["No record id provided"]
 

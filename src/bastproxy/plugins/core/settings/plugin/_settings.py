@@ -378,8 +378,8 @@ class SettingsPlugin(BasePlugin):
     )
     def _command_list(self):
         """List all settings."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
-        line_length = self.api("plugins.core.commands:get.output.line.length")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        line_length = self.api("plugins.core.commands:output.line.length.get")()
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
@@ -441,7 +441,7 @@ class SettingsPlugin(BasePlugin):
     @AddArgument("-p", "--plugin", help="the plugin of the setting", default="", nargs="?")
     def _command_settings_plugin_sets(self):
         """Command to set a plugin setting."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         return self.api(f"{self.plugin_id}:setting.set.from.user")(
             args["name"], args["value"], args["plugin"]

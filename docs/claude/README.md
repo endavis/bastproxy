@@ -380,7 +380,7 @@ data = event_record["data"]
 ### Calling Another Plugin's API
 
 ```python
-result = self.api("plugins.core.commands:run")("plugin.id", "command", "args")
+result = self.api("plugins.core.commands:command.run")("plugin.id", "command", "args")
 ```
 
 ### Logging

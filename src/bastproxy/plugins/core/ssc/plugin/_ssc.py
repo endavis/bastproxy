@@ -43,7 +43,7 @@ class SSC:
         except OSError:
             if not quiet:
                 LogRecord(
-                    f"getss - Please set the {self.desc} with {self.api('plugins.core.commands:get.command.format')(self.plugin_id, self.name)}",
+                    f"getss - Please set the {self.desc} with {self.api('plugins.core.commands:command.format')(self.plugin_id, self.name)}",
                     level="warning",
                     sources=[self.plugin_id],
                 )()
@@ -55,7 +55,7 @@ class SSC:
     @AddArgument("value", help="the new {desc}", default="", nargs="?")
     def _command_setssc(self):
         """Set the secret."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if args["value"]:
             with Path(self.file_name).open("w", encoding="utf-8") as data_file:
                 data_file.write(args["value"])

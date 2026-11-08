@@ -267,7 +267,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         Returns:
           the object or method
         """
-        line_length = self.api("plugins.core.commands:get.output.line.length")()
+        line_length = self.api("plugins.core.commands:output.line.length.get")()
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )

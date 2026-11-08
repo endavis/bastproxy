@@ -743,7 +743,7 @@ class EventsPlugin(BasePlugin):
     @AddArgument("-t", "--top", help="show top N slowest events", type=int, default=10)
     def _command_stats(self):
         """Show event performance statistics."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if args["event"]:
             # Show stats for specific event
@@ -849,7 +849,7 @@ class EventRecorder:
 @AddArgument("-f", "--file", help="filename for save/replay")
 def _command_record(self):
     """Record and replay events for debugging."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
 
     if args["action"] == "start":
         self.recorder.start_recording()

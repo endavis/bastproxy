@@ -670,7 +670,7 @@ class TriggersPlugin(BasePlugin):
         list triggers and the plugins they are defined in
         @CUsage@w: list.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         trigger_ids = self.triggers.keys()
         trigger_ids = sorted(trigger_ids)
         match = args["match"]
@@ -742,7 +742,7 @@ class TriggersPlugin(BasePlugin):
         list the details of a trigger
         @CUsage@w: detail.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args["trigger"]:
             columnwidth = 24

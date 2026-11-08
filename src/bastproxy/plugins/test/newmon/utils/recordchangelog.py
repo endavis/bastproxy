@@ -117,7 +117,7 @@ class RecordChangeLogEntry(ChangeLogEntry):
         data_lines_to_show: int = 10,
     ):
         """Format the change record"""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         if "show_data" in args:
             show_data = args["show_data"]
         if "show_stack" in args:

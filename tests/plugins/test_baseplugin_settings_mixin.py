@@ -75,7 +75,7 @@ def test_set_list_returns_formatted_settings() -> None:
     for name in ("", "list"):
         stub = _Stub(
             {
-                "plugins.core.commands:get.current.command.args": lambda n=name: _Args(n),
+                "plugins.core.commands:command.current.args.get": lambda n=name: _Args(n),
                 "plugins.core.settings:setting.list.formatted": lambda pid: f"fmt {pid}",
             }
         )
@@ -87,14 +87,14 @@ def test_set_with_name_calls_change_from_user() -> None:
         change = MagicMock(return_value=result)
         stub: Any = _Stub(
             {
-                "plugins.core.commands:get.current.command.args": lambda: _Args("foo", "5"),
+                "plugins.core.commands:command.current.args.get": lambda: _Args("foo", "5"),
                 "plugins.core.settings:setting.set.from.user": change,
             }
         )
         assert stub._command_settings_plugin_set() == result
         change.assert_called_once_with("foo", "5", "plugins.test.stub")
         requested = [c.args[0] for c in stub.api.call_args_list]
-        assert "plugins.core.commands:run" not in requested
+        assert "plugins.core.commands:command.run" not in requested
 
 
 def test_patch_machinery_removed() -> None:

@@ -53,7 +53,7 @@ Plugin Developer Notes
             The following arguments can be used in AddCommand (mainly from the arguments for plugins.core.commands.Command.__init__ kwargs)
                 group - to group commands
                 autoadd - automatically add the command
-                    set this to False to programatically add a command at runtime given certain conditions and
+                    set this to False to programmatically add a command at runtime given certain conditions and
                         bypass the automated method
                     see the reset command in BasePlugin
                 name - used to set the name of the command, otherwise it is generated from the name of the function
@@ -83,7 +83,7 @@ Plugin Developer Notes
                             action='store_true')
 
     To retrieve the command arguments inside of the command function do the following:
-        args = self.api('plugins.core.commands:get.current.command.args')()
+        args = self.api('plugins.core.commands:command.current.args.get')()
 
     The return values for the command is a tuple of two items:
         bool: flag if the command ran successfully or not

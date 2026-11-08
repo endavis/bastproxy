@@ -469,7 +469,7 @@ class UtilsPlugin(BasePlugin):
         ]
 
         return [
-            *self.api("plugins.core.commands:format.header")(
+            *self.api("plugins.core.commands:header.format")(
                 table_name, color=output_color, line_length=line_length
             ),
             *column_lines,

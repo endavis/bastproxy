@@ -209,7 +209,7 @@ class PluginManager(BasePlugin):
         List plugins
         @CUsage@w: list.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         msg = []
 
         if args["notloaded"]:
@@ -302,7 +302,7 @@ class PluginManager(BasePlugin):
 
         will load the plugin and all of its dependencies
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         plugin_id = args["plugin"]
 
@@ -362,7 +362,7 @@ class PluginManager(BasePlugin):
           @Yplugin@w    = the id of the plugin to unload,
                           example: example.timerex.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         plugin_id = args["plugin"]
 
@@ -398,7 +398,7 @@ class PluginManager(BasePlugin):
           @Yplugin@w    = the id of the plugin to reload,
                           example: example.timerex.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
             return True, [f"{args['plugin']} is not a valid plugin id"]

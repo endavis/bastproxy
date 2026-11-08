@@ -28,7 +28,7 @@ class PluginsPlugin(BasePlugin):
     @AddArgument("-d", "--detailed", help="show a detailed output", action="store_true")
     def _command_dump(self):
         """Dump a plugin object or attribute."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
             return False, ["Please enter a plugin id"]
@@ -49,7 +49,7 @@ class PluginsPlugin(BasePlugin):
         show internal plugin hooks
         @CUsage@w: hooks.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
             return False, ["Please enter a plugin name"]
@@ -59,13 +59,13 @@ class PluginsPlugin(BasePlugin):
         hooks = self.api(f"{args['plugin']}:plugin.hook.list")()
 
         tmsg.extend(
-            self.api("plugins.core.commands:format.output.header")(
+            self.api("plugins.core.commands:output.header.format")(
                 f"Plugin Hooks for {args['plugin']}"
             )
         )
 
         for hook in hooks:
-            tmsg.extend(self.api("plugins.core.commands:format.output.subheader")(f"{hook}"))
+            tmsg.extend(self.api("plugins.core.commands:output.subheader.format")(f"{hook}"))
             priorities = hooks[hook].keys()
             priorities = sorted(priorities)
             for priority in priorities:
@@ -82,7 +82,7 @@ class PluginsPlugin(BasePlugin):
         show a summary of what data a plugin has
         @CUsage@w: stats.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
             return False, ["Please enter a plugin name"]
@@ -92,14 +92,14 @@ class PluginsPlugin(BasePlugin):
         loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
 
         for plugin in loaded_plugins:
-            api = f"{plugin}:get.summary.data.for.plugin"
+            api = f"{plugin}:summary.get.for.plugin"
             if self.api("libs.api:has")(api):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []
         for plugin, plugin_data in data.items():
             tmsg.extend(
-                self.api("plugins.core.commands:format.output.header")(
+                self.api("plugins.core.commands:output.header.format")(
                     f"{plugin}: data for {args['plugin']}"
                 )
             )
@@ -116,7 +116,7 @@ class PluginsPlugin(BasePlugin):
         show stats, memory, profile, etc.. for this plugin
         @CUsage@w: stats.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
             return False, ["Please enter a plugin name"]
@@ -126,14 +126,14 @@ class PluginsPlugin(BasePlugin):
         loaded_plugins = self.api("libs.plugins.loader:get.loaded.plugins.list")()
 
         for plugin in loaded_plugins:
-            api = f"{plugin}:get.detailed.data.for.plugin"
+            api = f"{plugin}:detail.get.for.plugin"
             if self.api("libs.api:has")(api):
                 data[plugin] = self.api(api)(args["plugin"])
 
         tmsg = []
         for plugin, plugin_data in data.items():
             tmsg.extend(
-                self.api("plugins.core.commands:format.output.header")(
+                self.api("plugins.core.commands:output.header.format")(
                     f"{plugin}: data for {args['plugin']}"
                 )
             )

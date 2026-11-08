@@ -70,7 +70,7 @@ class ErrorPlugin(BasePlugin):
         show the error queue
         @CUsage@w: show.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         msg = []
         try:
             number = int(args["number"])

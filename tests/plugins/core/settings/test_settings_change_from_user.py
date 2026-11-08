@@ -116,7 +116,7 @@ def test_pset_passes_args_through() -> None:
     calls: dict[str, Any] = {}
 
     def api(name: str) -> Any:
-        if name == "plugins.core.commands:get.current.command.args":
+        if name == "plugins.core.commands:command.current.args.get":
             return lambda: args
         if name == "plugins.core.settings:setting.set.from.user":
             return lambda *a: (calls.setdefault("args", a), (True, ["ok"]))[1]

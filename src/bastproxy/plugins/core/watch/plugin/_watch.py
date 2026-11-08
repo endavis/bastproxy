@@ -49,7 +49,7 @@ class WatchPlugin(BasePlugin):
     )
     def _command_list(self):
         """List watches."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         watches = self.watch_data.keys()
         watches = sorted(watches)
         match = args["match"]
@@ -71,7 +71,7 @@ class WatchPlugin(BasePlugin):
     @AddArgument("watch", help="the trigger to detail", default=[], nargs="*")
     def _command_detail(self):
         """List the details of a watch."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if args["watch"]:
             columnwidth = 13
