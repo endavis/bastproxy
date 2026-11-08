@@ -24,7 +24,7 @@ def _stub() -> MagicMock:
         calls.append(name)
         if name == "plugins.core.cmdq:type.remove":
             return lambda t: CMDQPlugin._api_type_remove(stub, t)
-        if name == "plugins.core.events:get.current.event.record":
+        if name == "plugins.core.events:event.current.record.get":
             return lambda: {"plugin_id": PID}
         if name == "plugins.core.cmdq:remove.mud.commands.for.plugin":
             return lambda p: CMDQPlugin._api_remove_mud_commands_for_plugin(stub, p)

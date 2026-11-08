@@ -22,14 +22,14 @@ from bastproxy.plugins.core.watch.plugin._watch import WatchPlugin
 def _run(line: NetworkDataLine, regex: str = r"^say (?P<what>\w+)") -> tuple[Any, MagicMock]:
     """Run the callback against `line` with one watch registered.
 
-    Returns the stub plugin and the `raise.event` mock.
+    Returns the stub plugin and the `event.raise` mock.
     """
     raise_event = MagicMock()
 
     def api(name: str) -> Any:
-        if name == "plugins.core.events:get.current.event.record":
+        if name == "plugins.core.events:event.current.record.get":
             return lambda: {"line": line}
-        if name == "plugins.core.events:raise.event":
+        if name == "plugins.core.events:event.raise":
             return raise_event
         raise AssertionError(name)
 

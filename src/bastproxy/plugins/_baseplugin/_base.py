@@ -362,7 +362,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         ):
             self._eventcb_baseplugin_after_character_is_active()
         else:
-            self.api("plugins.core.events:register.to.event")(
+            self.api("plugins.core.events:event.register")(
                 "ev_libs.api_character_active",
                 self._eventcb_baseplugin_after_character_is_active,
                 prio=self.is_character_active_priority,
@@ -370,13 +370,13 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         self.api("libs.plugins.loader:set.plugin.is.loaded")(self.plugin_id)
 
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_loaded",
             self.plugin_id,
             description=[f"Raised when {self.plugin_id} is finished loading"],
             arg_descriptions={"None": None},
         )
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_unloaded",
             self.plugin_id,
             description=[f"Raised when {self.plugin_id} is finished unloading"],
@@ -384,8 +384,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         )
 
         if not self.api.startup:
-            self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_loaded")
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_loaded")
+            self.api("plugins.core.events:event.raise")(
                 "ev_plugin_loaded", event_args={"plugin_id": self.plugin_id}
             )
 
@@ -396,7 +396,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             level="debug",
             sources=[self.plugin_id],
         )()
-        self.api("plugins.core.events:register.to.event")(
+        self.api("plugins.core.events:event.register")(
             "ev_libs.api_character_active",
             self._eventcb_baseplugin_after_character_is_active,
         )
@@ -408,11 +408,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             level="debug",
             sources=[self.plugin_id],
         )()
-        if self.api("plugins.core.events:is.registered.to.event")(
+        if self.api("plugins.core.events:event.is.registered")(
             "ev_libs.api_character_active",
             self._eventcb_baseplugin_after_character_is_active,
         ):
-            self.api("plugins.core.events:unregister.from.event")(
+            self.api("plugins.core.events:event.unregister")(
                 "ev_libs.api_character_active",
                 self._eventcb_baseplugin_after_character_is_active,
             )
@@ -433,8 +433,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                     self.plugin_id, item, self.__getattribute__(item)
                 )
 
-        self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_unloaded")
-        self.api("plugins.core.events:raise.event")(
+        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_unloaded")
+        self.api("plugins.core.events:event.raise")(
             "ev_plugin_unloaded", event_args={"plugin_id": self.plugin_id}
         )
 
@@ -452,11 +452,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             self.plugin_id, "_version", 1, int, "The version of the plugin", hidden=True
         )
 
-        self.api("plugins.core.events:register.to.event")(
+        self.api("plugins.core.events:event.register")(
             "ev_libs.net.mud_muddisconnect", self._eventcb_baseplugin_disconnect
         )
 
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_savestate",
             self.plugin_id,
             description=["An event to save the state of the plugin"],
@@ -470,15 +470,15 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _api_plugin_state_save(self):
         """Save the state of the plugin."""
         self._process_plugin_hook("save")
-        self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_save")
-        self.api("plugins.core.events:raise.event")(
+        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_save")
+        self.api("plugins.core.events:event.raise")(
             "ev_plugin_save", event_args={"plugin_id": self.plugin_id}
         )
 
     @AddAPI("plugin.reset", "reset the plugin")
     def _api_plugin_reset(self):
         """Reset the plugin."""
-        processed_event = self.api("plugins.core.events:raise.event")(
+        processed_event = self.api("plugins.core.events:event.raise")(
             "ev_plugin_reset",
             event_args={"plugin_id": self.plugin_id, "plugins_that_acted": []},
         )

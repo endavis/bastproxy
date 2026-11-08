@@ -120,7 +120,7 @@ APIs follow a hierarchical naming scheme:
 
 Examples:
 - `libs.plugins.loader:get.plugin.instance` - Get a plugin instance
-- `plugins.core.events:raise.event` - Raise an event
+- `plugins.core.events:event.raise` - Raise an event
 - `plugins.core.commands:get.output.line.length` - Get output line length
 
 The top-level API typically corresponds to the plugin or module that owns the functionality.
@@ -173,13 +173,13 @@ The API class is callable, allowing natural function-like syntax:
 
 ```python
 # Basic call
-result = self.api("plugins.core.events:raise.event")(
+result = self.api("plugins.core.events:event.raise")(
     "ev_my_event",
     event_args={"data": value}
 )
 
 # Get the API item (without calling)
-api_item = self.api.get("plugins.core.events:raise.event")
+api_item = self.api.get("plugins.core.events:event.raise")
 
 # Check if API exists
 if self.api("libs.api:has")("some.plugin:some.function"):
@@ -302,7 +302,7 @@ api_data = self.api("libs.api:list.data")("plugins.core.events")
 
 # Get children of a top-level API
 children = self.api("libs.api:get.children")("plugins.core.events")
-# Returns: ["add.event", "raise.event", "get.current.event.record", ...]
+# Returns: ["event.add", "event.raise", "event.current.record.get", ...]
 ```
 
 ### Getting API Details and Statistics
@@ -310,14 +310,14 @@ children = self.api("libs.api:get.children")("plugins.core.events")
 ```python
 # Get detailed information about an API
 details = self.api("libs.api:detail")(
-    "plugins.core.events:raise.event",
+    "plugins.core.events:event.raise",
     stats_by_plugin=True,        # Include statistics by plugin
     stats_by_caller="plugins.",  # Include stats for callers starting with "plugins."
     show_function_code=True      # Include the function's source code
 )
 
 # Get the raw APIItem
-api_item = self.api("libs.api:data.get")("plugins.core.events:raise.event")
+api_item = self.api("libs.api:data.get")("plugins.core.events:event.raise")
 print(f"Called {api_item.count} times")
 print(f"Owner: {api_item.owner_id}")
 print(f"Description: {api_item.description}")
@@ -334,8 +334,8 @@ print(f"Description: {api_item.description}")
 
 ### Event System
 - The API system provides APIs for the event system
-- Events are raised via `plugins.core.events:raise.event` API
-- Event registration uses `plugins.core.events:register.to.event` API
+- Events are raised via `plugins.core.events:event.raise` API
+- Event registration uses `plugins.core.events:event.register` API
 
 ### Command System
 - Commands use APIs to access plugin functionality
@@ -381,8 +381,8 @@ The colon (`:`) separator creates a two-level hierarchy:
 - **API name** (`add`): Identifies the specific function
 
 Periods (`.`) in the API name create a logical grouping:
-- `plugins.core.events:get.current.event.record`
-- `plugins.core.events:get.event.stack`
+- `plugins.core.events:event.current.record.get`
+- `plugins.core.events:event.stack.get`
 
 This creates a namespace without deep nesting. The segments follow the grammar in [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md).
 
@@ -455,13 +455,13 @@ Events are raised when the flag changes:
 - `libs.plugins.loader:reload.plugin` - Reload a plugin
 
 ### Event System APIs
-- `plugins.core.events:add.event` - Create a new event
-- `plugins.core.events:raise.event` - Raise an event
-- `plugins.core.events:register.to.event` - Register a callback to an event
-- `plugins.core.events:unregister.from.event` - Unregister from an event
-- `plugins.core.events:get.current.event.record` - Get the current event data
-- `plugins.core.events:get.event.stack` - Get the event execution stack
-- `plugins.core.events:get.event.detail` - Get details about an event
+- `plugins.core.events:event.add` - Create a new event
+- `plugins.core.events:event.raise` - Raise an event
+- `plugins.core.events:event.register` - Register a callback to an event
+- `plugins.core.events:event.unregister` - Unregister from an event
+- `plugins.core.events:event.current.record.get` - Get the current event data
+- `plugins.core.events:event.stack.get` - Get the event execution stack
+- `plugins.core.events:event.detail.get` - Get details about an event
 
 ## Best Practices
 

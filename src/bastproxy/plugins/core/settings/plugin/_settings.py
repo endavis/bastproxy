@@ -125,13 +125,13 @@ class SettingsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_loaded")
     def _eventcb_settings_plugin_loaded(self):
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.event.raise.all")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_settings_plugin_unloaded(self):
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             # a plugin that failed to load may never have added a setting
             if plugin_id in self.settings_values or plugin_id in self.settings_info:
@@ -140,13 +140,13 @@ class SettingsPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugin_save")
     def _eventcb_settings_plugin_save(self):
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.save.for.plugin")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_reset")
     def _eventcb_plugin_reset(self):
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.reset")(plugin_id)
             event_record["plugins_that_acted"].append(self.plugin_id)
@@ -202,8 +202,8 @@ class SettingsPlugin(BasePlugin):
 
         event_name = f"ev_{plugin_id}_var_{setting}_modified"
 
-        if self.api("libs.api:has")("plugins.core.events:raise.event"):
-            self.api("plugins.core.events:raise.event")(
+        if self.api("libs.api:has")("plugins.core.events:event.raise"):
+            self.api("plugins.core.events:event.raise")(
                 event_name,
                 event_args={
                     "var": setting,
@@ -237,7 +237,7 @@ class SettingsPlugin(BasePlugin):
         for i in self.settings_info[plugin_id]:
             if self.api("plugins.core.settings:setting.is.hidden")(plugin_id, i):
                 continue
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 f"ev_{plugin_id}_var_{i}_modified",
                 plugin_id,
                 description=[f"An event to modify the setting {i}"],
@@ -293,7 +293,7 @@ class SettingsPlugin(BasePlugin):
             event_name = f"ev_{plugin_id}_var_{i}_modified"
             new_value = self.api("plugins.core.settings:setting.get")(plugin_id, i)
 
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 event_name,
                 event_args={"var": i, "newvalue": new_value, "oldvalue": old_value},
             )

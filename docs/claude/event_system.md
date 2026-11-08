@@ -100,7 +100,7 @@ Plugins register callbacks to events using the `RegisterToEvent` decorator:
 ```python
 @RegisterToEvent(event_name="ev_to_mud_data_modify", priority=50)
 def _eventcb_handle_data(self):
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     # Process the event data
 ```
 
@@ -111,7 +111,7 @@ The decorator marks the function with event registration metadata, which is proc
 Events are created using the API:
 
 ```python
-self.api("plugins.core.events:add.event")(
+self.api("plugins.core.events:event.add")(
     "ev_my_custom_event",
     "plugins.my.plugin",
     description=["Event when something happens"],
@@ -124,10 +124,10 @@ self.api("plugins.core.events:add.event")(
 
 ### 3. Event Raising
 
-Events are raised by calling the `raise.event` API:
+Events are raised by calling the `event.raise` API:
 
 ```python
-self.api("plugins.core.events:raise.event")(
+self.api("plugins.core.events:event.raise")(
     "ev_my_custom_event",
     event_args={"data": some_data, "client_id": client_id}
 )
@@ -165,7 +165,7 @@ def raise_priority(self, priority, already_done: bool) -> bool:
 ### 5. Event Stack
 
 The event system maintains a stack of currently active events:
-- Accessible via `api("plugins.core.events:get.event.stack")()`
+- Accessible via `api("plugins.core.events:event.stack.get")()`
 - Used to track the chain of events that led to the current execution
 - Helpful for debugging and understanding event flow
 
@@ -174,7 +174,7 @@ The event system maintains a stack of currently active events:
 Callbacks can access the current event's data record:
 
 ```python
-event_record = self.api("plugins.core.events:get.current.event.record")()
+event_record = self.api("plugins.core.events:event.current.record.get")()
 if event_record:
     # Access event data
     data = event_record["some_key"]
@@ -200,7 +200,7 @@ if event_record:
 
 ```python
 # Create the event
-self.api("plugins.core.events:add.event")(
+self.api("plugins.core.events:event.add")(
     "ev_data_processed",
     self.plugin_id,
     description=["Raised when data has been processed"],
@@ -211,7 +211,7 @@ self.api("plugins.core.events:add.event")(
 )
 
 # Raise the event later
-self.api("plugins.core.events:raise.event")(
+self.api("plugins.core.events:event.raise")(
     "ev_data_processed",
     event_args={
         "processed_data": result,
@@ -226,7 +226,7 @@ self.api("plugins.core.events:raise.event")(
 @RegisterToEvent(event_name="ev_to_client_data_modify", priority=1)
 def _eventcb_process_client_data(self):
     """Process data before it's sent to the client."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     if event_record:
         # Access the line being sent to the client
         line = event_record["line"]
@@ -238,19 +238,19 @@ def _eventcb_process_client_data(self):
 
 ```python
 # Check if a function is registered to an event
-is_registered = self.api("plugins.core.events:is.registered.to.event")(
+is_registered = self.api("plugins.core.events:event.is.registered")(
     "ev_my_event",
     my_callback_function
 )
 
 # Get event details
-event_details = self.api("plugins.core.events:get.event.detail")("ev_my_event")
+event_details = self.api("plugins.core.events:event.detail.get")("ev_my_event")
 ```
 
 ### Unregistering from an Event
 
 ```python
-self.api("plugins.core.events:unregister.from.event")(
+self.api("plugins.core.events:event.unregister")(
     "ev_my_event",
     my_callback_function
 )

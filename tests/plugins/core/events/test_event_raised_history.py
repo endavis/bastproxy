@@ -118,7 +118,7 @@ def _stub(settings_value: Any = None, record: Any = None) -> MagicMock:
             return calls["add"]
         if name == "plugins.core.settings:setting.get":
             return lambda *_a, **_k: settings_value
-        if name == "plugins.core.events:get.current.event.record":
+        if name == "plugins.core.events:event.current.record.get":
             return lambda: record
         return MagicMock()
 

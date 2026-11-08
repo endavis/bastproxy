@@ -293,7 +293,7 @@ class CommandsPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_loaded")
     def _eventcb_plugin_loaded(self):
         """Handle the plugin loaded event."""
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
         if not self.api.startup and event_record["plugin_id"] == self.plugin_id:
@@ -462,7 +462,7 @@ class CommandsPlugin(BasePlugin):
 
         registered to the plugin_unloaded event
         """
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             if event_record["plugin_id"] != self.plugin_id:
                 self.api(f"{self.plugin_id}:remove.data.for.plugin")(event_record["plugin_id"])
             else:
@@ -733,7 +733,7 @@ class CommandsPlugin(BasePlugin):
 
         returns the updated event
         """
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
         original_command = event_record["line"].line
@@ -1076,7 +1076,7 @@ class CommandsPlugin(BasePlugin):
 
     def run_internal_command_from_event(self):
         """Run the internal command from the client event."""
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         clients = [event_record["client_id"]] if event_record["client_id"] else None
 
@@ -1204,7 +1204,7 @@ class CommandsPlugin(BasePlugin):
         """
         commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
 
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
         if self.current_input_event == event_record:

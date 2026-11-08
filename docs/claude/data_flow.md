@@ -186,7 +186,7 @@ Internal output (proxy messages, command output) starts here: code builds a `Net
 
 `Event.raise_event()` (`src/bastproxy/plugins/core/events/plugin/_event.py`) wraps the event arguments in an `EventDataRecord`, a dict record, and runs a `ProcessRaisedEvent` record for it. With `data_list` and `key_name`, `ProcessRaisedEvent._exec_multi()` reuses the same `EventDataRecord` for every item. It sets `event_data["line"]` to the item and calls every callback in priority order, lower numbers first, before moving to the next item. A callback registered while the event is running is picked up on a further pass.
 
-Callbacks fetch the record with `plugins.core.events:get.current.event.record` and change the `NetworkDataLine` inside it directly:
+Callbacks fetch the record with `plugins.core.events:event.current.record.get` and change the `NetworkDataLine` inside it directly:
 
 ```python
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -194,7 +194,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 class MyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
     def _eventcb_process_mud_output(self):
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         line = event_record["line"]
         if "spam" in line.noansi:
@@ -270,7 +270,7 @@ Every record captures, at creation (`BaseRecord.__init__` in `src/bastproxy/libs
 
 - a UUID, an owner ID and the creation time
 - a formatted call stack (10 frames)
-- the current event stack: the names of the events being processed, from `plugins.core.events:get.event.stack`
+- the current event stack: the names of the events being processed, from `plugins.core.events:event.stack.get`
 - a parent: the one passed in, or the record on top of `RMANAGER.active_record_stack`
 
 Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` uses `try/finally`, so a record whose `_exec_()` raises is still popped and no longer executing.
@@ -374,7 +374,7 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 ### Event callbacks
 
 1. Name callbacks `_eventcb_<what>` and register them with `@RegisterToEvent`
-2. Get the record with `plugins.core.events:get.current.event.record` and return early when it is `None`
+2. Get the record with `plugins.core.events:event.current.record.get` and return early when it is `None`
 3. Check the origin first: `line.frommud`, `line.fromclient`, `line.internal`
 4. Match against `line.noansi`, change `line.line`
 5. Gag with `line.send = False`. Don't remove lines from the list

@@ -1077,8 +1077,8 @@ class PluginLoader:
 
         """
         try:
-            if self.api("libs.api:has")("plugins.core.events:raise.event"):
-                self.api("plugins.core.events:raise.event")(
+            if self.api("libs.api:has")("plugins.core.events:event.raise"):
+                self.api("plugins.core.events:event.raise")(
                     "ev_plugin_unloaded", event_args={"plugin_id": plugin_id}
                 )
         except Exception:  # pylint: disable=broad-except
@@ -1288,7 +1288,7 @@ class PluginLoader:
             sources=[__name__],
         )()
 
-        self.api("plugins.core.events:raise.event")(f"ev_{__name__}_post_startup_plugins_loaded")
+        self.api("plugins.core.events:event.raise")(f"ev_{__name__}_post_startup_plugins_loaded")
 
         LogRecord(
             f"ev_{__name__}_post_startup_plugins_loaded: Finish",

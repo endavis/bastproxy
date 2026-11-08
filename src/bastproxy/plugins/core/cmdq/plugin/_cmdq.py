@@ -33,7 +33,7 @@ class CMDQPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             self.api(f"{self.plugin_id}:remove.mud.commands.for.plugin")(event_record["plugin_id"])
 
     @AddAPI(
@@ -99,13 +99,13 @@ class CMDQPlugin(BasePlugin):
                 "owner": owner,
             }
 
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 f"cmd_{cmdtype}_send",
                 self.cmds[cmdtype]["owner"],
                 description=[f"event for the command {self.cmds[cmdtype]['ctype']} being sent"],
                 arg_descriptions={"None": None},
             )
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 f"cmd_{cmdtype}_completed",
                 self.cmds[cmdtype]["owner"],
                 description=[f"event for the command {self.cmds[cmdtype]['ctype']} completing"],
@@ -137,7 +137,7 @@ class CMDQPlugin(BasePlugin):
             self.cmds[cmdtype]["beforef"]()
 
         self.current_command = cmdt
-        self.api("plugins.core.events:raise.event")(f"cmd_{self.current_command['ctype']}_send")
+        self.api("plugins.core.events:event.raise")(f"cmd_{self.current_command['ctype']}_send")
         SendDataDirectlyToMud(NetworkData(cmd), show_in_history=False)()
 
     def checkinqueue(self, cmd):
@@ -164,7 +164,7 @@ class CMDQPlugin(BasePlugin):
                 self.cmds[cmdtype]["afterf"]()
 
             self._finish_timing()
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 f"cmd_{self.current_command['ctype']}_completed"
             )
             self.current_command = {}

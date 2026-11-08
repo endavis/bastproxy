@@ -124,8 +124,8 @@ what it holds for that plugin.
 | Registry | Written by | Removed by | Result |
 | :--- | :--- | :--- | :--- |
 | API (`API._class_api`) | `libs.api:add.apis.for.object`, called from `_phook_base_init_add_apis`, `_phook_base_init` and `_phook_base_post_initialize_setup` | `_phook_base_unitialize_hook` calls `libs.api:remove` (`API._api_remove` in `src/bastproxy/libs/api/_api.py`) | Verified clean after unload. Cleaned after a failed load too (PS-1, fixed). |
-| Event registrations | `plugins.core.events:register.to.event`, `RegisterToEvent` | events `_eventcb_plugin_unloaded` calls `remove.events.for.owner`, which calls `Event.removeowner` | Verified clean after unload, and after a failed load (PS-1, fixed). |
-| Event definitions (`ev_<id>_loaded`, `_unloaded`, `_save`, `_savestate`, `ev_<custom>`, `watch_<name>`) | `plugins.core.events:add.event` | **Nothing** | Verified: all stay in the events plugin with `created_by` set to the unloaded plugin. See [Other Observations](#other-observations). |
+| Event registrations | `plugins.core.events:event.register`, `RegisterToEvent` | events `_eventcb_plugin_unloaded` calls `event.unregister.for.owner`, which calls `Event.removeowner` | Verified clean after unload, and after a failed load (PS-1, fixed). |
+| Event definitions (`ev_<id>_loaded`, `_unloaded`, `_save`, `_savestate`, `ev_<custom>`, `watch_<name>`) | `plugins.core.events:event.add` | **Nothing** | Verified: all stay in the events plugin with `created_by` set to the unloaded plugin. See [Other Observations](#other-observations). |
 | Commands | `update_commands_for_plugin` on `ev_plugin_loaded` | commands `_eventcb_plugin_unloaded` calls `remove.data.for.plugin` | Verified clean (#96). |
 | Settings | `plugins.core.settings:setting.add`, `setting.initialize.for.plugin` | settings `_eventcb_settings_plugin_unloaded` saves then calls `setting.remove.for.plugin` | Verified clean after unload. After a failed load the handler also runs (it tolerates a plugin with no settings), so the settings and the open `PersistentDict` are closed (PS-1, fixed). |
 | Timers | `plugins.core.timers:add.timer` | timers `_eventcb_plugin_unloaded` calls `remove.data.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `get.plugin.instance`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
@@ -305,7 +305,7 @@ of this audit's page and is left for the event system audit.
 
 ### PS-1: A failed load leaves registrations behind
 
-**Status:** fixed in the PR for #121; `unload.plugin` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `add.timer(plugin_id=...)` calls `get.plugin.instance`, so it fails for a plugin that is still initializing; event definitions created with `add.event` are not removed by a clean unload either.
+**Status:** fixed in the PR for #121; `unload.plugin` on a plugin that is not loaded raises `ev_plugin_unloaded` and calls `libs.api:remove` (`_remove_plugin_registrations`), the `can_reload_f` refusal applies only to loaded plugins, and a failing `initialize` clears the loaded flag first. The timers handler matches by owner ID and the settings handler tolerates a plugin with no settings. Still open: `add.timer(plugin_id=...)` calls `get.plugin.instance`, so it fails for a plugin that is still initializing; event definitions created with `event.add` are not removed by a clean unload either.
 
 **Issue:** [#121](https://github.com/endavis/bastproxy/issues/121)
 **Location:** `loader.py` `_instantiate_single_plugin`, `_run_initialize_single_plugin`,

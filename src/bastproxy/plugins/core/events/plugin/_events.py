@@ -61,7 +61,7 @@ class EventsPlugin(BasePlugin):
         )
 
         # Can't use decorator since this is the one that registers all events from decorators
-        self.api("plugins.core.events:register.to.event")(
+        self.api("plugins.core.events:event.register")(
             f"ev_{plugin_loader.__name__}_post_startup_plugins_loaded",
             self._eventcb_post_startup_plugins_loaded,
         )
@@ -83,13 +83,13 @@ class EventsPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_{plugin_id}_var_raised_history_size_modified")
     def _eventcb_raised_history_size_modified(self):
         """Apply a changed raised_history_size."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             self._apply_raised_history_size(event_record["newvalue"])
 
     def _eventcb_post_startup_plugins_loaded(self):
         """Register all events in all plugins."""
         self._register_all_plugin_events()
-        self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_all_events_registered")
+        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_all_events_registered")
 
     def _register_all_plugin_events(self):
         """Add commands on startup."""
@@ -128,13 +128,13 @@ class EventsPlugin(BasePlugin):
                 sources=[self.plugin_id, plugin_id],
             )()
             for func in event_functions:
-                self.api(f"{self.plugin_id}:register.event.by.func")(func)
+                self.api(f"{self.plugin_id}:event.register.by.func")(func)
 
     @RegisterToEvent(event_name="ev_plugin_loaded", priority=1)
     def _eventcb_plugin_initialized(self):
         """A plugin was loaded, so register all events."""
         if self.api.startup or not (
-            event_record := self.api("plugins.core.events:get.current.event.record")()
+            event_record := self.api("plugins.core.events:event.current.record.get")()
         ):
             return
 
@@ -167,48 +167,48 @@ class EventsPlugin(BasePlugin):
         return function_list
 
     @AddAPI(
-        "register.event.by.func",
+        "event.register.by.func",
         description="register a decorated function to an event",
     )
-    def _api_register_event_by_func(self, func):
+    def _api_event_register_by_func(self, func):
         """Register a decorated function as an event."""
         for item in func.event_registration:
             event_name = item["event_name"]
             event_name = event_name.format(**func.__self__.__dict__)
             prio = item["priority"]
-            self.api("plugins.core.events:register.to.event")(event_name, func, priority=prio)
+            self.api("plugins.core.events:event.register")(event_name, func, priority=prio)
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             LogRecord(
                 f"_eventcb_plugin_unloaded - removing events for {event_record['plugin_id']}",
                 level="info",
                 sources=[self.plugin_id, event_record["plugin_id"]],
             )()
-            self.api(f"{self.plugin_id}:remove.events.for.owner")(event_record["plugin_id"])
+            self.api(f"{self.plugin_id}:event.unregister.for.owner")(event_record["plugin_id"])
 
-    @AddAPI("get.current.event.name", description="return the current event name")
-    def _api_get_current_event_name(self):
+    @AddAPI("event.current.name.get", description="return the current event name")
+    def _api_event_current_name_get(self):
         """Return the current event name."""
         return self.active_event_stack.peek()
 
-    @AddAPI("get.current.event.record", description="return the current event record")
-    def _api_get_current_event_record(self):
+    @AddAPI("event.current.record.get", description="return the current event record")
+    def _api_event_current_record_get(self):
         """Return the current event record."""
         if last_event := self.active_event_stack.peek():
-            event = self.api(f"{self.plugin_id}:get.event")(last_event)
+            event = self.api(f"{self.plugin_id}:event.get")(last_event)
             return event.get_active_event().event_data
         return None
 
-    @AddAPI("get.event.stack", description="return the current event stack")
-    def _api_get_event_stack(self):
+    @AddAPI("event.stack.get", description="return the current event stack")
+    def _api_event_stack_get(self):
         """Return the current event stack."""
         return self.active_event_stack.getstack()
 
-    @AddAPI("add.event", description="add an event for this plugin to track")
-    def _api_add_event(
+    @AddAPI("event.add", description="add an event for this plugin to track")
+    def _api_event_add(
         self,
         event_name: str,
         created_by: str,
@@ -216,13 +216,13 @@ class EventsPlugin(BasePlugin):
         arg_descriptions: dict[str, str] | None = None,
     ):
         """Add an event for this plugin to track."""
-        event = self.api(f"{self.plugin_id}:get.event")(event_name)
+        event = self.api(f"{self.plugin_id}:event.get")(event_name)
         event.created_by = created_by
         event.description = description or []
         event.arg_descriptions = arg_descriptions or {}
 
-    @AddAPI("get.event", description="return the event")
-    def _api_get_event(self, event_name):
+    @AddAPI("event.get", description="return the event")
+    def _api_event_get(self, event_name):
         """Return an event.
 
         @Yevent_name@w   = the event to return.
@@ -234,8 +234,8 @@ class EventsPlugin(BasePlugin):
 
         return self.events[event_name]
 
-    @AddAPI("has.event", description="return the event")
-    def _api_has_event(self, event_name):
+    @AddAPI("event.exists", description="return the event")
+    def _api_event_exists(self, event_name):
         """Check if an event exists.
 
         @Yevent_name@w   = the event to check for.
@@ -245,10 +245,10 @@ class EventsPlugin(BasePlugin):
         return event_name in self.events
 
     @AddAPI(
-        "is.registered.to.event",
+        "event.is.registered",
         description="check if a function is registered to an event",
     )
-    def _api_is_registered_to_event(self, event_name, func):
+    def _api_event_is_registered(self, event_name, func):
         """Check if a function is registered to an event.
 
         @Yevent_name@w   = the event to check
@@ -261,8 +261,8 @@ class EventsPlugin(BasePlugin):
 
         return False
 
-    @AddAPI("register.to.event", description="register a function to an event")
-    def _api_register_to_event(self, event_name, func, **kwargs):
+    @AddAPI("event.register", description="register a function to an event")
+    def _api_event_register(self, event_name, func, **kwargs):
         """Register a function to an event.
 
         @Yevent_name@w   = The event to register with
@@ -277,22 +277,22 @@ class EventsPlugin(BasePlugin):
 
         if not func_owner_id:
             LogRecord(
-                f"_api_register_to_event - could not find owner for {func}",
+                f"_api_event_register -could not find owner for {func}",
                 level="error",
                 sources=[self.plugin_id],
             )()
             return
 
         # unregister if it's already registered, it might be a new priority
-        if self.api(f"{self.plugin_id}:is.registered.to.event")(event_name, func):
-            self.api(f"{self.plugin_id}:unregister.from.event")(event_name, func)
+        if self.api(f"{self.plugin_id}:event.is.registered")(event_name, func):
+            self.api(f"{self.plugin_id}:event.unregister")(event_name, func)
 
-        event = self.api(f"{self.plugin_id}:get.event")(event_name)
+        event = self.api(f"{self.plugin_id}:event.get")(event_name)
 
         event.register(func, func_owner_id, priority)
 
-    @AddAPI("unregister.from.event", description="unregister a function from an event")
-    def _api_unregister_from_event(self, event_name, func):
+    @AddAPI("event.unregister", description="unregister a function from an event")
+    def _api_event_unregister(self, event_name, func):
         # pylint: disable=unused-argument
         """Unregister a function from an event.
 
@@ -305,23 +305,23 @@ class EventsPlugin(BasePlugin):
             self.events[event_name].unregister(func)
         else:
             LogRecord(
-                f"_api_unregister_from_event - could not find event {event_name}",
+                f"_api_event_unregister -could not find event {event_name}",
                 level="error",
                 sources=[self.plugin_id],
             )()
 
     @AddAPI(
-        "remove.events.for.owner",
+        "event.unregister.for.owner",
         description="remove all registered functions that are specific to a owner_id",
     )
-    def _api_remove_events_for_owner(self, owner_id):
+    def _api_event_unregister_for_owner(self, owner_id):
         """Remove all registered functions that are specific to a owner_id.
 
         @Yowner_id@w   = The owner to remove events for
         this function returns no values.
         """
         LogRecord(
-            f"_api_remove_events_for_owner - removing events for {owner_id}",
+            f"_api_event_unregister_for_owner -removing events for {owner_id}",
             level="info",
             sources=[self.plugin_id, owner_id],
         )()
@@ -366,8 +366,8 @@ class EventsPlugin(BasePlugin):
             )
         ]
 
-    @AddAPI("raise.event", description="raise an event")
-    def _api_raise_event(
+    @AddAPI("event.raise", description="raise an event")
+    def _api_event_raise(
         self,
         event_name,
         event_args=None,
@@ -394,7 +394,7 @@ class EventsPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
 
-        event = self.api(f"{self.plugin_id}:get.event")(event_name)
+        event = self.api(f"{self.plugin_id}:event.get")(event_name)
 
         self.global_raised_count += 1
 
@@ -411,8 +411,8 @@ class EventsPlugin(BasePlugin):
 
         return raised_event
 
-    @AddAPI("get.event.detail", description="get the details of an event")
-    def _api_get_event_detail(self, event_name):
+    @AddAPI("event.detail.get", description="get the details of an event")
+    def _api_event_detail_get(self, event_name):
         """Get the details of an event.
 
         @Yevent_name@w = The event name.
@@ -438,8 +438,8 @@ class EventsPlugin(BasePlugin):
         """
         args = self.api("plugins.core.commands:get.current.command.args")()
         message = []
-        if self.api(f"{self.plugin_id}:get.event")(args["event"]):
-            self.api(f"{self.plugin_id}:raise.event")(args["event"])
+        if self.api(f"{self.plugin_id}:event.get")(args["event"]):
+            self.api(f"{self.plugin_id}:event.raise")(args["event"])
             message.append(f"raised event: {args['event']}")
         else:
             message.append(f"event does not exist: {args['event']}")
@@ -459,7 +459,7 @@ class EventsPlugin(BasePlugin):
         message = []
         if args["event"]:
             for event_name in args["event"]:
-                message.extend(self.api(f"{self.plugin_id}:get.event.detail")(event_name))
+                message.extend(self.api(f"{self.plugin_id}:event.detail.get")(event_name))
                 message.append("")
         else:
             message.append("Please provide an event name")

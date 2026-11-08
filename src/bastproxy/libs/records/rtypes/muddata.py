@@ -67,7 +67,7 @@ class ProcessDataToMud(BaseRecord):
         """Set up the events for this record type."""
         if not ProcessDataToMud._SETUP_EVENTS:
             ProcessDataToMud._SETUP_EVENTS = True
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 self.modify_data_event_name,
                 __name__,
                 description=["An event to modify data before it is sent to the mud"],
@@ -125,7 +125,7 @@ class ProcessDataToMud(BaseRecord):
         self.seperate_commands()
 
         if data_for_event := [line for line in self.message if line.fromclient and line.is_io]:
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 self.modify_data_event_name,
                 event_args={
                     "showinhistory": self.show_in_history,
@@ -169,7 +169,7 @@ class SendDataDirectlyToMud(BaseRecord):
         """Set up the events for this record type."""
         if not SendDataDirectlyToMud._SETUP_EVENTS:
             SendDataDirectlyToMud._SETUP_EVENTS = True
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 self.read_data_event_name,
                 __name__,
                 description=["An event to see data that was sent to the mud"],
@@ -189,6 +189,6 @@ class SendDataDirectlyToMud(BaseRecord):
         # pass each line through the event system to allow plugins to see what
         # data is being sent to the mud
         if data_for_event := [line for line in self.message if line.send]:
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 self.read_data_event_name, data_list=data_for_event, key_name="line"
             )

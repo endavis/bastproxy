@@ -317,7 +317,7 @@ BastProxy is built on `asyncio`, but the event system is entirely synchronous. E
 def _eventcb_process_data(self):
     # This blocks the entire event loop
     result = requests.get("http://api.example.com/process")
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     event_record["processed"] = result.json()
 ```
 
@@ -364,7 +364,7 @@ async def _eventcb_process_data(self):
     async with aiohttp.ClientSession() as session:
         async with session.get("http://api.example.com/process") as resp:
             data = await resp.json()
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     event_record["processed"] = data
 ```
 
@@ -575,7 +575,7 @@ Subscribe to multiple events with a single registration:
 ```python
 @RegisterToEvent(event_name="ev_plugin_*", priority=50)
 def _eventcb_handle_any_plugin_event(self):
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     # Handle any plugin-related event
 ```
 
@@ -605,15 +605,15 @@ class EventsPlugin(BasePlugin):
         # Register to all existing matching events
         for event_name in self.events.keys():
             if fnmatch(event_name, pattern):
-                self.api("plugins.core.events:register.to.event")(
+                self.api("plugins.core.events:event.register")(
                     event_name, func, priority=priority
                 )
 
-    @AddAPI("add.event", description="add an event")
+    @AddAPI("event.add", description="add an event")
     def _api_add_event(self, event_name: str, created_by: str, **kwargs):
         """Override to handle pattern registrations."""
         # Create event
-        event = self.api("plugins.core.events:get.event")(event_name)
+        event = self.api("plugins.core.events:event.get")(event_name)
         event.created_by = created_by
         # ...
 
@@ -837,7 +837,7 @@ class EventRecorder:
     def replay(self, events_api, recorded_events: List[Dict]):
         """Replay recorded events."""
         for event_data in recorded_events:
-            events_api("plugins.core.events:raise.event")(
+            events_api("plugins.core.events:event.raise")(
                 event_data["event_name"],
                 event_args=event_data["event_data"],
                 calledfrom=event_data["actor"]
@@ -946,7 +946,7 @@ schema = EventSchema(
     }
 )
 
-self.api("plugins.core.events:add.event")(
+self.api("plugins.core.events:event.add")(
     "ev_to_mud_data_modify",
     "plugins.core.commands",
     schema=schema
@@ -1892,7 +1892,7 @@ class TestEventIntegration:
     def test_full_event_flow(self, event_plugin):
         """Test complete event flow through system."""
         # Register event
-        event_plugin.api("plugins.core.events:add.event")(
+        event_plugin.api("plugins.core.events:event.add")(
             "ev_test_event",
             "test_plugin",
             description=["Test event"],
@@ -1903,17 +1903,17 @@ class TestEventIntegration:
         received_data = []
 
         def callback():
-            record = event_plugin.api("plugins.core.events:get.current.event.record")()
+            record = event_plugin.api("plugins.core.events:event.current.record.get")()
             received_data.append(record["data"])
 
-        event_plugin.api("plugins.core.events:register.to.event")(
+        event_plugin.api("plugins.core.events:event.register")(
             "ev_test_event",
             callback,
             priority=50
         )
 
         # Raise event
-        event_plugin.api("plugins.core.events:raise.event")(
+        event_plugin.api("plugins.core.events:event.raise")(
             "ev_test_event",
             event_args={"data": "test_value"}
         )

@@ -22,7 +22,7 @@ def _run(text: str) -> MagicMock:
     def api(name: str) -> Any:
         if name == "plugins.core.settings:setting.get":
             return lambda plugin_id, key: "#bp"
-        if name == "plugins.core.events:get.current.event.record":
+        if name == "plugins.core.events:event.current.record.get":
             return lambda: record
         raise AssertionError(name)
 

@@ -359,13 +359,13 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        self("plugins.core.events:add.event")(
+        self("plugins.core.events:event.add")(
             "ev_libs.api_character_active",
             APILOCATION,
             description=("An event for when the character is active and ready for commands"),
             arg_descriptions={"is_character_active": "The state of the is_character_active flag"},
         )
-        self("plugins.core.events:add.event")(
+        self("plugins.core.events:event.add")(
             "ev_libs.api_character_inactive",
             APILOCATION,
             description=("An event for when the character is inactive and not ready for commands"),
@@ -410,13 +410,13 @@ class API:  # sourcery skip: upper-camel-case-classes
         self.__class__.is_character_active = flag
 
         if flag:
-            self("plugins.core.events:raise.event")(
+            self("plugins.core.events:event.raise")(
                 "ev_libs.api_character_active",
                 event_args={"is_character_active": self.is_character_active},
                 calledfrom=APILOCATION,
             )
         else:
-            self("plugins.core.events:raise.event")(
+            self("plugins.core.events:event.raise")(
                 "ev_libs.api_character_inactive",
                 event_args={"is_character_active": self.is_character_active},
                 calledfrom=APILOCATION,

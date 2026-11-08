@@ -89,7 +89,7 @@ class ProcessDataToClient(BaseRecord):
         """Set up the events for this record type."""
         if not ProcessDataToClient._SETUP_EVENTS:
             ProcessDataToClient._SETUP_EVENTS = True
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 self.modify_data_event_name,
                 __name__,
                 description=["An event to modify data before it is sent to the client"],
@@ -158,7 +158,7 @@ class ProcessDataToClient(BaseRecord):
         # If a line came from the mud and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
         if data_for_event := [line for line in self.message if line.frommud and line.is_io]:
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 self.modify_data_event_name, data_list=data_for_event, key_name="line"
             )
 
@@ -205,7 +205,7 @@ class SendDataDirectlyToClient(BaseRecord):
         """Set up the events for this record type."""
         if not SendDataDirectlyToClient._SETUP_EVENTS:
             SendDataDirectlyToClient._SETUP_EVENTS = True
-            self.api("plugins.core.events:add.event")(
+            self.api("plugins.core.events:event.add")(
                 self.read_data_event_name,
                 __name__,
                 description=["An event to see data that was sent to the client"],
@@ -264,6 +264,6 @@ class SendDataDirectlyToClient(BaseRecord):
         # pass each line through the event system to allow plugins to see
         # what data is being sent to the client
         if data_for_event := [line for line in self.message if line.send]:
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 self.read_data_event_name, data_list=data_for_event, key_name="line"
             )

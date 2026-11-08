@@ -142,7 +142,7 @@ class Event:
                 if call_back.owner_id == owner_id
             )
         for event_function in plugins_to_unregister:
-            self.api("plugins.core.events:unregister.from.event")(self.name, event_function.func)
+            self.api("plugins.core.events:event.unregister")(self.name, event_function.func)
         # an unload during a raise must not leave the callback (and its owner) referenced
         if self.current_callback is not None and self.current_callback.owner_id == owner_id:
             self.current_callback = None

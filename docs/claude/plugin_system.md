@@ -359,7 +359,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    the event: the events plugin removes the plugin's event registrations, the commands plugin
    its command data, the settings plugin its settings (after saving), and the timers,
    triggers, watch and cmdq plugins theirs. Event *definitions* the plugin added with
-   `add.event` are not removed.
+   `event.add` are not removed.
 
 4. **Loader bookkeeping**: the plugin is removed from the `pluginstoload` setting, the
    instance is deleted, every module under the plugin package is deleted from `sys.modules`
@@ -597,7 +597,7 @@ class Plugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_mud_data_modify", priority=50)
     def _eventcb_handle_mud_data(self):
         """Handle data being sent to mud."""
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
         # Modify data
         event_record['line'] = "modified: " + event_record['line']
 ```
@@ -609,7 +609,7 @@ class Plugin(BasePlugin):
     @RegisterPluginHook("__init__", priority=50)
     def _phook_create_events(self):
         """Create plugin-specific events."""
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             "ev_myplugin_something_happened",
             self.plugin_id,
             description=["Event when something happens"],
