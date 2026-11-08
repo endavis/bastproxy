@@ -139,12 +139,14 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 - Issue #169: Rename the plugins.core.log and plugins.core.colors APIs
 - Issue #170: Rename the timers, triggers, watch and libs.timing APIs
 - Issue #171: Rename the sqldb and ssc dynamic APIs
+- Issue #172: Rename plugins.core.cmdq to plugins.core.mudcmds
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation
 
 - [API system: API naming convention](../claude/api_system.md#1-api-naming-convention)
 - [Plugin system](../claude/plugin_system.md)
+- [Renamed plugins and the data-directory migration](../claude/plugin_system.md#renamed-plugins)
 - [CONTRIBUTING: API Naming Conventions](../../CONTRIBUTING.md#api-naming-conventions)
 - [Superseded analysis](../../info/api_naming_analysis.md)
 

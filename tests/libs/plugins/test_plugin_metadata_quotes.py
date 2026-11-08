@@ -55,8 +55,8 @@ def test_mismatched_quotes_do_not_match(tmp_path: Path, field: str) -> None:
     assert info.is_plugin is False
 
 
-def test_real_cmdq_init_parses() -> None:
-    info = _parse_file(_PLUGINS_ROOT / "core" / "cmdq" / "__init__.py", "plugins.core.cmdq")
+def test_real_mudcmds_init_parses() -> None:
+    info = _parse_file(_PLUGINS_ROOT / "core" / "mudcmds" / "__init__.py", "plugins.core.mudcmds")
     assert info.name == "Command Queue"
     assert info.author == "Bast"
     assert info.purpose == "Queue commands to the mud"

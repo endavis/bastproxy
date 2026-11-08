@@ -343,7 +343,7 @@ by calling `plugin.state.save` on each.
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
    plugin is flagged loaded. A plugin that failed to load is not uninitialized, but the loader
    raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` for it, so the events, commands,
-   settings, timers, triggers, watch and cmdq cleanup handlers run.
+   settings, timers, triggers, watch and mudcmds cleanup handlers run.
    ```python
    @RegisterPluginHook("uninitialize", priority=50)
    def _phook_uninitialize(self):
@@ -360,7 +360,7 @@ by calling `plugin.state.save` on each.
 3. **`ev_plugin_unloaded` handlers** do the per-subsystem cleanup, each for the plugin ID in
    the event: the events plugin removes the plugin's event registrations, the commands plugin
    its command data, the settings plugin its settings (after saving), and the timers,
-   triggers, watch and cmdq plugins theirs. Event *definitions* the plugin added with
+   triggers, watch and mudcmds plugins theirs. Event *definitions* the plugin added with
    `event.add` are not removed.
 
 4. **Loader bookkeeping**: the plugin is removed from the `pluginstoload` setting, the
@@ -568,6 +568,21 @@ Each plugin has a data directory for persistent storage:
 data_dir = self.api(f"{self.plugin_id}:data.directory.get")()
 # Returns: Path to $BASTPROXY_HOME/data/plugins/<plugin_id>
 ```
+
+### Renamed plugins
+
+The data directory is keyed by plugin ID, so renaming a plugin leaves its old directory behind
+and the plugin starts fresh. `plugins.core.cmdq` became `plugins.core.mudcmds` in #172
+([ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md)).
+To keep the data, stop the proxy and run:
+
+```bash
+mv "$BASTPROXY_HOME/data/plugins/plugins.core.cmdq" "$BASTPROXY_HOME/data/plugins/plugins.core.mudcmds"
+```
+
+The directory only holds `settingvalues.txt` with the hidden `_version` setting, so skipping the
+move loses nothing. The `fixqueue` command and the `ev_plugins.core.cmdq_*` events now live under
+`plugins.core.mudcmds` (`ev_plugins.core.mudcmds_*`).
 
 ## Common Plugin Patterns
 

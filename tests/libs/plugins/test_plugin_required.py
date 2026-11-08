@@ -61,11 +61,11 @@ def test_required_first_still_parses_all_metadata(tmp_path: Path) -> None:
     assert info.dependencies == ["plugins.core.events"]
 
 
-def test_real_cmdq_init_parses_as_required() -> None:
-    import bastproxy.plugins.core.cmdq as cmdq_pkg
+def test_real_mudcmds_init_parses_as_required() -> None:
+    import bastproxy.plugins.core.mudcmds as mudcmds_pkg
 
-    assert cmdq_pkg.__file__ is not None
-    info = PluginInfo("plugins.core.cmdq")
-    info.package_init_file_path = Path(cmdq_pkg.__file__)
+    assert mudcmds_pkg.__file__ is not None
+    info = PluginInfo("plugins.core.mudcmds")
+    info.package_init_file_path = Path(mudcmds_pkg.__file__)
     info.update_from_init()
     assert info.is_required is True

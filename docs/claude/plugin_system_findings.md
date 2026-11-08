@@ -46,7 +46,7 @@ The gaps are in the paths the happy case does not cover:
   loader only runs `uninitialize` for a plugin flagged loaded, and the per-subsystem cleanup rides
   on the `ev_plugin_unloaded` event that `uninitialize` raises. The loader now raises that event
   and removes the APIs itself for a plugin that is not loaded.
-- **Two of the subsystem cleanup handlers are broken**: cmdq calls an API that does not exist
+- **Two of the subsystem cleanup handlers are broken**: mudcmds calls an API that does not exist
   (PS-2) and watch deletes from a dict while iterating it (PS-3). Both only log an error, so
   unload "succeeds" and leaves data behind.
 - **`attributes_to_save_on_reload` is unreliable** for any plugin that sets defaults in its own
@@ -131,7 +131,7 @@ what it holds for that plugin.
 | Timers | `plugins.core.timers:timer.add` | timers `_eventcb_plugin_unloaded` calls `timer.remove.for.plugin`, which matches timers by owner ID (it used to look the plugin up through `plugin.instance.get`, which fails for a plugin that is not loaded) | Verified clean after unload and after a failed load (PS-1, fixed). |
 | Triggers | `plugins.core.triggers:trigger.add` | triggers `_eventcb_plugin_unloaded` calls `trigger.remove.for.owner` | Verified clean after unload. |
 | Watches | `plugins.core.watch:watch.add` | watch `_eventcb_plugin_unloaded` calls `watch.remove.for.plugin` | Broken for more than one watch (PS-3). |
-| cmdq command types | `plugins.core.cmdq:type.add` | cmdq `_eventcb_plugin_unloaded` calls `remove.mud.commands.for.plugin` | Broken (PS-2). |
+| mudcmds command types | `plugins.core.mudcmds:type.add` | mudcmds `_eventcb_plugin_unloaded` calls `type.remove.for.plugin` | Broken (PS-2). |
 | Reload cache | `_phook_base_unitialize_hook` when `is_reloading_f` | `BasePlugin.restore_reload_cache`, called by the loader after construction | Works (PS-4 fixed). |
 | `sys.modules` | import | `_api_plugin_unload`, and the failed-load cleanup in `_api_plugin_load` (`plugin_module_names`) | Clean, except modules that set `CANRELOAD = False` stay by design, and `deletemodule` keeps only the bundled `_baseplugin` package (PS-10, fixed). |
 | Plugin instance | `_instantiate_single_plugin` | `del runtime_info.plugin_instance` | Collected after unload for the bundled plugins I tried. Stayed reachable through `Event.current_callback` once one of its callbacks had run, fixed in the PR for #127 (PS-8). |
@@ -287,13 +287,13 @@ of this audit's page and is left for the event system audit.
 | 1 | **Lifecycle hooks by name and priority** (template method plus registry) | `_pluginhooks.py` `RegisterPluginHook`, `_base.py` `_process_plugin_hook` | Yes for processing; not for introspection (PS-6) | **Keep the idea.** Fix: validate hook names, validate the `_phook_` prefix at registration, one lookup function, document tie order, add tests. |
 | 2 | **Runtime monkey patching** with `setattr` onto a class | `_patch.py` `patch`, called from `loader.py` `_import_single_plugin` | One user; five silent failure modes (Q2) | **Change** to an explicit mixin (PS-7). Anti-pattern: hidden control flow, order-dependent, reload-unsafe. |
 | 3 | **Decorator registration through function attributes** | `RegisterPluginHook` (`plugin_hooks`), `AddAPI` (`api`), `RegisterToEvent` (`event_registration`), `AddCommand` | Yes, four decorators, one mechanism | **Keep.** The attributes live on class-level function objects shared by every instance; `API._api_api_toplevel_remove` mutates `func.api["addedin"]` on them. That is hidden global state. It works, but any new decorator should store data on the instance or a registry, not the shared function. |
-| 4 | **Service locator through string API names** (`self.api("plugins.core.events:...")`) | Everywhere; `_base.py` has 22 such calls across five core plugins (events 15, settings 4, commands, proxy and utils 1 each) | Yes | **Keep as the contract, add a guard.** The cost: a typo is a runtime error on a rarely run path. A scan of literal API names against the live registry found three that do not exist (`libs.api:get:caller:owner` in the triggers plugin, `libs.timing:timing.start` and `timing.finish` in cmdq), and the f-string `remove.command.type` in cmdq is a fourth. PS-2 and PS-9 cover the callers; PS-12 added the guard test (`tests/plugins/test_api_names_exist.py`), which found a fourth miss the audit's scan did not list: `errors.clear` in the errors plugin. |
+| 4 | **Service locator through string API names** (`self.api("plugins.core.events:...")`) | Everywhere; `_base.py` has 22 such calls across five core plugins (events 15, settings 4, commands, proxy and utils 1 each) | Yes | **Keep as the contract, add a guard.** The cost: a typo is a runtime error on a rarely run path. A scan of literal API names against the live registry found three that do not exist (`libs.api:get:caller:owner` in the triggers plugin, `libs.timing:timing.start` and `timing.finish` in mudcmds), and the f-string `remove.command.type` in mudcmds is a fourth. PS-2 and PS-9 cover the callers; PS-12 added the guard test (`tests/plugins/test_api_names_exist.py`), which found a fourth miss the audit's scan did not list: `errors.clear` in the errors plugin. |
 | 5 | **`BasePlugin(Plugin, Commands)` inheritance** with a `typing.Protocol` used as an implementation mixin | `src/bastproxy/plugins/_baseplugin/__init__.py`, `_commands.py` `Commands(Protocol)` | Yes | **Change (small).** `Protocol` is for structural typing; a plain mixin class says what it is and avoids `self: "Plugin"` annotations and `# pyright: ignore` comments. The wider inheritance surface (about 25 attributes, 8 APIs, 8 hooks, name-matched by plugins) is the plugin contract; keep it, do not grow it. New base features should be mixins like `Commands`, not patches. |
 | 6 | **Hard dependency of the base class on concrete plugins** (tight coupling) | `_base.py` calls events, settings, commands, proxy and utils APIs; `_commands.py` imports `bastproxy.plugins.core.commands`; `loader.py` and `plugininfo.py` import `bastproxy.plugins._baseplugin` | Yes | **Keep, document.** `libs` importing `plugins` inverts the stated layering (`libs` is the framework). `plugininfo.py` imports `BasePlugin` only for an annotation; `TYPE_CHECKING` removes that edge for free. No dependency injection exists, and adding it here is out of scope. |
 | 7 | **Hidden global state** | `_patch.py` `modules_patched` and `API = APIClass(__name__)`; `reloadutils.HELPER`; `API` class-level flags (`startup`, `shutdown`, paths) set from `src/bastproxy/__init__.py` | Yes | **Keep `HELPER` and the API flags** (the architecture relies on them). **Remove `modules_patched`** with `patch()`. |
 | 8 | **Import-time side effects** | `src/bastproxy/__init__.py` creates directories, prints two banner lines (the string `last updated ...`) and raises if `BASTPROXY_HOME` is wrong; `reloadutils` instantiates `ReloadHelper` and registers APIs on import; `_patch.py` creates an `API` object on import | Yes | **Change (low).** The environment check and `mkdir` are fine for an application entry point but make `import bastproxy` unusable in tools. The banner `print`s belong in `main`. Not filed separately. |
 | 9 | **Catch-all `except`** | `loader.py` in `_instantiate_single_plugin`, `_run_initialize_single_plugin`, `_api_plugin_unload` (two, one an `except Exception` around a dict lookup); `imputils.importmodule`; `plugininfo.check_file_is_valid_python_code`; `_patch.py` `patch` | Mostly justified: each logs with `exc_info` and either exits or unloads | **Keep**, with one change: the dict-lookup `except Exception` in `_api_plugin_unload` should be `except KeyError`. |
-| 10 | **Silent failures** | cmdq and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `plugin.unload` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
+| 10 | **Silent failures** | mudcmds and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `plugin.unload` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
 | 11 | **String concatenation for paths** | Loader and `PluginInfo` use `Path` throughout; `plugin_info.data_directory` is a `Path` | Yes | **Fits.** The only string "paths" are import locations, which are not file paths. |
 | 12 | **Repeated work in hooks** | `libs.api:api.add.for.object` is called by three base hooks (priority 1, 75 and 91) | n/a | **Keep, document.** 75 picks up objects created by `__init__` hooks below 75 and 91 those created in `initialize`; neither is written down. Not filed separately. |
 | 13 | **Magic-string exclusion** | `imputils.deletemodule` skipped any module whose name contained `baseplugin` or `baseconfig` | n/a | **Changed** (PS-10, fixed): exact package prefix match. |
@@ -335,14 +335,14 @@ modules; this is the same cleanup for the registries.
 rest. Make the timers handler tolerate a plugin with no instance. Add a test with a plugin that
 raises in `initialize` after registering a timer.
 
-### PS-2: cmdq unload cleanup raises and leaves command types behind
+### PS-2: mudcmds (formerly mudcmds) unload cleanup raises and leaves command types behind
 
 **Issue:** [#122](https://github.com/endavis/bastproxy/issues/122)
-**Location:** `src/bastproxy/plugins/core/cmdq/plugin/_cmdq.py`
-`_api_remove_mud_commands_for_plugin`; also `_api_type_add`.
+**Location:** `src/bastproxy/plugins/core/mudcmds/plugin/_mudcmds.py`
+`_api_type_remove_for_plugin`; also `_api_type_add`.
 
-**Evidence (verified):** With an entry in `cmdq.cmds` owned by a plugin, unloading the plugin
-logs `AttributeError: plugins.core.cmdq : plugins.core.cmdq:remove.command.type is not in the
+**Evidence (verified):** With an entry in `mudcmds.cmds` owned by a plugin, unloading the plugin
+logs `AttributeError: <plugin_id> : <plugin_id>:remove.command.type is not in the
 api` from the `ev_plugin_unloaded` handler, and the entry is still in `cmds` afterwards. The
 API is registered as `type.remove`. Even with the name fixed, the loop deletes from
 `self.cmds` while iterating `self.cmds.keys()`. Nothing in the tree calls `type.add`, which
@@ -351,7 +351,7 @@ no current command), so the type registry is unused and untested.
 
 **Fix:** Call `type.remove`, iterate over `list(self.cmds)`, fix `type.add` to use `cmdtype`,
 and add a test that adds a type, unloads its owner and checks it is gone. Also covers
-`libs.timing:timing.start` and `timing.finish`, which cmdq calls and which are not registered.
+`libs.timing:timing.start` and `timing.finish`, which mudcmds calls and which are not registered.
 
 ### PS-3: Watch cleanup raises after removing one watch
 

@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/cmdq/_init_.py
+# Filename: plugins/core/mudcmds/_init_.py
 #
 # File Description: a command queue plugin
 #
