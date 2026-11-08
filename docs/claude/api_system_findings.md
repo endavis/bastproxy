@@ -124,7 +124,7 @@ and each `API` object holds `_instance_api`. A name is `"<toplevel>:<name>"`.
 
 | Case | Result (verified) |
 | :--- | :--- |
-| Class API, same name, different function, no `force` | Logs an error and **returns `True`**; the first function stays registered (AS-1). `tests/libs/test_api.py::TestAPIOverwriting::test_api_add_duplicate_without_force_fails` asserts this. |
+| Class API, same name, different function, no `force` | Logs an error and **returned `True`** when audited; the first function stays registered (AS-1, fixed in #194: now returns `False`). |
 | Instance API, same name, different function, no `force` | Logs an error and returns `False`. The two paths disagree. |
 | Class API with `force=True` | Replaces the entry and keeps the old one in `overwritten_api`. |
 | Lookup order | `API.get` checks `_instance_api` first, then `_class_api`. |
@@ -342,7 +342,7 @@ Corrected in [API System](api_system.md) in this change:
 | 6. API Removal | "Removes all APIs with the top-level name" | Called from `_phook_base_unitialize_hook` (priority 100); raises for instance APIs and undecorated functions; leaves stats, empty `addedin` keys and other owners' overrides (AS-2, AS-3). |
 | 4. Class vs Instance | Instance APIs "used for per-instance customization" | No plugin declares one (verified). The only instance APIs are the 14 `libs.api:` built-ins on every `API` object, which is why `libs.api:*` names are not in `_class_api`. |
 | Automatic Caller Detection | "Typically a plugin ID" | First frame whose `self` is not an `APIItem` and has an `owner_id` or `api.owner_id`; any helper object counts; `unknown` triggers a warning and a stack dump; `caller.owner.get` needs an ignore list (AS-4). |
-| API Overwriting | `force=True` overwrites and keeps `overwritten_api` | Also: a duplicate without `force` returns `True` for class APIs and `False` for instance APIs; the overwritten API is never restored; nothing in `src` uses `force` (AS-1, AS-3). |
+| API Overwriting | `force=True` overwrites and keeps `overwritten_api` | Also: a duplicate without `force` returns `False` (it returned `True` for class APIs before #194); the overwritten API is never restored; nothing in `src` uses `force` (AS-1, AS-3). |
 | Common APIs | Loader list presented as complete | A selection. Every `libs.api:` name written on the page was checked against the live registry and exists, as do the loader and events names. The page's `my.plugin` and `some.plugin` names are placeholders. |
 | Best Practices, usage 3 | "Cache frequently-used API lookups if performance is critical" | A lookup is 0.2 microseconds of a 2 microsecond call, and a cached `APIItem` goes stale on reload, so the advice is reworded with the numbers. |
 | Naming (section 1) | Already matches ADR-0004 (updated by the rename series); examples checked | Unchanged. |
@@ -407,6 +407,8 @@ comes back from the class path only in the `except ImportError` branch, which al
 whether the one caller that ignores the result (`_api_api_add_for_object`) should log it. The
 existing test asserts the old behaviour, so changing it is a decision for the maintainer, not part
 of a refactor.
+
+**Fixed in #194:** `API.add` now returns `False` for a refused class duplicate, as the instance path does, and the `ImportError` fallbacks in `API.add`, `_api_instance` and `APIStatItem.add_call` log through the stdlib `logging` module instead of `print`. The test above now asserts `False` (maintainer-approved), and `tests/libs/test_api.py` restores the shared `API._class_api` and `STATS_MANAGER.stats` around every test. The text above describes the behaviour before the fix.
 
 ### AS-2: `api.toplevel.remove` raises for instance APIs and for undecorated functions
 

@@ -423,7 +423,7 @@ self.api("libs.api:api.add")(
 )
 ```
 
-The original API is preserved in `api_item.overwritten_api` for reference; it is not restored when the overriding owner is unloaded. Without `force`, adding a different function under an existing name logs an error and keeps the first one: `api.add` returns `True` for a class API and `False` for an instance API. Adding the same function again is a no-op that returns `True`. Nothing in `src` uses `force` today.
+The original API is preserved in `api_item.overwritten_api` for reference; it is not restored when the overriding owner is unloaded. Without `force`, adding a different function under an existing name logs an error and keeps the first one: `api.add` returns `False` for both a class API and an instance API. Adding the same function again is a no-op that returns `True`. Nothing in `src` uses `force` today.
 
 ### Character Active Flag
 

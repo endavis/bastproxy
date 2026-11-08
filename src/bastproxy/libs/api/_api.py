@@ -35,6 +35,7 @@ Classes:
 
 # Standard Library
 import contextlib
+import logging
 import pprint
 import types
 from collections.abc import Callable
@@ -50,6 +51,8 @@ from ._apiitem import APIItem
 # Project
 from ._apistats import APIStatItem
 from ._functools import get_caller_owner_id, stackdump
+
+logger = logging.getLogger(__name__)
 
 APILOCATION = "libs.api"
 
@@ -472,7 +475,10 @@ class API:  # sourcery skip: upper-camel-case-classes
             description: A description of the callable being added.
 
         Returns:
-            True if the callable was added successfully, False otherwise.
+            True if the callable was added, or the same callable was already
+            registered under that name. False if a different callable already
+            exists under that name and force is not set (an error is logged and
+            the existing callable is kept).
 
         Raises:
             None
@@ -503,8 +509,8 @@ class API:  # sourcery skip: upper-camel-case-classes
                         sources=[__name__, self.owner_id],
                     )()
                 except ImportError:
-                    print(f"libs.api:api.add - {api_item.full_api_name} already exists")
-                    return False
+                    logger.error("libs.api:api.add - %s already exists", api_item.full_api_name)
+                return False
         else:
             self._class_api[api_item.full_api_name] = api_item
 
@@ -548,7 +554,7 @@ class API:  # sourcery skip: upper-camel-case-classes
                         sources=[__name__, api_item.owner_id],
                     )()
                 except ImportError:
-                    print(f"libs.api:instance - {api_item.full_api_name} already exists")
+                    logger.error("libs.api:instance - %s already exists", api_item.full_api_name)
 
                 return False
 

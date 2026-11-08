@@ -31,12 +31,15 @@ Classes:
     - `StatsManager`: Represents a class that manages statistics for multiple APIs.
 
 """
+
 # Standard Library
+import logging
 
 # Third Party
-
 # Project
 from ._functools import stackdump
+
+logger = logging.getLogger(__name__)
 
 
 class APIStatItem:
@@ -86,8 +89,7 @@ class APIStatItem:
 
                 LogRecord(stack, level="warning", sources=[__name__])()
             except ImportError:
-                print("\n".join(stack))
-                print()
+                logger.warning("\n".join(stack))
         if caller_id not in self.detailed_calls:
             self.detailed_calls[caller_id] = 0
         self.detailed_calls[caller_id] += 1

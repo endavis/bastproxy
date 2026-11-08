@@ -15,10 +15,32 @@ Test Classes:
 
 """
 
+import logging
+import sys
+from collections.abc import Iterator
+
 import pytest
 
 from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.api._apistats import STATS_MANAGER, APIStatItem
 from bastproxy.libs.exceptions import APINotFoundError
+
+
+@pytest.fixture(autouse=True)
+def _isolate_api_state() -> Iterator[None]:
+    """Restore the shared class API registry and stats after every test.
+
+    ``API._class_api`` and ``STATS_MANAGER.stats`` are shared state, so the dicts
+    are restored in place to keep every existing reference valid.
+
+    """
+    class_api_snapshot = dict(API._class_api)
+    stats_snapshot = dict(STATS_MANAGER.stats)
+    yield
+    API._class_api.clear()
+    API._class_api.update(class_api_snapshot)
+    STATS_MANAGER.stats.clear()
+    STATS_MANAGER.stats.update(stats_snapshot)
 
 
 def helper_function_one() -> str:
@@ -201,10 +223,9 @@ class TestAPIOverwriting:
     """Test API overwriting and force behavior."""
 
     def test_api_add_duplicate_without_force_fails(self) -> None:
-        """Test that adding duplicate API without force=True logs error.
+        """Test that adding duplicate API without force=True logs error and returns False.
 
-        Note: For class APIs, the method logs an error but still returns True.
-        For instance APIs, it would return False.
+        Both class and instance APIs return False for a refused duplicate.
 
         """
         api = API(owner_id="test_owner")
@@ -212,8 +233,7 @@ class TestAPIOverwriting:
         result2 = api.add("test", "function", helper_function_two, description="Test 2")
 
         assert result1 is True
-        # For class APIs, duplicate add logs error but returns True
-        assert result2 is True
+        assert result2 is False
 
         # Original function should still be there
         api_item = api.get("test:function")
@@ -253,6 +273,88 @@ class TestAPIOverwriting:
         api_item = api.get("test:function")
         assert api_item.overwritten_api is not None
         assert api_item.overwritten_api.tfunction == helper_function_one
+
+    def test_class_duplicate_keeps_first_function_callable(self) -> None:
+        """A refused class duplicate leaves the first function registered and callable."""
+        api = API(owner_id="test_owner")
+        api.add("t194keep", "function", helper_function_one)
+        assert api.add("t194keep", "function", helper_function_two) is False
+
+        assert api("t194keep:function")() == helper_function_one()
+
+    def test_class_same_function_readd_returns_true(self) -> None:
+        """Re-adding the identical class function returns True."""
+        api = API(owner_id="test_owner")
+        api.add("t194same", "function", helper_function_one)
+        assert api.add("t194same", "function", helper_function_one) is True
+
+    def test_class_force_returns_true_and_overwrites(self) -> None:
+        """Force on a class duplicate returns True and the new function is called."""
+        api = API(owner_id="test_owner")
+        api.add("t194force", "function", helper_function_one)
+        assert api.add("t194force", "function", helper_function_two, force=True) is True
+
+        assert api("t194force:function")() == helper_function_two()
+
+    def test_instance_duplicate_returns_false(self) -> None:
+        """A refused instance duplicate returns False."""
+        api = API(owner_id="test_owner")
+        assert api.add("t194", "function", helper_function_one, instance=True) is True
+        assert api.add("t194", "function", helper_function_two, instance=True) is False
+
+    def test_class_duplicate_import_error_fallback_logs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Without LogRecord, a refused class duplicate logs via logging, not print."""
+        api = API(owner_id="test_owner")
+        api.add("t194fallback", "function", helper_function_one)
+        monkeypatch.setitem(sys.modules, "bastproxy.libs.records", None)
+
+        with caplog.at_level(logging.ERROR):
+            result = api.add("t194fallback", "function", helper_function_two)
+
+        assert result is False
+        assert "libs.api:api.add - t194fallback:function already exists" in caplog.text
+        assert capsys.readouterr().out == ""
+
+    def test_instance_duplicate_import_error_fallback_logs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Without LogRecord, a refused instance duplicate logs via logging, not print."""
+        api = API(owner_id="test_owner")
+        api.add("t194", "function", helper_function_one, instance=True)
+        monkeypatch.setitem(sys.modules, "bastproxy.libs.records", None)
+
+        with caplog.at_level(logging.ERROR):
+            result = api.add("t194", "function", helper_function_two, instance=True)
+
+        assert result is False
+        assert "libs.api:instance - t194:function already exists" in caplog.text
+        assert capsys.readouterr().out == ""
+
+    def test_apistats_unknown_caller_import_error_fallback_logs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Without LogRecord, an unknown caller warns via logging, not print."""
+        item = APIStatItem("test:function")
+        monkeypatch.setitem(sys.modules, "bastproxy.libs.records", None)
+
+        with caplog.at_level(logging.WARNING):
+            item.add_call("unknown")
+
+        assert "Unknown caller_id for API call: test:function" in caplog.text
+        assert capsys.readouterr().out == ""
+        assert item.count == 1
+        assert item.detailed_calls == {"unknown": 1}
 
 
 class TestAPIInstancePriority:
