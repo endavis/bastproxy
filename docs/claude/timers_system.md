@@ -126,11 +126,12 @@ The timers plugin:
 
 ## Common APIs
 
-- `plugins.core.timers:add` - Add a timer
-- `plugins.core.timers:remove` - Remove a timer
-- `plugins.core.timers:toggle` - Enable/disable a timer
-- `plugins.core.timers:get` - Get timer object
-- `plugins.core.timers:remove.data.for.plugin` - Remove all timers for a plugin
+- `plugins.core.timers:timer.add` - Add a timer
+- `plugins.core.timers:timer.remove` - Remove a timer
+- `plugins.core.timers:timer.toggle` - Enable/disable a timer
+- `plugins.core.timers:timer.exists` - Check whether a timer exists
+- `plugins.core.timers:timer.next.fire.get` - Get the next fire time for a timer
+- `plugins.core.timers:timer.remove.for.plugin` - Remove all timers for a plugin
 
 ## Commands
 

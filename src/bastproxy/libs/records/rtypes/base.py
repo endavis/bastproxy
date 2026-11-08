@@ -330,7 +330,7 @@ class BaseRecord(AttributeMonitor):
 
         try:
             if self.track_record:
-                tracking_uuid = self.api("libs.timing:start")(
+                tracking_uuid = self.api("libs.timing:timing.start")(
                     f"{self.__class__.__name__}:{self.uuid}.__call__"
                 )
                 RMANAGER.start(self)
@@ -338,7 +338,7 @@ class BaseRecord(AttributeMonitor):
                     self._exec_(*args, **kwargs)
                 finally:
                     RMANAGER.end(self)
-                    self.execute_time_taken = self.api("libs.timing:finish")(tracking_uuid)
+                    self.execute_time_taken = self.api("libs.timing:timing.finish")(tracking_uuid)
             else:
                 self._exec_(*args, **kwargs)
 

@@ -26,7 +26,7 @@ def _stub() -> tuple[MagicMock, list[str], list[str]]:
         looked_up.append(name)
         if name == "libs.plugins.loader:plugin.instance.get":
             return lambda _plugin_id: None
-        if name == "plugins.core.timers:remove.timer":
+        if name == "plugins.core.timers:timer.remove":
             return removed.append
         return MagicMock()
 
@@ -37,7 +37,7 @@ def _stub() -> tuple[MagicMock, list[str], list[str]]:
 def test_remove_data_for_plugin_removes_only_its_timers_when_not_loaded() -> None:
     stub, removed, _ = _stub()
 
-    TimersPlugin._api_remove_data_for_plugin(stub, PID)
+    TimersPlugin._api_timer_remove_for_plugin(stub, PID)
 
     assert sorted(removed) == ["t1", "t3"]
 
@@ -45,6 +45,6 @@ def test_remove_data_for_plugin_removes_only_its_timers_when_not_loaded() -> Non
 def test_remove_data_for_plugin_does_not_look_up_the_instance() -> None:
     stub, _, looked_up = _stub()
 
-    TimersPlugin._api_remove_data_for_plugin(stub, PID)
+    TimersPlugin._api_timer_remove_for_plugin(stub, PID)
 
     assert "libs.plugins.loader:plugin.instance.get" not in looked_up

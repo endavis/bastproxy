@@ -84,10 +84,10 @@ class TestTimingToggle:
 
         assert timing.enabled is True
 
-        timing._api_toggle()
+        timing._api_timing_toggle()
         assert timing.enabled is False
 
-        timing._api_toggle()
+        timing._api_timing_toggle()
         assert timing.enabled is True
 
     def test_toggle_with_true(self) -> None:
@@ -95,7 +95,7 @@ class TestTimingToggle:
         timing = Timing()
 
         timing.enabled = False
-        timing._api_toggle(True)
+        timing._api_timing_toggle(True)
 
         assert timing.enabled is True
 
@@ -104,7 +104,7 @@ class TestTimingToggle:
         timing = Timing()
 
         timing.enabled = True
-        timing._api_toggle(False)
+        timing._api_timing_toggle(False)
 
         assert timing.enabled is False
 
@@ -114,8 +114,8 @@ class TestTimingToggle:
 
         original_state = timing.enabled
 
-        timing._api_toggle()
-        timing._api_toggle()
+        timing._api_timing_toggle()
+        timing._api_timing_toggle()
 
         # Should return to original state
         assert timing.enabled == original_state
@@ -128,7 +128,7 @@ class TestTimerLifecycle:
         """Test starting a timer."""
         timing = Timing()
 
-        uid = timing._api_start("test_timer")
+        uid = timing._api_timing_start("test_timer")
 
         assert uid is not None
         assert isinstance(uid, str)
@@ -139,7 +139,7 @@ class TestTimerLifecycle:
         """Test starting a timer with a custom name."""
         timing = Timing()
 
-        uid = timing._api_start("custom_timer_name")
+        uid = timing._api_timing_start("custom_timer_name")
 
         assert uid in timing.timing
         assert timing.timing[uid]["name"] == "custom_timer_name"
@@ -149,7 +149,7 @@ class TestTimerLifecycle:
         timing = Timing()
 
         test_args = {"key": "value", "number": 42}
-        uid = timing._api_start("timer_with_args", args=test_args)
+        uid = timing._api_timing_start("timer_with_args", args=test_args)
 
         assert uid in timing.timing
         assert timing.timing[uid]["args"] == test_args
@@ -158,9 +158,9 @@ class TestTimerLifecycle:
         """Test finishing a timer."""
         timing = Timing()
 
-        uid = timing._api_start("test_timer")
+        uid = timing._api_timing_start("test_timer")
         time.sleep(0.001)  # Sleep 1ms to ensure measurable time
-        elapsed = timing._api_finish(uid)
+        elapsed = timing._api_timing_finish(uid)
 
         assert elapsed is not None
         assert isinstance(elapsed, float)
@@ -171,7 +171,7 @@ class TestTimerLifecycle:
         """Test finishing a timer that doesn't exist."""
         timing = Timing()
 
-        result = timing._api_finish("nonexistent_uid")
+        result = timing._api_timing_finish("nonexistent_uid")
 
         assert result is None
 
@@ -179,9 +179,9 @@ class TestTimerLifecycle:
         """Test managing multiple timers simultaneously."""
         timing = Timing()
 
-        uid1 = timing._api_start("timer1")
-        uid2 = timing._api_start("timer2")
-        uid3 = timing._api_start("timer3")
+        uid1 = timing._api_timing_start("timer1")
+        uid2 = timing._api_timing_start("timer2")
+        uid3 = timing._api_timing_start("timer3")
 
         assert len(timing.timing) == 3
         assert uid1 in timing.timing
@@ -189,22 +189,22 @@ class TestTimerLifecycle:
         assert uid3 in timing.timing
 
         # Finish timers in different order
-        timing._api_finish(uid2)
+        timing._api_timing_finish(uid2)
         assert len(timing.timing) == 2
         assert uid2 not in timing.timing
 
-        timing._api_finish(uid1)
+        timing._api_timing_finish(uid1)
         assert len(timing.timing) == 1
 
-        timing._api_finish(uid3)
+        timing._api_timing_finish(uid3)
         assert len(timing.timing) == 0
 
     def test_timer_disabled(self) -> None:
         """Test that timers don't start when timing is disabled."""
         timing = Timing()
-        timing._api_toggle(False)
+        timing._api_timing_toggle(False)
 
-        uid = timing._api_start("disabled_timer")
+        uid = timing._api_timing_start("disabled_timer")
 
         assert uid is None
         assert len(timing.timing) == 0
@@ -213,9 +213,9 @@ class TestTimerLifecycle:
         """Test that finishing a timer when disabled returns None."""
         timing = Timing()
 
-        uid = timing._api_start("test_timer")
-        timing._api_toggle(False)
-        result = timing._api_finish(uid)
+        uid = timing._api_timing_start("test_timer")
+        timing._api_timing_toggle(False)
+        result = timing._api_timing_finish(uid)
 
         assert result is None
         # Timer should still exist because finish was disabled
@@ -229,7 +229,7 @@ class TestTimerData:
         """Test that started timers record start time."""
         timing = Timing()
 
-        uid = timing._api_start("test_timer")
+        uid = timing._api_timing_start("test_timer")
 
         assert "start" in timing.timing[uid]
         assert isinstance(timing.timing[uid]["start"], float)
@@ -239,7 +239,7 @@ class TestTimerData:
         """Test that started timers record owner ID."""
         timing = Timing()
 
-        uid = timing._api_start("test_timer")
+        uid = timing._api_timing_start("test_timer")
 
         assert "owner_id" in timing.timing[uid]
         assert isinstance(timing.timing[uid]["owner_id"], str)
@@ -248,7 +248,7 @@ class TestTimerData:
         """Test that timer name is stored correctly."""
         timing = Timing()
 
-        uid = timing._api_start("my_custom_timer")
+        uid = timing._api_timing_start("my_custom_timer")
 
         assert timing.timing[uid]["name"] == "my_custom_timer"
 
@@ -256,7 +256,7 @@ class TestTimerData:
         """Test that timers without args have None for args."""
         timing = Timing()
 
-        uid = timing._api_start("timer_no_args")
+        uid = timing._api_timing_start("timer_no_args")
 
         assert timing.timing[uid]["args"] is None
 
@@ -265,13 +265,13 @@ class TestTimerData:
         timing = Timing()
 
         # Fast timer
-        uid1 = timing._api_start("fast_timer")
-        elapsed1 = timing._api_finish(uid1)
+        uid1 = timing._api_timing_start("fast_timer")
+        elapsed1 = timing._api_timing_finish(uid1)
 
         # Slow timer
-        uid2 = timing._api_start("slow_timer")
+        uid2 = timing._api_timing_start("slow_timer")
         time.sleep(0.01)  # Sleep 10ms
-        elapsed2 = timing._api_finish(uid2)
+        elapsed2 = timing._api_timing_finish(uid2)
 
         assert elapsed1 is not None
         assert elapsed2 is not None

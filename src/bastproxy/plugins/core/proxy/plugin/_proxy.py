@@ -439,7 +439,7 @@ class ProxyPlugin(BasePlugin):
             sources=[self.plugin_id],
         )()
 
-        self.api("plugins.core.timers:add.timer")(
+        self.api("plugins.core.timers:timer.add")(
             "restart", self.timer_restart, restart_in, onetime=True
         )
 

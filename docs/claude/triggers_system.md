@@ -152,7 +152,7 @@ The system optimizes regex matching:
 - `plugins.core.triggers:trigger.toggle.enable` - Enable/disable trigger
 - `plugins.core.triggers:trigger.toggle.omit` - Toggle line omission
 - `plugins.core.triggers:group.toggle.enable` - Enable/disable trigger group
-- `plugins.core.triggers:remove.data.for.owner` - Remove all triggers for plugin
+- `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers for plugin
 
 ## Built-in Triggers
 

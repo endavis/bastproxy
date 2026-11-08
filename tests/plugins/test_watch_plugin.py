@@ -100,5 +100,5 @@ def test_remove_all_data_for_plugin_removes_every_owned_watch() -> None:
         raise AssertionError(name)
 
     stub.api = api
-    WatchPlugin._api_remove_all_data_for_plugin(stub, "plugins.x")
+    WatchPlugin._api_watch_remove_for_plugin(stub, "plugins.x")
     assert list(stub.watch_data) == ["d"]

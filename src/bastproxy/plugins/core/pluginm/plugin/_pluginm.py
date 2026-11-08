@@ -444,7 +444,7 @@ class PluginManager(BasePlugin):
             )
 
         self.api(f"{self.plugin_id}:plugin.state.save.all")()
-        self.api("plugins.core.timers:add.timer")(
+        self.api("plugins.core.timers:timer.add")(
             "global_save", self._api_plugin_state_save_all, 60, unique=True, log=False
         )
 

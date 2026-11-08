@@ -83,9 +83,9 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
 
         """
         tname = f"{func.__name__}"
-        uid = API("libs.timing:start")(tname, arg)
+        uid = API("libs.timing:timing.start")(tname, arg)
         res = func(*arg)
-        API("libs.timing:finish")(uid)
+        API("libs.timing:timing.finish")(uid)
         return res
 
     return wrapper
@@ -123,8 +123,8 @@ class Timing:
 
         self.api("libs.api:api.add.for.object")(__name__, self)
 
-    @AddAPI("toggle", description="toggle the enabled flag")
-    def _api_toggle(self, tbool: bool | None = None) -> None:
+    @AddAPI("timing.toggle", description="toggle the enabled flag")
+    def _api_timing_toggle(self, tbool: bool | None = None) -> None:
         """Toggle the enabled flag.
 
         This method toggles the enabled flag for the Timing instance. If a boolean
@@ -143,8 +143,8 @@ class Timing:
         """
         self.enabled = not self.enabled if tbool is None else bool(tbool)
 
-    @AddAPI("start", description="start a timer")
-    def _api_start(self, timername: str = "", args: Any | None = None) -> str | None:
+    @AddAPI("timing.start", description="start a timer")
+    def _api_timing_start(self, timername: str = "", args: Any | None = None) -> str | None:
         """Start a timer with a unique identifier.
 
         This method starts a timer with a unique identifier and logs the start time
@@ -179,8 +179,8 @@ class Timing:
             return uid
         return None
 
-    @AddAPI("finish", description="finish a timer")
-    def _api_finish(self, uid: str) -> float | None:
+    @AddAPI("timing.finish", description="finish a timer")
+    def _api_timing_finish(self, uid: str) -> float | None:
         """Finish a timer and log the elapsed time.
 
         This method finishes a timer identified by its unique identifier and logs

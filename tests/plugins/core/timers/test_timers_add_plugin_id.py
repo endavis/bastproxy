@@ -1,4 +1,4 @@
-"""Tests for ``add.timer`` with an explicit ``plugin_id`` kwarg (#144)."""
+"""Tests for ``timer.add`` with an explicit ``plugin_id`` kwarg (#144)."""
 
 from typing import Any
 from unittest.mock import MagicMock
@@ -33,7 +33,7 @@ def _stub() -> tuple[MagicMock, list[str]]:
 def test_add_timer_accepts_string_plugin_id_for_unloaded_plugin() -> None:
     stub, looked_up = _stub()
 
-    timer = TimersPlugin._api_add_timer(stub, "t", lambda: None, 5, plugin_id=PID)
+    timer = TimersPlugin._api_timer_add(stub, "t", lambda: None, 5, plugin_id=PID)
 
     assert timer is not None
     assert timer.owner_id == PID
@@ -46,7 +46,7 @@ def test_add_timer_accepts_plugin_instance() -> None:
     instance = MagicMock(spec=BasePlugin)
     instance.plugin_id = PID
 
-    timer = TimersPlugin._api_add_timer(stub, "t", lambda: None, 5, plugin_id=instance)
+    timer = TimersPlugin._api_timer_add(stub, "t", lambda: None, 5, plugin_id=instance)
 
     assert timer is not None
     assert timer.owner_id == PID

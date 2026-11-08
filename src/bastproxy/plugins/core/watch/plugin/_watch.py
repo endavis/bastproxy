@@ -38,7 +38,7 @@ class WatchPlugin(BasePlugin):
             level="debug",
             sources=[self.plugin_id, event_record["plugin_id"]],
         )()
-        self.api(f"{self.plugin_id}:remove.all.data.for.plugin")(event_record["plugin_id"])
+        self.api(f"{self.plugin_id}:watch.remove.for.plugin")(event_record["plugin_id"])
 
     @AddParser(description="list watches")
     @AddArgument(
@@ -195,8 +195,8 @@ class WatchPlugin(BasePlugin):
             )()
         return None
 
-    @AddAPI("remove.all.data.for.plugin", description="remove all watches for a plugin")
-    def _api_remove_all_data_for_plugin(self, plugin):
+    @AddAPI("watch.remove.for.plugin", description="remove all watches for a plugin")
+    def _api_watch_remove_for_plugin(self, plugin):
         """Remove all watches related to a plugin.
 
         @Yplugin@w   = The plugin.
@@ -204,7 +204,7 @@ class WatchPlugin(BasePlugin):
         this function returns no values
         """
         LogRecord(
-            f"_api_remove_all_data_for_plugin: removing watches for plugin {plugin}",
+            f"_api_watch_remove_for_plugin: removing watches for plugin {plugin}",
             level="debug",
             sources=[self.plugin_id, plugin],
         )()
