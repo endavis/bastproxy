@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794136715273,
+  "lastUpdate": 1794139044291,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4062,6 +4062,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000028938347998372428",
             "extra": "mean: 220.68399158427556 usec\nrounds: 4753"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4f7d7288b75ba0b3c07969a4d4cc007b7923fb6",
+          "message": "refactor: rename the BasePlugin APIs to the ADR-0004 form (merges PR #178, addresses #163)\n\nRename the six APIs BasePlugin registers on every plugin to the\nresource-first names in the ADR-0004 appendix, with no aliases, and\nrename each _api_* method to match. Update every caller, the tests, the\ndocs/claude pages and ADR-0004, and drop the six plugins._baseplugin\nrows from the grammar test's legacy allowlist.\n\nBREAKING CHANGE: the BasePlugin APIs are renamed, the old names are gone:\nget.data.directory -> data.directory.get,\nset.reload -> plugin.reloading.set,\nget.plugin.hooks -> plugin.hook.list,\ndump -> plugin.dump,\nsave.state -> plugin.state.save,\nreset -> plugin.reset.\n\nAddresses #163\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T11:56:43Z",
+          "tree_id": "2c8b39e5fd9878f87fb9b8f05eff608b5f13f2a6",
+          "url": "https://github.com/endavis/bastproxy/commit/c4f7d7288b75ba0b3c07969a4d4cc007b7923fb6"
+        },
+        "date": 1794139043333,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 288.5773814692311,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00023136245608918003",
+            "extra": "mean: 3.465275050001182 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 9096.91470861109,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011137661235264816",
+            "extra": "mean: 109.92737999988123 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 279.64674240483004,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00010575122840346187",
+            "extra": "mean: 3.5759401000007074 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 691.7176837282411,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000821438134941341",
+            "extra": "mean: 1.445676499999493 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2692.4651842928565,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012265764070422015",
+            "extra": "mean: 371.40684523378076 usec\nrounds: 2843"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2236.1493326042414,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000042043764259261966",
+            "extra": "mean: 447.19732507103635 usec\nrounds: 2461"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4450.086968639693,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000025215910790292718",
+            "extra": "mean: 224.71470940840535 usec\nrounds: 5038"
           }
         ]
       }
