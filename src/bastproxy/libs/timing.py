@@ -164,7 +164,7 @@ class Timing:
         """
         uid = uuid4().hex
         if self.enabled:
-            owner_id = self.api("libs.api:caller.owner.get")()
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.api.owner_id])
             self.timing[uid] = {
                 "name": timername,
                 "start": default_timer(),
@@ -225,7 +225,7 @@ class Timing:
                 )()
             return time_taken
         if self.enabled:
-            owner_id = self.api("libs.api:caller.owner.get")()
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.api.owner_id])
             LogRecord(
                 f"finishtimer - {uid} not found - called from {owner_id}",
                 level="error",

@@ -369,7 +369,7 @@ STATS_MANAGER.add_call(self.full_api_name, caller_id)
 
 This walks the call stack, from the caller upward, and takes the first frame whose `self` is not an `APIItem` and has a truthy `owner_id` (or an `api` whose `owner_id` is truthy) that is not in the ignore list. That is usually a plugin ID, but any object with an `owner_id` counts, so a helper such as a `Callback` or a `Timer` is the caller with a compound ID like `plugins.example.myplugin:Timer:name`. If no frame matches, the caller is `unknown`: a warning is logged and a stack dump is logged for every such call.
 
-`libs.api:caller.owner.get` runs the same walk, but through a frame whose `self` is the `API` object it was called on. Pass `ignore_owner_list=[<your own ID>]` to get your caller; without it, the answer is that `API`'s own owner.
+`libs.api:caller.owner.get` runs the same walk and skips every frame whose `self` is an `API` or `APIItem`, so it returns the real caller without an ignore list (#197). Pass `ignore_owner_list=[<your own ID>]` when your own object also has an `owner_id` or an `api` that would otherwise match first, as plugins and `libs.timing` do.
 
 ### API Function Naming Convention
 
