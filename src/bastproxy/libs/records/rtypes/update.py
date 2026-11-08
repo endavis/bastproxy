@@ -56,8 +56,8 @@ class UpdateRecord:
         self.actor = self.find_relevant_actor(self.stack)
         self.event_stack = []
         with contextlib.suppress(Exception):
-            if self.api("libs.api:has")("plugins.core.events:get.event.stack"):
-                self.event_stack = self.api("plugins.core.events:get.event.stack")()
+            if self.api("libs.api:has")("plugins.core.events:event.stack.get"):
+                self.event_stack = self.api("plugins.core.events:event.stack.get")()
 
     def __hash__(self):
         """Return the hash of this update record.

@@ -172,7 +172,7 @@ class MudProxy:
 
         # add events
         self.api.add_events()
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             "ev_bastproxy_proxy_ready",
             "mudproxy",
             description=["An event raised when the proxy is ready to accept connections"],
@@ -205,7 +205,7 @@ class MudProxy:
 
         LogRecord("__main__ - BastProxy ready", level="info", sources=["mudproxy"])()
 
-        self.api("plugins.core.events:raise.event")(
+        self.api("plugins.core.events:event.raise")(
             "ev_bastproxy_proxy_ready", calledfrom="mudproxy"
         )
 

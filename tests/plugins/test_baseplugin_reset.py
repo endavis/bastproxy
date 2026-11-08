@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 from bastproxy.plugins._baseplugin import BasePlugin
 
-RAISE_API = "plugins.core.events:raise.event"
+RAISE_API = "plugins.core.events:event.raise"
 
 
 class _Stub(BasePlugin):

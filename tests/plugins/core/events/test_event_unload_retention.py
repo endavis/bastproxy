@@ -42,7 +42,7 @@ def events() -> Iterator[dict[str, Event]]:
     api.add("plugins.core.settings", "setting.get", lambda *_a, **_k: False, description="stand-in")
     api.add(
         "plugins.core.events",
-        "unregister.from.event",
+        "event.unregister",
         lambda name, func: registry[name].unregister(func),
         description="stand-in",
     )
@@ -51,7 +51,7 @@ def events() -> Iterator[dict[str, Event]]:
     finally:
         for full_name in (
             "plugins.core.settings:setting.get",
-            "plugins.core.events:unregister.from.event",
+            "plugins.core.events:event.unregister",
         ):
             API._class_api.pop(full_name, None)
 

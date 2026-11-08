@@ -70,7 +70,7 @@ class TriggerItem:
         args["trigger_name"] = self.trigger_name
         args["trigger_id"] = self.trigger_id
 
-        args = self.api("plugins.core.events:raise.event")(self.event_name, event_args=args)
+        args = self.api("plugins.core.events:event.raise")(self.event_name, event_args=args)
         LogRecord(
             f"raisetrigger - trigger {self.trigger_id} raised event {self.event_name} with args {args}",
             level="debug",
@@ -130,23 +130,23 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self):
         """Setup the plugin on setting change."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             change = event_record["newvalue"]
             if change:
-                self.api("plugins.core.events:register.to.event")(
+                self.api("plugins.core.events:event.register")(
                     "ev_libs.net.mud_from_mud_event",
                     self._eventcb_check_trigger,
                     prio=1,
                 )
             else:
-                self.api("plugins.core.events:unregister.from.event")(
+                self.api("plugins.core.events:event.unregister")(
                     "ev_libs.net.mud_from_mud_event", self._eventcb_check_trigger
                 )
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             self.api(f"{self.plugin_id}:remove.data.for.owner")(event_record["plugin_id"])
 
     def rebuild_regexes(self):
@@ -191,7 +191,7 @@ class TriggersPlugin(BasePlugin):
         if trigger_name not in self.triggers:
             owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api("plugins.core.events:register.to.event")(
+        return self.api("plugins.core.events:event.register")(
             self.triggers[trigger_name].event_name, function, *kwargs
         )
 
@@ -201,7 +201,7 @@ class TriggersPlugin(BasePlugin):
         if trigger_name not in self.triggers:
             owner_id = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api("plugins.core.events:unregister.from.event")(
+        return self.api("plugins.core.events:event.unregister")(
             self.triggers[trigger_name].event_name, function
         )
 
@@ -421,7 +421,7 @@ class TriggersPlugin(BasePlugin):
 
         if (
             (
-                event := self.api("plugins.core.events:get.event")(
+                event := self.api("plugins.core.events:event.get")(
                     self.triggers[trigger_id].event_name
                 )
             )
@@ -622,7 +622,7 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self):  # pylint: disable=too-many-branches
         """Check a line of text from the mud to see if it matches any triggers."""
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
         # don't check internal data
@@ -700,7 +700,7 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_triggers_ev_plugins_stats(self):
         """Return stats for the plugin."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             overall_hit_count = 0
             total_enabled_triggers = 0
             total_disabled_triggers = 0
@@ -776,9 +776,9 @@ class TriggersPlugin(BasePlugin):
                             f"{'Stop Evaluating':<{columnwidth}} : {self.triggers[trigger].stopevaluating}",
                         )
                     )
-                    if self.api("plugins.core.events:has.event")(event_name):
+                    if self.api("plugins.core.events:event.exists")(event_name):
                         message.extend(("", "Event Details:"))
-                        event_details = self.api("plugins.core.events:get.event.detail")(event_name)
+                        event_details = self.api("plugins.core.events:event.detail.get")(event_name)
                         message.extend(event_details)
                     else:
                         message.extend(["", "No functions registered for this trigger"])

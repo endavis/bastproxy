@@ -12,10 +12,10 @@ from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLi
 
 
 def _fake_api(calls: list[tuple[str, dict[str, Any]]]) -> Callable[[str], Callable[..., Any]]:
-    """Build a fake api that records raise.event calls and mocks the rest."""
+    """Build a fake api that records event.raise calls and mocks the rest."""
 
     def api(name: str) -> Callable[..., Any]:
-        if name == "plugins.core.events:raise.event":
+        if name == "plugins.core.events:event.raise":
 
             def raise_event(event_name: str, **kwargs: Any) -> None:
                 calls.append((event_name, kwargs))

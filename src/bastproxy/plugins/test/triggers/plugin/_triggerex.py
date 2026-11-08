@@ -29,7 +29,7 @@ class TriggerExPlugin(BasePlugin):
 
     def _trigger_say(self):
         """Handle the test trigger by echoing the parsed event."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             print(f"_trigger_say - {event_record}")
         else:
             print("_trigger_say - No event record")

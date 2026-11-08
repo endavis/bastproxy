@@ -222,7 +222,7 @@ The triggers system provides pattern matching on MUD output using regular expres
 @RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
 def _eventcb_process_mud_data(self):
     # Get event record (Record System)
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
 
     # Access data (Data Flow)
     data = event_record["data"]
@@ -373,7 +373,7 @@ Functionality is organized into plugins:
 ### Accessing Current Event Data
 
 ```python
-event_record = self.api("plugins.core.events:get.current.event.record")()
+event_record = self.api("plugins.core.events:event.current.record.get")()
 data = event_record["data"]
 ```
 
@@ -405,7 +405,7 @@ SendDataDirectlyToClient(msg)()
 ```python
 @RegisterToEvent(event_name="ev_to_client_data_modify", priority=50)
 def _eventcb_modify_data(self):
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     data = event_record["data"]
 
     for line in data:

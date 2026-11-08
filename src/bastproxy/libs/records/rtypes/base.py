@@ -51,8 +51,8 @@ class BaseRecord(AttributeMonitor):
         self.column_width = 15
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
-        if self.api("libs.api:has")("plugins.core.events:get.event.stack"):
-            self.event_stack = self.api("plugins.core.events:get.event.stack")()
+        if self.api("libs.api:has")("plugins.core.events:event.stack.get"):
+            self.event_stack = self.api("plugins.core.events:event.stack.get")()
         else:
             self.event_stack = ["No event stack available"]
 

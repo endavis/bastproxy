@@ -77,25 +77,25 @@ class ClientPlugin(BasePlugin):
             readonly=True,
         )
 
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_client_logged_in",
             self.plugin_id,
             description=["An event that is raised when a client logs in"],
             arg_descriptions={"client_uuid": "the uuid of the client"},
         )
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_client_logged_in_view_only",
             self.plugin_id,
             description=["An event that is raised when a client logs in as a view client"],
             arg_descriptions={"client_uuid": "the uuid of the client"},
         )
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_client_connected",
             self.plugin_id,
             description=["An event that is raised when a client connects"],
             arg_descriptions={"client_uuid": "the uuid of the client"},
         )
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_client_disconnected",
             self.plugin_id,
             description=["An event that is raised when a client disconnects"],
@@ -223,7 +223,7 @@ class ClientPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
 
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 f"ev_{self.plugin_id}_client_logged_in",
                 event_args={"client_uuid": client_connection.uuid},
             )
@@ -245,7 +245,7 @@ class ClientPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
 
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 f"ev_{self.plugin_id}_client_logged_in_view_only",
                 event_args={"client_uuid": client_connection.uuid},
             )
@@ -260,7 +260,7 @@ class ClientPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
         self.clients[client_connection.uuid] = client_connection
-        self.api("plugins.core.events:raise.event")(
+        self.api("plugins.core.events:event.raise")(
             f"ev_{self.plugin_id}_client_connected",
             event_args={"client_uuid": client_connection.uuid},
         )
@@ -270,7 +270,7 @@ class ClientPlugin(BasePlugin):
         """Remove a connected client."""
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
-            self.api("plugins.core.events:raise.event")(
+            self.api("plugins.core.events:event.raise")(
                 f"ev_{self.plugin_id}_client_disconnected",
                 event_args={"client_uuid": client_connection.uuid},
             )

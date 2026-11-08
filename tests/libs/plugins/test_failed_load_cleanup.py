@@ -282,7 +282,7 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
                 "libs.api:remove": env.real_api("libs.api:remove"),
                 # the fake events API is not in the real API, so report it present
                 "libs.api:has": lambda _name: True,
-                "plugins.core.events:raise.event": world.raise_event,
+                "plugins.core.events:event.raise": world.raise_event,
                 "unload.plugin": loader._api_unload_plugin,
                 "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
                 "plugins.core.settings:setting.set": lambda _owner, name, value: settings.update(
@@ -369,10 +369,10 @@ def test_failed_initialize_closes_settings_stand_in(cleanup_env: Callable[[str],
 
 
 def test_cleanup_continues_when_event_raise_fails(cleanup_env: Callable[[str], _Env]) -> None:
-    """A failing raise.event is logged and the API removal still happens."""
+    """A failing event.raise is logged and the API removal still happens."""
     env = cleanup_env(_INIT_FAIL)
     raise_event = MagicMock(side_effect=RuntimeError("event boom"))
-    env.routes["plugins.core.events:raise.event"] = raise_event
+    env.routes["plugins.core.events:event.raise"] = raise_event
 
     result = env.loader._api_load_plugins([PLUGIN_ID])
 
@@ -390,7 +390,7 @@ def test_cleanup_skips_event_when_events_api_missing(
     raise_event = MagicMock()
     remove = MagicMock()
     env.routes["libs.api:has"] = lambda _name: False
-    env.routes["plugins.core.events:raise.event"] = raise_event
+    env.routes["plugins.core.events:event.raise"] = raise_event
     env.routes["libs.api:remove"] = remove
 
     env.loader._api_load_plugins([PLUGIN_ID])

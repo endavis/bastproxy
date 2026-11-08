@@ -18,7 +18,7 @@ def _stub(event_plugin: str = PID) -> MagicMock:
     stub.order = []
 
     def api(name: str) -> Any:
-        if name == "plugins.core.events:get.current.event.record":
+        if name == "plugins.core.events:event.current.record.get":
             return lambda: {"plugin_id": event_plugin}
         if name == "plugins.core.settings:setting.save.for.plugin":
             return lambda p: (

@@ -39,7 +39,7 @@ def _stub(
             return lambda _pid, _setting: hidden
         if name == "libs.api:has":
             return lambda _name: True
-        if name == "plugins.core.events:raise.event":
+        if name == "plugins.core.events:event.raise":
             return raise_event
         raise AssertionError(name)
 

@@ -32,7 +32,7 @@ class WatchPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
         LogRecord(
             f"event_plugin_unloaded - removing watches for plugin {event_record['plugin_id']}",
             level="debug",
@@ -78,7 +78,7 @@ class WatchPlugin(BasePlugin):
             for watch in args["watch"]:
                 if watch in self.watch_data:
                     event_name = self.watch_data[watch]["event_name"]
-                    watch_event = self.api("plugins.core.events:get.event.detail")(event_name)
+                    watch_event = self.api("plugins.core.events:event.detail.get")(event_name)
                     message.extend(
                         (
                             f"{'Name':<{columnwidth}} : {watch}",
@@ -148,7 +148,7 @@ class WatchPlugin(BasePlugin):
             )()
 
         # add the event so it can be tracked
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             watch_args["eventname"],
             watch_args["owner"],
             description=[f"event for {watch_name} for {watch_args['regex']}"],
@@ -169,7 +169,7 @@ class WatchPlugin(BasePlugin):
         this function returns no values
         """
         if watch_name in self.watch_data:
-            event = self.api("plugins.core.events:get.event")(
+            event = self.api("plugins.core.events:event.get")(
                 self.watch_data[watch_name]["eventname"]
             )
             plugin = self.watch_data[watch_name]["owner"]
@@ -215,7 +215,7 @@ class WatchPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_command(self):
         """Check input from the client and see if we are watching for it."""
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         line = event_record["line"]
         if not line.is_io:
@@ -235,6 +235,6 @@ class WatchPlugin(BasePlugin):
                     level="debug",
                     sources=[self.plugin_id],
                 )()
-                self.api("plugins.core.events:raise.event")(
+                self.api("plugins.core.events:event.raise")(
                     self.watch_data[watch_name]["eventname"], event_args=match_args
                 )

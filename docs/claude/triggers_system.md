@@ -107,7 +107,7 @@ self.api("plugins.core.triggers:trigger.register")(
 
 def handle_hp_warning(self):
     """Handle low HP warning."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     matches = event_record["matches"]
 
     current = matches["current"]
@@ -203,7 +203,7 @@ def _phook_initialize(self):
 
 def handle_tell(self):
     """Handle received tell."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     matches = event_record["matches"]
 
     sender = matches["sender"]
@@ -253,7 +253,7 @@ def _phook_initialize(self):
 
 def track_damage(self):
     """Track damage dealt."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     matches = event_record["matches"]
 
     self.combat_stats["damage_dealt"] += matches["damage"]
@@ -261,7 +261,7 @@ def track_damage(self):
 
 def track_damage_taken(self):
     """Track damage received."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     matches = event_record["matches"]
 
     self.combat_stats["damage_taken"] += matches["damage"]
@@ -335,7 +335,7 @@ def _phook_initialize(self):
 
 def update_stats(self):
     """Update stat tracking."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     matches = event_record["matches"]
 
     self.stats.update({
@@ -346,7 +346,7 @@ def update_stats(self):
     })
 
     # Raise event for other plugins
-    self.api("plugins.core.events:raise.event")(
+    self.api("plugins.core.events:event.raise")(
         "ev_myplugin_stats_updated",
         event_args={"stats": self.stats}
     )

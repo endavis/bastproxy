@@ -166,7 +166,7 @@ class ProxyPlugin(BasePlugin):
             "the seperator for sending multiple commands",
         )
 
-        self.api("plugins.core.events:add.event")(
+        self.api("plugins.core.events:event.add")(
             f"ev_{self.plugin_id}_shutdown",
             self.plugin_id,
             description=["event when the proxy is shutting down"],
@@ -329,7 +329,7 @@ class ProxyPlugin(BasePlugin):
                 owner_id=f"{self.plugin_id}:_api_shutdown",
             )
         )()
-        self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_shutdown")
+        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_shutdown")
         LogRecord(
             "Proxy: shutdown complete",
             level="info",
@@ -360,7 +360,7 @@ class ProxyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self):
         """Check for mud settings."""
-        if not self.api("plugins.core.events:get.current.event.record")():
+        if not self.api("plugins.core.events:event.current.record.get")():
             return
         tmsg = []
         divider = "@R------------------------------------------------@w"
@@ -456,7 +456,7 @@ class ProxyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
     def _eventcb_command_seperator_change(self):
         """Update the command regex."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             newsep = event_record["newvalue"]
 
             self.api.__class__.command_split_regex = r"(?<=[^{}]){}(?=[^{}])".format(

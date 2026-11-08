@@ -10,13 +10,13 @@
 
 ## Using
 ### Registering an event from a plugin
- * ```self.api('plugins.core.events:register.to.event')(event_name, function, prio=50)```
+ * ```self.api('plugins.core.events:event.register')(event_name, function, prio=50)```
 
 ### Unregistering an event
- * ```self.api('plugins.core.events:unregister.from.event')(event_name, function)```
+ * ```self.api('plugins.core.events:event.unregister')(event_name, function)```
 
 ### Raising an event
- * ```self.api('plugins.core.events:raise.event')(event_name, eventdictionary)```
+ * ```self.api('plugins.core.events:event.raise')(event_name, eventdictionary)```
 """
 
 # these 4 are required

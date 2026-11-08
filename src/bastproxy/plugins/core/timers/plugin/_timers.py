@@ -129,7 +129,7 @@ class TimersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             LogRecord(
                 f"_eventcb_plugin_unloaded - removing timers for plugin {event_record['plugin_id']}",
                 "debug",
@@ -158,7 +158,7 @@ class TimersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_timers_ev_plugins_stats(self):
         """Return stats for the plugin."""
-        if event_record := self.api("plugins.core.events:get.current.event.record")():
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
             disabled = 0
             enabled = 0
 
@@ -180,7 +180,7 @@ class TimersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_stats")
     def _eventcb_event_get_stats_for_plugin(self) -> None:
         """Get stats for a plugin."""
-        if not (event_record := self.api("plugins.core.events:get.current.event.record")()):
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
         plugin_id = event_record["plugin_id"]

@@ -135,7 +135,7 @@ Plugins can react to setting changes:
 ```python
 @RegisterToEvent(event_name="ev_myplugin_var_mysetting_modified")
 def _eventcb_setting_changed(self):
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     var_name = event_record["var"]
     new_value = event_record["newvalue"]
     old_value = event_record["oldvalue"]
@@ -323,7 +323,7 @@ class MyPlugin(BasePlugin):
 class MyPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugins_myplugin_var_server_url_modified")
     def _eventcb_server_url_changed(self):
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
         new_url = event_record["newvalue"]
         old_url = event_record["oldvalue"]
 
@@ -338,7 +338,7 @@ class MyPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugins_myplugin_var_enable_logging_modified")
     def _eventcb_logging_changed(self):
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
         enabled = event_record["newvalue"]
 
         if enabled:
@@ -525,7 +525,7 @@ class Plugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugins_myservice_var_enabled_modified")
     def _eventcb_enabled_changed(self):
-        event_record = self.api("plugins.core.events:get.current.event.record")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
         if event_record["newvalue"]:
             self.start_service()
         else:
@@ -536,7 +536,7 @@ class Plugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugins_myservice_var_poll_interval_modified")
     def _eventcb_interval_changed(self):
         if self.service:
-            event_record = self.api("plugins.core.events:get.current.event.record")()
+            event_record = self.api("plugins.core.events:event.current.record.get")()
             self.service.set_poll_interval(event_record["newvalue"])
 ```
 

@@ -242,7 +242,7 @@ def _phook_initialize(self):
 @RegisterToEvent(event_name="ev_plugins_myplugin_var_feature_enabled_modified")
 def _eventcb_feature_changed(self):
     """Enable/disable timer based on setting."""
-    event_record = self.api("plugins.core.events:get.current.event.record")()
+    event_record = self.api("plugins.core.events:event.current.record.get")()
     enabled = event_record["newvalue"]
 
     self.api("plugins.core.timers:toggle")(

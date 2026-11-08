@@ -130,6 +130,7 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 - Issue #160: ADR-0004 grammar test
 - Issue #163: Rename the BasePlugin APIs
 - Issue #164: Rename the plugins.core.settings APIs
+- Issue #165: Rename the plugins.core.events APIs
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation

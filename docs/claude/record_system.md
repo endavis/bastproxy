@@ -51,7 +51,7 @@ class BaseRecord(AttributeMonitor):
         self.execute_time_taken = -1
         self.track_record = track_record
         self.stack_at_creation = ...   # traceback.format_stack(limit=10), one line per entry
-        self.event_stack = ...         # plugins.core.events:get.event.stack, if available
+        self.event_stack = ...         # plugins.core.events:event.stack.get, if available
         self.parent = parent or RMANAGER.get_latest_record()
         self.parents = [self.parent] if self.parent else []
         RMANAGER.add(self)

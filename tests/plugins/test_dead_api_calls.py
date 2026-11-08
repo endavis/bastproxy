@@ -9,7 +9,7 @@ from bastproxy.plugins.core.triggers.plugin._triggers import TriggersPlugin
 
 
 def _base_stub(mud_connected: bool, character_active: bool) -> tuple[MagicMock, MagicMock]:
-    """Return a stub plugin and the register.to.event mock."""
+    """Return a stub plugin and the event.register mock."""
     register = MagicMock()
 
     def api(name: str) -> Any:
@@ -19,7 +19,7 @@ def _base_stub(mud_connected: bool, character_active: bool) -> tuple[MagicMock, 
             return lambda: character_active
         if name == "libs.api:add.apis.for.object":
             return MagicMock()
-        if name == "plugins.core.events:register.to.event":
+        if name == "plugins.core.events:event.register":
             return register
         return MagicMock()
 
