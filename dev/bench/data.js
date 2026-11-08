@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794145038640,
+  "lastUpdate": 1794146335390,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4719,6 +4719,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000063853215439783624",
             "extra": "mean: 218.96842229803082 usec\nrounds: 4691"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "48b1f68a0ba91b3f0e76b2b5d53514b0f604757d",
+          "message": "fix: take log types as a list in the log file command (merges PR #189, addresses #185)\n\n`#bp.core.log.file` declared `logtype` with nargs=\"?\", so it got one\nstring and the body looped over its characters: `file mudproxy` toggled\nm, u, d, p, r, o, x and y. The default \"list\" is truthy, so `file` with\nno argument toggled l, i, s and t and never reached the listing branch.\n\nDeclare `logtype` like the client and console commands, nargs=\"*\" with\ndefault=[], so each argument is one log type and no argument lists the\ntypes going to file. The -n/--notimestamp option is unchanged.\n\nAddresses #185\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T13:58:16Z",
+          "tree_id": "2a67e62467737393cfb6fc573067ebb7e84f668b",
+          "url": "https://github.com/endavis/bastproxy/commit/48b1f68a0ba91b3f0e76b2b5d53514b0f604757d"
+        },
+        "date": 1794146334764,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 343.28920665258977,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001706761647952345",
+            "extra": "mean: 2.912995750000391 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10560.775042635798,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000946542123074234",
+            "extra": "mean: 94.6900199997458 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 324.5123994322838,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008187461623432376",
+            "extra": "mean: 3.081546349999087 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 770.8281326521558,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007785195726662812",
+            "extra": "mean: 1.297306050000202 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2890.040315847374,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015119286965365648",
+            "extra": "mean: 346.01593428180087 usec\nrounds: 2952"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2568.241078185369,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009710768361239543",
+            "extra": "mean: 389.37154634508283 usec\nrounds: 2654"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4540.980874499276,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011495128834016503",
+            "extra": "mean: 220.21673899039882 usec\nrounds: 4655"
           }
         ]
       }
