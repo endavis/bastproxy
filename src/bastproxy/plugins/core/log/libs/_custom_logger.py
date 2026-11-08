@@ -88,8 +88,8 @@ class CustomColorFormatter(logging.Formatter):
                     record.msg += "\n".join(formatted_exc_no_newline)
                 record.exc_info = None
                 record.exc_text = None
-            if self.api("libs.api:api.exists")("plugins.core.log:get.level.color") and (
-                color := self.api("plugins.core.log:get.level.color")(record.levelno)
+            if self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get") and (
+                color := self.api("plugins.core.log:log.level.color.get")(record.levelno)
             ):
                 log_fmt = f"\x1b[{ALLCONVERTCOLORS[color]}m{self.fmt}{self.reset}"
             else:
@@ -115,8 +115,10 @@ class CustomConsoleHandler(logging.StreamHandler):
         update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
-                not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.console")
-                or self.api("plugins.core.log:can.log.to.console")(record.name, record.levelno)
+                not self.api("libs.api:api.exists")("plugins.core.log:logger.console.is.enabled")
+                or self.api("plugins.core.log:logger.console.is.enabled")(
+                    record.name, record.levelno
+                )
             )
             if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["console"]:
@@ -148,8 +150,8 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         update_type_counts(record.name, record.levelno)
         try:
             canlog = bool(
-                not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.file")
-                or self.api("plugins.core.log:can.log.to.file")(record.name, record.levelno)
+                not self.api("libs.api:api.exists")("plugins.core.log:logger.file.is.enabled")
+                or self.api("plugins.core.log:logger.file.is.enabled")(record.name, record.levelno)
             )
             if isinstance(record.msg, LogRecord):
                 if canlog and not record.msg.wasemitted["file"]:
@@ -171,17 +173,17 @@ class CustomClientHandler(logging.Handler):
         if self.api.startup:
             return
 
-        if not self.api("libs.api:api.exists")("plugins.core.log:can.log.to.client"):
+        if not self.api("libs.api:api.exists")("plugins.core.log:logger.client.is.enabled"):
             return
 
         update_type_counts(record.name, record.levelno)
 
-        canlog = self.api("plugins.core.log:can.log.to.client")(record.name, record.levelno)
+        canlog = self.api("plugins.core.log:logger.client.is.enabled")(record.name, record.levelno)
         if canlog or record.levelno >= logging.ERROR:
             formatted_message = self.format(record)
             if isinstance(record.msg, LogRecord):
-                if self.api("libs.api:api.exists")("plugins.core.log:get.level.color"):
-                    color = self.api("plugins.core.log:get.level.color")(record.levelno)
+                if self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get"):
+                    color = self.api("plugins.core.log:log.level.color.get")(record.levelno)
                 else:
                     color = None
                 if not record.msg.wasemitted["client"]:

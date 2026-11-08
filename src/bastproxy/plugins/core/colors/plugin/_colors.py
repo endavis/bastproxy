@@ -151,10 +151,10 @@ class ColorsPlugin(BasePlugin):
         return "\n".join(olist) + lastchar
 
     @AddAPI(
-        "color.length.difference",
+        "color.length.difference.get",
         description="get the length difference of a colored string and its noncolor equivalent",
     )
-    def _api_color_length_difference(self, colorstring):
+    def _api_color_length_difference_get(self, colorstring):
         """Get the length difference of a colored string and its noncolor equivalent."""
         lennocolor = len(self.api(f"{self.plugin_id}:colorcode.strip")(colorstring))
         lencolor = len(colorstring)
