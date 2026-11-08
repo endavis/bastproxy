@@ -22,8 +22,8 @@ class SQLDBPlugin(BasePlugin):
     def _phook_init_plugin(self):
         self.reload_dependents_f = True
 
-    @AddAPI("baseclass", description="return the sql baseclass")
-    def _api_baseclass(self):
+    @AddAPI("baseclass.get", description="return the sql baseclass")
+    def _api_baseclass_get(self):
         # pylint: disable=no-self-use
         """Return the sql baseclass."""
         return Sqldb

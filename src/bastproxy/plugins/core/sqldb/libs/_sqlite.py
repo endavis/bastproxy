@@ -73,8 +73,8 @@ class Sqldb:
         """Update many rows in a database."""
         return self.modifymany(sql_statement, data)
 
-    @AddAPI("{database_name}.get.single.row", description="get a row from a table")
-    def _api_get_single_row(self, row_id, table_name):
+    @AddAPI("{database_name}.row.get", description="get a row from a table")
+    def _api_row_get(self, row_id, table_name):
         """Get a row from a table."""
         return self.getrow(row_id, table_name)
 

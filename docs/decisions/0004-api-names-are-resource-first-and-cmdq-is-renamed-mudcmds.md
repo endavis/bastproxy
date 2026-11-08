@@ -138,6 +138,7 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 - Issue #168: Rename the plugins.core.clients, proxy and errors APIs
 - Issue #169: Rename the plugins.core.log and plugins.core.colors APIs
 - Issue #170: Rename the timers, triggers, watch and libs.timing APIs
+- Issue #171: Rename the sqldb and ssc dynamic APIs
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation

@@ -232,7 +232,7 @@ class ProxyPlugin(BasePlugin):
                 ),
                 show_in_history=False,
             )()
-            pasw = self.api(f"{self.plugin_id}:ssc.mudpw")()
+            pasw = self.api(f"{self.plugin_id}:ssc.mudpw.get")()
             if pasw != "":
                 SendDataDirectlyToMud(NetworkData(pasw))()
 
@@ -394,7 +394,7 @@ class ProxyPlugin(BasePlugin):
                     f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}{self.api(f'{self.plugin_id}:preamble.get')()}: @GThe proxy is already connected to the mud@w",
                 )
             )
-        if self.api(f"{self.plugin_id}:ssc.proxypw")(quiet=True) == "defaultpass":
+        if self.api(f"{self.plugin_id}:ssc.proxypw.get")(quiet=True) == "defaultpass":
             tmsg.extend(
                 (
                     divider,
@@ -403,7 +403,7 @@ class ProxyPlugin(BasePlugin):
                     f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
                 )
             )
-        if self.api(f"{self.plugin_id}:ssc.proxypwview")(quiet=True) == "defaultviewpass":
+        if self.api(f"{self.plugin_id}:ssc.proxypwview.get")(quiet=True) == "defaultviewpass":
             tmsg.extend(
                 (
                     divider,
