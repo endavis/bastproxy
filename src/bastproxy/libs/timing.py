@@ -180,7 +180,7 @@ class Timing:
         return None
 
     @AddAPI("timing.finish", description="finish a timer")
-    def _api_timing_finish(self, uid: str) -> float | None:
+    def _api_timing_finish(self, uid: str | None) -> float | None:
         """Finish a timer and log the elapsed time.
 
         This method finishes a timer identified by its unique identifier and logs
@@ -188,36 +188,43 @@ class Timing:
         and logs the information, including any associated arguments.
 
         Args:
-            uid: The unique identifier of the timer to finish.
+            uid: The unique identifier of the timer to finish. None means the timer
+                was started while timing was disabled, so there is nothing to finish.
 
         Returns:
-            The elapsed time in milliseconds, or None if timing is disabled or the
-                timer is not found.
+            The elapsed time in milliseconds, or None if timing is disabled, uid is
+                None or the timer is not found.
 
         Raises:
             None
 
         """
+        if uid is None:
+            return None
+        timerfinish = default_timer()
+        if uid in self.timing:
+            # Always remove the entry, even when timing was turned off after the
+            # timer started, so it does not leak (#190).
+            timer = self.timing.pop(uid)
+            if not self.enabled:
+                return None
+            timername = timer["name"]
+            time_taken = (timerfinish - timer["start"]) * 1000.0
+            if args := timer["args"]:
+                LogRecord(
+                    f"finishtimer - {uid} {timername:<20} : finished in "
+                    f"{time_taken} ms - with args {args}",
+                    level="debug",
+                    sources=[__name__, timer["owner_id"]],
+                )()
+            else:
+                LogRecord(
+                    f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms",
+                    level="debug",
+                    sources=[__name__, timer["owner_id"]],
+                )()
+            return time_taken
         if self.enabled:
-            timerfinish = default_timer()
-            if uid in self.timing:
-                timername = self.timing[uid]["name"]
-                time_taken = (timerfinish - self.timing[uid]["start"]) * 1000.0
-                if args := self.timing[uid]["args"]:
-                    LogRecord(
-                        f"finishtimer - {uid} {timername:<20} : finished in "
-                        f"{time_taken} ms - with args {args}",
-                        level="debug",
-                        sources=[__name__, self.timing[uid]["owner_id"]],
-                    )()
-                else:
-                    LogRecord(
-                        f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms",
-                        level="debug",
-                        sources=[__name__, self.timing[uid]["owner_id"]],
-                    )()
-                del self.timing[uid]
-                return time_taken
             owner_id = self.api("libs.api:caller.owner.get")()
             LogRecord(
                 f"finishtimer - {uid} not found - called from {owner_id}",

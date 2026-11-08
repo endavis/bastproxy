@@ -15,6 +15,7 @@ Test Classes:
 """
 
 import time
+from unittest.mock import patch
 
 from bastproxy.libs.timing import Timing, duration
 
@@ -218,8 +219,74 @@ class TestTimerLifecycle:
         result = timing._api_timing_finish(uid)
 
         assert result is None
-        # Timer should still exist because finish was disabled
+        # Timer is removed even though timing is disabled, so it does not leak (#190)
+        assert uid not in timing.timing
+
+
+class TestFinishWithNoneUid:
+    """Test finishing a timer that was started while timing was disabled (#190)."""
+
+    def test_start_disabled_enable_finish_none_logs_no_error(self) -> None:
+        """A None uid from a disabled start finishes quietly after re-enabling."""
+        timing = Timing()
+        timing._api_timing_toggle(False)
+        uid = timing._api_timing_start("disabled_timer")
+        timing._api_timing_toggle(True)
+
+        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+            result = timing._api_timing_finish(uid)
+
+        assert uid is None
+        assert result is None
+        log_record.assert_not_called()
+
+    def test_finish_none_while_disabled_returns_none(self) -> None:
+        """A None uid also finishes quietly while timing is disabled."""
+        timing = Timing()
+        timing._api_timing_toggle(False)
+
+        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+            result = timing._api_timing_finish(None)
+
+        assert result is None
+        log_record.assert_not_called()
+
+    def test_start_enabled_disable_finish_removes_entry_quietly(self) -> None:
+        """A timer started while enabled is removed on finish after disabling."""
+        timing = Timing()
+        uid = timing._api_timing_start("leaky_timer")
         assert uid in timing.timing
+        timing._api_timing_toggle(False)
+
+        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+            result = timing._api_timing_finish(uid)
+
+        assert result is None
+        assert uid not in timing.timing
+        log_record.assert_not_called()
+
+    def test_finish_normal_path_returns_elapsed_and_logs(self) -> None:
+        """A normal start and finish still returns elapsed time and logs at debug."""
+        timing = Timing()
+        uid = timing._api_timing_start("normal_timer")
+
+        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+            result = timing._api_timing_finish(uid)
+
+        assert isinstance(result, float)
+        assert uid not in timing.timing
+        log_record.assert_called_once()
+        assert log_record.call_args.kwargs["level"] == "debug"
+
+    def test_finish_unknown_uid_still_logs_error(self) -> None:
+        """An unknown, non-None uid still logs the not-found error."""
+        timing = Timing()
+
+        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+            result = timing._api_timing_finish("nonexistent_uid")
+
+        assert result is None
+        assert log_record.call_args.kwargs["level"] == "error"
 
 
 class TestTimerData:
