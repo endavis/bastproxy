@@ -54,7 +54,7 @@ The gaps are in the paths the happy case does not cover, and in two costs nobody
 - **`API.add` returns `True` when it refuses a duplicate** (AS-1), and a test asserts it.
 - **`api.toplevel.remove` raises** for an instance API and for any function that was added
   without `@AddAPI` (AS-2). No code does either today, so this is latent. Stats, the `addedin`
-  keys and force-overrides by another owner also survive an unload (AS-3).
+  keys and force-overrides by another owner also survived an unload (AS-3, fixed in #196).
 - **`libs.api:caller.owner.get` returns the owner of the API object it was called through**
   unless the caller passes an ignore list (AS-4). `libs.timing` calls it without one, so every
   timer is recorded as started by `bastproxy.libs.timing`.
@@ -129,7 +129,7 @@ and each `API` object holds `_instance_api`. A name is `"<toplevel>:<name>"`.
 | Class API with `force=True` | Replaces the entry and keeps the old one in `overwritten_api`. |
 | Lookup order | `API.get` checks `_instance_api` first, then `_class_api`. |
 | Who uses `force=True` or `instance=True` | Nobody in `src` (verified by `grep`). Only tests and the docstring do. |
-| A second owner force-overrides `p.victim:f`, then its own toplevel is removed | **The override stays** (verified): removal is by toplevel name, not by owner, and `overwritten_api` is never restored. The entry keeps pointing at the departed owner's bound method. Latent, because nothing uses `force` (AS-3). |
+| A second owner force-overrides `p.victim:f`, then its own toplevel is removed | Before #196 the override stayed: removal was by toplevel name only and `overwritten_api` was never restored (verified then). Since #196 removal also scans for entries owned by the removed toplevel in other toplevels, restores `overwritten_api` or deletes the entry (AS-3). |
 
 ### Removing
 
@@ -156,11 +156,11 @@ stats count for plugins.test.cmddec:data.directory.get across the reload: 1 -> 2
 | `API._instance_api` of the plugin's `API` object | Not individually | Dies with the object; the plugin instance was collected (**verified**). The 14 built-in `libs.api:` entries are never removed on their own. |
 | `@AddAPI(instance=True)` methods | **Raises** `ValueError` | **Verified** (AS-2): `add_for_object` appends to `addedin` only when `not instance`, but removal calls `.remove(api_name)` for instance keys too. The class keys are deleted first and the instance key is left behind. |
 | Functions added without `@AddAPI` | **Raises** `AttributeError` | **Verified** (AS-2): removal reads `func.api` for every key. `_pluginm.py` adds `plugin.state.save.all` this way (`can_reload_f` is false there, so it is never removed), and `libs.asynch:task.add` is another (its toplevel is never removed). |
-| `STATS_MANAGER.stats` | **No** | **Verified**: stats survive the unload and keep counting after a reload (AS-3). |
-| `func.api["addedin"][toplevel]` | The name, not the key | **Verified**: an empty list stays for every toplevel ever loaded. Harmless in size. |
+| `STATS_MANAGER.stats` | Yes, since #196 | Before #196 (**verified**) stats survived the unload and kept counting after a reload (AS-3). |
+| `func.api["addedin"][toplevel]` | Yes, since #196 | Before #196 (**verified**) an empty list stayed for every toplevel ever loaded. |
 
-Stats and the shared function attribute are therefore the "incomplete removal" the issue asked
-about; the registry itself is clean.
+Stats and the shared function attribute were the "incomplete removal" the issue asked about; the
+registry itself was clean. #196 prunes both.
 
 ---
 
@@ -448,7 +448,9 @@ with no `.api`, and delete every key before reporting an error. Add tests for bo
 
 ### AS-3: Stats, `addedin` keys and overrides outlive the plugin
 
-**Issue:** #196
+**Issue:** #196. **Fixed in #196**: removal now prunes the stats, deletes the `addedin` entry and
+undoes the removed owner's force-overrides in other toplevels (restoring `overwritten_api`, or
+deleting the entry). The evidence below is from before the fix.
 **Location:** `_apistats.py` `StatsManager.stats`; `_api.py` `_api_api_toplevel_remove`, `API.add`.
 
 **Evidence (verified):** After unloading `plugins.test.cmddec` the registry held 0 of its APIs and
