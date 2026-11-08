@@ -83,7 +83,7 @@ Decorators for defining commands:
 @AddArgument("-o", "--option", help="Optional argument")
 def _command_mycommand(self):
     """Command implementation."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
     # Process command
     return True, ["Success message"]
 ```
@@ -107,7 +107,7 @@ class MyPlugin(BasePlugin):
             tuple: (success: bool, messages: list[str])
         """
         # Get parsed arguments
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         value = args["value"]
         verbose = args["verbose"]
@@ -166,7 +166,7 @@ Uses Python's argparse under the hood:
 @AddArgument("-f", "--filter", choices=["all", "active", "inactive"])
 @AddArgument("-v", "--verbose", action="store_true")
 def _command_search(self):
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
     query = args["query"]
     count = args["count"]
     filter_type = args["filter"]
@@ -257,19 +257,19 @@ Arguments support all argparse features:
 ## Common APIs
 
 ### Command Execution
-- `plugins.core.commands:get.current.command.args` - Get parsed args for current command
-- `plugins.core.commands:get.command.format` - Get formatted command string
-- `plugins.core.commands:run` - Run a command programmatically
-- `plugins.core.commands:get.output.line.length` - Get output line length for formatting
+- `plugins.core.commands:command.current.args.get` - Get parsed args for current command
+- `plugins.core.commands:command.format` - Get formatted command string
+- `plugins.core.commands:command.run` - Run a command programmatically
+- `plugins.core.commands:output.line.length.get` - Get output line length for formatting
 
 ### Command Discovery
 - `plugins.core.commands:get.commands.for.plugin` - Get all commands for a plugin
-- `plugins.core.commands:get.commands.for.plugin.data` - Get command data for a plugin
-- `plugins.core.commands:list.commands.formatted` - Get formatted command list
-- `plugins.core.commands:list.plugins.formatted` - Get formatted plugin list
+- `plugins.core.commands:command.data.get` - Get command data for a plugin
+- `plugins.core.commands:command.list.formatted` - Get formatted command list
+- `plugins.core.commands:plugin.list.formatted` - Get formatted plugin list
 
 ### Output Formatting
-- `plugins.core.commands:format.output.header` - Format output header
+- `plugins.core.commands:output.header.format` - Format output header
 - `plugins.core.commands:format.output.line` - Format output line
 
 ## Built-in Commands
@@ -316,7 +316,7 @@ Reruns a command from history:
 @AddArgument("name", help="Name to greet")
 def _command_hello(self):
     """Say hello to someone."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
     return True, [f"Hello, {args['name']}!"]
 ```
 
@@ -332,7 +332,7 @@ def _command_hello(self):
 @AddArgument("-v", "--verbose", action="store_true", help="Verbose output")
 def _command_fetch(self):
     """Fetch data with various options."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
 
     source = args["source"]
     format_type = args["format"]
@@ -366,7 +366,7 @@ def _command_fetch(self):
 @AddArgument("-t", "--table", help="Specific table (optional)")
 def _command_db(self):
     """Database management command."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
 
     operation = args["operation"]
     table = args["table"]
@@ -387,7 +387,7 @@ def _command_db(self):
 def _command_status(self):
     """Show formatted system status."""
     # Get line length for formatting
-    line_length = self.api("plugins.core.commands:get.output.line.length")()
+    line_length = self.api("plugins.core.commands:output.line.length.get")()
 
     # Get header color from settings
     header_color = self.api("plugins.core.settings:setting.get")(
@@ -397,7 +397,7 @@ def _command_status(self):
 
     # Build formatted output
     messages = [
-        self.api("plugins.core.commands:format.output.header")("System Status"),
+        self.api("plugins.core.commands:output.header.format")("System Status"),
         f"{'Service':<20} {'Status':<10} {'Uptime':<15}",
         header_color + "-" * line_length + "@w",
         f"{'Database':<20} {'Running':<10} {'2d 5h 30m':<15}",
@@ -416,7 +416,7 @@ def _command_status(self):
 @AddArgument("file", help="File to process")
 def _command_process(self):
     """Process a file with error handling."""
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
     filename = args["file"]
 
     try:
@@ -521,7 +521,7 @@ command_prefix = self.api("plugins.core.settings:setting.get")(
 Run commands from code:
 
 ```python
-success, message, error = self.api("plugins.core.commands:run")(
+success, message, error = self.api("plugins.core.commands:command.run")(
     "plugins.myplugin",
     "mycommand",
     "arg1 arg2 --flag"
@@ -542,7 +542,7 @@ def positive_int(value):
 @AddParser(description="Set limit")
 @AddArgument("count", type=positive_int, help="Positive integer")
 def _command_limit(self):
-    args = self.api("plugins.core.commands:get.current.command.args")()
+    args = self.api("plugins.core.commands:command.current.args.get")()
     # args["count"] is guaranteed to be a positive integer
     return True, [f"Limit set to {args['count']}"]
 ```
@@ -569,7 +569,7 @@ def register_advanced_commands(self):
 
 ```python
 # Get command details
-command_data = self.api("plugins.core.commands:get.commands.for.plugin.data")(
+command_data = self.api("plugins.core.commands:command.data.get")(
     "plugins.myplugin"
 )
 

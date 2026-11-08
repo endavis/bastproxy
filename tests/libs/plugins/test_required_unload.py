@@ -205,7 +205,7 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
 
     def api(name: str) -> Any:
         return {
-            "plugins.core.commands:get.current.command.args": lambda: {"plugin": "p.x"},
+            "plugins.core.commands:command.current.args.get": lambda: {"plugin": "p.x"},
             "libs.plugins.loader:is.plugin.loaded": lambda _pid: True,
             "libs.plugins.loader:get.plugin.info": lambda _pid: info,
             "libs.plugins.loader:unload.plugin": unload,

@@ -52,14 +52,14 @@ def _dedent_list_of_strings(list_of_strings: list[str]) -> list[str]:
 
 
 def _get_current_command_args() -> dict[str, Any]:
-    """Stand-in for plugins.core.commands:get.current.command.args (no command running)."""
+    """Stand-in for plugins.core.commands:command.current.args.get (no command running)."""
     return {}
 
 
 STAND_IN_APIS: dict[str, Callable[..., Any]] = {
     "plugins.core.utils:get.keys.from.dict": _get_keys_from_dict,
     "plugins.core.utils:dedent.list.of.strings": _dedent_list_of_strings,
-    "plugins.core.commands:get.current.command.args": _get_current_command_args,
+    "plugins.core.commands:command.current.args.get": _get_current_command_args,
 }
 
 

@@ -279,7 +279,7 @@ class ColorsPlugin(BasePlugin):
         @CUsage@w: show @Y"compact"@w
           @Y"compact"@w    = The original string to be replaced.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message = [""]
         row_message = []
         compact = False

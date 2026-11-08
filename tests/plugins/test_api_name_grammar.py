@@ -307,33 +307,10 @@ LEGACY_NAMES: dict[Key, str] = {
     # plugins.core.colors
     ("plugins.core.colors", "color.length.difference"): "shape",
     # plugins.core.commands
-    ("plugins.core.commands", "add.command.by.func"): "shape",
-    ("plugins.core.commands", "format.header"): "shape",
-    ("plugins.core.commands", "format.output.header"): "shape",
-    ("plugins.core.commands", "format.output.subheader"): "shape",
-    ("plugins.core.commands", "get.command.count"): "shape",
-    ("plugins.core.commands", "get.command.format"): "shape",
-    ("plugins.core.commands", "get.command.indent"): "shape",
-    ("plugins.core.commands", "get.command.line.length"): "shape",
-    ("plugins.core.commands", "get.command.prefix"): "shape",
-    ("plugins.core.commands", "get.commands.for.plugin.data"): "shape",
-    ("plugins.core.commands", "get.current.command.args"): "shape",
-    ("plugins.core.commands", "get.detailed.data.for.plugin"): "shape",
-    ("plugins.core.commands", "get.output.indent"): "shape",
-    ("plugins.core.commands", "get.output.line.length"): "shape",
-    ("plugins.core.commands", "get.summary.data.for.plugin"): "shape",
-    ("plugins.core.commands", "list.commands.formatted"): "shape",
-    ("plugins.core.commands", "list.plugins.formatted"): "shape",
-    ("plugins.core.commands", "remove.data.for.plugin"): "shape",
-    ("plugins.core.commands", "run"): "shape",
-    ("plugins.core.commands", "set.current.command"): "shape",
     # plugins.core.errors
     ("plugins.core.errors", "add"): "shape",
     ("plugins.core.errors", "clear.all.errors"): "shape",
     ("plugins.core.errors", "get"): "shape",
-    # plugins.core.events
-    ("plugins.core.events", "get.detailed.data.for.plugin"): "shape",
-    ("plugins.core.events", "get.summary.data.for.plugin"): "shape",
     # plugins.core.fuzzy
     ("plugins.core.fuzzy", "get.best.match"): "shape",
     ("plugins.core.fuzzy", "get.top.matches"): "shape",

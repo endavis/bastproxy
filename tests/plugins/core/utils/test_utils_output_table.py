@@ -22,7 +22,7 @@ def make_utils_stub() -> MagicMock:
             return lambda _pid, setting: LINELEN if setting == "linelen" else SUB_COLOR
         if name == "plugins.core.colors:colorcode.strip":
             return lambda text: ColorsPlugin._api_colorcode_strip(colors, text)
-        if name == "plugins.core.commands:format.header":
+        if name == "plugins.core.commands:header.format":
             return lambda text, color, line_length: [f"HEADER {text} {color} {line_length}"]
         if name == "plugins.core.utils:cap.line":
             return lambda *a, **k: UtilsPlugin._api_cap_line(stub, *a, **k)

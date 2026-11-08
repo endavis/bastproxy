@@ -53,7 +53,7 @@ class CommandClass:
         self.group = group or ""
         self.preamble = preamble
         self.show_in_history = show_in_history
-        self.full_cmd = self.api("plugins.core.commands:get.command.format")(self.plugin_id, name)
+        self.full_cmd = self.api("plugins.core.commands:command.format")(self.plugin_id, name)
         self.short_help = shelp
         self.count = 0  # lifetime count, carried over when the plugin reloads
         self.count_since_reload = 0  # calls since this instance was created
@@ -91,7 +91,7 @@ class CommandClass:
             return self.run_finish(True, message, "help", format=format)
 
         self.current_args = args
-        self.api("plugins.core.commands:set.current.command")(self)
+        self.api("plugins.core.commands:command.current.set")(self)
 
         # run the command
         try:
@@ -134,7 +134,7 @@ class CommandClass:
             message = self.format_return_message(oldmessage)
         self.current_args = {}
         self.current_arg_string = ""
-        self.api("plugins.core.commands:set.current.command")(None)
+        self.api("plugins.core.commands:command.current.set")(None)
         return success, message, return_value
 
     def parse_args(self, arg_string):
@@ -197,13 +197,13 @@ class CommandClass:
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "header_color"
         )
-        command_indent = self.api("plugins.core.commands:get.command.indent")()
+        command_indent = self.api("plugins.core.commands:command.indent.get")()
         command_indent_string = " " * command_indent
-        command_line_length = self.api("plugins.core.commands:get.command.line.length")()
-        output_indent = self.api("plugins.core.commands:get.output.indent")()
+        command_line_length = self.api("plugins.core.commands:command.line.length.get")()
+        output_indent = self.api("plugins.core.commands:output.indent.get")()
         output_indent_string = " " * output_indent
 
-        command = self.api("plugins.core.commands:get.command.format")(self.plugin_id, self.name)
+        command = self.api("plugins.core.commands:command.format")(self.plugin_id, self.name)
 
         newmessage = [
             "",

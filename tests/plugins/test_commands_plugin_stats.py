@@ -100,7 +100,7 @@ def test_unload_and_reload_restores_stats() -> None:
     old.run("")
     expected = CommandStats(**vars(old.stats))
     stub.command_data[PID] = {"x": old}
-    CommandsPlugin._api_remove_data_for_plugin(stub, PID)
+    CommandsPlugin._api_command_remove_for_plugin(stub, PID)
     saved = stub.saved_command_stats[PID]["x"]
     assert isinstance(saved, dict)
     new = _make(lambda: True)
@@ -162,7 +162,7 @@ def _detail_stub(argument: str) -> tuple[MagicMock, list[Any]]:
         return ["table"]
 
     def api(name: str) -> Callable[..., Any]:
-        if name.endswith("get.current.command.args"):
+        if name.endswith("command.current.args.get"):
             return lambda: {"command": argument}
         return table
 

@@ -369,7 +369,7 @@ class ClientPlugin(BasePlugin):
         if the ip is already banned, it will be unbanned
         otherwise, it will be permanently banned
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["ips"]:
             return True, ["No IPs specified"]

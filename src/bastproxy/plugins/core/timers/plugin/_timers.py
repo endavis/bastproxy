@@ -141,7 +141,7 @@ class TimersPlugin(BasePlugin):
     @AddArgument("timername", help="the timer name", default="", nargs="?")
     def _command_log(self) -> tuple[bool, list[str]]:
         """Change the log flag for a timer."""
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args["timername"] in self.timer_lookup:
             self.timer_lookup[args["timername"]].log = not self.timer_lookup[args["timername"]].log
@@ -210,7 +210,7 @@ class TimersPlugin(BasePlugin):
         list timers and the plugins they are defined in
         @CUsage@w: list.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         output_header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
@@ -251,7 +251,7 @@ class TimersPlugin(BasePlugin):
         list the details of a timer
         @CUsage@w: detail.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args["timers"]:
             columnwidth: int = 13

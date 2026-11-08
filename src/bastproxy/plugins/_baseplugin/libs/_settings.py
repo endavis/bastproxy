@@ -46,7 +46,7 @@ class Settings(Protocol):
             if there are no arguments or 'list' is the first argument then
             it will list the settings for the plugin.
         """
-        args = self.api("plugins.core.commands:get.current.command.args")()
+        args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["name"] or args["name"] == "list":
             return True, self.api("plugins.core.settings:setting.list.formatted")(self.plugin_id)
