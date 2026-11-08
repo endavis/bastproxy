@@ -38,7 +38,7 @@ class PluginsPlugin(BasePlugin):
 
         return (
             True,
-            self.api(f"{args['plugin']}:dump")(args["object"], args["detailed"])[1],
+            self.api(f"{args['plugin']}:plugin.dump")(args["object"], args["detailed"])[1],
         )
 
     @AddParser(description="show internal plugin hooks")
@@ -56,7 +56,7 @@ class PluginsPlugin(BasePlugin):
 
         tmsg = []
 
-        hooks = self.api(f"{args['plugin']}:get.plugin.hooks")()
+        hooks = self.api(f"{args['plugin']}:plugin.hook.list")()
 
         tmsg.extend(
             self.api("plugins.core.commands:format.output.header")(

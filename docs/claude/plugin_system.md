@@ -42,7 +42,7 @@ Key attributes:
 - **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `unload.plugin`; a required plugin is also refused, see `PLUGIN_REQUIRED`)
 - **can_reset_f**: Whether the plugin can be reset
 - **reload_dependents_f**: Whether reloading the plugin also reloads the plugins that depend on it
-- **is_reloading_f**: Set by the `<plugin_id>:set.reload` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
+- **is_reloading_f**: Set by the `<plugin_id>:plugin.reloading.set` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
 - **attributes_to_save_on_reload**: List of attributes to preserve during reload (see [Reloading](#7-reloading))
 
 ### PluginLoader Class
@@ -331,7 +331,7 @@ class Plugin(BasePlugin):
         pass
 ```
 
-The `save.state` API (`<plugin_id>:save.state`, also the `save` command) runs the `save` hooks,
+The `plugin.state.save` API (`<plugin_id>:plugin.state.save`, also the `save` command) runs the `save` hooks,
 then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 ### 6. Unloading
@@ -350,7 +350,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
    ```
 
 2. **Base uninitialize hook** (priority 100, always last):
-   - calls `save.state`
+   - calls `plugin.state.save`
    - caches `attributes_to_save_on_reload` if `is_reloading_f` is set
    - raises `ev_<plugin_id>_unloaded` and `ev_plugin_unloaded`
    - removes the plugin's APIs with `libs.api:remove`
@@ -372,7 +372,7 @@ then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it.
 
 1. **Check**: if the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set.
 
-2. **Unload**: dependents furthest first, then the plugin (see above). The `reload` command calls `<plugin_id>:set.reload` first, which sets `is_reloading_f`; the attributes named in `attributes_to_save_on_reload` are only cached in that case.
+2. **Unload**: dependents furthest first, then the plugin (see above). The `reload` command calls `<plugin_id>:plugin.reloading.set` first, which sets `is_reloading_f`; the attributes named in `attributes_to_save_on_reload` are only cached in that case.
    ```python
    # In the plugin's __init__ or an __init__ plugin hook
    self.attributes_to_save_on_reload = ['some_state', 'other_data']
@@ -414,9 +414,9 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
    - Use for: Setup that requires other plugins to be available
    - Cross-plugin initialization
 
-3. **`save`**: Called by the `save.state` API
+3. **`save`**: Called by the `plugin.state.save` API
    - Use for: Persisting data to disk
-   - `save.state` then raises `ev_<plugin_id>_save` and `ev_plugin_save`
+   - `plugin.state.save` then raises `ev_<plugin_id>_save` and `ev_plugin_save`
 
 4. **`uninitialize`**: Called before plugin is unloaded
    - Use for: Cleanup, closing connections, saving state
@@ -486,9 +486,9 @@ class Plugin(BasePlugin):
   (clearing its loaded flag first, so it is cleaned up rather than uninitialized); in
   `uninitialize` the unload stops and returns `False`. A failed `__init__` or `initialize`
   still has its registrations removed
-- `<plugin_id>:get.plugin.hooks` lists the same hooks, in the same order, that the plugin runs,
+- `<plugin_id>:plugin.hook.list` lists the same hooks, in the same order, that the plugin runs,
   including hooks that share a priority (fixed for
-  [PS-6](plugin_system_findings.md#ps-6-getpluginhooks-drops-hooks-that-share-a-priority))
+  [PS-6](plugin_system_findings.md#ps-6-pluginhooklist-drops-hooks-that-share-a-priority))
 
 ## Dependencies
 
@@ -563,7 +563,7 @@ Each plugin has a data directory for persistent storage:
 
 ```python
 # Get the data directory
-data_dir = self.api(f"{self.plugin_id}:get.data.directory")()
+data_dir = self.api(f"{self.plugin_id}:data.directory.get")()
 # Returns: Path to $BASTPROXY_HOME/data/plugins/<plugin_id>
 ```
 
@@ -637,10 +637,10 @@ class Plugin(BasePlugin):
 
 ```python
 class Plugin(BasePlugin):
-    @AddAPI("dump", description="Dump plugin state")
-    def _api_dump(self, attribute_name=None, detailed=False):
+    @AddAPI("plugin.dump", description="Dump plugin state")
+    def _api_plugin_dump(self, attribute_name=None, detailed=False):
         """Dump plugin state or a specific attribute."""
-        return super()._api_dump(attribute_name, detailed)
+        return super()._api_plugin_dump(attribute_name, detailed)
 ```
 
 ## Important Files
@@ -686,12 +686,12 @@ class Plugin(BasePlugin):
 ### Plugin Instance APIs
 - `<plugin_id>:data.get` - Get plugin data
 - `<plugin_id>:data.update` - Update plugin data
-- `<plugin_id>:get.data.directory` - Get plugin's data directory
-- `<plugin_id>:set.reload` - Set the `is_reloading_f` flag so reload attributes are cached
-- `<plugin_id>:get.plugin.hooks` - Get plugin hooks
-- `<plugin_id>:save.state` - Run the `save` hooks and raise the save events
-- `<plugin_id>:reset` - Raise `ev_plugin_reset`
-- `<plugin_id>:dump` - Dump plugin state
+- `<plugin_id>:data.directory.get` - Get plugin's data directory
+- `<plugin_id>:plugin.reloading.set` - Set the `is_reloading_f` flag so reload attributes are cached
+- `<plugin_id>:plugin.hook.list` - Get plugin hooks
+- `<plugin_id>:plugin.state.save` - Run the `save` hooks and raise the save events
+- `<plugin_id>:plugin.reset` - Raise `ev_plugin_reset`
+- `<plugin_id>:plugin.dump` - Dump plugin state
 
 ## Events
 

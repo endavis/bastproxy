@@ -126,7 +126,7 @@ class Commands(Protocol):
         save plugin state
         @CUsage@w: save.
         """
-        self.api(f"{self.plugin_id}:save.state")()
+        self.api(f"{self.plugin_id}:plugin.state.save")()
         return True, ["Plugin settings saved"]
 
     @AddCommand(group="Base", autoadd=False)
@@ -138,7 +138,7 @@ class Commands(Protocol):
         @CUsage@w: reset.
         """
         if self.can_reset_f:
-            plugins_that_acted = self.api(f"{self.plugin_id}:reset")()
+            plugins_that_acted = self.api(f"{self.plugin_id}:plugin.reset")()
             msg = [
                 "Plugin reset",
                 "",

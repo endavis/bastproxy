@@ -283,7 +283,7 @@ class PluginManager(BasePlugin):
     def _api_save_all_plugins_state(self, _=None):
         """Save all plugins."""
         for plugin_id in self.api("libs.plugins.loader:get.loaded.plugins.list")():
-            self.api(f"{plugin_id}:save.state")()
+            self.api(f"{plugin_id}:plugin.state.save")()
 
     @AddParser(description="load a plugin")
     @AddArgument(
@@ -403,7 +403,7 @@ class PluginManager(BasePlugin):
         if not self.api("libs.plugins.loader:is.plugin.id")(args["plugin"]):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
-        self.api(f"{args['plugin']}:set.reload")()
+        self.api(f"{args['plugin']}:plugin.reloading.set")()
 
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"

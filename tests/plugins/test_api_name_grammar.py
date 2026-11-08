@@ -291,13 +291,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("libs.timing", "finish"): "shape",
     ("libs.timing", "start"): "shape",
     ("libs.timing", "toggle"): "shape",
-    # plugins._baseplugin
-    ("plugins._baseplugin", "dump"): "shape",
-    ("plugins._baseplugin", "get.data.directory"): "shape",
-    ("plugins._baseplugin", "get.plugin.hooks"): "shape",
-    ("plugins._baseplugin", "reset"): "shape",
-    ("plugins._baseplugin", "save.state"): "shape",
-    ("plugins._baseplugin", "set.reload"): "shape",
     # plugins.core.clients
     ("plugins.core.clients", "client.banned.check"): "shape",
     ("plugins.core.clients", "client.logged.in"): "shape",
