@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794147689032,
+  "lastUpdate": 1794148069091,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -4938,6 +4938,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00000801279026140461",
             "extra": "mean: 289.5003457551203 usec\nrounds: 3569"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39520f6e89612aac05a168ed976fc20162ec5f51",
+          "message": "refactor: rename plugins.core.cmdq to plugins.core.mudcmds (merges PR #193, addresses #172)\n\nMove the plugin package and its tests with git mv, rename the class and\nmodule, and rename 4 of its APIs (with their _api_* methods) to the\nADR-0004 form. No aliases are kept (ADR-0004 decision 6). Remove the\ncmdq rows from the grammar test's LEGACY_NAMES, add a regression test\nfor the batch, and document the data directory migration in\ndocs/claude/plugin_system.md.\n\nBREAKING CHANGE: plugin ID changed: plugins.core.cmdq -> plugins.core.mudcmds\n(its ev_plugins.core.cmdq_* events become ev_plugins.core.mudcmds_*).\nAPI names changed (old -> new):\n- plugins.core.mudcmds: remove.mud.commands.for.plugin -> type.remove.for.plugin\n- plugins.core.mudcmds: start -> command.start\n- plugins.core.mudcmds: finish -> command.finish\n- plugins.core.mudcmds: queue.add.command -> command.queue\nMigration: stop the proxy and rename the plugin data directory,\nmv \"$BASTPROXY_HOME/data/plugins/plugins.core.cmdq\" \"$BASTPROXY_HOME/data/plugins/plugins.core.mudcmds\".\nIt only holds the hidden _version setting, so skipping it loses nothing.\n\nAddresses #172\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T14:27:09Z",
+          "tree_id": "51c6c53f21f873c10077f483bff8fa74d9f8f28b",
+          "url": "https://github.com/endavis/bastproxy/commit/39520f6e89612aac05a168ed976fc20162ec5f51"
+        },
+        "date": 1794148068449,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 452.3962126747564,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00015093819691944756",
+            "extra": "mean: 2.210451749999365 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 14080.675511992124,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005432946325651043",
+            "extra": "mean: 71.01931999983435 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 432.78743041617867,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005240779496346036",
+            "extra": "mean: 2.3106031499999347 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 1184.6226736899957,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000057372502664122666",
+            "extra": "mean: 844.1506499998752 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 4716.697004170171,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007631545012838571",
+            "extra": "mean: 212.01277061381526 usec\nrounds: 4839"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 4014.1186481945447,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005851529531668571",
+            "extra": "mean: 249.12068816146638 usec\nrounds: 4063"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 7380.893174801716,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00001770325631488931",
+            "extra": "mean: 135.48495775741455 usec\nrounds: 7741"
           }
         ]
       }
