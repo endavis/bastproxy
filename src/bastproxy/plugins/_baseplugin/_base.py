@@ -478,9 +478,12 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     @AddAPI("reset", "reset the plugin")
     def _api_reset(self):
         """Reset the plugin."""
-        event_record = self.api("plugins.core.events:raise.event")(
+        processed_event = self.api("plugins.core.events:raise.event")(
             "ev_plugin_reset",
             event_args={"plugin_id": self.plugin_id, "plugins_that_acted": []},
         )
 
-        return event_record["plugins_that_acted"]
+        if processed_event is None:
+            return []
+
+        return processed_event.event_data["plugins_that_acted"]
