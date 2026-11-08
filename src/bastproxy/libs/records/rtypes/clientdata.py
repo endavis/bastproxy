@@ -247,12 +247,12 @@ class SendDataDirectlyToClient(BaseRecord):
                 line.format()
                 line.lock()
 
-                clients = self.clients or self.api("plugins.core.clients:get.all.clients")(
+                clients = self.clients or self.api("plugins.core.clients:client.list")(
                     uuid_only=True
                 )
                 for client_uuid in clients:
                     if self.can_send_to_client(client_uuid, line):
-                        self.api("plugins.core.clients:send.to.client")(client_uuid, line)
+                        self.api("plugins.core.clients:client.send")(client_uuid, line)
                     else:
                         LogRecord(
                             f"## NOTE: Client {client_uuid} cannot receive message {self.uuid!s}",

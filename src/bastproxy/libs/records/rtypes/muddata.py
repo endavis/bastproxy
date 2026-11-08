@@ -179,7 +179,7 @@ class SendDataDirectlyToMud(BaseRecord):
     def _exec_(self):
         """Send the data to the mud."""
         self.message.lock()
-        if mud_connection := self.api("plugins.core.proxy:get.mud.connection")():
+        if mud_connection := self.api("plugins.core.proxy:mud.connection.get")():
             for line in self.message:
                 if line.send:
                     line.format()

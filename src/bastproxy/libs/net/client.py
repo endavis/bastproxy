@@ -253,7 +253,7 @@ class ClientConnection:
             )
             networkdata.append(NetworkDataLine("You are now logged in.", prelogin=True))
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
-            self.api("plugins.core.clients:client.logged.in")(self.uuid)
+            self.api("plugins.core.clients:client.logged.in.set")(self.uuid)
         elif inp.strip() == vpw:
             networkdata = NetworkData(
                 [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
@@ -263,7 +263,7 @@ class ClientConnection:
                 NetworkDataLine("You are now logged in as view only user.", prelogin=True)
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
-            self.api("plugins.core.clients:client.logged.in.view.only")(self.uuid)
+            self.api("plugins.core.clients:client.logged.in.set.view.only")(self.uuid)
 
         elif self.login_attempts < 3:
             self.login_attempts = self.login_attempts + 1
@@ -477,7 +477,7 @@ async def register_client(connection) -> bool:
         None
 
     """
-    if connection.api("plugins.core.clients:client.banned.check")(connection.addr):
+    if connection.api("plugins.core.clients:client.is.banned")(connection.addr):
         LogRecord(
             f"client_read - {connection.uuid} [{connection.addr}:{connection.port}] "
             "is banned. Closing connection.",

@@ -309,7 +309,7 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
         sources=["mudproxy"],
     )()
 
-    api("plugins.core.proxy:shutdown")()
+    api("plugins.core.proxy:proxy.shutdown")()
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 

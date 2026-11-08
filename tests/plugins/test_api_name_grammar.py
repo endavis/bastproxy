@@ -250,14 +250,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("libs.timing", "finish"): "shape",
     ("libs.timing", "start"): "shape",
     ("libs.timing", "toggle"): "shape",
-    # plugins.core.clients
-    ("plugins.core.clients", "client.banned.check"): "shape",
-    ("plugins.core.clients", "client.logged.in"): "shape",
-    ("plugins.core.clients", "client.logged.in.view.only"): "shape",
-    ("plugins.core.clients", "get.all.clients"): "shape",
-    ("plugins.core.clients", "get.client"): "shape",
-    ("plugins.core.clients", "get.clients.formatted"): "shape",
-    ("plugins.core.clients", "send.to.client"): "shape",
     # plugins.core.cmdq
     ("plugins.core.cmdq", "finish"): "shape",
     ("plugins.core.cmdq", "queue.add.command"): "shape",
@@ -266,10 +258,6 @@ LEGACY_NAMES: dict[Key, str] = {
     # plugins.core.colors
     ("plugins.core.colors", "color.length.difference"): "shape",
     # plugins.core.commands
-    # plugins.core.errors
-    ("plugins.core.errors", "add"): "shape",
-    ("plugins.core.errors", "clear.all.errors"): "shape",
-    ("plugins.core.errors", "get"): "shape",
     # plugins.core.log
     ("plugins.core.log", "can.log.to.client"): "shape",
     ("plugins.core.log", "can.log.to.console"): "shape",
@@ -279,11 +267,6 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.log", "set.log.to.client"): "shape",
     ("plugins.core.log", "set.log.to.console"): "shape",
     ("plugins.core.log", "set.log.to.file"): "shape",
-    # plugins.core.proxy
-    ("plugins.core.proxy", "get.mud.connection"): "shape",
-    ("plugins.core.proxy", "is.mud.connected"): "shape",
-    ("plugins.core.proxy", "restart"): "shape",
-    ("plugins.core.proxy", "shutdown"): "shape",
     # plugins.core.sqldb
     ("plugins.core.sqldb", "baseclass"): "shape",
     ("plugins.core.sqldb", "{database_name}.get.single.row"): "review",  # rules 3/5, left to review

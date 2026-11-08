@@ -18,7 +18,7 @@ def test_info_ends_with_client_lines_without_commands_run() -> None:
         requested.append(name)
         if name == "plugins.core.commands:output.header.format":
             return lambda *a: ["H"]
-        if name == "plugins.core.clients:get.clients.formatted":
+        if name == "plugins.core.clients:client.list.formatted":
             return lambda: list(CLIENT_LINES)
         return MagicMock()
 
@@ -29,4 +29,4 @@ def test_info_ends_with_client_lines_without_commands_run() -> None:
     assert success is True
     assert msg[-3:] == ["", *CLIENT_LINES]
     assert "plugins.core.commands:command.run" not in requested
-    assert "plugins.core.clients:get.clients.formatted" in requested
+    assert "plugins.core.clients:client.list.formatted" in requested

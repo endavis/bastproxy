@@ -204,7 +204,7 @@ def test_scan_is_not_vacuous() -> None:
         "libs.plugins.loader:plugin.unload",
         "plugins.core.pluginm:plugin.state.save.all",
         "libs.asynch:task.add",
-        "plugins.core.errors:clear.all.errors",
+        "plugins.core.errors:error.clear",
     ):
         assert known in registered
     assert not _missing({"plugins.core.proxy:ssc.proxypw": [("x", 1)]}, registered, patterns)
@@ -222,4 +222,4 @@ def test_errors_clear_command_uses_registered_api_name() -> None:
     stub = MagicMock()
     stub.api = MagicMock(side_effect=api)
     assert ErrorPlugin._command_clear(stub) == (True, ["Errors cleared"])
-    assert names == ["plugins.core.errors:clear.all.errors"]
+    assert names == ["plugins.core.errors:error.clear"]

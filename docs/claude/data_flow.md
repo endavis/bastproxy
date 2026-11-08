@@ -173,7 +173,7 @@ The constructor also accepts `preamble`, `prelogin`, `error` and `color_for_all_
 Same file, class `SendDataDirectlyToClient(BaseRecord)`. `_exec_()`:
 
 1. `message.lock()`
-2. For each line with `send` set: `line.format()`, `line.lock()`, then for each target client (`clients`, or every client) that passes `can_send_to_client()`, `plugins.core.clients:send.to.client`
+2. For each line with `send` set: `line.format()`, `line.lock()`, then for each target client (`clients`, or every client) that passes `can_send_to_client()`, `plugins.core.clients:client.send`
 3. Raises `ev_to_client_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
 
 `can_send_to_client(client_uuid, line)` refuses a client that is in `exclude_clients`, refuses internal lines to view-only clients that were not named in `clients`, and otherwise requires the client to be in `clients` (when set) and logged in, unless the line is `prelogin`.
@@ -249,7 +249,7 @@ All three register at the default priority, 50.
          ├─ raise ev_to_client_data_modify       triggers: match, gag or change lines
          └─ SendDataDirectlyToClient(...)()
               ├─ lock message; per line: format() → adds "\r\n", lock()
-              ├─ per client: can_send_to_client() → clients:send.to.client → send_queue
+              ├─ per client: can_send_to_client() → clients:client.send → send_queue
               └─ raise ev_to_client_data_read
   ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts
 ```

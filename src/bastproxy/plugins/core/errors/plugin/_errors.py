@@ -28,22 +28,22 @@ class ErrorPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_bastproxy_proxy_ready")
     def _eventcb_proxy_ready(self):
         """Show all errors that happened during startup."""
-        if errors := self.api("plugins.core.errors:get")():
+        if errors := self.api("plugins.core.errors:error.list")():
             msg = ["The following errors happened during startup:", "Proxy Errors"]
             for i in errors:
                 msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
             LogRecord(msg, level="error", sources=[self.plugin_id, "mudproxy"])()
 
-    @AddAPI("add", description="add an error")
-    def _api_add(self, timestamp, error):
+    @AddAPI("error.add", description="add an error")
+    def _api_error_add(self, timestamp, error):
         """Add an error.
 
         this function adds an error to the list
         """
         self.errors.append({"timestamp": timestamp, "msg": error})
 
-    @AddAPI("get", description="get all errors")
-    def _api_get(self):
+    @AddAPI("error.list", description="list all errors")
+    def _api_error_list(self):
         """Get errors.
 
         this function has no arguments
@@ -52,8 +52,8 @@ class ErrorPlugin(BasePlugin):
         """
         return self.errors
 
-    @AddAPI("clear.all.errors", description="clear all errors")
-    def _api_clear_all_errors(self):
+    @AddAPI("error.clear", description="clear all errors")
+    def _api_error_clear(self):
         """Clear errors.
 
         this function has no arguments
@@ -78,7 +78,7 @@ class ErrorPlugin(BasePlugin):
             msg.append("Please specify a number")
             return False, msg
 
-        if errors := self.api("plugins.core.errors:get")():
+        if errors := self.api("plugins.core.errors:error.list")():
             if args and number > 0:
                 for i in errors[-number:]:
                     msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
@@ -92,6 +92,6 @@ class ErrorPlugin(BasePlugin):
     @AddParser(description="clear errors")
     def _command_clear(self):
         """Clear errors."""
-        self.api("plugins.core.errors:clear.all.errors")()
+        self.api("plugins.core.errors:error.clear")()
 
         return True, ["Errors cleared"]

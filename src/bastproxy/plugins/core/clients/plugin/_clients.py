@@ -118,13 +118,13 @@ class ClientPlugin(BasePlugin):
         """Return the # of clients connected."""
         return len(self.clients)
 
-    @AddAPI("get.client", description="get a client by uuid")
-    def _api_get_client(self, client_uuid):
+    @AddAPI("client.get", description="get a client by uuid")
+    def _api_client_get(self, client_uuid):
         """Get a client by uuid."""
         return self.clients.get(client_uuid, None)
 
-    @AddAPI("send.to.client", description="send data to a client")
-    def _api_send_to_client(self, client_uuid, data):
+    @AddAPI("client.send", description="send data to a client")
+    def _api_client_send(self, client_uuid, data):
         """Send data to a client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].send_to(data)
@@ -166,8 +166,8 @@ class ClientPlugin(BasePlugin):
 
         return False
 
-    @AddAPI("client.banned.check", description="check if a client is banned")
-    def _api_checkbanned(self, clientip):
+    @AddAPI("client.is.banned", description="check if a client is banned")
+    def _api_client_is_banned(self, clientip):
         """Check if a client is banned.
 
         required
@@ -211,8 +211,8 @@ class ClientPlugin(BasePlugin):
         """Check if a client is logged in."""
         return bool(client_uuid in self.clients and self.clients[client_uuid].state["logged in"])
 
-    @AddAPI("client.logged.in", description="set a client as logged in")
-    def _api_client_logged_in(self, client_uuid):
+    @AddAPI("client.logged.in.set", description="set a client as logged in")
+    def _api_client_logged_in_set(self, client_uuid):
         """Set a client as logged in."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
@@ -229,10 +229,10 @@ class ClientPlugin(BasePlugin):
             )
 
     @AddAPI(
-        "client.logged.in.view.only",
+        "client.logged.in.set.view.only",
         description="set a client as logged in for view only",
     )
-    def _api_client_logged_in_view_only(self, client_uuid):
+    def _api_client_logged_in_set_view_only(self, client_uuid):
         """Set a client as logged in for view only."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
@@ -280,19 +280,19 @@ class ClientPlugin(BasePlugin):
                 sources=[self.plugin_id],
             )()
 
-    @AddAPI("get.all.clients", description="get all clients")
-    def _api_get_all_clients(self, uuid_only=False):
-        """Return a dictionary of clients.
+    @AddAPI("client.list", description="list all clients")
+    def _api_client_list(self, uuid_only=False):
+        """List all clients.
 
-        two keys: view, active.
+        Return the client uuids if uuid_only is set, else the client connections.
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
     @AddAPI(
-        "get.clients.formatted",
+        "client.list.formatted",
         description="get the connected and banned clients as formatted tables",
     )
-    def _api_get_clients_formatted(self) -> list[str]:
+    def _api_client_list_formatted(self) -> list[str]:
         """Return the connected clients and banned ips as formatted tables."""
         tmsg: list[str] = []
 
@@ -352,7 +352,7 @@ class ClientPlugin(BasePlugin):
     @AddParser(description="list clients that are connected")
     def _command_show(self):
         """Show all clients."""
-        return True, self.api(f"{self.plugin_id}:get.clients.formatted")()
+        return True, self.api(f"{self.plugin_id}:client.list.formatted")()
 
     @AddParser(description="add or remove a banned ip")
     @AddArgument(
@@ -378,7 +378,7 @@ class ClientPlugin(BasePlugin):
         added = []
 
         for ip in args["ips"]:
-            if self.api(f"{self.plugin_id}:client.banned.check")(ip):
+            if self.api(f"{self.plugin_id}:client.is.banned")(ip):
                 if self.api(f"{self.plugin_id}:client.banned.remove")(ip):
                     removed.append(ip)
             elif self.api(f"{self.plugin_id}:client.banned.add.by.ip")(ip, how_long=-1):
