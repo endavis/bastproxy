@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793723087874,
+  "lastUpdate": 1794136715273,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -3989,6 +3989,79 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00000661803450341933",
             "extra": "mean: 276.3310212593293 usec\nrounds: 3716"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "883be2a43638f0ec45f97a71a29b73f54186ec34",
+          "message": "fix: read plugins_that_acted from the raised event's data in the base reset API (merges PR #177, addresses #176)\n\nplugins.core.events:raise.event returns the ProcessRaisedEvent, not its\ndata record, so BasePlugin._api_reset failed with \"'ProcessRaisedEvent'\nobject is not subscriptable\" for every plugin. Read the list from\n.event_data and return [] when no event was raised.\n\nAddresses #176\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T11:17:51Z",
+          "tree_id": "c8a0248ab7c097db43cecb6f72dcbb16deb74133",
+          "url": "https://github.com/endavis/bastproxy/commit/883be2a43638f0ec45f97a71a29b73f54186ec34"
+        },
+        "date": 1794136714614,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 306.6303665373533,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0007922223156667697",
+            "extra": "mean: 3.2612556000000126 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 10371.898957825573,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010632456506321556",
+            "extra": "mean: 96.4143599996703 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 324.80268845681223,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008819004935773228",
+            "extra": "mean: 3.0787922500000064 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 782.5613404837376,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000799066093272026",
+            "extra": "mean: 1.277855100000025 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3002.937695546877,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008118118433681295",
+            "extra": "mean: 333.0072420359977 usec\nrounds: 3045"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2669.794944511097,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008343586109135992",
+            "extra": "mean: 374.56060138847994 usec\nrounds: 2737"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4531.366289059152,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000028938347998372428",
+            "extra": "mean: 220.68399158427556 usec\nrounds: 4753"
           }
         ]
       }
