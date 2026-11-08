@@ -289,15 +289,17 @@ class API:  # sourcery skip: upper-camel-case-classes
                         **func.__self__.__dict__
                     )
                     instance = func.api["instance"]  # type: ignore
-                    if not instance:
-                        func.api["addedin"][toplevel].append(api_name)  # type: ignore
-                    self(f"{APILOCATION}:api.add")(
+                    added = self(f"{APILOCATION}:api.add")(
                         toplevel,
                         api_name,
                         func,
                         description=description,
                         instance=instance,
                     )
+                    # record only class APIs that add accepted, so a refused
+                    # add can be retried (#209)
+                    if not instance and added:
+                        func.api["addedin"][toplevel].append(api_name)  # type: ignore
                 else:
                     LogRecord(
                         f"API {toplevel}:{api_name} already added",

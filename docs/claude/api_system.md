@@ -89,7 +89,7 @@ class AddAPI:
         return func
 ```
 
-The decorator attaches metadata to functions, which is later processed during plugin initialization. The metadata dict lives on the function object, which is shared by every instance of the class; `addedin` records, per top-level API, the names registered from it. Discovery only finds methods whose name starts with `_api_`, so a decorated method with another name is silently ignored. Names and descriptions may contain `{attribute}` fields, filled from the plugin object's `__dict__`.
+The decorator attaches metadata to functions, which is later processed during plugin initialization. The metadata dict lives on the function object, which is shared by every instance of the class; `addedin` records, per top-level API, the class API names registered from it (a name `api.add` refused is not recorded, so a retry can register it, #209). Discovery only finds methods whose name starts with `_api_`, so a decorated method with another name is silently ignored. Names and descriptions may contain `{attribute}` fields, filled from the plugin object's `__dict__`.
 
 ### API Statistics
 **Location**: `src/bastproxy/libs/api/_apistats.py`
