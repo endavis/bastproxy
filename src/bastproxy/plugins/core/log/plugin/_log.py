@@ -383,13 +383,13 @@ class LogPlugin(BasePlugin):
         self.handlers["file"].sync()
 
     @AddParser(
-        description="""toggle logtype to log to a file
+        description="""toggle logtypes to log to a file
 
           the file will be located in the data/logs/<logtype> directory
 
           if no arguments, types that are sent to file will be listed"""
     )
-    @AddArgument("logtype", help="the logtype to toggle", default="list", nargs="?")
+    @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
     @AddArgument(
         "-n",
         "--notimestamp",
