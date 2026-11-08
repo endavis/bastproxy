@@ -47,9 +47,9 @@ class LogRecord(BaseListRecord):
 
         actor is the item that ran the color function
         """
-        if not self.api("libs.api:api.exists")("plugins.core.log:get.level.color"):
+        if not self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get"):
             return
-        color: str = self.api("plugins.core.log:get.level.color")(self.level)
+        color: str = self.api("plugins.core.log:log.level.color.get")(self.level)
         super().color_lines(color, actor)
 
     def add_source(self, source: str):

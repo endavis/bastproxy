@@ -255,18 +255,7 @@ LEGACY_NAMES: dict[Key, str] = {
     ("plugins.core.cmdq", "queue.add.command"): "shape",
     ("plugins.core.cmdq", "remove.mud.commands.for.plugin"): "shape",
     ("plugins.core.cmdq", "start"): "shape",
-    # plugins.core.colors
-    ("plugins.core.colors", "color.length.difference"): "shape",
     # plugins.core.commands
-    # plugins.core.log
-    ("plugins.core.log", "can.log.to.client"): "shape",
-    ("plugins.core.log", "can.log.to.console"): "shape",
-    ("plugins.core.log", "can.log.to.file"): "shape",
-    ("plugins.core.log", "clean.types"): "shape",
-    ("plugins.core.log", "get.level.color"): "shape",
-    ("plugins.core.log", "set.log.to.client"): "shape",
-    ("plugins.core.log", "set.log.to.console"): "shape",
-    ("plugins.core.log", "set.log.to.file"): "shape",
     # plugins.core.sqldb
     ("plugins.core.sqldb", "baseclass"): "shape",
     ("plugins.core.sqldb", "{database_name}.get.single.row"): "review",  # rules 3/5, left to review
