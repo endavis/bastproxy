@@ -90,7 +90,7 @@ class SettingsPlugin(BasePlugin):
             self.settings_map[setting_name] = plugin_id
 
         if plugin_id not in self.settings_values:
-            data_directory = self.api(f"{plugin_id}:get.data.directory")()
+            data_directory = self.api(f"{plugin_id}:data.directory.get")()
             settings_file: Path = data_directory / "settingvalues.txt"
             self.settings_values[plugin_id] = PersistentDict(plugin_id, settings_file, "c")
 

@@ -143,10 +143,10 @@ instance was collected.
 
 Two limits of reload:
 
-- `reload.plugin` does not set `is_reloading_f` (**read**). Only the `<plugin>:set.reload` API
+- `reload.plugin` does not set `is_reloading_f` (**read**). Only the `<plugin>:plugin.reloading.set` API
   does, and only the `reload` command (`_command_reload` in the pluginm plugin) calls it.
   Calling `reload.plugin` directly drops `attributes_to_save_on_reload`. The reload probe
-  called `set.reload` first.
+  called `plugin.reloading.set` first.
 - A plugin whose unload fails part-way is left flagged loaded (**read**). Nothing is
   half-removed, because the failing hook runs before the base hook at priority 100, but the
   plugin keeps running with whatever its earlier `uninitialize` hooks already tore down.
@@ -209,7 +209,7 @@ priority.
 - The hook name is not validated. `@RegisterPluginHook("stats")` (commented out in the timers
   plugin) or a misspelled `"initialize"` is accepted and never runs.
 - The `_phook_` prefix is required to run but not to be registered, and the second lookup,
-  `_get_all_plugin_hook_functions` (behind the `get.plugin.hooks` API), ignores the prefix and
+  `_get_all_plugin_hook_functions` (behind the `plugin.hook.list` API), ignores the prefix and
   loses hooks that share a priority (PS-6).
 - A hook that raises in `__init__` fails the plugin; in `initialize` the loader unloads it
   (PS-1 shows what that leaves behind); in `uninitialize` the unload stops and returns `False`.
@@ -259,7 +259,7 @@ Corrected in [Plugin System](plugin_system.md) in this change:
 | Loading, steps 1 to 2 | `importlib.import_module` of the package, then of the class module | One `imputils.importmodule` of the `.plugin` module, which returns the module if already in `sys.modules`; then `patch()` for `_patch_base.py` |
 | Loading, step 6 | `ev_plugin_loaded` is raised when the plugin loads | Raised at the end of `initialize` (hook priority 91), and not at startup |
 | Initialization | `initialize` runs "after all plugins are loaded" | Per batch: import all, instantiate all, then `initialize` each in dependency order |
-| Saving | `ev_plugin_save` triggers the `save` hook | The `save.state` API runs the `save` hooks first, then raises `ev_<id>_save` and `ev_plugin_save` |
+| Saving | `ev_plugin_save` triggers the `save` hook | The `plugin.state.save` API runs the `save` hooks first, then raises `ev_<id>_save` and `ev_plugin_save` |
 | Unloading | Separate API removal and event unregistration steps | Both happen through the base `uninitialize` hook and the `ev_plugin_unloaded` handlers; order given in Q1 |
 | Reloading, step 4 | `importlib.reload(module)` | Modules are deleted from `sys.modules` and imported again; `importlib.reload` is not used |
 | Reloading, step 1 | Setting `attributes_to_save_on_reload` is enough | Only cached when `is_reloading_f` is set (the `reload` command does it) and restored by the loader right after construction (`restore_reload_cache`) |
@@ -382,7 +382,7 @@ the first.
 `Plugin.__init__`).
 
 **Evidence (verified):** A plugin with `self.attributes_to_save_on_reload = ["counter"]` and
-`self.counter = 0` after `super().__init__()`: set `counter = 41`, ran `set.reload` and
+`self.counter = 0` after `super().__init__()`: set `counter = 41`, ran `plugin.reloading.set` and
 `reload.plugin`; the new instance printed `counter restored 0`. Bundled plugins avoid this by
 setting both the list and the defaults in an `__init__` hook below priority 75
 (`_phook_init_plugin` in the clients, proxy and commands plugins). The documented example
@@ -417,7 +417,7 @@ before any plugin loads. The other lines fail quietly.
 `PLUGIN_DEPENDENCIES` (comments and quoting then do not matter), record a bad value in
 `import_errors` for that plugin and carry on.
 
-### PS-6: `get.plugin.hooks` drops hooks that share a priority
+### PS-6: `plugin.hook.list` drops hooks that share a priority
 
 **Status:** fixed in the PR for #126; both lookups now share `_collect_plugin_hook_functions`.
 
@@ -426,12 +426,12 @@ before any plugin loads. The other lines fail quietly.
 `if ... not in` block).
 
 **Evidence (verified):** For a plugin with two `initialize` hooks at priority 50,
-`get.plugin.hooks` listed only `_phook_base_post_initialize_add_reset_command` at 50, while the
+`plugin.hook.list` listed only `_phook_base_post_initialize_add_reset_command` at 50, while the
 real run list (`_get_plugin_hook_functions`) had both. The API is the only way to see hooks
 from outside, and the two lookups also disagree on the `_phook_` prefix.
 
 **Fix:** Move the `append` out of the `if`; make both methods one function; add tests for
-priority order, tie order and `get.plugin.hooks`.
+priority order, tie order and `plugin.hook.list`.
 
 ### PS-7: `patch()` has silent failure modes and one user
 

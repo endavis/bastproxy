@@ -109,7 +109,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _collect_plugin_hook_functions(self, obj, plugin_hook=None) -> dict:
         """Collect the hook functions registered on obj.
 
-        This is the one lookup behind both the run list and get.plugin.hooks.
+        This is the one lookup behind both the run list and plugin.hook.list.
         Only methods whose name starts with _phook_ count, as only those run.
         Hooks that share a priority are all kept, in dir() (alphabetical) order.
 
@@ -203,18 +203,18 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         return False
 
-    @AddAPI("get.data.directory", description="get the data directory for this plugin")
-    def _api_get_data_directory(self):
+    @AddAPI("data.directory.get", description="get the data directory for this plugin")
+    def _api_data_directory_get(self):
         """Get the data directory for this plugin."""
         return self.plugin_info.data_directory
 
-    @AddAPI("set.reload", description="set the reload flag")
-    def _api_set_reload(self):
+    @AddAPI("plugin.reloading.set", description="set the reload flag")
+    def _api_plugin_reloading_set(self):
         """Set the reload flag."""
         self.is_reloading_f = True
 
-    @AddAPI("get.plugin.hooks", description="get the plugin hooks for this plugin")
-    def _api_get_plugin_hooks(self):
+    @AddAPI("plugin.hook.list", description="get the plugin hooks for this plugin")
+    def _api_plugin_hook_list(self):
         """Get the plugin hooks for this plugin."""
         return self._get_all_plugin_hook_functions()
 
@@ -257,8 +257,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         return None
 
-    @AddAPI("dump", description="dump this plugin or a specific attribute to a string")
-    def _api_dump(self, attribute_name, detailed=False):
+    @AddAPI("plugin.dump", description="dump this plugin or a specific attribute to a string")
+    def _api_plugin_dump(self, attribute_name, detailed=False):
         """Dump this plugin or a specific attribute to a string.
 
         @Yobj@w    = the object to inspect
@@ -345,7 +345,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 self.plugin_id, "_version", new_plugin_version
             )
 
-            self.api(f"{self.plugin_id}:save.state")()
+            self.api(f"{self.plugin_id}:plugin.state.save")()
 
     @RegisterPluginHook("initialize", priority=91)
     def _phook_base_post_initialize_setup(self):
@@ -424,7 +424,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         should be the last thing done in uninitialize
         """
         # save the state
-        self.api(f"{self.plugin_id}:save.state")()
+        self.api(f"{self.plugin_id}:plugin.state.save")()
 
         # save data for reloading
         if self.is_reloading_f:
@@ -466,8 +466,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def initialize(self):
         self._process_plugin_hook("initialize")
 
-    @AddAPI("save.state", "Save the state of the plugin")
-    def _api_save_state(self):
+    @AddAPI("plugin.state.save", "Save the state of the plugin")
+    def _api_plugin_state_save(self):
         """Save the state of the plugin."""
         self._process_plugin_hook("save")
         self.api("plugins.core.events:raise.event")(f"ev_{self.plugin_id}_save")
@@ -475,8 +475,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             "ev_plugin_save", event_args={"plugin_id": self.plugin_id}
         )
 
-    @AddAPI("reset", "reset the plugin")
-    def _api_reset(self):
+    @AddAPI("plugin.reset", "reset the plugin")
+    def _api_plugin_reset(self):
         """Reset the plugin."""
         processed_event = self.api("plugins.core.events:raise.event")(
             "ev_plugin_reset",

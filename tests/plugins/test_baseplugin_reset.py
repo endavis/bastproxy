@@ -1,4 +1,4 @@
-"""Regression tests for BasePlugin._api_reset (#176)."""
+"""Regression tests for BasePlugin._api_plugin_reset (#176)."""
 
 from collections.abc import Callable
 from types import SimpleNamespace
@@ -26,9 +26,9 @@ def test_reset_returns_plugins_that_acted() -> None:
         return SimpleNamespace(event_data=event_args)
 
     stub: Any = _Stub({RAISE_API: raise_event})
-    assert stub._api_reset() == ["plugins.core.settings"]
+    assert stub._api_plugin_reset() == ["plugins.core.settings"]
 
 
 def test_reset_with_no_event_result_returns_empty_list() -> None:
     stub: Any = _Stub({RAISE_API: lambda *_a, **_k: None})
-    assert stub._api_reset() == []
+    assert stub._api_plugin_reset() == []

@@ -39,14 +39,14 @@ def _names(funcs: list[Any]) -> list[str]:
 
 
 def test_same_priority_hooks_all_listed() -> None:
-    """Both hooks at priority 50 appear in get.plugin.hooks."""
-    hooks = _Hooked()._api_get_plugin_hooks()
+    """Both hooks at priority 50 appear in plugin.hook.list."""
+    hooks = _Hooked()._api_plugin_hook_list()
     assert set(_names(hooks["t126"][50])) == {"_phook_a", "_phook_b"}
 
 
 def test_priority_order_ascending() -> None:
     """Priorities come out lowest first."""
-    hooks = _Hooked()._api_get_plugin_hooks()
+    hooks = _Hooked()._api_plugin_hook_list()
     assert list(hooks["t126"]) == [10, 50, 90]
 
 
@@ -54,7 +54,7 @@ def test_tie_order_is_alphabetical_and_stable() -> None:
     """Ties keep method-name order, identically on every call."""
     plugin = _Hooked()
     for _ in range(3):
-        assert _names(plugin._api_get_plugin_hooks()["t126"][50]) == [
+        assert _names(plugin._api_plugin_hook_list()["t126"][50]) == [
             "_phook_a",
             "_phook_b",
         ]
@@ -62,14 +62,14 @@ def test_tie_order_is_alphabetical_and_stable() -> None:
 
 def test_unprefixed_method_ignored() -> None:
     """A method without the _phook_ prefix never runs, so it is not listed."""
-    hooks = _Hooked()._api_get_plugin_hooks()
+    hooks = _Hooked()._api_plugin_hook_list()
     assert 1 not in hooks["t126"]
 
 
 def test_get_plugin_hooks_matches_run_list() -> None:
-    """get.plugin.hooks lists what _get_plugin_hook_functions runs."""
+    """plugin.hook.list lists what _get_plugin_hook_functions runs."""
     plugin = _Hooked()
-    all_hooks = plugin._api_get_plugin_hooks()
+    all_hooks = plugin._api_plugin_hook_list()
     assert {"t126", "t126b"} <= set(all_hooks)
     assert "__init__" in all_hooks  # base plugin hooks are listed too
     for hook, expected in all_hooks.items():

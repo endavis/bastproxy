@@ -5,12 +5,12 @@ from bastproxy.plugins.core.settings.plugin._settings import SettingsPlugin
 
 
 def test_settings_plugin_does_not_shadow_base_reset() -> None:
-    assert SettingsPlugin._api_reset is BasePlugin._api_reset
+    assert SettingsPlugin._api_plugin_reset is BasePlugin._api_plugin_reset
 
 
 def test_settings_reset_has_its_own_method_name() -> None:
     assert callable(SettingsPlugin._api_setting_reset)
-    assert SettingsPlugin._api_setting_reset is not BasePlugin._api_reset
+    assert SettingsPlugin._api_setting_reset is not BasePlugin._api_plugin_reset
 
 
 def test_setting_reset_restores_defaults_and_syncs() -> None:

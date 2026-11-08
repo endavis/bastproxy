@@ -35,7 +35,7 @@ def test_command_help_not_clobbered() -> None:
 
 
 def test_hook_registered_at_priority_75() -> None:
-    hooks = _Stub({})._api_get_plugin_hooks()["initialize"]
+    hooks = _Stub({})._api_plugin_hook_list()["initialize"]
     assert [f.__name__ for f in hooks[75]] == ["_phook_settings_post_initialize"]
     assert {1, 50, 90, 91} <= set(hooks)
 
