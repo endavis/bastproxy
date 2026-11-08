@@ -49,7 +49,7 @@ def test_set_command_data() -> None:
 
 def test_hook_initializes_settings() -> None:
     init = MagicMock()
-    stub: Any = _Stub({"libs.api:has": lambda _n: True, INIT_API: init})
+    stub: Any = _Stub({"libs.api:api.exists": lambda _n: True, INIT_API: init})
     stub._phook_settings_post_initialize()
     init.assert_called_once_with("plugins.test.stub")
     assert stub.reset_f is False
@@ -57,7 +57,7 @@ def test_hook_initializes_settings() -> None:
 
 def test_hook_without_settings_plugin_is_a_noop() -> None:
     init = MagicMock()
-    stub: Any = _Stub({"libs.api:has": lambda _n: False, INIT_API: init})
+    stub: Any = _Stub({"libs.api:api.exists": lambda _n: False, INIT_API: init})
     stub._phook_settings_post_initialize()
     init.assert_not_called()
     assert stub.reset_f is False

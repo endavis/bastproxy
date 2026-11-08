@@ -328,7 +328,7 @@ class TimersPlugin(BasePlugin):
 
         returns an Event instance
         """
-        plugin_id: str = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+        plugin_id: str = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if "plugin_id" in kwargs:
             given = kwargs.pop("plugin_id")

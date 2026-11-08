@@ -18,7 +18,7 @@ def _stub() -> tuple[MagicMock, list[str]]:
 
     def api(name: str) -> Any:
         looked_up.append(name)
-        if name == "libs.api:get.caller.owner":
+        if name == "libs.api:caller.owner.get":
             return lambda **_kw: "plugins.test.caller"
         if name == "libs.plugins.loader:get.plugin.instance":
             return lambda _plugin_id: None

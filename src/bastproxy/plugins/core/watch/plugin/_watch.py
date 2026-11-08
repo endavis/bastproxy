@@ -108,7 +108,7 @@ class WatchPlugin(BasePlugin):
         this function returns no values
         """
         if not owner:
-            owner = self.api("libs.api:get.caller.owner")(ignore_owner_list=[self.plugin_id])
+            owner = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner:
             LogRecord(

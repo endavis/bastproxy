@@ -37,7 +37,7 @@ def _stub(
             return lambda _pid, setting: values[setting]
         if name == "plugins.core.settings:setting.is.hidden":
             return lambda _pid, _setting: hidden
-        if name == "libs.api:has":
+        if name == "libs.api:api.exists":
             return lambda _name: True
         if name == "plugins.core.events:event.raise":
             return raise_event

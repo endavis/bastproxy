@@ -1,6 +1,6 @@
 """Tests that API helper functions do not keep references to their arguments.
 
-Caching `_api_get_function_owner_plugin` and `get_args` with `lru_cache` kept
+Caching `_api_function_owner_get` and `get_args` with `lru_cache` kept
 bound methods (and so their instances) and functions (and so their modules)
 alive after a plugin was unloaded.
 
@@ -66,24 +66,24 @@ def _make_api() -> API:
 
 
 class TestOwnerLookup:
-    """Tests for `API._api_get_function_owner_plugin`."""
+    """Tests for `API._api_function_owner_get`."""
 
     def test_bound_method_returns_plugin_id(self) -> None:
         """A bound method of an object with plugin_id returns that id."""
         api = _make_api()
-        assert api._api_get_function_owner_plugin(_Plugin().method) == "my_plugin"
+        assert api._api_function_owner_get(_Plugin().method) == "my_plugin"
 
     def test_plain_function_returns_unknown(self) -> None:
         """A plain function has no owner."""
         api = _make_api()
-        assert api._api_get_function_owner_plugin(_plain_function) == "unknown"
+        assert api._api_function_owner_get(_plain_function) == "unknown"
 
     def test_instance_not_kept_alive(self) -> None:
         """The looked-up instance can be garbage collected."""
         api = _make_api()
         obj = _Plugin()
         ref = weakref.ref(obj)
-        api._api_get_function_owner_plugin(obj.method)
+        api._api_function_owner_get(obj.method)
         del obj
         gc.collect()
         assert ref() is None
@@ -95,7 +95,7 @@ class TestOwnerLookup:
         exec("def func():\n    return 1\n", module.__dict__)
         func = module.func
         ref = weakref.ref(func)
-        api._api_get_function_owner_plugin(func)
+        api._api_function_owner_get(func)
         del func, module
         gc.collect()
         assert ref() is None

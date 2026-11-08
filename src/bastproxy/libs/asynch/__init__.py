@@ -227,7 +227,7 @@ class QueueManager:
         # holds the asyncio tasks to start after plugin initialization
         self.task_queue: asyncio.Queue[TaskItem] = asyncio.Queue()
         self.api = BASEAPI(owner_id=f"{__name__}:QueueManager")
-        self.api("libs.api:add")("libs.asynch", "task.add", self._api_task_add)
+        self.api("libs.api:api.add")("libs.asynch", "task.add", self._api_task_add)
 
     # add a task to the asyncio_tasks queue
     def _api_task_add(

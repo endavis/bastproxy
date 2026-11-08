@@ -126,7 +126,7 @@ class PluginLoader:
             }
         )
 
-        self.api("libs.api:add.apis.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(__name__, self)
 
     @AddAPI(
         "get.unloaded.plugins.in.memory",
@@ -1077,7 +1077,7 @@ class PluginLoader:
 
         """
         try:
-            if self.api("libs.api:has")("plugins.core.events:event.raise"):
+            if self.api("libs.api:api.exists")("plugins.core.events:event.raise"):
                 self.api("plugins.core.events:event.raise")(
                     "ev_plugin_unloaded", event_args={"plugin_id": plugin_id}
                 )
@@ -1090,7 +1090,7 @@ class PluginLoader:
             )()
 
         try:
-            self.api("libs.api:remove")(plugin_id)
+            self.api("libs.api:api.toplevel.remove")(plugin_id)
         except Exception:  # pylint: disable=broad-except
             LogRecord(
                 f"could not remove the apis for {plugin_id}",

@@ -60,7 +60,7 @@ class Settings(Protocol):
         """Setup the settings for the plugin."""
         self.reset_f = False
 
-        if not self.api("libs.api:has")(SETTINGS_INIT_API):
+        if not self.api("libs.api:api.exists")(SETTINGS_INIT_API):
             LogRecord(
                 f"{self.plugin_id}: settings plugin not available, skipping settings init",
                 level="debug",

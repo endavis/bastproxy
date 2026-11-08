@@ -133,7 +133,7 @@ class _Scanner(ast.NodeVisitor):
             isinstance(func, ast.Call)
             and _is_api_callable(func.func)
             and func.args
-            and _const_str(func.args[0]) == "libs.api:add"
+            and _const_str(func.args[0]) == "libs.api:api.add"
         ):
             self._add_call(node)
         # api("literal")
@@ -200,7 +200,7 @@ def test_scan_is_not_vacuous() -> None:
     calls, registered, patterns, _ = _collect()
     assert len(calls) >= 100
     for known in (
-        "libs.api:get.caller.owner",
+        "libs.api:caller.owner.get",
         "libs.plugins.loader:unload.plugin",
         "plugins.core.pluginm:save.all.plugins.state",
         "libs.asynch:task.add",

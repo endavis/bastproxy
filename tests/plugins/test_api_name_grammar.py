@@ -192,7 +192,7 @@ class _Scanner(ast.NodeVisitor):
             isinstance(func, ast.Call)
             and _is_api_callable(func.func)
             and func.args
-            and _const_str(func.args[0]) == "libs.api:add"
+            and _const_str(func.args[0]) == "libs.api:api.add"
         ):
             self._add_call(node)
         self.generic_visit(node)
@@ -246,20 +246,6 @@ def appendix_rows() -> list[tuple[Key, str, str]]:
 #           or a noun in the qualifier), which the ADR leaves to review.
 # ---------------------------------------------------------------------------
 LEGACY_NAMES: dict[Key, str] = {
-    # libs.api
-    ("libs.api", "add"): "shape",
-    ("libs.api", "add.apis.for.object"): "shape",
-    ("libs.api", "detail"): "shape",
-    ("libs.api", "get.caller.owner"): "shape",
-    ("libs.api", "get.children"): "shape",
-    ("libs.api", "get.function.owner.plugin"): "shape",
-    ("libs.api", "has"): "shape",
-    ("libs.api", "is.character.active"): "shape",
-    ("libs.api", "is.character.active:set"): "shape",
-    ("libs.api", "list"): "shape",
-    ("libs.api", "list.data"): "shape",
-    ("libs.api", "remove"): "shape",
-    ("libs.api", "stackdump"): "shape",
     # libs.plugins.loader
     ("libs.plugins.loader", "does.plugin.exist"): "shape",
     ("libs.plugins.loader", "fuzzy.match.plugin.id"): "review",  # rules 3/5, left to review
@@ -504,7 +490,7 @@ def test_scan_is_not_vacuous() -> None:
     for key in [
         ("libs.asynch", "task.add"),
         ("plugins.core.pluginm", "save.all.plugins.state"),
-        ("libs.api", "add"),
+        ("libs.api", "api.add"),
         ("plugins._baseplugin", "data.get"),
         ("plugins.core.sqldb", "{database_name}.select"),
     ]:

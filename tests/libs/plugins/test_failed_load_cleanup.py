@@ -279,9 +279,9 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
         env = _Env(loader, world, {})
         env.routes.update(
             {
-                "libs.api:remove": env.real_api("libs.api:remove"),
+                "libs.api:api.toplevel.remove": env.real_api("libs.api:api.toplevel.remove"),
                 # the fake events API is not in the real API, so report it present
-                "libs.api:has": lambda _name: True,
+                "libs.api:api.exists": lambda _name: True,
                 "plugins.core.events:event.raise": world.raise_event,
                 "unload.plugin": loader._api_unload_plugin,
                 "plugins.core.settings:setting.get": lambda _owner, name: list(settings[name]),
@@ -302,7 +302,7 @@ def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Cal
     yield _factory
     for env in envs:
         if env.stale_api_keys():
-            env.real_api("libs.api:remove")(PLUGIN_ID)
+            env.real_api("libs.api:api.toplevel.remove")(PLUGIN_ID)
     for name in [n for n in sys.modules if n == ROOT_PKG or n.startswith(f"{ROOT_PKG}.")]:
         del sys.modules[name]
 
@@ -389,9 +389,9 @@ def test_cleanup_skips_event_when_events_api_missing(
     env = cleanup_env(_INIT_FAIL)
     raise_event = MagicMock()
     remove = MagicMock()
-    env.routes["libs.api:has"] = lambda _name: False
+    env.routes["libs.api:api.exists"] = lambda _name: False
     env.routes["plugins.core.events:event.raise"] = raise_event
-    env.routes["libs.api:remove"] = remove
+    env.routes["libs.api:api.toplevel.remove"] = remove
 
     env.loader._api_load_plugins([PLUGIN_ID])
 

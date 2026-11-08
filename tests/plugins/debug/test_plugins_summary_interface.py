@@ -59,7 +59,7 @@ def _fake_api(name: str, requested: list[str]) -> Any:
         return lambda: {"plugin": "x"}
     if name == "libs.plugins.loader:get.loaded.plugins.list":
         return lambda: ["plugins.test.a"]
-    if name == "libs.api:has":
+    if name == "libs.api:api.exists":
         return lambda api: True
     if name == "plugins.core.commands:output.header.format":
         return lambda *a: ["H"]

@@ -56,7 +56,7 @@ class UpdateRecord:
         self.actor = self.find_relevant_actor(self.stack)
         self.event_stack = []
         with contextlib.suppress(Exception):
-            if self.api("libs.api:has")("plugins.core.events:event.stack.get"):
+            if self.api("libs.api:api.exists")("plugins.core.events:event.stack.get"):
                 self.event_stack = self.api("plugins.core.events:event.stack.get")()
 
     def __hash__(self):

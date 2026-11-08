@@ -205,7 +205,7 @@ class NetworkDataLine(BaseRecord):
         if not self.is_io:
             return
 
-        if not self.api("libs.api:has")("plugins.core.colors:colorcode.to.ansicode"):
+        if not self.api("libs.api:api.exists")("plugins.core.colors:colorcode.to.ansicode"):
             return
 
         if self.color and isinstance(self.line, str):

@@ -113,7 +113,7 @@ class Commands(Protocol):
             cmd_output = self.api("plugins.core.commands:command.list.formatted")(self.plugin_id)
             msg.extend(cmd_output)
             msg.extend(("@G" + "-" * 60 + "@w", ""))
-        if args["api"] and (api_list := self.api("libs.api:list")(self.plugin_id)):
+        if args["api"] and (api_list := self.api("libs.api:api.list.formatted")(self.plugin_id)):
             msg.extend((f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w"))
             msg.extend(api_list)
         return True, msg

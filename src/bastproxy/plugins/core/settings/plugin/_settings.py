@@ -117,7 +117,7 @@ class SettingsPlugin(BasePlugin):
                     self.settings_values[plugin_id][setting],
                     self.settings_info[plugin_id][setting].stype,
                 )
-                if self.api("libs.api:has")("plugins.core.utils:verify.value")
+                if self.api("libs.api:api.exists")("plugins.core.utils:verify.value")
                 else self.settings_values[plugin_id][setting]
             )
 
@@ -202,7 +202,7 @@ class SettingsPlugin(BasePlugin):
 
         event_name = f"ev_{plugin_id}_var_{setting}_modified"
 
-        if self.api("libs.api:has")("plugins.core.events:event.raise"):
+        if self.api("libs.api:api.exists")("plugins.core.events:event.raise"):
             self.api("plugins.core.events:event.raise")(
                 event_name,
                 event_args={

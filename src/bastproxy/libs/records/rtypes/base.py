@@ -51,7 +51,7 @@ class BaseRecord(AttributeMonitor):
         self.column_width = 15
         stack = traceback.format_stack(limit=10)
         self.stack_at_creation = self.fix_stack(stack)
-        if self.api("libs.api:has")("plugins.core.events:event.stack.get"):
+        if self.api("libs.api:api.exists")("plugins.core.events:event.stack.get"):
             self.event_stack = self.api("plugins.core.events:event.stack.get")()
         else:
             self.event_stack = ["No event stack available"]
@@ -555,7 +555,7 @@ class BaseListRecord(UserList, BaseRecord):
         actor is the item that ran the color function
         """
         new_message: list[str] = []
-        if not self.api("libs.api:has")("plugins.core.colors:colorcode.to.ansicode"):
+        if not self.api("libs.api:api.exists")("plugins.core.colors:colorcode.to.ansicode"):
             return
         for line in self.data:
             colored_line = line
