@@ -133,6 +133,7 @@ The repo admin decided on 2026-11-09:
 - #43 (replace the attribute monitor with pydatatracker)
 - #246 (dict records, slice 2)
 - #247 (`LogRecord` replaced by plain logging, slice 3)
+- #248 (processing records off `AttributeMonitor`, slice 4; implements points 2 and 10 in [Record System](../claude/record_system.md#updates))
 - #249 (retention by root tree, slice 5; implementation in [Record System: RecordManager](../claude/record_system.md#recordmanager))
 - #47, #48 (lock and in-place mutations)
 - #80 to #85 (follow-ups filed with #79; #80, #84 and #85 are closed)

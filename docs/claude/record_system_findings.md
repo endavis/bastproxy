@@ -22,6 +22,9 @@ costs, test coverage, docs accuracy and patterns (audit issue #106). Compared ag
 `AttributeMonitor`, `UpdateRecord` and `UpdateManager` are read only to fill the mutation table (Q1).
 #43 replaces them with pydatatracker, so they get no pattern review and no coverage work here.
 
+> Resolved by #248: `AttributeMonitor`, `UpdateRecord`, `UpdateManager`, `TrackedUserList` and
+> `BaseListRecord` are deleted. The sections below describe the code at the audit's base commit.
+
 Requirements decided in [ADR-0005](../decisions/0005-record-tracking-scope-change-contents-retention-and-cost.md).
 
 ## Table of Contents
@@ -144,7 +147,7 @@ Every item in the issue's list, with its current state.
 Output: `out-q1.txt` from the mutation script. "Tracked" means the operation added an `UpdateRecord`
 (flag in brackets). "Respects lock" is tested after `lock()`: **yes** means the change was refused and an
 `Info` update says so, **no** means the data changed anyway. The checking rules are in
-[Attribute Monitoring](record_system.md#attribute-monitoring).
+the Attribute Monitoring section of [Record System](record_system.md), removed in #248.
 
 ### `NetworkDataLine`
 

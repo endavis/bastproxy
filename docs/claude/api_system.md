@@ -135,7 +135,7 @@ The top-level API typically corresponds to the plugin or module that owns the fu
 
 The part of an owner ID before the first `:` is either a plugin ID (`plugins.core.events`) or a library toplevel, the module path under `bastproxy` with no `bastproxy.` prefix (`libs.timing`, `libs.net.client`). A library owner ID takes the same form as its API toplevel, so statistics, `calls_by_caller` and `libs.api:function.owner.get` share one namespace (#202).
 
-- Exceptions: `mudproxy` (the proxy's own logging owner) and records use their bare class name (`UpdateRecord`, `NetworkDataLine`) as owner ID, so record stats are one key per class (#232).
+- Exceptions: `mudproxy` (the proxy's own logging owner) and records use their bare class name (`NetworkDataLine`, `ProcessDataToClient`) as owner ID, so record stats are one key per class (#232).
 - Plugin-internal modules use their plugin ID so stats group under the plugin: events use `plugins.core.events:<event name>`, the log handlers `plugins.core.log:<Handler>`.
 - Write toplevels and owner IDs as explicit strings, never from `__name__`. `__name__` carries the `bastproxy.` prefix, and the API no longer strips it. `tests/libs/test_api_owner_namespace.py` scans `src` for this.
 - `function.owner.get` returns `__self__.plugin_id` when the callable has one. Otherwise it returns the `owner_id` of the registered `APIItem` whose function is the callable, and `unknown` when it is not registered.

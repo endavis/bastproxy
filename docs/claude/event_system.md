@@ -129,6 +129,8 @@ self.api("plugins.core.events:event.add")(
 )
 ```
 
+The four events the processing records raise (`ev_to_client_data_modify`, `ev_to_client_data_read`, `ev_to_mud_data_modify` and `ev_to_mud_data_read`) are registered once, when the events plugin initializes, from `RECORD_EVENTS` in `src/bastproxy/libs/records/events.py`. Creating a record makes no `event.add` call.
+
 ### 3. Event Raising
 
 Events are raised by calling the `event.raise` API:
@@ -171,8 +173,8 @@ def raise_priority(self, priority, already_done: bool) -> bool:
 
 ### 5. Event Stack
 
-The event system maintains a stack of currently active events:
-- Accessible via `api("plugins.core.events:event.stack.get")()`
+The names of the events being raised are held in the `event_stack` context variable (`src/bastproxy/libs/context.py`), which `event.raise` sets for the duration of the raise and resets also when a callback raises:
+- Accessible via `api("plugins.core.events:event.stack.get")()`, which returns a list, outermost first
 - Used to track the chain of events that led to the current execution
 - Helpful for debugging and understanding event flow
 
