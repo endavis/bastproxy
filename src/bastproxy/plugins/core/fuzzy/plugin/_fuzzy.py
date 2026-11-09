@@ -19,7 +19,7 @@ except ImportError:
 
 # Project
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin
 
 
@@ -62,49 +62,38 @@ class FuzzyPlugin(BasePlugin):
         """
         found = ""
         scorer_inst = rapidfuzz.fuzz.__dict__[scorer]
-        LogRecord(
-            f"_api_string_match_best - {item_to_match=}, {scorer=} {score_cutoff=}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
-        LogRecord(
-            f"_api_string_match_best - {list_to_match=}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "_api_string_match_best - item_to_match=%r, scorer=%r score_cutoff=%r",
+            item_to_match,
+            scorer,
+            score_cutoff,
+        )
+        get_logger(self.plugin_id).debug("_api_string_match_best - list_to_match=%r", list_to_match)
 
         if item_to_match in list_to_match:
-            LogRecord(
-                f"_api_string_match_best (exact) matched {item_to_match} to {found}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_api_string_match_best (exact) matched %s to %s", item_to_match, found
+            )
             return item_to_match
 
         matching_startswith = [i for i in list_to_match if i.startswith(item_to_match)]
         if len(matching_startswith) == 1:
             found = matching_startswith[0]
-            LogRecord(
-                f"_api_string_match_best (startswith) matched {item_to_match} to {found}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_api_string_match_best (startswith) matched %s to %s", item_to_match, found
+            )
         else:
             sorted_extract = sort_fuzzy_result(
                 rapidfuzz.process.extract(item_to_match, list_to_match, scorer=scorer_inst)
             )
-            LogRecord(
-                f"_api_string_match_best - extract for {item_to_match} - {sorted_extract}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_api_string_match_best - extract for %s - %s", item_to_match, sorted_extract
+            )
             maxscore = max(sorted_extract.keys())
             if maxscore > score_cutoff and len(sorted_extract[maxscore]) == 1:
                 found = sorted_extract[maxscore][0]
-                LogRecord(
-                    f"_api_string_match_best - (score) matched {item_to_match} to {found}",
-                    level="debug",
-                    sources=[self.plugin_id],
+                get_logger(self.plugin_id).debug(
+                    "_api_string_match_best - (score) matched %s to %s", item_to_match, found
                 )
 
         return found
@@ -129,37 +118,30 @@ class FuzzyPlugin(BasePlugin):
         scorer_inst = rapidfuzz.fuzz.__dict__[scorer]
         found = []
 
-        LogRecord(
-            f"_api_string_match_top - {item_to_match =} {items =} {score_cutoff =}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
-        LogRecord(
-            f"_api_string_match_top - list_to_match: {list_to_match}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "_api_string_match_top - item_to_match =%r items =%r score_cutoff =%r",
+            item_to_match,
+            items,
+            score_cutoff,
+        )
+        get_logger(self.plugin_id).debug("_api_string_match_top - list_to_match: %s", list_to_match)
 
         extract = rapidfuzz.process.extract(
             item_to_match, list_to_match, scorer=scorer_inst, limit=items
         )
         sorted_extract = sort_fuzzy_result(extract)
 
-        LogRecord(
-            f"_api_string_match_top - extract for {item_to_match} - {sorted_extract}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "_api_string_match_top - extract for %s - %s", item_to_match, sorted_extract
+        )
         for i in sorted(sorted_extract.keys(), reverse=True):
             if i > score_cutoff:
                 found.extend(sorted_extract[i])
             if len(found) >= items:
                 break
 
-        LogRecord(
-            f"_api_string_match_top - (score) matched {item_to_match} to {found}",
-            level="debug",
-            sources=[self.plugin_id],
+        get_logger(self.plugin_id).debug(
+            "_api_string_match_top - (score) matched %s to %s", item_to_match, found
         )
 
         return found

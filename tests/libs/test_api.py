@@ -373,7 +373,7 @@ class TestAPIOverwriting:
         """Two unknown-caller calls log one stack dump but both are counted (#198)."""
         item = APIStatItem("test:once")
 
-        with patch("bastproxy.libs.records.LogRecord") as log_record:
+        with patch("bastproxy.libs.api._apistats.logger.warning") as log_record:
             item.add_call("unknown")
             item.add_call("unknown")
 
@@ -387,7 +387,7 @@ class TestAPIOverwriting:
         first = APIStatItem("test:first")
         second = APIStatItem("test:second")
 
-        with patch("bastproxy.libs.records.LogRecord") as log_record:
+        with patch("bastproxy.libs.api._apistats.logger.warning") as log_record:
             first.add_call("unknown")
             second.add_call("unknown")
 
@@ -397,7 +397,7 @@ class TestAPIOverwriting:
         """A known caller never logs a stack dump."""
         item = APIStatItem("test:known")
 
-        with patch("bastproxy.libs.records.LogRecord") as log_record:
+        with patch("bastproxy.libs.api._apistats.logger.warning") as log_record:
             item.add_call("plugins.a")
 
         log_record.assert_not_called()

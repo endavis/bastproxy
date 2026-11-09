@@ -14,8 +14,11 @@ from typing import TYPE_CHECKING
 # 3rd Party
 # Project
 from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.stack import SimpleStack
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -39,8 +42,6 @@ class RecordManager:
         self.api = BASEAPI(owner_id="libs.records.managers.records")
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
-        # don't show these records in detailed output
-        self.default_filter = ["LogRecord"]
 
     def start(self, record):
         """Start tracking a new active record by pushing it onto the stack.
@@ -59,11 +60,10 @@ class RecordManager:
 
         """
         if record != self.active_record_stack.peek():
-            from bastproxy.libs.records import LogRecord
-
-            LogRecord(
-                f"RecordManger end: Record {record} is not the same as the active record {self.active_record_stack.peek()}",
-                level="warning",
+            logger.warning(
+                "RecordManger end: Record %s is not the same as the active record %s",
+                record,
+                self.active_record_stack.peek(),
             )
             self.active_record_stack.remove(record)
         else:
@@ -91,8 +91,7 @@ class RecordManager:
         """
         if not record_filter:
             record_filter = []
-        rfilter = self.default_filter[:]
-        rfilter.extend(record_filter)
+        rfilter = list(record_filter)
         return list(
             {
                 rec
@@ -115,8 +114,7 @@ class RecordManager:
         """
         if not record_filter:
             record_filter = []
-        rfilter = self.default_filter[:]
-        rfilter.extend(record_filter)
+        rfilter = list(record_filter)
         children = self.get_children(record, record_filter)
         children.sort()
         return {
@@ -138,8 +136,6 @@ class RecordManager:
         """
         if not record_filter:
             record_filter = []
-        rfilter = self.default_filter[:]
-        rfilter.extend(record_filter)
         children = self.get_all_children_dict(record, record_filter)
         return self.api("plugins.core.utils:dict.key.list")(children)
 
@@ -156,8 +152,7 @@ class RecordManager:
         """
         if not record_filter:
             record_filter = []
-        rfilter = self.default_filter[:]
-        rfilter.extend(record_filter)
+        rfilter = list(record_filter)
         children = self.get_all_children_dict(record, rfilter)
         return [
             f"{'       ' * 0}{record.one_line_summary()}",
@@ -185,8 +180,7 @@ class RecordManager:
         emptybar[indent] = False
         if not record_filter:
             record_filter = []
-        rfilter = self.default_filter[:]
-        rfilter.extend(record_filter)
+        rfilter = list(record_filter)
         output = output or []
         all_children = list(children.keys())
         pre_string = "".join("    " if emptybar[i] else " |  " for i in range(indent))
@@ -209,12 +203,9 @@ class RecordManager:
         if queuename not in self.records:
             self.records[queuename] = SimpleQueue(self.max_records)
         if record.uuid in self.record_instances:
-            from bastproxy.libs.records import LogRecord
-
-            LogRecord(
-                f"Record UUID collision {record.uuid} already exists in the record manager",
-                level="error",
-            )()
+            logger.error(
+                "Record UUID collision %s already exists in the record manager", record.uuid
+            )
         self.records[queuename].enqueue(record)
         self.record_instances[record.uuid] = record
 

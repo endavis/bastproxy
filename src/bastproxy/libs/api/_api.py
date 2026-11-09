@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from bastproxy.libs.exceptions import APINotFoundError
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.scan import find_methods
 
 from ._apiitem import APIItem
@@ -53,7 +54,7 @@ from ._apistats import STATS_MANAGER
 from ._builtins import BUILTIN_APIS, BUILTIN_TOPLEVEL, InstanceAPIs
 from ._functools import get_caller_owner_id
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 APILOCATION = BUILTIN_TOPLEVEL
 
@@ -117,7 +118,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        self.log_level: str = "debug"
+        self.log_level: int = logging.DEBUG
 
         # the format for the time
         self.time_format: str = "%a %b %d %Y %H:%M:%S %Z"
@@ -148,36 +149,36 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        from bastproxy.libs.records import LogRecord
-
-        LogRecord(
-            f"_api_api_add_for_object: {item} {toplevel}",
-            level=self.log_level,
-            sources=[__name__, toplevel],
-        )()
+        log_to(
+            [__name__, toplevel], self.log_level, "_api_api_add_for_object: %s %s", item, toplevel
+        )
         api_functions = self.get_api_functions_in_object(item)
-        LogRecord(
-            f"_api_api_add_for_object: {toplevel}:{item} has {len(api_functions)} api functions",
-            level=self.log_level,
-            sources=[__name__, toplevel],
-        )()
+        log_to(
+            [__name__, toplevel],
+            self.log_level,
+            "_api_api_add_for_object: %s:%s has %s api functions",
+            toplevel,
+            item,
+            len(api_functions),
+        )
         if api_functions:
             names = [item.__name__ for item in api_functions]
-            LogRecord(
-                f"_api_api_add_for_object {names = }",
-                level=self.log_level,
-                sources=[__name__, toplevel],
-            )()
+            log_to(
+                [__name__, toplevel], self.log_level, "_api_api_add_for_object names = %r", names
+            )
             for func in api_functions:
                 if toplevel not in func.api["addedin"]:  # type: ignore
                     func.api["addedin"][toplevel] = []  # type: ignore
                 api_name = func.api["name"].format(**func.__self__.__dict__)  # type: ignore
                 if api_name not in func.api["addedin"][toplevel]:  # type: ignore
-                    LogRecord(
-                        f"Adding API {toplevel}:{api_name} with {func.__name__}",
-                        level=self.log_level,
-                        sources=[__name__, toplevel],
-                    )()
+                    log_to(
+                        [__name__, toplevel],
+                        self.log_level,
+                        "Adding API %s:%s with %s",
+                        toplevel,
+                        api_name,
+                        func.__name__,
+                    )
                     description = func.api["description"].format(  # type: ignore
                         **func.__self__.__dict__
                     )
@@ -194,11 +195,13 @@ class API:  # sourcery skip: upper-camel-case-classes
                     if not instance and added:
                         func.api["addedin"][toplevel].append(api_name)  # type: ignore
                 else:
-                    LogRecord(
-                        f"API {toplevel}:{api_name} already added",
-                        level=self.log_level,
-                        sources=[__name__, toplevel],
-                    )()
+                    log_to(
+                        [__name__, toplevel],
+                        self.log_level,
+                        "API %s:%s already added",
+                        toplevel,
+                        api_name,
+                    )
 
     def get_api_functions_in_object(
         self, base: Any, recurse: bool = True
@@ -381,18 +384,14 @@ class API:  # sourcery skip: upper-camel-case-classes
                 api_item.overwritten_api = self._class_api[full_api_name]
                 self._class_api[full_api_name] = api_item
             else:
-                try:
-                    from bastproxy.libs.records import LogRecord
-
-                    added_in = self._class_api[api_item.full_api_name].owner_id
-                    LogRecord(
-                        f"libs.api:api.add - {api_item.full_api_name} already exists from "
-                        f"plugin {added_in}",
-                        level="error",
-                        sources=[__name__, self.owner_id],
-                    )()
-                except ImportError:
-                    logger.error("libs.api:api.add - %s already exists", api_item.full_api_name)
+                added_in = self._class_api[api_item.full_api_name].owner_id
+                log_to(
+                    [__name__, self.owner_id],
+                    logging.ERROR,
+                    "libs.api:api.add - %s already exists from plugin %s",
+                    api_item.full_api_name,
+                    added_in,
+                )
                 return False
         else:
             self._class_api[api_item.full_api_name] = api_item
@@ -427,17 +426,13 @@ class API:  # sourcery skip: upper-camel-case-classes
                 api_item.instance = True
                 self._instance_api[api_item.full_api_name] = api_item
             else:
-                try:
-                    from bastproxy.libs.records import LogRecord
-
-                    LogRecord(
-                        f"libs.api:instance - {api_item.full_api_name} already exists "
-                        f"from plugin: {api_item.owner_id}",
-                        level="error",
-                        sources=[__name__, api_item.owner_id],
-                    )()
-                except ImportError:
-                    logger.error("libs.api:instance - %s already exists", api_item.full_api_name)
+                log_to(
+                    [__name__, api_item.owner_id],
+                    logging.ERROR,
+                    "libs.api:instance - %s already exists from plugin: %s",
+                    api_item.full_api_name,
+                    api_item.owner_id,
+                )
 
                 return False
 
@@ -510,22 +505,22 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        from bastproxy.libs.records import LogRecord
-
-        LogRecord(
-            f"libs.api:api.toplevel.remove - {top_level_api}",
-            level="debug",
-            sources=[__name__, top_level_api],
-        )()
+        log_to(
+            [__name__, top_level_api],
+            logging.DEBUG,
+            "libs.api:api.toplevel.remove - %s",
+            top_level_api,
+        )
         api_toplevel = f"{top_level_api}:"
 
         removed_funcs = self._toplevel_funcs(top_level_api)
         class_keys = [item for item in self._class_api if item.startswith(api_toplevel)]
-        LogRecord(
-            f"libs.api:api.toplevel.remove class api - {class_keys =}",
-            level="debug",
-            sources=[__name__, top_level_api],
-        )()
+        log_to(
+            [__name__, top_level_api],
+            logging.DEBUG,
+            "libs.api:api.toplevel.remove class api - class_keys =%r",
+            class_keys,
+        )
         for i in class_keys:
             # clean up decorated functions so that subclasses APIs can be reloaded
             # this affects apis that are part of a subclass, such as the baseplugin APIs
@@ -533,11 +528,12 @@ class API:  # sourcery skip: upper-camel-case-classes
             del self._class_api[i]
 
         instance_keys = [item for item in self._instance_api if item.startswith(api_toplevel)]
-        LogRecord(
-            f"libs.api:api.toplevel.remove instance api - {instance_keys =}",
-            level="debug",
-            sources=[__name__, top_level_api],
-        )()
+        log_to(
+            [__name__, top_level_api],
+            logging.DEBUG,
+            "libs.api:api.toplevel.remove instance api - instance_keys =%r",
+            instance_keys,
+        )
         for i in instance_keys:
             self._discard_addedin(self._instance_api[i].tfunction, top_level_api)
             del self._instance_api[i]

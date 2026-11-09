@@ -35,6 +35,7 @@ Classes:
 # Standard Library
 import contextlib
 import json
+import logging
 import os
 import pickle
 import shutil
@@ -45,7 +46,7 @@ from typing import TYPE_CHECKING, Any, Self
 # Third Party
 # Project
 from bastproxy.libs.api import API
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import log_to
 
 if TYPE_CHECKING:
     pass
@@ -342,12 +343,14 @@ class PersistentDict(dict):
             sources = [__name__]
             if self.owner_id:
                 sources.append(self.owner_id)
-            LogRecord(
-                f"Error when loading {self.format} from {self.file_name}",
-                level="error",
-                sources=sources,
+            log_to(
+                sources,
+                logging.ERROR,
+                "Error when loading %s from %s",
+                self.format,
+                self.file_name,
                 exc_info=True,
-            )()
+            )
 
         msg = "File not in a supported format"
         raise ValueError(msg)

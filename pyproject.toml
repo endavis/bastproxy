@@ -153,6 +153,7 @@ select = [
     "RUF",    # Ruff-specific rules
     "SIM",    # flake8-simplify
     "ASYNC",  # flake8-async
+    "G004",   # no f-strings in logging calls: use lazy % arguments
     "PLW1514",  # require explicit encoding on text-mode file I/O (preview rule)
 ]
 ignore = [

@@ -12,7 +12,7 @@ from pathlib import Path
 # 3rd Party
 # Project
 from bastproxy.libs.api import API, AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
@@ -42,11 +42,11 @@ class SSC:
             return first_line.strip()
         except OSError:
             if not quiet:
-                LogRecord(
-                    f"getss - Please set the {self.desc} with {self.api('plugins.core.commands:command.format')(self.plugin_id, self.name)}",
-                    level="warning",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).warning(
+                    "getss - Please set the %s with %s",
+                    self.desc,
+                    self.api("plugins.core.commands:command.format")(self.plugin_id, self.name),
+                )
 
         return self.default
 

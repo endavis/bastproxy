@@ -33,13 +33,14 @@ Classes:
 """
 
 # Standard Library
-import logging
 
 # Third Party
 # Project
+from bastproxy.libs.logger import get_logger
+
 from ._functools import stackdump
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class APIStatItem:
@@ -87,12 +88,7 @@ class APIStatItem:
                 )
             )
             stack.insert(0, "\n")
-            try:
-                from bastproxy.libs.records import LogRecord
-
-                LogRecord(stack, level="warning", sources=[__name__])()
-            except ImportError:
-                logger.warning("\n".join(stack))
+            logger.warning("%s", "\n".join(stack))
         if caller_id not in self.detailed_calls:
             self.detailed_calls[caller_id] = 0
         self.detailed_calls[caller_id] += 1

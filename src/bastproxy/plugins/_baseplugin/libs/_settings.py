@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Protocol
 # 3rd Party
 # Project
 from bastproxy.libs import argp
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
 from ._pluginhooks import RegisterPluginHook
@@ -61,11 +61,9 @@ class Settings(Protocol):
         self.reset_f = False
 
         if not self.api("libs.api:api.exists")(SETTINGS_INIT_API):
-            LogRecord(
-                f"{self.plugin_id}: settings plugin not available, skipping settings init",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "%s: settings plugin not available, skipping settings init", self.plugin_id
+            )
             return
 
         self.api(SETTINGS_INIT_API)(self.plugin_id)

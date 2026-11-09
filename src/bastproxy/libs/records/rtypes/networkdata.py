@@ -14,8 +14,10 @@ from pydatatracker import TrackedAttr, TrackedList
 
 # Project
 from bastproxy.libs.api import API
-from bastproxy.libs.records.rtypes.log import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.tracking import MAX_CHANGES, TrackedRecordMixin
+
+logger = get_logger(__name__)
 
 _LINE_FIELDS = (
     "line",
@@ -72,12 +74,12 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             (isinstance(line, str) and ("\n" in line or "\r" in line))
             or (isinstance(line, (bytes, bytearray)) and (b"\n" in line or b"\r" in line))
         ):
-            LogRecord(
-                f"NetworkDataLine: {self.uuid} {line} is multi line with \\n and/or \\r",
-                level="error",
+            logger.error(
+                "NetworkDataLine: %s %s is multi line with \\n and/or \\r",
+                self.uuid,
+                line,
                 stack_info=True,
-                sources=[__name__],
-            )()
+            )
         self.line_type = line_type  # IO, COMMAND-TELNET
         self.originated = originated  # mud, client, internal
         if (isinstance(line, (bytes, bytearray))) and not self.is_command_telnet:

@@ -11,9 +11,11 @@
 # 3rd Party
 
 # Project
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.rtypes.base import BaseRecord
-from bastproxy.libs.records.rtypes.log import LogRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData
+
+logger = get_logger(__name__)
 
 
 class ProcessDataToClient(BaseRecord):
@@ -255,11 +257,9 @@ class SendDataDirectlyToClient(BaseRecord):
                     if self.can_send_to_client(client_uuid, line):
                         self.api("plugins.core.clients:client.send")(client_uuid, line)
                     else:
-                        LogRecord(
-                            f"## NOTE: Client {client_uuid} cannot receive message {self.uuid!s}",
-                            level="debug",
-                            sources=[__name__],
-                        )()
+                        logger.debug(
+                            "## NOTE: Client %s cannot receive message %s", client_uuid, self.uuid
+                        )
 
         # If the line is not a telnet command,
         # pass each line through the event system to allow plugins to see

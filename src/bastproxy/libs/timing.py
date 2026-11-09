@@ -33,6 +33,7 @@ Classes:
 """
 
 # Standard Library
+import logging
 from collections.abc import Callable
 from functools import wraps
 from timeit import default_timer
@@ -43,7 +44,7 @@ from uuid import uuid4
 # Project
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import log_to
 
 API_OWNER = "libs.timing"
 API = BASEAPI(owner_id=API_OWNER)
@@ -172,11 +173,15 @@ class Timing:
                 "owner_id": owner_id,
                 "args": args,
             }
-            LogRecord(
-                f"starttimer - {uid} {timername:<20} : started - from {owner_id} with args {args}",
-                level="debug",
-                sources=[__name__, owner_id],
-            )()
+            log_to(
+                [__name__, owner_id],
+                logging.DEBUG,
+                "starttimer - %s %-20s : started - from %s with args %s",
+                uid,
+                timername,
+                owner_id,
+                args,
+            )
             return uid
         return None
 
@@ -212,26 +217,34 @@ class Timing:
             timername = timer["name"]
             time_taken = (timerfinish - timer["start"]) * 1000.0
             if args := timer["args"]:
-                LogRecord(
-                    f"finishtimer - {uid} {timername:<20} : finished in "
-                    f"{time_taken} ms - with args {args}",
-                    level="debug",
-                    sources=[__name__, timer["owner_id"]],
-                )()
+                log_to(
+                    [__name__, timer["owner_id"]],
+                    logging.DEBUG,
+                    "finishtimer - %s %-20s : finished in %s ms - with args %s",
+                    uid,
+                    timername,
+                    time_taken,
+                    args,
+                )
             else:
-                LogRecord(
-                    f"finishtimer - {uid} {timername:<20} : finished in {time_taken} ms",
-                    level="debug",
-                    sources=[__name__, timer["owner_id"]],
-                )()
+                log_to(
+                    [__name__, timer["owner_id"]],
+                    logging.DEBUG,
+                    "finishtimer - %s %-20s : finished in %s ms",
+                    uid,
+                    timername,
+                    time_taken,
+                )
             return time_taken
         if self.enabled:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.api.owner_id])
-            LogRecord(
-                f"finishtimer - {uid} not found - called from {owner_id}",
-                level="error",
-                sources=[__name__, owner_id],
-            )()
+            log_to(
+                [__name__, owner_id],
+                logging.ERROR,
+                "finishtimer - %s not found - called from %s",
+                uid,
+                owner_id,
+            )
         return None
 
 

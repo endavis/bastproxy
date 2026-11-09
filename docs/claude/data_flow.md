@@ -340,7 +340,7 @@ Two systems add updates to a record's `updates`.
 
 The **actor** is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback, the commands plugin sets `<plugin_id>:<command name>` around each command. Code outside both (the raw network read path) has no actor and the details show "Unknown". Entries carry no stack, and `-ss` shows nothing for these two types.
 
-The other records (processing records, `LogRecord`, the dict records) still use `AttributeMonitor`, `TrackedUserList` and `UpdateRecord` (`src/bastproxy/libs/records/rtypes/update.py`). Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). The actor is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`. A locked attribute ignores writes there: the attempt is recorded as an `Info` update and no error is raised (#48), and in-place changes to a monitored mutable attribute are not seen (#48).
+The other records (processing records, the dict records) still use `AttributeMonitor`, `TrackedUserList` and `UpdateRecord` (`src/bastproxy/libs/records/rtypes/update.py`). Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). The actor is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`. A locked attribute ignores writes there: the attempt is recorded as an `Info` update and no error is raised (#48), and in-place changes to a monitored mutable attribute are not seen (#48).
 
 Update history of a line, produced by a script that creates a `NetworkData`, changes the line under `tracking_actor("plugins.core.proxy:ev_mud_read")`, locks the batch and sets `was_sent` (flag, action, actor, location):
 
@@ -409,5 +409,5 @@ The audit of the record system lists the measurements and the new defects: [Reco
 ### Debugging
 
 1. Load `plugins.debug.records` and follow a record's tree and updates (see [Inspecting records](#inspecting-records))
-2. Use `LogRecord(..., sources=[...])()`. A `LogRecord` without `sources` is not logged (#46)
+2. Log with `get_logger(name).debug(...)` or `log_to([...], ...)` from `bastproxy.libs.logger`; see [Logging System](logging_system.md)
 3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log

@@ -9,8 +9,8 @@
 from functools import partial
 
 from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net.client import ClientConnection
-from bastproxy.libs.records import LogRecord
 
 # 3rd Party
 # Project
@@ -105,11 +105,7 @@ class ClientPlugin(BasePlugin):
         # This will only occur if the plugin is reloaded
         # copy the banned ips to the newly loaded class to free up the original objects and class
         if self.banned:
-            LogRecord(
-                f"Loading {len(self.banned)} banned IPs",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug("Loading %s banned IPs", len(self.banned))
             for item in self.banned:
                 self.banned[item] = self.banned[item].copy(BanRecord)
 
@@ -148,20 +144,16 @@ class ClientPlugin(BasePlugin):
                 self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "permbanips", permbanips
                 )
-                LogRecord(
-                    f"{ip_address} has been banned with no expiration",
-                    level="error",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).error(
+                    "%s has been banned with no expiration", ip_address
+                )
                 return True
         elif ip_address not in self.banned:
             ban_record = BanRecord(self.plugin_id, ip_address, how_long=how_long)
             self.banned[ip_address] = ban_record
-            LogRecord(
-                f"{ip_address} has been automatically banned for {how_long} seconds",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "%s has been automatically banned for %s seconds", ip_address, how_long
+            )
             return True
 
         return False
@@ -187,13 +179,13 @@ class ClientPlugin(BasePlugin):
             if not auto:
                 self.banned[addr].remove()
             del self.banned[addr]
-            LogRecord(msg, level="error", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).error("%s", msg)
             return True
         permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
         if addr in permbanips:
             permbanips.remove(addr)
             self.api("plugins.core.settings:setting.set")(self.plugin_id, "permbanips", permbanips)
-            LogRecord(msg, level="error", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).error("%s", msg)
             return True
 
         return False
@@ -217,11 +209,12 @@ class ClientPlugin(BasePlugin):
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
             client_connection.state["logged in"] = True
-            LogRecord(
-                f"Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning(
+                "Client %s logged in from %s:%s",
+                client_connection.uuid,
+                client_connection.addr,
+                client_connection.port,
+            )
 
             self.api("plugins.core.events:event.raise")(
                 f"ev_{self.plugin_id}_client_logged_in",
@@ -239,11 +232,12 @@ class ClientPlugin(BasePlugin):
             client_connection.state["logged in"] = True
             client_connection.view_only = True
 
-            LogRecord(
-                f"View Client {client_connection.uuid} logged in from {client_connection.addr}:{client_connection.port}",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning(
+                "View Client %s logged in from %s:%s",
+                client_connection.uuid,
+                client_connection.addr,
+                client_connection.port,
+            )
 
             self.api("plugins.core.events:event.raise")(
                 f"ev_{self.plugin_id}_client_logged_in_view_only",
@@ -254,11 +248,7 @@ class ClientPlugin(BasePlugin):
     def _api_client_add(self, client_connection):
         """Add a connected client."""
         if client_connection.uuid in self.clients:
-            LogRecord(
-                f"Client {client_connection.uuid} already exists",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning("Client %s already exists", client_connection.uuid)
         self.clients[client_connection.uuid] = client_connection
         self.api("plugins.core.events:event.raise")(
             f"ev_{self.plugin_id}_client_connected",
@@ -274,11 +264,12 @@ class ClientPlugin(BasePlugin):
                 f"ev_{self.plugin_id}_client_disconnected",
                 event_args={"client_uuid": client_connection.uuid},
             )
-            LogRecord(
-                f"Client {client_connection.uuid} disconnected {client_connection.addr}:{client_connection.port}",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning(
+                "Client %s disconnected %s:%s",
+                client_connection.uuid,
+                client_connection.addr,
+                client_connection.port,
+            )
 
     @AddAPI("client.list", description="list all clients")
     def _api_client_list(self, uuid_only=False):

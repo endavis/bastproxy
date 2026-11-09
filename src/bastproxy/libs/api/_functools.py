@@ -36,10 +36,13 @@ Functions:
 
 # Standard Library
 import inspect
-import logging
 import traceback
 from collections.abc import Callable
 from itertools import chain
+
+from bastproxy.libs.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Third Party
 
@@ -121,7 +124,6 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
                     break
 
     if caller_id == "unknown":
-        logger = logging.getLogger(__name__)
         # The name of the function that called this one, read from the frame
         # (inspect.stack() would build a FrameInfo with source context per frame)
         # (the frame is deleted so it is not kept in a reference cycle with itself)

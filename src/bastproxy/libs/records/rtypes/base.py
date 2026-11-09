@@ -17,10 +17,13 @@ from uuid import uuid4
 # 3rd Party
 # Project
 from bastproxy.libs.api import API
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.managers.records import RMANAGER
 from bastproxy.libs.records.managers.updates import UpdateManager
 from bastproxy.libs.records.rtypes.update import UpdateRecord
 from bastproxy.libs.tracking.utils.attributes import AttributeMonitor
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -631,13 +634,7 @@ class BaseListRecord(UserList, BaseRecord):
             if isinstance(decoded_line, str):
                 new_message.extend(decoded_line.splitlines() if decoded_line else [""])
             else:
-                from bastproxy.libs.records.rtypes.log import LogRecord
-
-                LogRecord(
-                    f"clean - {self.uuid} Message.clean: line is not a string: {line}",
-                    level="error",
-                    sources=[__name__],
-                )()
+                logger.error("clean - %s Message.clean: line is not a string: %s", self.uuid, line)
         self.replace(new_message, actor=f"{actor}:clean", extra={"msg": "clean each item"})
 
     def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):

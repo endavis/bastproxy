@@ -7,6 +7,7 @@
 
 # Standard Library
 import contextlib
+import logging
 import textwrap
 from pathlib import Path
 
@@ -15,12 +16,14 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
-from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.settings.libs._settinginfo import SettingInfo
+
+logger = get_logger(__name__)
 
 
 class SettingsPlugin(BasePlugin):
@@ -55,35 +58,27 @@ class SettingsPlugin(BasePlugin):
           @Yhidden@w     = if True, don't show in @Ysettings@w command
           @Yaftersetmessage@w = message to send to client after setting is changed.
         """
-        LogRecord(
-            f"setting {plugin_id}.{setting_name} {default} {stype} {help} {kwargs}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "setting %s.%s %s %s %s %s", plugin_id, setting_name, default, stype, help, kwargs
+        )
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
         if setting_name in self.settings_info[plugin_id]:
-            LogRecord(
-                f"setting {plugin_id}.{setting_name} already exists",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "setting %s.%s already exists", plugin_id, setting_name
+            )
             return
 
         setting_info = SettingInfo(setting_name, default, help, stype, **kwargs)
-        LogRecord(
-            f"setting info {self.dump_object_as_string(setting_info)}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "setting info %s", self.dump_object_as_string(setting_info)
+        )
 
         if not setting_info.hidden:
             if setting_name in self.settings_map:
-                LogRecord(
-                    f"setting {setting_name} already exists in {self.settings_map[setting_name]}",
-                    level="error",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).error(
+                    "setting %s already exists in %s", setting_name, self.settings_map[setting_name]
+                )
 
                 return
 
@@ -226,11 +221,9 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.initialize.for.plugin", description="initialize the settings for a plugin")
     def _api_setting_initialize_for_plugin(self, plugin_id):
         """Initialize the settings for a plugin."""
-        LogRecord(
-            f"initializing settings for {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id], logging.DEBUG, "initializing settings for %s", plugin_id
+        )
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
 
@@ -251,11 +244,7 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.remove.for.plugin", description="remove the settings for a plugin")
     def _api_setting_remove_for_plugin(self, plugin_id):
         """Removing the settings for a plugin."""
-        LogRecord(
-            f"Removing settings for {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to([self.plugin_id, plugin_id], logging.DEBUG, "Removing settings for %s", plugin_id)
         for i in self.settings_info.pop(plugin_id, {}):
             if i in self.settings_map:
                 del self.settings_map[i]
@@ -266,11 +255,13 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.save.for.plugin", description="save the settings for a plugin")
     def _api_setting_save_for_plugin(self, plugin_id):
         """Save the settings for a plugin."""
-        LogRecord(
-            f"{self.plugin_id} : Saving settings for {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "%s : Saving settings for %s",
+            self.plugin_id,
+            plugin_id,
+        )
         self.settings_values[plugin_id].sync()
 
     @AddAPI("setting.list", description="get all settings for a plugin")
@@ -281,11 +272,12 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.event.raise.all", description="raise an event for all settings")
     def _api_setting_event_raise_all(self, plugin_id):
         """Raise an event for all settings."""
-        LogRecord(
-            f"Raising events for all settings in {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "Raising events for all settings in %s",
+            plugin_id,
+        )
         old_value = "__init__"
         for i in self.settings_info[plugin_id]:
             if self.api("plugins.core.settings:setting.is.hidden")(plugin_id, i):
@@ -307,9 +299,12 @@ class SettingsPlugin(BasePlugin):
     def _api_setting_map_add(self, plugin_id, setting_name):
         """Add a setting to the settings map."""
         if setting_name in self.settings_map:
-            LogRecord(
-                f"setting {plugin_id}.{setting_name} conflicts {self.settings_map[setting_name]}:{setting_name}",
-                level="error",
+            logger.error(
+                "setting %s.%s conflicts %s:%s",
+                plugin_id,
+                setting_name,
+                self.settings_map[setting_name],
+                setting_name,
             )
             return
         self.settings_map[setting_name] = plugin_id

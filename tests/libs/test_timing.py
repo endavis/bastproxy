@@ -14,6 +14,7 @@ Test Classes:
 
 """
 
+import logging
 import time
 from unittest.mock import patch
 
@@ -233,7 +234,7 @@ class TestFinishWithNoneUid:
         uid = timing._api_timing_start("disabled_timer")
         timing._api_timing_toggle(True)
 
-        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+        with patch("bastproxy.libs.timing.log_to") as log_record:
             result = timing._api_timing_finish(uid)
 
         assert uid is None
@@ -245,7 +246,7 @@ class TestFinishWithNoneUid:
         timing = Timing()
         timing._api_timing_toggle(False)
 
-        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+        with patch("bastproxy.libs.timing.log_to") as log_record:
             result = timing._api_timing_finish(None)
 
         assert result is None
@@ -258,7 +259,7 @@ class TestFinishWithNoneUid:
         assert uid in timing.timing
         timing._api_timing_toggle(False)
 
-        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+        with patch("bastproxy.libs.timing.log_to") as log_record:
             result = timing._api_timing_finish(uid)
 
         assert result is None
@@ -270,23 +271,23 @@ class TestFinishWithNoneUid:
         timing = Timing()
         uid = timing._api_timing_start("normal_timer")
 
-        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+        with patch("bastproxy.libs.timing.log_to") as log_record:
             result = timing._api_timing_finish(uid)
 
         assert isinstance(result, float)
         assert uid not in timing.timing
         log_record.assert_called_once()
-        assert log_record.call_args.kwargs["level"] == "debug"
+        assert log_record.call_args.args[1] == logging.DEBUG
 
     def test_finish_unknown_uid_still_logs_error(self) -> None:
         """An unknown, non-None uid still logs the not-found error."""
         timing = Timing()
 
-        with patch("bastproxy.libs.timing.LogRecord") as log_record:
+        with patch("bastproxy.libs.timing.log_to") as log_record:
             result = timing._api_timing_finish("nonexistent_uid")
 
         assert result is None
-        assert log_record.call_args.kwargs["level"] == "error"
+        assert log_record.call_args.args[1] == logging.ERROR
 
 
 class TestTimerData:

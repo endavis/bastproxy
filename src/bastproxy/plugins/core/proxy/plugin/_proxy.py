@@ -30,10 +30,12 @@ except ImportError:
     sys.exit(1)
 
 # Project
+import logging
+
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.mud import MudConnection
 from bastproxy.libs.records import (
-    LogRecord,
     NetworkData,
     NetworkDataLine,
     SendDataDirectlyToClient,
@@ -318,11 +320,7 @@ class ProxyPlugin(BasePlugin):
     def _api_proxy_shutdown(self):
         """Shutdown the proxy."""
         self.api.__class__.shutdown = True
-        LogRecord(
-            "Proxy: shutdown started",
-            level="info",
-            sources=[self.plugin_id, "shutdown"],
-        )()
+        log_to([self.plugin_id, "shutdown"], logging.INFO, "Proxy: shutdown started")
         SendDataDirectlyToClient(
             NetworkData(
                 [NetworkDataLine("Shutting down proxy")],
@@ -330,11 +328,7 @@ class ProxyPlugin(BasePlugin):
             )
         )()
         self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_shutdown")
-        LogRecord(
-            "Proxy: shutdown complete",
-            level="info",
-            sources=[self.plugin_id, "shutdown"],
-        )()
+        log_to([self.plugin_id, "shutdown"], logging.INFO, "Proxy: shutdown complete")
 
     @AddParser(description="shutdown the proxy")
     def _command_shutdown(self):
@@ -433,11 +427,9 @@ class ProxyPlugin(BasePlugin):
                 owner_id=f"{self.plugin_id}:_api_proxy_restart",
             )
         )()
-        LogRecord(
-            f"Restarting bastproxy on port: {listen_port} in {restart_in} seconds",
-            level="warning",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).warning(
+            "Restarting bastproxy on port: %s in %s seconds", listen_port, restart_in
+        )
 
         self.api("plugins.core.timers:timer.add")(
             "restart", self.timer_restart, restart_in, onetime=True

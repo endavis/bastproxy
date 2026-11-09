@@ -42,12 +42,12 @@ import sys
 
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.asynch import TaskItem
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import client as net_client
 from bastproxy.libs.net import server
 
 # Third Party
 # Project
-from bastproxy.libs.records import LogRecord
 
 
 class Listeners:
@@ -103,12 +103,9 @@ class Listeners:
         await asyncio.sleep(2)
 
         if self.listener_tries > 2:
-            LogRecord(
-                "No listeners available, defaults did not work. Please check the "
-                "settings in data/plugins/plugins.core.proxy",
-                level="error",
-                sources=["mudproxy"],
-            )()
+            get_logger("mudproxy").error(
+                "No listeners available, defaults did not work. Please check the settings in data/plugins/plugins.core.proxy"
+            )
             sys.exit(1)
 
         ipv4 = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "ipv4")
@@ -132,30 +129,24 @@ class Listeners:
             ipv4_address = self.api("plugins.core.settings:setting.get")(
                 "plugins.core.proxy", "ipv4address"
             )
-            LogRecord(
-                f"IPv4 Listener did not start on {ipv4_address}:{listen_port}, please "
-                "check errors and update settings",
-                level="error",
-                sources=["mudproxy"],
-            )()
+            get_logger("mudproxy").error(
+                "IPv4 Listener did not start on %s:%s, please check errors and update settings",
+                ipv4_address,
+                listen_port,
+            )
 
         if ipv6 and not self.ipv6_start:
             ipv6_address = self.api("plugins.core.settings:setting.get")(
                 "plugins.core.proxy", "ipv6address"
             )
-            LogRecord(
-                f"IPv6 Listener did not start on {ipv6_address}:{listen_port}, please "
-                "check errors and update settings",
-                level="error",
-                sources=["mudproxy"],
-            )()
+            get_logger("mudproxy").error(
+                "IPv6 Listener did not start on %s:%s, please check errors and update settings",
+                ipv6_address,
+                listen_port,
+            )
 
         if not (ipv4 and self.ipv4_start) and not (ipv6 and self.ipv6_start):
-            LogRecord(
-                "No listeners available, resetting to defaults",
-                level="error",
-                sources=["mudproxy"],
-            )()
+            get_logger("mudproxy").error("No listeners available, resetting to defaults")
             self.reset_listener_settings()
             self.listener_tries = self.listener_tries + 1
             self.check_listener_taskname = (
@@ -181,7 +172,7 @@ class Listeners:
                 )
             )
 
-            LogRecord(msg, level="info", sources=["mudproxy"])()
+            get_logger("mudproxy").info("%s", msg)
 
     def reset_listener_settings(self) -> None:
         """Reset listener settings to their default values.
@@ -243,11 +234,7 @@ class Listeners:
         )
 
         if not ipv4 and not ipv6:
-            LogRecord(
-                "No listeners enabled, adding default ipv4 listener",
-                level="error",
-                sources=["mudproxy"],
-            )()
+            get_logger("mudproxy").error("No listeners enabled, adding default ipv4 listener")
             self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv4", True)
             ipv4 = True
 

@@ -8,23 +8,24 @@ libs.logs:
 
     Each of those handlers verifies with plugins.core.log whether the message
     can be emitted by the handler at the specified level.
-    Messages that are LogRecords with multiple sources will only be emitted once
-    from the same handler. This is tracked with a dictionary in the LogRecord
+    A message logged to several sources with libs.logger.log_to carries the
+    names in record.log_sources. Each handler emits it once, under the first
+    name that handler allows.
 
     A CustomColorFormatter is added to color code log events, the colors can be
-    changed with the plugins.core.log plugin
+    changed with the plugins.core.log plugin. The log file is plain text.
 
-libs.records.rtypes.log
-    has the implementation of LogRecord
-    A LogRecord will pass all keyword arguments to the logger when the appropriate
-    level function is invoked.
+libs.logger
+    get_logger(name) returns a standard library logger with an explicit level
+    taken from the per name threshold, so a disabled level is dropped before
+    the message is built. Use lazy % arguments.
+    log_to(sources, level, msg, *args) logs one message to several sources.
+    The log plugin sets the thresholds so they are never above a level a
+    handler would accept for the name.
+    See docs/claude/logging_system.md
 
 plugins.core.log
-    sets the levels of log types in the handlers
-
-plugins.debug.records
-    If the message is a LogRecord from libs.records, it is tracked through the system
-    to see modifications and can be inspected with #bp.core.records command
+    sets the levels of log types in the handlers and the thresholds
 
 Handler Information:
     Console:

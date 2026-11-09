@@ -51,11 +51,11 @@ except ImportError:  # pragma: no cover - source tree without a build
 from bastproxy.libs import argp, timing
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.asynch import run_asynch
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.plugins import reloadutils
 
 # Third Party
 # Project
-from bastproxy.libs.records import LogRecord
 from bastproxy.plugins.core.log import formatTime_RFC3339, formatTime_RFC3339_UTC
 
 # set this to True to log in UTC timezone, False to log in local timezone
@@ -146,26 +146,22 @@ class MudProxy:
             KeyError: If required keys are not found in the arguments dictionary.
 
         """
-        LogRecord(
-            f"setup_api - setting basepath to: {BASEAPI.BASEPATH}",
-            level="info",
-            sources=["mudproxy"],
-        )()
+        get_logger("mudproxy").info("setup_api - setting basepath to: %s", BASEAPI.BASEPATH)
 
         # Load plugins
-        LogRecord("Loading Plugin Loader", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("Loading Plugin Loader")
 
         # instantiate the plugin manager
         from bastproxy.libs.plugins.loader import PluginLoader
 
         plugin_loader = PluginLoader()
 
-        LogRecord("Plugin Manager - loaded", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("Plugin Manager - loaded")
 
         # load plugins on startup
         plugin_loader.load_plugins_on_startup()
 
-        LogRecord("Plugin Manager - all plugins loaded", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("Plugin Manager - all plugins loaded")
 
         # do any post plugin loaded actions
         self.post_plugins_loaded()
@@ -203,7 +199,7 @@ class MudProxy:
         # ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
 
-        LogRecord("__main__ - BastProxy ready", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("__main__ - BastProxy ready")
 
         self.api("plugins.core.events:event.raise")(
             "ev_bastproxy_proxy_ready", calledfrom="mudproxy"
@@ -213,11 +209,11 @@ class MudProxy:
 
         Listeners().create_listeners()
 
-        LogRecord("__main__ - Launching async loop", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("__main__ - Launching async loop")
 
         run_asynch()
 
-        LogRecord("__main__ - exiting", level="info", sources=["mudproxy"])()
+        get_logger("mudproxy").info("__main__ - exiting")
 
     def post_plugins_loaded(self) -> None:
         """Perform actions after all plugins have been loaded.

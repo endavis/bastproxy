@@ -90,11 +90,7 @@ Timer functions receive no arguments:
 ```python
 def my_timer_function(self):
     """Called when timer fires."""
-    LogRecord(
-        "Timer fired",
-        level="info",
-        sources=[self.plugin_id]
-    )()
+    get_logger(self.plugin_id).info("Timer fired")
 
     # Perform timed action
     self.check_for_updates()
@@ -172,11 +168,7 @@ def check_updates(self):
     """Check for available updates."""
     updates = self.api("plugins.update.service:check")()
     if updates:
-        LogRecord(
-            f"Updates available: {updates}",
-            level="info",
-            sources=[self.plugin_id]
-        )()
+        get_logger(self.plugin_id).info("Updates available: %s", updates)
 ```
 
 ### Daily Timer
@@ -196,11 +188,7 @@ def _phook_initialize(self):
 def backup_database(self):
     """Perform daily backup."""
     backup_file = self.create_backup()
-    LogRecord(
-        f"Database backed up to {backup_file}",
-        level="info",
-        sources=[self.plugin_id]
-    )()
+    get_logger(self.plugin_id).info("Database backed up to %s", backup_file)
 ```
 
 ### One-Time Delayed Action

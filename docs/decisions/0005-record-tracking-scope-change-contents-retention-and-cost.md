@@ -132,6 +132,7 @@ The repo admin decided on 2026-11-09:
 - #79 (this decision)
 - #43 (replace the attribute monitor with pydatatracker)
 - #246 (dict records, slice 2)
+- #247 (`LogRecord` replaced by plain logging, slice 3)
 - #47, #48 (lock and in-place mutations)
 - #80 to #85 (follow-ups filed with #79; #80, #84 and #85 are closed)
 - #106 (the record audit)
@@ -143,4 +144,5 @@ The repo admin decided on 2026-11-09:
 - [Record System](../claude/record_system.md)
 - [Record System Audit Findings](../claude/record_system_findings.md)
 - [Data Flow](../claude/data_flow.md)
+- [Logging System](../claude/logging_system.md)
 - [ADR-0001: Terminate MUD telnet protocols at the proxy](0001-terminate-mud-telnet-protocols-at-the-proxy.md)

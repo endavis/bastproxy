@@ -6,13 +6,15 @@
 # By: Bast
 
 # Standard Library
+import logging
 import re
 
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 
 # 3rd Party
 # Project
-from bastproxy.libs.records import LogRecord, NetworkData, SendDataDirectlyToMud
+from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -47,11 +49,12 @@ class MUDCmdsPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"_api_type_remove_for_plugin - removing mudcmds data for plugin {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "_api_type_remove_for_plugin - removing mudcmds data for plugin %s",
+            plugin_id,
+        )
         for i in list(self.cmds):  # copy keys since we are deleting things
             if self.cmds[i]["owner"] == plugin_id:
                 self.api(f"{self.plugin_id}:type.remove")(i)
@@ -62,21 +65,17 @@ class MUDCmdsPlugin(BasePlugin):
         if cmdtype in self.cmds:
             del self.cmds[cmdtype]
         else:
-            LogRecord(
-                f"_api_type_remove - {cmdtype} not found",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug("_api_type_remove - %s not found", cmdtype)
 
     @AddAPI("command.start", description="tell the plugin a command has started")
     def _api_command_start(self, cmdtype):
         """Tell the plugin a command has started."""
         if self.current_command and cmdtype != self.current_command["ctype"]:
-            LogRecord(
-                f"_api_command_start - got command start for {cmdtype} and it's not the current cmd: {self.current_command['ctype']}",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_command_start - got command start for %s and it's not the current cmd: %s",
+                cmdtype,
+                self.current_command["ctype"],
+            )
             return
         self.timing_uid = self.api("libs.timing:timing.start")(f"cmd_{cmdtype}")
 
@@ -120,18 +119,14 @@ class MUDCmdsPlugin(BasePlugin):
 
     def sendnext(self):
         """Send the next command."""
-        LogRecord("sendnext - checking queue", level="debug", sources=[self.plugin_id])()
+        get_logger(self.plugin_id).debug("sendnext - checking queue")
         if not self.queue or self.current_command:
             return
 
         cmdt = self.queue.pop(0)
         cmd = cmdt["cmd"]
         cmdtype = cmdt["ctype"]
-        LogRecord(
-            f"sendnext - sending cmd: {cmd} ({cmdtype})",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("sendnext - sending cmd: %s (%s)", cmd, cmdtype)
 
         if cmdtype in self.cmds and self.cmds[cmdtype]["beforef"]:
             self.cmds[cmdtype]["beforef"]()
@@ -147,20 +142,14 @@ class MUDCmdsPlugin(BasePlugin):
     @AddAPI("command.finish", description="tell the plugin a command has finished")
     def _api_command_finish(self, cmdtype):
         """Tell the plugin that a command has finished."""
-        LogRecord(
-            f"_api_command_finish - got command finish for {cmdtype}",
-            level="debug",
-            sources=[self.plugin_id],
-        )(actor=f"{self.plugin_id}:_api_command_finish")
+        get_logger(self.plugin_id).debug("_api_command_finish - got command finish for %s", cmdtype)
         if not self.current_command:
             return
         if cmdtype == self.current_command["ctype"]:
             if cmdtype in self.cmds and self.cmds[cmdtype]["afterf"]:
-                LogRecord(
-                    f"_api_command_finish - running afterf for {cmdtype}",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "_api_command_finish - running afterf for %s", cmdtype
+                )
                 self.cmds[cmdtype]["afterf"]()
 
             self._finish_timing()
@@ -181,11 +170,7 @@ class MUDCmdsPlugin(BasePlugin):
             "cmd" in self.current_command and self.current_command["cmd"] == cmd
         ):
             return
-        LogRecord(
-            f"_api_command_queue - adding {cmd} to queue",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_api_command_queue - adding %s to queue", cmd)
         self.queue.append({"cmd": cmd, "ctype": cmdtype, "plugin": plugin})
         if not self.current_command:
             self.sendnext()

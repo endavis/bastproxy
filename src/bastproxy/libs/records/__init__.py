@@ -10,7 +10,6 @@ The public record types ones are:
     SendDataDirectlyToClient - send data to the client
     ProcessDataToClient - process data to send to the client
     NetworkData - build data to send
-    LogRecord - data to log
     SendDataDirectlyToMud - send data to the mud
     ProcessDataToMud - process data to send to the mud
     EventDataRecord - data to send to event callbacks (a BaseDictRecord on pydatatracker).
@@ -27,7 +26,6 @@ __all__ = [
     "RMANAGER",
     "BaseDictRecord",
     "BaseRecord",
-    "LogRecord",
     "NetworkData",
     "NetworkDataLine",
     "ProcessDataToClient",
@@ -43,7 +41,6 @@ from bastproxy.libs.records.rtypes.clientdata import (
     SendDataDirectlyToClient,
 )
 from bastproxy.libs.records.rtypes.dictrecord import BaseDictRecord
-from bastproxy.libs.records.rtypes.log import LogRecord
 from bastproxy.libs.records.rtypes.muddata import (
     ProcessDataToMud,
     SendDataDirectlyToMud,

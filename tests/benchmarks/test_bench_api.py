@@ -17,9 +17,8 @@ No plugins are loaded in a unit-level benchmark, so a fixture registers one
 class API and one instance API under ``bench.api`` and removes them, and their
 stats, afterwards.
 
-Only the unknown-caller case creates ``LogRecord`` objects (a stack dump per
-call). The RecordManager keeps up to 5000 records per type in memory, so that
-case uses ``benchmark.pedantic`` with fixed ``rounds`` and ``iterations=1``.
+Only the unknown-caller case logs a stack dump per call, so that case uses
+``benchmark.pedantic`` with fixed ``rounds`` and ``iterations=1``.
 """
 
 from collections.abc import Iterator
@@ -186,7 +185,7 @@ def test_bench_stats_add_call(benchmark: Any, bench_api: API) -> None:
 
 @pytest.mark.benchmark
 def test_bench_api_full_call_unknown_caller(benchmark: Any, bench_api: API) -> None:
-    """(i) Full call with no owner on the stack: a warning, a stack dump and a LogRecord."""
+    """(i) Full call with no owner on the stack: a warning and a stack dump."""
     result = benchmark.pedantic(
         _module_level_call, args=(bench_api,), rounds=UNKNOWN_ROUNDS, iterations=1
     )
