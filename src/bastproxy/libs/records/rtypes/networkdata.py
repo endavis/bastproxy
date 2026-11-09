@@ -42,7 +42,7 @@ class NetworkDataLine(BaseRecord):
             color: Color code for the line (default: "").
 
         """
-        BaseRecord.__init__(self, f"{self.__class__.__name__}:{line!r}")
+        BaseRecord.__init__(self)
         self._attributes_to_monitor.append("line")
         self._attributes_to_monitor.append("send")
         self._attributes_to_monitor.append("is_prompt")

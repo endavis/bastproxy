@@ -369,6 +369,8 @@ with its own unique ID.
 
 None of these keys repeats, so the dict only grows. It is not bounded by `max_records`. #232
 
+**Fixed in #232:** records now use their class name as owner ID, so the record keys no longer grow.
+
 ---
 
 ## Q4: What Is Untested?
@@ -489,7 +491,7 @@ Commands run (output in `out-q6-greps.txt`):
 | 15 | **Type-check escapes**: 2 `# type: ignore` in `networkdata.py`; `bastproxy.libs.records.*` is in the mypy `ignore_errors` override (`pyproject.toml` line 268) | `networkdata.py`, `pyproject.toml` | Whole package | **Keep, tracked by #6.** Do not widen it. |
 | 16 | **Strings, not `Path`, for paths** | none found | n/a | **Fits.** |
 | 17 | **Untested core paths** | Q4 | n/a | **Change** (#239). |
-| 18 | **Per-record `API(...)` and unique owner IDs** | `BaseRecord.__init__`, `UpdateRecord.__init__` | Yes | **Change** (#232). Constructing the object is cheap since #199; the unique caller IDs are the cost. |
+| 18 | **Per-record `API(...)` and unique owner IDs** | `BaseRecord.__init__`, `UpdateRecord.__init__` | Yes | **Change** (fixed in #232). Constructing the object is cheap since #199; the unique caller IDs are the cost. |
 | 19 | **Cap by count, per type** | `RecordManager.add` | Yes | **Change** (#233). |
 
 ---
@@ -566,6 +568,8 @@ object (#47).
 `seperate_commands` (Q4: lines 83-119 are untested).
 
 ### RS-4: API statistics grow without bound with record traffic
+
+**Fixed in #232:** records use their class name as owner ID. The text below is the audit record.
 
 **Issue:** #232
 **Location:** `src/bastproxy/libs/records/rtypes/base.py` `BaseRecord.__init__` (the default `owner_id` and

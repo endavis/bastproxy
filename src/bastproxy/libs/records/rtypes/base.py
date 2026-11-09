@@ -41,9 +41,11 @@ class BaseRecord(AttributeMonitor):
         self._attributes_to_monitor.append("parents")
         # create a unique id for this message
         self.uuid = uuid4().hex
-        self.owner_id = owner_id or f"{self.__class__.__name__}:{self.uuid}"
+        # The owner id is per class, not per record, so API stats stay bounded (#232).
+        # The uuid is the record identity.
+        self.owner_id = owner_id or self.__class__.__name__
         # Add an API
-        self.api = API(owner_id=self.owner_id or f"{self.__class__.__name__}:{self.uuid}")
+        self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.UTC)
         self.updates = UpdateManager()
         self.execute_time_taken = -1
