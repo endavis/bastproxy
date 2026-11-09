@@ -502,6 +502,13 @@ owner or a library helper pays it on every call, and the stack dump goes to the 
 **Fix:** Use `sys._getframe(1).f_code.co_name` (or nothing) instead of `inspect.stack()`, and
 emit the stack dump once per API name and caller rather than per call. Keep the stats entry.
 
+**Fixed in #198:** `get_caller_owner_id` reads the calling function's name from the frame
+(`inspect.currentframe().f_back.f_code.co_name`, read only on the unknown path, with the frame deleted so it forms no reference cycle) instead of `inspect.stack()`, and `APIStatItem.add_call`
+logs the stack dump once per API and caller id (`_dumped_callers`); the call is still counted. Benchmark (i)
+median went from 1,292,888 ns to 24,423 and 25,312 ns in two runs (`doit benchmark_compare` against the saved baseline,
+same machine; the first round, which logs the dump, is in the mean, not the median). The text
+above describes the behaviour before the fix.
+
 ### AS-6: Every `API` object builds 14 `APIItem`s, and every record has one
 
 **Issue:** #199
