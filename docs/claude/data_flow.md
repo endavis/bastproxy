@@ -303,6 +303,21 @@ ProcessDataToClient        22.07ms   'You say, "tracking demo two"'
 
 The timings are from one run on a development machine and vary with load and plugins.
 
+With all bundled plugins loaded (the audit probe, [Record System Findings](record_system_findings.md#q2-is-the-parentchild-tree-right)), two things differ from the tree above:
+
+- The triggers plugin raises two more events for each MUD line, `event_t_plugins.core.triggers_beall` and `event_t_plugins.core.triggers_all`. They are children of the `ev_to_client_data_modify` event. The triggers plugin passes that event's `EventDataRecord` to them, and each event makes itself the only parent of the record it is given, so the `EventDataRecord` is printed under `triggers_all` and not under its own event.
+- When the client sends `say a|say b`, `seperate_commands` replaces the line with two new lines. Their `parents` is the original line, which is no longer in the `NetworkData`, so the tree prints the original line under the `NetworkData` and the two lines under it:
+
+```
+ProcessDataToMud
+ |-> NetworkData
+ |   |-> NetworkDataLine      client 'say a|say b'      ← no longer in the NetworkData
+ |       |-> NetworkDataLine  client 'say a'
+ |       |-> NetworkDataLine  client 'say b'
+ |-> ProcessRaisedEvent       ev_to_mud_data_modify
+ |-> SendDataDirectlyToMud    (the same NetworkData, second parent)
+```
+
 ### How changes are tracked
 
 Three mechanisms add `UpdateRecord`s (`src/bastproxy/libs/records/rtypes/update.py`) to a record's `updates`, an `UpdateManager` deque that keeps the most recent 1000:
@@ -313,7 +328,7 @@ Three mechanisms add `UpdateRecord`s (`src/bastproxy/libs/records/rtypes/update.
 | `TrackedUserList` (`src/bastproxy/libs/records/rtypes/base.py`) | `__setitem__`, `insert`, `append`, `extend` on `NetworkData` | Command splitting replacing a line |
 | `addupdate(...)` | Code recording what it did | Commands: "Antispam Command sent"; `ProcessRaisedEvent`: "Invoked" |
 
-Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). List and dict records also store a copy of their data. The **actor** is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`.
+Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). `LogRecord` and the dict records also store a copy of their data; `NetworkData` does not. The **actor** is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`.
 
 A locked attribute ignores writes: the attempt is recorded as an `Info` update and no error is raised (#48). In-place changes to a monitored mutable attribute (for example `parents.append(...)`) are not seen, because `AttributeMonitor` only fires on reassignment (#48).
 
@@ -361,13 +376,15 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; appended lines get no parent |
+| #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; lines appended as objects get no parent |
 | #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
 | #43 | Planned replacement of the record tracking with pydatatracker |
 | #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
+
+The audit of the record system lists the measurements and the new defects: [Record System Findings](record_system_findings.md).
 
 ## Best Practices
 
