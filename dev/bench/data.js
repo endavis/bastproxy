@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794241212439,
+  "lastUpdate": 1794253745742,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -7728,6 +7728,156 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000036981168902557",
             "extra": "mean: 146.81060102989815 usec\nrounds: 7379"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f7700d4980e3c732c56e234ed673d784f2525a0f",
+          "message": "refactor: track NetworkDataLine and NetworkData with pydatatracker (merges PR #250, addresses #43)\n\nrefactor!: track NetworkDataLine and NetworkData with pydatatracker\n\nSlice 1 of #43, under ADR-0005 and the new ADR-0006.\n\n- New libs/records/tracking.py: TrackedRecordMixin (uuid identity, parents, RMANAGER registration, addupdate) and a read-only TrackedUpdate view. The view shows only a record's own entries, so the debug records commands keep working.\n- NetworkDataLine is on TrackedAttr and NetworkData on TrackedList. One conversion hook converts and parents every stored line: construction, append, insert, extend, +=, __setitem__ and slices. Lines no longer capture a stack or call the API when they are created.\n- A line's lock is per field and leaves was_sent writable. The send records format the lines, then lock, then send.\n- The event dispatcher and command runs set the actor with tracking_actor.\n- The benchmark gate asserts at most 50 us per line created and 20 us per change when benchmarks are enabled. There is also an informational lock benchmark.\n- The display code shared by BaseRecord and the tracked classes moves into RecordDisplayMixin.\n- The lkattr plugin's locktest now reports the refused writes.\n- Updated the record docs and data_flow.md.\n\nBREAKING CHANGE: Writing to a locked NetworkDataLine field or to original_line, or changing a locked NetworkData in any way (append, insert, extend, __setitem__, pop, sort, +=, slices), now raises RuntimeError. Before, writes were ignored and some mutations went through untracked. NetworkData is a list subclass (no .data), and its locked attribute is read-only. The lines lose stack_at_creation, event_stack, check_for_change and the _am_* methods. #bp.debug.records.detail output for both types changes: pydatatracker actions, the actor shown by context name, and no creation stacks. Lines with send=False are now locked when their message is sent. A plugin that changes a line in an ev_to_*_data_read callback must do it before the data is locked, or catch RuntimeError.\n\nAddresses #43\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-09T19:47:51Z",
+          "tree_id": "1039f7e9273df887795d2affd97b76980b74aec7",
+          "url": "https://github.com/endavis/bastproxy/commit/f7700d4980e3c732c56e234ed673d784f2525a0f"
+        },
+        "date": 1794253744826,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_baseline_direct_call",
+            "value": 16779331.311341964,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1532245350274093e-8",
+            "extra": "mean: 59.597130627252795 nsec\nrounds: 179534"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_class_hit",
+            "value": 6141938.463943948,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7597870573232397e-8",
+            "extra": "mean: 162.81504705240337 nsec\nrounds: 62696"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_instance_hit",
+            "value": 8385722.10972769,
+            "unit": "iter/sec",
+            "range": "stddev: 3.9211200450556886e-8",
+            "extra": "mean: 119.25031463181566 nsec\nrounds: 88961"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_miss",
+            "value": 327042.52558259806,
+            "unit": "iter/sec",
+            "range": "stddev: 4.619929361022549e-7",
+            "extra": "mean: 3.057706328003021 usec\nrounds: 171792"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_known_caller",
+            "value": 314966.1285488024,
+            "unit": "iter/sec",
+            "range": "stddev: 7.242416149385367e-7",
+            "extra": "mean: 3.17494457136541 usec\nrounds: 167197"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_nested_caller",
+            "value": 137392.54609839647,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000001230062784303912",
+            "extra": "mean: 7.278415229919604 usec\nrounds: 143205"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_get_caller_owner_id",
+            "value": 619371.577927228,
+            "unit": "iter/sec",
+            "range": "stddev: 1.7663887037869332e-7",
+            "extra": "mean: 1.6145396973922712 usec\nrounds: 63780"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_stats_add_call",
+            "value": 2826593.01168607,
+            "unit": "iter/sec",
+            "range": "stddev: 5.240237284323636e-8",
+            "extra": "mean: 353.7828034901627 nsec\nrounds: 197668"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_unknown_caller",
+            "value": 9473.405592524981,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0003984201459707842",
+            "extra": "mean: 105.55866000174774 usec\nrounds: 50"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_construct",
+            "value": 2436280.888819106,
+            "unit": "iter/sec",
+            "range": "stddev: 1.2171851610754234e-7",
+            "extra": "mean: 410.4617019282665 nsec\nrounds: 193462"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 1927.7937152856953,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000045465451400772256",
+            "extra": "mean: 518.727699997612 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 77825.09976038535,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000005428865125627019",
+            "extra": "mean: 12.849325000274803 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 1453.252640992515,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000037093614431885334",
+            "extra": "mean: 688.1116000016618 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 349.05234121845433,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00009443018687196535",
+            "extra": "mean: 2.8648998500031553 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_lock",
+            "value": 574.6346386767877,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000054864764510152466",
+            "extra": "mean: 1.7402362000012772 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 2164.827565472412,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000008521310297135868",
+            "extra": "mean: 461.93055555525433 usec\nrounds: 2223"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 1903.9223991227527,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010856759007766596",
+            "extra": "mean: 525.2314907691394 usec\nrounds: 1950"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 3444.1824705045296,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000006452290045057658",
+            "extra": "mean: 290.3446633747928 usec\nrounds: 3544"
           }
         ]
       }
