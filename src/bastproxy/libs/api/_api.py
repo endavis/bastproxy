@@ -36,7 +36,6 @@ Classes:
 # Standard Library
 import contextlib
 import logging
-import pprint
 import types
 from collections.abc import Callable
 from datetime import datetime
@@ -50,7 +49,7 @@ from ._apiitem import APIItem
 
 # Third Party
 # Project
-from ._apistats import STATS_MANAGER, APIStatItem
+from ._apistats import STATS_MANAGER
 from ._builtins import BUILTIN_APIS, BUILTIN_TOPLEVEL, InstanceAPIs
 from ._functools import get_caller_owner_id
 
@@ -70,9 +69,6 @@ class API:  # sourcery skip: upper-camel-case-classes
 
     # where the main api resides
     _class_api: ClassVar[dict[str, APIItem]] = {}
-
-    # stats for the api
-    stats: ClassVar[dict[str, APIStatItem]] = {}
 
     # the basepath that the proxy was run from, will be dynamically set in
     # bastproxy.py
@@ -1063,105 +1059,3 @@ class API:  # sourcery skip: upper-camel-case-classes
                     )
                 )
         return tmsg
-
-
-def test() -> None:  # sourcery skip: no-long-functions
-    """Test the API class functionality.
-
-    This function tests various functionalities of the API class, including adding,
-    querying, and removing API callables, as well as checking the presence of API
-    locations and retrieving detailed information about API items.
-
-    Args:
-        None
-
-    Returns:
-        None
-
-    Raises:
-        None
-
-    """
-
-    # some generic description
-    def testapi(msg: str) -> str:
-        """Test the class api."""
-        return f"{msg} (class)"
-
-    def instancetestapi(msg: str) -> str:
-        """Test the instance api."""
-        return f"{msg} (instance)"
-
-    def instancetestapi2(msg: str) -> str:
-        """TEst the instance api 2nd version."""
-        return f"{msg} (instance (2))"
-
-    print("-" * 80)
-    api = API()
-    print("adding a.test:api")
-    api("libs.api:api.add")("a.test", "api", testapi)
-    print("adding a.test:instance")
-    api("libs.api:api.add")("a.test", "instance", testapi)
-    print("adding a.test:some:api")
-    api("libs.api:api.add")("a.test", "some:api", testapi)
-    print("called api a.test:api", api("a.test:api")("success"))
-    print("called api a.test:instance", api("a.test:instance")("success"))
-    print("called api a.test:some.api", api("a.test:some.api")("success"))
-    print("dict api._class_api:\n", pprint.pformat(api._class_api))
-    print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
-    print("adding a.instance.api in instance api")
-    api("libs.api:api.add")("a.instance", "api", instancetestapi, instance=True)
-    print("adding a.test.instance in instance api")
-    api("libs.api:api.add")("a.test", "instance", instancetestapi, instance=True)
-    print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
-    print("called api a.instance:api", api("a.instance:api")("success"))
-    print("called api a.test:instance", api("a.test:instance")("success"))
-    print("called api a.test:api", api("a.test:api")("success"))
-    print("api.has a.test:instance", api("libs.api:api.exists")("a.test:instance"))
-    print("api.has a.test:instance2", api("libs.api:api.exists")("a.test:instance2"))
-    print("api.has a.instance:api", api("libs.api:api.exists")("a.instance:api"))
-    print("api.has a.test:some.api", api("libs.api:api.exists")("a.test:some.api"))
-    print("dict api._class_api:\n", pprint.pformat(api._class_api))
-    print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
-    print("\n".join(api("libs.api:api.list.formatted")(top_level_api="test")))
-    print("--------------------")
-    print("\n".join(api("libs.api:api.list.formatted")()))
-    print("--------------------")
-    print("\n".join(api("libs.api:api.detail.get")("a.test:instance")))
-    print("--------------------")
-
-    print("-" * 80)
-    api2 = API()
-    print("api: ", api)
-    print("api2: ", api2)
-    print("dict api._class_api:\n", pprint.pformat(api._class_api))
-    print("dict api._instance_api:\n", pprint.pformat(api._instance_api))
-    print("api2 dict api2.api:\n", pprint.pformat(api2._class_api))
-    print("api2 dict api2._instance_api:\n", pprint.pformat(api2._instance_api))
-    print("api2 api_has a.instance:api", api2("libs.api:api.exists")("a.instance:api"))
-    print("api2 api_has a.instance:api", api2("libs.api:api.exists")("a.test:instance"))
-    print("api2 called a.test:api", api2("a.test:api")("success"))
-    print("api2 called a.test:instance", api2("a.test:instance")("success"))
-    print("api2 adding a.instance.api in instance api")
-    api2("libs.api:api.add")("a.instance", "api", instancetestapi2, instance=True)
-    print("api2 dict api._instance_api:\n", pprint.pformat(api2._instance_api))
-    print("api2 called a.instance:api", api2("a.instance:api")("success"))
-    print("api2 adding a.test.instance in instance api")
-    api2("libs.api:api.add")("a.test", "instance", instancetestapi2, instance=True)
-    print("api2 dict api2:class api:\n", pprint.pformat(api2._class_api))
-    print("api2 dict api2:instance api:\n", pprint.pformat(api2._instance_api))
-    print("api2 called a.test:instance", api2("a.test:instance")("success"))
-    print("api2 called a.test:api", api2("a.test:api")("success"))
-    print("api2 api_has a.test:three", api2("libs.api:api.exists")("a.test:three"))
-    try:
-        print("api2 called a.test:three", api2("a.test:three")("success"))
-    except APINotFoundError:
-        print("a.test:three was not in the api")
-    try:
-        print("doesn't exist", api2("a.test:four")("success"))
-    except APINotFoundError:
-        print("a.test:four was not in the api")
-
-
-if __name__ == "__main__":
-    test()

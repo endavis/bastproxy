@@ -27,7 +27,7 @@ An audit of this system, with measurements, defects and a patterns review, is in
 The `API` class is the core of the API system. It provides:
 - **_class_api**: Class-level dictionary storing all shared API functions
 - **_instance_api**: an `InstanceAPIs` mapping (`_builtins.py`) for overriding specific APIs. Construction registers nothing: the 14 built-in `libs.api:` names come from `BUILTIN_APIS`, and each is bound to the object and wrapped in an `APIItem` on first use. The mapping counts and lists unbound built-ins, and deleting one hides it for that object only
-- **stats**: an unused `ClassVar`. The call statistics are kept by the module-level `STATS_MANAGER` in `_apistats.py` (see API Statistics)
+- **Call statistics**: kept by the module-level `STATS_MANAGER` in `_apistats.py` (see API Statistics), not on the `API` class. `API.get` takes the name as given, it no longer strips a `bastproxy.` prefix (#202)
 - **BASEPATH** and related paths: File system paths for the proxy
 - **startup**, **shutdown**, **quiet_mode**, **LOG_IN_UTC_TZ**, **proxy_start_time**, **command_split_regex**: process-wide flags and settings set from `src/bastproxy/__init__.py` and the proxy plugin
 - **is_character_active**: Global flag indicating if the character is ready for commands
@@ -35,7 +35,6 @@ The `API` class is the core of the API system. It provides:
 ```python
 class API:
     _class_api: ClassVar[dict[str, APIItem]] = {}
-    stats: ClassVar[dict[str, APIStatItem]] = {}
 
     def __init__(self, owner_id: str | None = None):
         self._instance_api: InstanceAPIs = InstanceAPIs(self)
@@ -217,7 +216,7 @@ The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `ap
 - Stored in `_instance_api`
 - Specific to one API instance
 - Can override class APIs
-- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object resolves from `BUILTIN_APIS` in `_builtins.py`, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` is safe: removal skips the `addedin` bookkeeping that instance APIs never had
+- Kept as a supported feature (#201) though not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object resolves from `BUILTIN_APIS` in `_builtins.py`, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` is safe: removal skips the `addedin` bookkeeping that instance APIs never had
 
 When looking up an API, instance APIs take precedence over class APIs.
 
@@ -432,7 +431,9 @@ self.api("libs.api:api.add")(
 )
 ```
 
-The original API is preserved in `api_item.overwritten_api` for reference; it is not restored when the overriding owner is unloaded. Without `force`, adding a different function under an existing name logs an error and keeps the first one: `api.add` returns `False` for both a class API and an instance API. Adding the same function again is a no-op that returns `True`. Nothing in `src` uses `force` today.
+The original API is preserved in `api_item.overwritten_api`. When the overriding owner's top-level is removed (for example on unload), the saved `overwritten_api` is put back, or the entry is deleted when none was saved (#196). This holds for class and instance APIs alike. Without `force`, adding a different function under an existing name logs an error and keeps the first one: `api.add` returns `False` for both a class API and an instance API. Adding the same function again is a no-op that returns `True`. Nothing in `src` passes `force=True` or `instance=True` today.
+
+**Decision (#201):** `force` and instance APIs (`api.add(..., instance=True)`, `@AddAPI(instance=True)`) stay as supported features, although nothing in `src` uses them outside the built-ins. Reasons: both are tested; since #196 removing a top-level restores what a force-override replaced; and since #199 the `libs.api:` built-ins share the per-object `_instance_api` store.
 
 ### Character Active Flag
 
