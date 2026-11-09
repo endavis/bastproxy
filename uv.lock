@@ -1816,11 +1816,11 @@ wheels = [
 
 [[package]]
 name = "pydatatracker"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/52/9a/7c21f60dcfe20b5b717e0eb25fbf4debde4f251168c5a6792c90cd1dc53a/pydatatracker-0.1.0.tar.gz", hash = "sha256:ebf8e059f15693f1f9ff5edc1ad314d1f72f8d1f68bf3681a73958dfbe39c2fb", size = 46607, upload-time = "2025-12-04T20:38:35.356Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/82/db99c13a69d0b83b55d324da547461a581f9f4e997fff9359025ced7e615/pydatatracker-0.2.0.tar.gz", hash = "sha256:efd6493a28680258b44a0fe2f83101ca87c6c58e84ae5196342aa9cb9bf6c09e", size = 1186283, upload-time = "2026-11-06T12:41:40.575Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/59/05c4b3e19fb8d4316d08482a8c28d5797329b247e73a1e9c9176126c6717/pydatatracker-0.1.0-py3-none-any.whl", hash = "sha256:5ed29e11bce08a826eab296fcda8086565316ba1eed81fa4f1601b99146733c8", size = 34667, upload-time = "2025-12-04T20:38:33.963Z" },
+    { url = "https://files.pythonhosted.org/packages/50/b2/58e17be806d244aff465476b2accb75b915655da72132d024ed031b2bd0f/pydatatracker-0.2.0-py3-none-any.whl", hash = "sha256:f71836b68388460c5e2ab30604e11081bb51034bec65f39530c0f1456994691c", size = 51657, upload-time = "2026-11-06T12:41:39.211Z" },
 ]
 
 [[package]]
