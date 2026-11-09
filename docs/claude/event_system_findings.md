@@ -45,6 +45,8 @@ The BastProxy event system is a custom-built, priority-based event dispatch syst
 
 ### Bug #1: Duplicate ProcessRaisedEvent Classes ⚠️ HIGH SEVERITY
 
+**Status: Fixed in #241.** The unused copies plugins/core/events/plugin/_process_event.py and plugins/core/events/libs/_event.py were deleted. `ProcessRaisedEvent` lives only in `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` and `Event` only in `src/bastproxy/plugins/core/events/plugin/_event.py`. The paths below are as found by the audit.
+
 **Location:**
 - `src/plugins/core/events/libs/process/_raisedevent.py:15694`
 - `src/plugins/core/events/plugin/_process_event.py:17075`
@@ -158,13 +160,13 @@ from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaise
    ```
 
 **Impact:**
-- **ImportError** when `src/bastproxy/plugins/core/events/libs/_event.py` is imported
-- Code in `src/bastproxy/plugins/core/events/libs/_event.py` cannot execute
+- **ImportError** when plugins/core/events/libs/_event.py (deleted in #241) is imported
+- Code in plugins/core/events/libs/_event.py cannot execute
 - Type hints are incorrect, confusing for developers and type checkers
 
 **Why it hasn't failed yet:**
 - The actual plugin uses `src/bastproxy/plugins/core/events/plugin/_event.py` which was correctly updated (line 22)
-- The file with the bad import (`src/bastproxy/plugins/core/events/libs/_event.py`) may not be imported at runtime
+- The file with the bad import (plugins/core/events/libs/_event.py, deleted in #241) may not be imported at runtime
 - There appear to be two Event implementations (see Bug #1)
 
 **Fix Required:**

@@ -455,7 +455,7 @@ as the docs intend and described under [New Defects](#new-defects).
 | Record System | List and dict records | `pop`, `+=` and `*=` neither tracked nor stopped by `lock()` | Correct, but a locked `+=` or `*=` **changes the list and logs a refusal** (**verified**); `+=` also stores raw `str` items | Fixed |
 | Record System | Parent-child relationships | `NetworkDataLine.add_parent()` keeps only one parent | It keeps one **by default** (`reset=True`); `reset=False` adds more (**verified**) | Fixed |
 | Record System | Event records | The same `EventDataRecord` is reused for `data_list` | Also: a record passed by a caller to `raise_event` is **re-parented** to the new `ProcessRaisedEvent` (**verified**, #230) | Fixed (says so; defect is #230) |
-| Record System | Record Types | One `ProcessRaisedEvent` row | Two classes exist; only `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` is imported (**verified**: `src/bastproxy/plugins/core/events/plugin/_process_event.py` is not the class used by the live events). The copy in `src/bastproxy/plugins/core/events/plugin/_process_event.py` and the `Event` copy in `src/bastproxy/plugins/core/events/libs/_event.py` are dead (**read**: nothing imports them but a `TYPE_CHECKING` block) | Fixed (note added); event audit Bug #1 |
+| Record System | Record Types | One `ProcessRaisedEvent` row | Two classes exist; only `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` is imported (**verified**: plugins/core/events/plugin/_process_event.py is not the class used by the live events). The copy in plugins/core/events/plugin/_process_event.py and the `Event` copy in plugins/core/events/libs/_event.py were dead, and #241 deleted them (**read**: nothing imports them but a `TYPE_CHECKING` block) | Fixed (note added); event audit Bug #1 |
 | Record System | Known Gaps | #47 "lines appended to `NetworkData` get no parent" | True for `append`, `insert` and `data[i] = line` (an object); `extend` and the constructor do set it (**verified**) | Fixed |
 | Data Flow | The record tree | Trees without trigger events; the split-command case not shown | Path 1 has two trigger events under `ev_to_client_data_modify` and its data record under the last; Path 2 hangs split lines under the original line (**verified**) | Fixed |
 | Data Flow | How changes are tracked | "List and dict records also store a copy of their data" | `BaseListRecord` and `BaseDictRecord` do; `NetworkData` does not | Fixed |
@@ -710,8 +710,8 @@ benchmark does; `LogRecord._exec_` failure. `update.py` and `updates.py` are out
 
 ## Other Observations
 
-- **Duplicate event classes.** `src/bastproxy/plugins/core/events/plugin/_process_event.py` and
-  `src/bastproxy/plugins/core/events/libs/_event.py` define a `ProcessRaisedEvent` and an `Event` that nothing
+- **Duplicate event classes** (fixed in #241: both copies deleted). plugins/core/events/plugin/_process_event.py and
+  plugins/core/events/libs/_event.py defined a `ProcessRaisedEvent` and an `Event` that nothing
   imports (**verified** by `grep`: only a `TYPE_CHECKING` block names them). The live ones are in
   `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` and `src/bastproxy/plugins/core/events/plugin/_event.py`. This is Bug #1 in
   [Event System Findings](event_system_findings.md); no issue is drafted here.
