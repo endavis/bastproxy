@@ -293,6 +293,19 @@ class TestExistsAndDetail:
         assert "plugA:one=2" in out
         assert len(calls) == 2
 
+    def test_detail_stats_by_caller_matches_prefix_not_substring(self) -> None:
+        """Caller keys are selected by prefix, not by substring."""
+        api = API(owner_id="owner")
+        api.add("top", "name", func_a)
+        calls = _register_table_format(api)
+        _record_calls("top:name", {"plugA": 1, "plugA.sub": 2, "other.plugA": 4})
+        out = api._api_api_detail_get("top:name", stats_by_caller="plugA")
+        assert "Stats for plugA (Unique Callers: 2)" in out
+        assert "plugA=1" in out
+        assert "plugA.sub=2" in out
+        assert not any("other.plugA" in line for line in out)
+        assert [row["caller"] for row in calls[-1][1]] == ["plugA", "plugA.sub"]
+
     def test_detail_without_stats_flags_has_no_tables(self) -> None:
         """Stats tables are not built unless requested."""
         api = API(owner_id="owner")
