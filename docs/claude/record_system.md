@@ -97,24 +97,29 @@ class UpdateRecord:
 ```python
 class UpdateManager(deque):
     def __init__(self):
-        super().__init__(maxlen=1000)  # the most recent 1000 updates
+        super().__init__(maxlen=RMANAGER.max_changes)  # the most recent updates, 1000 by default
         self.uid_mapping = {}          # update UUID -> UpdateRecord
 ```
 
-`add()` appends the update and records it in `uid_mapping`. When the deque is full it first removes the oldest update's entry from `uid_mapping`, so the mapping stays at 1000 entries or fewer.
+`add()` appends the update and records it in `uid_mapping`. When the deque is full it first removes the oldest update's entry from `uid_mapping`, so the mapping stays at `maxlen` entries or fewer.
 
 ### RecordManager
 
 ```python
 class RecordManager:
     def __init__(self):
-        self.max_records = 5000                    # per record type
-        self.records: dict[str, SimpleQueue] = {}  # class name -> recent records
+        self.max_trees = 100                       # root trees kept (DEFAULT_MAX_TREES)
+        self.max_changes = 1000                    # change entries per new record (DEFAULT_MAX_CHANGES)
+        self.records: dict[str, dict] = {}         # class name -> {UUID: record}, oldest first
         self.record_instances = {}                 # UUID -> record
         self.active_record_stack = SimpleStack()   # records currently executing
 ```
 
-- `add(record)` stores a new record and drops the record evicted from its type's queue from `record_instances`. Children still hold a reference to an evicted parent through `parent` and `parents`.
+- `add(record)` stores a new record under its class name and UUID and counts a new root. There is no per-type cap.
+- **Roots, pending records and trees.** A root is a record with no `parents` whose class has `retention_root = True`: the processing records (`ProcessDataToClient`, `ProcessDataToMud`, `ProcessRaisedEvent`, `SendDataDirectlyToClient`, `SendDataDirectlyToMud`). `TrackedRecordMixin` sets it to `False`, so a parentless `NetworkData`, `NetworkDataLine`, `EventDataRecord` or `CmdArgsRecord` is a pending record: it is not counted, and it joins a tree once something adopts it through `parents`. `mud_read` creates its `NetworkData` this way and may hold it for minutes.
+- `prune()` keeps the last `max_trees` roots (oldest first by insertion) and evicts the rest whole. One pass scans `record_instances` and builds a parent-to-children map, then collects the subtrees of the excess roots. A node in an evicted subtree survives when one of its parents is stored and not evicted, and so do its descendants: a record shared by two trees (an `EventDataRecord` passed to a second event) stays while either tree is kept. A root that is executing, or that is an ancestor of a record on the active stack, is never evicted. A stored record whose parents are all gone (dangling) is evicted. An evicted record's `parents` are left as they were, so a surviving node still shows its evicted parent. Pending records past `MAX_PENDING` (1000, a module constant) are evicted oldest first.
+- **When it runs.** `end()` prunes once the active stack is empty and at least `max(1, max_trees // 10)` roots have been added since the last pass, so nothing executing is mid-tree. `set_max_trees()` prunes at once. A failure is logged and never raised. So the store holds about `max_trees` to `max_trees + max_trees // 10` roots.
+- `set_max_trees(n)` (below 1 logs a warning and uses 1) and `set_max_changes(n)` (below 0 logs a warning and uses 0) are plain setters. The `plugins.debug.records` plugin owns the `retained_trees` and `tracking_max_changes` settings and calls them; without that plugin loaded the built-in defaults apply. `max_changes` applies to records created after a change. `root_count()` counts the stored roots.
 - `start(record)` / `end(record)` push and pop the active record. `end()` with a record that is not on top removes it from the middle of the stack and logs a warning through the `libs.records.managers.records` logger (#46, #247).
 - `get_children()` scans every stored record's `parents`. `get_all_children_dict()`, `get_all_children_list()` and `format_all_children()` repeat that scan at each level of the tree.
 
@@ -169,7 +174,7 @@ network_data.append("look")   # converted to a NetworkDataLine whose parent is n
 
 Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for `BaseListRecord` records, a copy of the data. `NetworkData` and `BaseDictRecord` updates carry no copy.
 
-`NetworkDataLine` and `NetworkData` keep their changes in pydatatracker's change log instead. `updates` is a read-only list of `TrackedUpdate` views over the container's own entries (a child entry that pydatatracker re-homes onto the parent is left out). The actor is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback and the commands plugin sets `<plugin_id>:<command name>` around each command. It is empty on the raw network read path, which the details show as "Unknown". Stack capture is off. Each record keeps up to `MAX_CHANGES` (1000) entries. Pydatatracker's own entries use the actions `update`, `add` and `lock`, flagged `Modify`, or `Info` for `init`, `lock` and `unlock`.
+`NetworkDataLine` and `NetworkData` keep their changes in pydatatracker's change log instead. `updates` is a read-only list of `TrackedUpdate` views over the container's own entries (a child entry that pydatatracker re-homes onto the parent is left out). The actor is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback and the commands plugin sets `<plugin_id>:<command name>` around each command. It is empty on the raw network read path, which the details show as "Unknown". Stack capture is off. Each record keeps up to `RMANAGER.max_changes` entries, 1000 by default (the `tracking_max_changes` setting of `plugins.debug.records`; `MAX_CHANGES` is the default). Pydatatracker's own entries use the actions `update`, `add` and `lock`, flagged `Modify`, or `Info` for `init`, `lock` and `unlock`.
 
 ### 4. Execution
 
@@ -380,7 +385,7 @@ while current.parent:
 - **`NetworkDataLine` and `NetworkData` capture no stack and build no `API` per line.** Measured medians with `uv run pytest tests/benchmarks/test_bench_networkdataline.py --benchmark-enable --benchmark-only` (Python 3.12.12, one run): 18.0 us per line created (270.2 us per 15), 6.5 us per change, 26.7 us per line to build a `NetworkData`. The benchmark asserts the ADR-0005 targets of 50 us and 20 us. Locking a line records one entry per field: 70.2 us per line in the same run, with no target.
 - **Other records: creation and every update capture a formatted call stack** (10 frames per record, 15 per update). This is most of the cost of creating a record or changing a monitored attribute, and it is paid for every network line and log message.
 - **Every record and every update creates an `API` instance.**
-- **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. `BaseListRecord` records store a copy of their data in each update; `BaseDictRecord` updates do not. The cap counts records, not bytes, and a stored `NetworkData` or processing record keeps its lines alive after the line itself is evicted, so memory is bounded only when every type has reached the cap. See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
+- **Retention:** `RMANAGER` keeps the last `retained_trees` root trees (100 by default) and evicts each older tree whole, and each record keeps up to `tracking_max_changes` updates (1000 by default). `BaseListRecord` records store a copy of their data in each update; `BaseDictRecord` updates do not. The cap counts trees, not bytes. Measured with 15-line `ProcessDataToClient` rounds under `tracemalloc` (1,500 rounds, one run): before this change traced memory grew by about 0.68 MB per round, to 1012.3 MB; with 100 trees it stayed at 68.5 MB from round 250 to round 1,500, with 2,424 stored records. One `prune()` took 1.9 to 2.3 ms in steady state (3.5 ms for the first). See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
 - **Inspecting adds records:** every line printed by the records commands is a `NetworkDataLine`, so a long listing can push older records out of the store.
 - **Tree queries scan every stored record** at each level of the tree.
 - **`track_record=False` does not reduce this cost.** It only skips the execution timer and the active-stack push.
@@ -395,9 +400,9 @@ while current.parent:
 | #47 | `TrackedUserList` (not `NetworkData` any more) misses several mutations and its lock does not stop them |
 | #48 | `AttributeMonitor` (still on `BaseRecord`) misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
-| #43 | Replacement of the tracking with pydatatracker: `NetworkDataLine` and `NetworkData`, the dict records (#246) and `LogRecord` (#247) done; processing records (#248) and retention (#249) remain |
+| #43 | Replacement of the tracking with pydatatracker: `NetworkDataLine` and `NetworkData`, the dict records (#246) and `LogRecord` (#247) done; processing records (#248) remain; retention (#249) done |
 | #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
-| #82 | Records are kept only in memory: those beyond `max_records` are lost, and none survive a restart |
+| #82 | Records are kept only in memory: those beyond the last `retained_trees` root trees are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 ## Best Practices

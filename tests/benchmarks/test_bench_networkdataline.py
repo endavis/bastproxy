@@ -10,11 +10,12 @@ Every line read from the mud or a client becomes a ``NetworkDataLine``, so
 creating one, changing a monitored attribute and formatting a batch are on the
 hot path.
 
-The RecordManager keeps up to 5000 records per type in memory, so a benchmark
-that creates records without bound would change cost as the store fills and
-make runs incomparable. Each benchmark therefore uses ``benchmark.pedantic``
-with fixed ``rounds`` and ``iterations=1``, keeping the records one test
-creates (rounds x ``DEFAULT_LINES``) well under that limit. Lines per round
+The RecordManager keeps the last N root record trees in memory (100 by default)
+and evicts older trees whole, so a benchmark that creates records without bound
+would change cost as the store fills and make runs incomparable. Each benchmark
+therefore uses ``benchmark.pedantic`` with fixed ``rounds`` and ``iterations=1``.
+The lines it creates are parentless data holders, which the manager does not
+count as trees, so it only trims them past its pending cap. Lines per round
 match the default ``max_lines_to_process`` of 15.
 
 Both records are built on pydatatracker (ADR-0006). The create and change benchmarks run

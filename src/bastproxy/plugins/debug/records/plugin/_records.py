@@ -9,13 +9,17 @@
 
 from bastproxy.libs.logger import get_record_logs
 from bastproxy.libs.records import RMANAGER
+from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, DEFAULT_MAX_TREES
 
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.events import RegisterToEvent
 
 SHOW_LOG_SETTING = "showRecordLogs"
+RETAINED_TREES_SETTING = "retained_trees"
+MAX_CHANGES_SETTING = "tracking_max_changes"
 
 
 def _format_record_logs(record_uuid: str) -> list[str]:
@@ -37,11 +41,58 @@ class RecordPlugin(BasePlugin):
             bool,
             "1 to show the log messages written while processing a record in the detail command",
         )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            RETAINED_TREES_SETTING,
+            DEFAULT_MAX_TREES,
+            int,
+            "number of root record trees kept in memory; older trees are evicted whole",
+        )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            MAX_CHANGES_SETTING,
+            DEFAULT_MAX_CHANGES,
+            int,
+            "change entries each new record keeps",
+        )
+        self._apply_retained_trees(
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, RETAINED_TREES_SETTING)
+        )
+        self._apply_tracking_max_changes(
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, MAX_CHANGES_SETTING)
+        )
+
+    def _apply_retained_trees(self, value) -> None:
+        """Write the retained_trees setting onto the records manager."""
+        if value is None:
+            return
+        RMANAGER.set_max_trees(int(value))
+
+    def _apply_tracking_max_changes(self, value) -> None:
+        """Write the tracking_max_changes setting onto the records manager."""
+        if value is None:
+            return
+        RMANAGER.set_max_changes(int(value))
+
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_retained_trees_modified")
+    def _eventcb_retained_trees_modified(self):
+        """Apply a changed retained_trees."""
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            self._apply_retained_trees(event_record["newvalue"])
+
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_tracking_max_changes_modified")
+    def _eventcb_tracking_max_changes_modified(self):
+        """Apply a changed tracking_max_changes."""
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            self._apply_tracking_max_changes(event_record["newvalue"])
 
     @AddParser(description="return the list of record types")
     def _command_types(self):
         """List the types of records."""
-        tmsg = ["Record Types:"]
+        tmsg = [
+            f"Root trees: {RMANAGER.root_count()} (retaining {RMANAGER.max_trees})",
+            "Record Types:",
+        ]
         tmsg.extend(f"{rtype:<25} - {count}" for rtype, count in RMANAGER.get_types())
         return True, tmsg
 

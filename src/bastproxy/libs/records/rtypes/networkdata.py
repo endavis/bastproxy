@@ -15,7 +15,7 @@ from pydatatracker import TrackedAttr, TrackedList
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.records.tracking import MAX_CHANGES, TrackedRecordMixin
+from bastproxy.libs.records.tracking import TrackedRecordMixin, current_max_changes
 
 logger = get_logger(__name__)
 
@@ -67,7 +67,9 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             color: Color code for the line (default: "").
 
         """
-        TrackedAttr.__init__(self, tracking_max_changes=MAX_CHANGES, tracking_capture_stack=False)
+        TrackedAttr.__init__(
+            self, tracking_max_changes=current_max_changes(), tracking_capture_stack=False
+        )
         self._init_record()
         self._line_locked = False
         if originated != "internal" and (
@@ -358,7 +360,7 @@ class NetworkData(TrackedRecordMixin, TrackedList):
         TrackedList.__init__(
             self,
             message,  # type: ignore[arg-type]
-            tracking_max_changes=MAX_CHANGES,
+            tracking_max_changes=current_max_changes(),
             tracking_capture_stack=False,
         )
         self._init_record(owner_id)

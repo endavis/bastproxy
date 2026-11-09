@@ -275,7 +275,7 @@ Every record captures, at creation (`BaseRecord.__init__` in `src/bastproxy/libs
 
 Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` uses `try/finally`, so a record whose `_exec_()` raises is still popped and no longer executing.
 
-`RMANAGER` keeps the most recent records of each type (5000 per type by default, `RecordManager.max_records`) and finds children by scanning the stored records' `parents`.
+`RMANAGER` keeps the last N root record trees (100 by default, the `retained_trees` setting of `plugins.debug.records`), evicts each older tree whole ([Record System](record_system.md#recordmanager)), and finds children by scanning the stored records' `parents`.
 
 This is the tree bastproxy built for one `say tracking demo two` round trip against a real MUD (Evennia), printed by `#bp.debug.records.children`:
 
@@ -331,7 +331,7 @@ ProcessDataToMud
 
 Two systems add updates to a record's `updates`.
 
-`NetworkDataLine` and `NetworkData` use pydatatracker ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Their `updates` is a read-only list of `TrackedUpdate` views over the container's own change entries, capped at `MAX_CHANGES` (1000).
+`NetworkDataLine` and `NetworkData` use pydatatracker ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Their `updates` is a read-only list of `TrackedUpdate` views over the container's own change entries, capped at `RMANAGER.max_changes` (1000 by default, the `tracking_max_changes` setting of `plugins.debug.records`).
 
 | Mechanism | Fires on | Example |
 |-----------|----------|---------|

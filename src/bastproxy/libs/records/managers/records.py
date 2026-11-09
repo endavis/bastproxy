@@ -6,22 +6,25 @@
 # By: Bast
 """This module holds a manager that handles records of all types."""
 
-import contextlib
-
 # Standard Library
-from typing import TYPE_CHECKING
+from collections import deque
+from typing import Any
 
 # 3rd Party
 # Project
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.stack import SimpleStack
 
 logger = get_logger(__name__)
 
-if TYPE_CHECKING:
-    pass
+# Root record trees kept before the oldest are evicted whole.
+DEFAULT_MAX_TREES = 100
+# Change entries each new record keeps.
+DEFAULT_MAX_CHANGES = 1000
+# Parentless data holders (pending records) kept before the oldest are evicted. Only an
+# orphan that nothing ever adopts reaches this.
+MAX_PENDING = 1000
 
 
 class RecordManager:
@@ -33,15 +36,46 @@ class RecordManager:
     """
 
     def __init__(self):
-        """Keep the last max_records of each type.
+        """Keep the last max_trees root record trees and track the active record.
 
-        track the active record.
+        ``records`` maps a class name to its records by uuid, oldest first.
         """
-        self.max_records: int = 5000
-        self.records: dict[str, SimpleQueue] = {}
+        self.max_trees: int = DEFAULT_MAX_TREES
+        self.max_changes: int = DEFAULT_MAX_CHANGES
+        self.records: dict[str, dict[str, Any]] = {}
         self.api = BASEAPI(owner_id="libs.records.managers.records")
-        self.record_instances = {}
+        self.record_instances: dict[str, Any] = {}
         self.active_record_stack = SimpleStack()
+        self._roots_since_prune: int = 0
+
+    def set_max_trees(self, value: int) -> None:
+        """Set how many root record trees are kept, then prune.
+
+        Args:
+            value: The number of trees. Below 1 logs a warning and uses 1.
+
+        """
+        trees = int(value)
+        if trees < 1:
+            logger.warning("retained trees %s is below 1, using 1", trees)
+            trees = 1
+        self.max_trees = trees
+        self.prune()
+
+    def set_max_changes(self, value: int) -> None:
+        """Set the change entries each new record keeps.
+
+        Records that already exist keep their cap.
+
+        Args:
+            value: The cap. Below 0 logs a warning and uses 0.
+
+        """
+        changes = int(value)
+        if changes < 0:
+            logger.warning("tracking max changes %s is negative, using 0", changes)
+            changes = 0
+        self.max_changes = changes
 
     def start(self, record):
         """Start tracking a new active record by pushing it onto the stack.
@@ -68,6 +102,10 @@ class RecordManager:
             self.active_record_stack.remove(record)
         else:
             self.active_record_stack.pop()
+        if self.active_record_stack.isempty() and self._roots_since_prune >= max(
+            1, self.max_trees // 10
+        ):
+            self.prune()
 
     def get_latest_record(self):
         """Get the currently active record from the top of the stack.
@@ -200,18 +238,115 @@ class RecordManager:
 
         """
         queuename = record.__class__.__name__
-        if queuename not in self.records:
-            self.records[queuename] = SimpleQueue(self.max_records)
         if record.uuid in self.record_instances:
             logger.error(
                 "Record UUID collision %s already exists in the record manager", record.uuid
             )
-        self.records[queuename].enqueue(record)
+        self.records.setdefault(queuename, {})[record.uuid] = record
         self.record_instances[record.uuid] = record
+        if getattr(record, "retention_root", False) and not record.parents:
+            self._roots_since_prune += 1
 
-        if last_record := self.records[queuename].last_automatically_removed_item:
-            with contextlib.suppress(KeyError):
-                del self.record_instances[last_record.uuid]
+    def _is_root(self, record) -> bool:
+        """Return True if the record starts a tree: a processing record with no parents."""
+        return bool(getattr(record, "retention_root", False)) and not record.parents
+
+    def root_count(self) -> int:
+        """Count the root record trees currently stored."""
+        return sum(1 for rec in self.record_instances.values() if self._is_root(rec))
+
+    def _remove(self, record) -> None:
+        """Remove a record from the stores. Its parents and children are left alone."""
+        self.record_instances.pop(record.uuid, None)
+        by_type = self.records.get(record.__class__.__name__)
+        if by_type is not None:
+            by_type.pop(record.uuid, None)
+
+    def prune(self) -> None:
+        """Evict the oldest root trees past ``max_trees``, each whole.
+
+        A node shared with a tree that is kept survives, and so do the nodes below it.
+        A root that is executing, or that has a record on the active stack below it, is
+        kept. Parentless data holders are kept up to ``MAX_PENDING``. A failure is logged
+        and never raised, because this runs from ``BaseRecord.__call__``.
+        """
+        self._roots_since_prune = 0
+        try:
+            self._prune()
+        except Exception:
+            logger.exception("RecordManager prune failed")
+
+    def _prune(self) -> None:
+        instances = self.record_instances
+        children: dict[str, list[Any]] = {}
+        roots: list[Any] = []
+        pending: list[Any] = []
+        dangling: list[Any] = []
+        for rec in instances.values():
+            parents = rec.parents
+            if not parents:
+                if getattr(rec, "retention_root", False):
+                    roots.append(rec)
+                else:
+                    pending.append(rec)
+                continue
+            found = False
+            for parent in parents:
+                children.setdefault(parent.uuid, []).append(rec)
+                if parent.uuid in instances:
+                    found = True
+            if not found:
+                dangling.append(rec)
+
+        protected: set[str] = set()
+        active: set[str] = set()
+        for rec in self.active_record_stack.items:
+            stack = [rec]
+            while stack:
+                node = stack.pop()
+                if node.uuid in active:
+                    continue
+                active.add(node.uuid)
+                if node.parents:
+                    stack.extend(node.parents)
+                elif node.uuid in instances:
+                    protected.add(node.uuid)
+        protected.update(r.uuid for r in roots if getattr(r, "executing", False))
+
+        excess = [
+            r for r in roots[: max(0, len(roots) - self.max_trees)] if r.uuid not in protected
+        ]
+        excess += pending[: max(0, len(pending) - MAX_PENDING)]
+        excess += dangling
+        if not excess:
+            return
+
+        doomed: dict[str, Any] = {}
+        queue = deque(excess)
+        while queue:
+            node = queue.popleft()
+            if node.uuid in doomed or node.uuid not in instances:
+                continue
+            doomed[node.uuid] = node
+            queue.extend(children.get(node.uuid, ()))
+
+        survivors: set[str] = set()
+        queue = deque()
+        for uid, node in doomed.items():
+            kept_parent = any(p.uuid in instances and p.uuid not in doomed for p in node.parents)
+            if kept_parent or uid in active:
+                survivors.add(uid)
+                queue.append(node)
+        while queue:
+            node = queue.popleft()
+            for child in children.get(node.uuid, ()):
+                if child.uuid in doomed and child.uuid not in survivors:
+                    survivors.add(child.uuid)
+                    queue.append(child)
+
+        for uid, node in doomed.items():
+            if uid not in survivors:
+                self._remove(node)
 
     def get_types(self):
         """Get all record types and their counts.
@@ -220,7 +355,7 @@ class RecordManager:
             A list of tuples containing (record_type, count).
 
         """
-        return [(key, self.records[key].size()) for key in self.records]
+        return [(key, len(self.records[key])) for key in self.records]
 
     def get_records(self, recordtype, count=10):
         """Get the last N records of a specific type.
@@ -230,11 +365,14 @@ class RecordManager:
             count: Number of records to retrieve (default: 10).
 
         Returns:
-            A list of records, or None if type doesn't exist.
+            A list of records, oldest first, or None if type doesn't exist.
 
         """
         records = self.records.get(recordtype, None)
-        return records.get_last_x(count) if records else records
+        if records is None:
+            return None
+        values = list(records.values())
+        return values[-count:] if count > 0 else []
 
     def get_record(self, recordid):
         """Get a specific record by its UUID.
