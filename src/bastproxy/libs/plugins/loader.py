@@ -56,6 +56,9 @@ from bastproxy.plugins._baseplugin import BasePlugin
 
 USER_PLUGIN_IMPORT_ROOT = "userplugins"
 PLUGIN_ID_PREFIX = "plugins."
+API_OWNER = "libs.plugins.loader"
+# public event name third-party plugins may subscribe to; keep byte-identical
+POST_STARTUP_EVENT = "ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded"
 
 
 def plugin_module_names(package_import_location: str) -> list[str]:
@@ -99,7 +102,7 @@ class PluginLoader:
             None
 
         """
-        self.api = API(owner_id=__name__)
+        self.api = API(owner_id=API_OWNER)
 
         self.weak_references_to_modules = {}
 
@@ -126,7 +129,7 @@ class PluginLoader:
             }
         )
 
-        self.api("libs.api:api.add.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
     @AddAPI(
         "plugin.module.list.stale",
@@ -203,7 +206,7 @@ class PluginLoader:
 
         all_plugins_by_id = list(self.plugins_info.keys())
 
-        loaded_plugins_by_id = self.api(f"{__name__}:plugin.list.loaded")()
+        loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         pdiff = set(all_plugins_by_id) - set(loaded_plugins_by_id)
 
@@ -384,7 +387,7 @@ class PluginLoader:
         """
         return [
             plugin_id
-            for plugin_id in self.api(f"{__name__}:plugin.list.loaded")()
+            for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")()
             if self.plugins_info[plugin_id].package == package
         ]
 
@@ -722,7 +725,7 @@ class PluginLoader:
             if exit_on_error:
                 sys.exit(1)
             else:
-                self.api(f"{__name__}:plugin.unload")(plugin_id, allow_required=True)
+                self.api("libs.plugins.loader:plugin.unload")(plugin_id, allow_required=True)
                 return False
 
         # set the plugin instance
@@ -797,7 +800,7 @@ class PluginLoader:
             # a hook above priority 91 may already have set the flag; a failed
             # initialize must take the never-loaded cleanup path, not uninitialize()
             plugin_info.runtime_info.is_loaded = False
-            self.api(f"{__name__}:plugin.unload")(plugin_id, allow_required=True)
+            self.api("libs.plugins.loader:plugin.unload")(plugin_id, allow_required=True)
             return False
 
         LogRecord(
@@ -1027,12 +1030,12 @@ class PluginLoader:
         unloaded: list[str] = []
         ok = True
         for pid in reversed(unload_order):
-            if not self.api(f"{__name__}:plugin.unload")(pid, allow_required=True):
+            if not self.api("libs.plugins.loader:plugin.unload")(pid, allow_required=True):
                 ok = False
                 break
             unloaded.append(pid)
 
-        result = self.api(f"{__name__}:plugin.load")(unloaded, exit_on_error=False)
+        result = self.api("libs.plugins.loader:plugin.load")(unloaded, exit_on_error=False)
         if result["bad_plugins"]:
             ok = False
 
@@ -1258,7 +1261,7 @@ class PluginLoader:
             core_plugins.remove("plugins.core.log")
             core_plugins.insert(0, "plugins.core.log")
 
-        self.api(f"{__name__}:plugin.load")(core_plugins, exit_on_error=True)
+        self.api("libs.plugins.loader:plugin.load")(core_plugins, exit_on_error=True)
 
     def load_plugins_on_startup(self) -> None:
         """Load plugins on startup.
@@ -1283,15 +1286,15 @@ class PluginLoader:
         LogRecord("Finished Loading core and client plugins", level="info", sources=[__name__])()
 
         LogRecord(
-            f"ev_{__name__}_post_startup_plugins_loaded: Started",
+            f"{POST_STARTUP_EVENT}: Started",
             level="debug",
             sources=[__name__],
         )()
 
-        self.api("plugins.core.events:event.raise")(f"ev_{__name__}_post_startup_plugins_loaded")
+        self.api("plugins.core.events:event.raise")(POST_STARTUP_EVENT)
 
         LogRecord(
-            f"ev_{__name__}_post_startup_plugins_loaded: Finish",
+            f"{POST_STARTUP_EVENT}: Finish",
             level="debug",
             sources=[__name__],
         )()
@@ -1365,7 +1368,7 @@ class PluginLoader:
             sources=[__name__],
         )()
 
-        package_list = self.api(f"{__name__}:package.list")(active_only)
+        package_list = self.api("libs.plugins.loader:package.list")(active_only)
 
         # try and find the package
         new_package = self.api("plugins.core.fuzzy:string.match.best")(
@@ -1378,7 +1381,7 @@ class PluginLoader:
         if not tmp_plugin:
             return new_package, ""
 
-        loaded_list = self.api(f"{__name__}:plugin.list.loaded")()
+        loaded_list = self.api("libs.plugins.loader:plugin.list.loaded")()
 
         # try and find the plugin
         new_plugin = self.api("plugins.core.fuzzy:string.match.best")(

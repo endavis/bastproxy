@@ -66,7 +66,7 @@ class CustomColorFormatter(logging.Formatter):
     def __init__(self, fmt: str):
         super().__init__()
         self.fmt = fmt
-        self.api = API(owner_id=f"{__name__}:CustomColorFormatter")
+        self.api = API(owner_id="plugins.core.log:CustomColorFormatter")
         self.FORMATS = {
             logging.DEBUG: self.debug + self.fmt + self.reset,
             logging.INFO: self.info + self.fmt + self.reset,
@@ -104,7 +104,7 @@ class CustomColorFormatter(logging.Formatter):
 class CustomConsoleHandler(logging.StreamHandler):
     def __init__(self, stream=sys.stdout):
         super().__init__(stream=stream)
-        self.api = API(owner_id=f"{__name__}:CustomConsoleHandler")
+        self.api = API(owner_id="plugins.core.log:CustomConsoleHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
@@ -143,7 +143,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         atTime=None,
     ):
         super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
-        self.api = API(owner_id=f"{__name__}:CustomRotatingFileHandler")
+        self.api = API(owner_id="plugins.core.log:CustomRotatingFileHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
@@ -166,7 +166,7 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
 class CustomClientHandler(logging.Handler):
     def __init__(self):
         super().__init__()
-        self.api = API(owner_id=f"{__name__}:CustomClientHandler")
+        self.api = API(owner_id="plugins.core.log:CustomClientHandler")
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
@@ -187,7 +187,7 @@ class CustomClientHandler(logging.Handler):
                 else:
                     color = None
                 if not record.msg.wasemitted["client"]:
-                    new_message = NetworkData(owner_id=f"{__name__}:CustomClientHandler:emit")
+                    new_message = NetworkData(owner_id="plugins.core.log:CustomClientHandler:emit")
                     [
                         new_message.append(NetworkDataLine(line, color=color or ""))
                         for line in formatted_message.splitlines()
@@ -197,7 +197,7 @@ class CustomClientHandler(logging.Handler):
             else:
                 new_message = NetworkData(
                     formatted_message.splitlines(),
-                    owner_id=f"{__name__}:CustomClientHandler:emit",
+                    owner_id="plugins.core.log:CustomClientHandler:emit",
                 )
                 SendDataDirectlyToClient(new_message)()
 

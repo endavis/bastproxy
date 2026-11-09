@@ -102,7 +102,7 @@ Every item in the issue's "Known so far" list, with its current state.
 | Two `lru_cache`s keyed on callables kept unloaded plugins alive | **Fixed** (verified: the `libs/api` caches are gone and `tests/libs/test_api_cache_references.py` guards it; a bundled test plugin I unloaded was collected). **Not fixed outside `libs/api`**: the fuzzy plugin puts `@lru_cache` on two methods (`src/bastproxy/plugins/core/fuzzy/plugin/_fuzzy.py`, **read**), which keys the cache on `self`. Latent, because core plugins are not unloaded. It also breaks `APIItem.detail` (AS-7). | #100, PR #114 |
 | Names follow no single convention: 173 `@AddAPI` decorators, mixed verb-first and object-first | **Fixed** by [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md) and the rename series ending at `39520f6`. Verified: `LEGACY_NAMES` in `tests/plugins/test_api_name_grammar.py` is `{}`, and `tests/plugins/test_api_names_exist.py` checks literal names against the registry. The count: `grep -rn "AddAPI(" src/bastproxy --include=*.py \| wc -l` gives 174, one of which is the docstring example in `_addapi.py`, so there are still 173 decorators. `info/api_naming_analysis.md` is not stale: it opens with a "Superseded by ADR-0004" banner and is kept for history. | #99, PR #173 and #161 to #172 |
 | Instance APIs (`_instance_api`) override class APIs in `API.get` | **Still present, by design, and unused**: verified that `grep -rn "instance=True" src/bastproxy --include=*.py` finds only the docstring in `_addapi.py` and the 14 built-ins in `API.__init__`. No plugin declares an instance API (AS-8). | Q1, AS-2 |
-| `owner_id` prefix handling strips a leading `bastproxy.` | **Still present**; one of the two strips is live and one is dead (Q3, AS-8, AS-9). Plugins no longer import under two names (#95), so the strip is not a plugin concern. | #95, PR #109 |
+| `owner_id` prefix handling strips a leading `bastproxy.` | **Removed in #202**; both strips were live (Q3, AS-9). Plugins no longer import under two names (#95), so the strip is not a plugin concern. | #95, PR #109 |
 
 ---
 
@@ -274,11 +274,10 @@ so the strip is not about plugins any more.
   Without the strip those APIs would register under `bastproxy.libs.timing:...`. (26 class
   `APIItem`s have an owner that starts with `bastproxy.`, **verified**; not all of them come
   through this path.)
-- The strip in `API.get` is **dead in `src` and tests**: it only fires for an `API` whose owner
-  starts with `bastproxy.` and a location that does too. A `grep` for `api("bastproxy.` in `src`
-  and `tests` finds nothing, and no registered toplevel starts with `bastproxy.` (**verified**).
-  A probe confirmed the strip itself works (it resolved `bastproxy.libs.plugins.loader:plugin.list`
-  from a `bastproxy.libs.x` owner and raised `APINotFoundError` from a `plugins.core.x` owner).
+- The strip in `API.get` was **not dead** (correction of an earlier claim here that it was dead in
+  `src` and tests): the loader's nine `self.api(f"{__name__}:...")` calls built
+  `bastproxy.libs.plugins.loader:...` and resolved only through that strip. #202 made them literal
+  `libs.plugins.loader:...` strings and removed the strip.
 - The simpler design is explicit toplevel strings in those three modules, which makes both strips
   unnecessary (AS-8, AS-9).
 
@@ -555,7 +554,7 @@ removed). Tests for every `detail()` over the live registry belong in AS-10.
 
 **Evidence (verified by `grep`):** Nothing reads `API.stats`; the page described it as the global
 stats. No `src` file passes `force=True` or declares `instance=True` outside `libs/api`. `test()`
-is not called. The `API.get` strip never fires (Q3).
+is not called. (The `API.get` strip was live, not dead; see Q3 and #202.)
 
 **Fix:** Delete `API.stats`, `test()` and the `get` strip. Decide whether instance APIs and
 `force` are features to keep (then they need users, tests and a removal path, AS-2 and AS-3) or
@@ -574,6 +573,13 @@ loader's `plugin.list`, whose `APIItem.owner_id` is `bastproxy.libs.plugins.load
 **Fix:** Pass explicit toplevel strings instead of `__name__` and drop the `bastproxy.` strip
 (this is the one the live strip exists for); have `function.owner.get` fall back to the owner of
 the registered `APIItem`. Pick one owner namespace for stats and write it in the docs.
+
+**Fixed in #202:** Library owner IDs and toplevels are explicit strings without the `bastproxy.`
+prefix (`libs.timing`, `libs.net.client`). Both strips (`_api_api_add_for_object` and `API.get`)
+are removed. `function.owner.get` falls back to the registered `APIItem.owner_id`. The namespace
+is written in [api_system.md, Owner IDs](api_system.md#owner-ids). The event name
+`ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded` is unchanged
+(`POST_STARTUP_EVENT`).
 
 ### AS-10: The display, stats and removal paths of `libs/api` have no tests
 

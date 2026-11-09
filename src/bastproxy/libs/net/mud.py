@@ -78,7 +78,7 @@ class MudConnection:
         """
         self.addr: str = addr
         self.port: str = port
-        self.api = API(owner_id=f"{__name__}")
+        self.api = API(owner_id="libs.net.mud")
         # self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
         self.connected = True
