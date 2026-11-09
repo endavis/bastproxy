@@ -367,7 +367,7 @@ caller_id = get_caller_owner_id()
 STATS_MANAGER.add_call(self.full_api_name, caller_id)
 ```
 
-This walks the call stack, from the caller upward, and takes the first frame whose `self` is not an `APIItem` and has a truthy `owner_id` (or an `api` whose `owner_id` is truthy) that is not in the ignore list. That is usually a plugin ID, but any object with an `owner_id` counts, so a helper such as a `Callback` or a `Timer` is the caller with a compound ID like `plugins.example.myplugin:Timer:name`. If no frame matches, the caller is `unknown`: a warning is logged and a stack dump is logged for every such call.
+This walks the call stack, from the caller upward, and takes the first frame whose `self` is not an `APIItem` and has a truthy `owner_id` (or an `api` whose `owner_id` is truthy) that is not in the ignore list. That is usually a plugin ID, but any object with an `owner_id` counts, so a helper such as a `Callback` or a `Timer` is the caller with a compound ID like `plugins.example.myplugin:Timer:name`. If no frame matches, the caller is `unknown`: a warning is logged for every such call, and the stack dump is logged once per API and caller id (#198), not once per call; the stats entry is still counted every time.
 
 `libs.api:caller.owner.get` runs the same walk and skips every frame whose `self` is an `API` or `APIItem`, so it returns the real caller without an ignore list (#197). Pass `ignore_owner_list=[<your own ID>]` when your own object also has an `owner_id` or an `api` that would otherwise match first, as plugins and `libs.timing` do.
 
@@ -501,5 +501,5 @@ A selection; `libs.api:api.list.formatted` called with `libs.plugins.loader` lis
 ### Statistics
 - API statistics are automatically tracked
 - Use them to identify heavily-used APIs
-- Monitor unknown callers to identify tracking issues. Each call with an unknown caller costs about 1.3 ms (a stack dump and two log entries), against about 2 microseconds for a known one, so an unknown caller is a defect to fix, not a state to live with
+- Monitor unknown callers to identify tracking issues. Before #198 each call with an unknown caller cost about 1.3 ms; it now costs about 25 microseconds after the first one for an API (a warning, no stack dump), against about 2 microseconds for a known caller, so an unknown caller is still a defect to fix, not a state to live with
 - Statistics persist for the lifetime of the proxy process; unloading a plugin does not clear them

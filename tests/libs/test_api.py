@@ -18,6 +18,7 @@ Test Classes:
 import logging
 import sys
 from collections.abc import Iterator
+from unittest.mock import patch
 
 import pytest
 
@@ -355,6 +356,39 @@ class TestAPIOverwriting:
         assert capsys.readouterr().out == ""
         assert item.count == 1
         assert item.detailed_calls == {"unknown": 1}
+
+    def test_apistats_unknown_caller_logs_one_dump_for_two_calls(self) -> None:
+        """Two unknown-caller calls log one stack dump but both are counted (#198)."""
+        item = APIStatItem("test:once")
+
+        with patch("bastproxy.libs.records.LogRecord") as log_record:
+            item.add_call("unknown")
+            item.add_call("unknown")
+
+        assert log_record.call_count == 1
+        assert item.count == 2
+        assert item.detailed_calls == {"unknown": 2}
+        assert item.calls_by_caller == {"unknown": 2}
+
+    def test_apistats_unknown_dump_is_per_api(self) -> None:
+        """A second API with an unknown caller logs its own dump (#198)."""
+        first = APIStatItem("test:first")
+        second = APIStatItem("test:second")
+
+        with patch("bastproxy.libs.records.LogRecord") as log_record:
+            first.add_call("unknown")
+            second.add_call("unknown")
+
+        assert log_record.call_count == 2
+
+    def test_apistats_known_caller_logs_no_dump(self) -> None:
+        """A known caller never logs a stack dump."""
+        item = APIStatItem("test:known")
+
+        with patch("bastproxy.libs.records.LogRecord") as log_record:
+            item.add_call("plugins.a")
+
+        log_record.assert_not_called()
 
 
 class TestAPIInstancePriority:

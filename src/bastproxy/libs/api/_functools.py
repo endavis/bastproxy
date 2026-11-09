@@ -122,7 +122,16 @@ def get_caller_owner_id(ignore_owner_list: list[str] | None = None) -> str:
 
     if caller_id == "unknown":
         logger = logging.getLogger(__name__)
-        logger.warning("Unknown caller_id for API call: %s", inspect.stack()[1][3])
+        # The name of the function that called this one, read from the frame
+        # (inspect.stack() would build a FrameInfo with source context per frame)
+        # (the frame is deleted so it is not kept in a reference cycle with itself)
+        own_frame = inspect.currentframe()
+        try:
+            caller_frame = own_frame.f_back if own_frame else None
+            caller_name = caller_frame.f_code.co_name if caller_frame else "unknown"
+        finally:
+            del own_frame
+        logger.warning("Unknown caller_id for API call: %s", caller_name)
 
     return caller_id
 

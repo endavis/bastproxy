@@ -57,13 +57,15 @@ class APIStatItem:
         self.calls_by_caller: dict[str, int] = {}
         self.detailed_calls: dict[str, int] = {}
         self.count: int = 0  # Total number of calls to this API
+        # Caller ids whose stack dump was already logged for this API
+        self._dumped_callers: set[str] = set()
 
     def add_call(self, caller_id: str) -> None:
         """Add a call to the APIStatItem object.
 
         This method increments the call count for the API and logs detailed call
         information, including the caller ID. If the caller ID is unknown, a stack
-        trace is logged.
+        trace is logged once per API and unknown caller id, not once per call.
 
         Args:
             caller_id: ID of the caller making the API call.
@@ -76,7 +78,8 @@ class APIStatItem:
 
         """
         self.count += 1
-        if not caller_id or caller_id == "unknown":
+        if (not caller_id or caller_id == "unknown") and caller_id not in self._dumped_callers:
+            self._dumped_callers.add(caller_id)
             stack = stackdump(
                 msg=(
                     "------------ Unknown caller_id for API call: "
