@@ -15,7 +15,7 @@ tags:
 
 The API system in bastproxy is a centralized registry for exposing and consuming functionality across plugins and modules. It provides a standardized way for components to publish callable functions and for other components to discover and invoke them using a hierarchical naming scheme.
 
-The API system is both class-based and instance-based, allowing for shared functionality (class API) and per-instance overrides (instance API). In practice every plugin API is a class API; the only instance APIs are the 14 `libs.api:` built-ins every `API` object carries.
+The API system is both class-based and instance-based, allowing for shared functionality (class API) and per-instance overrides (instance API). In practice every plugin API is a class API; the only instance APIs are the 14 `libs.api:` built-ins every `API` object offers, resolved lazily from a fixed table (`BUILTIN_APIS` in `_builtins.py`).
 
 An audit of this system, with measurements, defects and a patterns review, is in [API System Analysis and Findings](api_system_findings.md).
 
@@ -26,7 +26,7 @@ An audit of this system, with measurements, defects and a patterns review, is in
 
 The `API` class is the core of the API system. It provides:
 - **_class_api**: Class-level dictionary storing all shared API functions
-- **_instance_api**: Instance-level dictionary for overriding specific APIs. Every `API` object registers 14 built-in `libs.api:` instance APIs here when it is constructed
+- **_instance_api**: an `InstanceAPIs` mapping (`_builtins.py`) for overriding specific APIs. Construction registers nothing: the 14 built-in `libs.api:` names come from `BUILTIN_APIS`, and each is bound to the object and wrapped in an `APIItem` on first use. The mapping counts and lists unbound built-ins, and deleting one hides it for that object only
 - **stats**: an unused `ClassVar`. The call statistics are kept by the module-level `STATS_MANAGER` in `_apistats.py` (see API Statistics)
 - **BASEPATH** and related paths: File system paths for the proxy
 - **startup**, **shutdown**, **quiet_mode**, **LOG_IN_UTC_TZ**, **proxy_start_time**, **command_split_regex**: process-wide flags and settings set from `src/bastproxy/__init__.py` and the proxy plugin
@@ -38,7 +38,7 @@ class API:
     stats: ClassVar[dict[str, APIStatItem]] = {}
 
     def __init__(self, owner_id: str | None = None):
-        self._instance_api: dict[str, APIItem] = {}
+        self._instance_api: InstanceAPIs = InstanceAPIs(self)
         self.owner_id: str = owner_id or "unknown"
 ```
 
@@ -217,7 +217,7 @@ The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `ap
 - Stored in `_instance_api`
 - Specific to one API instance
 - Can override class APIs
-- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object registers for itself, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` is safe: removal skips the `addedin` bookkeeping that instance APIs never had
+- Not used by any plugin today: the only instance APIs are the 14 `libs.api:` built-ins every `API` object resolves from `BUILTIN_APIS` in `_builtins.py`, which is why `libs.api:*` names are not in `_class_api`. Unloading a plugin that declares `@AddAPI(..., instance=True)` is safe: removal skips the `addedin` bookkeeping that instance APIs never had
 
 When looking up an API, instance APIs take precedence over class APIs.
 

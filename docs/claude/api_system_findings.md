@@ -49,7 +49,7 @@ The gaps are in the paths the happy case does not cover, and in two costs nobody
   (AS-5). It builds `inspect.stack()`, a stack dump and a `LogRecord`, and logs twice. Startup
   never takes it; any code that calls an API from outside an object with an `owner_id` does.
 - **Every `API(...)` object builds 14 `APIItem`s** (AS-6). That is 7.5 microseconds and about
-  5 KB, and every record (`LogRecord`, `UpdateRecord`, ...) builds one. After startup 12,470
+  5 KB, and every record (`LogRecord`, `UpdateRecord`, ...) builds one (fixed in #199). After startup 12,470
   `API` objects were alive, 11,904 of them owned by `UpdateRecord` and `LogRecord`.
 - **`API.add` returns `True` when it refuses a duplicate** (AS-1), and a test asserts it.
 - **`api.toplevel.remove` raises** for an instance API and for any function that was added
@@ -215,7 +215,7 @@ What the numbers say (arithmetic on the medians above):
   comes from `tracemalloc` over 1,000 objects (**verified**, approximate). The same probe counted
   12,470 live `API` objects after startup: 9,559 owned by `UpdateRecord`, 2,345 by `LogRecord`, 106
   by `ProcessRaisedEvent` and 126 by event objects (**verified**). At 5.2 KB that is about 65 MB
-  (arithmetic, **unverified** as a process total). See AS-6.
+  (arithmetic, **unverified** as a process total). See AS-6 (fixed in #199).
 - Over a startup, 108,776 calls at about 2 microseconds is about 0.22 s of call overhead
   (arithmetic). The call path is not what makes the proxy slow.
 
@@ -373,7 +373,7 @@ only what is specific to the API code.
 | 10 | **Type-check escapes** | 12 `# type: ignore` in `_api.py`, 1 in `_addapi.py`, 0 in the other files (**verified** by `grep -c`); `bastproxy.libs.api.*` is in the mypy `ignore_errors` override in `pyproject.toml` | Whole package | **Keep, tracked by #6.** The `ignore_errors` override makes the comments inert today. Do not widen it. The decorator's `func.api` attribute is the cause of most of them; a `Protocol` for "function with `.api`" would remove them. |
 | 11 | **Import-time side effects** | `STATS_MANAGER = StatsManager()`; `src/bastproxy/libs/timing.py` builds `API(...)` and `TIMING = Timing()` at import and registers APIs | Yes | **Keep** for `STATS_MANAGER` (an empty dict, no I/O). The registering imports are the architecture. |
 | 12 | **Tight coupling: `libs` calls `plugins` by name** | `_api_api_exists` calls `libs.plugins.loader` APIs; `_stats_*` call `plugins.core.utils:table.format`; `API.add_events` and `_api_character_active_set` call `plugins.core.events` | Yes | **Keep, document.** The framework layer reaching into plugins by string name is the service-locator trade (plugin audit row 6). It breaks if the plugin is absent, for example in a unit test; `tests/libs/test_api.py` stubs them. |
-| 13 | **Per-object construction of a heavy helper** | `API(owner_id=...)` in 31 constructor call sites in `src` (**verified** by `grep -rnE "(^\|[ (=])(BASE)?API\(owner_id"`), including `src/bastproxy/libs/records/rtypes/base.py` for every record | Yes | **Change** (AS-6, #199). |
+| 13 | **Per-object construction of a heavy helper** | `API(owner_id=...)` in 31 constructor call sites in `src` (**verified** by `grep -rnE "(^\|[ (=])(BASE)?API\(owner_id"`), including `src/bastproxy/libs/records/rtypes/base.py` for every record | Yes | **Change** (AS-6, #199). Fixed in #199. |
 | 14 | **Dead and misleading surface** | `API.stats`, `test()`, `force=`, `instance=True`, `overwritten_api`, the `get` strip | n/a | **Change** (AS-8). The unused override features are decided in that issue, not deleted by this audit. |
 | 15 | **Strings, not `Path`, for paths** | `API.BASEPATH` and friends are `Path`; API names are not file paths | Yes | **Fits.** |
 | 16 | **Untested display and removal paths** | Q4 | n/a | **Change** (AS-10, #203): add tests; AS-2 and AS-7 each carry their own regression test. |
@@ -522,6 +522,14 @@ objects about 5.2 KB each. Live `API` objects after startup: 12,470, of which `U
 Resolve the `libs.api:` names in `API.get` from a fixed method table (no `APIItem` per object),
 or give records a shared `API`. Measure with `test_bench_api_construct` before and after. This
 overlaps the record cost work in #81 and #106; check them before starting.
+
+**Fixed in #199:** The 14 built-ins live in a class-level table, `BUILTIN_APIS`
+(`_builtins.py`). `API._instance_api` is an `InstanceAPIs` mapping: construction binds and
+registers nothing, and a built-in is bound and wrapped in an `APIItem` the first time it is
+resolved. Enumeration, `del` (which hides a built-in for that object only) and overrides work as
+they did on the dict. Benchmark (j) `test_bench_api_construct` median went from 8,126 ns to
+259 ns (`doit benchmark_compare` against the saved baseline, same machine). The text
+above describes the behaviour before the fix.
 
 ### AS-7: `api.detail.get` and `api.list.formatted` crash on some APIs
 
