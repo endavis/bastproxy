@@ -66,6 +66,7 @@ class TriggerItem:
 
     def raisetrigger(self, args):
         """Raise an event for this trigger."""
+        self.hits += 1
         if self.omit:
             args["line"].sendtoclients = False
 
