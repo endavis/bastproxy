@@ -407,6 +407,11 @@ class PluginManager(BasePlugin):
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
             return True, [f"{args['plugin']} is not a valid plugin id"]
 
+        if not self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
+            return True, [
+                f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"
+            ]
+
         self.api(f"{args['plugin']}:plugin.reloading.set")()
 
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
