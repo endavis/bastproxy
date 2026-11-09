@@ -23,7 +23,8 @@ bastproxy wraps its significant data and operations in **records**: log messages
 
 A global manager, `RMANAGER`, keeps the most recent records of each type so they can be inspected later, mainly through the `plugins.debug.records` commands.
 
-For how records move through the proxy, see [Data Flow](data_flow.md).
+For how records move through the proxy, see [Data Flow](data_flow.md). For what the tracking misses, what the
+store keeps and what it costs, see [Record System Findings](record_system_findings.md).
 
 ## Key Components
 
@@ -73,7 +74,7 @@ class UpdateRecord:
         self.flag = flag               # "Modify", "Set Flag" or "Info"
         self.action = action           # what happened
         self.extra = extra or {}       # details
-        self.data = data               # a copy of the record's data (list and dict records)
+        self.data = data               # a copy of the record's data (BaseListRecord and BaseDictRecord only)
         self.stack = ...               # traceback.format_stack(limit=15)
         self.actor = ...               # see "How the actor is chosen"
         self.event_stack = ...         # the event names being processed
@@ -98,7 +99,7 @@ class UpdateManager(deque):
         self.uid_mapping = {}          # update UUID -> UpdateRecord
 ```
 
-`uid_mapping` is not trimmed when the deque drops old updates, so a record keeps references to every update it ever had.
+`add()` appends the update and records it in `uid_mapping`. When the deque is full it first removes the oldest update's entry from `uid_mapping`, so the mapping stays at 1000 entries or fewer.
 
 ### RecordManager
 
@@ -118,9 +119,9 @@ class RecordManager:
 
 ### List and dict records
 
-**`TrackedUserList(BaseRecord, UserList)`** records `__setitem__`, `insert`, `append` and `extend`, and its `lock()` stops those four. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are neither tracked nor stopped by the lock (#47). `NetworkData` is a `TrackedUserList` of `NetworkDataLine` records.
+**`TrackedUserList(BaseRecord, UserList)`** records `__setitem__`, `insert`, `append` and `extend`, and its `lock()` stops those four. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not tracked and the lock does not stop them (#47). A locked `+=` or `*=` is worse than silent: the list changes, and the record logs a refused write to `data` as well. `+=` also accepts plain strings, which are stored as they are instead of becoming `NetworkDataLine` records. `NetworkData` is a `TrackedUserList` of `NetworkDataLine` records.
 
-**`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. `LogRecord` is the only subclass.
+**`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. `LogRecord` is the only subclass. None of the plain list methods (`append`, `extend`, `pop`, item assignment and so on) is tracked; only `replace()` and the helpers built on it add an update.
 
 **`BaseDictRecord(BaseRecord, UserDict)`** keeps `original_data`, and its `addupdate()` also takes `savedata`. Setting keys is not tracked; code that changes the dict records an update itself. `EventDataRecord` and `CmdArgsRecord` are dict records.
 
@@ -146,7 +147,8 @@ Outer()()
 
 - `parent` is the record that was active at creation, or the one passed in
 - `parents` is the list of parents added with `add_parent()`. It holds direct parents, not ancestors. A record can have several: a `NetworkData` gets a second parent when `SendDataDirectlyToMud` takes it over from `ProcessDataToMud`.
-- `NetworkDataLine.add_parent()` keeps only one parent, and only accepts `NetworkData` or `NetworkDataLine` parents
+- `NetworkDataLine.add_parent()` keeps only one parent by default (`reset=True` replaces the list); `reset=False` adds another. It only accepts `NetworkData` or `NetworkDataLine` parents and ignores any other class without an error
+- A line given to `NetworkData.append()`, `insert()` or item assignment as a `NetworkDataLine` object gets no parent; one given as a string, and any line given to `extend()` or the constructor, does (#47)
 
 ### 3. Tracking changes
 
@@ -163,7 +165,7 @@ record.status = "done"   # records "status attribute changed", if "status" is mo
 network_data.append("look")
 ```
 
-Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for list and dict records, a copy of the data.
+Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for `BaseListRecord` and `BaseDictRecord` records, a copy of the data. `NetworkData` updates carry no copy.
 
 ### 4. Execution
 
@@ -238,6 +240,8 @@ From a client, the same information is available through `plugins.debug.records`
 
 The network records and the four processing steps are described in [Data Flow](data_flow.md).
 
+Two classes named `ProcessRaisedEvent` exist. The one used is `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` in the table above; `src/bastproxy/plugins/core/events/plugin/_process_event.py` holds an unused copy, next to an unused `Event` copy in `src/bastproxy/plugins/core/events/libs/_event.py`. See [Record System Findings](record_system_findings.md#other-observations).
+
 ### LogRecord
 
 ```python
@@ -258,7 +262,7 @@ When called, a `LogRecord` cleans and colors its lines, then calls the logger of
 
 ### Event records
 
-`Event.raise_event()` wraps the event arguments in an `EventDataRecord` and runs a `ProcessRaisedEvent` for them. The `ProcessRaisedEvent` is the active record while callbacks run, so records the callbacks create become its children. For events raised with `data_list`, the same `EventDataRecord` is reused and its `key_name` entry is set to each item in turn. Each invocation adds an `Info` "Invoked" update with a copy of the event data.
+`Event.raise_event()` wraps the event arguments in an `EventDataRecord` and runs a `ProcessRaisedEvent` for them. The `ProcessRaisedEvent` is the active record while callbacks run, so records the callbacks create become its children. For events raised with `data_list`, the same `EventDataRecord` is reused and its `key_name` entry is set to each item in turn. Each invocation adds an `Info` "Invoked" update with a copy of the event data. If the caller passes an `EventDataRecord` instead of a dict, `ProcessRaisedEvent` makes itself that record's only parent, so a record passed to a second event moves to the second event's subtree. The triggers plugin does this with the data of `ev_to_client_data_modify`.
 
 ## Attribute Monitoring
 
@@ -363,7 +367,7 @@ while current.parent:
 
 - **Creation and every update capture a formatted call stack** (10 frames per record, 15 per update). This is most of the cost of creating a record or changing a monitored attribute, and it is paid for every network line and log message.
 - **Every record and every update creates an `API` instance.**
-- **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. List and dict records store a copy of their data in each update.
+- **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. `BaseListRecord` and `BaseDictRecord` records store a copy of their data in each update. The cap counts records, not bytes, and a stored `NetworkData` or processing record keeps its lines alive after the line itself is evicted, so memory is bounded only when every type has reached the cap. See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
 - **Inspecting adds records:** every line printed by the records commands is a `NetworkDataLine`, so a long listing can push older records out of the store.
 - **Tree queries scan every stored record** at each level of the tree.
 - **`track_record=False` does not reduce this cost.** It only skips the execution timer and the active-stack push.
@@ -376,7 +380,7 @@ while current.parent:
 | Issue | Gap |
 |-------|-----|
 | #46 | `LogRecord`s without `sources`, or never called, are not logged |
-| #47 | `TrackedUserList` misses several mutations and its lock does not stop them; lines appended to `NetworkData` get no parent |
+| #47 | `TrackedUserList` misses several mutations and its lock does not stop them; lines appended to `NetworkData` as objects with `append`, `insert` or item assignment get no parent |
 | #48 | `AttributeMonitor` misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
 | #43 | Planned replacement of the tracking with pydatatracker |

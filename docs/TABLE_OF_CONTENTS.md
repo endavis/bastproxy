@@ -86,6 +86,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation
 - [Record System](claude/record_system.md) - Records that track data and operations, their lifecycle and relationships
+- [Record System Analysis and Findings](claude/record_system_findings.md) - Audit of record mutation tracking, the parent/child tree, retention and memory, test coverage, docs accuracy and the patterns the record system uses, with defects and a patterns review
 - [Release Automation & Security](development/release-and-automation.md) - Automated versioning, release management, and security tooling
 - [Review Focus Areas](development/ai/review-focus-areas.md) - Checklists for the errors, tests, types and comments focus areas available to every review and adversarial-review surface
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
@@ -122,6 +123,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Plugin System](claude/plugin_system.md) - Plugin structure, metadata, loading, reloading and lifecycle
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Record System](claude/record_system.md) - Records that track data and operations, their lifecycle and relationships
+- [Record System Analysis and Findings](claude/record_system_findings.md) - Audit of record mutation tracking, the parent/child tree, retention and memory, test coverage, docs accuracy and the patterns the record system uses, with defects and a patterns review
 - [Review Focus Areas](development/ai/review-focus-areas.md) - Checklists for the errors, tests, types and comments focus areas available to every review and adversarial-review surface
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
@@ -202,6 +204,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation
 - [Record System](claude/record_system.md) - Records that track data and operations, their lifecycle and relationships
+- [Record System Analysis and Findings](claude/record_system_findings.md) - Audit of record mutation tracking, the parent/child tree, retention and memory, test coverage, docs accuracy and the patterns the record system uses, with defects and a patterns review
 - [Release Automation & Security](development/release-and-automation.md) - Automated versioning, release management, and security tooling
 - [Review Focus Areas](development/ai/review-focus-areas.md) - Checklists for the errors, tests, types and comments focus areas available to every review and adversarial-review surface
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
