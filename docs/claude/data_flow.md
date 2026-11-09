@@ -111,12 +111,12 @@ ProcessDataToMud(
 
 ### NetworkDataLine
 
-`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkDataLine(BaseRecord)`: one line of data.
+`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkDataLine(TrackedRecordMixin, TrackedAttr)`: one line of data, tracked by pydatatracker ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)).
 
 | Attribute | Meaning |
 |-----------|---------|
 | `line` | Current content. `bytes` for `COMMAND-TELNET` lines, `str` otherwise |
-| `original_line` | Content at creation (locked) |
+| `original_line` | Content at creation (a read-only property; writing it raises `RuntimeError`) |
 | `originated` | `"mud"`, `"client"` or `"internal"` |
 | `line_type` | `"IO"` or `"COMMAND-TELNET"` |
 | `send` | `False` means the line is dropped (gagged) before sending |
@@ -129,15 +129,15 @@ ProcessDataToMud(
 
 Properties: `noansi` (ANSI stripped), `colorcoded`, `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the content and flag attributes.
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the eight content and flag fields, not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 
 ### NetworkData
 
-`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkData(TrackedUserList)`: a batch of lines.
+`src/bastproxy/libs/records/rtypes/networkdata.py`, class `NetworkData(TrackedRecordMixin, TrackedList)`: a batch of lines.
 
-- Strings and bytes passed to the constructor, `append`, `insert`, `extend` or `__setitem__` are converted to `NetworkDataLine`. Other types raise `TypeError`.
-- Those four methods are tracked and respect `lock()`. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not (#47).
-- Only the constructor and `extend` set the batch as the parent of a `NetworkDataLine` passed in as an object. `append`, `insert` and `__setitem__` only do it for converted strings (#47).
+- One hook, `_tracking_convert_item`, handles every way of storing an item: the constructor, `append`, `insert`, `extend`, `+=`, item and slice assignment. Strings, bytes and bytearrays become `NetworkDataLine`, other types raise `TypeError`, and the batch becomes the line's parent, also for a `NetworkDataLine` object passed in.
+- After `lock()`, every mutation (`append`, `insert`, `extend`, `pop`, `sort`, `+=`, item assignment and so on) raises `RuntimeError`. `lock()` also locks the lines, so the send steps format the lines first and lock the batch after.
+- It is a `list` subclass: there is no `.data`, and `.locked` is read-only.
 
 ## Processing Records
 
@@ -320,30 +320,29 @@ ProcessDataToMud
 
 ### How changes are tracked
 
-Three mechanisms add `UpdateRecord`s (`src/bastproxy/libs/records/rtypes/update.py`) to a record's `updates`, an `UpdateManager` deque that keeps the most recent 1000:
+Two systems add updates to a record's `updates`.
+
+`NetworkDataLine` and `NetworkData` use pydatatracker ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Their `updates` is a read-only list of `TrackedUpdate` views over the container's own change entries, capped at `MAX_CHANGES` (1000).
 
 | Mechanism | Fires on | Example |
 |-----------|----------|---------|
-| `AttributeMonitor` (`src/bastproxy/libs/tracking/utils/attributes.py`) | Reassigning a monitored attribute | `line.send = False` → "send attribute changed", with the original and new values |
-| `TrackedUserList` (`src/bastproxy/libs/records/rtypes/base.py`) | `__setitem__`, `insert`, `append`, `extend` on `NetworkData` | Command splitting replacing a line |
+| pydatatracker | A monitored field is reassigned, or the list is mutated, locked or unlocked | `line.send = False` records an `update` entry for `send`; `NetworkData.append(...)` records an `add` entry |
 | `addupdate(...)` | Code recording what it did | Commands: "Antispam Command sent"; `ProcessRaisedEvent`: "Invoked" |
 
-Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). `LogRecord` and the dict records also store a copy of their data; `NetworkData` does not. The **actor** is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`.
+The **actor** is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback, the commands plugin sets `<plugin_id>:<command name>` around each command. Code outside both (the raw network read path) has no actor and the details show "Unknown". Entries carry no stack, and `-ss` shows nothing for these two types.
 
-A locked attribute ignores writes: the attempt is recorded as an `Info` update and no error is raised (#48). In-place changes to a monitored mutable attribute (for example `parents.append(...)`) are not seen, because `AttributeMonitor` only fires on reassignment (#48).
+The other records (processing records, `LogRecord`, the dict records) still use `AttributeMonitor`, `TrackedUserList` and `UpdateRecord` (`src/bastproxy/libs/records/rtypes/update.py`). Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). The actor is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`. A locked attribute ignores writes there: the attempt is recorded as an `Info` update and no error is raised (#48), and in-place changes to a monitored mutable attribute are not seen (#48).
 
-The update history of the MUD's `You say, "demo three"` line from the same session, from `#bp.debug.records.detail`:
+Update history of a line, produced by a script that creates a `NetworkData`, changes the line under `tracking_actor("plugins.core.proxy:ev_mud_read")`, locks the batch and sets `was_sent` (flag, action, actor, location):
 
 ```
-line      : changed from '…demo three…' to '…demo three…\r\n'
-was_sent  : changed from 'False' to 'True'
-Updates:
-  Modify  original input              Actor: libs/net/mud.py  mud_read      data.append(NetworkDataLine(...))
-  Modify  line attribute changed      Actor: libs/net/mud.py  mud_read      ProcessDataToClient(data)()
-  Modify  was_sent attribute changed  Actor: libs/net/client.py  client_write
+Modify  update  plugins.core.proxy:ev_mud_read  line
+Modify  update  plugins.core.proxy:ev_mud_read  line_modified
+Info    lock    (none)                          (one entry per locked field, 8 in all)
+Modify  update  (none)                          was_sent
 ```
 
-The line ending was added by `SendDataDirectlyToClient` → `format()` → `add_line_endings()`. Record code is excluded from the actor search, so a change made by the pipeline is attributed to its entry point (`mud_read`). A change made by a plugin callback is attributed to the plugin's file.
+The details of a processing record list the updates of its child lines once each, because a record's `updates` leaves out the child entries pydatatracker copies onto the parent.
 
 ### Inspecting records
 
@@ -376,10 +375,10 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #47 | Several `NetworkData` mutations are untracked and ignore `lock()`; lines appended as objects get no parent |
-| #48 | Locked attributes ignore writes silently; in-place changes are not tracked |
+| #47 | `TrackedUserList` (not `NetworkData`) leaves several mutations untracked and ignores `lock()` |
+| #48 | On `AttributeMonitor` records, locked attributes ignore writes silently and in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
-| #43 | Planned replacement of the record tracking with pydatatracker |
+| #43 | Replacement of the record tracking with pydatatracker: `NetworkDataLine` and `NetworkData` done; #246 to #249 remain |
 | #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |

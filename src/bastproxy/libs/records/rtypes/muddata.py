@@ -178,12 +178,14 @@ class SendDataDirectlyToMud(BaseRecord):
 
     def _exec_(self):
         """Send the data to the mud."""
+        # Format first: locking the message locks its lines, and a locked line cannot format.
+        for line in self.message:
+            if line.send:
+                line.format()
         self.message.lock()
         if mud_connection := self.api("plugins.core.proxy:mud.connection.get")():
             for line in self.message:
                 if line.send:
-                    line.format()
-                    line.lock()
                     mud_connection.send_to(line)
 
         # pass each line through the event system to allow plugins to see what

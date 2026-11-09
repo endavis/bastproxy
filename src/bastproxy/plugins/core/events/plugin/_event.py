@@ -20,6 +20,7 @@ from collections.abc import Callable
 from bastproxy.libs.api import API
 from bastproxy.libs.callback import Callback
 from bastproxy.libs.records import LogRecord
+from bastproxy.libs.records.tracking import tracking_actor
 from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
 
@@ -228,7 +229,8 @@ class Event:
                 ):
                     self.current_callback = call_back
                     self.priority_dictionary[priority][call_back] = True
-                    call_back.execute()
+                    with tracking_actor(f"{call_back.owner_id}:{call_back.name}"):
+                        call_back.execute()
                     found = True
                     if already_done:
                         LogRecord(

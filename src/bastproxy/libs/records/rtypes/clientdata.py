@@ -241,12 +241,13 @@ class SendDataDirectlyToClient(BaseRecord):
 
     def _exec_(self):
         """Send the message."""
-        self.message.lock()
+        # Format first: locking the message locks its lines, and a locked line cannot format.
         for line in self.message:
             if line.send:
                 line.format()
-                line.lock()
-
+        self.message.lock()
+        for line in self.message:
+            if line.send:
                 clients = self.clients or self.api("plugins.core.clients:client.list")(
                     uuid_only=True
                 )
