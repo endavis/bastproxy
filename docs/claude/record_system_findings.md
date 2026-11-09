@@ -22,6 +22,8 @@ costs, test coverage, docs accuracy and patterns (audit issue #106). Compared ag
 `AttributeMonitor`, `UpdateRecord` and `UpdateManager` are read only to fill the mutation table (Q1).
 #43 replaces them with pydatatracker, so they get no pattern review and no coverage work here.
 
+Requirements decided in [ADR-0005](../decisions/0005-record-tracking-scope-change-contents-retention-and-cost.md).
+
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
