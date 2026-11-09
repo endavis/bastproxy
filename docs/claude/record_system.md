@@ -251,7 +251,7 @@ From a client, the same information is available through `plugins.debug.records`
 
 The network records and the four processing steps are described in [Data Flow](data_flow.md).
 
-Two classes named `ProcessRaisedEvent` exist. The one used is `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` in the table above; `src/bastproxy/plugins/core/events/plugin/_process_event.py` holds an unused copy, next to an unused `Event` copy in `src/bastproxy/plugins/core/events/libs/_event.py`. See [Record System Findings](record_system_findings.md#other-observations).
+`ProcessRaisedEvent` is defined once, in `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`. The unused copies of it and of `Event` were deleted in #241. See [Record System Findings](record_system_findings.md#other-observations).
 
 ### Logging
 

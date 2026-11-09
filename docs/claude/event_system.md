@@ -18,7 +18,7 @@ The event system in bastproxy is a priority-based event dispatch system that all
 ## Key Components
 
 ### Event Class
-**Location**: `src/bastproxy/plugins/core/events/libs/_event.py` and `src/bastproxy/plugins/core/events/plugin/_event.py`
+**Location**: `src/bastproxy/plugins/core/events/plugin/_event.py`
 
 The `Event` class is the core of the event system. Each event has:
 - **name**: Unique event identifier
@@ -194,7 +194,7 @@ if event_record:
 ## Important Files
 
 ### Core Event System
-- `src/bastproxy/plugins/core/events/libs/_event.py` - Event class implementation
+- `src/bastproxy/plugins/core/events/plugin/_event.py` - Event class implementation
 - `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` - ProcessRaisedEvent class
 - `src/bastproxy/plugins/core/events/libs/data/_event.py` - EventDataRecord class
 - `src/bastproxy/plugins/core/events/libs/_utils.py` - RegisterToEvent decorator

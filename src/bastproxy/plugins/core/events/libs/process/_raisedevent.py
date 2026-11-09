@@ -17,8 +17,8 @@ from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records import BaseRecord
 
 if TYPE_CHECKING:
-    from bastproxy.plugins.core.events.libs._event import Event
     from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
+    from bastproxy.plugins.core.events.plugin._event import Event
 
 
 class ProcessRaisedEvent(BaseRecord):
