@@ -62,12 +62,12 @@ The new findings are about retention and about two places the tree is quietly wr
 - **Evicting an empty record leaves it in the store forever** (RS-1). `RecordManager.add` tests the
   evicted record for truth, and a list or dict record with no data is false. Verified with
   `NetworkData` and `LogRecord`; events raised with no arguments build an empty `EventDataRecord`.
-- **The event data of a shared event moves** (RS-2). `ProcessRaisedEvent` re-parents the
+- **The event data of a shared event moves** (RS-2, addressed by #246 after this audit). `ProcessRaisedEvent` re-parents the
   `EventDataRecord` it is given, and the triggers plugin passes the same record to two more events.
   After a MUD line, the data of `ev_to_client_data_modify` hangs under a trigger event.
 - **Split commands hang under the line that was replaced** (RS-3). The pieces of `say a|say b` have the
   original line as their parent, and that line is no longer in the `NetworkData`.
-- `BaseDictRecord.addupdate` stores a clone of the whole record, not a copy of its dict (RS-6).
+- `BaseDictRecord.addupdate` stores a clone of the whole record, not a copy of its dict (RS-6, addressed by #246 after this audit).
 - Test coverage of the six non-trivial files in `libs/records/` runs from 33.09% (`clientdata.py`) to 84.07%
   (`records.py`) in the whole suite. The processing records' `_exec_`, `seperate_commands`,
   `copy_attributes`, record eviction and every locked path of `TrackedUserList` have no test (Q4, RS-11).
@@ -129,7 +129,7 @@ Every item in the issue's list, with its current state.
 | :--- | :--- | :--- |
 | Requirements: what to record, keep and cost | **Open**, an ADR is planned. This audit feeds it. | #79 |
 | Replace `AttributeMonitor`, `UpdateRecord` and `UpdateManager` with pydatatracker | **Open.** Q1 gives the behaviour the replacement has to match; Q2 to Q5 cover what survives it. | #43 |
-| Missed mutations and lock bypasses | **Open and confirmed** (verified, Q1). New cases: `+=` and `*=` change a locked list while logging a refusal; `+=` stores raw `str` items; `BaseListRecord` and `BaseDictRecord` track none of the plain mutators. | #47, #48 |
+| Missed mutations and lock bypasses | **Open and confirmed** (verified, Q1). New cases: `+=` and `*=` change a locked list while logging a refusal; `+=` stores raw `str` items; `BaseListRecord` and `BaseDictRecord` track none of the plain mutators. `BaseDictRecord` was moved onto pydatatracker by #246 and now tracks and locks all of them. | #47, #48 |
 | Display and lookup bugs | **Open and confirmed**: `get_update` raises `AttributeError` for a child's update and returns `None` for a hit (two bugs); `str()` of a telnet line raises `TypeError`. `check_for_change` also raises and has no caller. | #49 |
 | Per-update capture cost | **Open.** Measured here: a monitored attribute change costs 74.8 microseconds; the stacks are 497 MiB of the 1,145 MB traced in the memory run. | #81, #80 |
 | Retention | **Open.** Q3 describes what is kept, and what outlives the cap. | #82 |
@@ -199,6 +199,8 @@ data copy).
 `color_lines`, `add_line_endings`, `addupdate` and the formatting helpers (**verified**).
 
 ### `BaseDictRecord` (`EventDataRecord`, `CmdArgsRecord`)
+
+This section is the state at the audit. #246 moved the class onto pydatatracker `TrackedDict`: every mutation is now logged and a locked record raises `RuntimeError`.
 
 All eleven operations probed are untracked: `d[k] = v`, `del d[k]`, `update`, `pop`, `popitem`, `clear`,
 `setdefault`, `|=`, `d.data = {}`, `d.data[k] = v` and a new key. The class overrides none of them
@@ -524,7 +526,7 @@ Add a test that fills a type past `max_records` with empty and non-empty records
 
 ### RS-2: A shared `EventDataRecord` is re-parented by every event that receives it
 
-**Issue:** #230
+**Issue:** #230. **Addressed by #246:** `EventDataRecord.add_receiving_event` keeps every receiving event in `parents`. The text below is the state at the audit.
 **Location:** `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` `ProcessRaisedEvent.__init__`
 (`event_data.parent = self; event_data.add_parent(self, reset=True)`); the caller that shares the record is
 `_eventcb_check_trigger` in `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, which passes its own
@@ -610,7 +612,7 @@ must exist before any optimisation** (perf-change Step 1); the figures here are 
 
 ### RS-6: `BaseDictRecord.addupdate` stores a clone of the record
 
-**Issue:** #234
+**Issue:** #234. **Addressed by #246:** `BaseDictRecord` no longer overrides `addupdate`, and a tracked update keeps no data. The text below is the state at the audit.
 **Location:** `src/bastproxy/libs/records/rtypes/base.py` `BaseDictRecord.addupdate` (`data = self.copy()`).
 
 **Evidence (verified):**

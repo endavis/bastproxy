@@ -25,8 +25,7 @@ class ProcessRaisedEvent(BaseRecord):
         self.called_from = called_from
         self.event_name = event.name
         self.event_data = event_data
-        self.event_data.parent = self
-        self.event_data.add_parent(self, reset=True)
+        self.event_data.add_receiving_event(self)
         self.times_invoked = 0
         self.id = f"{__name__}:{self.event.name}:{self.created}"
         self.addupdate("Info", "Init")
@@ -51,7 +50,7 @@ class ProcessRaisedEvent(BaseRecord):
     def _exec_once(self, actor, **kwargs):
         """Exec it with self.arg_data."""
         self.times_invoked += 1
-        self.addupdate("Info", "Invoked", extra={"data": f"{self.event_data.data}"})
+        self.addupdate("Info", "Invoked", extra={"data": f"{dict(self.event_data)}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api("plugins.core.settings:setting.get")(

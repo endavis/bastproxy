@@ -10,7 +10,7 @@
 import datetime
 import pprint
 import traceback
-from collections import UserDict, UserList
+from collections import UserList
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -658,58 +658,15 @@ class BaseListRecord(UserList, BaseRecord):
         self.updates.add(change)
 
 
-class BaseDictRecord(BaseRecord, UserDict):
-    """Base class for dictionary-based records with tracking.
+def __getattr__(name: str) -> Any:
+    """Re-export ``BaseDictRecord`` lazily.
 
-    Combines Python's UserDict with BaseRecord to provide a dictionary that
-    tracks changes and supports record management features.
-
+    ``dictrecord`` imports ``tracking``, which imports this module, so a top-level import
+    would be circular.
     """
+    if name == "BaseDictRecord":
+        from bastproxy.libs.records.rtypes.dictrecord import BaseDictRecord
 
-    def __init__(self, owner_id: str = "", data: dict | None = None, track_record=True):
-        """Initialize the class."""
-        if data:
-            if not isinstance(data, dict):
-                msg = f"data must be a dict not {type(data)}"
-                raise TypeError(msg)
-        else:
-            data = {}
-        UserDict.__init__(self, data)
-        BaseRecord.__init__(self, owner_id, track_record=track_record)
-        self.original_data = data.copy()
-        self.addupdate("Info", "Init", savedata=True)
-
-    def one_line_summary(self):
-        """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.original_data[next(iter(self.original_data.keys()))].strip()}"
-
-    def get_attributes_to_format(self):
-        """Get the attributes to include when formatting this dict record.
-
-        Returns:
-            Dictionary mapping section numbers to attribute lists.
-
-        """
-        attributes = super().get_attributes_to_format()
-        attributes[2].append(("Data", "data"))
-        if self.original_data != self.data:
-            attributes[2].append(("Original Data", "original_data"))
-
-        return attributes
-
-    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
-        """Add a change event for this record.
-
-            flag: one of 'Modify', 'Set Flag', 'Info'
-            action: a description of what was changed
-            actor: the item that changed the message (likely a plugin)
-            extra: any extra info about this change
-        a message should create a change event at the following times:
-            when it is created
-            after modification
-            when it ends up at it's destination.
-        """
-        data = self.copy() if savedata else None
-        change = UpdateRecord(self, flag, action, extra, data)
-
-        self.updates.add(change)
+        return BaseDictRecord
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

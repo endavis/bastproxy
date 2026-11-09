@@ -305,7 +305,16 @@ The timings are from one run on a development machine and vary with load and plu
 
 With all bundled plugins loaded (the audit probe, [Record System Findings](record_system_findings.md#q2-is-the-parentchild-tree-right)), two things differ from the tree above:
 
-- The triggers plugin raises two more events for each MUD line, `event_t_plugins.core.triggers_beall` and `event_t_plugins.core.triggers_all`. They are children of the `ev_to_client_data_modify` event. The triggers plugin passes that event's `EventDataRecord` to them, and each event makes itself the only parent of the record it is given, so the `EventDataRecord` is printed under `triggers_all` and not under its own event.
+- The triggers plugin raises two more events for each MUD line, `event_t_plugins.core.triggers_beall` and `event_t_plugins.core.triggers_all`. They are children of the `ev_to_client_data_modify` event. The triggers plugin passes that event's `EventDataRecord` to them. The record keeps every event that received it as a parent (`EventDataRecord.add_receiving_event`), so it is printed under all three events. This was seen in a live run against Evennia, with `#bp.debug.records.children` on the `ev_to_client_data_modify` event, and `tests/plugins/core/events/test_event_data_parents.py` covers it:
+
+```
+ProcessRaisedEvent ev_to_client_data_modify
+ |-> EventDataRecord ev_to_client_data_modify
+ |-> ProcessRaisedEvent event_t_plugins.core.triggers_beall
+ |   |-> EventDataRecord (same uuid)
+ |-> ProcessRaisedEvent event_t_plugins.core.triggers_all
+     |-> EventDataRecord (same uuid)
+```
 - When the client sends `say a|say b`, `seperate_commands` replaces the line with two new lines. Their `parents` is the original line, which is no longer in the `NetworkData`, so the tree prints the original line under the `NetworkData` and the two lines under it:
 
 ```

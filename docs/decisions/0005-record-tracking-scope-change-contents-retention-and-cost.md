@@ -131,6 +131,7 @@ The repo admin decided on 2026-11-09:
 
 - #79 (this decision)
 - #43 (replace the attribute monitor with pydatatracker)
+- #246 (dict records, slice 2)
 - #47, #48 (lock and in-place mutations)
 - #80 to #85 (follow-ups filed with #79; #80, #84 and #85 are closed)
 - #106 (the record audit)

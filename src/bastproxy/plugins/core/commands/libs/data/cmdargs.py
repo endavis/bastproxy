@@ -12,11 +12,17 @@ Holds the log record type
 # 3rd Party
 
 # Project
-from bastproxy.libs.records.rtypes.base import BaseDictRecord
+from bastproxy.libs.records.rtypes.dictrecord import BaseDictRecord
+
 
 class CmdArgsRecord(BaseDictRecord):
-    def __init__(self, owner_id: str = '', data: dict | None = None,
-                 arg_string: str = '', command: str = 'unknown'):
+    def __init__(
+        self,
+        owner_id: str = "",
+        data: dict | None = None,
+        arg_string: str = "",
+        command: str = "unknown",
+    ):
         """
         initialize the class
         """
@@ -26,11 +32,11 @@ class CmdArgsRecord(BaseDictRecord):
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()
-        attributes[0].extend([('Command', 'command'), ('Arg String', 'arg_string')])
+        attributes[0].extend([("Command", "command"), ("Arg String", "arg_string")])
         return attributes
 
     def one_line_summary(self):
         """
         get a one line summary of the record
         """
-        return f'{self.__class__.__name__:<20} {self.uuid} {self.command} {self.arg_string}'
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.command} {self.arg_string}"

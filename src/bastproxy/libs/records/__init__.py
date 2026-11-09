@@ -13,7 +13,7 @@ The public record types ones are:
     LogRecord - data to log
     SendDataDirectlyToMud - send data to the mud
     ProcessDataToMud - process data to send to the mud
-    EventDataRecord - data to send to event callbacks.
+    EventDataRecord - data to send to event callbacks (a BaseDictRecord on pydatatracker).
 
 The public manager is RMANAGER, which manages records or all types
 
@@ -37,14 +37,12 @@ __all__ = [
 ]
 
 from bastproxy.libs.records.managers.records import RMANAGER
-from bastproxy.libs.records.rtypes.base import (  # import to resolve circular import
-    BaseDictRecord,
-    BaseRecord,
-)
+from bastproxy.libs.records.rtypes.base import BaseRecord  # import to resolve circular import
 from bastproxy.libs.records.rtypes.clientdata import (
     ProcessDataToClient,
     SendDataDirectlyToClient,
 )
+from bastproxy.libs.records.rtypes.dictrecord import BaseDictRecord
 from bastproxy.libs.records.rtypes.log import LogRecord
 from bastproxy.libs.records.rtypes.muddata import (
     ProcessDataToMud,
