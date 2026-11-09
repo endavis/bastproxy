@@ -269,11 +269,11 @@ SendDataDirectlyToClient(NetworkData("Timer completed"))()
 Every record captures, at creation (`BaseRecord.__init__` in `src/bastproxy/libs/records/rtypes/base.py`):
 
 - a UUID, an owner ID and the creation time
-- a formatted call stack (10 frames)
-- the current event stack: the names of the events being processed, from `plugins.core.events:event.stack.get`
-- a parent: the one passed in, or the record on top of `RMANAGER.active_record_stack`
+- the current event stack: the names of the events being processed, read from the `event_stack` context variable
+- a formatted call stack (10 frames), only while the `capture_stacks` setting of `plugins.debug.records` is on
+- a parent: the one passed in, or the innermost active record (`RMANAGER.get_latest_record()`, from the `active_records` context variable)
 
-Calling a record (`BaseRecord.__call__`) pushes it on the active stack, runs `_exec_()`, pops it and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` uses `try/finally`, so a record whose `_exec_()` raises is still popped and no longer executing.
+Calling a record (`BaseRecord.__call__`) makes it the active record, runs `_exec_()`, removes it from the active records and stores `execute_time_taken`. Every record created during `_exec_()` therefore becomes its child. `__call__` uses `try/finally`, so a record whose `_exec_()` raises is still removed and no longer executing.
 
 `RMANAGER` keeps the last N root record trees (100 by default, the `retained_trees` setting of `plugins.debug.records`), evicts each older tree whole ([Record System](record_system.md#recordmanager)), and finds children by scanning the stored records' `parents`.
 
@@ -329,9 +329,9 @@ ProcessDataToMud
 
 ### How changes are tracked
 
-Two systems add updates to a record's `updates`.
+Every record shows its updates as `TrackedUpdate` views over pydatatracker `ChangeLogEntry` entries.
 
-`NetworkDataLine` and `NetworkData` use pydatatracker ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Their `updates` is a read-only list of `TrackedUpdate` views over the container's own change entries, capped at `RMANAGER.max_changes` (1000 by default, the `tracking_max_changes` setting of `plugins.debug.records`).
+`NetworkDataLine`, `NetworkData` and the dict records use pydatatracker containers ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Their `updates` is a read-only list of views over the container's own change entries, capped at `RMANAGER.max_changes` (1000 by default, the `tracking_max_changes` setting of `plugins.debug.records`).
 
 | Mechanism | Fires on | Example |
 |-----------|----------|---------|
@@ -340,7 +340,7 @@ Two systems add updates to a record's `updates`.
 
 The **actor** is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback, the commands plugin sets `<plugin_id>:<command name>` around each command. Code outside both (the raw network read path) has no actor and the details show "Unknown". Entries carry no stack, and `-ss` shows nothing for these two types.
 
-The other records (processing records, the dict records) still use `AttributeMonitor`, `TrackedUserList` and `UpdateRecord` (`src/bastproxy/libs/records/rtypes/update.py`). Each `UpdateRecord` stores the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the event stack and a formatted call stack (15 frames). The actor is the innermost stack frame outside `libs/records/`, `libs/data`, `libs/process` and `tracking/utils`. A locked attribute ignores writes there: the attempt is recorded as an `Info` update and no error is raised (#48), and in-place changes to a monitored mutable attribute are not seen (#48).
+The processing records (`ProcessDataToClient`, `ProcessDataToMud`, `SendDataDirectlyToClient`, `SendDataDirectlyToMud`, `ProcessRaisedEvent`) are plain nodes that call `addupdate(...)`. Each call stores a `ChangeLogEntry` in the record's capped deque with the flag (`Modify`, `Set Flag` or `Info`), the action, any extra data, the actor from `tracking_actor(...)` and the event stack. The entry carries a call stack (15 frames) only while `capture_stacks` is on. A processing record watches no attributes, so assigning to one records nothing.
 
 Update history of a line, produced by a script that creates a `NetworkData`, changes the line under `tracking_actor("plugins.core.proxy:ev_mud_read")`, locks the batch and sets `was_sent` (flag, action, actor, location):
 
@@ -384,11 +384,7 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #47 | `TrackedUserList` (not `NetworkData`) leaves several mutations untracked and ignores `lock()` |
-| #48 | On `AttributeMonitor` records, locked attributes ignore writes silently and in-place changes are not tracked |
 | #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
-| #43 | Replacement of the record tracking with pydatatracker: `NetworkDataLine` and `NetworkData` done; #246 to #249 remain |
-| #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 

@@ -11,7 +11,6 @@ import pytest
 from bastproxy.libs.api import API
 from bastproxy.libs.records.managers import records as records_module
 from bastproxy.libs.records.managers.records import RMANAGER
-from bastproxy.libs.records.managers.updates import UpdateManager
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
@@ -269,7 +268,7 @@ def test_set_max_changes_applies_to_new_records(caplog: pytest.LogCaptureFixture
     assert len(line.tracking_changes()) == 5
     assert len(message.tracking_changes()) == 5
     assert len(data.tracking_changes()) == 5
-    assert UpdateManager().maxlen == 5
+    assert BaseRecord()._updates.maxlen == 5
     with caplog.at_level(logging.WARNING):
         RMANAGER.set_max_changes(-1)
     assert RMANAGER.max_changes == 0

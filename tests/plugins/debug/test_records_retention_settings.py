@@ -19,6 +19,10 @@ class _StubPlugin:
             self,  # type: ignore[arg-type]
             value,
         )
+        self._apply_capture_stacks = lambda value: RecordPlugin._apply_capture_stacks(
+            self,  # type: ignore[arg-type]
+            value,
+        )
         self._apply_tracking_max_changes = lambda value: RecordPlugin._apply_tracking_max_changes(
             self,  # type: ignore[arg-type]
             value,
@@ -39,6 +43,7 @@ class _StubApi:
 def _restore(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(RMANAGER, "max_trees", RMANAGER.max_trees)
     monkeypatch.setattr(RMANAGER, "max_changes", RMANAGER.max_changes)
+    monkeypatch.setattr(RMANAGER, "capture_stacks", RMANAGER.capture_stacks)
     yield
 
 
@@ -67,6 +72,36 @@ def test_modified_callbacks_apply_the_new_value() -> None:
     stub = _StubPlugin(44)
     RecordPlugin._eventcb_tracking_max_changes_modified(stub)
     assert RMANAGER.max_changes == 44
+
+
+def test_apply_capture_stacks_sets_the_manager() -> None:
+    RecordPlugin._apply_capture_stacks(_StubPlugin(), True)  # type: ignore[arg-type]
+    assert RMANAGER.capture_stacks is True
+    RecordPlugin._apply_capture_stacks(_StubPlugin(), None)  # type: ignore[arg-type]
+    assert RMANAGER.capture_stacks is True
+    RecordPlugin._apply_capture_stacks(_StubPlugin(), False)  # type: ignore[arg-type]
+    assert RMANAGER.capture_stacks is False
+
+
+def test_capture_stacks_modified_callback_applies_the_new_value() -> None:
+    RecordPlugin._eventcb_capture_stacks_modified(_StubPlugin(True))
+    assert RMANAGER.capture_stacks is True
+
+
+def test_initialize_adds_capture_stacks_off_by_default() -> None:
+    added: list[tuple[Any, ...]] = []
+
+    class _Api:
+        def __call__(self, name: str) -> Callable[..., Any]:
+            if name == "plugins.core.settings:setting.add":
+                return lambda *a, **_k: added.append(a)
+            return lambda *_a, **_k: None
+
+    plugin = _StubPlugin()
+    plugin.api = _Api()  # type: ignore[assignment]
+    RecordPlugin._phook_initialize(plugin)
+    assert any(a[1] == "capture_stacks" and a[2] is False for a in added)
+    assert RMANAGER.capture_stacks is False
 
 
 def test_types_output_starts_with_the_tree_header() -> None:

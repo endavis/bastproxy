@@ -115,7 +115,6 @@ def _fake_api(name: str) -> Callable[..., Any]:
 
 @pytest.mark.parametrize("record_cls", [SendDataDirectlyToMud, SendDataDirectlyToClient])
 def test_send_formats_then_locks(monkeypatch: pytest.MonkeyPatch, record_cls: type) -> None:
-    monkeypatch.setattr(record_cls, "_SETUP_EVENTS", True)
     sent = NetworkDataLine("hello", originated="client")
     hidden = NetworkDataLine("secret", originated="client")
     hidden.send = False

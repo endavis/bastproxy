@@ -1,160 +1,132 @@
 # Project: bastproxy
-# Filename: libs/records/rtypes/change.py
+# Filename: libs/records/rtypes/update.py
 #
-# File Description: Holds the change record type
+# File Description: Holds the display view of a record update
 #
 # By: Bast
-"""Holds the change record type."""
+"""Holds the display view of a record update.
+
+``TrackedUpdate`` wraps a pydatatracker ``ChangeLogEntry`` and gives it the interface that
+``#bp.debug.records`` shows: a uuid, a flag, an action, an actor and a detailed format. Every
+record type shows its updates through it, whether the entry came from a pydatatracker
+container or from ``BaseRecord.addupdate``.
+"""
 
 # Standard Library
-import contextlib
 import datetime
 import pprint
-import traceback
-from uuid import uuid4
+from typing import Any
 
 # 3rd Party
+from pydatatracker.utils.changelog import ChangeLogEntry
+
 # Project
-from bastproxy.libs.api import API
+from bastproxy.libs.context import get_command_args
+
+__all__ = [
+    "INFO_ACTIONS",
+    "RESERVED_KEYS",
+    "TrackedUpdate",
+]
+
+# Entries pydatatracker creates itself carry no flag. These actions are informational.
+INFO_ACTIONS = frozenset({"init", "lock", "unlock"})
+# Keys of a change entry that are not part of the caller's ``extra``.
+_ENTRY_KEYS = frozenset({"action", "flag", "type", "locked", "event_stack"})
+# Keys that pydatatracker or the update reads itself, so a caller's ``extra`` may not use them.
+RESERVED_KEYS = frozenset(
+    {"action", "flag", "type", "locked", "actor", "location", "method", "event_stack"}
+)
+# Separates event names in the ``event_stack`` entry key.
+EVENT_STACK_SEPARATOR = " > "
 
 
-class UpdateRecord:
-    """a update event for a record.
+class TrackedUpdate:
+    """A read-only view of a pydatatracker ``ChangeLogEntry``."""
 
-    flag: one of 'Modify', 'Set Flag', 'Info'
-    action: a description of what was updated
-    actor: the item that send the update (likely a plugin)
-    extra: any extra info about this update
-    data: the new data.
-
-    will automatically add the time and last 5 stack frames
-    """
-
-    def __init__(self, parent, flag: str, action: str, extra: dict | None = None, data=None):
-        """Initialize an update record.
+    def __init__(self, parent: Any, entry: ChangeLogEntry) -> None:
+        """Wrap a change entry.
 
         Args:
-            parent: The parent object being updated.
-            flag: Flag indicating type of update.
-            action: The action being performed.
-            extra: Additional metadata (default: None).
-            data: The new data associated with the update (default: None).
+            parent: The record that owns the entry.
+            entry: The pydatatracker change entry to show.
 
         """
-        self.uuid = uuid4().hex
-        self.time_taken = datetime.datetime.now(datetime.UTC)
+        self.entry = entry
         self.parent = parent
-        self.flag = flag
-        self.api = API(owner_id=self.__class__.__name__)
-        self.action = action
-        self.extra = {}
-        if extra:
-            self.extra |= extra
-        self.data = data
-        # Extract the last 15 stack frames
-        self.stack = self.fix_stack(traceback.format_stack(limit=15))
-        self.actor = self.find_relevant_actor(self.stack)
-        self.event_stack = []
-        with contextlib.suppress(Exception):
-            if self.api("libs.api:api.exists")("plugins.core.events:event.stack.get"):
-                self.event_stack = self.api("plugins.core.events:event.stack.get")()
 
-    def __hash__(self):
-        """Return the hash of this update record.
+    @property
+    def uuid(self) -> str:
+        """The entry's uuid."""
+        return self.entry.uuid
 
-        Returns:
-            An integer hash value.
+    @property
+    def time_taken(self) -> datetime.datetime:
+        """When the entry was created."""
+        return self.entry.created_time
 
-        """
+    @property
+    def action(self) -> str:
+        """What the entry records."""
+        return str(self.entry.extra.get("action", ""))
+
+    @property
+    def flag(self) -> str:
+        """The entry's flag, one of 'Modify', 'Set Flag' or 'Info'."""
+        if flag := self.entry.extra.get("flag"):
+            return str(flag)
+        return "Info" if self.action in INFO_ACTIONS else "Modify"
+
+    @property
+    def extra(self) -> dict[str, Any]:
+        """Everything on the entry except the keys that have their own property."""
+        return {k: v for k, v in self.entry.extra.items() if k not in _ENTRY_KEYS}
+
+    @property
+    def data(self) -> Any:
+        """The entry's data, which a tracked update does not keep."""
+        return None
+
+    @property
+    def actor(self) -> str:
+        """The actor context name the change ran under, or an empty string."""
+        return str(self.entry.actor or "")
+
+    @property
+    def event_stack(self) -> list[str]:
+        """The events being raised when the update was made, outermost first."""
+        stack = self.entry.extra.get("event_stack")
+        return str(stack).split(EVENT_STACK_SEPARATOR) if stack else []
+
+    @property
+    def stack(self) -> list[str]:
+        """The stack captured with the entry, empty unless stack capture is on."""
+        return list(self.entry.stack)
+
+    def __hash__(self) -> int:
+        """Hash by class name and uuid."""
         return hash(f"{self.__class__.__name__}:{self.uuid}")
 
-    def __eq__(self, value: object) -> bool:
-        """Compare equality with another UpdateRecord.
+    def __eq__(self, other: object) -> bool:
+        """Equal when both are tracked updates with the same uuid."""
+        return isinstance(other, TrackedUpdate) and self.uuid == other.uuid
 
-        Args:
-            value: The object to compare with.
+    def __lt__(self, other: Any) -> bool:
+        """Order by creation time."""
+        return bool(self.time_taken < other.time_taken)
 
-        Returns:
-            True if the UUIDs match, False otherwise.
-
-        """
-        return self.uuid == value.uuid if isinstance(value, UpdateRecord) else False
-
-    def __lt__(self, other):
-        """Compare if this update occurred before another.
-
-        Args:
-            other: The other UpdateRecord to compare with.
-
-        Returns:
-            True if this update took less time, False otherwise.
-
-        """
-        return self.time_taken < other.time_taken
-
-    def fix_stack(self, stack):
-        """Clean up and format the stack trace.
-
-        Args:
-            stack: The raw stack trace lines.
-
-        Returns:
-            A cleaned list of stack lines.
-
-        """
-        new_stack = []
-        # don't need the last 2 lines
-        for line in stack:
-            new_stack.extend(line.splitlines() if line else [])
-        return new_stack[:-2]
-
-    def find_relevant_actor(self, stack):
-        """Find the most relevant actor from the stack trace.
-
-        Args:
-            stack: The stack trace lines.
-
-        Returns:
-            The relevant stack lines for the actor or empty string.
-
-        """
-        not_relevant = ["libs/records/", "libs/data", "libs/process", "tracking/utils"]
-        found_actor = ""
-        for line in [line for line in stack if "File" in line]:
-            if (
-                all((line.find(actor) == -1) for actor in not_relevant)
-                and "addupdate" not in stack[stack.index(line) + 1]
-            ):
-                found_actor = [line, stack[stack.index(line) + 1]]
-        return found_actor
-
-    def __str__(self):
-        """Return a string representation of the update.
-
-        Returns:
-            A formatted string with flag, action, data, and extra info.
-
-        """
+    def __str__(self) -> str:
+        """Return the flag, action and extra."""
         return f"{self.flag} - {self.action} - {self.data} - {self.extra}"
-
-    def format(self):
-        """Format the change record."""
-        if self.flag == "Modify":
-            return f"updated {self.action}"
-        if self.flag == "Set Flag":
-            return f"set {self.action} to {self.data}"
-        if self.flag == "Info":
-            return f"{self.action}"
-        return None
 
     def format_detailed(
         self,
         show_data: bool = False,
         show_stack: bool = False,
         data_lines_to_show: int = 10,
-    ):
-        """Format the change record."""
-        args = self.api("plugins.core.commands:command.current.args.get")()
+    ) -> list[str]:
+        """Format the entry for the detail view."""
+        args = get_command_args()
         if "show_data" in args:
             show_data = args["show_data"]
         if "show_stack" in args:
@@ -162,33 +134,23 @@ class UpdateRecord:
         if "data_lines_to_show" in args:
             data_lines_to_show = int(args["data_lines_to_show"])
 
-        actor_msg = []
-        if self.actor:
-            actor = self.api("plugins.core.utils:string.dedent")(self.actor)
-            actor_msg.extend((f"{'Actor':<15} : {actor[0]}", f"{'':<15} : {actor[1]}"))
-        else:
-            actor_msg.append(f"{'Actor':<15} : Unknown")
-
         tmsg = [
             f"{'UUID':<15} : {self.uuid}",
             f"{'Record':<15} : {self.parent.__class__.__name__}:{self.parent.uuid}",
             f"{'Flag':<15} : {self.flag}",
-            *actor_msg,
+            f"{'Actor':<15} : {self.actor or 'Unknown'}",
             f"{'Action':<15} : {self.action}",
             f"{'Time Taken':<15} : {self.time_taken}",
         ]
-        if self.extra:
-            tmsg.append(f"{'Extra':<15} : {self.extra}")
-        if self.event_stack:
-            tmsg.append(
-                f"{'Event Stack':<15} :",
-            )
-            tmsg.extend([f"{'':<15} : {event}" for event in self.event_stack])
+        if extra := self.extra:
+            tmsg.append(f"{'Extra':<15} : {extra}")
+        if event_stack := self.event_stack:
+            tmsg.append(f"{'Event Stack':<15} :")
+            tmsg.extend(f"{'':<15} : {event}" for event in event_stack)
         if show_data and self.data is not None:
-            if isinstance(self.data, list) and data_lines_to_show != -1:
-                data = self.data[:data_lines_to_show]
-            else:
-                data = self.data
+            data = self.data
+            if isinstance(data, list) and data_lines_to_show != -1:
+                data = data[:data_lines_to_show]
             tmsg.append(f"{'Data':<15} :")
             tmsg.extend(
                 f"{'':<15} : {line}" for line in pprint.pformat(data, width=120).splitlines()
@@ -196,5 +158,4 @@ class UpdateRecord:
         if show_stack and self.stack:
             tmsg.append(f"{'Stack':<15} :")
             tmsg.extend([f"{'':<15} {line}" for line in self.stack if line.strip()])
-
         return tmsg

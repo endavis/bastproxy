@@ -52,6 +52,10 @@ The gaps are in the paths the happy case does not cover, and in two costs nobody
   5 KB, and every record (`LogRecord`, `UpdateRecord`, ...) builds one (fixed in #199). After startup 12,470
   `API` objects were alive, 11,904 of them owned by `UpdateRecord` and `LogRecord`.
 - **`API.add` returns `True` when it refuses a duplicate** (AS-1), and a test asserts it.
+
+> Resolved by #248: `UpdateRecord` is deleted, so records no longer build an `API` per update.
+  The figures above describe the code at the audit's base commit.
+
 - **`api.toplevel.remove` raises** for an instance API and for any function that was added
   without `@AddAPI` (AS-2). No code does either today, so this is latent. Stats, the `addedin`
   keys and force-overrides by another owner also survived an unload (AS-3, fixed in #196).
@@ -98,7 +102,7 @@ Every item in the issue's "Known so far" list, with its current state.
 
 | Item from the issue | Status | Where |
 | :--- | :--- | :--- |
-| Missing APIs raise a bare `AttributeError` that callers cannot tell apart from one raised inside the API | **Fixed** (verified: `API.get` raises `APINotFoundError`, a subclass of `APIException` and `AttributeError`, `src/bastproxy/libs/exceptions.py`). No caller catches `AttributeError` to detect a missing API: the six `except AttributeError` in `src` are `getattr` lookups (`_base.py` twice, the events and commands plugins, `get_api_functions_in_object`) and one in `src/bastproxy/libs/tracking/utils/attributes.py` (**read**). The subclassing is kept for old callers; nothing in `src` relies on it. | #91, PR #152 |
+| Missing APIs raise a bare `AttributeError` that callers cannot tell apart from one raised inside the API | **Fixed** (verified: `API.get` raises `APINotFoundError`, a subclass of `APIException` and `AttributeError`, `src/bastproxy/libs/exceptions.py`). No caller catches `AttributeError` to detect a missing API: the six `except AttributeError` in `src` are `getattr` lookups (`_base.py` twice, the events and commands plugins, `get_api_functions_in_object`) and one in the attribute monitor, deleted in #248 (**read**). The subclassing is kept for old callers; nothing in `src` relies on it. | #91, PR #152 |
 | Two `lru_cache`s keyed on callables kept unloaded plugins alive | **Fixed** (verified: the `libs/api` caches are gone and `tests/libs/test_api_cache_references.py` guards it; a bundled test plugin I unloaded was collected). **Not fixed outside `libs/api`**: the fuzzy plugin puts `@lru_cache` on two methods (`src/bastproxy/plugins/core/fuzzy/plugin/_fuzzy.py`, **read**), which keys the cache on `self`. Latent, because core plugins are not unloaded. It also breaks `APIItem.detail` (AS-7). | #100, PR #114 |
 | Names follow no single convention: 173 `@AddAPI` decorators, mixed verb-first and object-first | **Fixed** by [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md) and the rename series ending at `39520f6`. Verified: `LEGACY_NAMES` in `tests/plugins/test_api_name_grammar.py` is `{}`, and `tests/plugins/test_api_names_exist.py` checks literal names against the registry. The count: `grep -rn "AddAPI(" src/bastproxy --include=*.py \| wc -l` gives 174, one of which is the docstring example in `_addapi.py`, so there are still 173 decorators. `info/api_naming_analysis.md` is not stale: it opens with a "Superseded by ADR-0004" banner and is kept for history. | #99, PR #173 and #161 to #172 |
 | Instance APIs (`_instance_api`) override class APIs in `API.get` | **Still present, by design, and unused**: verified that `grep -rn "instance=True" src/bastproxy --include=*.py` finds only the docstring in `_addapi.py` and the 14 built-ins in `API.__init__`. No plugin declares an instance API (AS-8). | Q1, AS-2 |

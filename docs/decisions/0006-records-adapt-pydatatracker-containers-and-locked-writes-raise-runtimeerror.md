@@ -68,7 +68,7 @@ ADR-0005 measured the old `NetworkDataLine` at 95.9 us to create and 42.2 us per
 - **Breaking for plugins.** A write to a locked `NetworkDataLine` or `NetworkData` raises `RuntimeError`. Plugins meet this in `ev_to_client_data_read` and `ev_to_mud_data_read` callbacks. A grep found no bundled plugin that writes in those events. Unsent lines (`send=False`) are now locked when their message is sent.
 - `NetworkData` is a `list` subclass, not a `UserList`: `.data` is gone and `.locked` is read-only. Both classes lose `stack_at_creation`, `event_stack`, `check_for_change` and the `_am_*` methods.
 - `#bp.debug.records.detail` shows no creation stacks and no "original input" update for these two types, the update actions are pydatatracker's (`update`, `add`, `lock`), and the actor is the context name, "Unknown" on the raw network read path.
-- Records still on `AttributeMonitor` or `UserList` keep their old behaviour until slices 2 to 4.
+- Records still on `AttributeMonitor` or `UserList` kept their old behaviour until slices 2 to 4. After #248 none remain, and the processing records show their updates as `TrackedUpdate` too.
 - The locking of a line costs one change entry per field. It is not part of the ADR-0005 targets.
 - `bastproxy.libs.records.*` is under a mypy `ignore_errors` override, so the new adapter is annotated but not checked by `doit type_check`.
 
