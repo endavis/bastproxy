@@ -720,8 +720,8 @@ benchmark does; `LogRecord._exec_` failure. `update.py` and `updates.py` are out
   created 62 `LogRecord`s in Path 3 (**verified**). The `LogRecord` store filled in the first 250 rounds of the
   memory run, so debug-level logs push older ones out quickly.
 - **`was_sent` is monitored but not locked** on purpose: the network code sets it after sending (Q1).
-- **`trigger.register` unpacks its keyword dict.** `_api_trigger_register` in
-  `src/bastproxy/plugins/core/triggers/plugin/_triggers.py` passes `*kwargs` to `event.register`, which unpacks the
+- **`trigger.register` unpacks its keyword dict** (fixed in #257: it now passes `**kwargs`). `_api_trigger_register` in
+  `src/bastproxy/plugins/core/triggers/plugin/_triggers.py` passed `*kwargs` to `event.register`, which unpacked the
   keys as positional arguments (**read**, not run; outside this audit's scope, for the triggers audit).
 - **Tree queries are debug-only** (Q3), so the 98 ms query on a full store matters only with `plugins.debug.records`.
 - **Properties that call plugin APIs** (`noansi`, `colorcoded`, `escapecolor`, `add_preamble`) raise

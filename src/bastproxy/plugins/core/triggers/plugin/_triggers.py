@@ -193,7 +193,7 @@ class TriggersPlugin(BasePlugin):
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
             trigger_name = self.create_trigger_id(trigger_name, owner_id)
         return self.api("plugins.core.events:event.register")(
-            self.triggers[trigger_name].event_name, function, *kwargs
+            self.triggers[trigger_name].event_name, function, **kwargs
         )
 
     @AddAPI("trigger.unregister", description="unregister a function from a trigger")
