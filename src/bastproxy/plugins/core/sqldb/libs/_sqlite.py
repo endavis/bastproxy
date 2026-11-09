@@ -9,6 +9,7 @@
 import contextlib
 import copy
 import datetime
+import logging
 import shutil
 import sqlite3
 import zipfile
@@ -17,7 +18,7 @@ from pathlib import Path
 # 3rd Party
 # Project
 from bastproxy.libs.api import API, AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import log_to
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 
 
@@ -82,11 +83,12 @@ class Sqldb:
         """Close the database."""
         import inspect
 
-        LogRecord(
-            f"close: called by - {inspect.stack()[1][3]}",
-            level="debug",
-            sources=["plugins.core.sqldb", self.plugin_id],
-        )()
+        log_to(
+            ["plugins.core.sqldb", self.plugin_id],
+            logging.DEBUG,
+            "close: called by - %s",
+            inspect.stack()[1][3],
+        )
         if self.db_connection:
             with contextlib.suppress(Exception):
                 self.db_connection.close()
@@ -99,11 +101,12 @@ class Sqldb:
         function_name = inspect.stack()[1][3]
         if function_name == "__getattribute__":
             function_name = inspect.stack()[2][3]
-        LogRecord(
-            f"open: called by - {function_name}",
-            level="debug",
-            sources=["plugins.core.sqldb", self.plugin_id],
-        )()
+        log_to(
+            ["plugins.core.sqldb", self.plugin_id],
+            logging.DEBUG,
+            "open: called by - %s",
+            function_name,
+        )
         self.db_connection = sqlite3.connect(
             self.db_file, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
@@ -436,34 +439,42 @@ class Sqldb:
 
     def updateversion(self, old_version, new_version):
         """Update a database from old_version to new_version."""
-        LogRecord(
-            f"updateversion - updating {self.db_file} from version {old_version} to {new_version}",
-            level="debug",
-            sources=[self.plugin_id, "plugins.core.sqldb"],
-        )()
+        log_to(
+            [self.plugin_id, "plugins.core.sqldb"],
+            logging.DEBUG,
+            "updateversion - updating %s from version %s to %s",
+            self.db_file,
+            old_version,
+            new_version,
+        )
         self.backupdb(old_version)
         for version in range(old_version + 1, new_version + 1):
             try:
                 self.version_functions[version]()
-                LogRecord(
-                    f"updateversion - updated to version {version}",
-                    level="debug",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
-                )()
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.DEBUG,
+                    "updateversion - updated to version %s",
+                    version,
+                )
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"updateversion - could not upgrade db: {self.database_name} in plugin: {self.plugin_id}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "updateversion - could not upgrade db: %s in plugin: %s",
+                    self.database_name,
+                    self.plugin_id,
                     exc_info=True,
-                )()
+                )
                 return
         self.setversion(new_version)
-        LogRecord(
-            f"updateversion - updated {self.db_file} to version {new_version}",
-            level="debug",
-            sources=[self.plugin_id, "plugins.core.sqldb"],
-        )()
+        log_to(
+            [self.plugin_id, "plugins.core.sqldb"],
+            logging.DEBUG,
+            "updateversion - updated %s to version %s",
+            self.db_file,
+            new_version,
+        )
 
     def select(self, sql_statement):
         """Run a select statement against the database, returns a list."""
@@ -473,12 +484,13 @@ class Sqldb:
             try:
                 result.extend(iter(cursor.execute(sql_statement)))
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"select - could not run sql statement : {sql_statement}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "select - could not run sql statement : %s",
+                    sql_statement,
                     exc_info=True,
-                )()
+                )
             cursor.close()
         return result
 
@@ -496,12 +508,13 @@ class Sqldb:
                 row_id = cursor.lastrowid
                 result = self.db_connection.commit()
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"modify - could not run sql statement : {sql_statement}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "modify - could not run sql statement : %s",
+                    sql_statement,
                     exc_info=True,
-                )()
+                )
             cursor.close()
 
         return row_id, result
@@ -518,12 +531,13 @@ class Sqldb:
                 result = self.db_connection.commit()
                 cursor.close()
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"modifymany - could not run sql statement : {sql_statement}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "modifymany - could not run sql statement : %s",
+                    sql_statement,
                     exc_info=True,
-                )()
+                )
 
         return row_id, result
 
@@ -539,12 +553,13 @@ class Sqldb:
                 result = self.db_connection.commit()
                 cursor.close()
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"modifyscript - could not run sql statement : {sql_statement}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "modifyscript - could not run sql statement : %s",
+                    sql_statement,
                     exc_info=True,
-                )()
+                )
 
         return row_id, result
 
@@ -560,23 +575,25 @@ class Sqldb:
                 for row in cursor.execute(selectstmt):
                     result[row[keyword]] = row
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"selectbykeyword - could not run sql statement : {selectstmt}",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
+                    "selectbykeyword - could not run sql statement : %s",
+                    selectstmt,
                     exc_info=True,
-                )()
+                )
             cursor.close()
         return result
 
     def getlast(self, table_name, num, where=""):
         """Get the last num items from a table."""
         if table_name not in self.tables:
-            LogRecord(
-                f"getlast - table {table_name} does not exist in getlast",
-                level="error",
-                sources=[self.plugin_id, "plugins.core.sqldb"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "getlast - table %s does not exist in getlast",
+                table_name,
+            )
             return {}
 
         column_id_name = self.tables[table_name]["keyfield"]
@@ -591,11 +608,12 @@ class Sqldb:
     def getrow(self, row_id, table_name):
         """Get a row by id."""
         if table_name not in self.tables:
-            LogRecord(
-                f"getrow - table {table_name} does not exist in getrow",
-                level="error",
-                sources=[self.plugin_id, "plugins.core.sqldb"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "getrow - table %s does not exist in getrow",
+                table_name,
+            )
             return {}
 
         column_id_name = self.tables[table_name]["keyfield"]
@@ -621,11 +639,12 @@ class Sqldb:
         """Backup the database."""
         success = False
         # self._command_dbvac()
-        LogRecord(
-            f"backupdb - backing up database {self.database_name}",
-            level="debug",
-            sources=[self.plugin_id, "plugins.core.sqldb"],
-        )()
+        log_to(
+            [self.plugin_id, "plugins.core.sqldb"],
+            logging.DEBUG,
+            "backupdb - backing up database %s",
+            self.database_name,
+        )
         if self.db_connection:
             cursor = self.db_connection.cursor()
             cursor.execute("PRAGMA integrity_check")
@@ -633,11 +652,11 @@ class Sqldb:
             cursor.close()
             integrity = ret["integrity_check"] == "ok"
             if not integrity:
-                LogRecord(
+                log_to(
+                    [self.plugin_id, "plugins.core.sqldb"],
+                    logging.ERROR,
                     "backupdb - integrity check failed, aborting backup",
-                    level="error",
-                    sources=[self.plugin_id, "plugins.core.sqldb"],
-                )()
+                )
                 return success
             self.close()
 
@@ -652,11 +671,13 @@ class Sqldb:
         try:
             shutil.copy(self.db_file, backupfile)
         except OSError:
-            LogRecord(
-                f"backupdb - could not copy file {self.db_file} to {backupfile}",
-                level="error",
-                sources=[self.plugin_id, "plugins.core.sqldb"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "backupdb - could not copy file %s to %s",
+                self.db_file,
+                backupfile,
+            )
             return success
 
         try:
@@ -664,17 +685,20 @@ class Sqldb:
                 myzip.write(backupfile, arcname=Path(backupfile).name)
             Path(backupfile).unlink()
             success = True
-            LogRecord(
-                f"backupdb - {self.db_file} was backed up to {backupzipfile}",
-                level="debug",
-                sources=[self.plugin_id, "plugins.core.sqldb"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.DEBUG,
+                "backupdb - %s was backed up to %s",
+                self.db_file,
+                backupzipfile,
+            )
         except OSError:
-            LogRecord(
-                f"backupdb - could not zip backupfile {backupfile}",
-                level="error",
-                sources=[self.plugin_id, "plugins.core.sqldb"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "backupdb - could not zip backupfile %s",
+                backupfile,
+            )
             return success
 
         return success

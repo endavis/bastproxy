@@ -9,6 +9,7 @@
 
 import dataclasses
 import datetime
+import logging
 import shlex
 from collections.abc import Callable
 
@@ -17,7 +18,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import API
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records.tracking import tracking_actor
 
 from .data.cmdargs import CmdArgsRecord
@@ -70,9 +71,7 @@ class CommandClass:
         self.current_arg_string = arg_string
         message: list[str] = []
         command_ran = f"{self.full_cmd} {arg_string}"
-        LogRecord(f"running {command_ran}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:run_command:command_ran"
-        )
+        get_logger(self.plugin_id).debug("running %s", command_ran)
 
         success, parsed_args, fail_message = self.parse_args(arg_string)
 
@@ -100,14 +99,14 @@ class CommandClass:
                 return_value = self()
         except Exception as exc:
             self.record_error(exc)
-            actor = f"{self.plugin_id}:run_command:command_exception"
             message.extend([f"Error running command: {command_ran}"])
-            LogRecord(
-                f"Error running command: {command_ran}",
-                level="error",
-                sources=[self.plugin_id, "plugins.core.commands"],
+            log_to(
+                [self.plugin_id, "plugins.core.commands"],
+                logging.ERROR,
+                "Error running command: %s",
+                command_ran,
                 exc_info=True,
-            )(actor)
+            )
             return self.run_finish(False, message, "function returned False", format=format)
 
         if isinstance(return_value, tuple):
@@ -119,7 +118,6 @@ class CommandClass:
 
         # did not succeed
         if retval is False:
-            actor = f"{self.plugin_id}:run_command:returned_False"
             message.append("")
             message.extend(self.arg_parser.format_help().splitlines())
             return self.run_finish(False, message, "function returned False", format=format)
@@ -149,31 +147,37 @@ class CommandClass:
             try:
                 split_args_list = shlex.split(arg_string)
             except ValueError as exc:
-                actor = f"{self.plugin_id}:run_command:shell_parse_error"
                 fail_message = [
                     f"@RError: Could not parse arguments: {exc.args[0]}@w",
                     "",
                 ]
                 fail_message.extend(self.arg_parser.format_help().splitlines())
-                LogRecord(
-                    f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.args[0]}",
-                    level="info",
-                    sources=[self.plugin_id, "plugins.core.commands"],
-                )(actor)
+                log_to(
+                    [self.plugin_id, "plugins.core.commands"],
+                    logging.INFO,
+                    "Error parsing args for command %s.%s %s - %s",
+                    self.plugin_id,
+                    self.name,
+                    arg_string,
+                    exc.args[0],
+                )
                 return False, args, fail_message
 
         # parse the arguments and deal with errors
         try:
             args, _ = self.arg_parser.parse_known_args(split_args_list)
         except argp.ArgumentError as exc:
-            actor = f"{self.plugin_id}:{self.name}:run_command:argparse_error"
             fail_message = [f"@RError: {exc.message}@w", ""]
             fail_message.extend(self.arg_parser.format_help().splitlines())
-            LogRecord(
-                f"Error parsing args for command {self.plugin_id}.{self.name} {arg_string} - {exc.message}",
-                level="info",
-                sources=[self.plugin_id, "plugins.core.commands"],
-            )()
+            log_to(
+                [self.plugin_id, "plugins.core.commands"],
+                logging.INFO,
+                "Error parsing args for command %s.%s %s - %s",
+                self.plugin_id,
+                self.name,
+                arg_string,
+                exc.message,
+            )
             return False, args, fail_message
 
         return True, args, ""

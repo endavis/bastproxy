@@ -50,7 +50,6 @@ async def test_client_read_keeps_leading_and_trailing_spaces(
             return None
 
     monkeypatch.setattr(client_module, "ProcessDataToMud", _FakeProcess)
-    monkeypatch.setattr(client_module, "LogRecord", MagicMock())
 
     await client.client_read()
 

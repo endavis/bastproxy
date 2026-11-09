@@ -17,8 +17,10 @@ except ImportError:
     sys.exit(1)
 
 # Project
+import logging
+
 from bastproxy.libs.api import API, AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -71,11 +73,14 @@ class TriggerItem:
         args["trigger_id"] = self.trigger_id
 
         args = self.api("plugins.core.events:event.raise")(self.event_name, event_args=args)
-        LogRecord(
-            f"raisetrigger - trigger {self.trigger_id} raised event {self.event_name} with args {args}",
-            level="debug",
-            sources=[self.owner_id, "plugins.core.triggers"],
-        )()
+        log_to(
+            [self.owner_id, "plugins.core.triggers"],
+            logging.DEBUG,
+            "raisetrigger - trigger %s raised event %s with args %s",
+            self.trigger_id,
+            self.event_name,
+            args,
+        )
 
         return args
 
@@ -165,12 +170,7 @@ class TriggersPlugin(BasePlugin):
                     self.created_regex["created_regex"]
                 )
             except re.error:
-                LogRecord(
-                    "Could not compile created regex",
-                    level="error",
-                    sources=[self.plugin_id],
-                    exc_info=True,
-                )()
+                get_logger(self.plugin_id).error("Could not compile created regex", exc_info=True)
         else:
             self.created_regex["created_regex"] = ""
             self.created_regex["created_regex_compiled"] = ""
@@ -212,11 +212,13 @@ class TriggersPlugin(BasePlugin):
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
         if trigger_id not in self.triggers:
-            LogRecord(
-                f"_api_trigger_update - could not find trigger {trigger_name} (maybe {owner_id})",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_update - could not find trigger %s (maybe %s)",
+                trigger_name,
+                owner_id,
+            )
             return False
 
         trigger_enabled = self.triggers[trigger_id].enabled
@@ -238,19 +240,17 @@ class TriggersPlugin(BasePlugin):
                 try:
                     self.triggers[trigger_id].original_regex_compiled = re.compile(orig_regex)
                 except Exception:  # pylint: disable=broad-except
-                    LogRecord(
-                        f"Could not compile regex for trigger: {trigger_name} : {orig_regex}",
-                        level="error",
-                        sources=[self.plugin_id],
+                    get_logger(self.plugin_id).error(
+                        "Could not compile regex for trigger: %s : %s",
+                        trigger_name,
+                        orig_regex,
                         exc_info=True,
-                    )()
+                    )
                     return False
 
-                LogRecord(
-                    f"_api_trigger_update - converted {orig_regex} to {regex}",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "_api_trigger_update - converted %s to %s", orig_regex, regex
+                )
 
                 if trigger_id in self.regexes[old_regex_id]["triggers"]:
                     self.regexes[old_regex_id]["triggers"].remove(trigger_id)
@@ -314,11 +314,13 @@ class TriggersPlugin(BasePlugin):
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
         if trigger_id in self.triggers:
-            LogRecord(
-                f"_api_trigger_add - trigger {trigger_name} already exists in plugin: {self.triggers[trigger_id].owner_id}",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_add - trigger %s already exists in plugin: %s",
+                trigger_name,
+                self.triggers[trigger_id].owner_id,
+            )
             return False
 
         args = kwargs.copy()
@@ -340,19 +342,23 @@ class TriggersPlugin(BasePlugin):
             try:
                 args["original_regex_compiled"] = re.compile(original_regex)
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"_api_trigger_add - Could not compile regex for trigger: {trigger_name} : {original_regex}",
-                    level="error",
-                    sources=[self.plugin_id, owner_id],
+                log_to(
+                    [self.plugin_id, owner_id],
+                    logging.ERROR,
+                    "_api_trigger_add - Could not compile regex for trigger: %s : %s",
+                    trigger_name,
+                    original_regex,
                     exc_info=True,
-                )()
+                )
                 return False
 
-            LogRecord(
-                f"_api_trigger_add - converted {original_regex} to {regex}",
-                level="debug",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.DEBUG,
+                "_api_trigger_add - converted %s to %s",
+                original_regex,
+                regex,
+            )
 
             need_rebuild = False
             if args.get("enabled"):
@@ -360,11 +366,13 @@ class TriggersPlugin(BasePlugin):
                 if trigger_id not in self.regexes[regex_id]["triggers"]:
                     self.regexes[regex_id]["triggers"].append(trigger_id)
                 else:
-                    LogRecord(
-                        f"_api_trigger_add - trigger {trigger_name} already exists in regex: {regex}",
-                        level="error",
-                        sources=[self.plugin_id, owner_id],
-                    )()
+                    log_to(
+                        [self.plugin_id, owner_id],
+                        logging.ERROR,
+                        "_api_trigger_add - trigger %s already exists in regex: %s",
+                        trigger_name,
+                        regex,
+                    )
 
             # go through and rebuild the regexes
             if need_rebuild:
@@ -379,11 +387,14 @@ class TriggersPlugin(BasePlugin):
             owner_id, trigger_name, regex, regex_id, original_regex, **args
         )
 
-        LogRecord(
-            f"_api_trigger_add - added trigger {trigger_name} (unique name: {trigger_id}) for {owner_id}",
-            level="debug",
-            sources=[self.plugin_id, owner_id],
-        )()
+        log_to(
+            [self.plugin_id, owner_id],
+            logging.DEBUG,
+            "_api_trigger_add - added trigger %s (unique name: %s) for %s",
+            trigger_name,
+            trigger_id,
+            owner_id,
+        )
 
         return True, self.triggers[trigger_id]
 
@@ -403,20 +414,20 @@ class TriggersPlugin(BasePlugin):
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
-            LogRecord(
-                f"_api_trigger_remove - could not find owner for trigger {trigger_name}",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_trigger_remove - could not find owner for trigger %s", trigger_name
+            )
             return False
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id not in self.triggers:
-            LogRecord(
-                f"_api_trigger_remove - trigger {trigger_name} (maybe {owner_id}) does not exist",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_remove - trigger %s (maybe %s) does not exist",
+                trigger_name,
+                owner_id,
+            )
             return False
 
         if (
@@ -428,32 +439,38 @@ class TriggersPlugin(BasePlugin):
             and not event.isempty()
             and not force
         ):
-            LogRecord(
-                f"_api_trigger_remove - trigger {trigger_name} for {owner_id} has functions registered",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_remove - trigger %s for %s has functions registered",
+                trigger_name,
+                owner_id,
+            )
             return False
 
         regex = self.regexes[self.triggers[trigger_id].regex_id]
         need_rebuild = False
         if trigger_id in regex["triggers"]:
-            LogRecord(
-                f"_api_trigger_remove - removing trigger {trigger_name} from {regex['regex_id']}",
-                level="debug",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.DEBUG,
+                "_api_trigger_remove - removing trigger %s from %s",
+                trigger_name,
+                regex["regex_id"],
+            )
             need_rebuild = True
             regex["triggers"].remove(trigger_id)
 
         if trigger_id in self.triggers:
             del self.triggers[trigger_id]
 
-        LogRecord(
-            f"_api_trigger_remove - removed trigger {trigger_name} for {owner_id}",
-            level="debug",
-            sources=[self.plugin_id, owner_id],
-        )()
+        log_to(
+            [self.plugin_id, owner_id],
+            logging.DEBUG,
+            "_api_trigger_remove - removed trigger %s for %s",
+            trigger_name,
+            owner_id,
+        )
 
         # go through and rebuild the regexes
         if need_rebuild:
@@ -481,11 +498,12 @@ class TriggersPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"_api_trigger_remove_for_owner - removing triggers for {owner_id}",
-            level="debug",
-            sources=[self.plugin_id, owner_id],
-        )()
+        log_to(
+            [self.plugin_id, owner_id],
+            logging.DEBUG,
+            "_api_trigger_remove_for_owner - removing triggers for %s",
+            owner_id,
+        )
         trigs = [
             trigger.trigger_name
             for trigger in self.triggers.values()
@@ -521,11 +539,13 @@ class TriggersPlugin(BasePlugin):
             if needs_rebuild:
                 self.rebuild_regexes()
         else:
-            LogRecord(
-                f"toggletrigger - trigger {trigger_name} (maybe {owner_id}) does not exist",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "toggletrigger - trigger %s (maybe %s) does not exist",
+                trigger_name,
+                owner_id,
+            )
 
     @AddAPI("trigger.toggle.omit", description="toggle the omit flag for a trigger")
     def _api_trigger_toggle_omit(self, trigger_name, flag, owner_id=None):
@@ -543,11 +563,13 @@ class TriggersPlugin(BasePlugin):
         if trigger_id in self.triggers:
             self.triggers[trigger_id].omit = flag
         else:
-            LogRecord(
-                f"toggletriggeromit - trigger {trigger_name} (maybe {owner_id}) does not exist",
-                level="error",
-                sources=[self.plugin_id, owner_id],
-            )()
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "toggletriggeromit - trigger %s (maybe %s) does not exist",
+                trigger_name,
+                owner_id,
+            )
 
     @AddAPI("group.toggle.enable", description="toggle a trigger group")
     def _api_group_toggle_enable(self, trigger_group, flag):
@@ -558,11 +580,9 @@ class TriggersPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"toggletriggergroup - toggling trigger group {trigger_group} to {flag}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "toggletriggergroup - toggling trigger group %s to %s", trigger_group, flag
+        )
         if trigger_group in self.trigger_groups:
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
@@ -579,19 +599,18 @@ class TriggersPlugin(BasePlugin):
 
         """
         args = {"line": data_line}
-        LogRecord(
-            f"_eventcb_check_trigger - line {data_line.colorcoded} matched the following regexes {regex_match_data}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "_eventcb_check_trigger - line %s matched the following regexes %s",
+            data_line.colorcoded,
+            regex_match_data,
+        )
         for regex_id in regex_match_data:
             match = None
             if regex_id not in self.regexes:
-                LogRecord(
-                    f"_eventcb_check_trigger - regex_id {regex_id} not found in _eventcb_check_trigger",
-                    level="error",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).error(
+                    "_eventcb_check_trigger - regex_id %s not found in _eventcb_check_trigger",
+                    regex_id,
+                )
                 continue
 
             self.regexes[regex_id]["hits"] = self.regexes[regex_id]["hits"] + 1
@@ -649,11 +668,9 @@ class TriggersPlugin(BasePlugin):
             if regex_match_data := match_groups.keys():
                 self.process_match(event_record["line"], regex_match_data)
             else:
-                LogRecord(
-                    f"_eventcb_check_trigger - line {data} did not match any regexes",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "_eventcb_check_trigger - line %s did not match any regexes", data
+                )
 
         self.triggers[self.all_id].raisetrigger(event_record)
 

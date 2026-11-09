@@ -431,12 +431,7 @@ def _command_process(self):
         return False, [f"@RError:@w Permission denied: {filename}"]
 
     except Exception as e:
-        LogRecord(
-            f"Error processing {filename}",
-            level="error",
-            sources=[self.plugin_id],
-            exc_info=True
-        )()
+        get_logger(self.plugin_id).error("Error processing %s", filename, exc_info=True)
         return False, [f"@RError:@w Failed to process {filename}: {str(e)}"]
 ```
 

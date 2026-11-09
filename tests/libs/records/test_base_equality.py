@@ -7,18 +7,13 @@ from bastproxy.libs.records.rtypes.base import (
     BaseListRecord,
     TrackedUserList,
 )
-from bastproxy.libs.records.rtypes.log import LogRecord
 
 
 def _make_list_record() -> BaseListRecord:
     return BaseListRecord("same text", track_record=False)
 
 
-def _make_log_record() -> LogRecord:
-    return LogRecord("same text", level="info", sources=["test"])
-
-
-@pytest.mark.parametrize("factory", [_make_list_record, _make_log_record])
+@pytest.mark.parametrize("factory", [_make_list_record])
 class TestListRecordEquality:
     def test_same_content_not_equal(self, factory) -> None:
         a, b = factory(), factory()

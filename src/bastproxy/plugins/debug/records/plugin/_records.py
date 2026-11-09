@@ -7,12 +7,21 @@
 
 # Standard Library
 
+from bastproxy.libs.logger import get_record_logs
 from bastproxy.libs.records import RMANAGER
 
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
+
+SHOW_LOG_SETTING = "showRecordLogs"
+
+
+def _format_record_logs(record_uuid: str) -> list[str]:
+    """Format the log lines buffered for a record (not its descendants)."""
+    lines = get_record_logs(record_uuid)
+    return ["Log messages :", *[f"    {line}" for line in lines or ["none"]]]
 
 
 class RecordPlugin(BasePlugin):
@@ -23,10 +32,10 @@ class RecordPlugin(BasePlugin):
         """Initialize the instance."""
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
-            "showLogRecords",
+            SHOW_LOG_SETTING,
             False,
             bool,
-            "1 to show LogRecords in detail command",
+            "1 to show the log messages written while processing a record in the detail command",
         )
 
     @AddParser(description="return the list of record types")
@@ -135,15 +144,14 @@ class RecordPlugin(BasePlugin):
                 tmsg.append(f"update {args['update']} in record {args['uid']} not found")
 
         else:
-            showlogrecords = self.api("plugins.core.settings:setting.get")(
-                self.plugin_id, "showLogRecords"
-            )
-            update_filter = [] if showlogrecords else ["LogRecord"]
             data = record.get_formatted_details(
-                update_filter=update_filter,
+                update_filter=[],
                 full_children_records=args["full_children_records"],
                 include_updates=args["include_updates"],
             )
+
+            if self.api("plugins.core.settings:setting.get")(self.plugin_id, SHOW_LOG_SETTING):
+                data = [*data, *_format_record_logs(record.uuid)]
 
             if args["dump"]:
                 save_path = self.api.BASEDATAPATH / "dumps"

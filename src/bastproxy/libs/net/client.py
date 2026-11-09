@@ -53,14 +53,16 @@ if TYPE_CHECKING:
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
+from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import telnet
 from bastproxy.libs.records import (
-    LogRecord,
     NetworkData,
     NetworkDataLine,
     ProcessDataToMud,
     SendDataDirectlyToClient,
 )
+
+logger = get_logger(__name__)
 
 
 class ClientConnection:
@@ -140,22 +142,21 @@ class ClientConnection:
 
         """
         if not self.connected:
-            LogRecord(
-                f"send_to - {self.uuid} [{self.addr}:{self.port}] is not connected. Cannot send",
-                level="debug",
-                sources=[__name__],
-            )()
+            logger.debug(
+                "send_to - %s [%s:%s] is not connected. Cannot send",
+                self.uuid,
+                self.addr,
+                self.port,
+            )
             return
         loop = asyncio.get_event_loop()
         if not isinstance(data, NetworkDataLine):
-            LogRecord(
-                f"client: send_to - {self.uuid}"
-                " got a type that is not NetworkDataLine : "
-                f"{type(data)}",
-                level="error",
+            logger.error(
+                "client: send_to - %s got a type that is not NetworkDataLine : %s",
+                self.uuid,
+                type(data),
                 stack_info=True,
-                sources=[__name__],
-            )()
+            )
         else:
             loop.call_soon_threadsafe(self.send_queue.put_nowait, data)
 
@@ -174,11 +175,7 @@ class ClientConnection:
             None
 
         """
-        LogRecord(
-            f"setup_client - Sending echo on to {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("setup_client - Sending echo on to %s", self.uuid)
         # We send an IAC+WILL+ECHO to the client so that
         #  it won't locally echo the password.
         networkdata = NetworkData(
@@ -192,25 +189,13 @@ class ClientConnection:
                 [NetworkDataLine(features, line_type="COMMAND-TELNET", prelogin=True)],
                 owner_id=f"client:{self.uuid}",
             )
-            LogRecord(
-                f"setup_client - Sending telnet features to {self.uuid}",
-                level="debug",
-                sources=[__name__],
-            )()
+            logger.debug("setup_client - Sending telnet features to %s", self.uuid)
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
-            LogRecord(
-                f"setup_client - telnet features sent to {self.uuid}",
-                level="debug",
-                sources=[__name__],
-            )()
+            logger.debug("setup_client - telnet features sent to %s", self.uuid)
 
         await self.writer.drain()
 
-        LogRecord(
-            f"setup_client - Sending welcome message to {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("setup_client - Sending welcome message to %s", self.uuid)
         networkdata = NetworkData(
             [NetworkDataLine("Welcome to Bastproxy.", prelogin=True)],
             owner_id=f"client:{self.uuid}",
@@ -218,11 +203,7 @@ class ClientConnection:
         networkdata.append(NetworkDataLine("Please enter your password.", prelogin=True))
         SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
         self.login_attempts += 1
-        LogRecord(
-            f"setup_client - welcome message sent to {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("setup_client - welcome message sent to %s", self.uuid)
 
         await self.writer.drain()
 
@@ -279,12 +260,12 @@ class ClientConnection:
                 owner_id=f"client:{self.uuid}",
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
-            LogRecord(
-                f"client_read - {self.uuid} [{self.addr}:{self.port}] too many login "
-                "attempts. Disconnecting.",
-                level="warning",
-                sources=[__name__],
-            )()
+            logger.warning(
+                "client_read - %s [%s:%s] too many login attempts. Disconnecting.",
+                self.uuid,
+                self.addr,
+                self.port,
+            )
             self.api("plugins.core.clients:client.banned.add")(self.uuid)
 
     def process_data_from_view_only_client(self, inp) -> None:
@@ -328,11 +309,7 @@ class ClientConnection:
             None
 
         """
-        LogRecord(
-            f"client_read - Starting coroutine for {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("client_read - Starting coroutine for %s", self.uuid)
 
         count = 0
         while self.connected:
@@ -343,16 +320,8 @@ class ClientConnection:
                 # BrokenPipeError and ConnectionResetError (a client RST) both end here.
                 self.connected = False
                 continue
-            LogRecord(
-                f"client_read - Raw received data in client_read : {inp}",
-                level="debug",
-                sources=[__name__],
-            )()
-            LogRecord(
-                f"client_read - inp type = {type(inp)}",
-                level="debug",
-                sources=[__name__],
-            )()
+            logger.debug("client_read - Raw received data in client_read : %s", inp)
+            logger.debug("client_read - inp type = %s", type(inp))
             self.data_logger.info("%-12s : %s", "client_read", inp)
 
             if not inp:  # This is an EOF.  Hard disconnect.
@@ -379,11 +348,7 @@ class ClientConnection:
                 await asyncio.sleep(0)
                 count = 0
 
-        LogRecord(
-            f"client_read - Ending coroutine for {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("client_read - Ending coroutine for %s", self.uuid)
 
     async def client_write(self) -> None:
         """Write data to the client.
@@ -400,50 +365,30 @@ class ClientConnection:
             None
 
         """
-        LogRecord(
-            f"client_write - Starting coroutine for {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("client_write - Starting coroutine for %s", self.uuid)
 
         count = 0
         while self.connected and not self.writer.connection_closed:
             msg_obj: NetworkDataLine = await self.send_queue.get()
             if msg_obj.is_io:
                 if msg_obj.line:
-                    LogRecord(
-                        f"client_write - Writing message to client {self.uuid}: {msg_obj.line}",
-                        level="debug",
-                        sources=[__name__],
-                    )()
-                    LogRecord(
-                        f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",
-                        level="debug",
-                        sources=[__name__],
-                    )()
+                    logger.debug(
+                        "client_write - Writing message to client %s: %s", self.uuid, msg_obj.line
+                    )
+                    logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
                     self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
                 else:
-                    LogRecord(
-                        "client_write - No message to write to client.",
-                        level="debug",
-                        sources=[__name__],
-                    )()
+                    logger.debug("client_write - No message to write to client.")
                 if msg_obj.is_prompt:
                     self.writer.write(telnet.go_ahead())
                     self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
             elif msg_obj.is_command_telnet:
-                LogRecord(
-                    f"client_write - type of msg_obj.msg = {type(msg_obj.line)}",
-                    level="debug",
-                    sources=[__name__],
-                )()
-                LogRecord(
-                    f"client_write - Writing telnet option to client {self.uuid}: {msg_obj.line!r}",
-                    level="debug",
-                    sources=[__name__],
-                )()
+                logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
+                logger.debug(
+                    "client_write - Writing telnet option to client %s: %r", self.uuid, msg_obj.line
+                )
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
                 self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
@@ -453,11 +398,7 @@ class ClientConnection:
                 await asyncio.sleep(0)
                 count = 0
 
-        LogRecord(
-            f"client_write - Ending coroutine for {self.uuid}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("client_write - Ending coroutine for %s", self.uuid)
 
 
 async def register_client(connection) -> bool:
@@ -478,31 +419,23 @@ async def register_client(connection) -> bool:
 
     """
     if connection.api("plugins.core.clients:client.is.banned")(connection.addr):
-        LogRecord(
-            f"client_read - {connection.uuid} [{connection.addr}:{connection.port}] "
-            "is banned. Closing connection.",
-            level="warning",
-            sources=[__name__],
-        )()
+        logger.warning(
+            "client_read - %s [%s:%s] is banned. Closing connection.",
+            connection.uuid,
+            connection.addr,
+            connection.port,
+        )
         connection.writer.write("You are banned from this proxy. Goodbye.\r\n")
         with contextlib.suppress(AttributeError):
             await connection.writer.drain()
         connection.connected = False
         return False
 
-    LogRecord(
-        f"register_client - Registering client {connection.uuid}",
-        level="debug",
-        sources=[__name__],
-    )()
+    logger.debug("register_client - Registering client %s", connection.uuid)
 
     connection.api("plugins.core.clients:client.add")(connection)
 
-    LogRecord(
-        f"register_client - Registered client {connection.uuid}",
-        level="debug",
-        sources=[__name__],
-    )()
+    logger.debug("register_client - Registered client %s", connection.uuid)
 
     return True
 
@@ -524,21 +457,13 @@ async def unregister_client(connection) -> None:
         None
 
     """
-    LogRecord(
-        f"unregister_client - Unregistering client {connection.uuid}",
-        level="debug",
-        sources=[__name__],
-    )()
+    logger.debug("unregister_client - Unregistering client %s", connection.uuid)
 
     if connection.connected:
         connection.connected = False
     connection.api("plugins.core.clients:client.remove")(connection)
 
-    LogRecord(
-        f"unregister_client - Unregistered client {connection.uuid}",
-        level="debug",
-        sources=[__name__],
-    )()
+    logger.debug("unregister_client - Unregistered client %s", connection.uuid)
 
 
 async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWriterUnicode) -> None:
@@ -564,11 +489,9 @@ async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWrite
 
     addr, port, *rest = client_details
     connection: ClientConnection = ClientConnection(addr, port, "telnet", reader, writer)
-    LogRecord(
-        f"Connection established with {addr} : {port} : {rest} : uuid - {connection.uuid}",
-        level="warning",
-        sources=[__name__],
-    )()
+    logger.warning(
+        "Connection established with %s : %s : %s : uuid - %s", addr, port, rest, connection.uuid
+    )
 
     if await register_client(connection):
         tasks: list[asyncio.Task] = [

@@ -12,6 +12,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
 """
 
 # Standard Library
+import logging
 from collections import OrderedDict
 from collections.abc import Callable
 
@@ -19,7 +20,7 @@ from collections.abc import Callable
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.callback import Callback
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records.tracking import tracking_actor
 from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
@@ -94,11 +95,14 @@ class Event:
             # when the function has been called. This is used to ensure that all functions
             # are called at least once before the event is finished
             self.priority_dictionary[priority][call_back] = False
-            LogRecord(
-                f"{self.name} - register function {call_back} with priority {priority}",
-                level="debug",
-                sources=[call_back.owner_id, self.created_by],
-            )()
+            log_to(
+                [call_back.owner_id, self.created_by],
+                logging.DEBUG,
+                "%s - register function %s with priority %s",
+                self.name,
+                call_back,
+                priority,
+            )
             return True
 
         return False
@@ -108,19 +112,20 @@ class Event:
         for priority in self.priority_dictionary:
             for call_back in self.priority_dictionary[priority]:
                 if call_back == func:
-                    LogRecord(
-                        f"unregister - {self.name} - unregister function {func} with priority {priority}",
-                        level="debug",
-                        sources=[call_back.owner_id, self.created_by],
-                    )()
+                    log_to(
+                        [call_back.owner_id, self.created_by],
+                        logging.DEBUG,
+                        "unregister - %s - unregister function %s with priority %s",
+                        self.name,
+                        func,
+                        priority,
+                    )
                     del self.priority_dictionary[priority][call_back]
                     return True
 
-        LogRecord(
-            f"unregister - {self.name} - could not find function {func.__name__}",
-            level="error",
-            sources=[self.created_by],
-        )()
+        get_logger(self.created_by).error(
+            "unregister - %s - could not find function %s", self.name, func.__name__
+        )
         return False
 
     def getownerregistrations(self, owner_id):
@@ -233,24 +238,31 @@ class Event:
                         call_back.execute()
                     found = True
                     if already_done:
-                        LogRecord(
-                            f"raise_event - event {self.name} with function {call_back.owner_id}:{call_back.name} was called out of order at priority {priority}",
-                            level="warning",
-                            sources=[call_back.owner_id, self.created_by],
-                        )()
-                        LogRecord(
-                            f"    this is likely due to a function being registered at priority {priority} during the execution of the event",
-                            level="warning",
-                            sources=[call_back.owner_id, self.created_by],
-                        )()
+                        log_to(
+                            [call_back.owner_id, self.created_by],
+                            logging.WARNING,
+                            "raise_event - event %s with function %s:%s was called out of order at priority %s",
+                            self.name,
+                            call_back.owner_id,
+                            call_back.name,
+                            priority,
+                        )
+                        log_to(
+                            [call_back.owner_id, self.created_by],
+                            logging.WARNING,
+                            "    this is likely due to a function being registered at priority %s during the execution of the event",
+                            priority,
+                        )
 
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"raise_event - event {self.name} with function {call_back.name} raised an exception",
-                    level="error",
-                    sources=[call_back.owner_id, self.created_by],
+                log_to(
+                    [call_back.owner_id, self.created_by],
+                    logging.ERROR,
+                    "raise_event - event %s with function %s raised an exception",
+                    self.name,
+                    call_back.name,
                     exc_info=True,
-                )()
+                )
 
         return found
 
@@ -262,16 +274,18 @@ class Event:
 
         # If data is not a dict or EventDataRecord object, log an error and the event will not be processed
         if not isinstance(data, EventDataRecord) and not isinstance(data, dict):
-            LogRecord(
-                f"raise_event - event {self.name} raised by {self.called_from} did not pass a dict or EventDataRecord object",
-                level="error",
-                sources=[self.created_by, "plugins.core.events"],
-            )()
-            LogRecord(
+            log_to(
+                [self.created_by, "plugins.core.events"],
+                logging.ERROR,
+                "raise_event - event %s raised by %s did not pass a dict or EventDataRecord object",
+                self.name,
+                self.called_from,
+            )
+            log_to(
+                [self.created_by, "plugins.core.events"],
+                logging.ERROR,
                 "The event will not be processed",
-                level="error",
-                sources=[self.created_by, "plugins.core.events"],
-            )()
+            )
             return None
 
         if not isinstance(data, EventDataRecord):

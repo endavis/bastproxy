@@ -114,7 +114,17 @@ The record system provides comprehensive tracking and auditing for all significa
 - Change history
 - Performance tracking
 
-### 5. [Data Flow](data_flow.md)
+### 5. [Logging System](logging_system.md)
+
+Logging uses standard-library loggers with a thin helper module, and the log plugin routes messages to the console, the log file and clients.
+
+**Key Concepts:**
+- `get_logger` and `log_to`
+- Lazy `%` arguments
+- Per-name thresholds as a pre-filter
+- Handler routing by level, colour in the formatter
+
+### 6. [Data Flow](data_flow.md)
 
 Data flow describes how network data moves through the proxy between MUDs and clients.
 
@@ -130,7 +140,7 @@ Data flow describes how network data moves through the proxy between MUDs and cl
 - Triggers and automation
 - Logging and analysis
 
-### 6. [Command System](command_system.md)
+### 7. [Command System](command_system.md)
 
 The command system provides comprehensive command parsing and execution from clients.
 
@@ -146,7 +156,7 @@ The command system provides comprehensive command parsing and execution from cli
 - Data queries and reporting
 - System administration
 
-### 7. [Settings System](settings_system.md)
+### 8. [Settings System](settings_system.md)
 
 The settings system provides centralized configuration management for all plugins.
 
@@ -162,7 +172,7 @@ The settings system provides centralized configuration management for all plugin
 - User preferences
 - System tuning
 
-### 8. [Timers System](timers_system.md)
+### 9. [Timers System](timers_system.md)
 
 The timers system provides scheduled execution of functions at specified intervals.
 
@@ -178,7 +188,7 @@ The timers system provides scheduled execution of functions at specified interva
 - Delayed actions
 - Background tasks
 
-### 9. [Triggers System](triggers_system.md)
+### 10. [Triggers System](triggers_system.md)
 
 The triggers system provides pattern matching on MUD output using regular expressions.
 
@@ -208,7 +218,7 @@ The triggers system provides pattern matching on MUD output using regular expres
    - Accesses data via **Event Record** (Record System)
    - Calls other plugin **APIs** if needed (API System)
    - Modifies **Data** as appropriate (Data Flow)
-   - Logs activity via **LogRecord** (Record System)
+   - Logs activity via **`get_logger`** (Logging System)
 
 3. **Data Continues**
    - Modified data flows to next priority (Event System)
@@ -237,11 +247,8 @@ def _eventcb_process_mud_data(self):
             # Call another plugin's API (API System)
             self.api("plugins.my.logger:log.important")(line.noansi)
 
-            # Create log record
-            LogRecord(
-                f"Highlighted important line",
-                sources=[self.plugin_id]
-            )()
+            # Log it
+            get_logger(self.plugin_id).info("Highlighted important line")
 ```
 
 ## Directory Structure
@@ -386,9 +393,10 @@ result = self.api("plugins.core.commands:command.run")("plugin.id", "command", "
 ### Logging
 
 ```python
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 
-LogRecord("Message", level="info", sources=[self.plugin_id])()
+get_logger(self.plugin_id).info("Message")
+log_to([self.plugin_id, "plugins.core.commands"], logging.INFO, "Message for two sources")
 ```
 
 ### Sending Data to Clients
@@ -448,6 +456,7 @@ def _eventcb_modify_data(self):
 - **Plugin System**: `src/bastproxy/libs/plugins/` and `src/bastproxy/plugins/_baseplugin/`
 - **Record System**: `src/bastproxy/libs/records/`
 - **Network Data**: `src/bastproxy/libs/records/rtypes/networkdata.py`
+- **Logging**: `src/bastproxy/libs/logger.py` and `src/bastproxy/plugins/core/log/`
 
 ### Example Plugins
 

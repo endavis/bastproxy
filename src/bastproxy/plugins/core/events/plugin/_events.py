@@ -5,10 +5,12 @@
 #
 # By: Bast
 
+import logging
+
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
-from bastproxy.libs.records import LogRecord
 from bastproxy.libs.scan import find_methods
 from bastproxy.libs.stack import SimpleStack
 
@@ -70,11 +72,7 @@ class EventsPlugin(BasePlugin):
             return
         size = int(value)
         if size < 0:
-            LogRecord(
-                f"raised_history_size {size} is negative, using 0",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning("raised_history_size %s is negative, using 0", size)
             size = 0
         Event.MAX_RAISED_EVENTS = size
 
@@ -91,40 +89,33 @@ class EventsPlugin(BasePlugin):
 
     def _register_all_plugin_events(self):
         """Add commands on startup."""
-        LogRecord(
-            "_register_all_plugin_events: start",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_register_all_plugin_events: start")
         for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
-            LogRecord(
-                f"_register_all_plugin_events: registering events in {plugin_id}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_register_all_plugin_events: registering events in %s", plugin_id
+            )
             self._register_events_for_plugin(plugin_id)
-        LogRecord(
-            "_register_all_plugin_events: finish",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_register_all_plugin_events: finish")
 
     def _register_events_for_plugin(self, plugin_id):
         """Register all events in a plugin."""
         plugin_instance = self.api("libs.plugins.loader:plugin.instance.get")(plugin_id)
         event_functions = self.get_event_registration_functions_in_object(plugin_instance)
-        LogRecord(
-            f"_register_events_for_plugin: {plugin_id} has {len(event_functions)} registrations",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "_register_events_for_plugin: %s has %s registrations",
+            plugin_id,
+            len(event_functions),
+        )
         if event_functions:
             names = [item.__name__ for item in event_functions]
-            LogRecord(
-                f"_register_events_for_plugin {names = }",
-                level="debug",
-                sources=[self.plugin_id, plugin_id],
-            )()
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.DEBUG,
+                "_register_events_for_plugin names = %r",
+                names,
+            )
             for func in event_functions:
                 self.api(f"{self.plugin_id}:event.register.by.func")(func)
 
@@ -165,11 +156,12 @@ class EventsPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
-            LogRecord(
-                f"_eventcb_plugin_unloaded - removing events for {event_record['plugin_id']}",
-                level="info",
-                sources=[self.plugin_id, event_record["plugin_id"]],
-            )()
+            log_to(
+                [self.plugin_id, event_record["plugin_id"]],
+                logging.INFO,
+                "_eventcb_plugin_unloaded - removing events for %s",
+                event_record["plugin_id"],
+            )
             self.api(f"{self.plugin_id}:event.unregister.for.owner")(event_record["plugin_id"])
 
     @AddAPI("event.current.name.get", description="return the current event name")
@@ -259,11 +251,9 @@ class EventsPlugin(BasePlugin):
         func_owner_id = self.api("libs.api:function.owner.get")(func)
 
         if not func_owner_id:
-            LogRecord(
-                f"_api_event_register -could not find owner for {func}",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_event_register -could not find owner for %s", func
+            )
             return
 
         # unregister if it's already registered, it might be a new priority
@@ -287,11 +277,9 @@ class EventsPlugin(BasePlugin):
         if event_name in self.events:
             self.events[event_name].unregister(func)
         else:
-            LogRecord(
-                f"_api_event_unregister -could not find event {event_name}",
-                level="error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_event_unregister -could not find event %s", event_name
+            )
 
     @AddAPI(
         "event.unregister.for.owner",
@@ -303,11 +291,12 @@ class EventsPlugin(BasePlugin):
         @Yowner_id@w   = The owner to remove events for
         this function returns no values.
         """
-        LogRecord(
-            f"_api_event_unregister_for_owner -removing events for {owner_id}",
-            level="info",
-            sources=[self.plugin_id, owner_id],
-        )()
+        log_to(
+            [self.plugin_id, owner_id],
+            logging.INFO,
+            "_api_event_unregister_for_owner -removing events for %s",
+            owner_id,
+        )
 
         for event in self.events:
             self.events[event].removeowner(owner_id)
@@ -371,11 +360,7 @@ class EventsPlugin(BasePlugin):
             calledfrom = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not calledfrom:
-            LogRecord(
-                f"event {event_name} raised with unknown caller",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning("event %s raised with unknown caller", event_name)
 
         event = self.api(f"{self.plugin_id}:event.get")(event_name)
 

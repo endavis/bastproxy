@@ -391,7 +391,7 @@ src/bastproxy/libs/records/managers/records.py          89     12     24      6 
 src/bastproxy/libs/records/managers/updates.py          12      0      2      0 100.00%
 src/bastproxy/libs/records/rtypes/base.py              284     87     96     16  62.89%   55, 59->61, 73->exit, 120, 135-137, 170-176, 210, 232-244, 273, 291->293, 293->303, 307, 320-325, 356, 364, 385-392, 396-403, 412-416, 426-433, 497-506, 515-521, 526, 531, 545, 557-576, 595, 599-601, 638-641, 649, 658-663
 src/bastproxy/libs/records/rtypes/clientdata.py         94     56     42      3  33.09%   41-65, 74-86, 90-92, 121, 125-128, 132-135, 139-154, 160-166, 207-208, 217, 221-240, 254-257, 266->exit
-src/bastproxy/libs/records/rtypes/log.py                37     10      8      2  68.89%   42-43, 52-53, 57-58, 75->74, 79-82
+rtypes/log.py (removed in #247)                         37     10      8      2  68.89%   42-43, 52-53, 57-58, 75->74, 79-82
 src/bastproxy/libs/records/rtypes/muddata.py            72     40     24      3  40.62%   42-49, 58-60, 64, 68-70, 83-119, 125-138, 171-172, 182->191, 191->exit
 src/bastproxy/libs/records/rtypes/networkdata.py       205    101     74     11  43.37%   58, 67, 93->95, 96, 97->exit, 108-110, 120-122, 143-145, 149->exit, 155, 165, 170, 175, 184-196, 205-223, 231-234, 238-246, 255-259, 290-293, 308, 317-318, 320-321, 353-360, 364-371, 376-377, 379-381, 386-400
 src/bastproxy/libs/records/rtypes/update.py             81     23     34      9  65.22%   60, 81, 138, 142-148, 159, 161, 163, 170, 180->182, 183-186, 188-193, 197-198
@@ -632,7 +632,7 @@ Check the debug commands that print `update.data` first.
 ### RS-7: `LogRecord._exec_` retries the call that failed
 
 **Issue:** #235
-**Location:** `src/bastproxy/libs/records/rtypes/log.py` `LogRecord._exec_` (lines 71-82).
+**Location:** `LogRecord._exec_` (lines 71-82 of the `log` module under `rtypes`). **Status:** `LogRecord` and `_exec_` were removed in #247, so the retry no longer exists.
 
 **Evidence (verified):** With a level the logger does not have, the retry in the `except` block repeats the same
 call and raises the same error:

@@ -10,6 +10,7 @@ see info/logging_notes.txt for more information about logging
 """
 
 # Standard Library
+import copy
 import logging
 import logging.handlers
 import numbers
@@ -19,8 +20,13 @@ import traceback
 # Third Party
 # Project
 from bastproxy.libs.api import API
+from bastproxy.libs.logger import (
+    RECORD_LOG_BUFFER,
+    RecordContextFilter,
+    RecordIdFormatter,
+    RenderFilter,
+)
 from bastproxy.libs.records import (
-    LogRecord,
     NetworkData,
     NetworkDataLine,
     SendDataDirectlyToClient,
@@ -75,17 +81,15 @@ class CustomColorFormatter(logging.Formatter):
             logging.CRITICAL: self.critical + self.fmt + self.reset,
         }
 
-    def format(self, record: logging.LogRecord):
+    def format(self, record):
         if record.name != "root":
             if "exc_info" in record.__dict__ and record.exc_info:
+                # work on a copy so the other handlers still see the original record
+                record = copy.copy(record)
                 formatted_exc = traceback.format_exception(record.exc_info[1])
                 formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
-                if isinstance(record.msg, LogRecord):
-                    record.msg.extend(formatted_exc_no_newline)
-                    record.msg.addupdate("Modify", "add traceback")
-                    record.msg.format()
-                elif isinstance(record.msg, str):
-                    record.msg += "\n".join(formatted_exc_no_newline)
+                record.msg = "\n".join([record.getMessage(), *formatted_exc_no_newline])
+                record.args = ()
                 record.exc_info = None
                 record.exc_text = None
             if self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get") and (
@@ -101,6 +105,35 @@ class CustomColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
+def _record_names(record) -> tuple[str, ...]:
+    """Get the names a record was logged to."""
+    return getattr(record, "log_sources", None) or (record.name,)
+
+
+def _first_allowed(record, api, api_name: str):
+    """Get the first name the handler allows, or None.
+
+    If the check API does not exist yet, the first name is allowed.
+    """
+    names = _record_names(record)
+    if not api("libs.api:api.exists")(api_name):
+        return names[0]
+    check = api(api_name)
+    for name in names:
+        if check(name, record.levelno):
+            return name
+    return None
+
+
+def _emit_as(record, name):
+    """Get a copy of the record under the name that is shown."""
+    if name == record.name:
+        return record
+    new_record = copy.copy(record)
+    new_record.name = name
+    return new_record
+
+
 class CustomConsoleHandler(logging.StreamHandler):
     def __init__(self, stream=sys.stdout):
         super().__init__(stream=stream)
@@ -112,20 +145,12 @@ class CustomConsoleHandler(logging.StreamHandler):
         if self.api.quiet_mode:
             return
 
-        update_type_counts(record.name, record.levelno)
+        for name in _record_names(record):
+            update_type_counts(name, record.levelno)
         try:
-            canlog = bool(
-                not self.api("libs.api:api.exists")("plugins.core.log:logger.console.is.enabled")
-                or self.api("plugins.core.log:logger.console.is.enabled")(
-                    record.name, record.levelno
-                )
-            )
-            if isinstance(record.msg, LogRecord):
-                if canlog and not record.msg.wasemitted["console"]:
-                    record.msg.wasemitted["console"] = True
-                    super().emit(record)
-            elif canlog:
-                super().emit(record)
+            name = _first_allowed(record, self.api, "plugins.core.log:logger.console.is.enabled")
+            if name is not None:
+                super().emit(_emit_as(record, name))
         except Exception:
             super().emit(record)
 
@@ -147,18 +172,12 @@ class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record):
-        update_type_counts(record.name, record.levelno)
+        for name in _record_names(record):
+            update_type_counts(name, record.levelno)
         try:
-            canlog = bool(
-                not self.api("libs.api:api.exists")("plugins.core.log:logger.file.is.enabled")
-                or self.api("plugins.core.log:logger.file.is.enabled")(record.name, record.levelno)
-            )
-            if isinstance(record.msg, LogRecord):
-                if canlog and not record.msg.wasemitted["file"]:
-                    record.msg.wasemitted["file"] = True
-                    super().emit(record)
-            elif canlog:
-                super().emit(record)
+            name = _first_allowed(record, self.api, "plugins.core.log:logger.file.is.enabled")
+            if name is not None:
+                super().emit(_emit_as(record, name))
         except Exception:
             super().emit(record)
 
@@ -176,30 +195,26 @@ class CustomClientHandler(logging.Handler):
         if not self.api("libs.api:api.exists")("plugins.core.log:logger.client.is.enabled"):
             return
 
-        update_type_counts(record.name, record.levelno)
+        names = _record_names(record)
+        for name in names:
+            update_type_counts(name, record.levelno)
 
-        canlog = self.api("plugins.core.log:logger.client.is.enabled")(record.name, record.levelno)
-        if canlog or record.levelno >= logging.ERROR:
-            formatted_message = self.format(record)
-            if isinstance(record.msg, LogRecord):
-                if self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get"):
-                    color = self.api("plugins.core.log:log.level.color.get")(record.levelno)
-                else:
-                    color = None
-                if not record.msg.wasemitted["client"]:
-                    new_message = NetworkData(owner_id="plugins.core.log:CustomClientHandler:emit")
-                    [
-                        new_message.append(NetworkDataLine(line, color=color or ""))
-                        for line in formatted_message.splitlines()
-                    ]
-                    record.msg.wasemitted["client"] = True
-                    SendDataDirectlyToClient(new_message)()
-            else:
-                new_message = NetworkData(
-                    formatted_message.splitlines(),
-                    owner_id="plugins.core.log:CustomClientHandler:emit",
-                )
-                SendDataDirectlyToClient(new_message)()
+        check = self.api("plugins.core.log:logger.client.is.enabled")
+        shown = next((n for n in names if check(n, record.levelno)), None)
+        if shown is None and record.levelno >= logging.ERROR:
+            shown = names[0]
+        if shown is None:
+            return
+
+        formatted_message = self.format(_emit_as(record, shown))
+        if self.api("libs.api:api.exists")("plugins.core.log:log.level.color.get"):
+            color = self.api("plugins.core.log:log.level.color.get")(record.levelno)
+        else:
+            color = None
+        new_message = NetworkData(owner_id="plugins.core.log:CustomClientHandler:emit")
+        for line in formatted_message.splitlines():
+            new_message.append(NetworkDataLine(line, color=color or ""))
+        SendDataDirectlyToClient(new_message)()
 
 
 def reset_logging():
@@ -230,8 +245,8 @@ def setup_loggers(log_level: int):
     data_logger_log_file_path = API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
 
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path, when="midnight")
-    file_handler.formatter = logging.Formatter(
-        "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
+    file_handler.formatter = RecordIdFormatter(
+        "%(asctime)s : %(levelname)-9s - %(name)-22s - %(record_id)s - %(message)s"
     )
 
     console_handler = CustomConsoleHandler()
@@ -244,10 +259,17 @@ def setup_loggers(log_level: int):
         "%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s"
     )
 
+    # the buffer is a module-level instance, so do not stack filters on a second setup
+    RECORD_LOG_BUFFER.filters.clear()
+    for handler in (file_handler, console_handler, client_handler, RECORD_LOG_BUFFER):
+        handler.addFilter(RenderFilter())
+        handler.addFilter(RecordContextFilter())
+
     # add the handler to the root logger
     logging.getLogger().addHandler(file_handler)
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().addHandler(client_handler)
+    logging.getLogger().addHandler(RECORD_LOG_BUFFER)
 
     if API.LOG_IN_UTC_TZ:
         logging.Formatter.formatTime = formatTime_RFC3339_UTC

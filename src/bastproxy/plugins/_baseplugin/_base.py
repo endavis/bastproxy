@@ -9,13 +9,14 @@
 import contextlib
 import datetime
 import inspect
+import logging
 import pprint
 from pathlib import Path
 
 # 3rd Party
 # Project
 from bastproxy.libs.api import API, AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.scan import find_methods
 
 from .libs._pluginhooks import RegisterPluginHook
@@ -78,27 +79,25 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         """
         cache = self.api("libs.plugins.reloadutils:cache.get")(self.plugin_id)
         for item in cache:
-            LogRecord(f"loading {item} from cache", level="debug", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).debug("loading %s from cache", item)
             self.__setattr__(item, cache[item])
         self.api("libs.plugins.reloadutils:cache.remove")(self.plugin_id)
 
     def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
         """Process a loading hook."""
-        LogRecord(
-            f"_process_plugin_hook: {plugin_hook}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_process_plugin_hook: %s", plugin_hook)
 
         functions = self._get_plugin_hook_functions(self, plugin_hook)
         sorted_keys = sorted(functions.keys())
         for key in sorted_keys:
             for func in functions[key]:
-                LogRecord(
-                    f"phook {plugin_hook} calling function {func.__name__}",
-                    level="debug",
-                    sources=[self.plugin_id, "plugin_upgrade"],
-                )()
+                log_to(
+                    [self.plugin_id, "plugin_upgrade"],
+                    logging.DEBUG,
+                    "phook %s calling function %s",
+                    plugin_hook,
+                    func.__name__,
+                )
                 if not kwargs:
                     func()
                 else:
@@ -320,19 +319,21 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         if old_plugin_version != new_plugin_version and new_plugin_version > old_plugin_version:
             for version in range(old_plugin_version + 1, new_plugin_version + 1):
-                LogRecord(
-                    f"_update_version: upgrading to version {version}",
-                    level="info",
-                    sources=[self.plugin_id, "plugin_upgrade"],
-                )()
+                log_to(
+                    [self.plugin_id, "plugin_upgrade"],
+                    logging.INFO,
+                    "_update_version: upgrading to version %s",
+                    version,
+                )
                 if version in self.version_functions:
                     self.version_functions[version]()
                 else:
-                    LogRecord(
-                        f"_update_version: no function to upgrade to version {version}",
-                        level="error",
-                        sources=[self.plugin_id, "plugin_upgrade"],
-                    )()
+                    log_to(
+                        [self.plugin_id, "plugin_upgrade"],
+                        logging.ERROR,
+                        "_update_version: no function to upgrade to version %s",
+                        version,
+                    )
 
             self.api("plugins.core.settings:setting.set")(
                 self.plugin_id, "_version", new_plugin_version
@@ -384,11 +385,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _eventcb_baseplugin_disconnect(self):
         """re-register to character active event on disconnect."""
-        LogRecord(
-            f"ev_baseplugin_disconnect: baseplugin.{self.plugin_id}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("ev_baseplugin_disconnect: baseplugin.%s", self.plugin_id)
         self.api("plugins.core.events:event.register")(
             "ev_libs.api_character_active",
             self._eventcb_baseplugin_after_character_is_active,
@@ -396,11 +393,9 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
     def _eventcb_baseplugin_after_character_is_active(self):
         """Tasks to do after character is active."""
-        LogRecord(
-            f"ev_after_character_is_active: baseplugin.{self.plugin_id}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "ev_after_character_is_active: baseplugin.%s", self.plugin_id
+        )
         if self.api("plugins.core.events:event.is.registered")(
             "ev_libs.api_character_active",
             self._eventcb_baseplugin_after_character_is_active,

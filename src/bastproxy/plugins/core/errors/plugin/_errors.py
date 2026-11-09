@@ -10,8 +10,10 @@
 # 3rd Party
 
 # Project
+import logging
+
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -32,7 +34,7 @@ class ErrorPlugin(BasePlugin):
             msg = ["The following errors happened during startup:", "Proxy Errors"]
             for i in errors:
                 msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
-            LogRecord(msg, level="error", sources=[self.plugin_id, "mudproxy"])()
+            log_to([self.plugin_id, "mudproxy"], logging.ERROR, "%s", "\n".join(msg))
 
     @AddAPI("error.add", description="add an error")
     def _api_error_add(self, timestamp, error):

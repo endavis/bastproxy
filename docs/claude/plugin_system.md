@@ -183,7 +183,7 @@ The main plugin class in the plugin package's `plugin/` subpackage (`<plugin>/pl
 ```python
 from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 
 class Plugin(BasePlugin):
     def __init__(self, plugin_id, plugin_info):
@@ -302,7 +302,7 @@ class Plugin(BasePlugin):
     @RegisterPluginHook("initialize", priority=50)
     def _phook_initialize(self):
         """Custom initialization logic."""
-        LogRecord("Initializing my plugin", sources=[self.plugin_id])()
+        get_logger(self.plugin_id).info("Initializing my plugin")
 ```
 
 `initialize` runs after every plugin in the same `plugin.load` call has been imported and
@@ -639,15 +639,12 @@ class Plugin(BasePlugin):
 ### Logging
 
 ```python
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 
 class Plugin(BasePlugin):
     def some_method(self):
-        LogRecord(
-            "Something happened",
-            level="info",  # debug, info, warning, error, critical
-            sources=[self.plugin_id]
-        )()
+        # debug, info, warning, error, critical
+        get_logger(self.plugin_id).info("Something happened")
 ```
 
 ### Plugin Inspection

@@ -13,8 +13,9 @@ from bastproxy.libs.api import AddAPI
 
 # 3rd Party
 # Project
+from bastproxy.libs.logger import LEVELS, get_logger, log_to, set_threshold
 from bastproxy.libs.persistentdict import PersistentDict
-from bastproxy.libs.records import RMANAGER, LogRecord
+from bastproxy.libs.records import RMANAGER
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -56,8 +57,11 @@ class LogPlugin(BasePlugin):
         self,
     ):  # pyright: ignore[reportInvalidTypeVarUse]
         # setup file logging and network data logging
-        LogRecord("setting up custom logging", level="debug", sources=[self.plugin_id])()
+        get_logger(self.plugin_id).debug("setting up custom logging")
         setup_loggers(logging.DEBUG)
+        for handler in ("client", "console", "file"):
+            for name in list(self.handlers[handler]):
+                self._sync_threshold(name)
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
@@ -139,6 +143,21 @@ class LogPlugin(BasePlugin):
             case _:
                 return ""
 
+    def _sync_threshold(self, name: str) -> None:
+        """Set the pre-filter threshold of a logger from the three handler settings.
+
+        The threshold is never above a level any handler would accept for the name,
+        so the handlers still make the routing decision.
+        """
+        top = get_toplevel(name)
+        levels = [
+            getattr(logging, self.handlers[handler][top].upper(), logging.INFO)
+            for handler in ("client", "console", "file")
+            if top in self.handlers[handler] and self.handlers[handler][top]
+        ]
+        lowest = min(levels, default=logging.INFO)
+        set_threshold(top, lowest if lowest < logging.INFO else None)
+
     @AddAPI("logger.console.is.enabled", description="check if a logger can log to the console")
     def _api_logger_console_is_enabled(self, logger, level):
         """Check if a logger can log to the console.
@@ -188,38 +207,42 @@ class LogPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"_api_logger_client_level_set: {logtype} {level} {flag}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "_api_logger_client_level_set: %s %s %s", logtype, level, flag
+        )
 
         logger_name = get_toplevel(logtype)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(
-                f"api_toggletoclient: invalid log level {level}",
-                level="error",
-                sources=[self.plugin_id, logger_name],
-            )()
+            log_to(
+                [self.plugin_id, logger_name],
+                logging.ERROR,
+                "api_toggletoclient: invalid log level %s",
+                level,
+            )
             return
 
         if flag and logger_name not in self.handlers["client"]:
             self.handlers["client"][logger_name] = level
-            LogRecord(
-                f"setting {logger_name} to log to client at level {level}",
-                level="debug",
-                sources=[self.plugin_id, logger_name],
-            )()
+            log_to(
+                [self.plugin_id, logger_name],
+                logging.DEBUG,
+                "setting %s to log to client at level %s",
+                logger_name,
+                level,
+            )
         elif not flag and logger_name in self.handlers["client"]:
             del self.handlers["client"][logger_name]
-            LogRecord(
-                f"removing {logger_name} logging to client {level}",
-                level="debug",
-                sources=[self.plugin_id, logger_name],
-            )()
+            log_to(
+                [self.plugin_id, logger_name],
+                logging.DEBUG,
+                "removing %s logging to client %s",
+                logger_name,
+                level,
+            )
 
+        self._sync_threshold(logger_name)
         self.handlers["client"].sync()
 
     @AddParser(
@@ -284,30 +307,30 @@ class LogPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"_api_logger_console_level_set: {logtype} {level}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_api_logger_console_level_set: %s %s", logtype, level)
 
         logger_name = get_toplevel(logtype)
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(
-                f"_api_logger_console_level_set: invalid log level {level}",
-                level="error",
-                sources=[self.plugin_id, logger_name],
-            )()
+            log_to(
+                [self.plugin_id, logger_name],
+                logging.ERROR,
+                "_api_logger_console_level_set: invalid log level %s",
+                level,
+            )
             return
 
         self.handlers["console"][logger_name] = level
-        LogRecord(
-            f"setting {logger_name} to log to console at level {level}",
-            level="debug",
-            sources=[self.plugin_id, logger_name],
-        )()
+        log_to(
+            [self.plugin_id, logger_name],
+            logging.DEBUG,
+            "setting %s to log to console at level %s",
+            logger_name,
+            level,
+        )
 
+        self._sync_threshold(logger_name)
         self.handlers["console"].sync()
 
     @AddParser(
@@ -365,21 +388,25 @@ class LogPlugin(BasePlugin):
         if isinstance(level, numbers.Number):
             level = logging.getLevelName(level).lower()
         if not level:
-            LogRecord(
-                f"_api_logger_file_level_set: invalid log level {level}",
-                level="error",
-                sources=[self.plugin_id, logtype],
-            )()
+            log_to(
+                [self.plugin_id, logtype],
+                logging.ERROR,
+                "_api_logger_file_level_set: invalid log level %s",
+                level,
+            )
             return
 
         logger_name = get_toplevel(logtype)
         self.handlers["file"][logger_name] = level
-        LogRecord(
-            f"setting {logger_name} to log to file at level {level}",
-            level="debug",
-            sources=[self.plugin_id, logger_name],
-        )()
+        log_to(
+            [self.plugin_id, logger_name],
+            logging.DEBUG,
+            "setting %s to log to file at level %s",
+            logger_name,
+            level,
+        )
 
+        self._sync_threshold(logger_name)
         self.handlers["file"].sync()
 
     @AddParser(
@@ -492,14 +519,23 @@ class LogPlugin(BasePlugin):
 
         tmsg = [f"'{message}' sent to '{logtype}' as level '{level}'"]
 
-        lr = LogRecord(message, level=level, sources=[logtype])
-        lr()
+        levelno = LEVELS[level]
+        console = not self.api.quiet_mode and self.api(
+            f"{self.plugin_id}:logger.console.is.enabled"
+        )(logtype, levelno)
+        to_file = self.api(f"{self.plugin_id}:logger.file.is.enabled")(logtype, levelno)
+        client = not self.api.startup and (
+            self.api(f"{self.plugin_id}:logger.client.is.enabled")(logtype, levelno)
+            or levelno >= logging.ERROR
+        )
+
+        get_logger(logtype).log(levelno, "%s", message)
 
         tmsg.extend(
             (
-                f"Console: {lr.wasemitted['console']}",
-                f"File: {lr.wasemitted['file']}",
-                f"Client: {lr.wasemitted['client']}",
+                f"Console: {bool(console)}",
+                f"File: {bool(to_file)}",
+                f"Client: {bool(client)}",
             )
         )
         return True, tmsg
@@ -528,6 +564,7 @@ class LogPlugin(BasePlugin):
                 del self.handlers["file"][i]
             if i in self.type_counts:
                 del self.type_counts[i]
+            self._sync_threshold(i)
 
         self.handlers["file"].sync()
         self.handlers["client"].sync()

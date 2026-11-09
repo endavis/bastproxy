@@ -37,6 +37,7 @@ Classes:
 
 # Standard Library
 import datetime
+import logging
 import sys
 import traceback
 import weakref
@@ -48,11 +49,13 @@ from typing import Any
 # 3rd Party
 # Project
 from bastproxy.libs.api import API, AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins.dependency import PluginDependencyResolver
 from bastproxy.libs.plugins.plugininfo import PluginInfo
-from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin
+
+logger = get_logger(__name__)
 
 USER_PLUGIN_IMPORT_ROOT = "userplugins"
 PLUGIN_ID_PREFIX = "plugins."
@@ -174,11 +177,7 @@ class PluginLoader:
         """
         old_object = weakref_obj()
         if not old_object and not self.api.shutdown:
-            LogRecord(
-                f"garbage collect stale module {module_import_path}",
-                level="info",
-                sources=[__name__],
-            )()
+            logger.info("garbage collect stale module %s", module_import_path)
             if module_import_path in self.weak_references_to_modules:
                 del self.weak_references_to_modules[module_import_path]
 
@@ -422,12 +421,9 @@ class PluginLoader:
             plugin_instance = plugin_name
 
         if not plugin_instance and not self.api.startup:
-            LogRecord(
-                f"api_plugin_instance_get - plugin not found: {plugin_name}",
-                level="debug",
-                sources=[__name__],
-                stack_info=True,
-            )()
+            logger.debug(
+                "api_plugin_instance_get - plugin not found: %s", plugin_name, stack_info=True
+            )
 
         return plugin_instance
 
@@ -528,12 +524,11 @@ class PluginLoader:
                 p["plugin_id"] = plugin_id
                 package = plugin_id.rsplit(".", 1)[0]
                 if is_user and (package in bundled_packages or plugin_id in seen_ids):
-                    LogRecord(
-                        f"User plugin {p['package_import_location']} not loaded: "
-                        f"{plugin_id} collides with a bundled plugin or package",
-                        level="error",
-                        sources=[__name__],
-                    )()
+                    logger.error(
+                        "User plugin %s not loaded: %s collides with a bundled plugin or package",
+                        p["package_import_location"],
+                        plugin_id,
+                    )
                     continue
                 seen_ids.add(plugin_id)
                 if not is_user:
@@ -560,35 +555,30 @@ class PluginLoader:
             None
 
         """
-        LogRecord("Read all plugin information", level="info", sources=[__name__])()
+        logger.info("Read all plugin information")
 
         plugins, errors = self._discover_plugins()
 
-        LogRecord(
-            f"Found {len(plugins)} total plugins from "
-            f"{', '.join(str(search['path']) for search in self.plugin_search_paths)}",
-            level="info",
-            sources=[__name__],
-        )()
+        logger.info(
+            "Found %s total plugins from %s",
+            len(plugins),
+            ", ".join(str(search["path"]) for search in self.plugin_search_paths),
+        )
         if len(plugins) < 10:
-            LogRecord(
-                f"WARNING: Only found {len(plugins)} plugins: {[p['plugin_id'] for p in plugins]}",
-                level="warning",
-                sources=[__name__],
-            )()
+            logger.warning(
+                "WARNING: Only found %s plugins: %s",
+                len(plugins),
+                [p["plugin_id"] for p in plugins],
+            )
 
-        LogRecord("Done finding plugins", level="debug", sources=[__name__])()
+        logger.debug("Done finding plugins")
 
         old_plugins_info = self.plugins_info
         new_plugins_info = {}
 
         # go through the plugins and read information from them
         for found_plugin in plugins:
-            LogRecord(
-                f"{found_plugin['plugin_id']:<30} : Reading plugin information",
-                level="info",
-                sources=[__name__],
-            )()
+            logger.info("%-30s : Reading plugin information", found_plugin["plugin_id"])
             if found_plugin["plugin_id"] in old_plugins_info:
                 plugin_info = old_plugins_info[found_plugin["plugin_id"]]
                 plugin_info.is_plugin = True
@@ -618,15 +608,12 @@ class PluginLoader:
         removed_plugins = set(old_plugins_info.keys()) - set(self.plugins_info.keys())
         for plugin_id in removed_plugins:
             if plugin_id in old_plugins_info and old_plugins_info[plugin_id].runtime_info:
-                LogRecord(
-                    [
-                        f"Loaded Plugin {plugin_id}'s path is no longer valid: "
-                        f"{old_plugins_info[plugin_id].package_path}",
-                        "If this plugin is no longer valid, please unload it",
-                    ],
-                    level="error",
-                    sources=[__name__],
-                )()
+                logger.error(
+                    "Loaded Plugin %s's path is no longer valid: %s\n"
+                    "If this plugin is no longer valid, please unload it",
+                    plugin_id,
+                    old_plugins_info[plugin_id].package_path,
+                )
 
     def _import_single_plugin(self, plugin_id: str, exit_on_error: bool = False) -> bool:
         """Import a single plugin.
@@ -647,7 +634,7 @@ class PluginLoader:
 
         """
         # import the plugin
-        LogRecord(f"{plugin_id:<30} : attempting import", level="info", sources=[__name__])()
+        logger.info("%-30s : attempting import", plugin_id)
         plugin_info = self.plugins_info[plugin_id]
         plugin_info.update_from_init()
         return_info = imputils.importmodule(plugin_info.plugin_class_import_location)
@@ -666,7 +653,7 @@ class PluginLoader:
                 ]
 
                 msg = [f"Could not import plugin {plugin_id}", *exc_msg]
-                LogRecord(msg, level="error", sources=[__name__])()
+                logger.error("%s", "\n".join(msg))
                 if exit_on_error:
                     sys.exit(1)
 
@@ -675,7 +662,7 @@ class PluginLoader:
         plugin_info.runtime_info.is_imported = True
         plugin_info.runtime_info.imported_time = datetime.datetime.now(datetime.UTC)
 
-        LogRecord(f"{plugin_id:<30} : imported successfully", level="info", sources=[__name__])()
+        logger.info("%-30s : imported successfully", plugin_id)
 
         return True
 
@@ -698,14 +685,10 @@ class PluginLoader:
 
         """
         plugin_info = self.plugins_info[plugin_id]
-        LogRecord(f"{plugin_id:<30} : creating instance", level="info", sources=[__name__])()
+        logger.info("%-30s : creating instance", plugin_id)
 
         if not plugin_info.plugin_class_import_location:
-            LogRecord(
-                f"Could not find module for {plugin_id}",
-                level="error",
-                sources=[__name__],
-            )()
+            logger.error("Could not find module for %s", plugin_id)
             if exit_on_error:
                 sys.exit(1)
             else:
@@ -716,12 +699,7 @@ class PluginLoader:
             # restore after construction so a default set in __init__ cannot overwrite it
             plugin_instance.restore_reload_cache()
         except Exception:  # pylint: disable=broad-except
-            LogRecord(
-                f"Could not instantiate plugin {plugin_id}",
-                level="error",
-                sources=[__name__],
-                exc_info=True,
-            )()
+            logger.error("Could not instantiate plugin %s", plugin_id, exc_info=True)
             if exit_on_error:
                 sys.exit(1)
             else:
@@ -732,11 +710,7 @@ class PluginLoader:
         plugin_info.runtime_info.plugin_instance = plugin_instance
         plugin_info.runtime_info.is_loaded = False
 
-        LogRecord(
-            f"{plugin_id:<30} : instance created successfully",
-            level="info",
-            sources=[__name__],
-        )()
+        logger.info("%-30s : instance created successfully", plugin_id)
 
         return True
 
@@ -764,19 +738,21 @@ class PluginLoader:
         plugin_info = self.plugins_info[plugin_id]
         if plugin_info.runtime_info.is_loaded:
             return True
-        LogRecord(
-            f"{plugin_info.plugin_id:<30} : attempting to run initialize method for "
-            f"({plugin_info.name})",
-            level="info",
-            sources=[__name__, plugin_info.plugin_id],
-        )()
+        log_to(
+            [__name__, plugin_info.plugin_id],
+            logging.INFO,
+            "%-30s : attempting to run initialize method for (%s)",
+            plugin_info.plugin_id,
+            plugin_info.name,
+        )
 
         if not plugin_info.runtime_info.plugin_instance:
-            LogRecord(
-                f"{plugin_info.plugin_id:<30} : plugin instance is None, not initializing",
-                level="error",
-                sources=[__name__, plugin_info.plugin_id],
-            )()
+            log_to(
+                [__name__, plugin_info.plugin_id],
+                logging.ERROR,
+                "%-30s : plugin instance is None, not initializing",
+                plugin_info.plugin_id,
+            )
             return False
 
         # run the initialize function
@@ -784,18 +760,20 @@ class PluginLoader:
             plugin_info.runtime_info.plugin_instance.initialize()
 
         except Exception:  # pylint: disable=broad-except
-            LogRecord(
-                f"could not run the initialize method for {plugin_info.plugin_id}",
-                level="error",
-                sources=[__name__, plugin_info.plugin_id],
+            log_to(
+                [__name__, plugin_info.plugin_id],
+                logging.ERROR,
+                "could not run the initialize method for %s",
+                plugin_info.plugin_id,
                 exc_info=True,
-            )()
+            )
             if exit_on_error:
-                LogRecord(
-                    f"{plugin_info.plugin_id:<30} : INITIALIZE METHOD WAS NOT SUCCESSFUL",
-                    level="error",
-                    sources=[__name__, plugin_info.plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_info.plugin_id],
+                    logging.ERROR,
+                    "%-30s : INITIALIZE METHOD WAS NOT SUCCESSFUL",
+                    plugin_info.plugin_id,
+                )
                 sys.exit(1)
             # a hook above priority 91 may already have set the flag; a failed
             # initialize must take the never-loaded cleanup path, not uninitialize()
@@ -803,18 +781,20 @@ class PluginLoader:
             self.api("libs.plugins.loader:plugin.unload")(plugin_id, allow_required=True)
             return False
 
-        LogRecord(
-            f"{plugin_info.plugin_id:<30} : successfully ran initialize method "
-            f"({plugin_info.name})",
-            level="info",
-            sources=[__name__, plugin_info.plugin_id],
-        )()
+        log_to(
+            [__name__, plugin_info.plugin_id],
+            logging.INFO,
+            "%-30s : successfully ran initialize method (%s)",
+            plugin_info.plugin_id,
+            plugin_info.name,
+        )
 
-        LogRecord(
-            f"{plugin_info.plugin_id:<30} : successfully loaded",
-            level="info",
-            sources=[__name__, plugin_info.plugin_id],
-        )()
+        log_to(
+            [__name__, plugin_info.plugin_id],
+            logging.INFO,
+            "%-30s : successfully loaded",
+            plugin_info.plugin_id,
+        )
 
         return True
 
@@ -848,11 +828,7 @@ class PluginLoader:
             if plugin_id in self.plugins_info:
                 known_plugins.append(plugin_id)
             else:
-                LogRecord(
-                    f"{plugin_id:<30} : unknown plugin, cannot load",
-                    level="error",
-                    sources=[__name__],
-                )()
+                logger.error("%-30s : unknown plugin, cannot load", plugin_id)
                 bad_plugins.append(plugin_id)
 
         plugins_not_loaded = [
@@ -875,11 +851,9 @@ class PluginLoader:
         )
         load_order, failed_plugins = resolver.resolve(plugins_not_loaded)
         for plugin_id, error in failed_plugins.items():
-            LogRecord(
-                f"{plugin_id:<30} : not loading, {error}",
-                level="error",
-                sources=[__name__, plugin_id],
-            )()
+            log_to(
+                [__name__, plugin_id], logging.ERROR, "%-30s : not loading, %s", plugin_id, error
+            )
             if plugin_id not in bad_plugins:
                 bad_plugins.append(plugin_id)
 
@@ -890,11 +864,7 @@ class PluginLoader:
             if self._dependency_failed(plugin_id, bad_plugins):
                 bad_plugins.append(plugin_id)
                 continue
-            LogRecord(
-                f"{plugin_id:<30} : attempting to load",
-                level="info",
-                sources=[__name__],
-            )()
+            logger.info("%-30s : attempting to load", plugin_id)
             if not self._import_single_plugin(plugin_id, exit_on_error=exit_on_error):
                 bad_plugins.append(plugin_id)
 
@@ -974,11 +944,13 @@ class PluginLoader:
             if dependency in bad_plugins
         ]
         if failed:
-            LogRecord(
-                f"{plugin_id:<30} : not loading, dependency failed: {', '.join(failed)}",
-                level="error",
-                sources=[__name__, plugin_id],
-            )()
+            log_to(
+                [__name__, plugin_id],
+                logging.ERROR,
+                "%-30s : not loading, dependency failed: %s",
+                plugin_id,
+                ", ".join(failed),
+            )
         return bool(failed)
 
     @AddAPI("plugin.reload", "reload a plugin")
@@ -1011,11 +983,14 @@ class PluginLoader:
         for pid in to_reload:
             pid_instance = self.plugins_info[pid].runtime_info.plugin_instance
             if pid_instance and not pid_instance.can_reload_f:
-                LogRecord(
-                    f"{pid:<30} : cannot reload {plugin_id}, {pid} cannot be unloaded",
-                    level="error",
-                    sources=[__name__, plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_id],
+                    logging.ERROR,
+                    "%-30s : cannot reload %s, %s cannot be unloaded",
+                    pid,
+                    plugin_id,
+                    pid,
+                )
                 return False
 
         # unload furthest dependent first
@@ -1085,22 +1060,24 @@ class PluginLoader:
                     "ev_plugin_unloaded", event_args={"plugin_id": plugin_id}
                 )
         except Exception:  # pylint: disable=broad-except
-            LogRecord(
-                f"could not raise ev_plugin_unloaded for {plugin_id}",
-                level="error",
-                sources=[__name__, plugin_id],
+            log_to(
+                [__name__, plugin_id],
+                logging.ERROR,
+                "could not raise ev_plugin_unloaded for %s",
+                plugin_id,
                 exc_info=True,
-            )()
+            )
 
         try:
             self.api("libs.api:api.toplevel.remove")(plugin_id)
         except Exception:  # pylint: disable=broad-except
-            LogRecord(
-                f"could not remove the apis for {plugin_id}",
-                level="error",
-                sources=[__name__, plugin_id],
+            log_to(
+                [__name__, plugin_id],
+                logging.ERROR,
+                "could not remove the apis for %s",
+                plugin_id,
                 exc_info=True,
-            )()
+            )
 
     @AddAPI("plugin.unload", "unload a plugin")
     def _api_plugin_unload(self, plugin_id: str, *, allow_required: bool = False) -> bool:
@@ -1135,49 +1112,54 @@ class PluginLoader:
             and plugin_info.runtime_info.is_loaded
             and not plugin_info.runtime_info.plugin_instance.can_reload_f
         ):
-            LogRecord(
-                f"{plugin_info.plugin_id:<30} : this plugin cannot be unloaded "
-                f"({plugin_info.name})",
-                level="error",
-                sources=[__name__, plugin_info.plugin_id],
-            )()
+            log_to(
+                [__name__, plugin_info.plugin_id],
+                logging.ERROR,
+                "%-30s : this plugin cannot be unloaded (%s)",
+                plugin_info.plugin_id,
+                plugin_info.name,
+            )
             return False
 
         if plugin_info.is_required and not allow_required:
-            LogRecord(
-                f"{plugin_info.plugin_id:<30} : this plugin is required and "
-                f"cannot be unloaded ({plugin_info.name})",
-                level="error",
-                sources=[__name__, plugin_info.plugin_id],
-            )()
+            log_to(
+                [__name__, plugin_info.plugin_id],
+                logging.ERROR,
+                "%-30s : this plugin is required and cannot be unloaded (%s)",
+                plugin_info.plugin_id,
+                plugin_info.name,
+            )
             return False
 
         try:
             if plugin_info.runtime_info.plugin_instance and plugin_info.runtime_info.is_loaded:
                 plugin_info.runtime_info.plugin_instance.uninitialize()
-                LogRecord(
-                    f"{plugin_info.plugin_id:<30} : successfully ran uninitialize "
-                    f"method ({plugin_info.name})",
-                    level="info",
-                    sources=[__name__, plugin_info.plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_info.plugin_id],
+                    logging.INFO,
+                    "%-30s : successfully ran uninitialize method (%s)",
+                    plugin_info.plugin_id,
+                    plugin_info.name,
+                )
             else:
                 # never loaded: no uninitialize, but remove what it registered
-                LogRecord(
-                    f"{plugin_info.plugin_id:<30} : plugin not loaded, removing its "
-                    f"registrations ({plugin_info.name})",
-                    level="info",
-                    sources=[__name__, plugin_info.plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_info.plugin_id],
+                    logging.INFO,
+                    "%-30s : plugin not loaded, removing its registrations (%s)",
+                    plugin_info.plugin_id,
+                    plugin_info.name,
+                )
                 self._remove_plugin_registrations(plugin_id)
 
         except Exception:  # pylint: disable=broad-except
-            LogRecord(
-                f"unload: error running the uninitialize method for {plugin_info.plugin_id}",
-                level="error",
-                sources=[__name__, plugin_info.plugin_id],
+            log_to(
+                [__name__, plugin_info.plugin_id],
+                logging.ERROR,
+                "unload: error running the uninitialize method for %s",
+                plugin_info.plugin_id,
                 exc_info=True,
-            )()
+            )
             return False
 
         # remove from pluginstoload so it doesn't load at startup
@@ -1204,19 +1186,23 @@ class PluginLoader:
             cb_weakref = partial(self.remove_weakref, module_import_path=item)
             self.weak_references_to_modules[item] = weakref.ref(sys.modules[item], cb_weakref)
             if imputils.deletemodule(item):
-                LogRecord(
-                    f"{plugin_info.plugin_id:<30} : deleting imported module {item} "
-                    f"was successful ({plugin_info.name})",
-                    level="info",
-                    sources=[__name__, plugin_info.plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_info.plugin_id],
+                    logging.INFO,
+                    "%-30s : deleting imported module %s was successful (%s)",
+                    plugin_info.plugin_id,
+                    item,
+                    plugin_info.name,
+                )
             else:
-                LogRecord(
-                    f"{plugin_info.plugin_id:<30} : deleting imported module {item} "
-                    f"failed ({plugin_info.name})",
-                    level="error",
-                    sources=[__name__, plugin_info.plugin_id],
-                )()
+                log_to(
+                    [__name__, plugin_info.plugin_id],
+                    logging.ERROR,
+                    "%-30s : deleting imported module %s failed (%s)",
+                    plugin_info.plugin_id,
+                    item,
+                    plugin_info.name,
+                )
 
         # set the appropriate plugin_info.runtime_info attributes to None
         plugin_info.reset_runtime_info()
@@ -1250,11 +1236,7 @@ class PluginLoader:
             if plugin_info.package in ["plugins.core", "plugins.client"]
         ]
 
-        LogRecord(
-            f"Found {len(core_plugins)} core/client plugins: {core_plugins}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("Found %s core/client plugins: %s", len(core_plugins), core_plugins)
 
         # load plugin manager and then log plugin first
         if "plugins.core.log" in core_plugins:
@@ -1281,23 +1263,15 @@ class PluginLoader:
             None
 
         """
-        LogRecord("Loading core and client plugins", level="info", sources=[__name__])()
+        logger.info("Loading core and client plugins")
         self._load_core_and_client_plugins_on_startup()
-        LogRecord("Finished Loading core and client plugins", level="info", sources=[__name__])()
+        logger.info("Finished Loading core and client plugins")
 
-        LogRecord(
-            f"{POST_STARTUP_EVENT}: Started",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("%s: Started", POST_STARTUP_EVENT)
 
         self.api("plugins.core.events:event.raise")(POST_STARTUP_EVENT)
 
-        LogRecord(
-            f"{POST_STARTUP_EVENT}: Finish",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("%s: Finish", POST_STARTUP_EVENT)
 
         # warn about plugins that had import errors
         for plugin_info in self.plugins_info.values():
@@ -1307,14 +1281,11 @@ class PluginLoader:
                     traceback_message = [
                         item.strip() for item in traceback_message if item and item != "\n"
                     ]
-                    LogRecord(
-                        [
-                            f"Plugin {plugin_info.plugin_id} had an import error: ",
-                            *traceback_message,
-                        ],
-                        level="warning",
-                        sources=[__name__],
-                    )()
+                    logger.warning(
+                        "Plugin %s had an import error: \n%s",
+                        plugin_info.plugin_id,
+                        "\n".join(traceback_message),
+                    )
 
     @AddAPI("plugin.id.match", description="find a plugin id from a string")
     def _api_plugin_id_match(
@@ -1338,19 +1309,11 @@ class PluginLoader:
             None
 
         """
-        LogRecord(
-            f"_api_plugin_id_match: attempting to find {plugin_id_string}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("_api_plugin_id_match: attempting to find %s", plugin_id_string)
 
         psplit = plugin_id_string.split(".", 1)
 
-        LogRecord(
-            f"_api_plugin_id_match: {psplit = }",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("_api_plugin_id_match: psplit = %r", psplit)
 
         if len(psplit) not in [2, 3]:
             return "", ""
@@ -1362,11 +1325,9 @@ class PluginLoader:
             tmp_package = f"plugins.{psplit[1]}"
             tmp_plugin = psplit[2]
 
-        LogRecord(
-            f"_api_plugin_id_match: {tmp_package = }, {tmp_plugin = }",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug(
+            "_api_plugin_id_match: tmp_package = %r, tmp_plugin = %r", tmp_package, tmp_plugin
+        )
 
         package_list = self.api("libs.plugins.loader:package.list")(active_only)
 
@@ -1388,10 +1349,8 @@ class PluginLoader:
             f"{new_package}.{tmp_plugin}", tuple(loaded_list), scorer="token_set_ratio"
         )
 
-        LogRecord(
-            f"_api_plugin_id_match: {new_package = }, {new_plugin = }",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug(
+            "_api_plugin_id_match: new_package = %r, new_plugin = %r", new_package, new_plugin
+        )
 
         return new_package, new_plugin

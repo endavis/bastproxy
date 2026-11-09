@@ -114,11 +114,7 @@ def handle_hp_warning(self):
     max_hp = matches["max"]
 
     if current < (max_hp * 0.2):  # Below 20%
-        LogRecord(
-            f"WARNING: Low HP! {current}/{max_hp}",
-            level="warning",
-            sources=[self.plugin_id]
-        )()
+        get_logger(self.plugin_id).warning("WARNING: Low HP! %s/%s", current, max_hp)
         # Take action (heal, flee, etc.)
         self.emergency_heal()
 ```
@@ -209,11 +205,7 @@ def handle_tell(self):
     sender = matches["sender"]
     message = matches["message"]
 
-    LogRecord(
-        f"Tell from {sender}: {message}",
-        level="info",
-        sources=[self.plugin_id]
-    )()
+    get_logger(self.plugin_id).info("Tell from %s: %s", sender, message)
 
     # Auto-respond
     if "help" in message.lower():

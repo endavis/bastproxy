@@ -8,6 +8,7 @@
 # Standard Library
 import copy
 import dataclasses
+import logging
 import types
 from typing import Any
 
@@ -16,13 +17,9 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
-from bastproxy.libs.records import (
-    LogRecord,
-    NetworkData,
-    SendDataDirectlyToClient,
-    SendDataDirectlyToMud,
-)
+from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
 from bastproxy.libs.scan import find_methods
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
@@ -273,23 +270,13 @@ class CommandsPlugin(BasePlugin):
 
     def _add_commands_for_all_plugins(self):
         """Add commands for all loaded plugins."""
-        LogRecord(
-            "_eventcb_add_commands_on_startup: reload",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_eventcb_add_commands_on_startup: reload")
         for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
-            LogRecord(
-                f"_eventdb_add_commands_on_startup: loading commands for {plugin_id}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_eventdb_add_commands_on_startup: loading commands for %s", plugin_id
+            )
             self.update_commands_for_plugin(plugin_id)
-        LogRecord(
-            "_eventcb_add_commands_on_reload: Finish",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("_eventcb_add_commands_on_reload: Finish")
 
     @RegisterToEvent(event_name="ev_plugin_loaded")
     def _eventcb_plugin_loaded(self):
@@ -300,25 +287,21 @@ class CommandsPlugin(BasePlugin):
         if not self.api.startup and event_record["plugin_id"] == self.plugin_id:
             self._add_commands_for_all_plugins()
         else:
-            LogRecord(
-                f"_eventcb_plugin_loaded: loading commands for {event_record['plugin_id']}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "_eventcb_plugin_loaded: loading commands for %s", event_record["plugin_id"]
+            )
             self.update_commands_for_plugin(event_record["plugin_id"])
 
     def update_commands_for_plugin(self, plugin_id):
         """Update all commands for a plugin."""
         plugin_instance = self.api("libs.plugins.loader:plugin.instance.get")(plugin_id)
         command_functions = self.get_command_functions_in_object(plugin_instance)
-        LogRecord(
-            f"update_commands_for_plugin: {plugin_id} has {len(command_functions)} commands",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug(
+            "update_commands_for_plugin: %s has %s commands", plugin_id, len(command_functions)
+        )
         if command_functions:
             command_names = [command.__name__ for command in command_functions]
-            LogRecord(f"{command_names = }", level="debug", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).debug("command_names = %r", command_names)
             for command in command_functions:
                 self.api(f"{self.plugin_id}:command.add.by.func")(command)
 
@@ -336,11 +319,7 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("command.add.by.func", description="add a command based on a decorated function")
     def _api_command_add_by_func(self, func, force=False):
         """Add a command based on the new decorator stuff."""
-        LogRecord(
-            f"adding command from func {func.__name__}",
-            level="debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("adding command from func %s", func.__name__)
         if hasattr(func, "__self__"):
             if hasattr(func.__self__, "name"):
                 msg = (
@@ -348,7 +327,7 @@ class CommandsPlugin(BasePlugin):
                 )
             else:
                 msg = f"func is from plugin {func.__self__.plugin_id}"
-            LogRecord(msg, level="debug", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).debug("%s", msg)
         plugin_id = None
 
         if not (
@@ -356,30 +335,20 @@ class CommandsPlugin(BasePlugin):
             and func.__name__.startswith("_command_")
             and hasattr(func, "command_data")
         ):
-            LogRecord(
-                f"Function is not a command: {func.__name__}",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning("Function is not a command: %s", func.__name__)
             return
 
         if hasattr(func, "__self__") and hasattr(func.__self__, "plugin_id"):
             plugin_id = func.__self__.plugin_id  # pyright: ignore reportGeneralTypeIssues
         else:
-            LogRecord(
-                f"Function does not have a plugin: {func.__name__}",
-                level="warning",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).warning("Function does not have a plugin: %s", func.__name__)
             return
 
         command_data = copy.deepcopy(func.command_data)  # pyright: ignore reportGeneralTypeIssues
         if not command_data.command["autoadd"] and not force:
-            LogRecord(
-                f"Command {func.__name__} in {plugin_id} will not be added, autoadd set to False",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "Command %s in %s will not be added, autoadd set to False", func.__name__, plugin_id
+            )
             return
 
         if "name" in command_data.command:
@@ -424,23 +393,22 @@ class CommandsPlugin(BasePlugin):
         try:
             command = CommandClass(plugin_id, command_name, func, parser, **command_kwargs)
         except Exception:
-            LogRecord(
-                f"Error creating command {func.__name__}: {command_kwargs}",
-                level="error",
-                sources=[self.plugin_id],
-                exc_info=True,
-            )()
+            get_logger(self.plugin_id).error(
+                "Error creating command %s: %s", func.__name__, command_kwargs, exc_info=True
+            )
             return
 
         self.update_command(plugin_id, command_name, command)
 
         self.commands_list.append(f"{plugin_id}.{command_name}")
 
-        LogRecord(
-            f"added command {plugin_id}.{command_name}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "added command %s.%s",
+            plugin_id,
+            command_name,
+        )
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
@@ -452,11 +420,9 @@ class CommandsPlugin(BasePlugin):
             if event_record["plugin_id"] != self.plugin_id:
                 self.api(f"{self.plugin_id}:command.remove.for.plugin")(event_record["plugin_id"])
             else:
-                LogRecord(
-                    f"{self.plugin_id}_plugin_unloaded: {self.plugin_id} is me!",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "%s_plugin_unloaded: %s is me!", self.plugin_id, self.plugin_id
+                )
 
     @AddAPI("command.format", description="get a command string formatted for a plugin")
     def _api_command_format(self, plugin_id, command):
@@ -490,11 +456,9 @@ class CommandsPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(
-            f"removing commands for plugin {plugin_id}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id], logging.DEBUG, "removing commands for plugin %s", plugin_id
+        )
         if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             # remove commands from _command_list that belong to plugin_id
             prefix = f"{plugin_id}."
@@ -574,28 +538,36 @@ class CommandsPlugin(BasePlugin):
           second item:
             a list of strings for the output of the command
         """
-        LogRecord(
-            f"running command {command_name} from plugin {plugin_id} with arguments {argument_string}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )(actor=f"{self.plugin_id}:run_command:command_ran")
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "running command %s from plugin %s with arguments %s",
+            command_name,
+            plugin_id,
+            argument_string,
+        )
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
             success, message, _ = command.run(argument_string, format)
             if not success:
-                LogRecord(
-                    f"command {command_name} from plugin {plugin_id} failed with message {message}",
-                    level="debug",
-                    sources=[self.plugin_id, plugin_id],
+                log_to(
+                    [self.plugin_id, plugin_id],
+                    logging.DEBUG,
+                    "command %s from plugin %s failed with message %s",
+                    command_name,
+                    plugin_id,
+                    message,
                     stack_info=True,
-                )()
+                )
             return success, message
 
-        LogRecord(
-            f"command {command_name} from plugin {plugin_id} not found",
-            level="warning",
-            sources=[self.plugin_id, plugin_id],
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.WARNING,
+            "command %s from plugin %s not found",
+            command_name,
+            plugin_id,
             stack_info=True,
-        )()
+        )
         return None, []
 
     def add_command_to_history(self, command: str):
@@ -667,11 +639,12 @@ class CommandsPlugin(BasePlugin):
 
         """
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            LogRecord(
-                f"commands - update_command: plugin {plugin_id} does not exist",
-                level="debug",
-                sources=[plugin_id, self.plugin_id],
-            )(f"{self.plugin_id}:update_command")
+            log_to(
+                [plugin_id, self.plugin_id],
+                logging.DEBUG,
+                "commands - update_command: plugin %s does not exist",
+                plugin_id,
+            )
             return False
 
         if plugin_id not in self.command_data:
@@ -680,11 +653,13 @@ class CommandsPlugin(BasePlugin):
         plugin_command_data = self.command_data[plugin_id]
 
         if command_name not in plugin_command_data and not self.api.startup:
-            LogRecord(
-                f"commands - update_command: plugin {plugin_id} does not have command {command_name}",
-                level="debug",
-                sources=[plugin_id, self.plugin_id],
-            )()
+            log_to(
+                [plugin_id, self.plugin_id],
+                logging.DEBUG,
+                "commands - update_command: plugin %s does not have command %s",
+                plugin_id,
+                command_name,
+            )
 
         # update any items from the old command to the new command
         if command_name in plugin_command_data:
@@ -740,11 +715,12 @@ class CommandsPlugin(BasePlugin):
                 self.plugin_id, "cmdcount"
             ) == self.api("plugins.core.settings:setting.get")(self.plugin_id, "spamcount"):
                 event_record.addupdate("Modify", "Antispam Command sent", savedata=False)
-                LogRecord(
-                    f"sending antspam command: {self.api('plugins.core.settings:setting.get')('plugins.core.commands', 'antispamcommand')}",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "sending antspam command: %s",
+                    self.api("plugins.core.settings:setting.get")(
+                        "plugins.core.commands", "antispamcommand"
+                    ),
+                )
                 SendDataDirectlyToMud(
                     NetworkData(
                         self.api("plugins.core.settings:setting.get")(
@@ -771,11 +747,7 @@ class CommandsPlugin(BasePlugin):
         else:
             # the command does not match the last command
             self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)
-            LogRecord(
-                f"resetting command to {original_command}",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug("resetting command to %s", original_command)
             self.api("plugins.core.settings:setting.set")(
                 self.plugin_id, "lastcmd", original_command
             )
@@ -929,9 +901,7 @@ class CommandsPlugin(BasePlugin):
     ) -> tuple[CommandClass | None, str, bool, str, list[str]]:
         """Find a command from the client."""
         message: list[str] = []
-        LogRecord(f"find_command: {command_line}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}find_command"
-        )
+        get_logger(self.plugin_id).debug("find_command: %s", command_line)
 
         # copy the command
         command = command_line
@@ -962,27 +932,17 @@ class CommandsPlugin(BasePlugin):
                 output = self.error_plugin_not_found(command_split[1], new_package)
                 return None, "", False, command_str, output
 
-        LogRecord(
-            f"{found} {new_package} {new_plugin} {tmessage}",
-            level="debug",
-            sources=[self.plugin_id],
-        )(actor=f"{self.plugin_id}:find_command")
+        get_logger(self.plugin_id).debug("%s %s %s %s", found, new_package, new_plugin, tmessage)
 
         # get all the pieces of the command
         temp_package = command_split[0]
-        LogRecord(f"{temp_package=}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:find_command"
-        )
+        get_logger(self.plugin_id).debug("temp_package=%r", temp_package)
         temp_command = command_split[2] if len(command_split) > 2 else ""
         # try and find the command
         command_data = self.api(f"{self.plugin_id}:command.data.get")(new_plugin)
         command_list = list(command_data.keys())
-        LogRecord(f"{command_list=}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:find_command"
-        )
-        LogRecord(f"{temp_command=}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:find_command"
-        )
+        get_logger(self.plugin_id).debug("command_list=%r", command_list)
+        get_logger(self.plugin_id).debug("temp_command=%r", temp_command)
 
         new_command = self.api("plugins.core.fuzzy:string.match.best")(
             temp_command, tuple(command_list), scorer="token_set_ratio"
@@ -1013,17 +973,13 @@ class CommandsPlugin(BasePlugin):
         cmd_args_split = command_str.split(" ", 1)
         command_str = cmd_args_split[0]
         command_args = cmd_args_split[1] if len(cmd_args_split) > 1 else ""
-        LogRecord(
-            f"looking for {command_str}, {command_str}, {command_args}",
-            level="debug",
-            sources=[self.plugin_id],
-        )(actor=f"{self.plugin_id}:find_command")
+        get_logger(self.plugin_id).debug(
+            "looking for %s, %s, %s", command_str, command_str, command_args
+        )
 
         # split the command by the '.'
         command_split = command_str.split(".")
-        LogRecord(f"{command_split=}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:find_command"
-        )
+        get_logger(self.plugin_id).debug("command_split=%r", command_split)
 
         # remove the command prefix
         if commandprefix in command_split:
@@ -1033,9 +989,7 @@ class CommandsPlugin(BasePlugin):
         if command_split[0] == "plugins":
             del command_split[0]
 
-        LogRecord(f"2: {command_split=}", level="debug", sources=[self.plugin_id])(
-            actor=f"{self.plugin_id}:find_command"
-        )
+        get_logger(self.plugin_id).debug("2: command_split=%r", command_split)
 
         # make sure there are two items in the list
         if len(command_split) == 1:
@@ -1092,11 +1046,9 @@ class CommandsPlugin(BasePlugin):
         )
 
         if command_item:
-            LogRecord(
-                f"found command {command_item.plugin_id}.{command_item.name}",
-                level="debug",
-                sources=[self.plugin_id],
-            )(actor=f"{self.plugin_id}:run_internal_command_from_event")
+            get_logger(self.plugin_id).debug(
+                "found command %s.%s", command_item.plugin_id, command_item.name
+            )
 
             success, message, error = command_item.run(command_args, format=True)
 
@@ -1194,11 +1146,9 @@ class CommandsPlugin(BasePlugin):
             return
 
         if self.current_input_event == event_record:
-            LogRecord(
-                f"current_input_event: {self.current_input_event} is being processed, skipping",
-                level="debug",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).debug(
+                "current_input_event: %s is being processed, skipping", self.current_input_event
+            )
             self.current_input_event = None
             return
 
@@ -1225,29 +1175,34 @@ class CommandsPlugin(BasePlugin):
         this function returns no values
         """
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            LogRecord(
-                f"remove command: plugin {plugin_id} does not exist",
-                level="warning",
-                sources=[self.plugin_id, plugin_id],
-            )(f"{self.plugin_id}:_api_remove_command")
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.WARNING,
+                "remove command: plugin %s does not exist",
+                plugin_id,
+            )
             return False
 
         data = self.command_data[plugin_id]
         if data and command_name in data:
             del data[command_name]
             self.api(f"{plugin_id}:data.update")("commands", data)
-            LogRecord(
-                f"removed command {plugin_id}.{command_name}",
-                level="debug",
-                sources=[self.plugin_id, plugin_id],
-            )()
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.DEBUG,
+                "removed command %s.%s",
+                plugin_id,
+                command_name,
+            )
             return True
 
-        LogRecord(
-            f"remove command: command {plugin_id}.{command_name} does not exist",
-            level="error",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.ERROR,
+            "remove command: command %s.%s does not exist",
+            plugin_id,
+            command_name,
+        )
         return False
 
     def format_command_list(self, command_list: list[CommandClass]):

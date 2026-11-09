@@ -32,7 +32,7 @@ store keeps and what it costs, see [Record System Findings](record_system_findin
 |-----------|------|---------|
 | `BaseRecord` | `src/bastproxy/libs/records/rtypes/base.py` | Base of every record: identity, parent, updates, execution |
 | `TrackedUserList` | `src/bastproxy/libs/records/rtypes/base.py` | A list record whose main mutations are tracked (base of `NetworkData`) |
-| `BaseListRecord` | `src/bastproxy/libs/records/rtypes/base.py` | A list record with text helpers (base of `LogRecord`) |
+| `BaseListRecord` | `src/bastproxy/libs/records/rtypes/base.py` | A list record with text helpers (no record class uses it now that `LogRecord` is gone) |
 | `BaseDictRecord` | `src/bastproxy/libs/records/rtypes/dictrecord.py` | A dict record on pydatatracker `TrackedDict` (base of `EventDataRecord`, `CmdArgsRecord`). `base.py` re-exports it lazily |
 | `UpdateRecord` | `src/bastproxy/libs/records/rtypes/update.py` | One change or note on a record |
 | `UpdateManager` | `src/bastproxy/libs/records/managers/updates.py` | A record's updates |
@@ -112,11 +112,10 @@ class RecordManager:
         self.records: dict[str, SimpleQueue] = {}  # class name -> recent records
         self.record_instances = {}                 # UUID -> record
         self.active_record_stack = SimpleStack()   # records currently executing
-        self.default_filter = ["LogRecord"]        # left out of tree queries by default
 ```
 
 - `add(record)` stores a new record and drops the record evicted from its type's queue from `record_instances`. Children still hold a reference to an evicted parent through `parent` and `parents`.
-- `start(record)` / `end(record)` push and pop the active record. `end()` with a record that is not on top removes it from the middle of the stack and is meant to log a warning, but the warning `LogRecord` is never executed (#46).
+- `start(record)` / `end(record)` push and pop the active record. `end()` with a record that is not on top removes it from the middle of the stack and logs a warning through the `libs.records.managers.records` logger (#46, #247).
 - `get_children()` scans every stored record's `parents`. `get_all_children_dict()`, `get_all_children_list()` and `format_all_children()` repeat that scan at each level of the tree.
 
 ### List and dict records
@@ -125,7 +124,7 @@ class RecordManager:
 
 **`TrackedUserList(BaseRecord, UserList)`** records `__setitem__`, `insert`, `append` and `extend`, and its `lock()` stops those four. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not tracked and the lock does not stop them (#47). A locked `+=` or `*=` is worse than silent: the list changes, and the record logs a refused write to `data` as well. `+=` also accepts plain strings, which are stored as they are instead of becoming `NetworkDataLine` records.
 
-**`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. `LogRecord` is the only subclass. None of the plain list methods (`append`, `extend`, `pop`, item assignment and so on) is tracked; only `replace()` and the helpers built on it add an update.
+**`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. No record class uses it now that `LogRecord` is gone (#247). None of the plain list methods (`append`, `extend`, `pop`, item assignment and so on) is tracked; only `replace()` and the helpers built on it add an update.
 
 **`BaseDictRecord(TrackedRecordMixin, TrackedDict)`** keeps `original_data`. Every mutation (set, `del`, `pop`, `popitem`, `update`, `clear`, `setdefault`, `|=`) adds a `Modify` update, and once the record is locked each of them raises `RuntimeError` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). `copy()` is a read and returns a plain `dict`. `track_record` is accepted and ignored, because dict records are never executed. A stored value that is itself a record (`NetworkData`, `NetworkDataLine`) is not linked as a pydatatracker child, so it keeps its own parents and lock; a plain `TrackedDict` or `TrackedList` value is linked and locked with the record. `.data` is gone. `EventDataRecord` and `CmdArgsRecord` are dict records.
 
@@ -191,13 +190,13 @@ MyRecord()()  # calling the record runs _exec_()
 
 `__call__` uses `try/finally`. If `_exec_()` raises, the record is still popped from the active stack and `executing` is cleared, so later records do not get it as their parent.
 
-`track_record=False` only skips the timer and the active-stack push, so records created inside it are not attributed to it. It does not reduce what is captured: the creation stack, the event stack and every update are still recorded. `LogRecord` uses `track_record=False`; `CmdArgsRecord` passes it, but a dict record ignores it.
+`track_record=False` only skips the timer and the active-stack push, so records created inside it are not attributed to it. It does not reduce what is captured: the creation stack, the event stack and every update are still recorded. `CmdArgsRecord` passes it, but a dict record ignores it.
 
 ### 5. Retrieving records
 
 ```python
-RMANAGER.get_types()                 # [("LogRecord", 13), ("NetworkDataLine", 120), ...]
-RMANAGER.get_records("LogRecord", count=10)
+RMANAGER.get_types()                 # [("NetworkDataLine", 120), ...]
+RMANAGER.get_records("NetworkDataLine", count=10)
 RMANAGER.get_record(uuid)
 RMANAGER.get_children(parent_record)             # direct children
 RMANAGER.get_all_children_list(parent_record)    # all descendants
@@ -207,11 +206,11 @@ RMANAGER.format_all_children(parent_record)      # tree as lines
 ### 6. Formatting
 
 ```python
-record.one_line_summary()   # "LogRecord            <uuid> Something happened"
+record.one_line_summary()   # "NetworkDataLine      <uuid> a line of text"
 record.get_formatted_details(
     full_children_records=False,  # True: full details of each child
     include_updates=True,         # updates of this record and its children
-    update_filter=["LogRecord"],  # record class names to leave out
+    update_filter=[],             # record class names to leave out
     include_children_records=True,
 )
 ```
@@ -238,7 +237,6 @@ From a client, the same information is available through `plugins.debug.records`
 | `SendDataDirectlyToMud` | `src/bastproxy/libs/records/rtypes/muddata.py` | `BaseRecord` | Formats and queues lines for the MUD |
 | `ProcessDataToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | MUD output before plugins see it |
 | `SendDataDirectlyToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | Formats and queues lines for clients |
-| `LogRecord` | `src/bastproxy/libs/records/rtypes/log.py` | `BaseListRecord` | A log message |
 | `ProcessRaisedEvent` | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` | `BaseRecord` | One raise of an event |
 | `EventDataRecord` | `src/bastproxy/plugins/core/events/libs/data/_event.py` | `BaseDictRecord` | The arguments of a raised event |
 | `CmdArgsRecord` | `src/bastproxy/plugins/core/commands/libs/data/cmdargs.py` | `BaseDictRecord` | Parsed arguments of a proxy command |
@@ -247,23 +245,9 @@ The network records and the four processing steps are described in [Data Flow](d
 
 Two classes named `ProcessRaisedEvent` exist. The one used is `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` in the table above; `src/bastproxy/plugins/core/events/plugin/_process_event.py` holds an unused copy, next to an unused `Event` copy in `src/bastproxy/plugins/core/events/libs/_event.py`. See [Record System Findings](record_system_findings.md#other-observations).
 
-### LogRecord
+### Logging
 
-```python
-LogRecord(
-    "Something happened",                # str or list of str
-    level="info",                        # debug, info, warning, error, critical
-    sources=["plugins.core.commands"],   # logger names to emit through
-)()                                      # nothing is logged until the record is called
-```
-
-When called, a `LogRecord` cleans and colors its lines, then calls the logger of each name in `sources` at its level. Any other keyword argument is passed on to that logger call, so only arguments `logging` accepts (such as `exc_info=True` or `stack_info=True`) can be used. Pitfalls:
-
-- Without `sources`, nothing is logged (#46)
-- A `LogRecord` that is created but not called is never logged (#46)
-- `LogRecord` is created with `track_record=False`. Passing `track_record=` yourself sends it to the logger and raises `TypeError`
-
-`wasemitted` (`console`, `file`, `client`) is set by the log handlers in `src/bastproxy/plugins/core/log/libs/_custom_logger.py`, so each destination emits a record once.
+Log messages are not records. `LogRecord` was removed in #247. The last 50 log lines written while a record was active are kept for it and shown by `#bp.debug.records.detail <uid>` when the `showRecordLogs` setting is on; see [Logging System](logging_system.md#log-lines-for-each-record).
 
 ### Event records
 
@@ -353,11 +337,12 @@ MyCustomRecord({"key": "value"}, owner_id=self.plugin_id)()
 ### Logging
 
 ```python
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 
-LogRecord("Something happened", level="info", sources=[__name__])()
-LogRecord(["Line 1", "Line 2"], level="debug", sources=[self.plugin_id])()
-LogRecord("Lookup failed", level="error", sources=[__name__], exc_info=True)()
+logger = get_logger(__name__)
+logger.info("Something happened")
+get_logger(self.plugin_id).debug("Line 1\nLine 2")
+logger.error("Lookup failed", exc_info=True)
 ```
 
 ### Recording a data change
@@ -377,7 +362,7 @@ for update in data.updates:
 ### Querying relationships
 
 ```python
-children = RMANAGER.get_children(record, record_filter=["LogRecord"])
+children = RMANAGER.get_children(record, record_filter=["NetworkDataLine"])
 descendants = RMANAGER.get_all_children_list(record)
 for line in RMANAGER.format_all_children(record):
     print(line)
@@ -388,7 +373,7 @@ while current.parent:
     current = current.parent
 ```
 
-`record_filter` and `update_filter` take record class names. `LogRecord` is always filtered out of tree queries (`RMANAGER.default_filter`).
+`record_filter` and `update_filter` take record class names. No class is filtered out by default (`RMANAGER.default_filter` was removed in #247).
 
 ## Performance Considerations
 
@@ -407,11 +392,10 @@ while current.parent:
 
 | Issue | Gap |
 |-------|-----|
-| #46 | `LogRecord`s without `sources`, or never called, are not logged |
 | #47 | `TrackedUserList` (not `NetworkData` any more) misses several mutations and its lock does not stop them |
 | #48 | `AttributeMonitor` (still on `BaseRecord`) misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
-| #43 | Replacement of the tracking with pydatatracker: `NetworkDataLine` and `NetworkData` done; dict records (#246), `LogRecord` (#247), processing records (#248) and retention (#249) remain |
+| #43 | Replacement of the tracking with pydatatracker: `NetworkDataLine` and `NetworkData`, the dict records (#246) and `LogRecord` (#247) done; processing records (#248) and retention (#249) remain |
 | #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond `max_records` are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
@@ -422,6 +406,6 @@ while current.parent:
 2. **Monitor the attributes that describe state**, and set them once in `__init__` so the first value is the original
 3. **Reassign instead of mutating** monitored lists and dicts, or record the change with `addupdate()`
 4. **Write clear update actions** and put details in `extra`
-5. **Always pass `sources` to `LogRecord`, and call it**
+5. **Log through `get_logger` or `log_to`** with lazy `%` arguments, see [Logging System](logging_system.md)
 6. **Don't hold references to old records** longer than needed: they keep their parents and updates alive
 7. **When debugging**, load `plugins.debug.records`, follow `parent` up and `children` down, and read each update's `actor` and `stack`

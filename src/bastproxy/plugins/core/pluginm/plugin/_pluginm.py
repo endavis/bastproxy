@@ -10,10 +10,11 @@
 # Standard Library
 from importlib import import_module
 
+from bastproxy.libs.logger import get_logger
+
 # 3rd Party
 # Project
 from bastproxy.libs.plugins.plugininfo import PluginInfo
-from bastproxy.libs.records import LogRecord
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -237,29 +238,26 @@ class PluginManager(BasePlugin):
 
         for plugin in plugins_to_load_setting[:]:
             if not self.api("libs.plugins.loader:plugin.exists")(plugin):
-                LogRecord(
-                    f"plugin {plugin} was marked to load at startup and no longer exists, removing from startup",
-                    level="error",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).error(
+                    "plugin %s was marked to load at startup and no longer exists, removing from startup",
+                    plugin,
+                )
                 plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.is.loaded")(plugin):
-                LogRecord(
-                    f"plugin {plugin} was marked to load at startup and is already loaded, removing from startup",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "plugin %s was marked to load at startup and is already loaded, removing from startup",
+                    plugin,
+                )
                 plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.info.get")(plugin).is_dev:
-                LogRecord(
-                    f"plugin {plugin} was marked to load at startup and is a dev plugin, removing from startup",
-                    level="debug",
-                    sources=[self.plugin_id],
-                )()
+                get_logger(self.plugin_id).debug(
+                    "plugin %s was marked to load at startup and is a dev plugin, removing from startup",
+                    plugin,
+                )
                 plugins_to_load_setting.remove(plugin)
                 continue
 
@@ -270,9 +268,9 @@ class PluginManager(BasePlugin):
         )
 
         if plugins_to_load_setting:
-            LogRecord("Loading other plugins", level="info", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).info("Loading other plugins")
             self.api("libs.plugins.loader:plugin.load")(plugins_to_load_setting)
-            LogRecord("Finished loading other plugins", level="info", sources=[self.plugin_id])()
+            get_logger(self.plugin_id).info("Finished loading other plugins")
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
     def _eventcb_shutdown(self, _=None):

@@ -6,11 +6,10 @@ import pytest
 
 from bastproxy.libs.api._apistats import STATS_MANAGER
 from bastproxy.libs.records.rtypes.base import BaseRecord
-from bastproxy.libs.records.rtypes.log import LogRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
 from bastproxy.libs.records.rtypes.update import UpdateRecord
 
-PREFIXES = ("UpdateRecord", "NetworkDataLine", "LogRecord", "StatsProbe")
+PREFIXES = ("UpdateRecord", "NetworkDataLine", "StatsProbe")
 
 
 class StatsProbe(BaseRecord):
@@ -35,7 +34,6 @@ def _record_keys() -> set[str]:
 
 def _make_round(i: int) -> None:
     StatsProbe()
-    LogRecord(f"msg {i}")
     NetworkDataLine(f"line {i}", originated="mud")
 
 

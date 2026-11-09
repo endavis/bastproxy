@@ -13,7 +13,6 @@ from bastproxy.plugins.core.commands.libs._command import CommandClass
 @pytest.fixture(autouse=True)
 def _patch_command_module(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_command, "API", MagicMock())
-    monkeypatch.setattr(_command, "LogRecord", MagicMock())
     monkeypatch.setattr(_command, "CmdArgsRecord", lambda owner, data, **kw: dict(data))
 
 

@@ -327,11 +327,7 @@ class MyPlugin(BasePlugin):
         new_url = event_record["newvalue"]
         old_url = event_record["oldvalue"]
 
-        LogRecord(
-            f"Server URL changed from {old_url} to {new_url}",
-            level="info",
-            sources=[self.plugin_id]
-        )()
+        get_logger(self.plugin_id).info("Server URL changed from %s to %s", old_url, new_url)
 
         # Reconnect with new URL
         self.reconnect()
@@ -462,7 +458,7 @@ Using "default" as a value resets to default:
 
 ```python
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.plugins.core.events import RegisterToEvent
 
 class Plugin(BasePlugin):
@@ -513,11 +509,7 @@ class Plugin(BasePlugin):
         )
 
         if not api_key:
-            LogRecord(
-                "API key not set, service disabled",
-                level="warning",
-                sources=[self.plugin_id]
-            )()
+            get_logger(self.plugin_id).warning("API key not set, service disabled")
             return
 
         self.service = ExternalService(api_key, poll_interval)

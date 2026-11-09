@@ -8,6 +8,7 @@
 # Standard Library
 import asyncio
 import datetime
+import logging
 import math
 import sys
 import time
@@ -15,7 +16,7 @@ from collections.abc import Callable
 
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.callback import Callback
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger, log_to
 
 # 3rd Party
 # Project
@@ -117,11 +118,7 @@ class TimersPlugin(BasePlugin):
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
-        LogRecord(
-            f"initialize - lasttime:  {self.time_last_checked}",
-            "debug",
-            sources=[self.plugin_id],
-        )()
+        get_logger(self.plugin_id).debug("initialize - lasttime:  %s", self.time_last_checked)
 
         # setup the task to check for timers to fire
         self.api("libs.asynch:task.add")(self.check_for_timers_to_fire, "Timer Plugin task")
@@ -130,11 +127,12 @@ class TimersPlugin(BasePlugin):
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
-            LogRecord(
-                f"_eventcb_plugin_unloaded - removing timers for plugin {event_record['plugin_id']}",
-                "debug",
-                sources=[self.plugin_id, event_record["plugin_id"]],
-            )()
+            log_to(
+                [self.plugin_id, event_record["plugin_id"]],
+                logging.DEBUG,
+                "_eventcb_plugin_unloaded - removing timers for plugin %s",
+                event_record["plugin_id"],
+            )
             self.api(f"{self.plugin_id}:timer.remove.for.plugin")(event_record["plugin_id"])
 
     @AddParser(description="toggle log flag for a timer")
@@ -335,42 +333,39 @@ class TimersPlugin(BasePlugin):
             plugin_id = given.plugin_id if isinstance(given, BasePlugin) else given
 
         if not plugin_id or not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            LogRecord(
-                f"_api_timer_add: timer {name} has no plugin, not adding",
-                "error",
-                sources=[self.plugin_id],
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_timer_add: timer %s has no plugin, not adding", name
+            )
             return None
 
         if seconds <= 0:
-            LogRecord(
-                f"_api_timer_add: timer {name} has seconds <= 0, not adding",
-                "error",
-                sources=[self.plugin_id, plugin_id],
-            )()
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.ERROR,
+                "_api_timer_add: timer %s has seconds <= 0, not adding",
+                name,
+            )
             return None
         if not func:
-            LogRecord(
-                f"_api_timer_add: timer {name} has no function, not adding",
-                "error",
-                sources=[self.plugin_id, plugin_id],
-            )()
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.ERROR,
+                "_api_timer_add: timer %s has no function, not adding",
+                name,
+            )
             return None
 
         if "unique" in kwargs and kwargs["unique"] and name in self.timer_lookup:
-            LogRecord(
-                f"_api_timer_add: timer {name} already exists, not adding",
-                "error",
-                sources=[self.plugin_id, plugin_id],
-            )()
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.ERROR,
+                "_api_timer_add: timer %s already exists, not adding",
+                name,
+            )
             return None
 
         timer = Timer(name, func, seconds, plugin_id, **kwargs)
-        LogRecord(
-            f"_api_timer_add: adding timer {name}",
-            level="debug",
-            sources=[self.plugin_id, plugin_id],
-        )()
+        log_to([self.plugin_id, plugin_id], logging.DEBUG, "_api_timer_add: adding timer %s", name)
         self._add_timer_internal(timer)
         return timer
 
@@ -382,7 +377,7 @@ class TimersPlugin(BasePlugin):
 
         this function returns no values
         """
-        LogRecord(f"removing timers for {name}", level="debug", sources=[self.plugin_id, name])()
+        log_to([self.plugin_id, name], logging.DEBUG, "removing timers for %s", name)
         timers_to_remove: list[str] = [
             i for i in self.timer_lookup if self.timer_lookup[i].owner_id == name
         ]
@@ -399,20 +394,18 @@ class TimersPlugin(BasePlugin):
         """
         try:
             if timer := self.timer_lookup[name]:
-                LogRecord(
-                    f"_api_timer_remove - removing {timer}",
-                    level="debug",
-                    sources=[self.plugin_id, timer.owner_id],
-                )()
+                log_to(
+                    [self.plugin_id, timer.owner_id],
+                    logging.DEBUG,
+                    "_api_timer_remove - removing %s",
+                    timer,
+                )
                 self._remove_timer_internal(timer)
 
         except KeyError:
-            LogRecord(
-                f"_api_timer_remove - could not remove timer {name}",
-                level="error",
-                sources=[self.plugin_id],
-                stack_info=True,
-            )()
+            get_logger(self.plugin_id).error(
+                "_api_timer_remove - could not remove timer %s", name, stack_info=True
+            )
 
     @AddAPI("timer.toggle", description="toggle a timer to be enabled/disabled")
     def _api_timer_toggle(self, name: str, flag: bool):
@@ -465,34 +458,39 @@ class TimersPlugin(BasePlugin):
                 timer.execute()
                 self.overall_fire_count = self.overall_fire_count + 1
                 if timer.log:
-                    LogRecord(
-                        f"check_for_timers_to_fire - timer fired: {timer}",
-                        level="debug",
-                        sources=[self.plugin_id, timer.owner_id],
-                    )()
+                    log_to(
+                        [self.plugin_id, timer.owner_id],
+                        logging.DEBUG,
+                        "check_for_timers_to_fire - timer fired: %s",
+                        timer,
+                    )
             except Exception:  # pylint: disable=broad-except
-                LogRecord(
-                    f"check_for_timers_to_fire - timer had an error: {timer}",
-                    level="error",
-                    sources=[self.plugin_id, timer.owner_id],
+                log_to(
+                    [self.plugin_id, timer.owner_id],
+                    logging.ERROR,
+                    "check_for_timers_to_fire - timer had an error: %s",
+                    timer,
                     exc_info=True,
-                )()
+                )
         try:
             self.timer_events[time].remove(timer)
         except ValueError:
-            LogRecord(
-                f"check_for_timers_to_fire - timer {timer.name} did not exist in timerevents",
-                level="error",
-                sources=[self.plugin_id, timer.owner_id],
-            )()
+            log_to(
+                [self.plugin_id, timer.owner_id],
+                logging.ERROR,
+                "check_for_timers_to_fire - timer %s did not exist in timerevents",
+                timer.name,
+            )
         if not timer.onetime:
             timer.next_fire_datetime = timer.get_next_fire()
             if timer.log:
-                LogRecord(
-                    f"check_for_timers_to_fire - re adding timer {timer.name} for {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
-                    level="debug",
-                    sources=[self.plugin_id, timer.owner_id],
-                )()
+                log_to(
+                    [self.plugin_id, timer.owner_id],
+                    logging.DEBUG,
+                    "check_for_timers_to_fire - re adding timer %s for %s",
+                    timer.name,
+                    timer.next_fire_datetime.strftime("%a %b %d %Y %H:%M:%S %Z"),
+                )
             self._add_timer_internal(timer)
         else:
             self.api(f"{self.plugin_id}:timer.remove")(timer.name)
@@ -509,17 +507,12 @@ class TimersPlugin(BasePlugin):
                 if not firstrun:
                     diff = now - self.time_last_checked
                     if diff.total_seconds() > 1:
-                        LogRecord(
-                            f"check_for_timers_to_fire - timer had to check multiple seconds: {now - self.time_last_checked}",
-                            level="warning",
-                            sources=[self.plugin_id],
-                        )()
+                        get_logger(self.plugin_id).warning(
+                            "check_for_timers_to_fire - timer had to check multiple seconds: %s",
+                            now - self.time_last_checked,
+                        )
                 else:
-                    LogRecord(
-                        "Checking timers coroutine has started",
-                        level="debug",
-                        sources=[self.plugin_id],
-                    )()
+                    get_logger(self.plugin_id).debug("Checking timers coroutine has started")
                 firstrun = False
                 for i in range(
                     math.floor(self.time_last_checked.timestamp()),

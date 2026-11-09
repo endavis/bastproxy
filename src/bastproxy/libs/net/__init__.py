@@ -26,7 +26,10 @@ Usage:
 # update telnetlib3 with mud protocols
 import telnetlib3.telopt
 
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 mud_protocols = {
     "MSSP": bytes([70]),
@@ -42,6 +45,6 @@ mud_protocols = {
 
 for item, value in mud_protocols.items():
     if not hasattr(telnetlib3.telopt, item):
-        LogRecord(f"Adding {item} to telnetlib3.telopt", level="debug", sources=[__name__])()
+        logger.debug("Adding %s to telnetlib3.telopt", item)
         setattr(telnetlib3.telopt, item, value)
         telnetlib3.telopt._DEBUG_OPTS[value] = item  # type: ignore[assignment]

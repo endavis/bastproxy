@@ -41,9 +41,12 @@ Functions:
 """
 
 # Standard Library
-import logging
 from string import printable
 from typing import TYPE_CHECKING
+
+from bastproxy.libs.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Third Party
 
@@ -176,7 +179,7 @@ def split_opcode_from_input(data: bytes) -> tuple[bytes, str]:
         None
 
     """
-    logging.getLogger(__name__).debug("Received raw data (len=%d of: %s", len(data), data)
+    logger.debug("Received raw data (len=%d of: %s", len(data), data)
     opcodes = b""
     inp = ""
     for position, _ in enumerate(data):
@@ -184,9 +187,7 @@ def split_opcode_from_input(data: bytes) -> tuple[bytes, str]:
             opcodes += bytes([data[position]])
         elif chr(data[position]) in printable:
             inp += chr(data[position])
-    logging.getLogger(__name__).debug(
-        "Bytecodes found in input.\n\ropcodes: %s\n\rinput returned: %s", opcodes, inp
-    )
+    logger.debug("Bytecodes found in input.\n\ropcodes: %s\n\rinput returned: %s", opcodes, inp)
     return opcodes, inp
 
 
@@ -210,7 +211,7 @@ def advertise_features() -> bytes:
     features = b""
     for each_feature in GAME_CAPABILITIES:
         features += features + IAC + WILL + code[each_feature]
-    logging.getLogger(__name__).debug("Advertising features: %s", features)
+    logger.debug("Advertising features: %s", features)
     return features
 
 
@@ -301,11 +302,11 @@ async def handle(opcodes: bytes, writer: "TelnetWriterUnicode") -> None:
         None
 
     """
-    logging.getLogger(__name__).debug("Handling opcodes: %s", opcodes)
+    logger.debug("Handling opcodes: %s", opcodes)
     for each_code in opcodes.split(IAC):
         if each_code and each_code in opcode_match:
             result = iac_sb(opcode_match[each_code]())
-            logging.getLogger(__name__).debug("Responding to previous opcode with: %s", result)
+            logger.debug("Responding to previous opcode with: %s", result)
             writer.write(result)
             await writer.drain()
-    logging.getLogger(__name__).debug("Finished handling opcodes.")
+    logger.debug("Finished handling opcodes.")

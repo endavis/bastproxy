@@ -115,6 +115,7 @@ nav:
       - Triggers System: claude/triggers_system.md
       - Record System: claude/record_system.md
       - Record System Findings: claude/record_system_findings.md
+      - Logging System: claude/logging_system.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - CI/CD & Testing: development/ci-cd-testing.md

@@ -7,11 +7,14 @@
 """Holds the log record type."""
 
 # Standard Library
+import logging
 from typing import TYPE_CHECKING
+
+from bastproxy.libs.logger import get_logger, log_to
 
 # 3rd Party
 # Project
-from bastproxy.libs.records import BaseRecord, LogRecord
+from bastproxy.libs.records import BaseRecord
 
 if TYPE_CHECKING:
     from bastproxy.plugins.core.events.libs._event import Event
@@ -59,11 +62,14 @@ class ProcessRaisedEvent(BaseRecord):
         log: bool = True if log_savestate else not self.event_name.endswith("_savestate")
 
         if log:
-            LogRecord(
-                f"raise_event - event {self.event_name} raised by {self.called_from} with data {self.event_data}",
-                level="debug",
-                sources=[self.called_from, self.event.created_by],
-            )()
+            log_to(
+                [self.called_from, self.event.created_by],
+                logging.DEBUG,
+                "raise_event - event %s raised by %s with data %s",
+                self.event_name,
+                self.called_from,
+                self.event_data,
+            )
 
         # convert a dict to an EventDataRecord object
 
@@ -90,11 +96,12 @@ class ProcessRaisedEvent(BaseRecord):
                     priorities_done.append(priority)
 
         if count > 2:  # the minimum number of times through the loop is 2
-            LogRecord(
-                f"raise_event - event {self.event_name} raised by {self.called_from} was processed {count} times",
-                level="warning",
-                sources=[self.event.created_by],
-            )()
+            get_logger(self.event.created_by).warning(
+                "raise_event - event %s raised by %s was processed %s times",
+                self.event_name,
+                self.called_from,
+                count,
+            )
 
         self.current_record = None
         self.event.reset_event()

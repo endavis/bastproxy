@@ -9,7 +9,7 @@
 import re
 
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin
 
 # 3rd Party
@@ -20,6 +20,8 @@ from bastproxy.plugins.core.colors.libs._colors import (
     CONVERTCOLORS,
 )
 from bastproxy.plugins.core.commands import AddArgument, AddParser
+
+logger = get_logger(__name__)
 
 XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
 ANSI_COLOR_REGEX = re.compile(
@@ -242,11 +244,7 @@ class ColorsPlugin(BasePlugin):
             try:
                 return f"@{CONVERTANSI[tstr]}"
             except KeyError:
-                LogRecord(
-                    f"could not lookup color {tstr} for text {text!r}",
-                    level="error",
-                    plugin=self.plugin_id,
-                )()
+                logger.error("could not lookup color %s for text %r", tstr, text)
                 return ""
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)

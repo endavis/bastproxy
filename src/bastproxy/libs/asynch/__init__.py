@@ -47,7 +47,9 @@ from typing import Optional
 # 3rd Party
 # Project
 from bastproxy.libs.api import API as BASEAPI
-from bastproxy.libs.records import LogRecord
+from bastproxy.libs.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Module-level set to store background tasks and prevent garbage collection
 _BACKGROUND_TASKS: set[asyncio.Task] = set()
@@ -82,12 +84,9 @@ def _handle_task_result(
     # result of the task is properly logged. There is no point re-raising the
     # exception in this callback.
     except Exception as e:  # pylint: disable=broad-except
-        LogRecord(
-            f"exception in task {task.get_name()} {e} {e.args} {message}",
-            level="error",
-            sources=["asyncio"],
-            exc_info=True,
-        )()
+        get_logger("asyncio").error(
+            "exception in task %s %s %s %s", task.get_name(), e, e.args, message, exc_info=True
+        )
 
 
 class TaskItem:
@@ -126,11 +125,7 @@ class TaskItem:
         elif isinstance(self.func, Callable):
             self.coroutine: Coroutine = self.func()
         else:
-            LogRecord(
-                f"(Task) {self.name} : {func} is not a coroutine or callable",
-                level="error",
-                sources=[__name__],
-            )()
+            logger.error("(Task) %s : %s is not a coroutine or callable", self.name, func)
 
     @property
     def done(self) -> bool:
@@ -180,11 +175,7 @@ class TaskItem:
             RuntimeError: If the task cannot be created due to an invalid event loop.
 
         """
-        LogRecord(
-            f"(Task) (create) {self.name} : {self.startstring}",
-            level="debug",
-            sources=[__name__],
-        )()
+        logger.debug("(Task) (create) %s : %s", self.name, self.startstring)
         if loop is None:
             loop = asyncio.get_running_loop()
         if self.name:
@@ -192,15 +183,11 @@ class TaskItem:
         else:
             self.task = loop.create_task(self.coroutine)
         self.task.add_done_callback(functools.partial(_handle_task_result, message=message))
-        LogRecord(f"(Task) {self.name} : {self.task}", level="debug", sources=[__name__])()
+        logger.debug("(Task) %s : %s", self.name, self.task)
         if self.startstring:
-            LogRecord(
-                f"(Task) {self.name} : Created - {self.startstring}",
-                level="debug",
-                sources=[__name__],
-            )()
+            logger.debug("(Task) %s : Created - %s", self.name, self.startstring)
         else:
-            LogRecord(f"(Task) {self.name} : Created", level="debug", sources=[__name__])()
+            logger.debug("(Task) %s : Created", self.name)
         return self.task
 
 
@@ -279,7 +266,7 @@ class QueueManager:
 
             task.create()
 
-            LogRecord(f"Tasks - {asyncio.all_tasks()}", level="debug", sources=[__name__])()
+            logger.debug("Tasks - %s", asyncio.all_tasks())
 
             await asyncio.sleep(0.1)
 
@@ -303,35 +290,23 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
 
     """
     api = BASEAPI(owner_id="libs.asynch:shutdown")
-    LogRecord(
-        f"shutdown - Received exit signal {signal_}:{signal_.name}",
-        level="warning",
-        sources=["mudproxy"],
-    )()
+    get_logger("mudproxy").warning("shutdown - Received exit signal %s:%s", signal_, signal_.name)
 
     api("plugins.core.proxy:proxy.shutdown")()
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 
-    LogRecord(
-        f"shutdown - Cancelling {len(tasks)} outstanding tasks",
-        level="warning",
-        sources=["mudproxy"],
-    )()
+    get_logger("mudproxy").warning("shutdown - Cancelling %s outstanding tasks", len(tasks))
     for item in tasks:
-        LogRecord(f"shutdown -     {item.get_name()}", level="warning", sources=["mudproxy"])()
+        get_logger("mudproxy").warning("shutdown -     %s", item.get_name())
 
     [task.cancel() for task in tasks]
 
     exceptions = await asyncio.gather(*tasks, return_exceptions=True)
     if new_exceptions := [exc for exc in exceptions if not isinstance(exc, asyncio.CancelledError)]:
-        LogRecord(
-            f"shutdown - Tasks had Exceptions: {new_exceptions}",
-            level="warning",
-            sources=["mudproxy"],
-        )()
+        get_logger("mudproxy").warning("shutdown - Tasks had Exceptions: %s", new_exceptions)
     else:
-        LogRecord("shutdown - All tasks cancelled", level="warning", sources=["mudproxy"])()
+        get_logger("mudproxy").warning("shutdown - All tasks cancelled")
 
     loop_.stop()
 
@@ -356,14 +331,10 @@ def run_asynch() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    LogRecord("__main__ - setting up signal handlers", level="info", sources=["mudproxy"])()
+    get_logger("mudproxy").info("__main__ - setting up signal handlers")
     # for sig in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
     for sig in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT]:
-        LogRecord(
-            f"adding signal handler for {sig}:{sig.name}",
-            level="info",
-            sources=[__name__],
-        )()
+        logger.info("adding signal handler for %s:%s", sig, sig.name)
         # ignore RuntimeWarning about coroutine never awaited
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -380,7 +351,7 @@ def run_asynch() -> None:
     _BACKGROUND_TASKS.add(task_checker)
     task_checker.add_done_callback(_BACKGROUND_TASKS.discard)
 
-    LogRecord("__main__ - run_forever", level="debug", sources=["mudproxy"])()
+    get_logger("mudproxy").debug("__main__ - run_forever")
     loop.run_forever()
 
 
