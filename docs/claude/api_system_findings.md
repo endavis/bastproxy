@@ -313,7 +313,7 @@ The missing lines, by symbol:
 | 728, 957-962, 980-984, 1005-1025, 1045-1070 | `_api_api_list_in_toplevel` instance keys, `get_top_level_api_list`, `get_full_api_list`, `_api_data_list`, `_api_api_list_formatted` | **AS-7** (`IndexError` for an empty description) was not caught here. |
 | 754-758 | `_api_api_exists` plugin-loaded check | The "its plugin is loaded" rule in the docs has no test. |
 | 789-822, 844-859, 882-891, 920-929 | `_api_api_detail_get`, `format_stats`, `_stats_for_specific_caller`, `_stats_overall` | The whole stats display. |
-| 1092-1168 | `test()` | Not a test; see below. |
+| 1092-1168 | `test()` | Not a test; see below. Removed in #201. |
 | `_apiitem.py` 175-224 | `APIItem.detail` | **AS-7** (`TypeError` for `lru_cache`-wrapped methods) was not caught here. |
 | `_apiitem.py` 137-139, 156, 240, 256 | `count`, `stats`, `__repr__`, `__str__` | Small. |
 | `_apistats.py` 88-90, 151, 172-174 | `ImportError` fallback, `get_all_stats`, `get_stats` | Small. |
@@ -321,7 +321,8 @@ The missing lines, by symbol:
 `test()` in `_api.py` (about 100 lines from `def test() -> None`) is a `print`-driven self-test
 that pytest does not collect and nothing in `src` or `tests` calls (**verified**: no match for
 `api.test()`); it is dead code (AS-8). The covered paths include the unknown-caller branch of
-`add_call`, which is why its cost went unnoticed. `tests/libs/test_api.py` has 20 tests.
+`add_call`, which is why its cost went unnoticed. `tests/libs/test_api.py` has 20 tests. (`test()`
+was deleted in #201.)
 
 ---
 
@@ -331,7 +332,7 @@ Corrected in [API System](api_system.md) in this change:
 
 | Section | Said | Code |
 | :--- | :--- | :--- |
-| API Class | `stats` is "Global statistics tracking API usage" | `API.stats` is an unused `ClassVar` (**verified**: nothing reads it). Statistics live in the module-level `STATS_MANAGER` (`_apistats.py`). |
+| API Class | `stats` is "Global statistics tracking API usage" | `API.stats` was an unused `ClassVar` (**verified**: nothing read it; deleted in #201). Statistics live in the module-level `STATS_MANAGER` (`_apistats.py`). |
 | API Class | Listed `_class_api`, `_instance_api`, `stats`, paths and one flag | The class also holds `startup`, `shutdown`, `quiet_mode`, `LOG_IN_UTC_TZ`, `proxy_start_time`, `command_split_regex` and `is_character_active`; each `API` object also builds 14 built-in instance APIs. |
 | APIItem Class | Showed `self.owner_id = owner_id` and the description as given | `owner_id or "unknown"`; the description is always a list of lines (split from a string, or taken from the comment above the function); `count`, `stats` and `detail` exist; calling it records the call. |
 | AddAPI Decorator | Metadata "processed during plugin initialization" | Also: `addedin` is mutated on the shared function; a decorated method must be named `_api_*` or discovery skips it. |
@@ -341,7 +342,7 @@ Corrected in [API System](api_system.md) in this change:
 | 6. API Removal | "Removes all APIs with the top-level name" | Called from `_phook_base_unitialize_hook` (priority 100); raises for instance APIs and undecorated functions; leaves stats, empty `addedin` keys and other owners' overrides (AS-2, AS-3). |
 | 4. Class vs Instance | Instance APIs "used for per-instance customization" | No plugin declares one (verified). The only instance APIs are the 14 `libs.api:` built-ins on every `API` object, which is why `libs.api:*` names are not in `_class_api`. |
 | Automatic Caller Detection | "Typically a plugin ID" | First frame whose `self` is not an `APIItem` and has an `owner_id` or `api.owner_id`; any helper object counts; `unknown` triggers a warning and a stack dump; `caller.owner.get` needs an ignore list (AS-4). |
-| API Overwriting | `force=True` overwrites and keeps `overwritten_api` | Also: a duplicate without `force` returns `False` (it returned `True` for class APIs before #194); the overwritten API is never restored; nothing in `src` uses `force` (AS-1, AS-3). |
+| API Overwriting | `force=True` overwrites and keeps `overwritten_api` | Also: a duplicate without `force` returns `False` (it returned `True` for class APIs before #194); the overwritten API was not restored before #196 (it is now); nothing in `src` uses `force` (AS-1, AS-3, #201). |
 | Common APIs | Loader list presented as complete | A selection. Every `libs.api:` name written on the page was checked against the live registry and exists, as do the loader and events names. The page's `my.plugin` and `some.plugin` names are placeholders. |
 | Best Practices, usage 3 | "Cache frequently-used API lookups if performance is critical" | A lookup is 0.2 microseconds of a 2 microsecond call, and a cached `APIItem` goes stale on reload, so the advice is reworded with the numbers. |
 | Naming (section 1) | Already matches ADR-0004 (updated by the rename series); examples checked | Unchanged. |
@@ -363,7 +364,7 @@ only what is specific to the API code.
 | --: | :--- | :--- | :--- | :--- |
 | 1 | **String-keyed service locator**: `self.api("<toplevel>:<name>")(...)` | `API.get`, `__call__ = get` in `_api.py` | Yes, 173 decorated APIs and every cross-plugin call | **Keep.** Covered by plugin audit row 4, with its name-existence test (`tests/plugins/test_api_names_exist.py`). Measured here: a lookup is 0.21 to 0.23 microseconds and a miss raises `APINotFoundError` (#91, fixed). |
 | 2 | **Process-wide registry** as a `ClassVar` | `API._class_api` (`_api.py`) | Yes | **Keep.** Covered by plugin audit row 7. The part that is not covered is removal by toplevel name instead of by owner (AS-3, #196). |
-| 3 | **Module-level singleton and class-level flags** | `STATS_MANAGER = StatsManager()` (`_apistats.py`), `API.startup`, `shutdown`, `quiet_mode`, `is_character_active`, path attributes | Yes | **Keep** the flags (plugin audit row 7). **Change** the dead `API.stats` `ClassVar` and the stats lifetime: remove one, give the other a removal policy (AS-8, #201; AS-3). |
+| 3 | **Module-level singleton and class-level flags** | `STATS_MANAGER = StatsManager()` (`_apistats.py`), `API.startup`, `shutdown`, `quiet_mode`, `is_character_active`, path attributes | Yes | **Keep** the flags (plugin audit row 7). **Change** the dead `API.stats` `ClassVar` (deleted in #201) and the stats lifetime: remove one, give the other a removal policy (AS-8, #201; AS-3). |
 | 4 | **Caller detection by stack inspection** | `get_caller_owner_id` (`_functools.py`), `APIItem.__call__` | Mechanism yes; results no (any object with an `owner_id` matches; `caller.owner.get` returns the wrong owner without an ignore list) | **Change.** The idea (attribute stats to an owner without passing it in every call) is worth keeping and costs 1 microsecond. Fix the `caller.owner.get` result (AS-4, #197) and the unknown path (AS-5, #198). |
 | 5 | **Decorator registration through mutable function attributes** | `AddAPI.__call__` (`_addapi.py`), `addedin` mutated by `_api_api_add_for_object` and `_api_api_toplevel_remove` | Yes | **Keep the decorator** (plugin audit row 3). **Change the `addedin` bookkeeping**: it is shared state on the function, it is only maintained for class APIs, and that asymmetry is AS-2 (#195). |
 | 6 | **Four copies of one `dir()` scan** | `get_api_functions_in_object` (`_api.py`), the events plugin's `_events.py`, the commands plugin's `_commands.py`, `_get_plugin_hook_functions` in `_base.py`, each with `except AttributeError: continue` | Same shape, four slightly different filters | **Change (low).** One scanner taking a predicate (AS-11, #204). |
@@ -374,7 +375,7 @@ only what is specific to the API code.
 | 11 | **Import-time side effects** | `STATS_MANAGER = StatsManager()`; `src/bastproxy/libs/timing.py` builds `API(...)` and `TIMING = Timing()` at import and registers APIs | Yes | **Keep** for `STATS_MANAGER` (an empty dict, no I/O). The registering imports are the architecture. |
 | 12 | **Tight coupling: `libs` calls `plugins` by name** | `_api_api_exists` calls `libs.plugins.loader` APIs; `_stats_*` call `plugins.core.utils:table.format`; `API.add_events` and `_api_character_active_set` call `plugins.core.events` | Yes | **Keep, document.** The framework layer reaching into plugins by string name is the service-locator trade (plugin audit row 6). It breaks if the plugin is absent, for example in a unit test; `tests/libs/test_api.py` stubs them. |
 | 13 | **Per-object construction of a heavy helper** | `API(owner_id=...)` in 31 constructor call sites in `src` (**verified** by `grep -rnE "(^\|[ (=])(BASE)?API\(owner_id"`), including `src/bastproxy/libs/records/rtypes/base.py` for every record | Yes | **Change** (AS-6, #199). Fixed in #199. |
-| 14 | **Dead and misleading surface** | `API.stats`, `test()`, `force=`, `instance=True`, `overwritten_api`, the `get` strip | n/a | **Change** (AS-8). The unused override features are decided in that issue, not deleted by this audit. |
+| 14 | **Dead and misleading surface** | `API.stats`, `test()`, `force=`, `instance=True`, `overwritten_api`, the `get` strip | n/a | **Change** (AS-8). Fixed in #201: `API.stats` and `test()` deleted; `force` and instance APIs kept. |
 | 15 | **Strings, not `Path`, for paths** | `API.BASEPATH` and friends are `Path`; API names are not file paths | Yes | **Fits.** |
 | 16 | **Untested display and removal paths** | Q4 | n/a | **Change** (AS-10, #203): add tests; AS-2 and AS-7 each carry their own regression test. |
 | 17 | **Two owner namespaces** | Plugin IDs against `bastproxy.` module names in stats and `function.owner.get` | No | **Change** (AS-9). |
@@ -461,7 +462,7 @@ toplevel is removed, still owned by it (probe: `p.victim:f` stays owned by `p.ov
 **Fix:** Decide the policy and write it down: either drop the stats for a removed key (and say that
 reload resets counts) or keep them on purpose and prune only names that no longer exist. Remove
 `addedin` keys when the list empties. Remove by owner as well as by toplevel, restoring
-`overwritten_api`, or remove `force` (AS-8).
+`overwritten_api`, or remove `force` (AS-8; #201 kept `force`).
 
 ### AS-4: `libs.api:caller.owner.get` returns the owner of the API it was called through
 
@@ -567,6 +568,17 @@ is not called. (The `API.get` strip was live, not dead; see Q3 and #202.)
 **Fix:** Delete `API.stats`, `test()` and the `get` strip. Decide whether instance APIs and
 `force` are features to keep (then they need users, tests and a removal path, AS-2 and AS-3) or
 code to delete.
+
+**Fixed in #201:** Deleted the `API.stats` `ClassVar` and the module-level `test()` function with its
+`if __name__ == "__main__"` block, plus the `pprint` and `APIStatItem` imports only they used
+(`git diff --numstat`: 107 lines deleted and 1 changed import line in `_api.py`). The `bastproxy.` strip in `API.get` was
+already gone through #202. Decision: `force` and instance APIs are kept as supported features, for
+three reasons: both are tested; since #196 removing a top-level restores what a force-override
+replaced (or deletes the entry when none was saved); and since #199 the `libs.api:` built-ins share
+the per-object `_instance_api` store. Added tests for the instance paths that had none: an instance
+`force` override keeps `overwritten_api` and calls the new function, and removing the overriding
+owner restores or deletes an overridden instance API. See
+[api_system.md, API Overwriting](api_system.md#api-overwriting).
 
 ### AS-9: Two owner namespaces in stats, and `function.owner.get` knows only plugins
 

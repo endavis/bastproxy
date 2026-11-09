@@ -303,6 +303,18 @@ class TestAPIOverwriting:
         assert api.add("t194", "function", helper_function_one, instance=True) is True
         assert api.add("t194", "function", helper_function_two, instance=True) is False
 
+    def test_instance_force_overrides_and_keeps_overwritten(self) -> None:
+        """Force on an instance duplicate returns True, calls the new function, keeps the old."""
+        api = API(owner_id="test_owner")
+        assert api.add("t201", "function", helper_function_one, instance=True) is True
+        assert api.add("t201", "function", helper_function_two, instance=True, force=True) is True
+
+        item = api.get("t201:function")
+        assert item.tfunction == helper_function_two
+        assert item.overwritten_api is not None
+        assert item.overwritten_api.tfunction == helper_function_one
+        assert api("t201:function")() == helper_function_two()
+
     def test_class_duplicate_import_error_fallback_logs(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -671,6 +683,31 @@ class TestToplevelRemoveLeftovers:
         restored = API._class_api["p.victim2:f"]
         assert restored.tfunction == helper_function_one
         assert restored.owner_id == "p.victim2"
+
+    def test_instance_force_override_with_original_is_restored(self) -> None:
+        """An instance API an owner force-overrode is put back when that owner is removed."""
+        api = API(owner_id="p.ivictim")
+        api.add("p.ivictim", "f", helper_function_one, instance=True, description="victim")
+        over = API(owner_id="p.iover")
+        over._instance_api = api._instance_api
+        over.add("p.ivictim", "f", helper_function_two, instance=True, force=True)
+        assert api._instance_api["p.ivictim:f"].owner_id == "p.iover"
+
+        over._api_api_toplevel_remove("p.iover")
+
+        restored = api._instance_api["p.ivictim:f"]
+        assert restored.tfunction == helper_function_one
+        assert restored.owner_id == "p.ivictim"
+
+    def test_instance_force_override_without_original_is_removed(self) -> None:
+        """An instance entry the removed owner added in another toplevel is deleted."""
+        api = API(owner_id="p.iover2")
+        api.add("p.ivictim2", "solo", helper_function_two, instance=True, force=True)
+        assert "p.ivictim2:solo" in api._instance_api
+
+        api._api_api_toplevel_remove("p.iover2")
+
+        assert "p.ivictim2:solo" not in api._instance_api
 
 
 class _RefusedOwner:
