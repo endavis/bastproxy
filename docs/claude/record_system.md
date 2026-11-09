@@ -45,7 +45,7 @@ store keeps and what it costs, see [Record System Findings](record_system_findin
 class BaseRecord(AttributeMonitor):
     def __init__(self, owner_id: str = "", track_record=True, parent=None):
         self.uuid = uuid4().hex
-        self.owner_id = owner_id or f"{ClassName}:{uuid}"
+        self.owner_id = owner_id or ClassName
         self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.UTC)
         self.updates = UpdateManager()
@@ -58,6 +58,8 @@ class BaseRecord(AttributeMonitor):
         RMANAGER.add(self)
         self.executing = False
 ```
+
+The owner ID is per class so that API stats stay bounded (#232); `uuid` is the record's identity.
 
 `BaseRecord` itself adds no update at creation. Subclasses usually do: `BaseListRecord` and `BaseDictRecord` add an `Info` "Init" update, and `TrackedUserList` and `NetworkDataLine` add a `Modify` "original input" update.
 

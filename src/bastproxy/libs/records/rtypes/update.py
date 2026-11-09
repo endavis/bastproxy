@@ -45,7 +45,7 @@ class UpdateRecord:
         self.time_taken = datetime.datetime.now(datetime.UTC)
         self.parent = parent
         self.flag = flag
-        self.api = API(owner_id=f"{self.__class__.__name__}:{self.uuid}")
+        self.api = API(owner_id=self.__class__.__name__)
         self.action = action
         self.extra = {}
         if extra:
