@@ -51,11 +51,12 @@ from ._apiitem import APIItem
 # Third Party
 # Project
 from ._apistats import STATS_MANAGER, APIStatItem
-from ._functools import get_caller_owner_id, stackdump
+from ._builtins import BUILTIN_APIS, BUILTIN_TOPLEVEL, InstanceAPIs
+from ._functools import get_caller_owner_id
 
 logger = logging.getLogger(__name__)
 
-APILOCATION = "libs.api"
+APILOCATION = BUILTIN_TOPLEVEL
 
 
 class API:  # sourcery skip: upper-camel-case-classes
@@ -120,9 +121,6 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        # apis that have been add to this specific instance
-        self._instance_api: dict[str, APIItem] = {}
-
         self.log_level: str = "debug"
 
         # the format for the time
@@ -131,105 +129,10 @@ class API:  # sourcery skip: upper-camel-case-classes
         # this is the parent of the API, couild be a plugin or a module
         self.owner_id: str = owner_id or "unknown"
 
-        # added functions
-        self.add(
-            APILOCATION,
-            "api.add",
-            self.add,
-            instance=True,
-            description="add a function to the api",
-        )
-        self.add(
-            APILOCATION,
-            "api.exists",
-            self._api_api_exists,
-            instance=True,
-            description="check to see if something exists in the api",
-        )
-        self.add(
-            APILOCATION,
-            "api.add.for.object",
-            self._api_api_add_for_object,
-            instance=True,
-            description="add apis for an object",
-        )
-        self.add(
-            APILOCATION,
-            "api.toplevel.remove",
-            self._api_api_toplevel_remove,
-            instance=True,
-            description="remove a toplevel api",
-        )
-        self.add(
-            APILOCATION,
-            "api.list.in.toplevel",
-            self._api_api_list_in_toplevel,
-            instance=True,
-            description="return a list of apis in a toplevel api",
-        )
-        self.add(
-            APILOCATION,
-            "api.detail.get",
-            self._api_api_detail_get,
-            instance=True,
-            description="return the detail of an api function",
-        )
-        self.add(
-            APILOCATION,
-            "api.list.formatted",
-            self._api_api_list_formatted,
-            instance=True,
-            description="return a formatted list of functions in an api",
-        )
-        self.add(
-            APILOCATION,
-            "data.list",
-            self._api_data_list,
-            instance=True,
-            description="return a dict of api data",
-        )
-        self.add(
-            APILOCATION,
-            "data.get",
-            self._api_data_get,
-            instance=True,
-            description="return the data for an api",
-        )
-        self.add(
-            APILOCATION,
-            "function.owner.get",
-            self._api_function_owner_get,
-            instance=True,
-            description="get the plugin_id of the plugin that owns the function",
-        )
-        self.add(
-            APILOCATION,
-            "caller.owner.get",
-            self._api_caller_owner_get,
-            instance=True,
-            description="get the plugin on the top of the frame stack",
-        )
-        self.add(
-            APILOCATION,
-            "character.is.active",
-            self._api_character_is_active,
-            instance=True,
-            description="returns the is_character_active flag",
-        )
-        self.add(
-            APILOCATION,
-            "character.active.set",
-            self._api_character_active_set,
-            instance=True,
-            description="set the is_character_active flag",
-        )
-        self.add(
-            APILOCATION,
-            "stack.dump",
-            stackdump,
-            instance=True,
-            description="return a stackdump",
-        )
+        # apis that have been added to this specific instance. The libs.api
+        # built-ins come from a class-level table (BUILTIN_APIS) and are bound
+        # on first use (#199), so nothing is bound or registered here
+        self._instance_api: InstanceAPIs = InstanceAPIs(self)
 
     def _api_api_add_for_object(self, toplevel, item) -> None:
         """Add APIs for an object to a top-level API.
@@ -769,17 +672,19 @@ class API:  # sourcery skip: upper-camel-case-classes
             APINotFoundError: If the API location is not found in the API.
 
         """
-        # check overloaded api
-        if (
-            not get_class
-            and api_location in self._instance_api
-            and self._instance_api[api_location]
-        ):
-            return self._instance_api[api_location]
+        # check overloaded api, then the libs.api built-ins from the class-level
+        # table, which are bound to this object on first use (#199)
+        if not get_class:
+            instance_api = self._instance_api
+            instance_item = instance_api._items.get(api_location)
+            if instance_item is None and api_location in BUILTIN_APIS:
+                instance_item = instance_api.get(api_location)
+            if instance_item is not None:
+                return instance_item
 
         # check api
-        if self._class_api.get(api_location):
-            return self._class_api[api_location]
+        if class_item := self._class_api.get(api_location):
+            return class_item
 
         msg = f"{self.owner_id} : {api_location} is not in the api"
         raise APINotFoundError(msg)

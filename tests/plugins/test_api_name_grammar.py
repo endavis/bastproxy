@@ -176,6 +176,22 @@ class _Scanner(ast.NodeVisitor):
             return
         self.registered.append(((owner, name), (self.rel, line)))
 
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        # the libs.api built-ins are a table in libs/api/_builtins.py (#199): read the
+        # first item of each _BUILTIN_SPECS row as a name registered under libs.api
+        if (
+            self.rel == "libs/api/_builtins.py"
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "_BUILTIN_SPECS"
+        ):
+            rows = node.value.elts if isinstance(node.value, ast.Tuple) else []
+            if not rows:
+                self.unresolved.append((self.rel, node.lineno))
+            for row in rows:
+                name = _const_str(row.elts[0]) if isinstance(row, ast.Tuple) and row.elts else None
+                self._register("libs.api", name, row.lineno)
+        self.generic_visit(node)
+
     def visit_Call(self, node: ast.Call) -> None:
         func = node.func
         # @AddAPI("name", ...)
