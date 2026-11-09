@@ -121,7 +121,9 @@ class RecordManager:
 
 ### List and dict records
 
-**`TrackedUserList(BaseRecord, UserList)`** records `__setitem__`, `insert`, `append` and `extend`, and its `lock()` stops those four. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not tracked and the lock does not stop them (#47). A locked `+=` or `*=` is worse than silent: the list changes, and the record logs a refused write to `data` as well. `+=` also accepts plain strings, which are stored as they are instead of becoming `NetworkDataLine` records. `NetworkData` is a `TrackedUserList` of `NetworkDataLine` records.
+**`NetworkData` and `NetworkDataLine` are no longer in this group.** They are built on pydatatracker (`TrackedList` and `TrackedAttr`) through `TrackedRecordMixin` in `src/bastproxy/libs/records/tracking.py` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). Everything below this paragraph about `TrackedUserList` applies to its other users only.
+
+**`TrackedUserList(BaseRecord, UserList)`** records `__setitem__`, `insert`, `append` and `extend`, and its `lock()` stops those four. `pop`, `remove`, `del`, `clear`, `sort`, `reverse`, `+=` and `*=` are not tracked and the lock does not stop them (#47). A locked `+=` or `*=` is worse than silent: the list changes, and the record logs a refused write to `data` as well. `+=` also accepts plain strings, which are stored as they are instead of becoming `NetworkDataLine` records.
 
 **`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. `LogRecord` is the only subclass. None of the plain list methods (`append`, `extend`, `pop`, item assignment and so on) is tracked; only `replace()` and the helpers built on it add an update.
 
@@ -150,7 +152,6 @@ Outer()()
 - `parent` is the record that was active at creation, or the one passed in
 - `parents` is the list of parents added with `add_parent()`. It holds direct parents, not ancestors. A record can have several: a `NetworkData` gets a second parent when `SendDataDirectlyToMud` takes it over from `ProcessDataToMud`.
 - `NetworkDataLine.add_parent()` keeps only one parent by default (`reset=True` replaces the list); `reset=False` adds another. It only accepts `NetworkData` or `NetworkDataLine` parents and ignores any other class without an error
-- A line given to `NetworkData.append()`, `insert()` or item assignment as a `NetworkDataLine` object gets no parent; one given as a string, and any line given to `extend()` or the constructor, does (#47)
 
 ### 3. Tracking changes
 
@@ -163,11 +164,13 @@ record.addupdate("Modify", "Converted color codes", extra={"line": 3})
 # 2. Monitored attributes (AttributeMonitor); see "Attribute Monitoring"
 record.status = "done"   # records "status attribute changed", if "status" is monitored
 
-# 3. Tracked list operations (TrackedUserList / NetworkData)
-network_data.append("look")
+# 3. Tracked list operations (NetworkData, on pydatatracker)
+network_data.append("look")   # converted to a NetworkDataLine whose parent is network_data
 ```
 
 Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for `BaseListRecord` and `BaseDictRecord` records, a copy of the data. `NetworkData` updates carry no copy.
+
+`NetworkDataLine` and `NetworkData` keep their changes in pydatatracker's change log instead. `updates` is a read-only list of `TrackedUpdate` views over the container's own entries (a child entry that pydatatracker re-homes onto the parent is left out). The actor is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback and the commands plugin sets `<plugin_id>:<command name>` around each command. It is empty on the raw network read path, which the details show as "Unknown". Stack capture is off. Each record keeps up to `MAX_CHANGES` (1000) entries. Pydatatracker's own entries use the actions `update`, `add` and `lock`, flagged `Modify`, or `Info` for `init`, `lock` and `unlock`.
 
 ### 4. Execution
 
@@ -268,6 +271,8 @@ When called, a `LogRecord` cleans and colors its lines, then calls the logger of
 
 ## Attribute Monitoring
 
+This section describes `AttributeMonitor`, which `BaseRecord` still uses. `NetworkDataLine` and `NetworkData` do not use it; see "Tracked network data" below.
+
 `BaseRecord` inherits from `AttributeMonitor` (`src/bastproxy/libs/tracking/utils/attributes.py`), which overrides `__setattr__`.
 
 ### Monitored attributes
@@ -292,7 +297,27 @@ record.line = "new"     # ignored; adds an Info "Attempted to update a locked at
 record._am_unlock_attribute("line")
 ```
 
-A write to a locked attribute is dropped without raising an error (#48). `NetworkDataLine.lock()` locks its content and flag attributes, and the send steps call it before queuing a line.
+A write to a locked attribute is dropped without raising an error (#48).
+
+### Tracked network data
+
+`NetworkDataLine` (`TrackedAttr`) declares its monitored fields with `_tracking_fields`, so the first assignment records nothing and later ones record an `update` entry. `line_modified` is set when `line` changes to a different value. `original_line` is a read-only property.
+
+`NetworkData` (`TrackedList`) converts every stored item through one hook, `_tracking_convert_item`: str, bytes and bytearray become a `NetworkDataLine`, any other type raises `TypeError`, and the list becomes the line's parent (including for a `NetworkDataLine` object given to `append`, `insert`, `extend`, `+=` or item or slice assignment).
+
+**A locked write raises `RuntimeError`**, where the attribute monitor ignores it:
+
+```python
+data = NetworkData("look")
+data.lock()
+data.append("x")        # RuntimeError (also pop, sort, +=, insert, extend, item assignment)
+data[0].line = "x"      # RuntimeError
+data[0].was_sent = True # allowed
+```
+
+`NetworkDataLine.lock()` locks the eight content and flag fields (all but `was_sent`, which the network layer sets after the line is locked). `NetworkData.lock()` locks its lines through it. A second `lock()` does nothing, and `format()` does nothing on a locked line. The send steps (`SendDataDirectlyToClient`, `SendDataDirectlyToMud`) format the lines first and then lock the message, so unsent lines are locked too.
+
+**Plugin note:** a callback on `ev_to_client_data_read` or `ev_to_mud_data_read` that writes to a line now gets a `RuntimeError`. `Event.raise_priority` logs it and continues. No bundled plugin writes in those events. Change the line in the `*_data_modify` events, before the lock.
 
 ## Common Patterns
 
@@ -367,7 +392,8 @@ while current.parent:
 
 ## Performance Considerations
 
-- **Creation and every update capture a formatted call stack** (10 frames per record, 15 per update). This is most of the cost of creating a record or changing a monitored attribute, and it is paid for every network line and log message.
+- **`NetworkDataLine` and `NetworkData` capture no stack and build no `API` per line.** Measured medians with `uv run pytest tests/benchmarks/test_bench_networkdataline.py --benchmark-enable --benchmark-only` (Python 3.12.12, one run): 18.0 us per line created (270.2 us per 15), 6.5 us per change, 26.7 us per line to build a `NetworkData`. The benchmark asserts the ADR-0005 targets of 50 us and 20 us. Locking a line records one entry per field: 70.2 us per line in the same run, with no target.
+- **Other records: creation and every update capture a formatted call stack** (10 frames per record, 15 per update). This is most of the cost of creating a record or changing a monitored attribute, and it is paid for every network line and log message.
 - **Every record and every update creates an `API` instance.**
 - **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. `BaseListRecord` and `BaseDictRecord` records store a copy of their data in each update. The cap counts records, not bytes, and a stored `NetworkData` or processing record keeps its lines alive after the line itself is evicted, so memory is bounded only when every type has reached the cap. See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
 - **Inspecting adds records:** every line printed by the records commands is a `NetworkDataLine`, so a long listing can push older records out of the store.
@@ -375,17 +401,17 @@ while current.parent:
 - **`track_record=False` does not reduce this cost.** It only skips the execution timer and the active-stack push.
 - **`savedata=False`** (on `BaseListRecord.addupdate` and `BaseDictRecord.addupdate` only) skips the data copy for one update. `BaseRecord.addupdate()` does not accept it.
 
-#43 plans to replace the tracking with pydatatracker, which captures stacks only on request.
+#43 replaces the tracking with pydatatracker in slices. This slice covers `NetworkDataLine` and `NetworkData`; #246 to #249 cover the rest.
 
 ## Known Gaps
 
 | Issue | Gap |
 |-------|-----|
 | #46 | `LogRecord`s without `sources`, or never called, are not logged |
-| #47 | `TrackedUserList` misses several mutations and its lock does not stop them; lines appended to `NetworkData` as objects with `append`, `insert` or item assignment get no parent |
-| #48 | `AttributeMonitor` misses in-place changes and silently drops writes to locked attributes |
+| #47 | `TrackedUserList` (not `NetworkData` any more) misses several mutations and its lock does not stop them |
+| #48 | `AttributeMonitor` (still on `BaseRecord`) misses in-place changes and silently drops writes to locked attributes |
 | #49 | `get_update()` never finds child updates; `str()` on a telnet line raises; `one_line_summary()` bugs |
-| #43 | Planned replacement of the tracking with pydatatracker |
+| #43 | Replacement of the tracking with pydatatracker: `NetworkDataLine` and `NetworkData` done; dict records (#246), `LogRecord` (#247), processing records (#248) and retention (#249) remain |
 | #81 | Every record and every update captures a formatted call stack and the event stack; this diagnostic capture is not configurable or cheap by default |
 | #82 | Records are kept only in memory: those beyond `max_records` are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |

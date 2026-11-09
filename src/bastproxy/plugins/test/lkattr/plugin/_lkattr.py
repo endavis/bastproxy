@@ -6,9 +6,9 @@
 # By: Bast
 
 # Standard Library
+from collections.abc import Callable
 
 # 3rd Party
-
 # Project
 from bastproxy.libs.records import NetworkData, ProcessDataToMud
 from bastproxy.plugins._baseplugin import BasePlugin
@@ -22,16 +22,31 @@ class lkAttrPlugin(BasePlugin):
     def _command_locktest(self):
         """List records of a specific type"""
         testdata = NetworkData("original line")
+        refused: list[str] = []
+
+        def attempt(description: str, write: Callable[[], object]) -> None:
+            try:
+                write()
+            except RuntimeError as exc:
+                refused.append(f"{description}: refused with RuntimeError: {exc}")
+            else:
+                refused.append(f"{description}: NOT refused")
+
+        def set_line() -> None:
+            testdata[0].line = "changed line"
+
+        def set_item() -> None:
+            testdata[0] = "straight assignment to index 0"
 
         testdata[0].lock()
-        testdata[0].line = "changed line"
+        attempt("line write on a locked line", set_line)
         testdata.lock()
-        testdata.append("appended line")
-        testdata.extend(["list line 1", "list line 2"])
-        testdata.insert(1, "inserted line at index 1")
-        testdata[0] = "straight assignment to index 0"
+        attempt("append", lambda: testdata.append("appended line"))
+        attempt("extend", lambda: testdata.extend(["list line 1", "list line 2"]))
+        attempt("insert", lambda: testdata.insert(1, "inserted line at index 1"))
+        attempt("assignment to index 0", set_item)
 
-        tmsg = ["Created:", testdata.one_line_summary()]
+        tmsg = ["Created:", testdata.one_line_summary(), "Writes:", *refused]
         return True, tmsg
 
     @AddParser(description="test splitting a command")

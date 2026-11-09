@@ -18,6 +18,7 @@ from bastproxy.libs import argp
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.records import LogRecord
+from bastproxy.libs.records.tracking import tracking_actor
 
 from .data.cmdargs import CmdArgsRecord
 
@@ -95,7 +96,8 @@ class CommandClass:
 
         # run the command
         try:
-            return_value = self()
+            with tracking_actor(f"{self.plugin_id}:{self.name}"):
+                return_value = self()
         except Exception as exc:
             self.record_error(exc)
             actor = f"{self.plugin_id}:run_command:command_exception"

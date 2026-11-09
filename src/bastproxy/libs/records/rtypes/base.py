@@ -11,7 +11,7 @@ import datetime
 import pprint
 import traceback
 from collections import UserDict, UserList
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 # 3rd Party
@@ -26,7 +26,143 @@ if TYPE_CHECKING:
     pass
 
 
-class BaseRecord(AttributeMonitor):
+class RecordDisplayMixin:
+    """Display code shared by every record class.
+
+    The two hooks ``_monitored_fields`` and ``_original_value`` and the creation-info hook
+    ``_format_creation_info`` let ``BaseRecord`` (on ``AttributeMonitor``) and the
+    pydatatracker-backed records format the same way.
+    """
+
+    column_width: int = 15
+
+    def _monitored_fields(self) -> list[str]:
+        """Return the names of the monitored fields to show in the details."""
+        raise NotImplementedError
+
+    def _original_value(self, name: str) -> Any:
+        """Return the value a monitored field had when it was first set."""
+        raise NotImplementedError
+
+    def _format_creation_info(self) -> list[str]:
+        """Return the detail lines that describe how the record was created."""
+        return []
+
+    def get_attributes_to_format(self):
+        """Attributes to format in the details.
+
+        0 will be the top section
+        1 is the middle section
+        3 is the bottom section.
+        """
+        default_attributes = {
+            0: [
+                ("UUID", "uuid"),
+                ("Owner ID", "owner_id"),
+                ("Creation Time", "created"),
+                ("Parent", "parent"),
+                ("Parents", "parents"),
+                ("Exec Time (ms)", "execute_time_taken"),
+            ],
+            1: [],
+            2: [],
+        }
+
+        for item in self._monitored_fields():
+            orig_value = self._original_value(item)
+            if orig_value == getattr(self, item):
+                default_attributes[0].append((f"{item}", item))
+            else:
+                default_attributes[0].append(
+                    (
+                        item,
+                        f"changed from '{orig_value!r}' to '{getattr(self, item)!r}'",
+                    )
+                )
+
+        return default_attributes
+
+    def format_children(self, full_children_records=False, update_filter=None):
+        """Format children records as a string representation.
+
+        Args:
+            full_children_records: Include full record details if True.
+            update_filter: Optional filter for update types to include.
+
+        Returns:
+            A list of formatted strings representing child records.
+
+        """
+        msg = []
+        if full_children_records:
+            children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
+            msg.extend(["Children Records :", "---------------------------------------"])
+            for record in children_records:
+                msg.extend(
+                    f"     {line}"
+                    for line in record.get_formatted_details(
+                        full_children_records=False,
+                        include_updates=False,
+                        update_filter=update_filter,
+                        include_children_records=False,
+                    )
+                )
+                msg.append("---------------------------------------")
+        else:
+            msg.extend(
+                [
+                    "Children Records :",
+                    *RMANAGER.format_all_children(self, record_filter=update_filter),
+                ]
+            )
+        return msg
+
+    def get_formatted_details(
+        self,
+        full_children_records=False,
+        include_updates=True,
+        update_filter=None,
+        include_children_records=True,
+    ) -> list[str]:
+        """Get a formatted detail string."""
+        column_width = 15
+        msg = [
+            f"{'Type':<{column_width}} : {self.__class__.__name__}",
+        ]
+
+        attributes = self.get_attributes_to_format()
+        for level in attributes:
+            for item_string, item_attr in attributes[level]:
+                if isinstance(item_attr, str):
+                    attr = getattr(self, item_attr) if hasattr(self, item_attr) else item_attr
+                else:
+                    attr = item_attr
+                if isinstance(attr, (list, dict)):
+                    msg.append(f"{item_string:<{self.column_width}} : ")
+                    msg.extend(
+                        f"{'':<15} : {line}"
+                        for line in pprint.pformat(attr, width=120).splitlines()
+                    )
+                else:
+                    msg.append(f"{item_string:<{self.column_width}} : {attr}")
+
+        msg.extend(self._format_creation_info())
+        if include_children_records:
+            msg.extend(self.format_children(full_children_records, update_filter))
+        if include_updates:
+            msg.extend(
+                [
+                    "Updates :",
+                    "-------------------------",
+                ]
+            )
+            for update in self.get_all_updates(update_filter):
+                msg.extend([f"   {line}" for line in update.format_detailed()])
+                msg.append("-------------------------")
+        return msg
+
+
+class BaseRecord(RecordDisplayMixin, AttributeMonitor):
     """Base class for all record types with tracking and monitoring.
 
     This class provides common functionality for all record types including
@@ -184,125 +320,22 @@ class BaseRecord(AttributeMonitor):
             new_stack.extend([nline for nline in line.splitlines() if nline])
         return new_stack
 
-    def get_attributes_to_format(self):
-        """Attributes to format in the details.
+    def _monitored_fields(self) -> list[str]:
+        """Return the names of the monitored fields to show in the details."""
+        return list(self._attributes_to_monitor)
 
-        0 will be the top section
-        1 is the middle section
-        3 is the bottom section.
-        """
-        default_attributes = {
-            0: [
-                ("UUID", "uuid"),
-                ("Owner ID", "owner_id"),
-                ("Creation Time", "created"),
-                ("Parent", "parent"),
-                ("Parents", "parents"),
-                ("Exec Time (ms)", "execute_time_taken"),
-            ],
-            1: [],
-            2: [],
-        }
+    def _original_value(self, name: str) -> Any:
+        """Return the value a monitored field had when it was first set."""
+        return self._am_get_original_value(name)
 
-        for item in self._attributes_to_monitor:
-            orig_value = self._am_get_original_value(item)
-            if orig_value == getattr(self, item):
-                default_attributes[0].append((f"{item}", item))
-            else:
-                default_attributes[0].append(
-                    (
-                        item,
-                        f"changed from '{self._am_get_original_value(item)!r}' to '{getattr(self, item)!r}'",
-                    )
-                )
-
-        return default_attributes
-
-    def format_children(self, full_children_records=False, update_filter=None):
-        """Format children records as a string representation.
-
-        Args:
-            full_children_records: Include full record details if True.
-            update_filter: Optional filter for update types to include.
-
-        Returns:
-            A list of formatted strings representing child records.
-
-        """
-        msg = []
-        if full_children_records:
-            children_records = RMANAGER.get_all_children_dict(self, record_filter=update_filter)
-            msg.extend(["Children Records :", "---------------------------------------"])
-            for record in children_records:
-                msg.extend(
-                    f"     {line}"
-                    for line in record.get_formatted_details(
-                        full_children_records=False,
-                        include_updates=False,
-                        update_filter=update_filter,
-                        include_children_records=False,
-                    )
-                )
-                msg.append("---------------------------------------")
-        else:
-            msg.extend(
-                [
-                    "Children Records :",
-                    *RMANAGER.format_all_children(self, record_filter=update_filter),
-                ]
-            )
-        return msg
-
-    def get_formatted_details(
-        self,
-        full_children_records=False,
-        include_updates=True,
-        update_filter=None,
-        include_children_records=True,
-    ) -> list[str]:
-        """Get a formatted detail string."""
-        column_width = 15
-        msg = [
-            f"{'Type':<{column_width}} : {self.__class__.__name__}",
+    def _format_creation_info(self) -> list[str]:
+        """Return the event stack and call stack the record was created under."""
+        return [
+            "Event Stack at Creation :",
+            *[f"    {event}" for event in self.event_stack],
+            "Call Stack at Creation :",
+            *[f"    {line}" for line in self.stack_at_creation if line],
         ]
-
-        attributes = self.get_attributes_to_format()
-        for level in attributes:
-            for item_string, item_attr in attributes[level]:
-                if isinstance(item_attr, str):
-                    attr = getattr(self, item_attr) if hasattr(self, item_attr) else item_attr
-                else:
-                    attr = item_attr
-                if isinstance(attr, (list, dict)):
-                    msg.append(f"{item_string:<{self.column_width}} : ")
-                    msg.extend(
-                        f"{'':<15} : {line}"
-                        for line in pprint.pformat(attr, width=120).splitlines()
-                    )
-                else:
-                    msg.append(f"{item_string:<{self.column_width}} : {attr}")
-
-        msg.extend(
-            [
-                "Event Stack at Creation :",
-                *[f"    {event}" for event in self.event_stack],
-                "Call Stack at Creation :",
-                *[f"    {line}" for line in self.stack_at_creation if line],
-            ]
-        )
-        if include_children_records:
-            msg.extend(self.format_children(full_children_records, update_filter))
-        if include_updates:
-            msg.extend(
-                [
-                    "Updates :",
-                    "-------------------------",
-                ]
-            )
-            for update in self.get_all_updates(update_filter):
-                msg.extend([f"   {line}" for line in update.format_detailed()])
-                msg.append("-------------------------")
-        return msg
 
     def check_for_change(self, flag: str, action: str):
         """Check if there is a change with the given flag and action."""

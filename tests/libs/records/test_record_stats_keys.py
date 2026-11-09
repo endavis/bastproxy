@@ -81,8 +81,8 @@ def test_update_record_stats_grouped() -> None:
 
     before = counts()
     n = 5
-    for i in range(n):
-        NetworkDataLine(f"x {i}")
+    for _ in range(n):
+        StatsProbe().addupdate("Info", "x")
     after = counts()
     assert after[0] - before[0] >= n
     assert after[1] - before[1] >= n

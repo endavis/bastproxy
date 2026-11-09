@@ -7,18 +7,41 @@
 """Holds the data line record."""
 
 # Standard Library
+from typing import Any
 
 # 3rd Party
+from pydatatracker import TrackedAttr, TrackedList
+
 # Project
-from bastproxy.libs.records.rtypes.base import BaseRecord, TrackedUserList
+from bastproxy.libs.api import API
 from bastproxy.libs.records.rtypes.log import LogRecord
+from bastproxy.libs.records.tracking import MAX_CHANGES, TrackedRecordMixin
+
+_LINE_FIELDS = (
+    "line",
+    "send",
+    "is_prompt",
+    "had_line_endings",
+    "prelogin",
+    "preamble",
+    "color",
+    "line_modified",
+    "was_sent",
+)
+# The fields a lock freezes. was_sent stays writable because the network layer sets it after
+# the line is locked.
+_LOCKED_FIELDS = tuple(name for name in _LINE_FIELDS if name != "was_sent")
 
 
-class NetworkDataLine(BaseRecord):
+class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
     """A record to hold a line of data that will be sent to the clients.
 
     or the mud.
     """
+
+    _tracking_fields = _LINE_FIELDS
+    # One API for every line, so no API is built per line.
+    api = API(owner_id="NetworkDataLine")
 
     def __init__(
         self,
@@ -42,15 +65,9 @@ class NetworkDataLine(BaseRecord):
             color: Color code for the line (default: "").
 
         """
-        BaseRecord.__init__(self)
-        self._attributes_to_monitor.append("line")
-        self._attributes_to_monitor.append("send")
-        self._attributes_to_monitor.append("is_prompt")
-        self._attributes_to_monitor.append("had_line_endings")
-        self._attributes_to_monitor.append("prelogin")
-        self._attributes_to_monitor.append("preamble")
-        self._attributes_to_monitor.append("color")
-        self._attributes_to_monitor.append("was_sent")
+        TrackedAttr.__init__(self, tracking_max_changes=MAX_CHANGES, tracking_capture_stack=False)
+        self._init_record()
+        self._line_locked = False
         if originated != "internal" and (
             (isinstance(line, str) and ("\n" in line or "\r" in line))
             or (isinstance(line, (bytes, bytearray)) and (b"\n" in line or b"\r" in line))
@@ -66,8 +83,7 @@ class NetworkDataLine(BaseRecord):
         if (isinstance(line, (bytes, bytearray))) and not self.is_command_telnet:
             line = line.decode("utf-8")
         self.line: str | bytes | bytearray = line
-        self.original_line: str | bytes | bytearray = line
-        self._am_lock_attribute("original_line")
+        self._original_line: str | bytes | bytearray = line
         self.send: bool = True
         self.line_modified: bool = False
         self.is_prompt: bool = False
@@ -86,9 +102,18 @@ class NetworkDataLine(BaseRecord):
         # because not much data is sent to a client before login
         self.prelogin = prelogin
 
-        self.addupdate("Modify", "original input", extra={"data": f"{line!r}"})
+    @property
+    def original_line(self) -> str | bytes | bytearray:
+        """The line as it was created, which never changes."""
+        return self._original_line
 
-    def add_parent(self, parent, reset=True):
+    @original_line.setter
+    def original_line(self, value: Any) -> None:
+        """Refuse the write: the original line is locked."""
+        msg = f"NetworkDataLine.original_line is locked and cannot be modified (got {value!r})."
+        raise RuntimeError(msg)
+
+    def add_parent(self, parent: Any, reset: bool = True) -> None:
         """Add a parent to this record."""
         if reset:
             self.parents = []
@@ -96,6 +121,27 @@ class NetworkDataLine(BaseRecord):
             return
         if parent.__class__.__name__ in ["NetworkData", "NetworkDataLine"]:
             self.parents.append(parent)
+
+    def _monitored_fields(self) -> list[str]:
+        """Return the monitored fields to show; line_modified has its own row."""
+        return [name for name in _LINE_FIELDS if name != "line_modified"]
+
+    def _original_value(self, name: str) -> Any:
+        """Return the value a monitored field had when it was first set."""
+        return self.tracking_get_original_value(name)
+
+    def _tracking_attribute_change(
+        self, method: str, attribute_name: str, original_value: Any, new_value: Any
+    ) -> None:
+        """Record the change, then set line_modified when the line changed."""
+        super()._tracking_attribute_change(method, attribute_name, original_value, new_value)
+        if (
+            attribute_name == "line"
+            and "line_modified" in self.__dict__
+            and not self.line_modified
+            and original_value != new_value
+        ):
+            self.line_modified = True
 
     @property
     def noansi(self):
@@ -121,17 +167,20 @@ class NetworkDataLine(BaseRecord):
             return self.line
         return self.api("plugins.core.colors:ansicode.to.colorcode")(self.line)
 
-    def lock(self):
-        """Lock all attributes to prevent further modification."""
-        self._am_lock_attribute("line")
-        self._am_lock_attribute("send")
-        self._am_lock_attribute("is_prompt")
-        self._am_lock_attribute("had_line_endings")
-        self._am_lock_attribute("prelogin")
-        self._am_lock_attribute("preamble")
-        self._am_lock_attribute("color")
-        self._am_lock_attribute("line_modified")
-        self.addupdate("Modify", "locked")
+    def lock(self, attribute_name: str = "") -> None:
+        """Lock the line so its fields refuse writes with ``RuntimeError``.
+
+        A whole-object lock would also refuse the later ``was_sent = True``, so this locks
+        each field except ``was_sent``. A second call does nothing.
+        """
+        if attribute_name:
+            super().lock(attribute_name)
+            return
+        if self._line_locked:
+            return
+        for name in _LOCKED_FIELDS:
+            super().lock(name)
+        self._line_locked = True
 
     def escapecolor(self):
         """Get the line with color codes escaped for display.
@@ -143,11 +192,6 @@ class NetworkDataLine(BaseRecord):
         if self.is_command_telnet:
             return self.line
         return self.api("plugins.core.colors:colorcode.escape")(self.line)
-
-    def _am_onchange_line(self, orig_value, new_value):
-        """Set the line_modified flag if the line changes."""
-        if orig_value != new_value:
-            self.line_modified = True
 
     @property
     def is_command_telnet(self):
@@ -183,9 +227,7 @@ class NetworkDataLine(BaseRecord):
         """Copy the attributes from the current line to a new line."""
         new_line.line_type = self.line_type
         new_line.originated = self.originated
-        new_line._am_unlock_attribute("original_line")
-        new_line.original_line = self.original_line
-        new_line._am_lock_attribute("original_line")
+        new_line._original_line = self.original_line
         new_line.preamble = self.preamble
         new_line.had_line_endings = self.had_line_endings
         new_line.prelogin = self.prelogin
@@ -234,7 +276,9 @@ class NetworkDataLine(BaseRecord):
                 self.line = current_line
 
     def format(self, preamble: bool = False, color: str = "") -> None:
-        """Format the message."""
+        """Format the message. A locked line is already formatted, so this does nothing."""
+        if self._line_locked:
+            return
         if self.is_io:
             if self.internal:  # generated from the proxy
                 if self.preamble:
@@ -293,7 +337,7 @@ class NetworkDataLine(BaseRecord):
             self.line = f"{preamblecolor}{preambletext}@w: {self.line}"
 
 
-class NetworkData(TrackedUserList):
+class NetworkData(TrackedRecordMixin, TrackedList):
     """this is a base record of a list of NetworkDataLine records."""
 
     def __init__(
@@ -307,22 +351,48 @@ class NetworkData(TrackedUserList):
         if message is None:
             message = []
         if not isinstance(message, list):
-            message = [message]  # type: ignore
+            message = [message]  # type: ignore[list-item]
 
-        TrackedUserList.__init__(self, message, owner_id=owner_id)  # type: ignore
+        TrackedList.__init__(
+            self,
+            message,  # type: ignore[arg-type]
+            tracking_max_changes=MAX_CHANGES,
+            tracking_capture_stack=False,
+        )
+        self._init_record(owner_id)
+        self.api = API(owner_id=self.owner_id)
 
-        for item in self:
-            old_item = item
-            if not (isinstance(item, (NetworkDataLine, str, bytes))):
-                msg = f"item must be a NetworkDataLine object or a string, not {type(item)}"
-                raise TypeError(msg)
-            if isinstance(item, (str, bytes)):
-                converted_item = NetworkDataLine(item)
-                self[self.index(old_item)] = converted_item
-            else:
-                converted_item = item
-            converted_item.parent = self
-            converted_item.add_parent(self)
+    def _tracking_convert_item(self, value: Any, _location: Any = "") -> NetworkDataLine:
+        """Turn a stored value into a ``NetworkDataLine`` that has this list as its parent.
+
+        Every way of storing an item goes through here: construction, ``append``,
+        ``insert``, ``extend``, ``+=`` and ``__setitem__``, slices included.
+
+        Raises:
+            TypeError: If the value is not a line, str, bytes or bytearray.
+
+        """
+        if isinstance(value, (str, bytes, bytearray)):
+            value = NetworkDataLine(value)
+        elif not isinstance(value, NetworkDataLine):
+            msg = f"item must be a NetworkDataLine object or a string, not {type(value)} {value!r}"
+            raise TypeError(msg)
+        value.parent = self
+        value.add_parent(self)
+        return value
+
+    @property
+    def locked(self) -> bool:
+        """Whether the list refuses changes."""
+        return bool(self._tracking_locked)
+
+    def _monitored_fields(self) -> list[str]:
+        """A list has no monitored fields."""
+        return []
+
+    def _original_value(self, name: str) -> Any:
+        """A list has no monitored fields, so there is no original value."""
+        return None
 
     def get_first_line(self):
         """Get the first non-empty line from the network data.
@@ -347,54 +417,3 @@ class NetworkData(TrackedUserList):
     def one_line_summary(self):
         """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self)} {self.get_first_line()!r}"
-
-    def __setitem__(self, index, item: NetworkDataLine | str | bytes | bytearray):
-        """Set the item."""
-        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
-            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(msg)
-        if isinstance(item, (str, bytes, bytearray)):
-            item = NetworkDataLine(item)
-            item.parent = self
-            item.add_parent(self)
-        super().__setitem__(index, item)
-
-    def insert(self, index, item: NetworkDataLine | str | bytes | bytearray):
-        """Insert an item."""
-        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
-            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(msg)
-        if isinstance(item, (str, bytes, bytearray)):
-            item = NetworkDataLine(item)
-            item.parent = self
-            item.add_parent(self)
-        super().insert(index, item)
-
-    def append(self, item: NetworkDataLine | str | bytes | bytearray):
-        """Append an item."""
-        if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
-            msg = f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-            raise TypeError(msg)
-        if isinstance(item, (str, bytes, bytearray)):
-            item = NetworkDataLine(item)
-            item.parent = self
-            item.add_parent(self)
-        super().append(item)
-
-    def extend(self, items: list[NetworkDataLine | str | bytes | bytearray]):
-        """Extend the list."""
-        new_list = []
-        for item in items:
-            if not (isinstance(item, (NetworkDataLine, str, bytes, bytearray))):
-                msg = (
-                    f"item must be a NetworkDataLine object or a string, not {type(item)} {item!r}"
-                )
-                raise TypeError(msg)
-            if isinstance(item, (str, bytes, bytearray)):
-                converted_item = NetworkDataLine(item)
-            else:
-                converted_item = item
-            converted_item.parent = self
-            converted_item.add_parent(self)
-            new_list.append(converted_item)
-        super().extend(new_list)

@@ -16,6 +16,12 @@ make runs incomparable. Each benchmark therefore uses ``benchmark.pedantic``
 with fixed ``rounds`` and ``iterations=1``, keeping the records one test
 creates (rounds x ``DEFAULT_LINES``) well under that limit. Lines per round
 match the default ``max_lines_to_process`` of 15.
+
+Both records are built on pydatatracker (ADR-0006). The create and change benchmarks run
+under ``tracking_actor("bench")``, as the proxy does, and assert the ADR-0005 targets when
+benchmarks are enabled (``doit benchmark``): at most 50 us per line created and 20 us per
+change. A disabled run (``doit check``, CI tests) skips the assertion. The lock benchmark is
+informational.
 """
 
 from collections.abc import Callable, Iterator
@@ -25,10 +31,13 @@ import pytest
 
 from bastproxy.libs.api import API
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+from bastproxy.libs.records.tracking import tracking_actor
 
 DEFAULT_LINES = 15
 ROUNDS = 20
 CHANGE_ROUNDS = 200
+CREATE_TARGET_SECONDS = 50e-6  # per line created
+CHANGE_TARGET_SECONDS = 20e-6  # per change
 
 
 def _get_keys_from_dict(d: dict[Any, Any]) -> list[Any]:
@@ -94,9 +103,17 @@ def _build_network_data() -> NetworkData:
 @pytest.mark.benchmark
 def test_bench_networkdataline_create(benchmark: Any) -> None:
     """Benchmark creating DEFAULT_LINES NetworkDataLine records."""
-    result = benchmark.pedantic(_create_lines, rounds=ROUNDS, iterations=1)
+
+    def create() -> list[NetworkDataLine]:
+        with tracking_actor("bench"):
+            return _create_lines()
+
+    result = benchmark.pedantic(create, rounds=ROUNDS, iterations=1)
     assert len(result) == DEFAULT_LINES
     assert result[0].line == "line 0"
+    if not benchmark.disabled:
+        per_line = benchmark.stats.stats.median / DEFAULT_LINES
+        assert per_line <= CREATE_TARGET_SECONDS, f"{per_line * 1e6:.1f} us per line created"
 
 
 @pytest.mark.benchmark
@@ -108,12 +125,16 @@ def test_bench_networkdataline_attribute_change(benchmark: Any) -> None:
 
     def change() -> str | bytes | bytearray:
         state["n"] += 1
-        line.line = values[state["n"] % 2]
+        with tracking_actor("bench"):
+            line.line = values[state["n"] % 2]
         return line.line
 
     result = benchmark.pedantic(change, rounds=CHANGE_ROUNDS, iterations=1)
     assert result in values
     assert line.line_modified
+    if not benchmark.disabled:
+        median = benchmark.stats.stats.median
+        assert median <= CHANGE_TARGET_SECONDS, f"{median * 1e6:.1f} us per change"
 
 
 @pytest.mark.benchmark
@@ -130,3 +151,20 @@ def test_bench_networkdata_get_formatted_details(benchmark: Any, plugin_apis: No
     result = benchmark.pedantic(data.get_formatted_details, rounds=ROUNDS, iterations=1)
     assert result
     assert result[0].endswith("NetworkData")
+
+
+@pytest.mark.benchmark
+def test_bench_networkdataline_lock(benchmark: Any) -> None:
+    """Benchmark locking DEFAULT_LINES lines through their NetworkData (informational)."""
+    built = [_build_network_data() for _ in range(ROUNDS)]
+    pending = list(built)
+
+    def lock() -> None:
+        with tracking_actor("bench"):
+            pending.pop().lock()
+
+    benchmark.pedantic(lock, rounds=ROUNDS, iterations=1)
+    # A disabled benchmark (doit check) runs lock() once, an enabled one ROUNDS times.
+    done = built[len(pending) :]
+    assert done
+    assert all(data.locked for data in done)
