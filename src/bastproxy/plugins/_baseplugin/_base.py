@@ -10,13 +10,13 @@ import contextlib
 import datetime
 import inspect
 import pprint
-import types
 from pathlib import Path
 
 # 3rd Party
 # Project
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.records import LogRecord
+from bastproxy.libs.scan import find_methods
 
 from .libs._pluginhooks import RegisterPluginHook
 
@@ -121,19 +121,12 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
           {hook name: {priority: [functions]}} with priorities in ascending order
         """
         collected: dict = {}
-        for item in dir(obj):
-            if not item.startswith("_phook_"):
-                continue
-            try:
-                attr = getattr(obj, item)
-            except AttributeError:
-                continue
-            if not isinstance(attr, types.MethodType):
-                continue
-            hooks = getattr(attr, "plugin_hooks", None)
-            if not hooks:
-                continue
-            for hook_name, priority in hooks.items():
+        for attr in find_methods(
+            obj,
+            lambda m: bool(getattr(m, "plugin_hooks", None)),
+            name_filter=lambda n: n.startswith("_phook_"),
+        ):
+            for hook_name, priority in attr.plugin_hooks.items():
                 if plugin_hook is not None and hook_name != plugin_hook:
                     continue
                 collected.setdefault(hook_name, {}).setdefault(priority, []).append(attr)

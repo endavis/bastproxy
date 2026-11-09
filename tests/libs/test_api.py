@@ -703,6 +703,62 @@ class _RefusedOwner:
         return "inst"
 
 
+class _SelfGuardOwner:
+    """An owner holding a reference to the scanning API instance."""
+
+    def __init__(self, api: API) -> None:
+        self.the_api = api
+
+    @AddAPI("guard", description="Guard api")
+    def _api_guard(self) -> str:
+        """Guard API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "guard"
+
+
+class _MarkedAPI(API):
+    """An API subclass with a marked _api_ method, so the self-guard matters."""
+
+    @AddAPI("marked", description="Marked api")
+    def _api_marked(self) -> str:
+        """Marked API.
+
+        Returns:
+            A test string.
+
+        Raises:
+            None
+
+        """
+        return "marked"
+
+
+class TestGetApiFunctionsSelfGuard:
+    """The scan never recurses into the scanning API itself (#204)."""
+
+    def test_does_not_recurse_into_scanning_api(self) -> None:
+        """Only the owner's own _api_ method is found, none of API's."""
+        api = _MarkedAPI(owner_id="test_owner")
+        owner = _SelfGuardOwner(api)
+
+        found = api.get_api_functions_in_object(owner)
+
+        assert [m.__name__ for m in found] == ["_api_guard"]
+        assert all(m.__self__ is owner for m in found)
+
+    def test_recurse_false_on_self_returns_empty(self) -> None:
+        """A direct non-recursive scan of the API itself returns nothing."""
+        api = _MarkedAPI(owner_id="test_owner")
+        assert api.get_api_functions_in_object(api, recurse=False) == []
+
+
 class TestAddedinRefusedAdd:
     """Test that a refused add is not recorded in addedin (#209)."""
 
