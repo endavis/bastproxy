@@ -47,6 +47,10 @@ This is slice 1 of #43. The repo admin approved the split and the breaking chang
 - **One hook (7):** it replaces the constructor loop and four method overrides, and it also covers `+=` and slices, which the old class missed. It gives appended lines a parent, which closes the #47 gap for these two classes.
 - **Gate (10):** a target with no assertion fails nothing. The ADR-0005 text asks for the benchmark to measure the targets.
 
+## Dict records
+
+`BaseDictRecord` (`EventDataRecord`, `CmdArgsRecord`) is a `TrackedDict` with `TrackedRecordMixin` (#246). A value that is itself a record is stored without being linked as a pydatatracker child. pydatatracker links every tracked value a dict stores, and a link merges the locks of the two trees: with pydatatracker 0.2.0, a locked `NetworkData` stored in an unlocked `TrackedDict` became unlocked, and locking the dict locked the stored lines (probed during planning). Records already have their own record parents and locks, so the dict skips the link for them; a plain `TrackedDict` or `TrackedList` value is still linked. A record shared by several events keeps each of them in `parents` (`EventDataRecord.add_receiving_event`), which the record manager already lists under each parent.
+
 ## Consequences
 
 Measured with `uv run pytest tests/benchmarks/test_bench_networkdataline.py --benchmark-enable --benchmark-only` on the final code of this slice, Python 3.12.12, pydatatracker 0.2.0, one run. Medians:
@@ -71,7 +75,8 @@ ADR-0005 measured the old `NetworkDataLine` at 95.9 us to create and 42.2 us per
 ## Related Issues
 
 - #43 (replace the attribute monitor with pydatatracker; this is slice 1)
-- #246, #247, #248, #249 (slices 2 to 5)
+- #246 (slice 2: dict records, done), #247, #248, #249 (slices 3 to 5)
+- #230, #234 (addressed by #246)
 - #47, #48 (lock and in-place mutations, for these two classes)
 - #79 (ADR-0005)
 

@@ -46,15 +46,22 @@ class Event:
 ### EventDataRecord
 **Location**: `src/bastproxy/plugins/core/events/libs/data/_event.py`
 
-A data container for event arguments that extends `BaseDictRecord`:
+A data container for event arguments that extends `BaseDictRecord`, a pydatatracker `TrackedDict` with the record interface:
 
 ```python
 class EventDataRecord(BaseDictRecord):
     def __init__(self, owner_id: str = '', event_name: str = 'unknown',
                  data: dict | None = None):
-        BaseDictRecord.__init__(self, owner_id, data)
         self.event_name = event_name
+        self._received = False
+        BaseDictRecord.__init__(self, owner_id, data)
+
+    def add_receiving_event(self, raised) -> None: ...
 ```
+
+- `add_receiving_event(raised)`: the first event that receives the record becomes its `parent` and replaces the creating record in `parents`. Each later event is added to `parents`, and `parent` stays the first event. `ProcessRaisedEvent.__init__` calls it.
+- Every change to the data is logged. Once the record is locked, any write raises `RuntimeError`. Nothing in the bundled plugins locks an event data record.
+- `.data` no longer exists; use `dict(record)` for a plain copy.
 
 ### ProcessRaisedEvent
 **Location**: `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`

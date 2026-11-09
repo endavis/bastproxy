@@ -33,7 +33,7 @@ store keeps and what it costs, see [Record System Findings](record_system_findin
 | `BaseRecord` | `src/bastproxy/libs/records/rtypes/base.py` | Base of every record: identity, parent, updates, execution |
 | `TrackedUserList` | `src/bastproxy/libs/records/rtypes/base.py` | A list record whose main mutations are tracked (base of `NetworkData`) |
 | `BaseListRecord` | `src/bastproxy/libs/records/rtypes/base.py` | A list record with text helpers (base of `LogRecord`) |
-| `BaseDictRecord` | `src/bastproxy/libs/records/rtypes/base.py` | A dict record (base of `EventDataRecord`, `CmdArgsRecord`) |
+| `BaseDictRecord` | `src/bastproxy/libs/records/rtypes/dictrecord.py` | A dict record on pydatatracker `TrackedDict` (base of `EventDataRecord`, `CmdArgsRecord`). `base.py` re-exports it lazily |
 | `UpdateRecord` | `src/bastproxy/libs/records/rtypes/update.py` | One change or note on a record |
 | `UpdateManager` | `src/bastproxy/libs/records/managers/updates.py` | A record's updates |
 | `RecordManager` (`RMANAGER`) | `src/bastproxy/libs/records/managers/records.py` | Stores records, tracks the active record, answers tree queries |
@@ -61,7 +61,7 @@ class BaseRecord(AttributeMonitor):
 
 The owner ID is per class so that API stats stay bounded (#232); `uuid` is the record's identity.
 
-`BaseRecord` itself adds no update at creation. Subclasses usually do: `BaseListRecord` and `BaseDictRecord` add an `Info` "Init" update, and `TrackedUserList` and `NetworkDataLine` add a `Modify` "original input" update.
+`BaseRecord` itself adds no update at creation. Subclasses usually do: `BaseListRecord` adds an `Info` "Init" update, and `TrackedUserList` and `NetworkDataLine` add a `Modify` "original input" update.
 
 Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation time (`__lt__`). `BaseListRecord` lists `UserList` before `BaseRecord` among its bases, so it overrides `__eq__` and `__hash__` to use the `BaseRecord` versions: it too compares and hashes by UUID, not by content.
 
@@ -76,7 +76,7 @@ class UpdateRecord:
         self.flag = flag               # "Modify", "Set Flag" or "Info"
         self.action = action           # what happened
         self.extra = extra or {}       # details
-        self.data = data               # a copy of the record's data (BaseListRecord and BaseDictRecord only)
+        self.data = data               # a copy of the record's data (BaseListRecord only)
         self.stack = ...               # traceback.format_stack(limit=15)
         self.actor = ...               # see "How the actor is chosen"
         self.event_stack = ...         # the event names being processed
@@ -127,7 +127,7 @@ class RecordManager:
 
 **`BaseListRecord(UserList, BaseRecord)`** adds `message_type`, `internal`, `original_data` and text helpers: `clean()`, `color_lines()`, `add_line_endings()` and `replace()`. Its `addupdate()` takes `savedata` (default `True`) and stores a copy of the list with the update. `LogRecord` is the only subclass. None of the plain list methods (`append`, `extend`, `pop`, item assignment and so on) is tracked; only `replace()` and the helpers built on it add an update.
 
-**`BaseDictRecord(BaseRecord, UserDict)`** keeps `original_data`, and its `addupdate()` also takes `savedata`. Setting keys is not tracked; code that changes the dict records an update itself. `EventDataRecord` and `CmdArgsRecord` are dict records.
+**`BaseDictRecord(TrackedRecordMixin, TrackedDict)`** keeps `original_data`. Every mutation (set, `del`, `pop`, `popitem`, `update`, `clear`, `setdefault`, `|=`) adds a `Modify` update, and once the record is locked each of them raises `RuntimeError` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). `copy()` is a read and returns a plain `dict`. `track_record` is accepted and ignored, because dict records are never executed. A stored value that is itself a record (`NetworkData`, `NetworkDataLine`) is not linked as a pydatatracker child, so it keeps its own parents and lock; a plain `TrackedDict` or `TrackedList` value is linked and locked with the record. `.data` is gone. `EventDataRecord` and `CmdArgsRecord` are dict records.
 
 ## How It Works
 
@@ -168,7 +168,7 @@ record.status = "done"   # records "status attribute changed", if "status" is mo
 network_data.append("look")   # converted to a NetworkDataLine whose parent is network_data
 ```
 
-Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for `BaseListRecord` and `BaseDictRecord` records, a copy of the data. `NetworkData` updates carry no copy.
+Each update holds the flag, action and extra details, the time, the stack, the actor, the event stack and, for `BaseListRecord` records, a copy of the data. `NetworkData` and `BaseDictRecord` updates carry no copy.
 
 `NetworkDataLine` and `NetworkData` keep their changes in pydatatracker's change log instead. `updates` is a read-only list of `TrackedUpdate` views over the container's own entries (a child entry that pydatatracker re-homes onto the parent is left out). The actor is the context name set by `tracking_actor(...)`: the events plugin sets `<owner_id>:<callback name>` around each callback and the commands plugin sets `<plugin_id>:<command name>` around each command. It is empty on the raw network read path, which the details show as "Unknown". Stack capture is off. Each record keeps up to `MAX_CHANGES` (1000) entries. Pydatatracker's own entries use the actions `update`, `add` and `lock`, flagged `Modify`, or `Info` for `init`, `lock` and `unlock`.
 
@@ -191,7 +191,7 @@ MyRecord()()  # calling the record runs _exec_()
 
 `__call__` uses `try/finally`. If `_exec_()` raises, the record is still popped from the active stack and `executing` is cleared, so later records do not get it as their parent.
 
-`track_record=False` only skips the timer and the active-stack push, so records created inside it are not attributed to it. It does not reduce what is captured: the creation stack, the event stack and every update are still recorded. `LogRecord` and `CmdArgsRecord` use `track_record=False`.
+`track_record=False` only skips the timer and the active-stack push, so records created inside it are not attributed to it. It does not reduce what is captured: the creation stack, the event stack and every update are still recorded. `LogRecord` uses `track_record=False`; `CmdArgsRecord` passes it, but a dict record ignores it.
 
 ### 5. Retrieving records
 
@@ -267,7 +267,7 @@ When called, a `LogRecord` cleans and colors its lines, then calls the logger of
 
 ### Event records
 
-`Event.raise_event()` wraps the event arguments in an `EventDataRecord` and runs a `ProcessRaisedEvent` for them. The `ProcessRaisedEvent` is the active record while callbacks run, so records the callbacks create become its children. For events raised with `data_list`, the same `EventDataRecord` is reused and its `key_name` entry is set to each item in turn. Each invocation adds an `Info` "Invoked" update with a copy of the event data. If the caller passes an `EventDataRecord` instead of a dict, `ProcessRaisedEvent` makes itself that record's only parent, so a record passed to a second event moves to the second event's subtree. The triggers plugin does this with the data of `ev_to_client_data_modify`.
+`Event.raise_event()` wraps the event arguments in an `EventDataRecord` and runs a `ProcessRaisedEvent` for them. The `ProcessRaisedEvent` is the active record while callbacks run, so records the callbacks create become its children. For events raised with `data_list`, the same `EventDataRecord` is reused and its `key_name` entry is set to each item in turn. Each invocation adds an `Info` "Invoked" update with a copy of the event data. If the caller passes an `EventDataRecord` instead of a dict, `EventDataRecord.add_receiving_event` records the event: the first event becomes `parent` and replaces the creating record in `parents`, and every later event is added to `parents`. A record passed to a second event is therefore listed under both events by `RMANAGER.get_children`. The triggers plugin does this with the data of `ev_to_client_data_modify`.
 
 ## Attribute Monitoring
 
@@ -395,11 +395,11 @@ while current.parent:
 - **`NetworkDataLine` and `NetworkData` capture no stack and build no `API` per line.** Measured medians with `uv run pytest tests/benchmarks/test_bench_networkdataline.py --benchmark-enable --benchmark-only` (Python 3.12.12, one run): 18.0 us per line created (270.2 us per 15), 6.5 us per change, 26.7 us per line to build a `NetworkData`. The benchmark asserts the ADR-0005 targets of 50 us and 20 us. Locking a line records one entry per field: 70.2 us per line in the same run, with no target.
 - **Other records: creation and every update capture a formatted call stack** (10 frames per record, 15 per update). This is most of the cost of creating a record or changing a monitored attribute, and it is paid for every network line and log message.
 - **Every record and every update creates an `API` instance.**
-- **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. `BaseListRecord` and `BaseDictRecord` records store a copy of their data in each update. The cap counts records, not bytes, and a stored `NetworkData` or processing record keeps its lines alive after the line itself is evicted, so memory is bounded only when every type has reached the cap. See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
+- **Retention:** `RMANAGER` keeps the most recent `max_records` (5000) records of each type, and each record keeps up to 1000 updates. `BaseListRecord` records store a copy of their data in each update; `BaseDictRecord` updates do not. The cap counts records, not bytes, and a stored `NetworkData` or processing record keeps its lines alive after the line itself is evicted, so memory is bounded only when every type has reached the cap. See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
 - **Inspecting adds records:** every line printed by the records commands is a `NetworkDataLine`, so a long listing can push older records out of the store.
 - **Tree queries scan every stored record** at each level of the tree.
 - **`track_record=False` does not reduce this cost.** It only skips the execution timer and the active-stack push.
-- **`savedata=False`** (on `BaseListRecord.addupdate` and `BaseDictRecord.addupdate` only) skips the data copy for one update. `BaseRecord.addupdate()` does not accept it.
+- **`savedata=False`** (on `BaseListRecord.addupdate` only, and accepted and ignored by the tracked records) skips the data copy for one update. `BaseRecord.addupdate()` does not accept it.
 
 #43 replaces the tracking with pydatatracker in slices. This slice covers `NetworkDataLine` and `NetworkData`; #246 to #249 cover the rest.
 
