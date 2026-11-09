@@ -214,7 +214,12 @@ class Event:
         return message
 
     def reset_event(self):
-        """Reset the event."""
+        """Reset the event.
+
+        Also clears current_callback so the callback that ran last on one
+        item of a multi-item raise is not skipped on the next item (#252).
+        """
+        self.current_callback = None
         for priority in self.priority_dictionary:
             for call_back in self.priority_dictionary[priority]:
                 self.priority_dictionary[priority][call_back] = False

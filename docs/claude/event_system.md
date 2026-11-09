@@ -27,7 +27,7 @@ The `Event` class is the core of the event system. Each event has:
 - **arg_descriptions**: Dictionary of argument names and their descriptions
 - **priority_dictionary**: Maps priorities to registered callbacks
 - **raised_count**: Number of times the event has been raised
-- **current_callback**: The currently executing callback; cleared when the raise finishes, so an unloaded plugin is not kept alive
+- **current_callback**: The currently executing callback; cleared by `reset_event()` after each item of a raise (so with `data_list`, every callback runs for every item) and when the raise finishes, so an unloaded plugin is not kept alive
 - **active_event**: The currently active ProcessRaisedEvent instance
 
 ```python
