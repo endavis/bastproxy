@@ -23,6 +23,7 @@ from bastproxy.libs.records import (
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
 )
+from bastproxy.libs.scan import find_methods
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
@@ -326,24 +327,11 @@ class CommandsPlugin(BasePlugin):
 
         and it's attributes.
         """
-        function_list = []
-        for item in dir(base):
-            if item.startswith("__"):
-                continue
-            try:
-                attr = getattr(base, item)
-            except AttributeError:
-                continue
-            if (
-                isinstance(attr, types.MethodType)
-                and attr.__name__.startswith("_command_")
-                and hasattr(attr, "command_data")
-            ):
-                function_list.append(attr)
-            elif recurse:
-                function_list.extend(self.get_command_functions_in_object(attr, recurse=False))
-
-        return function_list
+        return find_methods(
+            base,
+            lambda m: m.__name__.startswith("_command_") and hasattr(m, "command_data"),
+            recurse=recurse,
+        )
 
     @AddAPI("command.add.by.func", description="add a command based on a decorated function")
     def _api_command_add_by_func(self, func, force=False):

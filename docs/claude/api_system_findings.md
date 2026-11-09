@@ -600,6 +600,12 @@ diff them line by line.
 **Fix:** One helper in `libs` that yields `(name, attr)` pairs for bound methods and takes the
 predicate, used by the four. Low priority; do it with AS-2, which already touches the scan.
 
+**Fixed in #204:** `bastproxy.libs.scan.find_methods` walks `dir()`, skips `__` names, swallows
+only `AttributeError` from `getattr`, and keeps bound methods that pass a predicate. The API,
+events and commands scans and `BasePlugin._collect_plugin_hook_functions` (which
+`_get_plugin_hook_functions` calls) use it. Each keeps its own filter, return shape and the API's
+self-recursion guard. The text above describes the code before the fix.
+
 ---
 
 ## Other Observations

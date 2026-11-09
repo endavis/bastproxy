@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from bastproxy.libs.exceptions import APINotFoundError
+from bastproxy.libs.scan import find_methods
 
 from ._apiitem import APIItem
 
@@ -328,24 +329,12 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         if not recurse and base == self:
             return []
-        functions: list = []
-        for item in dir(base):
-            if item.startswith("__"):
-                continue
-            try:
-                attr = getattr(base, item)
-            except AttributeError:
-                continue
-            if (
-                isinstance(attr, types.MethodType)
-                and attr.__name__.startswith("_api_")
-                and hasattr(attr, "api")
-            ):
-                functions.append(attr)
-            elif recurse:
-                functions.extend(self.get_api_functions_in_object(attr, recurse=False))
-
-        return functions
+        return find_methods(
+            base,
+            lambda m: m.__name__.startswith("_api_") and hasattr(m, "api"),
+            recurse=recurse,
+            descend_into=lambda attr: attr != self,
+        )
 
     def add_events(self) -> None:
         """Add events related to the character's active state.

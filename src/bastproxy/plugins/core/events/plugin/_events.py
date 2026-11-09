@@ -5,13 +5,11 @@
 #
 # By: Bast
 
-# Standard Library
-import types
-
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.records import LogRecord
+from bastproxy.libs.scan import find_methods
 from bastproxy.libs.stack import SimpleStack
 
 # 3rd Party
@@ -145,26 +143,11 @@ class EventsPlugin(BasePlugin):
 
         and it's attributes.
         """
-        function_list = []
-        for item in dir(base):
-            if item.startswith("__"):
-                continue
-            try:
-                attr = getattr(base, item)
-            except AttributeError:
-                continue
-            if (
-                isinstance(attr, types.MethodType)
-                and attr.__name__.startswith("_eventcb_")
-                and hasattr(attr, "event_registration")
-            ):
-                function_list.append(attr)
-            elif recurse:
-                function_list.extend(
-                    self.get_event_registration_functions_in_object(attr, recurse=False)
-                )
-
-        return function_list
+        return find_methods(
+            base,
+            lambda m: m.__name__.startswith("_eventcb_") and hasattr(m, "event_registration"),
+            recurse=recurse,
+        )
 
     @AddAPI(
         "event.register.by.func",
