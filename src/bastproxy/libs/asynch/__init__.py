@@ -47,6 +47,7 @@ from typing import Optional
 # 3rd Party
 # Project
 from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.context import fresh_context
 from bastproxy.libs.logger import get_logger
 
 logger = get_logger(__name__)
@@ -179,9 +180,9 @@ class TaskItem:
         if loop is None:
             loop = asyncio.get_running_loop()
         if self.name:
-            self.task = loop.create_task(self.coroutine, name=self.name)
+            self.task = loop.create_task(self.coroutine, name=self.name, context=fresh_context())
         else:
-            self.task = loop.create_task(self.coroutine)
+            self.task = loop.create_task(self.coroutine, context=fresh_context())
         self.task.add_done_callback(functools.partial(_handle_task_result, message=message))
         logger.debug("(Task) %s : %s", self.name, self.task)
         if self.startstring:

@@ -17,6 +17,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.context import get_command_args
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
@@ -441,7 +442,7 @@ class CommandsPlugin(BasePlugin):
     )
     def _api_command_current_args_get(self):
         """Get the current command args."""
-        return self.current_command.current_args if self.current_command else {}
+        return get_command_args()
 
     @AddAPI("command.current.set", description="set the currently executing command")
     def _api_command_current_set(self, command):

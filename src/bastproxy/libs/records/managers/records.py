@@ -13,8 +13,8 @@ from typing import Any
 # 3rd Party
 # Project
 from bastproxy.libs.api import API as BASEAPI
+from bastproxy.libs.context import active_records
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.stack import SimpleStack
 
 logger = get_logger(__name__)
 
@@ -42,10 +42,10 @@ class RecordManager:
         """
         self.max_trees: int = DEFAULT_MAX_TREES
         self.max_changes: int = DEFAULT_MAX_CHANGES
+        self.capture_stacks: bool = False
         self.records: dict[str, dict[str, Any]] = {}
         self.api = BASEAPI(owner_id="libs.records.managers.records")
         self.record_instances: dict[str, Any] = {}
-        self.active_record_stack = SimpleStack()
         self._roots_since_prune: int = 0
 
     def set_max_trees(self, value: int) -> None:
@@ -77,44 +77,61 @@ class RecordManager:
             changes = 0
         self.max_changes = changes
 
+    def set_capture_stacks(self, value: bool) -> None:
+        """Set whether new records capture call stacks.
+
+        Records that already exist keep what they captured.
+
+        Args:
+            value: True to capture the call stack of each record and update.
+
+        """
+        self.capture_stacks = bool(value)
+
     def start(self, record):
-        """Start tracking a new active record by pushing it onto the stack.
+        """Make ``record`` the innermost active record in the current context.
 
         Args:
             record: The record to mark as active.
 
         """
-        self.active_record_stack.push(record)
+        active_records.set((*active_records.get(), record))
 
     def end(self, record):
-        """End tracking an active record by removing it from the stack.
+        """Remove ``record`` from the active records of the current context.
+
+        Call it in a ``finally`` after ``start``, from the same context.
 
         Args:
-            record: The record to remove from the active stack.
+            record: The record to remove from the active records.
 
         """
-        if record != self.active_record_stack.peek():
+        current = active_records.get()
+        if not current or record != current[-1]:
             logger.warning(
                 "RecordManger end: Record %s is not the same as the active record %s",
                 record,
-                self.active_record_stack.peek(),
+                current[-1] if current else None,
             )
-            self.active_record_stack.remove(record)
-        else:
-            self.active_record_stack.pop()
-        if self.active_record_stack.isempty() and self._roots_since_prune >= max(
-            1, self.max_trees // 10
-        ):
+        # remove the innermost occurrence, which is the last one
+        remaining = list(current)
+        for index in range(len(remaining) - 1, -1, -1):
+            if remaining[index] == record:
+                del remaining[index]
+                break
+        active_records.set(tuple(remaining))
+        if not remaining and self._roots_since_prune >= max(1, self.max_trees // 10):
             self.prune()
 
     def get_latest_record(self):
-        """Get the currently active record from the top of the stack.
+        """Get the innermost active record.
 
         Returns:
-            The most recently started record, or None if stack is empty.
+            The most recently started record, or None if no record is executing.
 
         """
-        return self.active_record_stack.peek()
+        records = active_records.get()
+        return records[-1] if records else None
 
     def get_children(self, record, record_filter=None):
         """Get all direct children of a record.
@@ -300,7 +317,7 @@ class RecordManager:
 
         protected: set[str] = set()
         active: set[str] = set()
-        for rec in self.active_record_stack.items:
+        for rec in active_records.get():
             stack = [rec]
             while stack:
                 node = stack.pop()

@@ -7,7 +7,6 @@ import pytest
 from bastproxy.libs.api._apistats import STATS_MANAGER
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
-from bastproxy.libs.records.rtypes.update import UpdateRecord
 
 PREFIXES = ("UpdateRecord", "NetworkDataLine", "StatsProbe")
 
@@ -60,29 +59,18 @@ def test_explicit_owner_id_is_kept() -> None:
     assert BaseRecord(owner_id="plugins.x").owner_id == "plugins.x"
 
 
-def test_networkdata_and_update_owner() -> None:
+def test_networkdata_owner() -> None:
     line = NetworkDataLine("a")
     assert line.owner_id == "NetworkDataLine"
-    update = UpdateRecord(line, "flag", "action")
-    assert update.api.owner_id == "UpdateRecord"
 
 
-def test_update_record_stats_grouped() -> None:
-    def counts() -> tuple[int, int]:
-        item = STATS_MANAGER.stats.get("libs.api:api.exists")
-        if item is None:
-            return (0, 0)
-        return (
-            item.calls_by_caller.get("UpdateRecord", 0),
-            item.detailed_calls.get("UpdateRecord", 0),
-        )
+def test_addupdate_makes_no_api_call() -> None:
+    def total_calls() -> int:
+        return sum(item.count for item in STATS_MANAGER.stats.values())
 
-    before = counts()
-    n = 5
-    for _ in range(n):
-        StatsProbe().addupdate("Info", "x")
-    after = counts()
-    assert after[0] - before[0] >= n
-    assert after[1] - before[1] >= n
-    item = STATS_MANAGER.stats["libs.api:api.exists"]
-    assert [k for k in item.detailed_calls if k.startswith("UpdateRecord")] == ["UpdateRecord"]
+    record = StatsProbe()
+    before = total_calls()
+    for _ in range(5):
+        record.addupdate("Info", "x")
+    assert total_calls() == before
+    assert len(record.updates) == 5

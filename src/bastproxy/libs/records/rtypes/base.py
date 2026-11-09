@@ -8,33 +8,62 @@
 
 # Standard Library
 import datetime
+import inspect
 import pprint
 import traceback
-from collections import UserList
-from typing import TYPE_CHECKING, Any, ClassVar
+from collections import deque
+from types import FrameType
+from typing import Any, ClassVar
 from uuid import uuid4
 
 # 3rd Party
 # Project
+from pydatatracker.types.actor import current_actor
+from pydatatracker.utils.changelog import ChangeLogEntry
+
 from bastproxy.libs.api import API
+from bastproxy.libs.context import event_stack
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.managers.records import RMANAGER
-from bastproxy.libs.records.managers.updates import UpdateManager
-from bastproxy.libs.records.rtypes.update import UpdateRecord
-from bastproxy.libs.tracking.utils.attributes import AttributeMonitor
+from bastproxy.libs.records.rtypes.update import (
+    EVENT_STACK_SEPARATOR,
+    RESERVED_KEYS,
+    TrackedUpdate,
+)
 
 logger = get_logger(__name__)
 
-if TYPE_CHECKING:
-    pass
+# Stack frames kept when stack capture is on.
+CREATION_STACK_LIMIT = 10
+UPDATE_STACK_LIMIT = 15
+
+_RECORDS_PACKAGE = "bastproxy.libs.records"
+
+
+def _caller_actor() -> str:
+    """Name the innermost caller outside the records package, as ``module:function``.
+
+    This is the actor for an update made with no tracking actor set, such as on the MUD and
+    client data paths. It walks frame objects only, so it costs far less than formatting a
+    stack.
+    """
+    current = inspect.currentframe()
+    frame: FrameType | None = current.f_back if current else None
+    while frame is not None:
+        module = str(frame.f_globals.get("__name__", ""))
+        if module != _RECORDS_PACKAGE and not module.startswith(f"{_RECORDS_PACKAGE}."):
+            return f"{module}:{frame.f_code.co_name}"
+        frame = frame.f_back
+    return ""
 
 
 class RecordDisplayMixin:
     """Display code shared by every record class.
 
     The two hooks ``_monitored_fields`` and ``_original_value`` and the creation-info hook
-    ``_format_creation_info`` let ``BaseRecord`` (on ``AttributeMonitor``) and the
-    pydatatracker-backed records format the same way.
+    ``_format_creation_info`` let ``BaseRecord`` and the pydatatracker-backed records format
+    the same way. A class provides ``updates``, a list of ``TrackedUpdate``; the shared
+    ``get_update`` and ``get_all_updates`` build on it.
     """
 
     column_width: int = 15
@@ -50,6 +79,30 @@ class RecordDisplayMixin:
     def _format_creation_info(self) -> list[str]:
         """Return the detail lines that describe how the record was created."""
         return []
+
+    def get_all_updates(self, update_filter=None) -> list[Any]:
+        """Get the updates of this record and all of its child records, in time order."""
+        update_filter = update_filter or []
+        updates: list[Any] = []
+        for record in RMANAGER.get_all_children_list(self, record_filter=update_filter):
+            updates.extend(
+                update
+                for update in record.updates
+                if update.parent.__class__.__name__ not in update_filter
+            )
+        updates.extend(self.updates)  # type: ignore[attr-defined]
+        return sorted(set(updates))
+
+    def get_update(self, uuid: str) -> Any:
+        """Get an update by uuid: one of this record's own, then one of its children's."""
+        for update in self.updates:  # type: ignore[attr-defined]
+            if update.uuid == uuid:
+                return update
+        for child in RMANAGER.get_all_children_list(self):
+            for update in child.updates:
+                if update.uuid == uuid:
+                    return update
+        return None
 
     def get_attributes_to_format(self):
         """Attributes to format in the details.
@@ -165,13 +218,15 @@ class RecordDisplayMixin:
         return msg
 
 
-class BaseRecord(RecordDisplayMixin, AttributeMonitor):
-    """Base class for all record types with tracking and monitoring.
+class BaseRecord(RecordDisplayMixin):
+    """Base class for the processing records.
 
-    This class provides common functionality for all record types including
-    unique identification, parent-child relationships, attribute monitoring,
-    and update tracking.
+    A plain tree node: a unique id, a parent and parents, execution timing and a capped list
+    of updates. It watches no attributes and intercepts no assignments. Each update is a
+    pydatatracker ``ChangeLogEntry`` made by ``addupdate``, and the context (the actor, the
+    event stack) comes from context variables, so recording one makes no API call.
 
+    Call stacks are captured only while ``RMANAGER.capture_stacks`` is on.
     """
 
     # A parentless record of this class starts a root tree that the records manager counts
@@ -180,8 +235,6 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
 
     def __init__(self, owner_id: str = "", track_record=True, parent=None):
         """Initialize the class."""
-        AttributeMonitor.__init__(self)
-        self._attributes_to_monitor.append("parents")
         # create a unique id for this message
         self.uuid = uuid4().hex
         # The owner id is per class, not per record, so API stats stay bounded (#232).
@@ -190,16 +243,14 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
         # Add an API
         self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.UTC)
-        self.updates = UpdateManager()
+        self._updates: deque[ChangeLogEntry] = deque(maxlen=RMANAGER.max_changes)
         self.execute_time_taken = -1
         self.track_record = track_record
         self.column_width = 15
-        stack = traceback.format_stack(limit=10)
-        self.stack_at_creation = self.fix_stack(stack)
-        if self.api("libs.api:api.exists")("plugins.core.events:event.stack.get"):
-            self.event_stack = self.api("plugins.core.events:event.stack.get")()
-        else:
-            self.event_stack = ["No event stack available"]
+        self.stack_at_creation: list[str] = (
+            self._format_stack(CREATION_STACK_LIMIT) if RMANAGER.capture_stacks else []
+        )
+        self.event_stack: tuple[str, ...] = event_stack.get()
 
         if not parent:
             parent = RMANAGER.get_latest_record()
@@ -210,6 +261,14 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
 
         RMANAGER.add(self)
         self.executing = False
+
+    @staticmethod
+    def _format_stack(limit: int) -> list[str]:
+        """Return the current call stack as a list of lines, without this helper's own frame."""
+        lines: list[str] = []
+        for frame in traceback.format_stack(limit=limit + 1)[:-1]:
+            lines.extend(line for line in frame.splitlines() if line)
+        return lines
 
     def add_parent(self, parent, reset=False):
         """Add a parent to this record."""
@@ -260,21 +319,6 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
         """
         return self.created < other.created
 
-    def _am_locked_attribute_update(self, name, value):
-        """Called when a locked attribute is attempted to be updated."""
-        self.addupdate(
-            "Info",
-            f"Attempted to update a locked attribute {name} with value '{value}'",
-        )
-
-    def _am_onchange__all(self, name, original_value, new_value):
-        """Track changes to attributes, works in conjunction with the AttributeMonitor class."""
-        self.addupdate(
-            "Modify",
-            f"{name} attribute changed",
-            extra={"original": original_value, "new": new_value},
-        )
-
     def one_line_summary(self):
         """Get a one line summary of the record."""
         if self.execute_time_taken > 0:
@@ -282,71 +326,64 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
     def addupdate(self, flag: str, action: str, extra: dict | None = None):
-        """Add a change event for this record.
+        """Add an update for this record.
 
             flag: one of 'Modify', 'Set Flag', 'Info'
             action: a description of what was changed
-            actor: the item that changed the message (likely a plugin)
             extra: any extra info about this change
-        a message should create a change event at the following times:
+        The actor is the current tracking actor or, with none set, the innermost caller
+        outside the records package. The event stack is the events being raised.
+        The call stack is captured only while ``RMANAGER.capture_stacks`` is on.
+        a message should create an update at the following times:
             when it is created
             after modification
             when it ends up at it's destination.
         """
-        change = UpdateRecord(self, flag, action, extra=extra)
+        kwargs = {
+            (f"extra_{key}" if key in RESERVED_KEYS else key): value
+            for key, value in (extra or {}).items()
+        }
+        if stack := event_stack.get():
+            kwargs["event_stack"] = EVENT_STACK_SEPARATOR.join(stack)
+        entry = ChangeLogEntry(
+            self.uuid,
+            capture_stack=False,
+            actor=current_actor.get() or _caller_actor(),
+            action=action,
+            flag=flag,
+            **kwargs,
+        )
+        if RMANAGER.capture_stacks:
+            entry.stack = self._format_stack(UPDATE_STACK_LIMIT)
+        self._updates.append(entry)
 
-        self.updates.add(change)
-
-    def get_all_updates(self, update_filter=None) -> list[UpdateRecord]:
-        """Get all updates for this record."""
-        updates = []
-        update_filter = update_filter or []
-        for record in RMANAGER.get_all_children_list(self, record_filter=update_filter):
-            updates.extend(
-                update
-                for update in record.updates
-                if update.parent.__class__.__name__ not in update_filter
-            )
-        updates.extend(self.updates)
-        return sorted(set(updates))
-
-    def get_update(self, uuid):
-        """Get the last update for this record."""
-        if record := self.updates.get_update(uuid):
-            return record
-
-        for child_record in RMANAGER.get_all_children_list(self.uuid):
-            if child_record.updates.get_update(uuid):
-                return record
-        return None
-
-    def fix_stack(self, stack):
-        """Turn the stack into a list of lines."""
-        new_stack = []
-        for line in stack:
-            new_stack.extend([nline for nline in line.splitlines() if nline])
-        return new_stack
+    @property
+    def updates(self) -> list[TrackedUpdate]:
+        """A view of this record's own updates, oldest first."""
+        return [TrackedUpdate(self, entry) for entry in self._updates]
 
     def _monitored_fields(self) -> list[str]:
-        """Return the names of the monitored fields to show in the details."""
-        return list(self._attributes_to_monitor)
+        """Return the names of the monitored fields to show in the details, none."""
+        return []
 
     def _original_value(self, name: str) -> Any:
-        """Return the value a monitored field had when it was first set."""
-        return self._am_get_original_value(name)
+        """Return the value a monitored field had when it was first set, none are monitored."""
+        return None
 
     def _format_creation_info(self) -> list[str]:
         """Return the event stack and call stack the record was created under."""
-        return [
+        lines = [
             "Event Stack at Creation :",
             *[f"    {event}" for event in self.event_stack],
-            "Call Stack at Creation :",
-            *[f"    {line}" for line in self.stack_at_creation if line],
         ]
-
-    def check_for_change(self, flag: str, action: str):
-        """Check if there is a change with the given flag and action."""
-        return any(update["flag"] == flag and update["action"] == action for update in self.updates)
+        if self.stack_at_creation:
+            lines.append("Call Stack at Creation :")
+            lines.extend(f"    {line}" for line in self.stack_at_creation)
+        else:
+            lines.append(
+                "Call Stack at Creation : not captured (set capture_stacks in plugins.debug.records)"
+            )
+        return lines
 
     # def __str__(self):
     #     return f"{self.__class__.__name__}:{self.uuid})"
@@ -387,276 +424,6 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
             self.addupdate("Info", f"{self.__class__.__name__} _exec_ finish")
         finally:
             self.executing = False
-
-
-class TrackedUserList(BaseRecord, UserList):
-    """this is a Userlist whose updates are tracked."""
-
-    def __init__(self, data: list | None = None, owner_id: str = ""):
-        """Initialize the class."""
-        if data is None:
-            data = []
-        UserList.__init__(self, data)
-        BaseRecord.__init__(self, owner_id, track_record=False)
-        self.locked = False
-        self.addupdate("Modify", "original input", extra={"data": f"{data!r}"})
-
-    def one_line_summary(self):
-        """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {repr(self[0]) if len(self) > 1 else 'No data found'}"
-
-    def lock(self):
-        """Lock the data list to prevent modifications."""
-        self.locked = True
-        self._am_lock_attribute("data")
-
-    def get_attributes_to_format(self):
-        """Get the attributes to include when formatting this data list.
-
-        Returns:
-            Dictionary mapping section numbers to attribute lists.
-
-        """
-        attributes = super().get_attributes_to_format()
-        attributes[2].append(("Data", "data"))
-
-        return attributes
-
-    def __setitem__(self, index, item):
-        """Set the item."""
-        if self.locked:
-            self.addupdate(
-                "Info",
-                f"Attempted to update a locked data list at index {index} with value '{item!r}'",
-            )
-            return
-        super().__setitem__(index, item)
-        self.addupdate("Modify", f"set item at position {index}", extra={"item": f"{item!r}"})
-
-    def insert(self, index, item):
-        """Insert an item."""
-        if self.locked:
-            self.addupdate(
-                "Info",
-                f"Attempted to insert into a locked data list at index {index} with value '{item!r}'",
-            )
-            return
-        super().insert(index, item)
-        self.addupdate(
-            "Modify",
-            f"inserted item into position {index}",
-            extra={"item": f"{item!r}"},
-        )
-
-    def append(self, item):
-        """Append an item."""
-        if self.locked:
-            self.addupdate(
-                "Info",
-                f"Attempted to append to a locked data list at index with value '{item!r}'",
-            )
-            return
-        super().append(item)
-        self.addupdate(
-            "Modify",
-            f"Appended item into position {len(self) - 1}",
-            extra={"item": f"{item!r}"},
-        )
-
-    def extend(self, items: list):
-        """Extend the list."""
-        if self.locked:
-            self.addupdate(
-                "Info",
-                f"Attempted to extend a locked data list '{[repr(item) for item in items]}'",
-            )
-            return
-        super().extend(items)
-        self.addupdate(
-            "Modify",
-            "extended list",
-            extra={"added_list": f"{[repr(item) for item in items]}"},
-        )
-
-
-class BaseListRecord(UserList, BaseRecord):
-    """Base class for list-based records with tracking.
-
-    Combines Python's UserList with BaseRecord to provide a list that tracks
-    changes and supports record management features.
-
-    """
-
-    def __init__(
-        self,
-        message: list[str | bytes] | list[str] | list[bytes] | str | bytes,
-        message_type: str = "IO",
-        internal: bool = True,
-        owner_id: str = "",
-        track_record=True,
-    ):
-        """Initialize the class."""
-        if not isinstance(message, list):
-            message = [message]
-        UserList.__init__(self, message)
-        BaseRecord.__init__(self, owner_id, track_record=track_record)
-        # This is a flag to determine if this message is internal or not
-        self.internal = internal
-        # This is the message id, see the derived classes for more info
-        self.message_type: str = message_type
-        # This is a flag to prevent the message from being sent to the client more than once
-        self.sending = False
-        # copy the original data
-        self.original_data = message[:]
-        self.addupdate("Info", "Init", savedata=True)
-
-    def __eq__(self, other: object) -> bool:
-        """Compare by UUID, like every other record, not by list contents.
-
-        UserList is first in the MRO, so without this its content-based
-        ``__eq__`` would win over ``BaseRecord.__eq__``.
-
-        Args:
-            other: The object to compare with.
-
-        Returns:
-            True if other is a record with the same UUID, False otherwise.
-
-        """
-        return BaseRecord.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        """Hash by class name and UUID (UserList sets ``__hash__`` to None).
-
-        Returns:
-            Hash value for the record.
-
-        """
-        return BaseRecord.__hash__(self)
-
-    def one_line_summary(self):
-        """Get a one line summary of the record."""
-        if len(self.original_data) == 1 and not self.original_data[0].strip():
-            first_str = self.original_data[0]
-        else:
-            first_str = ""
-            index = 0
-            while not first_str and index < len(self.original_data):
-                first_str = self.original_data[index]
-                index += 1
-
-        return f"{self.__class__.__name__:<20} {self.uuid} {first_str!r}"
-
-    def get_attributes_to_format(self):
-        """Get the attributes to include when formatting this list record.
-
-        Returns:
-            Dictionary mapping section numbers to attribute lists.
-
-        """
-        attributes = super().get_attributes_to_format()
-        attributes[0].extend([("Internal", "internal"), ("Message Type", "message_type")])
-        attributes[2].append(("Data", "data"))
-        if self.original_data != self.data:
-            attributes[2].append(("Original Data", "original_data"))
-
-        return attributes
-
-    @property
-    def is_command_telnet(self):
-        """A shortcut property to determine if this message is a Telnet Opcode."""
-        return self.message_type == "COMMAND-TELNET"
-
-    @property
-    def is_io(self):
-        """A shortcut property to determine if this message is normal I/O."""
-        return self.message_type == "IO"
-
-    def add_line_endings(self, actor=""):
-        """Add line endings to the message."""
-        new_message = [f"{item}\r\n" for item in self.data]
-        self.replace(
-            new_message,
-            f"{actor}:add_line_endings",
-            extra={"msg": "add line endings to each item"},
-        )
-
-    def replace(self, data, actor="", extra: dict | None = None):
-        """Replace the data in the message."""
-        if not isinstance(data, list):
-            data = [data]
-        if data != self.data:
-            self.data = data
-            self.addupdate("Modify", "replace", extra=extra, savedata=True)
-
-    def color_lines(self, color: str, actor=""):
-        """Color the message and convert all colors to ansicodes.
-
-        color is the color for all lines
-
-        actor is the item that ran the color function
-        """
-        new_message: list[str] = []
-        if not self.api("libs.api:api.exists")("plugins.core.colors:colorcode.to.ansicode"):
-            return
-        for line in self.data:
-            colored_line = line
-            if color:
-                if "@w" in line:
-                    line_list = line.split("@w")
-                    new_line_list = []
-                    for item in line_list:
-                        if item:
-                            new_line_list.append(f"{color}{item}")
-                        else:
-                            new_line_list.append(item)
-                    colored_line = f"@w{color}".join(new_line_list)
-                if colored_line:
-                    colored_line = f"{color}{colored_line}@w"
-            new_message.append(self.api("plugins.core.colors:colorcode.to.ansicode")(colored_line))
-
-        self.replace(
-            new_message,
-            actor=f"{actor}:color_lines",
-            extra={"msg": "convert color codes to ansi codes on each item"},
-        )
-
-    def clean(self, actor: str = ""):
-        """Clean the message.
-
-        actor is the item that ran the clean function
-
-        converts it to a string
-        splits it on a newline
-        removes newlines and carriage returns from the end of the line
-        """
-        new_message: list[str] = []
-        for line in self.data:
-            decoded_line = line
-            if isinstance(line, bytes):
-                decoded_line = line.decode("utf-8")
-            if isinstance(decoded_line, str):
-                new_message.extend(decoded_line.splitlines() if decoded_line else [""])
-            else:
-                logger.error("clean - %s Message.clean: line is not a string: %s", self.uuid, line)
-        self.replace(new_message, actor=f"{actor}:clean", extra={"msg": "clean each item"})
-
-    def addupdate(self, flag: str, action: str, extra: dict | None = None, savedata: bool = True):
-        """Add a change event for this record.
-
-            flag: one of 'Modify', 'Set Flag', 'Info'
-            action: a description of what was changed
-            actor: the item that changed the message (likely a plugin)
-            extra:  a dict of any extra info about this change
-        a message should create a change event at the following times:
-            when it is created
-            after modification
-            when it ends up at it's destination.
-        """
-        data = self.data[:] if savedata else None
-        change = UpdateRecord(self, flag, action, extra, data)
-
-        self.updates.add(change)
 
 
 def __getattr__(name: str) -> Any:

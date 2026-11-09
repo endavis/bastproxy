@@ -250,7 +250,6 @@ module = [
     "rapidfuzz.*",
     "regex",
     "psutil",
-    "pydatatracker",
     "yaml",
 ]
 ignore_missing_imports = true

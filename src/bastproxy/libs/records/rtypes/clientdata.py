@@ -12,6 +12,7 @@
 
 # Project
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.records.events import TO_CLIENT_DATA_MODIFY, TO_CLIENT_DATA_READ
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData
 
@@ -27,7 +28,8 @@ class ProcessDataToClient(BaseRecord):
     The message format is a NetworkData object
     """
 
-    _SETUP_EVENTS = False
+    MODIFY_EVENT = TO_CLIENT_DATA_MODIFY
+    READ_EVENT = TO_CLIENT_DATA_READ
 
     def __init__(
         self,
@@ -59,12 +61,10 @@ class ProcessDataToClient(BaseRecord):
         self.exclude_clients: list[str] = exclude_clients or []
         # This will set the color for all lines to the specified @ color
         self.color_for_all_lines: str = color_for_all_lines or ""
-        self.modify_data_event_name = "ev_to_client_data_modify"
-        self.read_data_event_name = "ev_to_client_data_read"
+        self.modify_data_event_name = self.MODIFY_EVENT
+        self.read_data_event_name = self.READ_EVENT
 
         self.sending = False
-
-        self.setup_events()
 
     def get_attributes_to_format(self):
         """Get the attributes to format for display.
@@ -86,17 +86,6 @@ class ProcessDataToClient(BaseRecord):
             ]
         )
         return attributes
-
-    def setup_events(self):
-        """Set up the events for this record type."""
-        if not ProcessDataToClient._SETUP_EVENTS:
-            ProcessDataToClient._SETUP_EVENTS = True
-            self.api("plugins.core.events:event.add")(
-                self.modify_data_event_name,
-                __name__,
-                description=["An event to modify data before it is sent to the client"],
-                arg_descriptions={"line": "The line to modify, a NetworkDataLine object"},
-            )
 
     # @property
     # def noansi(self):
@@ -180,7 +169,7 @@ class SendDataDirectlyToClient(BaseRecord):
     line endings will be added to each line of io before sending to the client
     """
 
-    _SETUP_EVENTS = False
+    READ_EVENT = TO_CLIENT_DATA_READ
 
     def __init__(
         self,
@@ -199,20 +188,7 @@ class SendDataDirectlyToClient(BaseRecord):
         # clients to exclude, a list of client uuids
         self.exclude_clients: list[str] = exclude_clients or []
         # This will set the color for all lines to the specified @ color
-        self.read_data_event_name = "ev_to_client_data_read"
-
-        self.setup_events()
-
-    def setup_events(self):
-        """Set up the events for this record type."""
-        if not SendDataDirectlyToClient._SETUP_EVENTS:
-            SendDataDirectlyToClient._SETUP_EVENTS = True
-            self.api("plugins.core.events:event.add")(
-                self.read_data_event_name,
-                __name__,
-                description=["An event to see data that was sent to the client"],
-                arg_descriptions={"line": "The line to modify, a NetworkDataLine object"},
-            )
+        self.read_data_event_name = self.READ_EVENT
 
     def one_line_summary(self):
         """Get a one line summary of the record."""

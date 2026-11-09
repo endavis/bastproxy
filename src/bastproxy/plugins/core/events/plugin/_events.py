@@ -8,11 +8,12 @@
 import logging
 
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.context import event_stack, raised_event
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
+from bastproxy.libs.records.events import RECORD_EVENTS
 from bastproxy.libs.scan import find_methods
-from bastproxy.libs.stack import SimpleStack
 
 # 3rd Party
 # Project
@@ -32,7 +33,6 @@ class EventsPlugin(BasePlugin):
 
         self.global_raised_count: int = 0
         self.current_event: Event | None = None
-        self.active_event_stack = SimpleStack(100)
 
         self.all_event_stack = SimpleQueue(300)
 
@@ -65,6 +65,15 @@ class EventsPlugin(BasePlugin):
             plugin_loader.POST_STARTUP_EVENT,
             self._eventcb_post_startup_plugins_loaded,
         )
+
+        # the processing records only name their events, they are registered here once
+        for spec in RECORD_EVENTS:
+            self.api(f"{self.plugin_id}:event.add")(
+                spec.name,
+                spec.created_by,
+                description=spec.description,
+                arg_descriptions=spec.arg_descriptions,
+            )
 
     def _apply_raised_history_size(self, value) -> None:
         """Write the raised_history_size setting onto Event.MAX_RAISED_EVENTS."""
@@ -167,12 +176,13 @@ class EventsPlugin(BasePlugin):
     @AddAPI("event.current.name.get", description="return the current event name")
     def _api_event_current_name_get(self):
         """Return the current event name."""
-        return self.active_event_stack.peek()
+        names = event_stack.get()
+        return names[-1] if names else None
 
     @AddAPI("event.current.record.get", description="return the current event record")
     def _api_event_current_record_get(self):
         """Return the current event record."""
-        if last_event := self.active_event_stack.peek():
+        if last_event := self._api_event_current_name_get():
             event = self.api(f"{self.plugin_id}:event.get")(last_event)
             return event.get_active_event().event_data
         return None
@@ -180,7 +190,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("event.stack.get", description="return the current event stack")
     def _api_event_stack_get(self):
         """Return the current event stack."""
-        return self.active_event_stack.getstack()
+        return list(event_stack.get())
 
     @AddAPI("event.add", description="add an event for this plugin to track")
     def _api_event_add(
@@ -366,18 +376,11 @@ class EventsPlugin(BasePlugin):
 
         self.global_raised_count += 1
 
-        # push the event onto the stack
-        self.active_event_stack.push(event.name)
         self.all_event_stack.enqueue(event.name)
 
-        raised_event = event.raise_event(
-            event_args, calledfrom, data_list=data_list, key_name=key_name
-        )
-
-        # pop it back off
-        self.active_event_stack.pop()
-
-        return raised_event
+        # the event is on the event stack until the raise finishes, also when it raises
+        with raised_event(event.name):
+            return event.raise_event(event_args, calledfrom, data_list=data_list, key_name=key_name)
 
     @AddAPI("event.detail.get", description="get the details of an event")
     def _api_event_detail_get(self, event_name):

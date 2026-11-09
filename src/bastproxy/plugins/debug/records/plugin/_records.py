@@ -20,6 +20,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 SHOW_LOG_SETTING = "showRecordLogs"
 RETAINED_TREES_SETTING = "retained_trees"
 MAX_CHANGES_SETTING = "tracking_max_changes"
+CAPTURE_STACKS_SETTING = "capture_stacks"
 
 
 def _format_record_logs(record_uuid: str) -> list[str]:
@@ -55,12 +56,29 @@ class RecordPlugin(BasePlugin):
             int,
             "change entries each new record keeps",
         )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            CAPTURE_STACKS_SETTING,
+            False,
+            bool,
+            "capture the call stack of each new record and update, which costs time on every record; "
+            "off by default",
+        )
         self._apply_retained_trees(
             self.api("plugins.core.settings:setting.get")(self.plugin_id, RETAINED_TREES_SETTING)
         )
         self._apply_tracking_max_changes(
             self.api("plugins.core.settings:setting.get")(self.plugin_id, MAX_CHANGES_SETTING)
         )
+        self._apply_capture_stacks(
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, CAPTURE_STACKS_SETTING)
+        )
+
+    def _apply_capture_stacks(self, value) -> None:
+        """Write the capture_stacks setting onto the records manager."""
+        if value is None:
+            return
+        RMANAGER.set_capture_stacks(bool(value))
 
     def _apply_retained_trees(self, value) -> None:
         """Write the retained_trees setting onto the records manager."""
@@ -85,6 +103,12 @@ class RecordPlugin(BasePlugin):
         """Apply a changed tracking_max_changes."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self._apply_tracking_max_changes(event_record["newvalue"])
+
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_capture_stacks_modified")
+    def _eventcb_capture_stacks_modified(self):
+        """Apply a changed capture_stacks."""
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            self._apply_capture_stacks(event_record["newvalue"])
 
     @AddParser(description="return the list of record types")
     def _command_types(self):

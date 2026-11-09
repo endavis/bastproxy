@@ -15,7 +15,11 @@ from pydatatracker import TrackedAttr, TrackedList
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.records.tracking import TrackedRecordMixin, current_max_changes
+from bastproxy.libs.records.tracking import (
+    TrackedRecordMixin,
+    current_capture_stacks,
+    current_max_changes,
+)
 
 logger = get_logger(__name__)
 
@@ -68,7 +72,9 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
 
         """
         TrackedAttr.__init__(
-            self, tracking_max_changes=current_max_changes(), tracking_capture_stack=False
+            self,
+            tracking_max_changes=current_max_changes(),
+            tracking_capture_stack=current_capture_stacks(),
         )
         self._init_record()
         self._line_locked = False
@@ -361,7 +367,7 @@ class NetworkData(TrackedRecordMixin, TrackedList):
             self,
             message,  # type: ignore[arg-type]
             tracking_max_changes=current_max_changes(),
-            tracking_capture_stack=False,
+            tracking_capture_stack=current_capture_stacks(),
         )
         self._init_record(owner_id)
         self.api = API(owner_id=self.owner_id)

@@ -17,9 +17,8 @@ The public record types ones are:
 The public manager is RMANAGER, which manages records or all types
 
 There are also some private classes that are used to manage records
-    BaseRecord - the base class for all records
-    ChangeRecord - a record that holds a change to a record
-    ChangeManager - a manager that manages changes to records
+    BaseRecord - the base class for the processing records
+    TrackedUpdate - the display view of one update to a record
 """
 
 __all__ = [

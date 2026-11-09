@@ -12,6 +12,7 @@ import re
 
 # 3rd Party
 # Project
+from bastproxy.libs.records.events import TO_MUD_DATA_MODIFY, TO_MUD_DATA_READ
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
@@ -29,7 +30,7 @@ class ProcessDataToMud(BaseRecord):
     The message format is NetworkData instance
     """
 
-    _SETUP_EVENTS = False
+    MODIFY_EVENT = TO_MUD_DATA_MODIFY
 
     def __init__(
         self,
@@ -45,8 +46,7 @@ class ProcessDataToMud(BaseRecord):
         self.message.add_parent(self, reset=True)
         self.show_in_history = show_in_history
         self.client_id = client_id
-        self.modify_data_event_name = "ev_to_mud_data_modify"
-        self.setup_events()
+        self.modify_data_event_name = self.MODIFY_EVENT
 
     def get_attributes_to_format(self):
         """Get the attributes to format for display.
@@ -62,21 +62,6 @@ class ProcessDataToMud(BaseRecord):
     def one_line_summary(self):
         """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
-
-    def setup_events(self):
-        """Set up the events for this record type."""
-        if not ProcessDataToMud._SETUP_EVENTS:
-            ProcessDataToMud._SETUP_EVENTS = True
-            self.api("plugins.core.events:event.add")(
-                self.modify_data_event_name,
-                __name__,
-                description=["An event to modify data before it is sent to the mud"],
-                arg_descriptions={
-                    "line": "The line to modify, a NetworkDataLine instance",
-                    "showinhistory": "If the data should be shown in the history",
-                    "client_id": "The client id it came from",
-                },
-            )
 
     def seperate_commands(self):
         """Separate multiple commands in a single line into individual lines."""
@@ -148,7 +133,7 @@ class SendDataDirectlyToMud(BaseRecord):
     line endings will be added to each line of io before sending to the mud
     """
 
-    _SETUP_EVENTS = False
+    READ_EVENT = TO_MUD_DATA_READ
 
     def __init__(
         self,
@@ -162,19 +147,7 @@ class SendDataDirectlyToMud(BaseRecord):
         self.message = message
         self.message.parent = self
         self.message.add_parent(self)
-        self.read_data_event_name = "ev_to_mud_data_read"
-        self.setup_events()
-
-    def setup_events(self):
-        """Set up the events for this record type."""
-        if not SendDataDirectlyToMud._SETUP_EVENTS:
-            SendDataDirectlyToMud._SETUP_EVENTS = True
-            self.api("plugins.core.events:event.add")(
-                self.read_data_event_name,
-                __name__,
-                description=["An event to see data that was sent to the mud"],
-                arg_descriptions={"line": "The line to modify, a NetworkDataLine instance"},
-            )
+        self.read_data_event_name = self.READ_EVENT
 
     def _exec_(self):
         """Send the data to the mud."""

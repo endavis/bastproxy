@@ -18,6 +18,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import API
+from bastproxy.libs.context import running_command
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records.tracking import tracking_actor
 
@@ -95,7 +96,7 @@ class CommandClass:
 
         # run the command
         try:
-            with tracking_actor(f"{self.plugin_id}:{self.name}"):
+            with tracking_actor(f"{self.plugin_id}:{self.name}"), running_command(args):
                 return_value = self()
         except Exception as exc:
             self.record_error(exc)
