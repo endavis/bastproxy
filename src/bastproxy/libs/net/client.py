@@ -93,7 +93,7 @@ class ClientConnection:
         self.addr: str = addr
         self.port: str = port
         self.rows: int = rows
-        self.api = API(owner_id=f"{__name__}:{self.uuid}")
+        self.api = API(owner_id=f"libs.net.client:{self.uuid}")
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
         self.connected: bool = True

@@ -36,7 +36,7 @@ class RecordManager:
         """
         self.max_records: int = 5000
         self.records: dict[str, SimpleQueue] = {}
-        self.api = BASEAPI(owner_id=__name__)
+        self.api = BASEAPI(owner_id="libs.records.managers.records")
         self.record_instances = {}
         self.active_record_stack = SimpleStack()
         # don't show these records in detailed output

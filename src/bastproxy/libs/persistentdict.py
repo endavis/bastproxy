@@ -159,7 +159,7 @@ class PersistentDict(dict):
         """
         self.owner_id = owner_id
         self._dump_shallow_attrs = ["api"]
-        self.api = API(owner_id=f"{self.owner_id}:{__name__}:{file_name}")
+        self.api = API(owner_id=f"{self.owner_id}:libs.persistentdict:{file_name}")
 
         # r=readonly, c=create, or n=new
         self.flag = flag

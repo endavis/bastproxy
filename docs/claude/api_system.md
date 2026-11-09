@@ -111,7 +111,7 @@ class StatsManager:
 
 Statistics include:
 - Total call count per API
-- Calls grouped by the part of the caller ID before the first `:` (a plugin ID for plugin-owned callers, a module name such as `bastproxy.libs.net.client` for module-owned ones)
+- Calls grouped by the part of the caller ID before the first `:` (a plugin ID for plugin-owned callers, a library toplevel such as `libs.net.client` for module-owned ones)
 - Detailed call tracking with the full caller ID
 
 The one `STATS_MANAGER` instance is created when `_apistats.py` is imported. Removing a top-level API deletes the entries whose key starts with `"<toplevel>:"`, so a reloaded plugin counts from zero (#196).
@@ -131,6 +131,15 @@ Examples:
 - `plugins.core.commands:output.line.length.get` - Get output line length
 
 The top-level API typically corresponds to the plugin or module that owns the functionality.
+
+#### Owner IDs
+
+The part of an owner ID before the first `:` is either a plugin ID (`plugins.core.events`) or a library toplevel, the module path under `bastproxy` with no `bastproxy.` prefix (`libs.timing`, `libs.net.client`). A library owner ID takes the same form as its API toplevel, so statistics, `calls_by_caller` and `libs.api:function.owner.get` share one namespace (#202).
+
+- Exceptions: `mudproxy` (the proxy's own logging owner) and record class names (`UpdateRecord:<uuid>` and similar) keep their form.
+- Plugin-internal modules use their plugin ID so stats group under the plugin: events use `plugins.core.events:<event name>`, the log handlers `plugins.core.log:<Handler>`.
+- Write toplevels and owner IDs as explicit strings, never from `__name__`. `__name__` carries the `bastproxy.` prefix, and the API no longer strips it. `tests/libs/test_api_owner_namespace.py` scans `src` for this.
+- `function.owner.get` returns `__self__.plugin_id` when the callable has one. Otherwise it returns the `owner_id` of the registered `APIItem` whose function is the callable, and `unknown` when it is not registered.
 
 The `<api_name>` part follows `<resource>.<action>[.<qualifier>]`, defined in [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md). New names are resource-first:
 

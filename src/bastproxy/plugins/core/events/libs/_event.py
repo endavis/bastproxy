@@ -46,7 +46,7 @@ class Event:
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
 
-        self.owner_id: str = f"{__name__}:{self.name}"
+        self.owner_id: str = f"plugins.core.events:{self.name}"
         self.api = API(owner_id=self.owner_id)
         self.priority_dictionary = {}
         self.raised_count = 0

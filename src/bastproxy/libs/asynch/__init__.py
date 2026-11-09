@@ -226,7 +226,7 @@ class QueueManager:
         """
         # holds the asyncio tasks to start after plugin initialization
         self.task_queue: asyncio.Queue[TaskItem] = asyncio.Queue()
-        self.api = BASEAPI(owner_id=f"{__name__}:QueueManager")
+        self.api = BASEAPI(owner_id="libs.asynch:QueueManager")
         self.api("libs.api:api.add")("libs.asynch", "task.add", self._api_task_add)
 
     # add a task to the asyncio_tasks queue
@@ -302,7 +302,7 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
         None
 
     """
-    api = BASEAPI(owner_id=f"{__name__}:shutdown")
+    api = BASEAPI(owner_id="libs.asynch:shutdown")
     LogRecord(
         f"shutdown - Received exit signal {signal_}:{signal_.name}",
         level="warning",

@@ -41,6 +41,8 @@ from typing import Any
 
 from bastproxy.libs.api import API, AddAPI
 
+API_OWNER = "libs.plugins.reloadutils"
+
 
 class ReloadHelper:
     """Class for managing plugin cache with reloading support."""
@@ -61,9 +63,9 @@ class ReloadHelper:
             None
 
         """
-        self.api = API(owner_id=f"{__name__}")
+        self.api = API(owner_id=API_OWNER)
         self.reload_cache = {}
-        self.api("libs.api:api.add.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
     @AddAPI("cache.add", description="add data to the cache")
     def _api_cache_add(self, plugin_id: str, data_name: str, data: Any) -> None:

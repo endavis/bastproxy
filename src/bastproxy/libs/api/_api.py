@@ -251,13 +251,6 @@ class API:  # sourcery skip: upper-camel-case-classes
         """
         from bastproxy.libs.records import LogRecord
 
-        if isinstance(toplevel, str):
-            package_root = self.owner_id.split(".")[0] if self.owner_id else ""
-            if package_root == "bastproxy":
-                prefix = f"{package_root}."
-                if toplevel.startswith(prefix):
-                    toplevel = toplevel.removeprefix(prefix)
-
         LogRecord(
             f"_api_api_add_for_object: {item} {toplevel}",
             level=self.log_level,
@@ -575,26 +568,31 @@ class API:  # sourcery skip: upper-camel-case-classes
         return get_caller_owner_id(ignore_owner_list)
 
     def _api_function_owner_get(self, tcallable: Callable) -> str:
-        """Get the plugin ID of the plugin that owns the function.
+        """Get the owner ID of the object that owns the function.
 
-        This method retrieves the plugin identifier of the plugin that owns the
-        specified callable. It suppresses any AttributeError that might occur
-        during the retrieval process.
+        A bound method of an object with a ``plugin_id`` is owned by that plugin.
+        Otherwise the owner is the ``owner_id`` of the registered API item whose
+        function is ``tcallable``, which is how library APIs resolve.
 
         Args:
-            tcallable: The callable whose owning plugin's ID is to be retrieved.
+            tcallable: The callable whose owner ID is to be retrieved.
 
         Returns:
-            The plugin ID of the plugin that owns the callable.
+            The owner ID, or ``unknown`` when none can be found.
 
         Raises:
             None
 
         """
-        plugin_id = "unknown"
-        with contextlib.suppress(AttributeError):
-            plugin_id = tcallable.__self__.plugin_id  # type: ignore
-        return plugin_id
+        owner_self = getattr(tcallable, "__self__", None)
+        plugin_id = getattr(owner_self, "plugin_id", None)
+        if plugin_id:
+            return str(plugin_id)
+        for registry in (self._instance_api, self._class_api):
+            for api_item in registry.values():
+                if api_item.tfunction == tcallable and api_item.owner_id:
+                    return api_item.owner_id
+        return "unknown"
 
     def _api_api_toplevel_remove(self, top_level_api: str) -> None:
         """Remove a top-level API.
@@ -771,12 +769,6 @@ class API:  # sourcery skip: upper-camel-case-classes
             APINotFoundError: If the API location is not found in the API.
 
         """
-        if "." in api_location:
-            package_root = (self.owner_id or "").split(".")[0]
-            prefix = f"{package_root}."
-            if package_root == "bastproxy" and api_location.startswith(prefix):
-                api_location = api_location.removeprefix(prefix)
-
         # check overloaded api
         if (
             not get_class

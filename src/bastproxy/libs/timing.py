@@ -45,7 +45,8 @@ from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.records import LogRecord
 
-API = BASEAPI(owner_id=__name__)
+API_OWNER = "libs.timing"
+API = BASEAPI(owner_id=API_OWNER)
 
 
 def duration(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -121,7 +122,7 @@ class Timing:
 
         self.timing: dict[str, Any] = {}
 
-        self.api("libs.api:api.add.for.object")(__name__, self)
+        self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
     @AddAPI("timing.toggle", description="toggle the enabled flag")
     def _api_timing_toggle(self, tbool: bool | None = None) -> None:

@@ -60,7 +60,7 @@ class EventsPlugin(BasePlugin):
 
         # Can't use decorator since this is the one that registers all events from decorators
         self.api("plugins.core.events:event.register")(
-            f"ev_{plugin_loader.__name__}_post_startup_plugins_loaded",
+            plugin_loader.POST_STARTUP_EVENT,
             self._eventcb_post_startup_plugins_loaded,
         )
 
