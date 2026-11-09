@@ -10,8 +10,8 @@
 from collections import deque
 
 # 3rd Party
-
 # Project
+from bastproxy.libs.records.managers.records import RMANAGER
 
 
 class UpdateManager(deque):
@@ -22,7 +22,7 @@ class UpdateManager(deque):
 
     def __init__(self):
         """Initialize the update list with empty UID mapping."""
-        super().__init__(maxlen=1000)
+        super().__init__(maxlen=RMANAGER.max_changes)
         self.uid_mapping = {}
 
     def add(self, update):

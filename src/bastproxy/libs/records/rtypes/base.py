@@ -11,7 +11,7 @@ import datetime
 import pprint
 import traceback
 from collections import UserList
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import uuid4
 
 # 3rd Party
@@ -173,6 +173,10 @@ class BaseRecord(RecordDisplayMixin, AttributeMonitor):
     and update tracking.
 
     """
+
+    # A parentless record of this class starts a root tree that the records manager counts
+    # and evicts whole.
+    retention_root: ClassVar[bool] = True
 
     def __init__(self, owner_id: str = "", track_record=True, parent=None):
         """Initialize the class."""

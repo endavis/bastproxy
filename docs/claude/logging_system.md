@@ -57,6 +57,7 @@ A fourth root handler, `RecordLogBuffer` in `src/bastproxy/libs/logger.py`, keep
 - **Not buffered.** The `data` logger has `propagate = False`, so `data.*` messages never reach the root handlers.
 - **API.** `get_record_logs(record_id)` returns a copy of the lines; `clear_record_logs()` empties the buffer (for tests).
 - **Showing them.** With the `showRecordLogs` setting of `plugins.debug.records` on (default off), `#bp.debug.records.detail <uid>` ends with a `Log messages :` section, each line indented 4 spaces, or `none`. It covers the record itself, not its children, and is also written by the dump option (`-d`). It is not shown with `-u`.
+- **Retention settings.** `plugins.debug.records` also owns `retained_trees` (root record trees kept, default 100) and `tracking_max_changes` (change entries per new record, default 1000). See [Record System](record_system.md#recordmanager).
 
 The file log carries the record id: `"%(asctime)s : %(levelname)-9s - %(name)-22s - %(record_id)s - %(message)s"`, with `-` when no record is active. `RecordIdFormatter` formats a copy, so the log record keeps `None`. The console and client formats are unchanged.
 

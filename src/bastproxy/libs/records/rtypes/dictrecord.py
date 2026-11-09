@@ -20,7 +20,7 @@ from typing import Any
 from pydatatracker import TrackedDict
 
 # Project
-from bastproxy.libs.records.tracking import MAX_CHANGES, TrackedRecordMixin
+from bastproxy.libs.records.tracking import TrackedRecordMixin, current_max_changes
 
 
 class BaseDictRecord(TrackedRecordMixin, TrackedDict):
@@ -58,7 +58,7 @@ class BaseDictRecord(TrackedRecordMixin, TrackedDict):
         TrackedDict.__init__(
             self,
             data,
-            tracking_max_changes=MAX_CHANGES,
+            tracking_max_changes=current_max_changes(),
             tracking_capture_stack=False,
         )
         self._init_record(owner_id)

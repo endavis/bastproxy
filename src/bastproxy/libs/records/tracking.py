@@ -20,7 +20,7 @@ See ADR-0006 and ``docs/claude/record_system.md``.
 # Standard Library
 import datetime
 import pprint
-from typing import Any
+from typing import Any, ClassVar
 
 # 3rd Party
 from pydatatracker import tracking_actor
@@ -28,14 +28,26 @@ from pydatatracker.utils.changelog import ChangeLogEntry
 
 # Project
 from bastproxy.libs.api import API
-from bastproxy.libs.records.managers.records import RMANAGER
+from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, RMANAGER
 from bastproxy.libs.records.rtypes.base import RecordDisplayMixin
 
-__all__ = ["MAX_CHANGES", "TrackedRecordMixin", "TrackedUpdate", "tracking_actor"]
+__all__ = [
+    "MAX_CHANGES",
+    "TrackedRecordMixin",
+    "TrackedUpdate",
+    "current_max_changes",
+    "tracking_actor",
+]
 
-# Cap on the change entries a record keeps, the same as UpdateManager's cap. #233 makes it
-# configurable.
-MAX_CHANGES = 1000
+# Default cap on the change entries a record keeps. The cap in force is
+# ``RMANAGER.max_changes``, set by the ``tracking_max_changes`` setting.
+MAX_CHANGES = DEFAULT_MAX_CHANGES
+
+
+def current_max_changes() -> int:
+    """Return the cap on change entries that a new record gets."""
+    return RMANAGER.max_changes
+
 
 # Entries pydatatracker creates itself carry no flag. These actions are informational.
 _INFO_ACTIONS = frozenset({"init", "lock", "unlock"})
@@ -166,6 +178,9 @@ class TrackedRecordMixin(RecordDisplayMixin):
     Put this first in the bases, for example ``class NetworkData(TrackedRecordMixin,
     TrackedList)``, so its ``__eq__`` and ``__hash__`` win over the container's.
     """
+
+    # A data holder never starts a root tree; it joins the tree of whatever adopts it.
+    retention_root: ClassVar[bool] = False
 
     execute_time_taken: int = -1
     owner_id: str

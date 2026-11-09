@@ -331,7 +331,7 @@ self.raised_events: OrderedDict[str, ProcessRaisedEvent]  # UUID -> record, newe
 
 The history is an `OrderedDict` capped at `Event.MAX_RAISED_EVENTS`. `EventsPlugin` sets that class attribute from the `plugins.core.events` setting `raised_history_size` (default 10; 0 keeps none; a negative value is clamped to 0), at initialize and whenever the setting changes. The oldest entry is evicted when a new raise is inserted, so a lowered cap applies on each event's next raise. `raise_event` returns the record of that raise even when the cap is 0.
 
-The long history is in the records manager (`RMANAGER` keeps the last 5000 `ProcessRaisedEvent` records, indexed by UUID), which the debug records plugin reads. The per-event history holds no callbacks, so it does not keep unloaded plugins alive (Bug #3 in [Event System Findings](event_system_findings.md), #153).
+The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEvent` while its root tree is among the last `retained_trees` root trees, indexed by UUID), which the debug records plugin reads. The per-event history holds no callbacks, so it does not keep unloaded plugins alive (Bug #3 in [Event System Findings](event_system_findings.md), #153).
 
 ## Common Event Names
 
