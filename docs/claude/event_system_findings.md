@@ -572,6 +572,8 @@ disconnect calls took the plugin's registrations on one event from 1 to 4 (Q2d, 
 
 ### ES-6: Priority 0 is stored as priority 50
 
+**Status:** fixed by #280 (`Event.register` uses `50 if prio is None else prio`).
+
 **Issue:** #280
 **Location:** `src/bastproxy/plugins/core/events/plugin/_event.py`, `Event.register` (`prio or 50`).
 **Evidence (verified):** a callback registered at 0 ran between the 50 and the 99 callbacks and the stored
