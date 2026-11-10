@@ -175,6 +175,11 @@ def test_base_one_line_summary() -> None:
     assert BaseDictRecord().one_line_summary().startswith("BaseDictRecord")
 
 
+def test_base_one_line_summary_non_string_value() -> None:
+    rec = BaseDictRecord(data={"a": 1})
+    assert rec.one_line_summary().endswith("1")
+
+
 def test_cmdargs_record() -> None:
     rec = CmdArgsRecord(data={"help": False, "items": ["a"]}, command="x")
     assert rec["help"] is False
