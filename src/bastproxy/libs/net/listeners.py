@@ -254,6 +254,9 @@ class Listeners:
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).
                     force_binary=True,
+                    # replace invalid utf8 from a client with U+FFFD instead of
+                    # raising UnicodeDecodeError out of readline (#305).
+                    encoding_errors="replace",
                 ),
                 self.ipv4_taskname,
                 startstring=f"{ipv4_address}:{listen_port}",
@@ -275,6 +278,9 @@ class Listeners:
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).
                     force_binary=True,
+                    # replace invalid utf8 from a client with U+FFFD instead of
+                    # raising UnicodeDecodeError out of readline (#305).
+                    encoding_errors="replace",
                 ),
                 self.ipv6_taskname,
                 startstring=f"{ipv6_address}:{listen_port}",

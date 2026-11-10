@@ -62,6 +62,7 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
   nothing needs it.
 - **A client that sends invalid UTF-8 is disconnected** (Q8, **verified**, #305). The listeners keep
   telnetlib3's server default `encoding_errors="strict"`, and `client_read` catches only `ConnectionError`.
+  **Status:** fixed by #305 (`encoding_errors="replace"` on both listeners; `client_read` also ends cleanly on `UnicodeDecodeError`).
 - **A failed MUD connect leaves the proxy believing it is connected** (Q8, **verified**, #306).
   `MudConnection.connected` starts `True`; after a refused connection `#bp.core.proxy.connect` answers "currently
   connected" and never retries.
@@ -320,6 +321,7 @@ MudTelnetReader      partial char at EOF:   [MudLine('ab', False, False), ...]  
   when a client disconnects mid-character. `ClientConnection.client_read` catches only `ConnectionError`
   (**read**), so the read task ends with an exception that `libs/asynch` logs as an ERROR. The
   invalid-UTF-8 defect (#305) is the same failure on both versions; fix it before the floor moves.
+  **Status:** fixed by #305.
 - All 42 tests in `tests/libs/net` pass on 5.0.2 (**verified**, with the unpacked 5.0.2 package first on
   `PYTHONPATH`).
 
