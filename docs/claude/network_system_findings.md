@@ -82,6 +82,7 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
 - **5.0.2 changes only `TelnetReaderUnicode` end-of-stream decoding** (Q5, **verified** by diff). It does not
   change `MudTelnetReader`. It makes the client-side `readline()` raise `UnicodeDecodeError` for a truncated
   trailing character, which `client_read` does not catch (#305 covers it; #311 moves the floor).
+  **Status:** `client_read` catches it since #305; the floor is `telnetlib3>=5.0.2` and `uv.lock` pins 5.0.2 since #311.
 - **Coverage of `src/bastproxy/libs/net/` is 47.61%** (Q6, **verified**). `CustomTelnetServer`, `Listeners.check_listeners_available`,
   the login path, `setup_client` and `mud_write` have no test.
 
