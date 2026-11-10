@@ -22,6 +22,7 @@ from pydatatracker.utils.changelog import ChangeLogEntry
 
 # Project
 from bastproxy.libs.context import get_command_args
+from bastproxy.libs.records.enums import UpdateFlag
 
 __all__ = [
     "INFO_ACTIONS",
@@ -75,7 +76,7 @@ class TrackedUpdate:
         """The entry's flag, one of 'Modify', 'Set Flag' or 'Info'."""
         if flag := self.entry.extra.get("flag"):
             return str(flag)
-        return "Info" if self.action in INFO_ACTIONS else "Modify"
+        return UpdateFlag.INFO if self.action in INFO_ACTIONS else UpdateFlag.MODIFY
 
     @property
     def extra(self) -> dict[str, Any]:

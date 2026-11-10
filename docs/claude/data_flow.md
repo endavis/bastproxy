@@ -117,8 +117,8 @@ ProcessDataToMud(
 |-----------|---------|
 | `line` | Current content. `bytes` for `COMMAND-TELNET` lines, `str` otherwise |
 | `original_line` | Content at creation (a read-only property; writing it raises `RuntimeError`) |
-| `originated` | `"mud"`, `"client"` or `"internal"` |
-| `line_type` | `"IO"` or `"COMMAND-TELNET"` |
+| `originated` | An `Originated`: `MUD` (`"mud"`), `CLIENT` (`"client"`) or `INTERNAL` (`"internal"`). The constructor coerces a string, and an unknown value raises `ValueError` |
+| `line_type` | A `LineType`: `IO` (`"IO"`) or `COMMAND_TELNET` (`"COMMAND-TELNET"`), coerced the same way |
 | `send` | `False` means the line is dropped (gagged) before sending |
 | `is_prompt` | The client writer sends `IAC GA` after the line |
 | `had_line_endings` | `add_line_endings()` only adds `\r\n` when this is set |

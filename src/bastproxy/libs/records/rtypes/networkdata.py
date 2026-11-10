@@ -15,6 +15,7 @@ from pydatatracker import TrackedAttr, TrackedList
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.records.enums import LineType, Originated
 from bastproxy.libs.records.tracking import (
     TrackedRecordMixin,
     current_capture_stacks,
@@ -52,8 +53,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
     def __init__(
         self,
         line: str | bytes | bytearray,
-        originated: str = "internal",
-        line_type: str = "IO",
+        originated: Originated | str = Originated.INTERNAL,
+        line_type: LineType | str = LineType.IO,
         had_line_endings: bool = True,
         preamble: bool = True,
         prelogin: bool = False,
@@ -63,14 +64,21 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
 
         Args:
             line: The line content as string or bytes.
-            originated: Source of the line (default: "internal").
-            line_type: Type of line (default: "IO").
+            originated: Source of the line, an ``Originated`` or its string
+                (default: ``Originated.INTERNAL``).
+            line_type: Type of line, a ``LineType`` or its string (default: ``LineType.IO``).
             had_line_endings: Whether line had line endings (default: True).
             preamble: Whether to include preamble (default: True).
             prelogin: Whether this is a prelogin line (default: False).
             color: Color code for the line (default: "").
 
+        Raises:
+            ValueError: If ``originated`` or ``line_type`` is not a member of its enum.
+
         """
+        # Coerce first so a bad value never registers a half-built record.
+        originated = Originated(originated)
+        line_type = LineType(line_type)
         TrackedAttr.__init__(
             self,
             tracking_max_changes=current_max_changes(),
@@ -78,7 +86,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         )
         self._init_record()
         self._line_locked = False
-        if originated != "internal" and (
+        if originated is not Originated.INTERNAL and (
             (isinstance(line, str) and ("\n" in line or "\r" in line))
             or (isinstance(line, (bytes, bytearray)) and (b"\n" in line or b"\r" in line))
         ):
@@ -88,8 +96,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
                 line,
                 stack_info=True,
             )
-        self.line_type = line_type  # IO, COMMAND-TELNET
-        self.originated = originated  # mud, client, internal
+        self.line_type: LineType = line_type
+        self.originated: Originated = originated
         if (isinstance(line, (bytes, bytearray))) and not self.is_command_telnet:
             line = line.decode("utf-8")
         self.line: str | bytes | bytearray = line
@@ -124,12 +132,17 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         raise RuntimeError(msg)
 
     def add_parent(self, parent: Any, reset: bool = True) -> None:
-        """Add a parent to this record."""
+        """Add a parent to this record.
+
+        Only a ``NetworkData`` or a ``NetworkDataLine`` (subclasses included) is kept. Any other
+        parent is ignored, silently on purpose: ``_init_record`` offers the executing processing
+        record on almost every line created during execution, so a log would spam.
+        """
         if reset:
             self.parents = []
         if parent in self.parents:
             return
-        if parent.__class__.__name__ in ["NetworkData", "NetworkDataLine"]:
+        if isinstance(parent, (NetworkData, NetworkDataLine)):
             self.parents.append(parent)
 
     def _monitored_fields(self) -> list[str]:
@@ -206,27 +219,27 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
     @property
     def is_command_telnet(self):
         """A shortcut property to determine if this message is a Telnet Opcode."""
-        return self.line_type == "COMMAND-TELNET"
+        return self.line_type == LineType.COMMAND_TELNET
 
     @property
     def is_io(self):
         """A shortcut property to determine if this message is normal I/O."""
-        return self.line_type == "IO"
+        return self.line_type == LineType.IO
 
     @property
     def internal(self):
         """A shortcut property to determine if this message is internal."""
-        return self.originated == "internal"
+        return self.originated == Originated.INTERNAL
 
     @property
     def fromclient(self):
         """A shortcut property to determine if this message is from a client."""
-        return self.originated == "client"
+        return self.originated == Originated.CLIENT
 
     @property
     def frommud(self):
         """A shortcut property to determine if this message is from the mud."""
-        return self.originated == "mud"
+        return self.originated == Originated.MUD
 
     def add_line_endings(self, actor=""):
         """Add line endings to the message."""

@@ -24,6 +24,7 @@ from pydatatracker.utils.changelog import ChangeLogEntry
 from bastproxy.libs.api import API
 from bastproxy.libs.context import event_stack
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.records.enums import UpdateFlag
 from bastproxy.libs.records.managers.records import RMANAGER
 from bastproxy.libs.records.rtypes.update import (
     EVENT_STACK_SEPARATOR,
@@ -325,10 +326,11 @@ class BaseRecord(RecordDisplayMixin):
             return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id} {self.execute_time_taken:.2f}ms"
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
-    def addupdate(self, flag: str, action: str, extra: dict | None = None):
+    def addupdate(self, flag: UpdateFlag | str, action: str, extra: dict | None = None):
         """Add an update for this record.
 
-            flag: one of 'Modify', 'Set Flag', 'Info'
+            flag: an ``UpdateFlag`` or its string ('Modify', 'Set Flag', 'Info');
+                an unknown value raises ``ValueError``
             action: a description of what was changed
             extra: any extra info about this change
         The actor is the current tracking actor or, with none set, the innermost caller
@@ -339,6 +341,7 @@ class BaseRecord(RecordDisplayMixin):
             after modification
             when it ends up at it's destination.
         """
+        flag = UpdateFlag(flag)
         kwargs = {
             (f"extra_{key}" if key in RESERVED_KEYS else key): value
             for key, value in (extra or {}).items()
@@ -397,7 +400,7 @@ class BaseRecord(RecordDisplayMixin):
         actor = kwargs.get("actor", "Unknown")
         if self.executing:
             self.addupdate(
-                "Info",
+                UpdateFlag.INFO,
                 f"{self.__class__.__name__} already executing",
                 extra={"actor": actor},
             )
@@ -405,7 +408,7 @@ class BaseRecord(RecordDisplayMixin):
 
         self.executing = True
 
-        self.addupdate("Info", f"{self.__class__.__name__} _exec_ start")
+        self.addupdate(UpdateFlag.INFO, f"{self.__class__.__name__} _exec_ start")
 
         try:
             if self.track_record:
@@ -421,7 +424,7 @@ class BaseRecord(RecordDisplayMixin):
             else:
                 self._exec_(*args, **kwargs)
 
-            self.addupdate("Info", f"{self.__class__.__name__} _exec_ finish")
+            self.addupdate(UpdateFlag.INFO, f"{self.__class__.__name__} _exec_ finish")
         finally:
             self.executing = False
 

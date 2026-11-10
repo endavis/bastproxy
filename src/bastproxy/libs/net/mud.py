@@ -50,8 +50,10 @@ from bastproxy.libs.logger import get_logger
 # Project
 from bastproxy.libs.net import telnet
 from bastproxy.libs.records import (
+    LineType,
     NetworkData,
     NetworkDataLine,
+    Originated,
     ProcessDataToClient,
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
@@ -186,7 +188,9 @@ class MudConnection:
             logger.info("setup_mud - Sending telnet features")
             networkdata = NetworkData([], owner_id="mud:setup_mud")
             networkdata.append(
-                NetworkDataLine(features, originated="internal", line_type="COMMAND-TELNET")
+                NetworkDataLine(
+                    features, originated=Originated.INTERNAL, line_type=LineType.COMMAND_TELNET
+                )
             )
             SendDataDirectlyToMud(networkdata)()
             logger.info("setup_mud - telnet features sent")
@@ -222,7 +226,7 @@ class MudConnection:
                     break
                 logger.debug("client_read - readline - Raw received data in mud_read : %s", inp)
                 logger.debug("client_read - readline - inp type = %s", type(inp))
-                data.append(NetworkDataLine(inp.rstrip(), originated="mud"))
+                data.append(NetworkDataLine(inp.rstrip(), originated=Originated.MUD))
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
                 if (
                     len(self.reader._buffer) <= 0
@@ -235,7 +239,7 @@ class MudConnection:
                 inp: str = await self.reader.read(len(self.reader._buffer))
                 logger.debug("client_read - read - Raw received data in mud_read : %s", inp)
                 logger.debug("client_read - read - inp type = %s", type(inp))
-                data.append(NetworkDataLine(inp, originated="mud", had_line_endings=False))
+                data.append(NetworkDataLine(inp, originated=Originated.MUD, had_line_endings=False))
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.

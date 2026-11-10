@@ -20,7 +20,12 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.context import get_command_args
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
-from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
+from bastproxy.libs.records import (
+    NetworkData,
+    SendDataDirectlyToClient,
+    SendDataDirectlyToMud,
+    UpdateFlag,
+)
 from bastproxy.libs.scan import find_methods
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
@@ -715,7 +720,7 @@ class CommandsPlugin(BasePlugin):
             if self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "cmdcount"
             ) == self.api("plugins.core.settings:setting.get")(self.plugin_id, "spamcount"):
-                event_record.addupdate("Modify", "Antispam Command sent", savedata=False)
+                event_record.addupdate(UpdateFlag.MODIFY, "Antispam Command sent", savedata=False)
                 get_logger(self.plugin_id).debug(
                     "sending antspam command: %s",
                     self.api("plugins.core.settings:setting.get")(
@@ -738,7 +743,7 @@ class CommandsPlugin(BasePlugin):
             # swallow it
             if original_command in self.no_multiple_commands:
                 event_record.addupdate(
-                    "Modify",
+                    UpdateFlag.MODIFY,
                     "this command has been flagged to only be sent once, sendtomud set to False",
                     savedata=False,
                 )
@@ -1037,11 +1042,11 @@ class CommandsPlugin(BasePlugin):
         if event_record["showinhistory"] != show_in_history:
             event_record["showinhistory"] = show_in_history
             event_record.addupdate(
-                "Modify", "show_in_history set to {show_in_history}", savedata=False
+                UpdateFlag.MODIFY, "show_in_history set to {show_in_history}", savedata=False
             )
 
         event_record.addupdate(
-            "Info",
+            UpdateFlag.INFO,
             f"find_command returned {notes}, arg string: '{command_args}'",
             savedata=False,
         )
@@ -1055,13 +1060,13 @@ class CommandsPlugin(BasePlugin):
 
             if success:
                 event_record.addupdate(
-                    "Info",
+                    UpdateFlag.INFO,
                     "run_command returned success",
                     savedata=False,
                 )
             else:
                 event_record.addupdate(
-                    "Info", f"run_command returned error: {error}", savedata=False
+                    UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
                 )
 
             if message:

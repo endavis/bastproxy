@@ -14,7 +14,7 @@ from bastproxy.libs.logger import get_logger, log_to
 
 # 3rd Party
 # Project
-from bastproxy.libs.records import BaseRecord
+from bastproxy.libs.records import BaseRecord, UpdateFlag
 
 if TYPE_CHECKING:
     from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
@@ -31,7 +31,7 @@ class ProcessRaisedEvent(BaseRecord):
         self.event_data.add_receiving_event(self)
         self.times_invoked = 0
         self.id = f"{__name__}:{self.event.name}:{self.created}"
-        self.addupdate("Info", "Init")
+        self.addupdate(UpdateFlag.INFO, "Init")
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
@@ -53,7 +53,7 @@ class ProcessRaisedEvent(BaseRecord):
     def _exec_once(self, actor, **kwargs):
         """Exec it with self.arg_data."""
         self.times_invoked += 1
-        self.addupdate("Info", "Invoked", extra={"data": f"{dict(self.event_data)}"})
+        self.addupdate(UpdateFlag.INFO, "Invoked", extra={"data": f"{dict(self.event_data)}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
         log_savestate = self.api("plugins.core.settings:setting.get")(

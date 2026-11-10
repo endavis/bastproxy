@@ -56,8 +56,10 @@ from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import telnet
 from bastproxy.libs.records import (
+    LineType,
     NetworkData,
     NetworkDataLine,
+    Originated,
     ProcessDataToMud,
     SendDataDirectlyToClient,
 )
@@ -179,14 +181,14 @@ class ClientConnection:
         # We send an IAC+WILL+ECHO to the client so that
         #  it won't locally echo the password.
         networkdata = NetworkData(
-            [NetworkDataLine(telnet.echo_on(), line_type="COMMAND-TELNET", prelogin=True)],
+            [NetworkDataLine(telnet.echo_on(), line_type=LineType.COMMAND_TELNET, prelogin=True)],
             owner_id=f"client:{self.uuid}",
         )
         SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
 
         if features := telnet.advertise_features():
             networkdata = NetworkData(
-                [NetworkDataLine(features, line_type="COMMAND-TELNET", prelogin=True)],
+                [NetworkDataLine(features, line_type=LineType.COMMAND_TELNET, prelogin=True)],
                 owner_id=f"client:{self.uuid}",
             )
             logger.debug("setup_client - Sending telnet features to %s", self.uuid)
@@ -229,7 +231,11 @@ class ClientConnection:
         vpw = self.api("plugins.core.proxy:ssc.proxypwview.get")()
         if inp.strip() == dpw:
             networkdata = NetworkData(
-                [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                [
+                    NetworkDataLine(
+                        telnet.echo_off(), line_type=LineType.COMMAND_TELNET, prelogin=True
+                    )
+                ],
                 owner_id=f"client:{self.uuid}",
             )
             networkdata.append(NetworkDataLine("You are now logged in.", prelogin=True))
@@ -237,7 +243,11 @@ class ClientConnection:
             self.api("plugins.core.clients:client.logged.in.set")(self.uuid)
         elif inp.strip() == vpw:
             networkdata = NetworkData(
-                [NetworkDataLine(telnet.echo_off(), line_type="COMMAND-TELNET", prelogin=True)],
+                [
+                    NetworkDataLine(
+                        telnet.echo_off(), line_type=LineType.COMMAND_TELNET, prelogin=True
+                    )
+                ],
                 owner_id=f"client:{self.uuid}",
             )
             networkdata.append(
@@ -338,7 +348,7 @@ class ClientConnection:
                 # this is where we start processing data
                 ProcessDataToMud(
                     NetworkData(
-                        NetworkDataLine(inp.rstrip("\r\n"), originated="client"),
+                        NetworkDataLine(inp.rstrip("\r\n"), originated=Originated.CLIENT),
                         owner_id=f"client:{self.uuid}",
                     ),
                     client_id=self.uuid,

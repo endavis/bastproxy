@@ -12,6 +12,7 @@ import re
 
 # 3rd Party
 # Project
+from bastproxy.libs.records.enums import UpdateFlag
 from bastproxy.libs.records.events import TO_MUD_DATA_MODIFY, TO_MUD_DATA_READ
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
@@ -74,7 +75,7 @@ class ProcessDataToMud(BaseRecord):
                     split_data = re.split(self.api.command_split_regex, line.line)
                 if len(split_data) > 1:
                     self.addupdate(
-                        "Info",
+                        UpdateFlag.INFO,
                         "split (Split_Char)",
                         extra={
                             "line": line,
