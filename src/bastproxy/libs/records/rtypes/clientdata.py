@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: libs/records/rtypes/toclient.py
+# Filename: libs/records/rtypes/clientdata.py
 #
 # File Description: Holds the client record type
 #

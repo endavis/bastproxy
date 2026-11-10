@@ -4,21 +4,21 @@
 # File Description: a "package" to manage records
 #
 # By: Bast
-"""This "package"" has classes for various record types and record managers.
+"""Record types and the record manager.
 
-The public record types ones are:
-    SendDataDirectlyToClient - send data to the client
-    ProcessDataToClient - process data to send to the client
-    NetworkData - build data to send
+Exported (``__all__``):
+    ProcessDataToClient - process data from the mud before it goes to the clients
+    SendDataDirectlyToClient - send data to the clients
+    ProcessDataToMud - process data from a client before it goes to the mud
     SendDataDirectlyToMud - send data to the mud
-    ProcessDataToMud - process data to send to the mud
-    EventDataRecord - data to send to event callbacks (a BaseDictRecord on pydatatracker).
+    NetworkData - a list of lines, the message the records above carry
+    NetworkDataLine - one line of a NetworkData
+    BaseRecord - the base class of the processing records
+    BaseDictRecord - the base class of the dict records, such as the events plugin's
+        EventDataRecord
+    RMANAGER - the record manager, which keeps root trees of records
 
-The public manager is RMANAGER, which manages records or all types
-
-There are also some private classes that are used to manage records
-    BaseRecord - the base class for the processing records
-    TrackedUpdate - the display view of one update to a record
+TrackedUpdate, the display view of one update, is in ``bastproxy.libs.records.tracking``.
 """
 
 __all__ = [
