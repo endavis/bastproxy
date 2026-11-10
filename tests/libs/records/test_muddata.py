@@ -4,6 +4,7 @@ import pytest
 
 from bastproxy.libs.api import API
 from bastproxy.libs.records.events import TO_MUD_DATA_MODIFY, TO_MUD_DATA_READ
+from bastproxy.libs.records.managers.records import RMANAGER
 from bastproxy.libs.records.rtypes.muddata import ProcessDataToMud, SendDataDirectlyToMud
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
@@ -39,6 +40,12 @@ def test_seperate_commands_splits_io_lines() -> None:
         assert piece.parents == [message]
         assert piece.parent is message
         assert piece.split_from is original
+    assert original.parents == []
+    assert original.parent is None
+    children = RMANAGER.get_children(message)
+    assert len(children) == len(message)
+    assert all(any(child is line for child in children) for line in message)
+    assert all(child is not original for child in children)
     assert sum("split (Split_Char)" in str(update) for update in record.updates) == 1
 
 

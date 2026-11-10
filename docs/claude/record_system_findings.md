@@ -68,8 +68,9 @@ The new findings are about retention and about two places the tree is quietly wr
 - **The event data of a shared event moves** (RS-2, addressed by #246 after this audit). `ProcessRaisedEvent` re-parents the
   `EventDataRecord` it is given, and the triggers plugin passes the same record to two more events.
   After a MUD line, the data of `ev_to_client_data_modify` hangs under a trigger event.
-- **Split commands hang under the line that was replaced** (RS-3). The pieces of `say a|say b` have the
-  original line as their parent, and that line is no longer in the `NetworkData`.
+- **Split commands hang under the line that was replaced** (RS-3, addressed by #231 after this audit). The pieces of
+  `say a|say b` had the original line as a parent, and that line was no longer in the `NetworkData`. A line a
+  `NetworkData` no longer holds is now detached from it.
 - `BaseDictRecord.addupdate` stores a clone of the whole record, not a copy of its dict (RS-6, addressed by #246 after this audit).
 - Test coverage of the six non-trivial files in `libs/records/` runs from 33.09% (`clientdata.py`) to 84.07%
   (`records.py`) in the whole suite. The processing records' `_exec_`, `seperate_commands`,
@@ -552,6 +553,25 @@ the wrong event.
 record for the inner event. Decide with #79 whether the data record is part of the tree at all.
 
 ### RS-3: Split commands are children of the line that was replaced
+
+**Fixed in #231:** the text below is the audit record. By the time of #231 the `parent`/`parents` disagreement no
+longer reproduced, because `NetworkData._tracking_convert_item` re-parents every stored line. Two leftovers were
+fixed:
+
+- `NetworkDataLine.copy_attributes` no longer calls `add_parent(self)`; `split_from` keeps the link to the
+  original line.
+- `NetworkData` overrides pydatatracker's `_tracking_remove_child_tracked_item`, which `track_changes` calls for each
+  removed item the list no longer holds at any index. The line loses the list from `parents` (by identity) and its
+  `parent` becomes `None` if it was the list. This covers item and slice assignment, `del`, `remove`, `pop`,
+  `clear` and `*= 0`; a line still held at another index keeps its parent. `RMANAGER.get_children` and the tree
+  no longer list it under the `NetworkData`.
+
+Retention: a detached line has no parents, so the prune treats it as a pending record. It stays registered and
+findable by uuid until more than `MAX_PENDING` newer parentless records exist, then is evicted oldest first,
+instead of leaving with the tree of its `NetworkData`.
+
+Known limit, not changed: `add_parent` defaults to `reset=True`, so a line stored in two lists has only the later
+one in `parents`.
 
 **Issue:** #231
 **Location:** `src/bastproxy/libs/records/rtypes/muddata.py` `ProcessDataToMud.seperate_commands`;
