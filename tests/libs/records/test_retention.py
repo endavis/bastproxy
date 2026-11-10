@@ -299,3 +299,20 @@ def test_set_max_changes_applies_to_new_records(caplog: pytest.LogCaptureFixture
         RMANAGER.set_max_changes(-1)
     assert RMANAGER.max_changes == 0
     assert "negative" in caplog.text
+
+
+def test_prune_failure_is_logged_not_raised(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def boom() -> None:
+        msg = "prune exploded"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(RMANAGER, "_prune", boom)
+    monkeypatch.setattr(RMANAGER, "_roots_since_prune", 5)
+    with caplog.at_level(logging.ERROR):
+        RMANAGER.prune()
+    assert RMANAGER._roots_since_prune == 0
+    failures = [r for r in caplog.records if "RecordManager prune failed" in r.getMessage()]
+    assert len(failures) == 1
+    assert failures[0].exc_info is not None
