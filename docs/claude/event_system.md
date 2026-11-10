@@ -250,7 +250,7 @@ if event_record:
 The package has no libs/_event.py or plugin/_process_event.py: #241 deleted those duplicate copies of `Event` and `ProcessRaisedEvent`.
 
 ### Events API
-The APIs of `plugins.core.events` (names as registered with `AddAPI`): `event.add`, `event.get`, `event.exists`, `event.register`, `event.register.by.func`, `event.unregister`, `event.unregister.for.owner`, `event.is.registered`, `event.raise`, `event.current.name.get`, `event.current.record.get`, `event.stack.get`, `event.detail.get`, `detail.get.for.plugin` and `summary.get.for.plugin`. `event.get` creates and keeps an `Event` for any name it has not seen (#283).
+The APIs of `plugins.core.events` (names as registered with `AddAPI`): `event.add`, `event.get`, `event.exists`, `event.register`, `event.register.by.func`, `event.unregister`, `event.unregister.for.owner`, `event.is.registered`, `event.raise`, `event.current.name.get`, `event.current.record.get`, `event.stack.get`, `event.detail.get`, `detail.get.for.plugin` and `summary.get.for.plugin`. `event.get` creates and keeps an `Event` for any name it has not seen; use `event.exists` to look up without creating. The `raise` command checks `event.exists` first, so an unknown name answers "event does not exist" and creates nothing (#283).
 
 ## Code Examples
 
