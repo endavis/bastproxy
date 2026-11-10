@@ -2,6 +2,7 @@
 
 import gc
 import logging
+import tracemalloc
 import weakref
 from collections.abc import Iterator
 from typing import Any
@@ -15,6 +16,9 @@ from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 from bastproxy.plugins.core.events.plugin._event import Event
+
+# Allowed growth of the traced heap over 400 rounds past the cap: noise, not retention.
+FLAT_TOLERANCE_BYTES = 256 * 1024
 
 
 class _Round(BaseRecord):
@@ -229,6 +233,28 @@ def test_count_plateaus() -> None:
     per_tree = 1 + 1 + 3
     assert abs(sizes[300] - sizes[100]) <= per_tree
     assert sizes[300] <= 6 * per_tree
+
+
+def test_traced_memory_is_flat_past_the_cap() -> None:
+    """Once the tree cap is reached, more rounds do not grow the traced heap (#233)."""
+    RMANAGER.max_trees = 10
+    for _ in range(100):
+        _run_round(lines=15)
+    gc.collect()
+    tracemalloc.start()
+    try:
+        for _ in range(100):
+            _run_round(lines=15)
+        gc.collect()
+        settled, _ = tracemalloc.get_traced_memory()
+        for _ in range(400):
+            _run_round(lines=15)
+        gc.collect()
+        after, _ = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    # Before #249 the store grew by about 0.66 MB per 15-line round; 400 rounds would add ~260 MB.
+    assert after - settled < FLAT_TOLERANCE_BYTES
 
 
 def test_evicted_records_are_freed() -> None:
