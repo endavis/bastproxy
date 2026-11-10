@@ -71,7 +71,7 @@ Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation tim
 
 | Part of an update | Where it comes from |
 |-------------------|---------------------|
-| `flag` | The argument: `Modify`, `Set Flag` or `Info` |
+| `flag` | The argument: an `UpdateFlag` or its string (`Modify`, `Set Flag` or `Info`). An unknown value raises `ValueError` |
 | `action`, `extra` | The arguments. A key of `extra` that the entry reads itself (`action`, `flag`, `type`, `locked`, `actor`, `location`, `method`, `event_stack`) is stored as `extra_<key>` |
 | `actor` | The tracking actor of the context (`tracking_actor(...)`); with none set, the innermost caller outside `bastproxy.libs.records`, as `module:function` (found by walking frame objects, not by formatting a stack) |
 | `event_stack` | The `event_stack` context variable, joined with ` > `. Shown as an `Event Stack` section in the details when it is not empty |
@@ -80,9 +80,9 @@ Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation tim
 
 | Flag | Used for |
 |------|----------|
-| `Modify` | Data or an attribute changed |
-| `Set Flag` | A flag was set |
-| `Info` | Lifecycle notes: "_exec_ start", "Invoked", "already executing" |
+| `UpdateFlag.MODIFY` (`Modify`) | Data or an attribute changed |
+| `UpdateFlag.SET_FLAG` (`Set Flag`) | A flag was set |
+| `UpdateFlag.INFO` (`Info`) | Lifecycle notes: "_exec_ start", "Invoked", "already executing" |
 
 `get_update(uuid)` and `get_all_updates()` live in `RecordDisplayMixin`, so every record type shares them. `get_update` searches the record's own updates first and then those of its child records. `get_all_updates()` returns the record's updates and its children's, in time order.
 
@@ -161,7 +161,7 @@ Outer()()
 
 - `parent` is the record that was active at creation, or the one passed in
 - `parents` is the list of parents added with `add_parent()`. It holds direct parents, not ancestors. A record can have several: a `NetworkData` gets a second parent when `SendDataDirectlyToMud` takes it over from `ProcessDataToMud`.
-- `NetworkDataLine.add_parent()` keeps only one parent by default (`reset=True` replaces the list); `reset=False` adds another. It only accepts `NetworkData` or `NetworkDataLine` parents and ignores any other class without an error
+- `NetworkDataLine.add_parent()` keeps only one parent by default (`reset=True` replaces the list); `reset=False` adds another. It checks `isinstance(parent, (NetworkData, NetworkDataLine))`, so subclasses are accepted, and it ignores any other parent without an error or a log. That is on purpose: `_init_record` offers the executing processing record on almost every line created during execution, so a log would spam
 
 ### 3. Tracking changes
 
@@ -264,6 +264,8 @@ Log messages are not records. `LogRecord` was removed in #247. The last 50 log l
 ## Tracked network data
 
 `NetworkDataLine` (`TrackedAttr`) declares its monitored fields with `_tracking_fields`, so the first assignment records nothing and later ones record an `update` entry. `line_modified` is set when `line` changes to a different value. `original_line` is a read-only property.
+
+`originated` and `line_type` are the `StrEnum`s `Originated` and `LineType` (in `src/bastproxy/libs/records/enums.py`, exported from `bastproxy.libs.records`). `NetworkDataLine.__init__` coerces its arguments first, so a string still works and an unknown value raises `ValueError` before any record is registered. A member equals its old string, so logs and debug output do not change. Locking these fields is tracked in #264.
 
 `NetworkData` (`TrackedList`) converts every stored item through one hook, `_tracking_convert_item`: str, bytes and bytearray become a `NetworkDataLine`, any other type raises `TypeError`, and the list becomes the line's parent (including for a `NetworkDataLine` object given to `append`, `insert`, `extend`, `+=` or item or slice assignment).
 

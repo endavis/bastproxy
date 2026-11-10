@@ -25,6 +25,7 @@ from typing import Any, ClassVar
 from pydatatracker import tracking_actor
 
 # Project
+from bastproxy.libs.records.enums import UpdateFlag
 from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, RMANAGER
 from bastproxy.libs.records.rtypes.base import RecordDisplayMixin
 from bastproxy.libs.records.rtypes.update import RESERVED_KEYS, TrackedUpdate
@@ -130,7 +131,7 @@ class TrackedRecordMixin(RecordDisplayMixin):
 
     def addupdate(
         self,
-        flag: str,
+        flag: UpdateFlag | str,
         action: str,
         extra: dict[str, Any] | None = None,
         savedata: bool = False,
@@ -138,13 +139,15 @@ class TrackedRecordMixin(RecordDisplayMixin):
         """Add a change entry for this record.
 
         Args:
-            flag: one of 'Modify', 'Set Flag', 'Info'.
+            flag: an ``UpdateFlag`` or its string ('Modify', 'Set Flag', 'Info'); an unknown
+                value raises ``ValueError``.
             action: a description of what was changed.
             extra: any extra info about the change.
             savedata: accepted for the old interface; a tracked update keeps no data.
 
         """
         del savedata  # kept so callers passing savedata= still work
+        flag = UpdateFlag(flag)
         kwargs = {
             (f"extra_{key}" if key in RESERVED_KEYS else key): value
             for key, value in (extra or {}).items()
