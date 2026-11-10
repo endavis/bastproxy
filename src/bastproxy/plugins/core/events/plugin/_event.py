@@ -74,7 +74,8 @@ class Event:
     def isregistered(self, func) -> bool:
         """Check if a function is registered to this event."""
         return any(
-            func in self.priority_dictionary[priority] for priority in self.priority_dictionary
+            any(call_back.func == func for call_back in self.priority_dictionary[priority])
+            for priority in self.priority_dictionary
         )
 
     def isempty(self) -> bool:

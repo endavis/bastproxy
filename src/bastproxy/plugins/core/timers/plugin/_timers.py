@@ -63,6 +63,16 @@ class Timer(Callback):
         # this should be a datetime object
         self.next_fire_datetime: datetime.datetime = self.get_first_fire()
 
+    def __hash__(self) -> int:
+        """Hash by identity so timers with the same func, owner and name stay distinct."""
+        return object.__hash__(self)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare timers by identity; compare against plain callables as Callback does."""
+        if isinstance(other, Timer):
+            return self is other
+        return super().__eq__(other)
+
     def get_first_fire(self) -> datetime.datetime:
         """Gets the first fire time of the timer.
 
