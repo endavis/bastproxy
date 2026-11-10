@@ -391,8 +391,9 @@ class ClientConnection:
                     self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
                 else:
                     logger.debug("client_write - No message to write to client.")
-                if msg_obj.is_prompt:
-                    self.writer.write(telnet.go_ahead())
+                # send_ga writes IAC GA through send_iac and sends nothing
+                # when the client agreed to suppress go-ahead (SGA)
+                if msg_obj.is_prompt and self.writer.send_ga():
                     self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
             elif msg_obj.is_command_telnet:
                 logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
