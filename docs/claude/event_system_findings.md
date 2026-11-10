@@ -596,6 +596,8 @@ nested raise of the same event with an error.
 
 ### ES-8: `event.get` creates an event for any name, so the raise command never reports an unknown event
 
+**Status:** fixed by #283 (`_command_raise` checks `event.exists` first; `event.get` still creates, for its other callers).
+
 **Issue:** #283
 **Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`, `EventsPlugin._api_event_get` (creates and
 stores an `Event` for a name it has not seen) and `EventsPlugin._command_raise` (tests the result of

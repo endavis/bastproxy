@@ -409,7 +409,7 @@ class EventsPlugin(BasePlugin):
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
-        if self.api(f"{self.plugin_id}:event.get")(args["event"]):
+        if args["event"] and self.api(f"{self.plugin_id}:event.exists")(args["event"]):
             self.api(f"{self.plugin_id}:event.raise")(args["event"])
             message.append(f"raised event: {args['event']}")
         else:
