@@ -41,6 +41,7 @@ import asyncio
 import contextlib
 import datetime
 import logging
+import re
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -65,6 +66,9 @@ from bastproxy.libs.records import (
 )
 
 logger = get_logger(__name__)
+
+_TERM_DISALLOWED = re.compile(r"[^A-Za-z0-9._+-]")
+_TERM_MAX_LENGTH = 32
 
 
 class ClientConnection:
@@ -125,6 +129,26 @@ class ClientConnection:
         return self.api("plugins.core.utils:timedelta.to.string")(
             self.connected_time, datetime.datetime.now(datetime.UTC)
         )
+
+    @property
+    def term_type(self) -> str:
+        """Return the terminal type the client reported through TTYPE.
+
+        telnetlib3 returns ``None`` for the ``TERM`` extra info until TTYPE
+        negotiation completes, and for good when the client never sends TTYPE.
+
+        The value comes from the client, so it is sanitized: only letters,
+        digits and ``._+-`` are kept, and the result is capped at 32 characters.
+
+        Returns:
+            The sanitized terminal type, or ``"-"`` when it is None, empty, or
+            has no allowed characters.
+
+        """
+        term = self.writer.get_extra_info("TERM")
+        if not term:
+            return "-"
+        return _TERM_DISALLOWED.sub("", str(term))[:_TERM_MAX_LENGTH] or "-"
 
     def send_to(self, data: NetworkDataLine) -> None:
         """Send data to the client.

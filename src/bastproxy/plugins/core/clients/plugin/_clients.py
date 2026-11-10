@@ -297,7 +297,7 @@ class ClientPlugin(BasePlugin):
                 "state": "Active",
                 "address": client.addr,
                 "port": client.port,
-                "term_type": "Term Type",
+                "term_type": client.term_type,
                 "connected": client.connected_length,
                 "view_only": str(client.view_only),
             }

@@ -11,12 +11,22 @@ from tests.plugins.core.utils.test_utils_output_table import make_utils_stub
 PID = "plugins.core.clients"
 
 
-def _stub(banned: dict[str, Any] | None = None, permbanips: list[str] | None = None) -> MagicMock:
+def _stub(
+    banned: dict[str, Any] | None = None,
+    permbanips: list[str] | None = None,
+    term_type: str = "-",
+) -> MagicMock:
     utils = make_utils_stub()
     stub = MagicMock()
     stub.plugin_id = PID
     stub.clients = {
-        "uuid1": SimpleNamespace(addr="10.0.0.5", port=4242, connected_length="1m", view_only=False)
+        "uuid1": SimpleNamespace(
+            addr="10.0.0.5",
+            port=4242,
+            connected_length="1m",
+            view_only=False,
+            term_type=term_type,
+        )
     }
     stub.banned = banned or {}
 
@@ -41,6 +51,20 @@ def test_one_client_no_bans() -> None:
     assert "10.0.0.5" in text
     assert "4242" in text
     assert "Banned IPs" not in text
+
+
+def test_table_shows_reported_term_type() -> None:
+    text = "\n".join(ClientPlugin._api_client_list_formatted(_stub(term_type="xterm")))
+
+    assert "xterm" in text
+
+
+def test_table_shows_dash_without_ttype() -> None:
+    lines = ClientPlugin._api_client_list_formatted(_stub())
+
+    row = next(line for line in lines if "10.0.0.5" in line)
+    assert "-" in row
+    assert "Term Type" not in row
 
 
 def test_bans_follow_clients_table() -> None:
