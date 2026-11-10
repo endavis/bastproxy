@@ -582,6 +582,8 @@ priorities were `[1, 50, 99]` (Q3a). No caller in `src` registers at 0 (**read**
 
 ### ES-7: Raising an event from one of its own callbacks resets the outer raise
 
+**Status:** fixed by #281 (the done flags move to `ProcessRaisedEvent.done`; `Event.raise_event` saves and restores `active_event` and `current_callback`; `Event.reset_event` is removed).
+
 **Issue:** #281
 **Location:** `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` (`_exec_once` calls
 `reset_event`) and `src/bastproxy/plugins/core/events/plugin/_event.py` (`Event.raise_event` `finally`,
