@@ -40,21 +40,42 @@ def test_bad_item_raises_and_leaves_length() -> None:
     assert len(net_data) == 1
 
 
-def test_locked_networkdata_refuses_changes() -> None:
+_MUTATORS: dict[str, Callable[[NetworkData], object]] = {
+    "append": lambda d: d.append("x"),
+    "extend": lambda d: d.extend(["x"]),
+    "insert": lambda d: d.insert(0, "x"),
+    "__setitem__": lambda d: d.__setitem__(0, "x"),
+    "__iadd__": lambda d: d.__iadd__(["x"]),
+    "sort": lambda d: d.sort(key=lambda line: str(line.line)),
+    "reverse": lambda d: d.reverse(),
+    "pop": lambda d: d.pop(),
+    "remove": lambda d: d.remove(d[0]),
+    "__delitem__": lambda d: d.__delitem__(0),
+    "clear": lambda d: d.clear(),
+    "__imul__": lambda d: d.__imul__(2),
+}
+
+
+@pytest.mark.parametrize("mutator", list(_MUTATORS))
+def test_locked_mutator_raises(mutator: str) -> None:
     net_data = NetworkData(["b", "a"])
     net_data.lock()
     assert net_data.locked
-    operations: list[Callable[[], object]] = [
-        lambda: net_data.append("x"),
-        lambda: net_data.pop(),
-        lambda: net_data.sort(),
-        lambda: net_data.__iadd__(["x"]),
-        lambda: net_data.__setitem__(0, "x"),
-        lambda: net_data.insert(0, "x"),
-    ]
-    for operation in operations:
-        with pytest.raises(RuntimeError):
-            operation()
+    before = [line.line for line in net_data]
+    with pytest.raises(RuntimeError):
+        _MUTATORS[mutator](net_data)
+    assert [line.line for line in net_data] == before
+
+
+@pytest.mark.parametrize("mutator", list(_MUTATORS))
+def test_unlocked_mutator_records_change_and_keeps_parent(mutator: str) -> None:
+    net_data = NetworkData(["b", "a"])
+    changes = len(net_data.tracking_changes())
+    _MUTATORS[mutator](net_data)
+    assert len(net_data.tracking_changes()) > changes
+    for line in net_data:
+        assert line.parents == [net_data]
+        assert line.parent is net_data
 
 
 def test_locked_line_refuses_but_was_sent_stays_writable() -> None:
@@ -96,10 +117,25 @@ def test_line_modified() -> None:
 
 
 def test_copy_attributes() -> None:
-    line = NetworkDataLine("a|b", originated="client")
-    new = NetworkDataLine("a", originated="client")
+    line = NetworkDataLine(
+        "a|b",
+        originated="client",
+        line_type="IO",
+        had_line_endings=False,
+        preamble=False,
+        prelogin=True,
+        color="@r",
+    )
+    new = NetworkDataLine("a")
     line.copy_attributes(new)
+    assert new.line_type == line.line_type
+    assert new.originated == "client"
     assert new.original_line == "a|b"
+    assert new.preamble is False
+    assert new.had_line_endings is False
+    assert new.prelogin is True
+    assert new.color == "@r"
+    assert new.parents == [line]
     assert new.split_from is line
 
 
