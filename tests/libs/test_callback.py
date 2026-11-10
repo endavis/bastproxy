@@ -204,8 +204,11 @@ class TestCallbackEquality:
         assert hash1 == hash2
 
     def test_callback_equals_same_callback(self) -> None:
-        """Test that two callbacks with same properties are equal."""
-        # Note: They won't be equal because creation_time differs
+        """Two callbacks with the same func, owner and name are equal.
+
+        Contract (#279): creation time does not take part in equality or
+        hashing, so a duplicate registration is recognised as a duplicate.
+        """
         callback1 = Callback(name="same_callback", owner_id="test_owner", func=helper_test_function)
 
         # Small delay to ensure timestamps differ (Windows has low clock resolution)
@@ -213,9 +216,9 @@ class TestCallbackEquality:
 
         callback2 = Callback(name="same_callback", owner_id="test_owner", func=helper_test_function)
 
-        # These are NOT equal because they have different creation times
-        assert callback1 != callback2
-        assert hash(callback1) != hash(callback2)
+        assert callback1.created_time != callback2.created_time
+        assert callback1 == callback2
+        assert hash(callback1) == hash(callback2)
 
     def test_callback_equals_wrapped_function(self) -> None:
         """Test that a callback equals its wrapped function."""
@@ -240,3 +243,18 @@ class TestCallbackEquality:
         assert callback != 42
         assert callback != None  # noqa: E711
         assert callback != {"key": "value"}
+
+
+class TestCallbackHashIgnoresCreatedTime:
+    """Hash depends on func, owner and name only (#279)."""
+
+    def test_same_func_owner_name_hash_and_equal(self) -> None:
+        """Two callbacks created at different times still hash and compare equal."""
+        callback1 = Callback(name="dup", owner_id="test_owner", func=helper_test_function)
+        time.sleep(0.001)
+        callback2 = Callback(name="dup", owner_id="test_owner", func=helper_test_function)
+
+        assert callback1.created_time != callback2.created_time
+        assert hash(callback1) == hash(callback2)
+        assert callback1 == callback2
+        assert len({callback1: 1, callback2: 2}) == 1

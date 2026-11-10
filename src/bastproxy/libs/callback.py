@@ -72,13 +72,14 @@ class Callback:
         """Generate a hash for the callback.
 
         This method generates a unique hash for the callback instance based on its
-        function, owner ID, name, and creation time.
+        function, owner ID, and name. The creation time is left out so that registering
+        the same function for the same owner twice yields equal callbacks.
 
         Returns:
             int: The generated hash value.
 
         """
-        return hash(self.func) + hash(self.owner_id) + hash(self.name) + hash(self.created_time)
+        return hash(self.func) + hash(self.owner_id) + hash(self.name)
 
     def __eq__(self, other_function: Any) -> bool:
         """Check equality between this callback and another function or callback.

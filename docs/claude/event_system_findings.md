@@ -431,9 +431,9 @@ something runs it; whether any test asserts on the warning was not checked (**un
 | Missed | What it is | Matters? |
 | :--- | :--- | :--- |
 | 67 | `get_active_event` | Used by `event.current.record.get`; ES-7 turns on it returning None |
-| 75 | `isregistered` body | **Yes.** Never run by any test, so ES-5 (it is never True for a real callback) has no test that would show it |
+| 75 | `isregistered` body | **Yes.** Never run by any test, so ES-5 (it was never True for a real callback) had no test that would show it; covered since #279 |
 | 81 | `isempty` | Low |
-| 108 | `register` returns False for a duplicate | **Yes.** The duplicate check is untested; ES-5 shows it never fires for a real callback |
+| 108 | `register` returns False for a duplicate | **Yes.** The duplicate check is untested; ES-5 showed it never fired for a real callback; covered since #279 |
 | 114->113, 126-129 | `unregister` when the function is not found: the error log and `return False` | Medium; the "not found" path is untested |
 | 158-214 | `detail` | Display only |
 | 282-294 | `raise_event` with data that is neither a dict nor an `EventDataRecord` | **Yes.** The branch uses `self.called_from`, which `Event` does not have, so it raises (ES-2) |
@@ -560,6 +560,8 @@ order on `ev_plugin_loaded` is commands, events, settings at 50 (Q3b).
 
 ### ES-5: The event system cannot detect an already registered function
 
+**Status:** fixed by #279 (the hash no longer includes `created_time`; `isregistered` matches by function; `Timer` hashes by identity).
+
 **Issue:** #279
 **Location:** `src/bastproxy/libs/callback.py`, `Callback.__hash__` (adds `created_time`);
 `src/bastproxy/plugins/core/events/plugin/_event.py`, `Event.isregistered` and the duplicate check in
@@ -612,7 +614,7 @@ and check whether any other caller of `event.get` relies on the creation.
 **Evidence (verified):** these lines are missed by both coverage runs (Q5, `coverage.txt`,
 `coverage-narrow.txt`). `EventsPlugin` is 36.0% covered and `Event` 68.7%.
 **Fix:** tests that build an `EventsPlugin` the way the other plugin tests do and cover: a decorated callback
-is stored at its priority (fails today, ES-4); registering twice is detected (fails today, ES-5);
+is stored at its priority (fails today, ES-4); registering twice is detected (fixed and tested in #279, ES-5);
 `_eventcb_plugin_unloaded` leaves no registration for the unloaded owner; an unknown owner and an unknown
 event do not raise. Tests for ES-4 and ES-5 belong with their fixes, not this issue.
 
