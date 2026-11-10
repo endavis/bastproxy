@@ -15,7 +15,7 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
-Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): priority 0 is stored as 50 (#280), a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
+Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
 
 ## Key Components
 
@@ -188,7 +188,7 @@ When an event is raised:
 ### 4. Priority-Based Execution
 
 Callbacks are organized by priority (default: 50):
-- Lower numbers execute first (e.g., priority 1 before priority 50); priority 0 does not work as the lowest, it is stored as 50 (#280)
+- Lower numbers execute first (e.g., priority 0 before priority 1, priority 1 before priority 50); `prio=None` means 50
 - Within one priority, callbacks run in registration order
 - All callbacks at a given priority are executed before moving to the next priority
 - The system uses a while loop to handle callbacks registered during event execution

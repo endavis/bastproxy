@@ -82,8 +82,11 @@ class Event:
         """Check if an event has no functions registered."""
         return not any(self.priority_dictionary[priority] for priority in self.priority_dictionary)
 
-    def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
+    def register(self, func: Callable, func_owner_id: str, prio: int | None = 50) -> bool:
         """Register a function to this event container.
+
+        ``prio`` orders callbacks, lower runs first. ``None`` means 50; ``0`` and
+        every other value are honoured as given.
 
         An ``async def`` callback is rejected: raising an event calls callbacks
         synchronously, so a coroutine would be created and never awaited.
@@ -96,7 +99,7 @@ class Event:
             )
             return False
 
-        priority = prio or 50
+        priority = 50 if prio is None else prio
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = {}
 
