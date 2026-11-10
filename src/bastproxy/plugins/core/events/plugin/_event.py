@@ -284,7 +284,7 @@ class Event:
                 logging.ERROR,
                 "raise_event - event %s raised by %s did not pass a dict or EventDataRecord object",
                 self.name,
-                self.called_from,
+                actor,
             )
             log_to(
                 [self.created_by, "plugins.core.events"],
