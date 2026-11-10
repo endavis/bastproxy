@@ -53,7 +53,7 @@ class Event:
         self.active_event = None
 ```
 
-`priority_dictionary` maps a priority to a dictionary of `Callback` objects, each with a flag that says whether it ran in the current raise. `Event.register(func, func_owner_id, prio=50)` adds a callback; `raise_event(data, actor, data_list=None, key_name=None)` raises the event, where `actor` is the owner id of the caller (see Actors below).
+`priority_dictionary` maps a priority to a dictionary of `Callback` objects, each with a flag that says whether it ran in the current raise. `Event.register(func, func_owner_id, prio=50)` adds a callback; `raise_event(data, actor, data_list=None, key_name=None)` raises the event, where `actor` is the owner id of the caller (see Actors below). Callbacks are called synchronously, so `register` rejects an `async def` callback: it logs an error naming the function and the event, returns `False` and registers nothing (#277).
 
 ### EventDataRecord
 **Location**: `src/bastproxy/plugins/core/events/libs/data/_event.py`

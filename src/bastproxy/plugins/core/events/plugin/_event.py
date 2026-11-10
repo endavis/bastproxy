@@ -12,6 +12,7 @@ It can be updated in two ways, by using the api plugins.core.events:add:event
 """
 
 # Standard Library
+import inspect
 import logging
 from collections import OrderedDict
 from collections.abc import Callable
@@ -81,7 +82,19 @@ class Event:
         return not any(self.priority_dictionary[priority] for priority in self.priority_dictionary)
 
     def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
-        """Register a function to this event container."""
+        """Register a function to this event container.
+
+        An ``async def`` callback is rejected: raising an event calls callbacks
+        synchronously, so a coroutine would be created and never awaited.
+        """
+        if inspect.iscoroutinefunction(func):
+            get_logger(self.created_by).error(
+                "%s - cannot register async function %s: event callbacks must be synchronous",
+                self.name,
+                getattr(func, "__name__", func),
+            )
+            return False
+
         priority = prio or 50
         if priority not in self.priority_dictionary:
             self.priority_dictionary[priority] = {}
