@@ -90,9 +90,10 @@ class ProcessRaisedEvent(BaseRecord):
                     found_callbacks = False
                     continue
                 for priority in keys:
-                    found_callbacks = self.event.raise_priority(
-                        priority, priority in priorities_done
-                    )
+                    # keep looping while any priority in this pass ran a callback;
+                    # the last priority alone can run nothing on a later pass
+                    ran = self.event.raise_priority(priority, priority in priorities_done)
+                    found_callbacks = found_callbacks or bool(ran)
                     priorities_done.append(priority)
 
         if count > 2:  # the minimum number of times through the loop is 2
