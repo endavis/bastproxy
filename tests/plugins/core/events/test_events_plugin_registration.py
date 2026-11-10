@@ -83,6 +83,15 @@ class _Stub:
     def get_event_registration_functions_in_object(self, base: object, recurse: bool = True) -> Any:
         return EventsPlugin.get_event_registration_functions_in_object(self, base, recurse)  # type: ignore[arg-type]
 
+    def get_ignored_event_registration_functions_in_object(
+        self, base: object, recurse: bool = True
+    ) -> Any:
+        return EventsPlugin.get_ignored_event_registration_functions_in_object(
+            self,  # type: ignore[arg-type]
+            base,
+            recurse,
+        )
+
     def _register_events_for_plugin(self, plugin_id: str) -> None:
         EventsPlugin._register_events_for_plugin(self, plugin_id)  # type: ignore[arg-type]
 
@@ -239,6 +248,36 @@ def test_register_events_for_plugin_registers_discovered_callbacks(stub: _Stub) 
     stub._register_events_for_plugin(OWNER_ID)
     assert set(stub.events) == {f"ev_{OWNER_ID}_first", "ev_test282_a", "ev_test282_b"}
     assert stub.events["ev_test282_b"].count() == 1
+
+
+def test_register_events_for_plugin_warns_on_decorated_method_without_prefix(
+    stub: _Stub, caplog: pytest.LogCaptureFixture
+) -> None:
+    stub.instances[OWNER_ID] = _Owner()
+    with caplog.at_level(logging.WARNING):
+        stub._register_events_for_plugin(OWNER_ID)
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    for text in (OWNER_ID, "not_prefixed", "ev_test282_c", "_eventcb_"):
+        assert text in warnings[0]
+    assert "ev_test282_c" not in stub.events
+
+
+def test_register_events_for_plugin_prefixed_method_registers_without_warning(
+    stub: _Stub, caplog: pytest.LogCaptureFixture
+) -> None:
+    class Prefixed:
+        plugin_id = "plugins.test284.prefixed"
+
+        @RegisterToEvent(event_name="ev_test284_ok")
+        def _eventcb_ok(self) -> None:
+            """Prefixed and decorated."""
+
+    stub.instances[Prefixed.plugin_id] = Prefixed()
+    with caplog.at_level(logging.WARNING):
+        stub._register_events_for_plugin(Prefixed.plugin_id)
+    assert "ev_test284_ok" in stub.events
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
 
 
 def test_register_events_for_plugin_without_callbacks_registers_nothing(stub: _Stub) -> None:
