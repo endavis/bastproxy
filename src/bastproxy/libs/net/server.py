@@ -41,6 +41,8 @@ except ImportError:
     print("From the root of the project: uv sync --all-extras")
     sys.exit(1)
 
+from telnetlib3.telopt import BINARY, DO, NAWS, WILL
+
 # Project
 
 
@@ -53,21 +55,28 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     """
 
     def begin_advanced_negotiation(self) -> None:
-        """Begin advanced negotiation with the client.
+        """Begin advanced negotiation with a newly connected client.
 
-        This method initiates advanced negotiation with the client to set up the
-        communication parameters and options.
+        Replaces telnetlib3's implementation and does not call it. Sent here:
 
-        Returns:
-            None
+        - ``DO NAWS``, so the client reports its window size (telnetlib3 stores
+          it as the ``rows`` and ``cols`` extra info, see ``ClientConnection``).
+        - ``WILL BINARY``, so the proxy may send 8-bit data (utf8) to the client.
 
-        Raises:
-            NotImplementedError: If the method is not implemented.
+        Deliberately not sent:
+
+        - ``WILL SGA``: with SGA enabled ``send_ga()`` sends no GA, and MUD
+          clients use GA to find prompts (#272 depends on it).
+        - ``DO CHARSET``: ``force_binary=True`` on the listeners already fixes
+          the encoding (#63) and CHARSET could renegotiate it.
+        - MCCP: the listeners pass ``compression=False``.
+
+        telnetlib3 still sends ``DO NEW_ENVIRON`` and its own deferred
+        ``WILL ECHO`` from its own code, outside this method.
 
         """
-
-        # if self.writer and self.default_encoding:
-        #     self.writer.iac(DO, CHARSET)
+        self.writer.iac(DO, NAWS)
+        self.writer.iac(WILL, BINARY)
 
 
 def create_server(*args, **kwargs) -> Coroutine:

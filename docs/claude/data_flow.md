@@ -64,13 +64,15 @@ References in this page are to files and symbols, not line numbers, so they stay
 
 ### ClientConnection
 
+Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS` and `WILL BINARY`. It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or MCCP. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
+
 `src/bastproxy/libs/net/client.py`, class `ClientConnection`: one instance per connected client.
 
 | Method | Description |
 |--------|-------------|
-| `setup_client()` | Sends `WILL ECHO`, advertised telnet features and the password prompt (all `prelogin=True`) |
+| `setup_client()` | Sends `WILL ECHO` through `writer.iac(WILL, ECHO)` (telnetlib3 records the option, so it is sent once), advertised telnet features and the password prompt (#66) |
 | `client_read()` | Reader coroutine: one `readline()` per line, then login handling or `ProcessDataToMud` |
-| `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords |
+| `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords; on a match sends `WONT ECHO` through `writer.iac(WONT, ECHO)` |
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
 | `client_write()` | Writer coroutine: writes queued lines, sends `IAC GA` through `writer.send_ga()` after lines marked `is_prompt` (nothing is sent when the client agreed to suppress go-ahead), sets `was_sent` |
