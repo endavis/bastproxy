@@ -15,7 +15,7 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
-Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
+Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a callback registered during a raise can be dropped from that raise (#275).
 
 ## Key Components
 
@@ -29,8 +29,8 @@ The `Event` class is the core of the event system. Each event has:
 - **arg_descriptions**: Dictionary of argument names and their descriptions
 - **priority_dictionary**: Maps priorities to registered callbacks
 - **raised_count**: Number of times the event has been raised
-- **current_callback**: The currently executing callback; cleared by `reset_event()` after each item of a raise (so with `data_list`, every callback runs for every item) and when the raise finishes, so an unloaded plugin is not kept alive
-- **active_event**: The currently active ProcessRaisedEvent instance
+- **current_callback**: The currently executing callback. `raise_event` saves it on entry and restores it when the raise ends, so a nested raise of the same event gives back the outer raise's callback and the outermost raise leaves `None` (an unloaded plugin is not kept alive)
+- **active_event**: The ProcessRaisedEvent being processed; saved and restored by `raise_event` like `current_callback`, so after a nested raise of the same event it is the outer raise again (#281)
 
 ```python
 class Event:
@@ -53,7 +53,7 @@ class Event:
         self.active_event = None
 ```
 
-`priority_dictionary` maps a priority to a dictionary of `Callback` objects, each with a flag that says whether it ran in the current raise. `Event.register(func, func_owner_id, prio=50)` adds a callback; `raise_event(data, actor, data_list=None, key_name=None)` raises the event, where `actor` is the owner id of the caller (see Actors below). Callbacks are called synchronously, so `register` rejects an `async def` callback: it logs an error naming the function and the event, returns `False` and registers nothing (#277).
+`priority_dictionary` maps a priority to a dictionary of `Callback` objects, each mapped to a flag that nothing reads: whether a callback has run is tracked per raise in `ProcessRaisedEvent.done` (a set, fresh for every item of a `data_list` raise), so a raise of the event from one of its own callbacks runs its own callbacks fully and leaves the outer raise untouched (#281). `Event.register(func, func_owner_id, prio=50)` adds a callback; `raise_event(data, actor, data_list=None, key_name=None)` raises the event, where `actor` is the owner id of the caller (see Actors below). Callbacks are called synchronously, so `register` rejects an `async def` callback: it logs an error naming the function and the event, returns `False` and registers nothing (#277).
 
 ### EventDataRecord
 **Location**: `src/bastproxy/plugins/core/events/libs/data/_event.py`
@@ -178,7 +178,7 @@ When an event is raised:
 3. Callbacks are executed in priority order (sorted by priority number)
 4. Each callback is executed once per raise (and per item of a `data_list`)
 5. If new callbacks are registered during execution, they are processed in subsequent passes, but one registered at an already visited priority from the second pass on can be dropped from that raise (#275)
-6. The event is reset after all callbacks complete
+6. The raise ends; its `done` set goes with it, and `active_event` and `current_callback` return to what they were before the raise
 7. An exception in a callback is logged and the remaining callbacks still run; `raise_event` returns `None` and logs an error when the data is neither a dict nor an `EventDataRecord` (the log line itself raises `AttributeError`, #276)
 
 #### Actors
@@ -194,15 +194,14 @@ Callbacks are organized by priority (default: 50):
 - The system uses a while loop to handle callbacks registered during event execution
 
 ```python
-def raise_priority(self, priority, already_done: bool) -> bool:
+def raise_priority(self, priority, already_done: bool, done: set | None = None) -> bool:
+    done = set() if done is None else done
     found = False
     for call_back in list(self.priority_dictionary[priority].keys()):
         try:
-            if (call_back in self.priority_dictionary[priority] and
-                not self.priority_dictionary[priority][call_back] and
-                self.current_callback != call_back):
+            if call_back in self.priority_dictionary[priority] and call_back not in done:
                 self.current_callback = call_back
-                self.priority_dictionary[priority][call_back] = True
+                done.add(call_back)
                 with tracking_actor(f"{call_back.owner_id}:{call_back.name}"):
                     call_back.execute()
                 found = True
@@ -354,7 +353,7 @@ while found_callbacks:
         keys = sorted(keys)
         for priority in keys:
             found_callbacks = self.event.raise_priority(
-                priority, priority in priorities_done
+                priority, priority in priorities_done, self.done
             )
             priorities_done.append(priority)
 ```

@@ -17,6 +17,7 @@ from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records import BaseRecord, UpdateFlag
 
 if TYPE_CHECKING:
+    from bastproxy.libs.callback import Callback
     from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
     from bastproxy.plugins.core.events.plugin._event import Event
 
@@ -30,6 +31,7 @@ class ProcessRaisedEvent(BaseRecord):
         self.event_data = event_data
         self.event_data.add_receiving_event(self)
         self.times_invoked = 0
+        self.done: set[Callback] = set()
         self.id = f"{__name__}:{self.event.name}:{self.created}"
         self.addupdate(UpdateFlag.INFO, "Init")
 
@@ -53,6 +55,8 @@ class ProcessRaisedEvent(BaseRecord):
     def _exec_once(self, actor, **kwargs):
         """Exec it with self.arg_data."""
         self.times_invoked += 1
+        # callbacks run for this item; fresh per item so every item runs every callback
+        self.done = set()
         self.addupdate(UpdateFlag.INFO, "Invoked", extra={"data": f"{dict(self.event_data)}"})
 
         # log the event if the log_savestate setting is True or if the event is not a _savestate event
@@ -92,7 +96,9 @@ class ProcessRaisedEvent(BaseRecord):
                 for priority in keys:
                     # keep looping while any priority in this pass ran a callback;
                     # the last priority alone can run nothing on a later pass
-                    ran = self.event.raise_priority(priority, priority in priorities_done)
+                    ran = self.event.raise_priority(
+                        priority, priority in priorities_done, self.done
+                    )
                     found_callbacks = found_callbacks or bool(ran)
                     priorities_done.append(priority)
 
@@ -105,7 +111,8 @@ class ProcessRaisedEvent(BaseRecord):
             )
 
         self.current_record = None
-        self.event.reset_event()
+        # raised_events keeps this record; do not keep callbacks (and their owners) alive
+        self.done = set()
 
     def get_attributes_to_format(self):
         attributes = super().get_attributes_to_format()

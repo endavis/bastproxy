@@ -108,9 +108,8 @@ class Event:
         if call_back not in self.priority_dictionary[priority]:
             # This is a list of functions that are registered to this event at this priority
             # It is used to ensure that a function is not registered twice
-            # Each time the event is invoked, the dictionary item will be set to True
-            # when the function has been called. This is used to ensure that all functions
-            # are called at least once before the event is finished
+            # The value is not read: which callbacks have run is tracked per raise
+            # by ProcessRaisedEvent (a set passed to raise_priority)
             self.priority_dictionary[priority][call_back] = False
             log_to(
                 [call_back.owner_id, self.created_by],
@@ -230,32 +229,26 @@ class Event:
 
         return message
 
-    def reset_event(self):
-        """Reset the event.
+    def raise_priority(
+        self, priority, already_done: bool, done: "set[Callback] | None" = None
+    ) -> bool:
+        """Raise the event at a specific priority.
 
-        Also clears current_callback so the callback that ran last on one
-        item of a multi-item raise is not skipped on the next item (#252).
+        done holds the callbacks already run by the current raise (one item of
+        a data_list raise); it is per raise so a nested raise of the same event
+        neither resets nor is skipped by the outer one (#281).
         """
-        self.current_callback = None
-        for priority in self.priority_dictionary:
-            for call_back in self.priority_dictionary[priority]:
-                self.priority_dictionary[priority][call_back] = False
-
-    def raise_priority(self, priority, already_done: bool) -> bool:
-        """Raise the event at a specific priority."""
+        if done is None:
+            done = set()
         found = False
         for call_back in list(self.priority_dictionary[priority].keys()):
             try:
                 # A callback should call the api 'plugins.core.events:get:current:event'
                 # which returns event_name, EventDataRecord
                 # If the registered event changes the data, it should snapshot it with addupdate
-                if (
-                    call_back in self.priority_dictionary[priority]
-                    and not self.priority_dictionary[priority][call_back]
-                    and self.current_callback != call_back
-                ):
+                if call_back in self.priority_dictionary[priority] and call_back not in done:
                     self.current_callback = call_back
-                    self.priority_dictionary[priority][call_back] = True
+                    done.add(call_back)
                     with tracking_actor(f"{call_back.owner_id}:{call_back.name}"):
                         call_back.execute()
                     found = True
@@ -318,6 +311,9 @@ class Event:
             self.created_by = actor
 
         raised = ProcessRaisedEvent(self, data, actor)  # type: ignore
+        # a nested raise of this event must hand the outer raise's state back
+        previous_active_event = self.active_event
+        previous_callback = self.current_callback
         self.active_event = raised
         self.raised_events[raised.uuid] = raised
         # evict the oldest before the callbacks run; a lowered cap shrinks here
@@ -326,7 +322,8 @@ class Event:
         try:
             raised(actor, data_list=data_list, key_name=key_name)
         finally:
-            # do not keep the last callback (and so its owner instance) alive after the raise
-            self.active_event = None
-            self.current_callback = None
+            # the outermost raise restores None, so the last callback (and its
+            # owner instance) is not kept alive after the raise
+            self.active_event = previous_active_event
+            self.current_callback = previous_callback
         return raised
