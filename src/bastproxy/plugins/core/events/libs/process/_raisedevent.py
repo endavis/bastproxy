@@ -77,10 +77,12 @@ class ProcessRaisedEvent(BaseRecord):
 
         # convert a dict to an EventDataRecord object
 
-        # This checks each priority separately and executes the functions in order of priority
-        # A while loop is used to ensure that if a function is added to the event during the execution of the same event
-        # it will be processed in the same order as the other functions
-        # This means that any registration added during the execution of the event will be processed
+        # Each pass visits the priorities in ascending order and runs each callback once per
+        # raise (tracked in self.done). The loop repeats while any priority in a pass ran a
+        # callback (found_callbacks is OR-ed across priorities, #275), so a callback registered
+        # during the raise runs in a later pass, after the higher-priority callbacks already ran
+        # in the first pass. That is not priority order; raise_priority logs an out-of-order
+        # warning when already_done.
         priorities_done = []
 
         found_callbacks = True

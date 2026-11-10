@@ -243,8 +243,8 @@ class Event:
         found = False
         for call_back in list(self.priority_dictionary[priority].keys()):
             try:
-                # A callback should call the api 'plugins.core.events:get:current:event'
-                # which returns event_name, EventDataRecord
+                # A callback should call the api 'plugins.core.events:event.current.record.get'
+                # which returns the current EventDataRecord
                 # If the registered event changes the data, it should snapshot it with addupdate
                 if call_back in self.priority_dictionary[priority] and call_back not in done:
                     self.current_callback = call_back
