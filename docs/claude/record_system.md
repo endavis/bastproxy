@@ -373,7 +373,6 @@ while current.parent:
 
 | Issue | Gap |
 |-------|-----|
-| #49 | `str()` on a telnet line raises; `one_line_summary()` bugs (`get_update()` now finds child updates, #248) |
 | #82 | Records are kept only in memory: those beyond the last `retained_trees` root trees are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 

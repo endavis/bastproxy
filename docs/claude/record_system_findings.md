@@ -134,7 +134,7 @@ Every item in the issue's list, with its current state.
 | Requirements: what to record, keep and cost | **Open**, an ADR is planned. This audit feeds it. | #79 |
 | Replace `AttributeMonitor`, `UpdateRecord` and `UpdateManager` with pydatatracker | **Open.** Q1 gives the behaviour the replacement has to match; Q2 to Q5 cover what survives it. | #43 |
 | Missed mutations and lock bypasses | **Open and confirmed** (verified, Q1). New cases: `+=` and `*=` change a locked list while logging a refusal; `+=` stores raw `str` items; `BaseListRecord` and `BaseDictRecord` track none of the plain mutators. `BaseDictRecord` was moved onto pydatatracker by #246 and now tracks and locks all of them. | #47, #48 |
-| Display and lookup bugs | **Open and confirmed**: `get_update` raises `AttributeError` for a child's update and returns `None` for a hit (two bugs); `str()` of a telnet line raises `TypeError`. `check_for_change` also raises and has no caller. | #49 |
+| Display and lookup bugs | **Open and confirmed**: `get_update` raises `AttributeError` for a child's update and returns `None` for a hit (two bugs); `str()` of a telnet line raises `TypeError`. `check_for_change` also raises and has no caller. **Fixed after this audit:** #248 rewrote `get_update` and deleted `check_for_change`; #49 made `str()` of a bytes line decode it as latin-1. | #49 |
 | Per-update capture cost | **Open.** Measured here: a monitored attribute change costs 74.8 microseconds; the stacks are 497 MiB of the 1,145 MB traced in the memory run. | #81, #80 |
 | Retention | **Open.** Q3 describes what is kept, and what outlives the cap. | #82 |
 | Protocol traffic not tracked | **Open**, not re-audited. | #83 |

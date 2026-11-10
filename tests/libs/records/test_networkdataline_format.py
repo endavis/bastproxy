@@ -111,3 +111,16 @@ def test_fix_double_command_seperator() -> None:
     raw = NetworkDataLine(b"a||b", originated="client", line_type="COMMAND-TELNET")
     raw.fix_double_command_seperator()
     assert raw.line == b"a||b"
+
+
+def test_str_of_io_line_is_text(plugin_stand_ins: StandIns) -> None:
+    assert str(NetworkDataLine("hello", preamble=False)) == "hello"
+
+
+@pytest.mark.parametrize("raw", [b"\xff\xfb\x01", bytearray(b"\xff\xfb\x01")])
+def test_str_of_telnet_bytes_line_is_lossless(
+    plugin_stand_ins: StandIns, raw: bytes | bytearray
+) -> None:
+    line = NetworkDataLine(raw, originated="client", line_type="COMMAND-TELNET")
+    assert str(line) == "\xff\xfb\x01"
+    assert str(line).encode("latin-1") == b"\xff\xfb\x01"

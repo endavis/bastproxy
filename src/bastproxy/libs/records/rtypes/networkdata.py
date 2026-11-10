@@ -341,11 +341,18 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
     def __str__(self):
         """Return a string representation of the line.
 
+        A ``str`` line is returned as is. A ``bytes`` or ``bytearray`` line
+        (telnet commands) is decoded as latin-1, which maps each byte to one
+        character, so the result is lossless and round-trips through
+        ``.encode("latin-1")``.
+
         Returns:
             The line content as a string.
 
         """
-        return self.line
+        if isinstance(self.line, str):
+            return self.line
+        return bytes(self.line).decode("latin-1")
 
     def __repr__(self):
         """Return a detailed representation of the network data line.
