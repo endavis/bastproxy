@@ -609,6 +609,8 @@ and check whether any other caller of `event.get` relies on the creation.
 
 ### ES-9: The events plugin's register, unregister and unload paths have no test
 
+**Status:** fixed by #282 (`tests/plugins/core/events/test_events_plugin_registration.py` covers the listed paths; the ES-4 and ES-5 cases are in their own test files).
+
 **Issue:** #282
 **Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`: `_api_event_register`,
 `_api_event_register_by_func`, `_api_event_unregister`, `_api_event_unregister_for_owner`,
