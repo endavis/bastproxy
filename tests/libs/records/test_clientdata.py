@@ -18,15 +18,30 @@ def test_process_construction_defaults_and_parent() -> None:
     assert record.message is message
     assert message.parent is record
     assert message.parents == [record]
-    assert record.preamble is True
-    assert record.prelogin is False
-    assert record.error is False
     assert record.send_to_clients is True
     assert record.clients == []
     assert record.exclude_clients == []
-    assert record.color_for_all_lines == ""
     assert record.modify_data_event_name == TO_CLIENT_DATA_MODIFY
     assert record.read_data_event_name == TO_CLIENT_DATA_READ
+    for name in _REMOVED_OPTIONS:
+        assert not hasattr(record, name)
+    assert not hasattr(record, "can_send_to_client")
+
+
+_REMOVED_OPTIONS = ("preamble", "prelogin", "error", "color_for_all_lines")
+
+
+@pytest.mark.parametrize("option", _REMOVED_OPTIONS)
+def test_process_rejects_removed_options(option: str) -> None:
+    with pytest.raises(TypeError):
+        ProcessDataToClient(NetworkData("a"), **{option: True})  # type: ignore[arg-type]
+
+
+def test_process_details_omit_removed_options() -> None:
+    record = ProcessDataToClient(NetworkData("a"))
+    attributes = {attr for _, attr in record.get_attributes_to_format()[0]}
+    assert attributes.isdisjoint(_REMOVED_OPTIONS)
+    assert {"send_to_clients", "clients", "exclude_clients"} <= attributes
 
 
 def test_process_add_and_exclude_client() -> None:
@@ -39,43 +54,6 @@ def test_process_add_and_exclude_client() -> None:
     record.exclude_client("u1")
     assert record.clients == []
     assert record.exclude_clients == ["u1"]
-
-
-# (uuid, exclude, view client, internal, in clients, logged in, prelogin, expected)
-_PROCESS_ROWS = [
-    ("", [], False, False, ["u1"], True, False, False),
-    ("u1", ["u1"], False, False, ["u1"], True, False, False),
-    ("u1", [], True, True, ["u1"], True, False, False),
-    ("u1", [], True, False, ["u1"], True, False, True),
-    ("u1", [], False, False, ["u2"], True, False, False),
-    ("u1", [], False, False, ["u1"], False, False, False),
-    ("u1", [], False, False, ["u1"], False, True, True),
-]
-
-
-@pytest.mark.parametrize(
-    ("uuid", "exclude", "view", "internal", "clients", "logged_in", "prelogin", "expected"),
-    _PROCESS_ROWS,
-)
-def test_process_can_send_to_client(
-    plugin_stand_ins: StandIns,
-    uuid: str,
-    exclude: list[str],
-    view: bool,
-    internal: bool,
-    clients: list[str],
-    logged_in: bool,
-    prelogin: bool,
-    expected: bool,
-) -> None:
-    if view:
-        plugin_stand_ins.view_clients.add("u1")
-    if logged_in:
-        plugin_stand_ins.logged_in.add("u1")
-    record = ProcessDataToClient(
-        NetworkData("a"), clients=clients, exclude_clients=exclude, prelogin=prelogin
-    )
-    assert record.can_send_to_client(uuid, internal) is expected
 
 
 def _mud_message() -> NetworkData:

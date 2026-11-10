@@ -36,22 +36,12 @@ class ProcessDataToClient(BaseRecord):
         message: "NetworkData",
         clients: list | None = None,
         exclude_clients: list | None = None,
-        preamble=True,
-        prelogin: bool = False,
-        error: bool = False,
-        color_for_all_lines=None,
     ):
         """Initialize the class."""
         super().__init__()
         self.message = message
         self.message.parent = self
         self.message.add_parent(self, reset=True)
-        # flag to include preamble when sending to client
-        self.preamble: bool = preamble
-        # flag to send to client before login
-        self.prelogin: bool = prelogin
-        # flag for this is an error message
-        self.error: bool = error
         # This is so that events can set this and it will not be sent to the client
         self.send_to_clients: bool = True
         # clients to send to, a list of client uuids
@@ -59,8 +49,6 @@ class ProcessDataToClient(BaseRecord):
         self.clients: list[str] = clients or []
         # clients to exclude, a list of client uuids
         self.exclude_clients: list[str] = exclude_clients or []
-        # This will set the color for all lines to the specified @ color
-        self.color_for_all_lines: str = color_for_all_lines or ""
         self.modify_data_event_name = self.MODIFY_EVENT
         self.read_data_event_name = self.READ_EVENT
 
@@ -76,13 +64,9 @@ class ProcessDataToClient(BaseRecord):
         attributes = super().get_attributes_to_format()
         attributes[0].extend(
             [
-                ("Preamble", "preamble"),
-                ("Prelogin", "prelogin"),
-                ("Error", "error"),
                 ("Send To Clients", "send_to_clients"),
                 ("Clients", "clients"),
                 ("Exclude Clients", "exclude_clients"),
-                ("Color For All Lines", "color_for_all_lines"),
             ]
         )
         return attributes
@@ -124,25 +108,6 @@ class ProcessDataToClient(BaseRecord):
             self.clients.remove(client_uuid)
         if client_uuid not in self.exclude_clients:
             self.exclude_clients.append(client_uuid)
-
-    def can_send_to_client(self, client_uuid, internal):
-        """Returns true if this message can be sent to the client."""
-        if client_uuid:
-            # Exclude takes precedence over everything else
-            if client_uuid in self.exclude_clients:
-                return False
-            # If the client is a view client and this is an internal message, we don't send it
-            # This way view clients don't see the output of commands entered by other clients
-            if self.api("plugins.core.clients:client.is.view.client")(client_uuid) and internal:
-                return False
-            # If the client is in the list of clients or self.clients is empty,
-            # then we can check to make sure the client is logged in or the prelogin flag is set
-            if (not self.clients or client_uuid in self.clients) and (
-                self.api("plugins.core.clients:client.is.logged.in")(client_uuid) or self.prelogin
-            ):
-                # All checks passed, we can send to this client
-                return True
-        return False
 
     def _exec_(self):
         """Send the message."""
