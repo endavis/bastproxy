@@ -23,6 +23,7 @@ from pydatatracker.utils.changelog import ChangeLogEntry
 # Project
 from bastproxy.libs.context import get_command_args
 from bastproxy.libs.records.enums import UpdateFlag
+from bastproxy.libs.records.managers.records import next_creation_sequence
 
 __all__ = [
     "INFO_ACTIONS",
@@ -55,6 +56,17 @@ class TrackedUpdate:
         """
         self.entry = entry
         self.parent = parent
+        # The sequence lives on the entry, so every view of it agrees. Entries made by
+        # ``BaseRecord.addupdate`` get it at creation; a pydatatracker entry gets it the
+        # first time it is viewed, as the library offers no hook (its own timestamps
+        # never tie).
+        if not hasattr(entry, "creation_sequence"):
+            entry.creation_sequence = next_creation_sequence()
+
+    @property
+    def creation_sequence(self) -> int:
+        """The process-wide creation sequence number of the entry."""
+        return int(self.entry.creation_sequence)
 
     @property
     def uuid(self) -> str:
@@ -113,8 +125,10 @@ class TrackedUpdate:
         return isinstance(other, TrackedUpdate) and self.uuid == other.uuid
 
     def __lt__(self, other: Any) -> bool:
-        """Order by creation time."""
-        return bool(self.time_taken < other.time_taken)
+        """Order by creation time, then by creation sequence when the times tie."""
+        if self.time_taken != other.time_taken:
+            return bool(self.time_taken < other.time_taken)
+        return self.creation_sequence < other.creation_sequence
 
     def __str__(self) -> str:
         """Return the flag, action and extra."""

@@ -7,6 +7,7 @@
 """This module holds a manager that handles records of all types."""
 
 # Standard Library
+import itertools
 from collections import deque
 from typing import Any
 
@@ -25,6 +26,18 @@ DEFAULT_MAX_CHANGES = 1000
 # Parentless data holders (pending records) kept before the oldest are evicted. Only an
 # orphan that nothing ever adopts reaches this.
 MAX_PENDING = 1000
+
+
+_CREATION_SEQUENCE = itertools.count()
+
+
+def next_creation_sequence() -> int:
+    """Return the next process-wide creation sequence number.
+
+    Timestamps can tie when the clock is coarse (Windows), so records and updates break
+    ties on this number to keep creation order (#320).
+    """
+    return next(_CREATION_SEQUENCE)
 
 
 class RecordManager:
