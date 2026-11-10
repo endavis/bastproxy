@@ -91,11 +91,11 @@ ProcessDataToMud(
 
 ### MudConnection
 
-`src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD.
+`src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD. `connected` starts `False` and `mud_telnet_handler` sets it `True` when the connection opens.
 
 | Method | Description |
 |--------|-------------|
-| `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=False` |
+| `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=False`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
 | `setup_mud()` | Advertises the proxy's telnet features to the MUD |
 | `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |

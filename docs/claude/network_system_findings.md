@@ -66,6 +66,8 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
 - **A failed MUD connect leaves the proxy believing it is connected** (Q8, **verified**, #306).
   `MudConnection.connected` starts `True`; after a refused connection `#bp.core.proxy.connect` answers "currently
   connected" and never retries.
+  **Status:** fixed by #306. `MudConnection.connected` starts `False`, becomes `True` when the connection opens, and
+  `connect_to_mud` reports a failed connect to the client.
 - **The Clients table shows the literal text "Term Type"** (Q3, **verified**, #307), although
   telnetlib3 records the client's terminal type. **Status:** fixed by #307; `ClientConnection.term_type`
   reads `writer.get_extra_info("TERM")` and the table shows `-` until the client answers TTYPE (or if it never does). The property keeps only letters, digits and `._+-`, capped at 32 characters.
@@ -404,7 +406,7 @@ The corrections are written out in the proposed edits to #66, #67, #90 and #272.
 | 5 | Catch-all `contextlib.suppress(Exception)` around `ipv4_task.result` and `ipv6_task.result` | `Listeners.check_listeners_available`, two blocks | **Change, low priority** (#309). It hides why a listener failed to bind: the error is replaced by the generic "did not start ... please check errors" line. Log the exception |
 | 6 | `contextlib.suppress(AttributeError)` around `drain()` | `register_client` (banned client) | **Keep, narrow.** It guards a closed transport. It could name the case in a comment |
 | 7 | One narrow `except ConnectionError` | `ClientConnection.client_read` | **Change** (#305): it misses `UnicodeDecodeError`, which kills the client |
-| 8 | Connection state defaulting to the connected state | `MudConnection.connected = True` in `__init__` | **Change** (#306). Verified defect |
+| 8 | Connection state defaulting to the connected state | `MudConnection.connected = True` in `__init__` | **Change** (#306, fixed). Verified defect |
 | 9 | Hard-coded placeholder as data | `_api_client_list_formatted`: `"term_type": "Term Type"` | **Change** (#307). Verified defect; **fixed by #307** |
 | 10 | Unused state: `ClientConnection.rows` (set to 24, never read), `telnet_server` (read nowhere until #90), `MudConnection.term_type` comment lines about `_extra`, `telnet.main_negotiations`, `telnet.opcode_match` | `client.py`, `mud.py`, `telnet.py` | **Change** (#67; rest in #309) |
 | 11 | Copy-pasted log label: `mud_write` logs telnet commands to the MUD as `"to_client"` | `MudConnection.mud_write` | **Change** (#309) |
