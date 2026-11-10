@@ -30,17 +30,10 @@ Functions:
 """
 
 # Standard Library
-import sys
 from collections.abc import Coroutine
 
 # 3rd Party
-try:
-    import telnetlib3
-except ImportError:
-    print("Please install required libraries. telnetlib3 is missing.")
-    print("From the root of the project: uv sync --all-extras")
-    sys.exit(1)
-
+import telnetlib3
 from telnetlib3.telopt import BINARY, DO, NAWS, WILL
 
 # Project

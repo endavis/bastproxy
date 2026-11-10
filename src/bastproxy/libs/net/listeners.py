@@ -35,7 +35,6 @@ Classes:
 """
 
 import asyncio
-import contextlib
 
 # Standard Library
 import sys
@@ -114,13 +113,17 @@ class Listeners:
         self.ipv6_start = False
 
         if ipv4 and self.ipv4_task and self.ipv4_task.done:
-            with contextlib.suppress(Exception):
+            try:
                 _ = self.ipv4_task.result
                 self.ipv4_start = True
+            except Exception:
+                get_logger("mudproxy").exception("IPv4 listener task failed")
         if ipv6 and self.ipv6_task and self.ipv6_task.done:
-            with contextlib.suppress(Exception):
+            try:
                 _ = self.ipv6_task.result
                 self.ipv6_start = True
+            except Exception:
+                get_logger("mudproxy").exception("IPv6 listener task failed")
 
         listen_port = self.api("plugins.core.settings:setting.get")(
             "plugins.core.proxy", "listenport"
