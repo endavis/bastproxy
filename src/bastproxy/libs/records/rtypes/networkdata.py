@@ -107,8 +107,11 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         self.originated: Originated = originated
         if (isinstance(line, (bytes, bytearray))) and not self.is_command_telnet:
             line = line.decode("utf-8")
-        self.line: str | bytes | bytearray = line
-        self._original_line: str | bytes | bytearray = line
+        if isinstance(line, bytearray):
+            # Immutable, so the line cannot change in place and original_line is a snapshot (#48).
+            line = bytes(line)
+        self.line: str | bytes = line
+        self._original_line: str | bytes = line
         self.send: bool = True
         self.line_modified: bool = False
         self.is_prompt: bool = False
@@ -128,7 +131,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         self.prelogin = prelogin
 
     @property
-    def original_line(self) -> str | bytes | bytearray:
+    def original_line(self) -> str | bytes:
         """The line as it was created, which never changes."""
         return self._original_line
 
@@ -137,6 +140,12 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """Refuse the write: the original line is locked."""
         msg = f"NetworkDataLine.original_line is locked and cannot be modified (got {value!r})."
         raise RuntimeError(msg)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Store a ``bytearray`` assigned to ``line`` as ``bytes``, so it cannot change in place."""
+        if name == "line" and isinstance(value, bytearray):
+            value = bytes(value)
+        super().__setattr__(name, value)
 
     def add_parent(self, parent: Any, reset: bool = True) -> None:
         """Add a parent to this record.

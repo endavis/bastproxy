@@ -124,3 +124,38 @@ def test_str_of_telnet_bytes_line_is_lossless(
     line = NetworkDataLine(raw, originated="client", line_type="COMMAND-TELNET")
     assert str(line) == "\xff\xfb\x01"
     assert str(line).encode("latin-1") == b"\xff\xfb\x01"
+
+
+def _telnet_line(raw: bytes | bytearray) -> NetworkDataLine:
+    return NetworkDataLine(raw, originated="client", line_type="COMMAND-TELNET")
+
+
+def test_bytearray_line_is_stored_as_bytes_snapshot(plugin_stand_ins: StandIns) -> None:
+    raw = bytearray(b"\xff\xfb\x01")
+    line = _telnet_line(raw)
+    assert type(line.line) is bytes
+    assert type(line.original_line) is bytes
+    raw.append(0x02)
+    assert line.line == b"\xff\xfb\x01"
+    assert line.original_line == b"\xff\xfb\x01"
+
+
+def test_bytearray_assigned_to_line_is_stored_as_bytes(plugin_stand_ins: StandIns) -> None:
+    line = _telnet_line(b"\xff\xfb\x01")
+    before = len(line.updates)
+    new = bytearray(b"\xff\xfc\x01")
+    line.line = new  # type: ignore[assignment]
+    assert type(line.line) is bytes
+    assert line.line == b"\xff\xfc\x01"
+    assert len(line.updates) > before
+    assert line.original_line == b"\xff\xfb\x01"
+    new.append(0x02)
+    assert line.line == b"\xff\xfc\x01"
+
+
+def test_bytearray_assigned_to_locked_line_raises(plugin_stand_ins: StandIns) -> None:
+    line = _telnet_line(b"\xff\xfb\x01")
+    line.lock()
+    with pytest.raises(RuntimeError):
+        line.line = bytearray(b"\xff\xfc\x01")  # type: ignore[assignment]
+    assert line.line == b"\xff\xfb\x01"
