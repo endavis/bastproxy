@@ -77,7 +77,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Dependabot Auto-merge](development/dependabot-automerge.md) - How the dependabot auto-merge workflow evaluates, enables, and skips PRs
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
-- [Event System Analysis and Findings](claude/event_system_findings.md) - Review findings and recommendations for the event system implementation
+- [Event System Analysis and Findings](claude/event_system_findings.md) - Audit of the event system - the status of the earlier findings, plugin unload, priority ordering and failing callbacks, cost, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [First 5 Minutes with an AI Agent](development/ai/first-5-minutes.md) - Narrative walkthrough of the AI agent workflow from issue to merge
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
 - [install_tools Framework](development/install-tools-framework.md) - Reusable framework for installing developer tools from GitHub releases or other URLs into ~/.local/bin
@@ -120,7 +120,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Cross-Agent Delegation Matrix](development/ai/cross-agent-delegation.md) - Commands that let any supported AI CLI hand a review task to any other; plan and implement are handled by the shared implement-issue skill instead
 - [Data Flow](claude/data_flow.md) - How network data moves between MUD servers and clients through the proxy
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
-- [Event System Analysis and Findings](claude/event_system_findings.md) - Review findings and recommendations for the event system implementation
+- [Event System Analysis and Findings](claude/event_system_findings.md) - Audit of the event system - the status of the earlier findings, plugin unload, priority ordering and failing callbacks, cost, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [First 5 Minutes with an AI Agent](development/ai/first-5-minutes.md) - Narrative walkthrough of the AI agent workflow from issue to merge
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
@@ -196,7 +196,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Dependabot Auto-merge](development/dependabot-automerge.md) - How the dependabot auto-merge workflow evaluates, enables, and skips PRs
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
-- [Event System Analysis and Findings](claude/event_system_findings.md) - Review findings and recommendations for the event system implementation
+- [Event System Analysis and Findings](claude/event_system_findings.md) - Audit of the event system - the status of the earlier findings, plugin unload, priority ordering and failing callbacks, cost, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [First 5 Minutes with an AI Agent](development/ai/first-5-minutes.md) - Narrative walkthrough of the AI agent workflow from issue to merge
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
 - [install_tools Framework](development/install-tools-framework.md) - Reusable framework for installing developer tools from GitHub releases or other URLs into ~/.local/bin

@@ -1,6 +1,6 @@
 ---
 title: Event System Analysis and Findings
-description: Review findings and recommendations for the event system implementation
+description: Audit of the event system - the status of the earlier findings, plugin unload, priority ordering and failing callbacks, cost, test coverage, docs accuracy and patterns, with defects and a patterns review
 audience:
   - contributors
   - ai-agents
@@ -12,1944 +12,652 @@ tags:
 
 # Event System Analysis and Findings
 
-**Date:** 2025-12-09
-**Analyzer:** Claude Sonnet 4.5
-**Scope:** Event system implementation in BastProxy
+**Date:** 2026-11-10
+**Analyzer:** Claude Sonnet 5.5
+**Scope:** The events plugin in `src/bastproxy/plugins/core/events/` (its `libs/` and `plugin/` packages, including
+`src/bastproxy/plugins/core/events/plugin/_event.py` and `src/bastproxy/plugins/core/events/plugin/_events.py`) and `RegisterToEvent`: the status of the
+earlier findings, what an unload leaves behind, priority ordering and a failing callback, cost, test
+coverage, docs accuracy and patterns (audit issue #107). Compared against
+[Event System](event_system.md). Base commit `b7f15da`.
+
+The earlier page held 19 numbered findings, four alternative libraries, an implementation plan, three
+migration strategies and a testing strategy (1,949 lines at `da2ad82`). That text is replaced by the
+status table in Q1. Read the old text with
+`git show da2ad82:docs/claude/event_system_findings.md`.
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Critical Bugs](#critical-bugs)
-3. [Design Issues](#design-issues)
-4. [Enhancement Recommendations](#enhancement-recommendations)
-5. [Refactoring Opportunities](#refactoring-opportunities)
-6. [Alternative Libraries](#alternative-libraries)
-7. [Implementation Priority](#implementation-priority)
-8. [Migration Strategies](#migration-strategies)
+2. [How This Was Verified](#how-this-was-verified)
+3. [Status of the Known Items](#status-of-the-known-items)
+4. [Q1: Which Old Findings Still Hold?](#q1-which-old-findings-still-hold)
+5. [Q2: What Does an Unload Leave Behind?](#q2-what-does-an-unload-leave-behind)
+6. [Q3: Priorities, Ordering and a Failing Callback](#q3-priorities-ordering-and-a-failing-callback)
+7. [Q4: What Does an Event Cost?](#q4-what-does-an-event-cost)
+8. [Q5: What Is Untested?](#q5-what-is-untested)
+9. [Q6: Patterns and Anti-Patterns](#q6-patterns-and-anti-patterns)
+10. [Where the Docs Disagreed With the Code](#where-the-docs-disagreed-with-the-code)
+11. [New Defects](#new-defects)
+12. [Other Observations](#other-observations)
 
 ---
 
 ## Executive Summary
 
-The BastProxy event system is a custom-built, priority-based event dispatch system that enables loose coupling between plugins. While functional, the analysis reveals several critical bugs, design limitations, and opportunities for improvement. The system lacks async support despite running in an asyncio environment, has potential memory leaks, and contains code duplication and naming inconsistencies.
+The event system does what [Event System](event_system.md) says for the common case: callbacks run
+lowest priority first, one failing callback is logged and does not stop the others, an unload leaves no
+registration behind, the history of raises is bounded, and the cost of a raise is small next to the
+network work around it. The rest is eleven defects, found by running the code (eight) or reading it (three),
+and a page that was behind the code in several places.
+
+- **Priorities are less reliable than the docs say** (#278, #280, #275). A `@RegisterToEvent(priority=...)`
+  is stored at 50, whatever it asks for; priority 0 is stored at 50; and a callback registered during a
+  raise can be dropped from that raise (Q3).
+- **The registration check never matches** (#279). The same function registered twice runs twice, and a
+  plugin's disconnect handler grows its registrations by one per call (Q2d, Q3c).
+- **A raise from inside the same event resets the outer raise** (#281): done flags are cleared, so callbacks
+  run twice (Q3f).
+- **Unload is clean for callbacks and plugin instances** (Q2, **verified**, #95 and #127 hold); the `Event`
+  objects themselves are never removed, and `event.get` creates one for any name, so the `raise` command
+  never reports an unknown event (#283).
+- **Two smaller bugs**: `raise_event` with data that is not a dict raises `AttributeError` from its own
+  error log (#276), and an `async def` callback never runs and is not reported (#277).
+- **Cost** (Q4): a raise costs about 70 to 100 us before any callback; a `data_list` raise costs about 34 us
+  per item. No performance defect.
+- **Tests** (Q5): the events plugin is 36.0% covered; the register, unregister and unload half has no test
+  (#282).
 
 **Key Findings:**
-- 4 critical bugs requiring immediate attention
-- 5 significant design issues affecting performance and reliability
-- Multiple enhancement opportunities for async support and monitoring
-- Viable migration path to battle-tested libraries like `blinker`
+
+- 11 new defects (ES-1 to ES-11). ES-1 to ES-3 are the Q1 rows for Design #4, Design #2 and Bug #4; ES-4 to
+  ES-11 are under [New Defects](#new-defects). All are filed (#275 to #285).
+- Of the 19 numbered old findings, 3 are fixed (Bug #1 to #3), 1 is obsolete (Design #1, the claim was
+  wrong), 4 are open and filed or tracked (Bug #4, Design #2, #4 and #5), and 11 are not pursued, as is the
+  advice section.
+- The code disagreed with the docs in 14 places; the page was corrected for all of them (Where the Docs
+  Disagreed). Two code comments are wrong and are listed under Other Observations.
+- The new benchmark is `tests/benchmarks/test_bench_event_raise.py`; run it with `doit benchmark`.
+- The old 1,949-line page is replaced by the Q1 table; read it with
+  `git show da2ad82:docs/claude/event_system_findings.md`.
 
 ---
 
-## Critical Bugs
+## How This Was Verified
 
-### Bug #1: Duplicate ProcessRaisedEvent Classes ⚠️ HIGH SEVERITY
+Claims below are tagged **verified** (run against the code, output saved), **read** (from reading the
+code, not executed) or **unverified**.
 
-**Status: Fixed in #241.** The unused copies plugins/core/events/plugin/_process_event.py and plugins/core/events/libs/_event.py were deleted. `ProcessRaisedEvent` lives only in `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` and `Event` only in `src/bastproxy/plugins/core/events/plugin/_event.py`. The paths below are as found by the audit.
+Verification used throwaway scripts, deleted afterwards and not part of the repository. Python ran with
+`BASTPROXY_HOME` set to a scratch directory.
 
-**Location:**
-- `src/plugins/core/events/libs/process/_raisedevent.py:15694`
-- `src/plugins/core/events/plugin/_process_event.py:17075`
+- Q1 (pass A): a script that builds `Event` objects directly, with stand-in `setting.get` and
+  `event.unregister` APIs as in `tests/plugins/core/events/test_event_unload_retention.py`, and
+  checks the old bugs one by one (`out-q1_old_findings.txt`, `out-q1b_chain.txt`). Greps for
+  `EventArgsRecord` and for threading primitives (`out-grep-eventargs.txt`, `out-grep-threads.txt`).
+  The existing events tests were run: 27 passed (`out-pytest-events.txt`).
 
-**Issue:**
-Two identical `ProcessRaisedEvent` class definitions exist in the codebase. This duplication creates maintenance burden and confusion about which implementation is canonical.
+- Q2 (pass B): a script that boots the real plugin system in-process (`PluginLoader().load_plugins_on_startup()`,
+  then `startup` set to False as `bastproxy` does), loads a throwaway user plugin from
+  `$BASTPROXY_HOME/plugins` (it imports as `userplugins.<package>.<name>`), and records every event's
+  registrations for the plugin before load, after load, after unload, after a load again and after
+  `plugin.reload` (`out-q2_unload.txt`). Follow-up scripts cover a core plugin, the repeated
+  disconnect registration and what keeps the unloaded modules alive (`out-q2b_core_and_leaks.txt`,
+  `out-q2c_module_alive.txt`). The throwaway plugin was deleted afterwards.
+- Q3 (pass B): scripts that build `Event` objects directly with stand-in APIs (`out-q3_order.txt`) and a
+  boot of the real system to read the live run order (`out-q3g_live_order.txt`).
 
-**Impact:**
-- Code maintenance complexity
-- Potential divergence between implementations
-- Import confusion
+- Q4 (pass C): the new benchmark `tests/benchmarks/test_bench_event_raise.py`, run with
+  `uv run pytest tests/benchmarks/test_bench_event_raise.py --benchmark-enable --benchmark-only -v`
+  (`out-bench-event-raise.txt`). Environment: Python 3.12.12, pytest-benchmark 5.3.1 (warmup on, GC
+  disabled), Linux 6.17.13-2-pve, 12th Gen Intel Core i7-12650H.
+- Q5 (pass C): `uv run doit coverage` (`coverage.txt`: 4,805 passed, 13 skipped) and
+  `uv run pytest tests/plugins/core/events --cov=bastproxy.plugins.core.events --cov-branch --cov-report=term-missing -q`
+  (`coverage-narrow.txt`: 27 passed).
 
-**Recommendation:**
-Consolidate to a single location, preferably a `_raisedevent.py` module in a new `src/bastproxy/libs/process/` package, and remove the duplicate from the plugin directory.
-
-**Fix:**
-```python
-# Remove: plugins/core/events/plugin/_process_event.py
-# Keep only: plugins/core/events/libs/process/_raisedevent.py
-
-# Update imports in plugins/core/events/plugin/_event.py:
-from bastproxy.plugins.core.events.libs.process._raisedevent import ProcessRaisedEvent
-```
-
----
-
-### Bug #2: Incomplete Refactoring - EventArgsRecord → EventDataRecord ⚠️ HIGH SEVERITY
-
-**Location:** Multiple files
-
-**Issue:**
-`EventArgsRecord` was renamed to `EventDataRecord` but not all references were updated. This is an incomplete refactoring that will cause ImportErrors.
-
-**Files with outdated references to EventArgsRecord:**
-
-1. **`src/bastproxy/libs/records/__init__.py:16`** (docstring)
-   ```python
-   # Line 16 - needs update
-   EventArgsRecord - data to send to event callbacks.
-   # Should be:
-   EventDataRecord - data to send to event callbacks.
-   ```
-
-2. **`src/bastproxy/plugins/core/events/libs/_event.py:21`** (import)
-   ```python
-   # Line 21 - needs update
-   from bastproxy.libs.records import EventArgsRecord, LogRecord
-   # Should be:
-   from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
-   from bastproxy.libs.records import LogRecord
-   ```
-
-3. **`src/bastproxy/plugins/core/events/libs/_event.py:220`** (comment)
-   ```python
-   # Line 220 - needs update in comment
-   # which returns event_name, EventArgsRecord
-   # Should be:
-   # which returns event_name, EventDataRecord
-   ```
-
-4. **`src/bastproxy/plugins/core/events/libs/_event.py:254-255`** (type hints)
-   ```python
-   # Lines 254-255 - needs update
-   def raise_event(
-       self, data: dict | EventArgsRecord, actor: str, data_list=None, key_name=None
-   ) -> EventArgsRecord | None:
-   # Should be:
-   def raise_event(
-       self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
-   ) -> EventDataRecord | None:
-   ```
-
-5. **`src/bastproxy/plugins/core/events/libs/_event.py:259-262`** (comment and error message)
-   ```python
-   # Lines 259-262 - needs update
-   # If data is not a dict or EventArgsRecord object, log an error...
-   if not isinstance(data, EventArgsRecord) and not isinstance(data, dict):
-       LogRecord(
-           f"... did not pass a dict or EventArgsRecord object",
-   # Should be:
-   # If data is not a dict or EventDataRecord object, log an error...
-   if not isinstance(data, EventDataRecord) and not isinstance(data, dict):
-       LogRecord(
-           f"... did not pass a dict or EventDataRecord object",
-   ```
-
-6. **`src/bastproxy/plugins/core/events/libs/_event.py:273-274`** (isinstance and constructor)
-   ```python
-   # Lines 273-274 - needs update
-   if not isinstance(data, EventArgsRecord):
-       data = EventArgsRecord(owner_id=actor, event_name=self.name, data=data)
-   # Should be:
-   if not isinstance(data, EventDataRecord):
-       data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
-   ```
-
-7. **`src/bastproxy/plugins/core/events/libs/process/_raisedevent.py:71`** (comment)
-   ```python
-   # Line 71 - needs update in comment
-   # convert a dict to an EventArgsRecord object
-   # Should be:
-   # convert a dict to an EventDataRecord object
-   ```
-
-8. **`src/bastproxy/plugins/core/events/plugin/_process_event.py:71`** (comment in duplicate file)
-   ```python
-   # Line 71 - needs update in comment
-   # convert a dict to an EventArgsRecord object
-   # Should be:
-   # convert a dict to an EventDataRecord object
-   ```
-
-**Impact:**
-- **ImportError** when plugins/core/events/libs/_event.py (deleted in #241) is imported
-- Code in plugins/core/events/libs/_event.py cannot execute
-- Type hints are incorrect, confusing for developers and type checkers
-
-**Why it hasn't failed yet:**
-- The actual plugin uses `src/bastproxy/plugins/core/events/plugin/_event.py` which was correctly updated (line 22)
-- The file with the bad import (plugins/core/events/libs/_event.py, deleted in #241) may not be imported at runtime
-- There appear to be two Event implementations (see Bug #1)
-
-**Fix Required:**
-Update all 8 locations listed above to use `EventDataRecord` instead of `EventArgsRecord`.
+- Q6 (pass D): greps scoped to `src/bastproxy/plugins/core/events` (`out-q6-grep-catchall.txt`,
+  `out-q6-grep-paths.txt`, `out-q6-grep-globals.txt`, `out-q6-grep-api.txt`, `out-q6-grep-ignores.txt`) and a
+  read of the package files. The docs pass compared `docs/claude/event_system.md` with the live code by reading,
+  plus two greps (`out-docs-checks.txt`).
 
 ---
 
-### Bug #3: Memory Leak - Unbounded Event History ⚠️ HIGH SEVERITY
+## Status of the Known Items
 
-**Status:** fixed in the PR for #153. `Event.raised_events` is an `OrderedDict` capped at `Event.MAX_RAISED_EVENTS`, set from the `raised_history_size` setting on `plugins.core.events` through a class attribute, so there is no per-raise settings lookup. The issue text below describes the original code.
+Every item in the issue's list, with its current state.
 
-**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16224`
-
-**Issue:**
-```python
-self.raised_count = 0
-# NOTE : this is an unbound dictionary, may need to limit the size
-#           because of how many events will be raised
-self.raised_events = {}
-```
-
-Plugin retention is not part of this bug: the unloaded-plugin leak (PS-8, [#127](https://github.com/endavis/bastproxy/issues/127)) came from `Event.current_callback`, not from this dictionary, and is fixed. The unbounded growth below was tracked as [#153](https://github.com/endavis/bastproxy/issues/153) and is fixed (see Status); see [Plugin System Findings PS-8](plugin_system_findings.md#ps-8-an-unloaded-plugin-instance-stays-alive-through-the-last-run-callback).
-
-Every raised event is stored in `self.raised_events` dictionary indefinitely. In a long-running proxy with frequent events, this will cause continuous memory growth.
-
-**Impact:**
-- Memory leak in long-running processes
-- Potential OOM (Out of Memory) crashes
-- Performance degradation as dictionary grows
-
-**Calculation (superseded by the fix):**
-- If 100 events/second with 1KB each = 360MB/hour
-- 24-hour session = 8.6GB of event history
-
-**Recommendation (superseded by the fix):**
-Implement size-limited history using `collections.OrderedDict`:
-
-```python
-from collections import OrderedDict
-
-class Event:
-    MAX_HISTORY_SIZE = 1000  # Configurable via settings
-
-    def __init__(self, ...):
-        self.raised_events = OrderedDict()
-
-    def raise_event(self, ...):
-        self.active_event = ProcessRaisedEvent(self, data, actor)
-        uuid = self.active_event.uuid
-        self.raised_events[uuid] = self.active_event
-
-        # Trim old events if limit exceeded
-        while len(self.raised_events) > self.MAX_HISTORY_SIZE:
-            self.raised_events.popitem(last=False)
-
-        self.active_event(actor, data_list=data_list, key_name=key_name)
-        self.active_event = None
-        return self.raised_events[uuid]
-```
-
-**Alternative:** Use `collections.deque` with maxlen:
-```python
-from collections import deque
-
-self.raised_events_list = deque(maxlen=1000)
-self.raised_events = {}  # Keep for UUID lookup, but clean periodically
-```
+| Item from the issue | Status | Where |
+| :--- | :--- | :--- |
+| #241: remove the dead duplicate `ProcessRaisedEvent` and `Event` classes | **Closed.** Confirmed: only one of each is in the package (**read**, Q1 Bug #1). The page's file list and excerpts now match. | #241 |
+| #252: `current_callback` not cleared between items of a `data_list` raise | **Closed, and holds** (**verified**, Q3e: with `data_list` every item ran every callback and the state was clean afterwards). | #252 |
+| #246: dict data records on pydatatracker | **Closed.** The `EventDataRecord` excerpt and bullets in [Event System](event_system.md) match the code (**read**). | #246 |
+| #236: record events registered once | **Closed.** `RECORD_EVENTS` is registered in `_phook_initialize` (**read**); the page already said so. | #236 |
+| #248: processing records off `AttributeMonitor` | **Closed.** The actor of a raise and the `tracking_actor` around each callback are described in the page (**read**). | #248 |
+| #127: event history kept unloaded plugins alive | **Closed, and holds** (**verified**, Q2b: the plugin instance is freed after an unload and `gc.collect()`). | #127 |
+| #153: bound `raised_events` | **Closed, and holds** (**verified**, Q1 Bug #3: 25 raises leave 10 entries). | #153 |
+| #95: plugins imported twice | **Closed, and holds for events** (**verified**, Q2a: the owner matches and no second copy is in `sys.modules`). | #95 |
+| Strictness of the typing (Design #5) | **Open**, comment on #6. | #6 |
 
 ---
 
-### Bug #4: AttributeError in raise_event ⚠️ MEDIUM SEVERITY
+## Q1: Which Old Findings Still Hold?
 
-**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16087`
+Each row is one numbered item of the old page. Status is **Fixed** (with the commit and a check against
+the current code), **Open** (an issue exists or is filed), **Obsolete** (the finding was wrong or
+no longer applies) or **Not pursued** (no issue, with the reason). The old text is at `da2ad82`.
 
-**Issue:**
-```python
-LogRecord(
-    f"raise_event - event {self.name} raised by {self.called_from} did not pass...",
-    level="error",
-    sources=[self.created_by, "plugins.core.events"],
-)()
-```
-
-The `Event` class does not have a `self.called_from` attribute. Only `ProcessRaisedEvent` has this attribute (line 15698).
-
-**Impact:**
-- `AttributeError` when logging invalid event data
-- Error handling fails, masking the original issue
-
-**Recommendation:**
-```python
-# Use actor parameter instead
-LogRecord(
-    f"raise_event - event {self.name} raised by {actor} did not pass a dict or EventDataRecord object",
-    level="error",
-    sources=[self.created_by, "plugins.core.events"],
-)()
-```
-
----
-
-## Design Issues
-
-### Issue #1: Overly Broad Exception Handling
-
-**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py:16413`
-
-**Code:**
-```python
-except Exception:  # pylint: disable=broad-except
-    LogRecord(
-        f"raise_event - event {self.name} with function {call_back.name} raised an exception",
-        level="error",
-        sources=[call_back.owner_id, self.created_by],
-        exc_info=True,
-    )()
-```
-
-**Issue:**
-Catches ALL exceptions including `KeyboardInterrupt` and `SystemExit`, preventing graceful shutdown.
-
-**Recommendation:**
-```python
-except (KeyboardInterrupt, SystemExit):
-    raise  # Don't catch these
-except Exception as e:
-    LogRecord(
-        f"raise_event - event {self.name} with function {call_back.name} raised {type(e).__name__}: {e}",
-        level="error",
-        sources=[call_back.owner_id, self.created_by],
-        exc_info=True,
-    )()
-```
+| # | Old finding | Status | Evidence | Issue |
+| :--- | :--- | :--- | :--- | :--- |
+| Bug #1 | Two identical `ProcessRaisedEvent` classes | **Fixed** | Deleted by 27a4e08 (PR #259). `ProcessRaisedEvent` is now only in `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` and `Event` only in `src/bastproxy/plugins/core/events/plugin/_event.py` (**read**: `find` of the package lists no `_process_event.py` or libs/_event.py (deleted)). | #241 |
+| Bug #2 | `EventArgsRecord` renamed to `EventDataRecord` but not everywhere | **Fixed** | Live code was fixed by b4f0427; the `src/bastproxy/libs/records/__init__.py` docstring by 3a9517d (PR #263); the second copy of the files was deleted by 27a4e08. `grep -rn EventArgsRecord src tests docs` finds nothing outside this page (**verified**, `out-grep-eventargs.txt` is empty). | #238, #241 |
+| Bug #3 | Unbounded `raised_events` history | **Fixed** | 8a12c75 (PR #159). 25 raises of one event leave 10 entries in an `OrderedDict`, and `raised_count` is 25 (**verified**, `out-q1_old_findings.txt`). `tests/plugins/core/events/test_event_raised_history.py` covers the cap, eviction, a cap of 0, a lowered cap and the setting (27 tests in the package pass, **verified**, `out-pytest-events.txt`). Whether an unloaded plugin is freed is Q2. | #153, #127 |
+| Bug #4 | `AttributeError` in `raise_event` when the data is not a dict | **Open** | `Event.raise_event` still formats `self.called_from`, and `Event` has no such attribute. `raise_event("not a dict", "probe")` raises `AttributeError: 'Event' object has no attribute 'called_from'` (**verified**, `out-q1_old_findings.txt`). #253 replaced `LogRecord` with `log_to` and kept the bug. No test covers the branch (**read**: `grep` of `tests` for the message finds nothing). The old fix (use `actor`) is right. | #276 |
+| Design #1 | `except Exception` catches `KeyboardInterrupt` and `SystemExit` | **Obsolete** | The claim is wrong: `except Exception` does not catch them. A callback that raises `KeyboardInterrupt` or `SystemExit` propagates out of `raise_event` (**verified**, `out-q1_old_findings.txt`). The handler still swallows every other exception, which Q3 and Q6 cover. | |
+| Design #2 | No async support | **Open** | Callbacks are called as `self.func()` and the result is dropped (**read**, `src/bastproxy/libs/callback.py` `Callback.execute`). An `async def` callback registers without a warning, never runs, and only Python warns `coroutine 'A.cb' was never awaited` (**verified**, `out-q1_old_findings.txt`). The old page's proposal (an async event system) is a feature and is not pursued; the silent failure is filed. | #277 |
+| Design #3 | No thread safety | **Not pursued** | Nothing in `src` imports `threading`, creates a `Lock` or calls `run_in_executor` (**verified**, `out-grep-threads.txt` is empty); events are raised from the asyncio thread only. | |
+| Design #4 | `priorities_done` grows with duplicates; the loop is inefficient | **Open** | The duplicates and the O(n) `in` check are real but cost nothing at the size of a priority list (**read**, `_raisedevent.py` `_exec_once`). The real fault is next to it: `found_callbacks` is overwritten by every priority instead of OR-ed, so a pass ends when the last priority runs nothing. A callback registered at a lower priority during the second pass never runs in that raise: with callbacks at 50 and 99, a callback added at 10 runs, but one added at 5 from inside it does not (**verified**, `out-q1b_chain.txt`: order `['cb50', 'cb99', 'cb10']`). The old recommendation (`set`, `if ... found_callbacks = True`) fixes it. Q3d extends this. | #275 |
+| Design #5 | Weak type hints | **Open** | Half the finding is wrong: `X \| None` is the current syntax, and `Optional` is not an improvement. The gaps are real: `raise_event(data_list, key_name)`, `getownerregistrations`, `removeowner`, `isregistered`, `unregister` and `raise_priority` have unannotated parameters, and `priority_dictionary` has no annotation (**read** for the attribute; the parameters **verified**, `out-q1_old_findings.txt`). mypy does not check the package: `bastproxy.plugins.core.*` is under `ignore_errors` in `pyproject.toml` (**verified**, `out-pyproject-mypy.txt`). Covered by the strictness tracking issue. | #6 |
+| Enhancement #1 | Event history management (a history class, search, export) | **Not pursued** | The part that mattered, a bounded history, is Bug #3. A richer history has no known user: [Event System](event_system.md) "Event History" says the debug records plugin reads `RMANAGER`, not `raised_events` (**unverified**, repeated from that page). | |
+| Enhancement #2 | Wildcard event subscription | **Not pursued** | A feature with no caller; no plugin needs it. | |
+| Enhancement #3 | Event middleware and interceptors | **Not pursued** | A feature with no caller; `tracking_actor` and the record tree already identify who ran. | |
+| Enhancement #4 | Performance monitoring | **Not pursued** | `raised_count` per event and `execute_time_taken` per raise exist (**read**, `src/bastproxy/plugins/core/events/plugin/_event.py`, `src/bastproxy/libs/records/tracking.py`); Q4 measures the cost instead. | |
+| Enhancement #5 | Event replay for debugging | **Not pursued** | A feature with no caller. [Event System](event_system.md) says `RMANAGER` keeps each raise while its tree is retained (**unverified**). | |
+| Enhancement #6 | Event schema validation | **Not pursued** | `arg_descriptions` document the keys; enforcing them would break every raiser that adds a key. | |
+| Refactoring #1 | Extract a `PriorityManager` | **Not pursued** | Moving the same code; the defects in it (Design #4) are filed on their own. | |
+| Refactoring #2 | Dataclass for `Event` configuration | **Not pursued** | Four parameters, two optional; no pain. | |
+| Refactoring #3 | `EventError` exception hierarchy | **Not pursued** | The handler logs and continues by design (Q6); an exception type changes nothing it does. | |
+| Refactoring #4 | Protocols for the callback and the event | **Not pursued** | One implementation of each; a protocol adds a type with no second user. | |
+| Advice | Alternative libraries (blinker, PyPubSub, python-dispatch, a custom asyncio system), implementation phases, migration strategies and a testing strategy | **Not pursued** | A replacement is a design decision for an ADR, not a defect. The testing advice is replaced by Q5, measured. The phases and migrations refer to bugs now fixed or filed above. | |
 
 ---
 
-### Issue #2: No Async/Await Support
+## Q2: What Does an Unload Leave Behind?
 
-**Problem:**
-BastProxy is built on `asyncio`, but the event system is entirely synchronous. Event callbacks block the event loop.
+A plugin leaves a registration on an event in two ways: a decorated `_eventcb_*` method (registered by
+the events plugin when `ev_plugin_loaded` is raised) and a runtime `event.register` call. `ev_plugin_unloaded`
+makes the events plugin call `event.unregister.for.owner`, which runs `Event.removeowner` on every event.
+This section checks that the cleanup works, that events stay bounded and that nothing keeps the plugin alive.
 
-**Impact:**
-- I/O-bound callbacks block other async operations
-- Cannot use `await` in event handlers
-- Performance bottleneck for slow operations
+The throwaway user plugin `plugins.zzpkg.zz107` had two decorated callbacks on one event, one runtime
+`event.register`, an `event.add`, and three callbacks on `ev_plugin_unloaded`. Python 3.12, 128 events
+known after startup.
 
-**Example Problem:**
-```python
-@RegisterToEvent(event_name="ev_data_received")
-def _eventcb_process_data(self):
-    # This blocks the entire event loop
-    result = requests.get("http://api.example.com/process")
-    event_record = self.api("plugins.core.events:event.current.record.get")()
-    event_record["processed"] = result.json()
-```
+| Step | Registrations owned by the plugin | `sys.modules` names with `zz107` |
+| :--- | :--- | :--- |
+| Before load | none (**verified**) | the three `userplugins.zzpkg.zz107*` modules, imported by discovery; no registration |
+| After load | 8 callbacks on 5 events: the two decorated callbacks, the runtime one, three on `ev_plugin_unloaded` and the two `BasePlugin` ones (**verified**) | the same three names |
+| After unload | none (**verified**) | none |
+| After load again | the same 8 (**verified**) | the same three names |
+| After `plugin.reload`, and after 3 more | the same 8; a raise runs each callback once (**verified**) | the same three names |
 
-**Recommendation:**
-Add async event support:
+`out-q2_unload.txt` has the full registration dictionaries.
 
-```python
-import asyncio
-from typing import Union, Callable, Awaitable
+### Q2a: Does the cleanup work, and does #95 hold?
 
-class Event:
-    def __init__(self, ..., async_enabled: bool = False):
-        self.async_enabled = async_enabled
-        # ...
+**Yes** (**verified**). After the unload no event holds a callback of the plugin. `function.owner.get` returns
+`plugins.zzpkg.zz107` for both a decorated and a runtime callback, the same string as the `plugin_id` in the
+`ev_plugin_unloaded` data, so `removeowner` matches. The plugin is imported under one name only
+(`userplugins.zzpkg.zz107...`); no second copy appears under `plugins.` or `bastproxy.plugins.` (**verified**,
+`sys.modules` listing). Reloading does not duplicate registrations (8 before, 8 after, a raise runs `a` and `b`
+once).
 
-    async def raise_event_async(
-        self, data: dict | EventDataRecord, actor: str, **kwargs
-    ) -> EventDataRecord | None:
-        """Async version of raise_event."""
-        self.raised_count += 1
+A core plugin behaves the same (**verified**, `out-q2b_core_and_leaks.txt`): `plugins.core.mudcmds` has 3
+registrations, one of them on `ev_plugin_unloaded` itself; `plugin.unload` refuses it because it is
+required, `plugin.reload` (which allows required plugins) succeeds, and the registrations afterwards equal the
+ones before. Every core plugin that is not marked non-reloadable is also marked required, so the public
+unload cannot reach it; only `plugin.reload` does.
 
-        if not isinstance(data, EventDataRecord):
-            data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
+### Q2b: Is the plugin freed?
 
-        self.active_event = ProcessRaisedEvent(self, data, actor)
+**The instance is** (**verified**). A weakref to the plugin instance is dead after `plugin.unload` and
+`gc.collect()`, and the instance from before a `plugin.reload` is dead after it. The same holds for the
+`mudcmds` instance after its reload. Events keep a history of raises (`raised_events`), but it holds no
+callbacks (see Q1 Bug #3).
 
-        for priority in sorted(self.priority_dictionary.keys()):
-            for callback in self.priority_dictionary[priority]:
-                if not self.priority_dictionary[priority][callback]:
-                    self.priority_dictionary[priority][callback] = True
-                    result = callback.execute()
+**The modules are not** (**verified**, `out-q2c_module_alive.txt`). After the unload the three module objects of
+the user plugin are still alive, and the stale-module API of the loader lists them. The cause is the parent
+package: `sys.modules` still holds `userplugins.zzpkg` and it keeps `zz107` as an attribute. After deleting
+that attribute and running `gc.collect()` all three modules are gone. A reload replaces the attribute with
+the new import. This is a plugin-loader matter and not an events one, so no event issue is drafted; see
+Other Observations.
 
-                    # Handle both sync and async callbacks
-                    if asyncio.iscoroutine(result):
-                        await result
+### Q2c: What stays behind on the events plugin?
 
-        self.event.reset_event()
-        return self.active_event
+- Event objects are never removed (**verified**). After the unload the events `ev_zz107_ev`, `ev_zz107_runtime`,
+  `ev_zz107_added`, `ev_plugins.zzpkg.zz107_loaded` and `ev_plugins.zzpkg.zz107_unloaded` are all still in
+  `EventsPlugin.events`, with `count()` 0 and the description and `created_by` that `event.add` gave them. A
+  plugin that is loaded and unloaded many times should add no new objects, because the names repeat, so the
+  dictionary grows with new event names only (**read**; not measured over many reloads).
+- A plugin that is registered on `ev_plugin_unloaded` never sees its own unload (**verified**). The three
+  callbacks of the throwaway plugin did not run when the plugin itself was unloaded. `BasePlugin`
+  raises the event in its `uninitialize` hook, the events plugin's own callback is registered first at priority
+  50 and calls `removeowner` for the plugin, and the plugin's callbacks are gone before their turn. They
+  asked for priority 1 and 90 and stored at 50 (ES-4), so there is no way to run first.
+- The cleanup does not unregister by event: `removeowner` visits every event and unregisters through the
+  `event.unregister` API once per callback, which is correct but is O(events x callbacks) per unload (**read**).
+  At 128 events this is not a cost worth a measurement.
 
-# Usage:
-@RegisterToEvent(event_name="ev_data_received", async_callback=True)
-async def _eventcb_process_data(self):
-    # Can now use await
-    async with aiohttp.ClientSession() as session:
-        async with session.get("http://api.example.com/process") as resp:
-            data = await resp.json()
-    event_record = self.api("plugins.core.events:event.current.record.get")()
-    event_record["processed"] = data
-```
+### Q2d: What the unload probe found
 
----
+- ES-5: the registration check is broken, so repeated registrations duplicate. It showed up here: three
+  `event.register` calls for one runtime callback took the event from 1 to 4 callbacks and the callback ran
+  4 times per raise (**verified**, `out-q2_unload.txt`), and calling `_eventcb_baseplugin_disconnect` three
+  times took a plugin's registrations on `ev_libs.api_character_active` from 1 to 4 (**verified**,
+  `out-q2b_core_and_leaks.txt`). The cleanup on unload does remove all copies.
+- ES-4: the decorator priority is ignored. See Q3b.
 
-### Issue #3: No Thread Safety
-
-**Problem:**
-No locking mechanisms protect shared state (`priority_dictionary`, `raised_events`, `current_callback`).
-
-**Impact:**
-- Race conditions if events raised from multiple threads
-- Corrupted event state
-- Unpredictable behavior
-
-**Affected Code:**
-- `Event.register()` - modifies `priority_dictionary`
-- `Event.unregister()` - modifies `priority_dictionary`
-- `Event.raise_event()` - reads/writes multiple attributes
-
-**Recommendation:**
-```python
-import threading
-
-class Event:
-    def __init__(self, ...):
-        self._lock = threading.RLock()
-        # ... existing init
-
-    def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
-        with self._lock:
-            priority = prio or 50
-            if priority not in self.priority_dictionary:
-                self.priority_dictionary[priority] = {}
-            # ... rest of method
-
-    def raise_event(self, ...):
-        with self._lock:
-            # ... event raising logic
-```
-
-Or use `asyncio.Lock` for async contexts.
 
 ---
 
-### Issue #4: Inefficient Priority Execution Loop
+## Q3: Priorities, Ordering and a Failing Callback
 
-**Location:** `plugins/core/events/libs/process/_raisedevent.py:15753-15767`
+The run order comes from `ProcessRaisedEvent._exec_once`: it takes the priority keys, sorts them, and for each
+runs `Event.raise_priority`, looping until a pass runs nothing. A callback is run once per raise, tracked with
+a flag per callback that `reset_event` clears at the end.
 
-**Code:**
-```python
-priorities_done = []
-found_callbacks = True
-count = 0
-while found_callbacks:
-    count = count + 1
-    found_callbacks = False
-    if keys := list(self.event.priority_dictionary.keys()):
-        keys = sorted(keys)
-        for priority in keys:
-            found_callbacks = self.event.raise_priority(
-                priority, priority in priorities_done
-            )
-            priorities_done.append(priority)  # Duplicates on each iteration!
-```
+### Q3a and Q3c: Order
 
-**Problems:**
-1. `priorities_done` grows with duplicates on each iteration
-2. Loop continues even when no callbacks are found
-3. Inefficient `priority in priorities_done` check (O(n) for lists)
+- **Priorities run lowest first** (**verified**, `out-q3_order.txt`). Callbacks at 99, 50, 1 and 0 ran `p1, p50, p0, p99`.
+  Priority 0 is stored at 50 (ES-6): `Event.register` does `prio or 50`, and `0` is falsy. The stored priorities
+  were `[1, 50, 99]`.
+- **Within one priority, the order is registration order** (**verified**). Registered 2, 0, 3, 1, they ran
+  `c2, c0, c3, c1`. The dictionary is insertion-ordered; the code relies on it and does not say so.
+- **The same function registered twice is stored twice** (**verified**): `register` returned `True` both
+  times, the callback ran twice, and `isregistered` returned `False` (ES-5). With another priority the third
+  registration also ran.
+- Priority sorting runs on every pass of every raise (**read**). Q4 measures its cost.
 
-**Impact:**
-- Memory waste with duplicate priority values
-- Extra iterations checking already-processed priorities
-- O(n²) complexity for priority checks
+### Q3b: Does `@RegisterToEvent(priority=...)` work?
 
-**Recommendation:**
-```python
-priorities_done = set()  # Use set for O(1) lookups
-found_callbacks = True
-count = 0
+**No** (**verified**). The decorator stores `priority`; `_api_event_register_by_func` passes it as
+`priority=prio` to `event.register`, which reads `kwargs.get("prio", 50)`. On the real system a user plugin
+with `priority=10` and `priority=70` was stored at 50 for both, and the events plugin's own
+`@RegisterToEvent(event_name="ev_plugin_loaded", priority=1)` is stored at 50 (`out-q2_unload.txt`,
+`out-q2b_core_and_leaks.txt`). A runtime `event.register(..., prio=30)` is stored at 30. In `src` two
+decorators ask for a priority other than 50, both 1 (`out-grep-priority-decorators.txt`). The visible
+effect is on `ev_plugin_loaded`: the live run order is commands, events, settings, all at 50, where the events
+plugin asked to be first (**verified**, `out-q3g_live_order.txt`). Whether that order breaks anything is
+**unverified**. This is ES-4.
 
-while found_callbacks:
-    count += 1
-    found_callbacks = False
+### Q3d: Registering during a raise
 
-    priorities = sorted(self.event.priority_dictionary.keys())
-    for priority in priorities:
-        if priority not in priorities_done:
-            if self.event.raise_priority(priority, False):
-                found_callbacks = True
-            priorities_done.add(priority)
+Pass A verified that a callback registered during the second or later pass at an already visited priority is
+dropped from that raise (#275, Q1 Design #4). The cases below are for a callback registered in the
+first pass. `reg` runs at 50 and registers `late`; `last` runs at 99 (**verified**, `out-q3_order.txt`).
 
-if count > 2:
-    LogRecord(
-        f"raise_event - event {self.event_name} required {count} passes "
-        f"(callbacks registered during execution)",
-        level="warning",
-        sources=[self.event.created_by],
-    )()
-```
+| `late` registered at | With `last` at 99 | Without `last` | Warning logged |
+| :--- | :--- | :--- | :--- |
+| 10 (lower) | `reg, last, late` | `reg, late` | none |
+| 50 (same) | `reg, last, late` | `reg, late` | "called out of order" at 50 |
+| 70 (between) | `reg, last, late` | `reg, late` | none; "processed 3 times" without `last` |
+| 120 (above `last`) | `reg, last, late` | not probed | "processed 3 times" |
 
----
+In every case `late` runs in the raise it was registered in, and
+in none of them does it run before the callback at the higher priority: it runs in a second pass, after the
+99 callback. The comment in `_exec_once` says the new registration is "processed in the same order as the other
+functions", which is not true. The "out of order" warning is logged only when the priority was already visited
+in an earlier pass, so a registration at 10 or 70 runs out of order without a warning. `count()` rose by one in
+each case. A new priority key is seen only on the next pass, because the key list is taken at the start of a
+pass (**read**).
 
-### Issue #5: Weak Type Hints
+### Q3e: A failing callback
 
-**Problems:**
-1. Uses old-style union syntax (`dict | list` instead of `Union[dict, list]`)
-2. String-based forward references when not necessary
-3. Inconsistent type hint coverage
-4. Missing generic type parameters
+- **The other callbacks still run** (**verified**). With callbacks at 10, 20 (raises `RuntimeError`) and 30 the
+  order was `a, boom, b`, and `raise_event` returned the `ProcessRaisedEvent`.
+- **The error is logged once, at ERROR, with `exc_info`** (**verified**): `raise_event - event ev_q3e with
+  function boom raised an exception`.
+- **State is clean afterwards** (**verified**): `current_callback` and `active_event` are `None`, all done
+  flags are `False`, and the next raise runs all three again (#252 holds).
+- **With `data_list`, failing on item 2 of 3**, every item ran every callback: `i1, after, i2, after, i3,
+  after`, one error logged, `current_callback` `None` (**verified**).
+- **The caller never sees a callback's error** (**verified**; **read** for the cause): `raise_priority` catches
+  `Exception`. It does not catch `BaseException`, so `KeyboardInterrupt` and `SystemExit` propagate (Q1 Design #1).
+- **An error outside the `try` does reach the caller** (**verified**). `_exec_once` reads the
+  `log_savestate` setting through `setting.get` before any callback, outside the `try`. With `setting.get`
+  raising, `raise_event` raised `RuntimeError` to the caller, no callback ran, the `finally` still cleared
+  `active_event` and `current_callback`, and the failed raise stayed in `raised_events`. The next raise
+  worked. The setting API is in a core plugin that cannot be unloaded, so this needs a settings failure to
+  occur; it is a robustness note and not a defect.
 
-**Examples:**
-```python
-# Old style
-def raise_event(
-    self, data: dict | EventArgsRecord, actor: str, ...
-) -> EventArgsRecord | None:
+### Q3f: Unregistering during a raise, and raising the same event again
 
-# Should be (Python 3.10+)
-from typing import Optional
-def raise_event(
-    self, data: dict | EventDataRecord, actor: str, ...
-) -> Optional[EventDataRecord]:
-```
+- **A callback can unregister another one** (**verified**). Unregistering a callback at a later priority and
+  one at the same priority (registered after it) both worked: the victim did not run. This is safe because
+  `raise_priority` iterates a list copy and checks the callback is still registered before running it. A
+  callback may also unregister itself, and the rest of the raise went on.
+- **Empty priorities are kept** (**read**): `unregister` deletes the callback, not its priority key, so a
+  priority that became empty stays in `priority_dictionary` and is visited on every pass. Not measured.
+- **A callback that raises its own event again breaks the outer raise** (**verified**). The inner raise ends with
+  `reset_event` and `finally`, which act on the shared `Event`: the outer raise's done flags are cleared, so
+  `other` ran twice and `cb` ran a second time, and `active_event` was `None` for the rest of the outer raise.
+  A callback that re-raises on every run made the outer loop run until a cap I set stopped it (30 calls); that
+  it would otherwise never end is **read**, not run to the end. This is ES-7.
 
-**Recommendation:**
-```python
-from typing import Optional, Dict, List, Callable, Any
-
-class Event:
-    def __init__(
-        self,
-        name: str,
-        created_by: str = "",
-        description: Optional[List[str]] = None,
-        arg_descriptions: Optional[Dict[str, str]] = None,
-    ):
-        self.name: str = name
-        self.created_by: str = created_by
-        self.description: List[str] = description or []
-        self.arg_descriptions: Dict[str, str] = arg_descriptions or {}
-        self.priority_dictionary: Dict[int, Dict[Callback, bool]] = {}
-        self.raised_count: int = 0
-        self.raised_events: Dict[str, ProcessRaisedEvent] = {}
-        self.current_callback: Optional[Callback] = None
-        self.active_event: Optional[ProcessRaisedEvent] = None
-```
 
 ---
 
-## Enhancement Recommendations
+## Q4: What Does an Event Cost?
 
-### Enhancement #1: Event History Management
+`tests/benchmarks/test_bench_event_raise.py` is informational and asserts no target. Each case raises through a
+real `Event`, so it builds the `EventDataRecord` and `ProcessRaisedEvent` the live path builds, under
+`tracking_actor`; `setting.get` is a stand-in that returns False; the record store is empty at the start and
+restored afterwards. Every callback has its own owner id (ES-5 cannot match) and none raises an event (ES-7
+cannot apply). The `event_stack` cases time `list(event_stack.get())`, which is what `event.stack.get`
+does, inside `raised_event(...)` blocks (the push `_api_event_raise` makes); they do not time the `self.api(...)`
+call around it. The benchmark also passes as a plain test (6 passed, **verified**).
 
-**Implementation:**
-```python
-from collections import OrderedDict
-from dataclasses import dataclass
-from datetime import datetime
+Run: `uv run pytest tests/benchmarks/test_bench_event_raise.py --benchmark-enable --benchmark-only -v`, one run
+on a development machine, 200 rounds of 1 iteration (2,000 for the stack reads). Environment: Python 3.12.12,
+pytest-benchmark 5.3.1, Linux 6.17.13-2-pve, 12th Gen Intel Core i7-12650H, `warmup=True`, GC disabled.
 
-@dataclass
-class EventHistoryEntry:
-    """Single entry in event history."""
-    uuid: str
-    event: ProcessRaisedEvent
-    timestamp: datetime
-    execution_time_ms: float
+| Case | Min | Median | Mean | IQR |
+| :--- | ---: | ---: | ---: | ---: |
+| Raise, 0 callbacks | 54.1 us | 67.1 us | 88.3 us | 57.0 us |
+| Raise, 10 no-op callbacks over priorities 10, 50, 90 | 85.4 us | 97.8 us | 102.3 us | 11.0 us |
+| Raise, `data_list` of 15 with `key_name="line"`, 1 callback | 465.3 us | 506.6 us | 510.5 us | 28.6 us |
+| Raise, `raised_events` already at `MAX_RAISED_EVENTS` (10), 1 callback | 57.2 us | 66.5 us | 71.6 us | 8.3 us |
+| `list(event_stack.get())`, depth 1 | 98 ns | 112 ns | 120 ns | 22 ns |
+| `list(event_stack.get())`, depth 10 | 102 ns | 111 ns | 118 ns | 16 ns |
 
-class Event:
-    def __init__(self, ..., max_history: int = 1000):
-        self.max_history = max_history
-        self.raised_events: OrderedDict[str, EventHistoryEntry] = OrderedDict()
+All figures **verified** (`out-bench-event-raise.txt`) and from a single run, so read them as orders of
+magnitude. The 0-callback case has the widest spread (IQR 57 us), so its median and the full-history median
+are not distinguishable.
 
-    def add_to_history(self, event: ProcessRaisedEvent):
-        """Add event to history with size limit."""
-        entry = EventHistoryEntry(
-            uuid=event.uuid,
-            event=event,
-            timestamp=datetime.now(),
-            execution_time_ms=event.execute_time_taken
-        )
+What the numbers say:
 
-        self.raised_events[event.uuid] = entry
+- **A raise costs about 70 to 100 us before any callback runs** (median 67 us with none, 98 us with ten). The
+  ten callbacks add about 31 us, about 3 us each (**verified** difference of medians; the per-callback split
+  is arithmetic, not a separate measurement). Where the first 67 us goes (the two records and their updates, the `setting.get` stand-in, the
+  `log_to` call, the priority sort) was **not profiled** (**unverified**). The sort and the key-list copy per priority (**read**) are small next to it for 3
+  priorities; the benchmark does not vary the priority count.
+- **A `data_list` raise costs about 34 us per item** (506.6 us / 15, median, **verified** total; the division
+  is arithmetic). Each item (**read**, `_exec_multi` and `_exec_once`) sets `line` on the shared
+  `EventDataRecord`, adds an `Invoked` update that formats `dict(self.event_data)` into a string, calls
+  `setting.get`, makes a `log_to` call, runs the priority loop and ends with `reset_event`. This is the cost the proxy pays per MUD line and it dominates
+  everything else measured here.
+- **The history cap costs nothing measurable.** A raise with the history full (66.5 us) is no slower than one
+  with an empty history (67.1 us); the `popitem` that evicts the oldest raise is lost in the noise. The cost
+  of keeping 10 raises is memory, not time, and #153 bounds it.
+- **Reading the event stack is about 0.1 us at either depth.** The stack is a tuple in a context variable; the
+  read is a dictionary lookup and a copy of at most 10 names (**read**, `src/bastproxy/libs/context.py`). Depth does not show up in the timings.
+- **Per round.** One whole MUD to client round, with the record store at its cap, is timed by
+  `tests/benchmarks/test_bench_retention.py` (`test_bench_mud_to_client_round_at_cap`). Take that figure from
+  that benchmark rather than from this page; it was not re-timed for the audit.
 
-        # Trim if exceeded
-        while len(self.raised_events) > self.max_history:
-            self.raised_events.popitem(last=False)
-
-    def get_history(self, limit: int = 100) -> List[EventHistoryEntry]:
-        """Get recent event history."""
-        return list(self.raised_events.values())[-limit:]
-
-    def get_slow_events(self, threshold_ms: float = 100.0) -> List[EventHistoryEntry]:
-        """Get events that took longer than threshold."""
-        return [
-            entry for entry in self.raised_events.values()
-            if entry.execution_time_ms > threshold_ms
-        ]
-```
-
----
-
-### Enhancement #2: Event Wildcards and Pattern Matching
-
-**Use Case:**
-Subscribe to multiple events with a single registration:
-```python
-@RegisterToEvent(event_name="ev_plugin_*", priority=50)
-def _eventcb_handle_any_plugin_event(self):
-    event_record = self.api("plugins.core.events:event.current.record.get")()
-    # Handle any plugin-related event
-```
-
-**Implementation:**
-```python
-import re
-from fnmatch import fnmatch
-
-class EventsPlugin(BasePlugin):
-    def __init__(self):
-        self.pattern_registrations: Dict[str, List[Tuple[Callable, int]]] = {}
-
-    @AddAPI("register.to.event.pattern", description="register to events matching pattern")
-    def _api_register_to_event_pattern(self, pattern: str, func: Callable, priority: int = 50):
-        """Register callback for events matching glob pattern.
-
-        Args:
-            pattern: Glob pattern like "ev_plugin_*" or "ev_*_loaded"
-            func: Callback function
-            priority: Execution priority
-        """
-        if pattern not in self.pattern_registrations:
-            self.pattern_registrations[pattern] = []
-
-        self.pattern_registrations[pattern].append((func, priority))
-
-        # Register to all existing matching events
-        for event_name in self.events.keys():
-            if fnmatch(event_name, pattern):
-                self.api("plugins.core.events:event.register")(
-                    event_name, func, priority=priority
-                )
-
-    @AddAPI("event.add", description="add an event")
-    def _api_add_event(self, event_name: str, created_by: str, **kwargs):
-        """Override to handle pattern registrations."""
-        # Create event
-        event = self.api("plugins.core.events:event.get")(event_name)
-        event.created_by = created_by
-        # ...
-
-        # Register pattern-matched callbacks
-        for pattern, callbacks in self.pattern_registrations.items():
-            if fnmatch(event_name, pattern):
-                for func, priority in callbacks:
-                    event.register(func, func.__self__.plugin_id, priority)
-```
+No performance defect found: nothing here is a candidate for an issue. The ADR-0005 targets are per line
+(see `tests/benchmarks/test_bench_eventdatarecord.py`), and this page does not claim a per-line figure.
 
 ---
 
-### Enhancement #3: Event Middleware/Interceptors
+## Q5: What Is Untested?
 
-**Use Case:**
-- Log all events
-- Modify event data globally
-- Implement access control
-- Performance monitoring
+Two runs (**verified**): `uv run doit coverage` over the whole suite (`coverage.txt`) and
+`uv run pytest tests/plugins/core/events --cov=bastproxy.plugins.core.events --cov-branch --cov-report=term-missing -q`
+(`coverage-narrow.txt`). Line coverage and branch coverage are combined in the percentages. The events package is
+467 statements; the whole suite adds almost nothing to it: the only difference between the two runs in this
+package is `src/bastproxy/plugins/core/events/libs/data/_event.py` (85.7% narrow, 100% in the suite), covered by a test outside
+`tests/plugins/core/events` (**verified**; which test was not looked up). The suite as a whole is 70.8% against a
+29% gate (**verified**).
 
-**Implementation:**
-```python
-from typing import Protocol
+| File | Statements | Coverage (narrow run) | Missed (narrow run) |
+| :--- | ---: | ---: | :--- |
+| `src/bastproxy/plugins/core/events/__init__.py` | 7 | 100.0% | none |
+| `src/bastproxy/plugins/core/events/libs/_utils.py` | 9 | 90.9% | branch 37->39 |
+| `src/bastproxy/plugins/core/events/libs/data/_event.py` | 19 | 85.7% (100% in the suite) | 53-55 |
+| `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` | 62 | 82.1% | 64->80, 90-91, 110-118, 121-152 |
+| `src/bastproxy/plugins/core/events/plugin/_event.py` | 132 | 68.7% | 67, 75, 81, 108, 114->113, 126-129, 158-214, 282-294, 301 |
+| `src/bastproxy/plugins/core/events/plugin/_events.py` | 236 | **36.0%** | 135 statements; the groups are listed below |
 
-class EventMiddleware(Protocol):
-    """Protocol for event middleware."""
+**`src/bastproxy/plugins/core/events/libs/_utils.py`.** Missed: a function that already has `event_registration` (a second `RegisterToEvent` stacked on
+one method). Covered: the first decoration. Whether any plugin stacks decorators was not checked (**unverified**).
+The `_eventcb_` name filter in `get_event_registration_functions_in_object` is in `_events.py` (line 146, missed).
 
-    def before_event(self, event: Event, data: EventDataRecord) -> EventDataRecord:
-        """Called before event is raised. Can modify data."""
-        ...
+**`src/bastproxy/plugins/core/events/libs/data/_event.py`.** Only `get_attributes_to_format` is missed (display code).
 
-    def after_event(self, event: Event, data: EventDataRecord):
-        """Called after event completes."""
-        ...
+**`src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`.**
 
-class LoggingMiddleware:
-    """Logs all events."""
+| Missed | What it is | Matters? |
+| :--- | :--- | :--- |
+| 64->80 | the `log` flag is False (a `_savestate` event with `log_savestate` off): the debug line is skipped | Low; the other branch is covered |
+| 90-91 | `if len(keys) < 1: ... continue` inside `if keys := ...` | Dead code: `keys` is non-empty there (**read**) |
+| 110-118, 121-152 | `get_attributes_to_format`, `format_simple` | Display only; the `Stack:` text is built with `plugins.core.utils` APIs a test would need to stub |
 
-    def before_event(self, event: Event, data: EventDataRecord) -> EventDataRecord:
-        LogRecord(
-            f"Event {event.name} starting with data: {data}",
-            level="debug",
-            sources=["middleware", event.created_by]
-        )()
-        return data
+Covered, and the part that matters: the priority loop, `data_list` iteration, the failing-callback path
+(`test_raising_callback_owner_freed`) and the `count > 2` warning branch (**verified**: not in the missed list).
+The out-of-order branch of `raise_priority` (the `already_done` warning) is not in the missed list, so
+something runs it; whether any test asserts on the warning was not checked (**unverified**).
 
-    def after_event(self, event: Event, data: EventDataRecord):
-        LogRecord(
-            f"Event {event.name} completed",
-            level="debug",
-            sources=["middleware", event.created_by]
-        )()
+**`src/bastproxy/plugins/core/events/plugin/_event.py`.**
 
-class Event:
-    def __init__(self, ...):
-        self.middleware: List[EventMiddleware] = []
+| Missed | What it is | Matters? |
+| :--- | :--- | :--- |
+| 67 | `get_active_event` | Used by `event.current.record.get`; ES-7 turns on it returning None |
+| 75 | `isregistered` body | **Yes.** Never run by any test, so ES-5 (it is never True for a real callback) has no test that would show it |
+| 81 | `isempty` | Low |
+| 108 | `register` returns False for a duplicate | **Yes.** The duplicate check is untested; ES-5 shows it never fires for a real callback |
+| 114->113, 126-129 | `unregister` when the function is not found: the error log and `return False` | Medium; the "not found" path is untested |
+| 158-214 | `detail` | Display only |
+| 282-294 | `raise_event` with data that is neither a dict nor an `EventDataRecord` | **Yes.** The branch uses `self.called_from`, which `Event` does not have, so it raises (ES-2) |
+| 301 | `created_by` set from the first raiser | Low |
 
-    def add_middleware(self, middleware: EventMiddleware):
-        """Add middleware to event."""
-        self.middleware.append(middleware)
+Covered, and the part that matters: `register` for a new function, `removeowner` including its `current_callback`
+branch, the `raised_events` cap (`test_event_raised_history.py`), `reset_event`, and `raise_priority` with a
+callback that raises.
 
-    def raise_event(self, data: dict | EventDataRecord, actor: str, **kwargs):
-        """Raise event with middleware support."""
-        if not isinstance(data, EventDataRecord):
-            data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
+**`src/bastproxy/plugins/core/events/plugin/_events.py`: 36.0%.** The tests call methods on stub objects (`EventsPlugin._api_event_raise(plugin, ...)`,
+`EventsPlugin._phook_initialize(stub)`), so `EventsPlugin` itself is never constructed and its `__init__` hook
+(lines 32-39) is never run (**verified**: missed). What is covered is `_phook_initialize`, `_apply_raised_history_size`,
+`_eventcb_raised_history_size_modified`, `_api_event_current_name_get`, `_api_event_stack_get` and the raise and
+stack parts of `_api_event_raise`: the pieces #153 and the event stack context change touched.
 
-        # Run before middleware
-        for mw in self.middleware:
-            data = mw.before_event(self, data)
+| Missed lines | Function(s) | Matters? |
+| :--- | :--- | :--- |
+| 217-220 | `_api_event_get` (creates and stores an unknown event) | **Yes.** ES-8 is in this function |
+| 260-275 | `_api_event_register` (reads `kwargs.get("prio", 50)`) | **Yes.** Where ES-4 lives |
+| 158-162 | `_api_event_register_by_func` (the `.format(**__dict__)` and `priority=`) | **Yes.** The other half of ES-4 |
+| 287-290 | `_api_event_unregister` | **Yes.** The unload path |
+| 304-312 | `_api_event_unregister_for_owner` | **Yes.** What cleans up a plugin's events on unload |
+| 167-174 | `_eventcb_plugin_unloaded` | **Yes.** The entry to the cleanup; the #95 and #127 protection depends on it |
+| 111-129, 134-139, 101-107 | `_register_events_for_plugin`, `_eventcb_plugin_initialized`, `_eventcb_post_startup_plugins_loaded`, `_register_all_plugin_events` | **Yes.** How `_eventcb_` methods get registered at startup and on load |
+| 146 | `get_event_registration_functions_in_object` | Yes; the `_eventcb_` prefix filter |
+| 185-188, 244-247, 230 | `event.current.record.get`, `event.is.registered`, `event.exists` | Medium; the first is how every callback reads its data |
+| 366->369, 370, 373 | `_api_event_raise`: the unknown-caller branches | Low |
+| 204-207, 317-345, 393-399, 429-438, 481-512, 523-531, 536-569 | `event.add`, `detail.get.for.plugin`, `event.detail.get`, `_command_detail`, `_command_list`, `_command_owner`, `summary.get.for.plugin` | Display, plus `event.add` which `_phook_initialize` calls |
+| 410-418 | `_command_raise` | Medium; its "does not exist" branch is dead (ES-8) |
 
-        # Raise event (existing logic)
-        self.active_event = ProcessRaisedEvent(self, data, actor)
-        # ... existing code ...
-
-        # Run after middleware
-        for mw in self.middleware:
-            mw.after_event(self, data)
-
-        return result
-```
-
----
-
-### Enhancement #4: Performance Monitoring
-
-**Implementation:**
-```python
-from dataclasses import dataclass, field
-from typing import List
-from statistics import mean, median
-
-@dataclass
-class EventStats:
-    """Statistics for an event."""
-    event_name: str
-    total_raised: int = 0
-    total_callbacks_executed: int = 0
-    execution_times_ms: List[float] = field(default_factory=list)
-    slow_event_count: int = 0  # > 100ms
-    error_count: int = 0
-
-    @property
-    def avg_execution_time_ms(self) -> float:
-        return mean(self.execution_times_ms) if self.execution_times_ms else 0.0
-
-    @property
-    def median_execution_time_ms(self) -> float:
-        return median(self.execution_times_ms) if self.execution_times_ms else 0.0
-
-    @property
-    def max_execution_time_ms(self) -> float:
-        return max(self.execution_times_ms) if self.execution_times_ms else 0.0
-
-class EventsPlugin(BasePlugin):
-    def __init__(self):
-        self.event_stats: Dict[str, EventStats] = {}
-
-    @AddAPI("get.event.stats", description="get statistics for an event")
-    def _api_get_event_stats(self, event_name: str) -> EventStats:
-        """Get performance statistics for an event."""
-        if event_name not in self.event_stats:
-            self.event_stats[event_name] = EventStats(event_name=event_name)
-        return self.event_stats[event_name]
-
-    @AddParser(description="show event performance statistics")
-    @AddArgument("event", help="event name", default="", nargs="?")
-    @AddArgument("-t", "--top", help="show top N slowest events", type=int, default=10)
-    def _command_stats(self):
-        """Show event performance statistics."""
-        args = self.api("plugins.core.commands:command.current.args.get")()
-
-        if args["event"]:
-            # Show stats for specific event
-            stats = self.event_stats.get(args["event"])
-            if not stats:
-                return False, [f"No statistics for event {args['event']}"]
-
-            msg = [
-                f"Event: {stats.event_name}",
-                f"Total Raised: {stats.total_raised}",
-                f"Total Callbacks: {stats.total_callbacks_executed}",
-                f"Avg Time: {stats.avg_execution_time_ms:.2f}ms",
-                f"Median Time: {stats.median_execution_time_ms:.2f}ms",
-                f"Max Time: {stats.max_execution_time_ms:.2f}ms",
-                f"Slow Events (>100ms): {stats.slow_event_count}",
-                f"Errors: {stats.error_count}",
-            ]
-        else:
-            # Show top N slowest events
-            sorted_stats = sorted(
-                self.event_stats.values(),
-                key=lambda s: s.avg_execution_time_ms,
-                reverse=True
-            )[:args["top"]]
-
-            msg = [f"Top {args['top']} Slowest Events:", ""]
-            for stats in sorted_stats:
-                msg.append(
-                    f"{stats.event_name:<40} "
-                    f"Avg: {stats.avg_execution_time_ms:>6.2f}ms "
-                    f"Max: {stats.max_execution_time_ms:>6.2f}ms "
-                    f"Raised: {stats.total_raised}"
-                )
-
-        return True, msg
-```
+**What the gap means.** The register, unregister and unload half of the events plugin has no test: the real
+registration API (including the decorator path), `event.unregister.for.owner` and `_eventcb_plugin_unloaded`
+are exercised by nothing in the suite (**verified**: missed in both runs). Q2 and Q3 checked their behaviour by
+probe (**verified**) and found ES-4 and ES-5 in the code the missed lines belong to. Nothing keeps those
+results true. #127's regression test (`test_event_unload_retention.py`) stands in a lambda for
+`event.unregister` and calls `Event.removeowner` directly, so it covers the `Event` object but not the plugin
+method that decides which owner to remove. ES-9 asks for tests for these paths.
 
 ---
 
-### Enhancement #5: Event Replay for Debugging
+## Q6: Patterns and Anti-Patterns
 
-**Use Case:**
-Replay events to reproduce bugs or test changes.
+"Keep" means the pattern fits. "Change" means worth an issue, and every Change row names it. The plugin audit
+already covers the string service locator and hidden global state for plugins
+([that table](plugin_system_findings.md#q5-patterns-and-anti-patterns)); the rows below add only what is
+specific to the events package.
 
-**Implementation:**
-```python
-import json
-from pathlib import Path
+Commands run, scoped to `src/bastproxy/plugins/core/events` (output saved as `out-q6-grep-*.txt`):
 
-class EventRecorder:
-    """Record and replay events."""
+- `grep -rnE "except( Exception)?:|suppress\(Exception|except BaseException"` found one site:
+  `src/bastproxy/plugins/core/events/plugin/_event.py` line 262 (`except Exception:  # pylint: disable=broad-except`);
+- the path grep (`Path|os\.path|` quoted `a/b` strings) found nothing: no string paths and no `Path` use;
+- the module-global grep found only constants (`CANRELOAD`, `PLUGIN_*`) and instance attributes; no mutable
+  module global (the registry is `EventsPlugin.events`, an instance attribute);
+- the `self.api(` grep found 5 sites in `src/bastproxy/plugins/core/events/plugin/_event.py` and 5 in `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`, and the rest in
+  `src/bastproxy/plugins/core/events/plugin/_events.py` (the listing is in `out-q6-grep-api.txt`);
+- the `type: ignore|noqa` grep found one: `src/bastproxy/plugins/core/events/plugin/_event.py` line 303.
 
-    def __init__(self, output_dir: Path):
-        self.output_dir = output_dir
-        self.recording = False
-        self.recorded_events: List[Dict] = []
-
-    def start_recording(self):
-        """Start recording events."""
-        self.recording = True
-        self.recorded_events = []
-
-    def stop_recording(self):
-        """Stop recording events."""
-        self.recording = False
-
-    def record_event(self, event_name: str, event_data: EventDataRecord, actor: str):
-        """Record an event."""
-        if not self.recording:
-            return
-
-        self.recorded_events.append({
-            "event_name": event_name,
-            "event_data": dict(event_data.data),  # Serialize
-            "actor": actor,
-            "timestamp": datetime.now().isoformat()
-        })
-
-    def save_recording(self, filename: str):
-        """Save recording to file."""
-        filepath = self.output_dir / filename
-        with open(filepath, 'w') as f:
-            json.dump(self.recorded_events, f, indent=2)
-
-    def load_recording(self, filename: str) -> List[Dict]:
-        """Load recording from file."""
-        filepath = self.output_dir / filename
-        with open(filepath, 'r') as f:
-            return json.load(f)
-
-    def replay(self, events_api, recorded_events: List[Dict]):
-        """Replay recorded events."""
-        for event_data in recorded_events:
-            events_api("plugins.core.events:event.raise")(
-                event_data["event_name"],
-                event_args=event_data["event_data"],
-                calledfrom=event_data["actor"]
-            )
-
-# Usage in EventsPlugin:
-@AddParser(description="record events")
-@AddArgument("action", choices=["start", "stop", "save", "replay"])
-@AddArgument("-f", "--file", help="filename for save/replay")
-def _command_record(self):
-    """Record and replay events for debugging."""
-    args = self.api("plugins.core.commands:command.current.args.get")()
-
-    if args["action"] == "start":
-        self.recorder.start_recording()
-        return True, ["Started recording events"]
-    elif args["action"] == "stop":
-        self.recorder.stop_recording()
-        return True, [f"Stopped recording. Recorded {len(self.recorder.recorded_events)} events"]
-    # ... etc
-```
+| # | Pattern or anti-pattern | Where | Consistent? | Verdict |
+| --: | :--- | :--- | :--- | :--- |
+| 1 | **Publish/subscribe through string event names**: `event.raise("ev_...")`, `@RegisterToEvent(event_name="ev_...")` | all of `src` | Yes | **Keep.** The loose coupling is the point. A misspelt name raises or registers on a new, empty event with no error (the cost; compare #283). |
+| 2 | **Priority ordering, sorted on every pass of every raise** | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` `_exec_once`; `src/bastproxy/plugins/core/events/plugin/_event.py` `raise_priority` | Mostly: the order holds (Q3a), the inputs do not | **Change** for what feeds it: #278 (decorator priority ignored), #280 (0 stored as 50), #275 (late registration dropped). The sort itself is cheap (Q4) and stays. |
+| 3 | **Failure isolation: catch-all in `raise_priority`** | `src/bastproxy/plugins/core/events/plugin/_event.py` line 262 | Yes, the only site | **Keep.** It logs at ERROR with `exc_info` and runs the next callback (**verified**, Q3e); `KeyboardInterrupt` and `SystemExit` are not caught (**verified**). The `setting.get` call in `_exec_once` is outside it (Q3e), which is a note, not a defect. |
+| 4 | **Global registry**: `EventsPlugin.events`, `all_event_stack` (a `SimpleQueue` of 300), `Event.MAX_RAISED_EVENTS` as a class attribute the plugin writes, and the `event_stack` context variable in `src/bastproxy/libs/context.py` | `src/bastproxy/plugins/core/events/plugin/_events.py`, `src/bastproxy/plugins/core/events/plugin/_event.py` | Yes | **Change** for the registry only: events are created by any `event.get` and never removed (#283). The context variable is the right tool for the stack (**read**) and stays; the class attribute is shared by all events by design. |
+| 5 | **Decorator registration with `_eventcb_` discovery**: `RegisterToEvent` sets a function attribute, `get_event_registration_functions_in_object` collects names that start with `_eventcb_` | `src/bastproxy/plugins/core/events/libs/_utils.py`; `src/bastproxy/plugins/core/events/plugin/_events.py` line 146 | Yes | **Change** for discovery: the prefix filter means a decorator on any other method name is silently ignored (**read**, #284). The decorator itself is **Keep**; its priority argument is the bug (#278). |
+| 6 | **Service locator through string API names** inside the event objects: `self.api("plugins.core.settings:setting.get")` in `ProcessRaisedEvent` and `Event` | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` lines 59, 121 to 143; `src/bastproxy/plugins/core/events/plugin/_event.py` lines 151 to 200 | Yes | **Keep, document.** The service-locator trade, covered by the plugin audit's row 4. It is why a raise fails if the settings plugin is not there (Q3e). |
+| 7 | **Silent failures**: `event.register` logs an error and returns when it finds no owner; `Event.register` returns False for a duplicate without a log; `raise_event` logs and returns `None` for bad data | `src/bastproxy/plugins/core/events/plugin/_events.py` line 260 to 266; `src/bastproxy/plugins/core/events/plugin/_event.py` lines 108 and 282 to 296 | No | **Change** for two: the duplicate check never fires (#279); the bad-data log line itself raises `AttributeError` (#276). The no-owner return logs an ERROR with the function and is **Keep**. |
+| 8 | **Strings, not `Path`, for paths** | none found | n/a | **Fits.** The path grep found nothing. |
+| 9 | **Hidden globals** | none mutable at module level | n/a | **Keep.** `Event.MAX_RAISED_EVENTS` is the one shared mutable value, written from the setting (**read**); `plugin_system_findings.md` row 7 covers the rest. |
+| 10 | **Import-time side effects** | `src/bastproxy/plugins/core/events/__init__.py` imports `RegisterToEvent`; `src/bastproxy/plugins/core/events/plugin/__init__.py` imports `EventsPlugin` | Yes | **Keep.** Importing builds no object and registers nothing (**read**). |
+| 11 | **Catch-all `except`** | row 3 | Yes | **Keep.** See row 3. |
+| 12 | **Type-check escapes**: one `# type: ignore` on `ProcessRaisedEvent(self, data, actor)`, and the whole package under `bastproxy.plugins.core.*` `ignore_errors` in `pyproject.toml` (**verified**, `out-pyproject-mypy.txt`) | `src/bastproxy/plugins/core/events/plugin/_event.py` line 303 | Whole package | **Keep, tracked by #6.** Do not widen it. |
+| 13 | **Untested registration and unload paths** | Q5 | n/a | **Change** (#282). |
+| 14 | **Work in a callback that cannot be awaited**: `Callback.execute` drops the result | `src/bastproxy/libs/callback.py` | Yes | **Change** (#277). |
+| 15 | **State on the shared `Event` for one raise** (done flags, `current_callback`, `active_event`) | `src/bastproxy/plugins/core/events/plugin/_event.py` | Yes | **Change** (#281). A nested raise of the same event shares it. |
+| 16 | **Dead code**: `if len(keys) < 1: ... continue` inside `if keys := ...` | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` lines 90 to 91 | n/a | **Keep.** Harmless (**read**); it falls under the cleanup of #275 if that rewrites the loop. |
 
 ---
 
-### Enhancement #6: Event Validation and Schema
+## Where the Docs Disagreed With the Code
 
-**Use Case:**
-Ensure event data conforms to expected schema.
+Corrected in [Event System](event_system.md) in this change. Where the code is wrong, the page now says so and
+points at the issue; the code is not hidden behind the doc. Tags: **verified** (a script or grep ran, output
+saved) or **read** (compared by reading).
 
-**Implementation:**
-```python
-from typing import Any, Dict, Type
-from dataclasses import dataclass
+| # | Section | Said | Code does | Fixed here or issue |
+| --: | :--- | :--- | :--- | :--- |
+| 1 | Event Class, excerpt | `Event.__init__` ended at `raised_count` | Also sets `owner_id`, `api`, `raised_events`, `current_callback`, `active_event`, and the class has `MAX_RAISED_EVENTS` (**read**, `src/bastproxy/plugins/core/events/plugin/_event.py` lines 32 to 62) | Fixed |
+| 2 | ProcessRaisedEvent, excerpt | `__init__` set five attributes | Also calls `BaseRecord.__init__`, `event_data.add_receiving_event(self)`, sets `id` and adds an `Init` update (**read**, `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` lines 25 to 36) | Fixed |
+| 3 | RegisterToEvent, excerpt | Only `__init__` shown; `priority` described as the callback priority | `__call__` appends to `event_registration`; only `_eventcb_*` methods are collected (**read**); the priority is stored at 50 whatever it is (**verified**, Q3b) | Fixed (note added); defect #278 |
+| 4 | Registering example | `@RegisterToEvent(..., priority=1)` runs first | Stored at 50 (**verified**, Q3b) | Fixed (comment added); #278 |
+| 5 | Event Registration | The metadata "is processed during plugin initialization" | Registered when the post-startup event is raised, then on `ev_plugin_loaded` for later loads, which returns early while the proxy starts (**read**, `src/bastproxy/plugins/core/events/plugin/_events.py` lines 94 to 140) | Fixed |
+| 6 | Event Raising, steps 4 to 5 | Callbacks registered during execution "are processed in subsequent iterations" | True for a first-pass registration, which runs after the higher priorities; one registered from the second pass at a visited priority is dropped from that raise (**verified**, Q3d, Q1 Design #4) | Fixed (caveat added); #275 |
+| 7 | Event Raising | No failure behaviour described | A failing callback is logged and the rest run (**verified**, Q3e); bad data returns `None` and the log line raises `AttributeError` (**verified**, Q1 Bug #4) | Fixed (step 7 added); #276 |
+| 8 | Priority-Based Execution, `raise_priority` | An excerpt with no `try`, no `tracking_actor` and no warning | The live method has all three (**read**, `src/bastproxy/plugins/core/events/plugin/_event.py` lines 232 to 275). "Lower numbers first" holds (**verified**, Q3a), but priority 0 is stored at 50 (**verified**, Q3a) | Fixed; #280 |
+| 9 | Unique Patterns, dynamic registration | Presented as handling late registrations correctly | `found_callbacks` is overwritten by each priority (**verified**, Q1 Design #4) | Fixed (caveat added); #275 |
+| 10 | Important Files | Listed five files | Also `src/bastproxy/plugins/core/events/plugin/__init__.py`; and libs/_event.py and plugin/_process_event.py are gone (**read**: the package has seven `.py` files) | Fixed (note on #241 and the API list added) |
+| 11 | API names | Did not list the registration, unregister or `event.get` APIs | All are registered with `AddAPI` (**verified**, `out-docs-checks.txt`); the old names `remove.events.for.owner` and `get.event.stack` are not in the page (**verified**, the grep is empty). `event.get` creates any event it is asked for | Fixed (list added); #283 |
+| 12 | Actors | Did not say who the `actor` of a raise is | `event.raise` takes `calledfrom` or looks up the caller; it becomes `called_from`, the owner id of a new `EventDataRecord`, and `created_by` of a new event; each callback runs under `tracking_actor` (**read**, `src/bastproxy/plugins/core/events/plugin/_events.py` lines 351 to 383; `src/bastproxy/plugins/core/events/plugin/_event.py` lines 232 to 305) | Fixed (section added, #248) |
+| 13 | Integration Points | "Plugins automatically register their `@RegisterToEvent` methods during initialization"; "all its event registrations are removed" | Registration timing as row 5; the `Event` objects stay after an unload (**verified**, Q2c) | Fixed |
+| 14 | Data Flow and Common Event Names | `ev_from_mud_event` and `ev_from_client_event` | Neither name exists in `src` (**verified**, `out-docs-checks.txt`); the page now names `ev_to_mud_data_read` and `ev_to_client_data_read` (registered from `RECORD_EVENTS`, **read**) | Fixed |
 
-@dataclass
-class EventSchema:
-    """Schema for event data validation."""
-    event_name: str
-    required_fields: Dict[str, Type]
-    optional_fields: Dict[str, Type] = None
-
-    def validate(self, data: Dict[str, Any]) -> tuple[bool, List[str]]:
-        """Validate event data against schema.
-
-        Returns:
-            (is_valid, error_messages)
-        """
-        errors = []
-
-        # Check required fields
-        for field_name, field_type in self.required_fields.items():
-            if field_name not in data:
-                errors.append(f"Missing required field: {field_name}")
-            elif not isinstance(data[field_name], field_type):
-                errors.append(
-                    f"Field {field_name} has wrong type. "
-                    f"Expected {field_type.__name__}, got {type(data[field_name]).__name__}"
-                )
-
-        # Check optional fields if present
-        if self.optional_fields:
-            for field_name, field_type in self.optional_fields.items():
-                if field_name in data and not isinstance(data[field_name], field_type):
-                    errors.append(
-                        f"Optional field {field_name} has wrong type. "
-                        f"Expected {field_type.__name__}, got {type(data[field_name]).__name__}"
-                    )
-
-        return len(errors) == 0, errors
-
-class Event:
-    def __init__(self, ..., schema: Optional[EventSchema] = None):
-        self.schema = schema
-        # ... existing init
-
-    def raise_event(self, data: dict | EventDataRecord, actor: str, **kwargs):
-        """Raise event with optional schema validation."""
-        if not isinstance(data, EventDataRecord):
-            data_dict = data
-            data = EventDataRecord(owner_id=actor, event_name=self.name, data=data_dict)
-        else:
-            data_dict = data.data
-
-        # Validate if schema is defined
-        if self.schema:
-            is_valid, errors = self.schema.validate(data_dict)
-            if not is_valid:
-                LogRecord(
-                    f"Event {self.name} data validation failed: {'; '.join(errors)}",
-                    level="error",
-                    sources=[actor, self.created_by]
-                )()
-                return None
-
-        # ... rest of raise_event logic
-
-# Usage:
-schema = EventSchema(
-    event_name="ev_to_mud_data_modify",
-    required_fields={
-        "line": NetworkDataLine,
-        "client_id": str
-    },
-    optional_fields={
-        "priority": int
-    }
-)
-
-self.api("plugins.core.events:event.add")(
-    "ev_to_mud_data_modify",
-    "plugins.core.commands",
-    schema=schema
-)
-```
+**Checked and correct** (**read**; no change): the `EventDataRecord` excerpt, `add_receiving_event` and the
+"`.data` no longer exists" note (#246); the paragraph on the four record events registered once from
+`RECORD_EVENTS` (#236); Event History (`MAX_RAISED_EVENTS`, `raised_history_size`, the default of 10, the clamp of
+negative values, `raise_event` returning the record at a cap of 0); the Event Stack and Current Event Record
+sections; and the `Event Location` paths. The claim that the debug records plugin reads `RMANAGER` and not
+`raised_events` is **unverified**, as it was.
 
 ---
 
-## Refactoring Opportunities
+## New Defects
 
-### Refactoring #1: Extract Priority Management
+The Q1 defects (ES-1 to ES-3, #275 to #277) are listed with their rows above and are not repeated here.
 
-**Current Problem:**
-Priority management logic is scattered across `Event` and `ProcessRaisedEvent`.
+### ES-4: `@RegisterToEvent(priority=...)` is ignored
 
-**Proposed:**
-```python
-from dataclasses import dataclass, field
-from typing import Dict, List, Set
+**Issue:** #278
+**Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`, `EventsPlugin._api_event_register_by_func`
+(passes `priority=`) and `EventsPlugin._api_event_register` (reads `prio`).
+**Evidence (verified):** a user plugin's decorators at priorities 10 and 70 were both stored at 50; the live
+order on `ev_plugin_loaded` is commands, events, settings at 50 (Q3b).
+**Fix:** read the priority under one name; test the stored priority.
 
-@dataclass
-class PriorityManager:
-    """Manages priority-based callback execution."""
-    callbacks: Dict[int, Dict[Callback, bool]] = field(default_factory=dict)
+### ES-5: The event system cannot detect an already registered function
 
-    def add_callback(self, priority: int, callback: Callback) -> bool:
-        """Add a callback at a specific priority."""
-        if priority not in self.callbacks:
-            self.callbacks[priority] = {}
+**Issue:** #279
+**Location:** `src/bastproxy/libs/callback.py`, `Callback.__hash__` (adds `created_time`);
+`src/bastproxy/plugins/core/events/plugin/_event.py`, `Event.isregistered` and the duplicate check in
+`Event.register`; `src/bastproxy/plugins/_baseplugin/_base.py`, `_eventcb_baseplugin_disconnect`.
+**Evidence (verified):** the same function registered twice ran twice and `isregistered` was False; three
+disconnect calls took the plugin's registrations on one event from 1 to 4 (Q2d, Q3c).
+**Fix:** drop `created_time` from the hash; compare with `call_back == func` in `isregistered`.
 
-        if callback not in self.callbacks[priority]:
-            self.callbacks[priority][callback] = False
-            return True
-        return False
+### ES-6: Priority 0 is stored as priority 50
 
-    def remove_callback(self, callback: Callback) -> bool:
-        """Remove a callback from all priorities."""
-        for priority in self.callbacks:
-            if callback in self.callbacks[priority]:
-                del self.callbacks[priority][callback]
-                return True
-        return False
+**Issue:** #280
+**Location:** `src/bastproxy/plugins/core/events/plugin/_event.py`, `Event.register` (`prio or 50`).
+**Evidence (verified):** a callback registered at 0 ran between the 50 and the 99 callbacks and the stored
+priorities were `[1, 50, 99]` (Q3a). No caller in `src` registers at 0 (**read**).
+**Fix:** `50 if prio is None else prio`.
 
-    def get_priorities(self) -> List[int]:
-        """Get all priorities in sorted order."""
-        return sorted(self.callbacks.keys())
+### ES-7: Raising an event from one of its own callbacks resets the outer raise
 
-    def get_callbacks_at_priority(self, priority: int) -> List[Callback]:
-        """Get all callbacks at a specific priority."""
-        return list(self.callbacks.get(priority, {}).keys())
+**Issue:** #281
+**Location:** `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` (`_exec_once` calls
+`reset_event`) and `src/bastproxy/plugins/core/events/plugin/_event.py` (`Event.raise_event` `finally`,
+`Event.reset_event`).
+**Evidence (verified):** with a nested raise `other` ran twice and `active_event` was `None` for the rest of
+the outer raise (Q3f).
+**Fix:** keep the done flags and the active event per raise rather than on the shared `Event`, or refuse a
+nested raise of the same event with an error.
 
-    def mark_executed(self, priority: int, callback: Callback):
-        """Mark a callback as executed."""
-        if priority in self.callbacks and callback in self.callbacks[priority]:
-            self.callbacks[priority][callback] = True
 
-    def is_executed(self, priority: int, callback: Callback) -> bool:
-        """Check if callback has been executed."""
-        return self.callbacks.get(priority, {}).get(callback, False)
+### ES-8: `event.get` creates an event for any name, so the raise command never reports an unknown event
 
-    def reset(self):
-        """Reset all callbacks to not executed."""
-        for priority in self.callbacks:
-            for callback in self.callbacks[priority]:
-                self.callbacks[priority][callback] = False
+**Issue:** #283
+**Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`, `EventsPlugin._api_event_get` (creates and
+stores an `Event` for a name it has not seen) and `EventsPlugin._command_raise` (tests the result of
+`event.get` for truth).
+**Evidence (read):** `_api_event_get` always returns an `Event`, and `Event` defines no `__bool__` or `__len__`,
+so the test in `_command_raise` is always true and its "event does not exist" branch cannot run. Events are
+never removed (Q2c, **verified**), so every `raise` of a new name adds a permanent `Event`. The branch is
+missed by both coverage runs (Q5, **verified**). No probe was run for the command itself.
+**Fix:** give the command a lookup that does not create (use `event.exists` first, or add a non-creating get),
+and check whether any other caller of `event.get` relies on the creation.
 
-    def count(self) -> int:
-        """Count total callbacks across all priorities."""
-        return sum(len(callbacks) for callbacks in self.callbacks.values())
+### ES-9: The events plugin's register, unregister and unload paths have no test
 
-    def execute_all(self, executor_func: Callable[[Callback], None]) -> int:
-        """Execute all callbacks in priority order.
+**Issue:** #282
+**Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`: `_api_event_register`,
+`_api_event_register_by_func`, `_api_event_unregister`, `_api_event_unregister_for_owner`,
+`_eventcb_plugin_unloaded`, `_register_events_for_plugin`, `get_event_registration_functions_in_object`;
+`src/bastproxy/plugins/core/events/plugin/_event.py`: `Event.isregistered` and the duplicate branch of
+`Event.register`.
+**Evidence (verified):** these lines are missed by both coverage runs (Q5, `coverage.txt`,
+`coverage-narrow.txt`). `EventsPlugin` is 36.0% covered and `Event` 68.7%.
+**Fix:** tests that build an `EventsPlugin` the way the other plugin tests do and cover: a decorated callback
+is stored at its priority (fails today, ES-4); registering twice is detected (fails today, ES-5);
+`_eventcb_plugin_unloaded` leaves no registration for the unloaded owner; an unknown owner and an unknown
+event do not raise. Tests for ES-4 and ES-5 belong with their fixes, not this issue.
 
-        Args:
-            executor_func: Function that executes a single callback
+### ES-10: `@RegisterToEvent` on a method not named `_eventcb_*` is ignored without a message
 
-        Returns:
-            Number of passes required (for detecting dynamic registration)
-        """
-        executed_priorities: Set[int] = set()
-        found_callbacks = True
-        pass_count = 0
+**Issue:** #284
+**Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`: `get_event_registration_functions_in_object`.
+**Evidence (read):** the `find_methods` predicate is `m.__name__.startswith("_eventcb_") and hasattr(m,
+"event_registration")`, so a decorated method under any other name is never collected, and nothing logs it.
+**Fix:** discover by the `event_registration` attribute alone, or log a warning for a decorated method without the
+prefix.
 
-        while found_callbacks:
-            pass_count += 1
-            found_callbacks = False
+### ES-11: Two code comments in the events plugin are wrong
 
-            for priority in self.get_priorities():
-                was_done = priority in executed_priorities
-
-                for callback in list(self.get_callbacks_at_priority(priority)):
-                    if not self.is_executed(priority, callback):
-                        executor_func(callback)
-                        self.mark_executed(priority, callback)
-                        found_callbacks = True
-
-                        if was_done:
-                            # Callback added during execution
-                            LogRecord(
-                                f"Callback {callback.name} added during event execution at priority {priority}",
-                                level="warning",
-                                sources=[callback.owner_id]
-                            )()
-
-                executed_priorities.add(priority)
-
-        return pass_count
-
-# Usage in Event class:
-class Event:
-    def __init__(self, ...):
-        self.priority_manager = PriorityManager()
-        # Remove self.priority_dictionary
-
-    def register(self, func: Callable, func_owner_id: str, prio: int = 50) -> bool:
-        callback = Callback(func.__name__, func_owner_id, func)
-        return self.priority_manager.add_callback(prio, callback)
-
-    def unregister(self, func) -> bool:
-        return self.priority_manager.remove_callback(func)
-
-    def count(self) -> int:
-        return self.priority_manager.count()
-```
+**Issue:** #285
+**Location:** `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`: `ProcessRaisedEvent._exec_once`;
+`src/bastproxy/plugins/core/events/plugin/_event.py`: `Event.raise_priority`.
+**Evidence:** the `_exec_once` comment says a callback added during a raise "will be processed in the same order
+as the other functions"; it runs in a later pass (**verified**, Q3d). The `raise_priority` comment names an API
+`plugins.core.events:get:current:event` that does not exist; the API is
+`plugins.core.events:event.current.record.get` (**read**).
+**Fix:** correct both comments. Not edited here: the audit changes docs only.
 
 ---
 
-### Refactoring #2: Use Dataclasses for Configuration
-
-**Current Problem:**
-Event initialization has many parameters, hard to extend.
-
-**Proposed:**
-```python
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict
-
-@dataclass
-class EventConfig:
-    """Configuration for an Event."""
-    name: str
-    created_by: str = ""
-    description: List[str] = field(default_factory=list)
-    arg_descriptions: Dict[str, str] = field(default_factory=dict)
-    max_history: int = 1000
-    async_enabled: bool = False
-    validation_schema: Optional[EventSchema] = None
-    middleware: List[EventMiddleware] = field(default_factory=list)
-
-    def validate(self) -> tuple[bool, List[str]]:
-        """Validate configuration."""
-        errors = []
-
-        if not self.name:
-            errors.append("Event name cannot be empty")
-
-        if not self.name.startswith("ev_"):
-            errors.append("Event name should start with 'ev_'")
-
-        if self.max_history < 1:
-            errors.append("max_history must be at least 1")
-
-        return len(errors) == 0, errors
-
-class Event:
-    def __init__(self, config: EventConfig):
-        """Initialize event with configuration."""
-        is_valid, errors = config.validate()
-        if not is_valid:
-            raise ValueError(f"Invalid event configuration: {'; '.join(errors)}")
-
-        self.config = config
-        self.name = config.name
-        self.created_by = config.created_by
-        self.description = config.description
-        self.arg_descriptions = config.arg_descriptions
-        # ... rest of init
-
-# Usage:
-config = EventConfig(
-    name="ev_plugin_loaded",
-    created_by="plugins.core.events",
-    description=["Raised when a plugin is loaded"],
-    arg_descriptions={"plugin_id": "The ID of the loaded plugin"},
-    max_history=500,
-    async_enabled=True
-)
-
-event = Event(config)
-```
-
----
-
-### Refactoring #3: Improve Error Handling
-
-**Proposed:**
-```python
-class EventError(Exception):
-    """Base exception for event system errors."""
-    pass
-
-class EventCallbackError(EventError):
-    """Exception raised when event callback fails."""
-    def __init__(self, event_name: str, callback_name: str, original_error: Exception):
-        self.event_name = event_name
-        self.callback_name = callback_name
-        self.original_error = original_error
-        super().__init__(
-            f"Callback {callback_name} failed in event {event_name}: {original_error}"
-        )
-
-class EventValidationError(EventError):
-    """Exception raised when event data validation fails."""
-    pass
-
-class EventNotFoundError(EventError):
-    """Exception raised when event doesn't exist."""
-    pass
-
-# Usage:
-def raise_priority(self, priority, already_done: bool) -> bool:
-    """Raise the event at a specific priority."""
-    found = False
-
-    for call_back in list(self.priority_dictionary[priority].keys()):
-        try:
-            if (...):
-                call_back.execute()
-                found = True
-
-        except (KeyboardInterrupt, SystemExit):
-            raise
-
-        except Exception as e:
-            error = EventCallbackError(
-                event_name=self.name,
-                callback_name=call_back.name,
-                original_error=e
-            )
-
-            LogRecord(
-                str(error),
-                level="error",
-                sources=[call_back.owner_id, self.created_by],
-                exc_info=True,
-            )()
-
-            # Store error for later analysis
-            if not hasattr(self, 'errors'):
-                self.errors = []
-            self.errors.append(error)
-
-    return found
-```
-
----
-
-### Refactoring #4: Separate Concerns with Protocols
-
-**Proposed:**
-```python
-from typing import Protocol, runtime_checkable
-
-@runtime_checkable
-class EventCallback(Protocol):
-    """Protocol for event callbacks."""
-
-    def __call__(self) -> None:
-        """Execute the callback."""
-        ...
-
-@runtime_checkable
-class AsyncEventCallback(Protocol):
-    """Protocol for async event callbacks."""
-
-    async def __call__(self) -> None:
-        """Execute the callback asynchronously."""
-        ...
-
-@runtime_checkable
-class EventDataProvider(Protocol):
-    """Protocol for objects that provide event data."""
-
-    @property
-    def data(self) -> Dict[str, Any]:
-        """Get event data."""
-        ...
-
-    def __getitem__(self, key: str) -> Any:
-        """Get data item by key."""
-        ...
-
-    def __setitem__(self, key: str, value: Any):
-        """Set data item by key."""
-        ...
-
-# Type-safe event registration:
-def register(self, func: Union[EventCallback, AsyncEventCallback], ...) -> bool:
-    """Register a callback."""
-    if not isinstance(func, (EventCallback, AsyncEventCallback)):
-        raise TypeError(f"Callback must implement EventCallback protocol, got {type(func)}")
-
-    # ... rest of registration
-```
-
----
-
-## Alternative Libraries
-
-### Option 1: blinker (Recommended)
-
-**Description:**
-Fast, simple signal/event system used by Flask, Django, and other major frameworks.
-
-**Pros:**
-- Battle-tested and widely used
-- Thread-safe by default
-- Automatic weak reference cleanup (prevents memory leaks)
-- Very fast (C extension available)
-- Supports temporary connections
-- Named signals (like events)
-
-**Cons:**
-- No built-in priority system
-- Would need custom wrapper for priority support
-- Less flexible than custom implementation
-
-**Installation:**
-```bash
-pip install blinker
-```
-
-**Example Usage:**
-```python
-from blinker import signal
-
-# Define signals (equivalent to events)
-plugin_loaded = signal('plugin-loaded')
-data_modified = signal('data-modified')
-
-# Connect callbacks (with custom priority support)
-class PriorityConnection:
-    def __init__(self, signal_obj):
-        self.signal = signal_obj
-        self.connections = {}  # priority -> [callbacks]
-
-    def connect(self, callback, priority=50):
-        if priority not in self.connections:
-            self.connections[priority] = []
-        self.connections[priority].append(callback)
-
-        # Wrap to maintain priority order
-        def wrapper(sender, **kwargs):
-            for prio in sorted(self.connections.keys()):
-                for cb in self.connections[prio]:
-                    cb(sender, **kwargs)
-
-        self.signal.connect(wrapper, weak=False)
-
-# Usage
-priority_conn = PriorityConnection(plugin_loaded)
-priority_conn.connect(my_callback, priority=10)
-
-# Send signal (equivalent to raising event)
-plugin_loaded.send(self, plugin_id='plugins.core.commands')
-
-# Temporary connection
-with plugin_loaded.connected_to(temp_handler):
-    # temp_handler only called during this block
-    plugin_loaded.send(self)
-```
-
-**Migration Effort:** Medium (2-3 weeks)
-
----
-
-### Option 2: PyPubSub
-
-**Description:**
-Publish-subscribe messaging system with topic-based routing.
-
-**Pros:**
-- Topic-based hierarchy (e.g., `data.modified.client`)
-- Argument specification and validation
-- Supports both sync and async
-- Good documentation
-
-**Cons:**
-- Heavier than blinker
-- More complex API
-- Topic strings can get verbose
-
-**Installation:**
-```bash
-pip install pypubsub
-```
-
-**Example:**
-```python
-from pubsub import pub
-
-# Subscribe
-def on_plugin_loaded(plugin_id):
-    print(f"Plugin {plugin_id} loaded")
-
-pub.subscribe(on_plugin_loaded, 'plugin.loaded')
-
-# Publish
-pub.sendMessage('plugin.loaded', plugin_id='plugins.core.commands')
-
-# Topic hierarchy
-pub.subscribe(handler, 'mud.data')  # Catches mud.data.* topics
-pub.sendMessage('mud.data.received', data="...")
-```
-
-**Migration Effort:** Medium (2-3 weeks)
-
----
-
-### Option 3: python-dispatch
-
-**Description:**
-Property-based dispatch with multiple strategies.
-
-**Pros:**
-- Property-based events
-- Thread-safe
-- Multiple dispatch strategies
-- Good for object-oriented code
-
-**Cons:**
-- Less widely used
-- More opinionated design
-
-**Installation:**
-```bash
-pip install python-dispatch
-```
-
-**Example:**
-```python
-from pydispatch import dispatcher
-
-# Connect
-def on_event(signal, sender, **kwargs):
-    print(f"Signal {signal} from {sender}")
-
-dispatcher.connect(on_event, signal='plugin_loaded', sender=dispatcher.Any)
-
-# Send
-dispatcher.send(signal='plugin_loaded', sender=self, plugin_id='...')
-```
-
-**Migration Effort:** Low-Medium (1-2 weeks)
-
----
-
-### Option 4: Custom AsyncIO-Based System
-
-**Description:**
-Build lightweight async event system using asyncio primitives.
-
-**Pros:**
-- Perfect fit for asyncio architecture
-- Full control over implementation
-- No external dependencies
-- Can maintain exact current API
-
-**Cons:**
-- Must maintain ourselves
-- Need to ensure thread safety
-- More testing required
-
-**Example:**
-```python
-import asyncio
-from typing import Callable, Dict, List, Awaitable, Union
-from collections import defaultdict
-
-class AsyncEventSystem:
-    def __init__(self):
-        self._handlers: Dict[str, Dict[int, List[Callable]]] = defaultdict(lambda: defaultdict(list))
-        self._lock = asyncio.Lock()
-
-    async def emit(self, event_name: str, **kwargs):
-        """Emit an event asynchronously."""
-        async with self._lock:
-            handlers = self._handlers[event_name]
-
-        # Execute in priority order
-        for priority in sorted(handlers.keys()):
-            for handler in handlers[priority]:
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(**kwargs)
-                else:
-                    # Run sync handlers in executor to not block
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, handler, **kwargs
-                    )
-
-    async def on(self, event_name: str, handler: Callable, priority: int = 50):
-        """Register event handler."""
-        async with self._lock:
-            self._handlers[event_name][priority].append(handler)
-
-    async def off(self, event_name: str, handler: Callable):
-        """Unregister event handler."""
-        async with self._lock:
-            for priority_handlers in self._handlers[event_name].values():
-                if handler in priority_handlers:
-                    priority_handlers.remove(handler)
-
-# Usage
-events = AsyncEventSystem()
-
-@events.on('data.received', priority=10)
-async def handle_data(**kwargs):
-    data = kwargs['data']
-    # Process data
-    await asyncio.sleep(0.1)  # Can await!
-
-await events.emit('data.received', data={'key': 'value'})
-```
-
-**Migration Effort:** High (4-6 weeks)
-
----
-
-### Comparison Matrix
-
-| Feature | Current | blinker | PyPubSub | python-dispatch | Custom Async |
-|---------|---------|---------|----------|-----------------|--------------|
-| **Priority Support** | ✅ Yes | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Async/Await** | ❌ No | ❌ No | ✅ Yes | ❌ No | ✅ Yes |
-| **Thread Safety** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Memory Leak Risk** | ⚠️ Yes | ✅ No (weak refs) | ✅ No | ✅ No | ⚠️ Depends |
-| **Battle Tested** | ⚠️ Custom | ✅ Yes | ✅ Yes | ⚠️ Moderate | ❌ No |
-| **Performance** | ⚠️ Good | ✅ Excellent | ⚠️ Good | ⚠️ Good | ✅ Excellent |
-| **Learning Curve** | N/A | ✅ Low | ⚠️ Medium | ⚠️ Medium | ⚠️ Medium |
-| **Maintenance** | ⚠️ High | ✅ Low | ✅ Low | ⚠️ Medium | ⚠️ High |
-| **Event History** | ✅ Yes | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Pattern Matching** | ❌ No | ❌ No | ✅ Yes | ❌ No | ✅ Yes |
-
-**Recommendation:**
-1. **Short-term**: Fix critical bugs in current system
-2. **Medium-term**: Add async support to current system
-3. **Long-term**: Consider migrating to **blinker** with custom priority wrapper
-
----
-
-## Implementation Priority
-
-### Phase 1: Critical Bug Fixes (Week 1) 🔴 HIGH PRIORITY
-
-**Must Fix Immediately:**
-
-1. **Fix EventArgsRecord/EventDataRecord naming**
-   - Impact: ImportError at runtime
-   - Effort: 1-2 hours
-   - Files: 2-3 files
-
-2. **Remove duplicate ProcessRaisedEvent**
-   - Impact: Code clarity, future bugs
-   - Effort: 1-2 hours
-   - Files: 2 files
-
-3. **Fix AttributeError in raise_event**
-   - Impact: Error handling broken
-   - Effort: 30 minutes
-   - Files: 1 file
-
-4. **Implement event history size limit**
-   - Impact: Memory leak prevention
-   - Effort: 2-4 hours
-   - Files: 1 file
-
-**Deliverables:**
-- [ ] All imports work correctly
-- [ ] No duplicate classes
-- [ ] Error messages display correctly
-- [ ] Memory usage stable over 24-hour run
-
----
-
-### Phase 2: Design Improvements (Week 2-3) 🟡 MEDIUM PRIORITY
-
-**Should Fix Soon:**
-
-1. **Improve exception handling**
-   - Don't catch KeyboardInterrupt/SystemExit
-   - Effort: 1-2 hours
-   - Files: 2 files
-
-2. **Optimize priority execution loop**
-   - Use set instead of list for priorities_done
-   - Effort: 2-3 hours
-   - Files: 1 file
-
-3. **Add thread safety**
-   - Add locks to Event class
-   - Effort: 4-6 hours
-   - Files: 2 files
-
-4. **Improve type hints**
-   - Consistent, complete type hints
-   - Effort: 3-4 hours
-   - Files: 4-5 files
-
-**Deliverables:**
-- [ ] Graceful shutdown works
-- [ ] No duplicate priority processing
-- [ ] Thread-safe event raising
-- [ ] Type checking passes with mypy
-
----
-
-### Phase 3: Major Enhancements (Week 4-8) 🟢 LOW PRIORITY
-
-**Nice to Have:**
-
-1. **Add async/await support**
-   - Parallel sync/async paths
-   - Effort: 2-3 weeks
-   - Files: 5-10 files
-
-2. **Add event wildcards**
-   - Pattern-based subscriptions
-   - Effort: 1 week
-   - Files: 2-3 files
-
-3. **Add performance monitoring**
-   - Stats collection and commands
-   - Effort: 1 week
-   - Files: 3-4 files
-
-4. **Add event middleware**
-   - Interceptor support
-   - Effort: 1-2 weeks
-   - Files: 3-5 files
-
-**Deliverables:**
-- [ ] Async callbacks work
-- [ ] Can subscribe with patterns
-- [ ] Performance stats available
-- [ ] Logging middleware works
-
----
-
-### Phase 4: Architecture Evolution (Month 3+) 🔵 FUTURE
-
-**Consider for Future:**
-
-1. **Evaluate migration to blinker**
-   - Research and prototyping
-   - Effort: 2 weeks
-
-2. **Build migration wrapper**
-   - Adapter for priority support
-   - Effort: 2-3 weeks
-
-3. **Gradual migration**
-   - Move events one at a time
-   - Effort: 4-6 weeks
-
-4. **Remove custom implementation**
-   - Cleanup after full migration
-   - Effort: 1-2 weeks
-
-**Deliverables:**
-- [ ] Proof of concept with blinker
-- [ ] Priority wrapper working
-- [ ] All events migrated
-- [ ] Legacy code removed
-
----
-
-## Migration Strategies
-
-### Strategy 1: Fix-in-Place (Recommended for Short-Term)
-
-**Approach:**
-Fix bugs and add features to existing system.
-
-**Pros:**
-- Minimal disruption
-- Quick wins
-- Maintains compatibility
-- Low risk
-
-**Cons:**
-- Still maintaining custom code
-- Doesn't solve all architectural issues
-- Technical debt remains
-
-**Timeline:** 4-6 weeks
-
-**Steps:**
-1. Week 1: Fix critical bugs
-2. Week 2-3: Design improvements
-3. Week 4-6: Major enhancements
-4. Ongoing: Monitoring and refinement
-
----
-
-### Strategy 2: Hybrid Approach
-
-**Approach:**
-Fix critical bugs, then gradually introduce blinker alongside existing system.
-
-**Pros:**
-- Gets battle-tested library benefits
-- Can migrate incrementally
-- Low risk (can roll back)
-- Performance improvements
-
-**Cons:**
-- Dual systems temporarily
-- More complex codebase
-- Need adapter layer
-
-**Timeline:** 12-16 weeks
-
-**Steps:**
-1. Week 1-2: Fix critical bugs in current system
-2. Week 3-4: Add blinker dependency and create priority wrapper
-3. Week 5-8: Migrate high-traffic events to blinker
-4. Week 9-12: Migrate remaining events
-5. Week 13-16: Remove legacy system, cleanup
-
-**Example Priority Wrapper:**
-```python
-from blinker import signal
-from typing import Callable, Dict, List
-import functools
-
-class PrioritySignal:
-    """Wrapper for blinker signal with priority support."""
-
-    def __init__(self, name: str):
-        self.name = name
-        self.signal = signal(name)
-        self.priority_handlers: Dict[int, List[Callable]] = {}
-
-    def connect(self, handler: Callable, priority: int = 50):
-        """Connect handler with priority."""
-        if priority not in self.priority_handlers:
-            self.priority_handlers[priority] = []
-        self.priority_handlers[priority].append(handler)
-
-        # Don't connect directly to blinker signal
-        # We'll handle dispatch ourselves
-
-    def send(self, sender, **kwargs):
-        """Send signal to all handlers in priority order."""
-        for priority in sorted(self.priority_handlers.keys()):
-            for handler in self.priority_handlers[priority]:
-                try:
-                    handler(sender, **kwargs)
-                except (KeyboardInterrupt, SystemExit):
-                    raise
-                except Exception as e:
-                    # Log error
-                    print(f"Handler {handler.__name__} failed: {e}")
-
-        # Also send via blinker for any direct connections
-        self.signal.send(sender, **kwargs)
-
-    def disconnect(self, handler: Callable):
-        """Disconnect handler."""
-        for priority_list in self.priority_handlers.values():
-            if handler in priority_list:
-                priority_list.remove(handler)
-
-# Adapter for existing API
-class BlinkerEventAdapter:
-    """Adapter to use blinker with existing event API."""
-
-    def __init__(self):
-        self.signals: Dict[str, PrioritySignal] = {}
-
-    def get_event(self, event_name: str) -> PrioritySignal:
-        """Get or create signal."""
-        if event_name not in self.signals:
-            self.signals[event_name] = PrioritySignal(event_name)
-        return self.signals[event_name]
-
-    def register_to_event(self, event_name: str, func: Callable, priority: int = 50):
-        """Register handler to event."""
-        event = self.get_event(event_name)
-        event.connect(func, priority=priority)
-
-    def raise_event(self, event_name: str, event_args: dict, calledfrom: str = ""):
-        """Raise an event."""
-        event = self.get_event(event_name)
-        event.send(calledfrom, **event_args)
-```
-
----
-
-### Strategy 3: Big Bang Rewrite
-
-**Approach:**
-Complete rewrite to use async-native event system.
-
-**Pros:**
-- Clean architecture
-- Fully async
-- No technical debt
-- Modern design
-
-**Cons:**
-- High risk
-- Long timeline
-- All events must migrate at once
-- Significant testing required
-
-**Timeline:** 16-24 weeks
-
-**Not Recommended** due to risk and effort.
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-**Critical Test Cases:**
-
-```python
-import pytest
-from plugins.core.events.libs._event import Event
-from plugins.core.events.libs.data._event import EventDataRecord
-
-class TestEventSystem:
-
-    def test_event_creation(self):
-        """Test basic event creation."""
-        event = Event("test_event", created_by="test")
-        assert event.name == "test_event"
-        assert event.created_by == "test"
-
-    def test_callback_registration(self):
-        """Test callback registration."""
-        event = Event("test_event")
-
-        def callback():
-            pass
-
-        assert event.register(callback, "test_owner", priority=50)
-        assert event.count() == 1
-        assert event.isregistered(callback)
-
-    def test_priority_ordering(self):
-        """Test callbacks execute in priority order."""
-        event = Event("test_event")
-        execution_order = []
-
-        def low_priority():
-            execution_order.append("low")
-
-        def high_priority():
-            execution_order.append("high")
-
-        event.register(low_priority, "test", priority=100)
-        event.register(high_priority, "test", priority=1)
-
-        event.raise_event({}, "test")
-
-        assert execution_order == ["high", "low"]
-
-    def test_event_history_limit(self):
-        """Test event history doesn't grow unbounded."""
-        event = Event("test_event", max_history=10)
-
-        # Raise 100 events
-        for i in range(100):
-            event.raise_event({"count": i}, "test")
-
-        # Should only keep last 10
-        assert len(event.raised_events) <= 10
-
-    def test_exception_in_callback(self):
-        """Test exception in callback doesn't crash system."""
-        event = Event("test_event")
-        execution_order = []
-
-        def failing_callback():
-            execution_order.append("fail")
-            raise ValueError("Test error")
-
-        def succeeding_callback():
-            execution_order.append("success")
-
-        event.register(failing_callback, "test", priority=1)
-        event.register(succeeding_callback, "test", priority=2)
-
-        event.raise_event({}, "test")
-
-        # Both should execute despite exception
-        assert "fail" in execution_order
-        assert "success" in execution_order
-
-    def test_dynamic_registration(self):
-        """Test callback registered during event execution."""
-        event = Event("test_event")
-        execution_order = []
-
-        def late_callback():
-            execution_order.append("late")
-
-        def early_callback():
-            execution_order.append("early")
-            # Register new callback during execution
-            event.register(late_callback, "test", priority=50)
-
-        event.register(early_callback, "test", priority=50)
-        event.raise_event({}, "test")
-
-        # Late callback should execute
-        assert "late" in execution_order
-
-    @pytest.mark.asyncio
-    async def test_async_callback(self):
-        """Test async callback support."""
-        event = Event("test_event", async_enabled=True)
-        execution_order = []
-
-        async def async_callback():
-            execution_order.append("async")
-            await asyncio.sleep(0.01)
-
-        event.register(async_callback, "test", priority=50)
-        await event.raise_event_async({}, "test")
-
-        assert "async" in execution_order
-```
-
-### Integration Tests
-
-```python
-class TestEventIntegration:
-
-    def test_full_event_flow(self, event_plugin):
-        """Test complete event flow through system."""
-        # Register event
-        event_plugin.api("plugins.core.events:event.add")(
-            "ev_test_event",
-            "test_plugin",
-            description=["Test event"],
-            arg_descriptions={"data": "Test data"}
-        )
-
-        # Register callback
-        received_data = []
-
-        def callback():
-            record = event_plugin.api("plugins.core.events:event.current.record.get")()
-            received_data.append(record["data"])
-
-        event_plugin.api("plugins.core.events:event.register")(
-            "ev_test_event",
-            callback,
-            priority=50
-        )
-
-        # Raise event
-        event_plugin.api("plugins.core.events:event.raise")(
-            "ev_test_event",
-            event_args={"data": "test_value"}
-        )
-
-        # Verify
-        assert len(received_data) == 1
-        assert received_data[0] == "test_value"
-```
-
----
-
-## Conclusion
-
-The BastProxy event system requires immediate attention to address critical bugs, particularly the naming inconsistency and memory leak. Short-term fixes will stabilize the system, while medium-term enhancements (async support, monitoring) will improve performance and observability.
-
-For long-term sustainability, consider migrating to a battle-tested library like `blinker` with a custom priority wrapper. This hybrid approach balances the benefits of proven code with BastProxy's specific requirements.
-
-### Immediate Actions
-
-1. Fix EventArgsRecord/EventDataRecord naming bug
-2. Implement event history size limit
-3. Remove duplicate ProcessRaisedEvent class
-4. Improve exception handling
-
-### Success Metrics
-
-- Zero memory growth over 24-hour stress test
-- All type checks pass with mypy
-- Event execution time < 1ms for simple events
-- Zero crashes due to event system bugs
-- 100% test coverage for event core
-
----
-
-**Document Version:** 1.0
-**Last Updated:** 2025-12-09
-**Next Review:** After Phase 1 completion
+## Other Observations
+
+- **Unloaded user plugin modules stay alive** because the parent package (`userplugins.<package>`) keeps the
+  submodule as an attribute (**verified**, `out-q2c_module_alive.txt`). A loader matter; `plugin.module.list.stale`
+  reports them. No event issue.
+- **Event objects are never removed after an unload** (**verified**, Q2c). A reloaded plugin reuses the names, so
+  the dictionary grows only with new event names (**read**).
+- **A plugin cannot see its own `ev_plugin_unloaded`** (**verified**, Q2c): the events plugin removes its callbacks
+  first. With #278 fixed, a priority-1 callback would run first.
+- **The out-of-order warning is partial** (**verified**, Q3d): it is logged only for a priority already visited
+  in an earlier pass, so a registration at a lower or in-between priority runs late without one.
+- **Two code comments are wrong** (**verified** for the first, Q3d). The comment in `_exec_once` says a callback
+  added during a raise "will be processed in the same order as the other functions", which is not true (it runs in
+  a later pass). A comment inside `raise_priority` mentions an api
+  `plugins.core.events:get:current:event` that does not exist (**read**; the API is `event.current.record.get`).
+  They are not edited in this audit; see ES-11 (#285).
+- **Decorator on a non-`_eventcb_` method is ignored without a message**: see ES-10 (#284).
+- **Empty priority keys stay** in `priority_dictionary` after the last callback leaves (**read**, Q3f); they are
+  visited on every pass. Not measured.
+- **`setting.get` is read outside the `try`** in `_exec_once` (**verified**, Q3e): a settings failure reaches the
+  caller of `raise_event`.
+- **Shutdown noise** (**unverified**, not investigated): the probe scripts printed "Logging error ... import of
+  `bastproxy.libs.api._api` halted" at interpreter exit. Harmless to the probes.
