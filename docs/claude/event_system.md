@@ -15,7 +15,7 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
-Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): the `priority` of `@RegisterToEvent` is ignored and every decorated callback is stored at 50 (#278), priority 0 is stored as 50 (#280), a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
+Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): priority 0 is stored as 50 (#280), a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
 
 ## Key Components
 
@@ -115,7 +115,7 @@ class RegisterToEvent:
         return func
 ```
 
-Only methods whose name starts with `_eventcb_` are picked up (`get_event_registration_functions_in_object`); the decorator on any other name is silently ignored. The `priority` is stored but not honoured: `event.register.by.func` passes it as `priority=`, and `event.register` reads `prio`, so the callback runs at 50 (#278). The event name may contain `{attribute}` placeholders, filled from the plugin instance, as in `ev_{plugin_id}_var_raised_history_size_modified`.
+Only methods whose name starts with `_eventcb_` are picked up (`get_event_registration_functions_in_object`); the decorator on any other name is silently ignored. The `priority` is honoured: `event.register.by.func` passes it to `event.register` as `prio`. The event name may contain `{attribute}` placeholders, filled from the plugin instance, as in `ev_{plugin_id}_var_raised_history_size_modified`.
 
 ### EventsPlugin
 **Location**: `src/bastproxy/plugins/core/events/plugin/_events.py`
