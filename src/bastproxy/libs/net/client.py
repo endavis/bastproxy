@@ -156,6 +156,25 @@ class ClientConnection:
         )
 
     @property
+    def idle(self) -> str:
+        """Return how long the client has been silent, in a human-readable format.
+
+        The value comes from telnetlib3's ``TelnetServer.idle``, which counts
+        every byte received from the client, negotiation replies included, not
+        only typed input. telnetlib3 measures it with the naive local
+        ``datetime.now()``, so only the elapsed seconds are used here.
+
+        Returns:
+            The idle time, or ``-`` when there is no telnet server.
+
+        """
+        if self.telnet_server is None:
+            return "-"
+        now = datetime.datetime.now(datetime.UTC)
+        idle = datetime.timedelta(seconds=float(self.telnet_server.idle))
+        return self.api("plugins.core.utils:timedelta.to.string")(now - idle, now)
+
+    @property
     def term_type(self) -> str:
         """Return the terminal type the client reported through TTYPE.
 

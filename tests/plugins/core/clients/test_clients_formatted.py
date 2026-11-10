@@ -24,6 +24,7 @@ def _stub(
             addr="10.0.0.5",
             port=4242,
             connected_length="1m",
+            idle="7s",
             view_only=False,
             term_type=term_type,
         )
@@ -46,11 +47,27 @@ def _stub(
 def test_one_client_no_bans() -> None:
     text = "\n".join(ClientPlugin._api_client_list_formatted(_stub()))
 
-    for word in ("Clients", "State", "Client IP", "Port", "Term Type", "Connected", "View Only"):
+    for word in (
+        "Clients",
+        "State",
+        "Client IP",
+        "Port",
+        "Term Type",
+        "Connected",
+        "Idle",
+        "View Only",
+    ):
         assert word in text
     assert "10.0.0.5" in text
     assert "4242" in text
     assert "Banned IPs" not in text
+
+
+def test_table_shows_idle_time() -> None:
+    lines = ClientPlugin._api_client_list_formatted(_stub())
+
+    row = next(line for line in lines if "10.0.0.5" in line)
+    assert "7s" in row
 
 
 def test_table_shows_reported_term_type() -> None:

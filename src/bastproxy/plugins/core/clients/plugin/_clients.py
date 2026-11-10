@@ -299,6 +299,7 @@ class ClientPlugin(BasePlugin):
                 "port": client.port,
                 "term_type": client.term_type,
                 "connected": client.connected_length,
+                "idle": client.idle,
                 "view_only": str(client.view_only),
             }
             for client in self.clients.values()
@@ -310,6 +311,7 @@ class ClientPlugin(BasePlugin):
             {"name": "Port", "key": "port", "width": 7},
             {"name": "Term Type", "key": "term_type", "width": 17},
             {"name": "Connected", "key": "connected", "width": 12},
+            {"name": "Idle", "key": "idle", "width": 12},
             {"name": "View Only", "key": "view_only", "width": 8},
         ]
 
