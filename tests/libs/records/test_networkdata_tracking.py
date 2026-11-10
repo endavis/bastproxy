@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.libs.records.enums import LineType, Originated
+from bastproxy.libs.records.managers import records as records_module
+from bastproxy.libs.records.managers.records import RMANAGER
 from bastproxy.libs.records.rtypes.clientdata import SendDataDirectlyToClient
 from bastproxy.libs.records.rtypes.muddata import SendDataDirectlyToMud
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
@@ -136,7 +138,7 @@ def test_copy_attributes() -> None:
     assert new.had_line_endings is False
     assert new.prelogin is True
     assert new.color == "@r"
-    assert new.parents == [line]
+    assert new.parents == []
     assert new.split_from is line
 
 
@@ -190,3 +192,51 @@ def test_split_from_is_tracked_without_becoming_a_parent() -> None:
     assert len(line.tracking_changes()) == count + 1
     assert line not in other.parents
     assert line.split_from is other
+
+
+_REMOVALS: dict[str, Callable[[NetworkData, NetworkDataLine], object]] = {
+    "setitem": lambda d, other: d.__setitem__(0, other),
+    "setitem_slice": lambda d, other: d.__setitem__(slice(0, 1), [other]),
+    "delitem": lambda d, _o: d.__delitem__(0),
+    "delitem_slice": lambda d, _o: d.__delitem__(slice(0, 1)),
+    "remove": lambda d, _o: d.remove(d[0]),
+    "pop": lambda d, _o: d.pop(0),
+    "clear": lambda d, _o: d.clear(),
+    "imul_zero": lambda d, _o: d.__imul__(0),
+}
+
+
+@pytest.mark.parametrize("name", list(_REMOVALS))
+def test_removed_line_is_detached(name: str) -> None:
+    """#231: a line the list no longer holds is not its child any more."""
+    data = NetworkData(["a"])
+    removed = data[0]
+    assert removed.parent is data
+    _REMOVALS[name](data, NetworkDataLine("b"))
+    assert all(line is not removed for line in data)
+    assert removed.parents == []
+    assert removed.parent is None
+    assert all(child is not removed for child in RMANAGER.get_children(data))
+
+
+def test_line_held_twice_keeps_its_parent_until_both_are_gone() -> None:
+    data = NetworkData(["a"])
+    line = data[0]
+    data *= 2
+    del data[0]
+    assert line.parents == [data]
+    assert line.parent is data
+    del data[0]
+    assert line.parents == []
+    assert line.parent is None
+
+
+def test_detached_lines_are_pruned_past_max_pending(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(records_module, "MAX_PENDING", 2)
+    data = NetworkData(["a", "b", "c"])
+    lines = list(data)
+    data.clear()
+    RMANAGER.prune()
+    stored = [line for line in lines if line.uuid in RMANAGER.record_instances]
+    assert len(stored) <= 2
+    assert lines[-1] in stored

@@ -267,7 +267,7 @@ Log messages are not records. `LogRecord` was removed in #247. The last 50 log l
 
 `originated` and `line_type` are the `StrEnum`s `Originated` and `LineType` (in `src/bastproxy/libs/records/enums.py`, exported from `bastproxy.libs.records`). `NetworkDataLine.__init__` coerces its arguments first, so a string still works and an unknown value raises `ValueError` before any record is registered. A member equals its old string, so logs and debug output do not change. Locking these fields is tracked in #264.
 
-`NetworkData` (`TrackedList`) converts every stored item through one hook, `_tracking_convert_item`: str, bytes and bytearray become a `NetworkDataLine`, any other type raises `TypeError`, and the list becomes the line's parent (including for a `NetworkDataLine` object given to `append`, `insert`, `extend`, `+=` or item or slice assignment).
+`NetworkData` (`TrackedList`) converts every stored item through one hook, `_tracking_convert_item`: str, bytes and bytearray become a `NetworkDataLine`, any other type raises `TypeError`, and the list becomes the line's parent (including for a `NetworkDataLine` object given to `append`, `insert`, `extend`, `+=` or item or slice assignment). A line the list stops holding (item or slice assignment, `del`, `remove`, `pop`, `clear`, `*= 0`) is detached through the `_tracking_remove_child_tracked_item` override: the list leaves its `parents`, its `parent` becomes `None`, and `get_children` no longer lists it. A line still held at another index keeps its parent. A detached line is a pending record for the prune. `NetworkDataLine.copy_attributes` sets no parent; `split_from` links a piece to the line it came from.
 
 **A locked write raises `RuntimeError`**:
 

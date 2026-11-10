@@ -262,9 +262,6 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         new_line.had_line_endings = self.had_line_endings
         new_line.prelogin = self.prelogin
         new_line.color = self.color
-        # for item in self.parents:
-        #     new_line.add_parent(item, reset=False)
-        new_line.add_parent(self)
         new_line.split_from = self
 
     def color_line(self):
@@ -410,6 +407,20 @@ class NetworkData(TrackedRecordMixin, TrackedList):
         value.parent = self
         value.add_parent(self)
         return value
+
+    def _tracking_remove_child_tracked_item(self, trackable_item: Any) -> None:
+        """Detach a line that this list no longer holds anywhere.
+
+        pydatatracker calls this once for each removed item that is no longer stored at
+        any index, on every removal path. The line stops listing this list as a parent.
+        Identity is used because ``==`` on records compares uuids.
+        """
+        was_child = trackable_item._tracking_uuid in self._tracking_child_tracked_items
+        super()._tracking_remove_child_tracked_item(trackable_item)
+        if was_child and isinstance(trackable_item, NetworkDataLine):
+            trackable_item.parents = [p for p in trackable_item.parents if p is not self]
+            if trackable_item.parent is self:
+                trackable_item.parent = None
 
     @property
     def locked(self) -> bool:
