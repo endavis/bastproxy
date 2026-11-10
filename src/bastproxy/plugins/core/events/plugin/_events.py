@@ -159,7 +159,7 @@ class EventsPlugin(BasePlugin):
             event_name = item["event_name"]
             event_name = event_name.format(**func.__self__.__dict__)
             prio = item["priority"]
-            self.api("plugins.core.events:event.register")(event_name, func, priority=prio)
+            self.api("plugins.core.events:event.register")(event_name, func, prio=prio)
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
