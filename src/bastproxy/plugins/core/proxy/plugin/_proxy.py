@@ -136,6 +136,13 @@ class ProxyPlugin(BasePlugin):
             self.plugin_id, "mudport", 0, int, "the port of the mud"
         )
         self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            "mudlinewait",
+            100,
+            int,
+            "ms to wait for the rest of a MUD line split across packets",
+        )
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "username", "", str, "the mud username"
         )
 

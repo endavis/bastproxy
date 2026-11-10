@@ -35,13 +35,16 @@ Classes:
 
 # Standard Library
 import asyncio
+import collections
 import datetime
 import logging
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 # Third Party
-from telnetlib3 import open_connection
+from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
+from telnetlib3.telopt import CMD_EOR, GA
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -62,7 +65,7 @@ from bastproxy.libs.records import (
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
+    from telnetlib3 import TelnetWriterUnicode
 
 
 class MudConnection:
@@ -88,7 +91,7 @@ class MudConnection:
         self.connected = True
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
         self.connected_time = datetime.datetime.now(datetime.UTC)
-        self.reader: TelnetReaderUnicode | None = None
+        self.reader: MudTelnetReader | None = None
         self.writer: TelnetWriterUnicode | None = None
         self.max_lines_to_process = 15
         self.term_type = "bastproxy"
@@ -216,31 +219,22 @@ class MudConnection:
         logger.info("mud_read - Starting coroutine for mud")
 
         while self.connected and self.reader:
-            inp: str = ""
-
             data = NetworkData([], owner_id="mud_read")
             while True:
-                inp = await self.reader.readline()
-                if not inp:
-                    print("no data from readline")
+                rec = await self.reader.read_mud_line()
+                if not rec.text:
                     break
-                logger.debug("client_read - readline - Raw received data in mud_read : %s", inp)
-                logger.debug("client_read - readline - inp type = %s", type(inp))
-                data.append(NetworkDataLine(inp.rstrip(), originated=Originated.MUD))
-                logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
-                if (
-                    len(self.reader._buffer) <= 0
-                    or b"\n" not in self.reader._buffer
-                    or len(data) == self.max_lines_to_process
-                ):
+                logger.debug("mud_read - Raw received data in mud_read : %r", rec)
+                line = NetworkDataLine(
+                    rec.text.rstrip() if rec.ended else rec.text,
+                    originated=Originated.MUD,
+                    had_line_endings=rec.ended,
+                )
+                line.is_prompt = rec.prompt
+                data.append(line)
+                logging.getLogger("data.mud").info("%-12s : %s", "from_mud", rec.text)
+                if not self.reader.line_ready() or len(data) >= self.max_lines_to_process:
                     break
-
-            if len(self.reader._buffer) > 0 and b"\n" not in self.reader._buffer:
-                inp: str = await self.reader.read(len(self.reader._buffer))
-                logger.debug("client_read - read - Raw received data in mud_read : %s", inp)
-                logger.debug("client_read - read - inp type = %s", type(inp))
-                data.append(NetworkDataLine(inp, originated=Originated.MUD, had_line_endings=False))
-                logging.getLogger("data.mud").info("%-12s : %s", "from_mud", inp)
 
             if self.reader.at_eof():  # This is an EOF.  Hard disconnect.
                 # lines read in the same pass as the EOF must still reach the client
@@ -302,7 +296,7 @@ class MudConnection:
         logger.debug("mud_write - Ending coroutine")
 
     async def mud_telnet_handler(
-        self, reader: "TelnetReaderUnicode", writer: "TelnetWriterUnicode"
+        self, reader: "MudTelnetReader", writer: "TelnetWriterUnicode"
     ) -> None:
         """Handle the telnet connection for the MUD server.
 
@@ -328,7 +322,11 @@ class MudConnection:
         logger.warning("Mud Connection opened - %s : %s : %s", self.addr, self.port, rest)
         self.reader = reader
         self.writer = writer
-        self.reader.readline = unicode_readline_monkeypatch.__get__(reader)
+        # milliseconds in the setting; a change applies to the next connection
+        reader.line_timeout = (
+            self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "mudlinewait")
+            / 1000
+        )
 
         tasks: list[asyncio.Task] = [
             TaskItem(self.mud_read(), name="mud telnet read").create(),
@@ -353,6 +351,141 @@ class MudConnection:
         await asyncio.sleep(1)
 
 
+class MudLine(NamedTuple):
+    """One unit of MUD output read by `MudTelnetReader.read_mud_line`.
+
+    Attributes:
+        text: The decoded text, with its terminator. A ``\\r\\0`` ending is
+            trimmed to ``\\r``. Empty only at EOF with nothing left to read.
+        ended: True when the text ends in a line ending. False for a partial
+            line, such as a prompt with no line ending.
+        prompt: True when an IAC GA or IAC EOR followed the text.
+
+    """
+
+    text: str
+    ended: bool
+    prompt: bool
+
+
+# A line ending, leftmost first, preferring the two byte endings. A lone CR or
+# LF counts only when another byte follows it: the byte after it may be the
+# other half of "\r\n" or "\n\r" that a later packet carries (#65).
+_LINE_END = re.compile(rb"\r\n|\n\r|\r\x00|\r(?=[^\n\x00])|\n(?=[^\r])")
+# The same, but a lone CR or LF at the very end of the data also counts. Used
+# once waiting for the other half has timed out, and below a prompt mark.
+_LINE_END_FINAL = re.compile(rb"\r\n|\n\r|\r\x00|\r(?=[^\n\x00]|\Z)|\n(?=[^\r]|\Z)")
+
+
+class MudTelnetReader(TelnetReaderUnicode):
+    r"""Telnet reader that splits MUD output into lines without phantom blanks.
+
+    A line ends at CR LF, LF CR, CR NUL, or a lone CR or LF followed by another
+    byte. When the data ends in a lone CR or LF, or holds text with no ending,
+    the reader waits up to ``line_timeout`` seconds for more bytes before it
+    delivers what it holds, so a ``\n\r`` split across two packets is one
+    ending, not a line and a blank line. Each new chunk restarts the wait.
+
+    ``mark_prompt`` records a prompt boundary at the end of the data received
+    so far; the bytes up to it are delivered at once with ``prompt=True``.
+
+    Do not mix ``read()`` or ``readexactly()`` with ``read_mud_line``: they do
+    not know about the prompt marks.
+    """
+
+    line_timeout: float = 0.1
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the reader with no prompt marks."""
+        super().__init__(*args, **kwargs)
+        self._prompt_marks: collections.deque[int] = collections.deque()
+
+    def mark_prompt(self, cmd: bytes) -> None:
+        """Mark the end of the buffered data as a prompt (IAC GA or IAC EOR).
+
+        Args:
+            cmd: The telnet command that triggered the mark.
+
+        """
+        del cmd
+        if not self._buffer:
+            return
+        if not self._prompt_marks or self._prompt_marks[-1] != len(self._buffer):
+            self._prompt_marks.append(len(self._buffer))
+        self._wakeup_waiter()
+
+    def line_ready(self) -> bool:
+        """Return True when `read_mud_line` can return without waiting."""
+        return bool(self._prompt_marks) or _LINE_END.search(self._buffer) is not None
+
+    def _consume(self, end: int, keep: int, *, ended: bool) -> MudLine:
+        """Remove the first ``end`` bytes and return them as a `MudLine`."""
+        raw = bytes(self._buffer[:keep])
+        prompt = any(mark == end for mark in self._prompt_marks)
+        del self._buffer[:end]
+        self._prompt_marks = collections.deque(m - end for m in self._prompt_marks if m > end)
+        self._maybe_resume_transport()
+        return MudLine(self.decode(raw), ended, prompt)
+
+    def _take_complete(self) -> MudLine | None:
+        """Return the next line that is complete without waiting, or None."""
+        if self._prompt_marks:
+            mark = self._prompt_marks[0]
+            match = _LINE_END_FINAL.search(self._buffer, 0, mark)
+            if match is None:
+                return self._consume(mark, mark, ended=False)
+        else:
+            match = _LINE_END.search(self._buffer)
+            if match is None:
+                return None
+        return self._consume_match(match)
+
+    def _consume_match(self, match: re.Match[bytes]) -> MudLine:
+        """Consume up to the end of a matched line ending."""
+        end = match.end()
+        keep = end - 1 if match.group() == b"\r\x00" else end
+        return self._consume(end, keep, ended=True)
+
+    def _take_pending(self) -> MudLine:
+        """Return what the buffer holds when no more bytes are coming in time."""
+        if not self._buffer:
+            return MudLine("", False, False)
+        match = _LINE_END_FINAL.search(self._buffer)
+        if match is not None:
+            return self._consume_match(match)
+        return self._consume(len(self._buffer), len(self._buffer), ended=False)
+
+    async def read_mud_line(self) -> MudLine:
+        """Read the next line, partial line or prompt.
+
+        Returns:
+            The `MudLine`. Its text is empty only at EOF with nothing left.
+
+        Raises:
+            Exception: The exception set on the reader, if any.
+
+        """
+        while True:
+            if (exc := self.exception()) is not None:
+                raise exc
+            if (line := self._take_complete()) is not None:
+                return line
+            if self._eof:
+                return self._take_pending()
+            if not self._buffer:
+                await self._wait_for_data("read_mud_line")
+                continue
+            try:
+                async with asyncio.timeout(self.line_timeout):
+                    await self._wait_for_data("read_mud_line")
+            except TimeoutError:
+                return self._take_pending()
+
+    async def readline(self) -> str:
+        """Read one line and return its text, for callers that want a str."""
+        return (await self.read_mud_line()).text
+
+
 class MudTelnetClient(TelnetClient):
     """telnetlib3 client for the MUD side that declines GMCP and ZMP.
 
@@ -367,88 +500,10 @@ class MudTelnetClient(TelnetClient):
     def setup_zmp(self) -> None:
         """Do not negotiate ZMP (see #39, #40)."""
 
+    _reader_factory_encoding = MudTelnetReader
 
-async def unicode_readline_monkeypatch(self) -> str:
-    r"""Read one line.
-
-    Where "line" is a sequence of characters ending with CR LF, LF,
-    or CR NUL. This readline function is a strict interpretation of
-    Telnet Protocol :rfc:`854`.
-
-    The sequence "CR LF" must be treated as a single "new line" character
-    and used whenever their combined action is intended; The sequence "CR
-    NUL" must be used where a carriage return alone is actually desired;
-    and the CR character must be avoided in other contexts.
-
-    And therefor, a line does not yield for a stream containing a
-    CR if it is not succeeded by NUL or LF.
-
-    ================= =====================
-    Given stream      readline() yields
-    ================= =====================
-    ``--\r\x00---``   ``--\r``, ``---`` *...*
-    ``--\r\n---``     ``--\r\n``, ``---`` *...*
-    ``--\n---``       ``--\n``, ``---`` *...*
-    ``--\r---``       ``--\r``, ``---`` *...*
-    ================= =====================
-
-    If EOF is received before the termination of a line, the method will
-    yield the partially read string.
-
-    Note: this is a monkey-patch of the TelnetReaderUnicode.readline method
-    to support \n\r line endings. Re-verified against telnetlib3 5.0.1: its
-    readline still has no \n\r support and no public hook for it.
-    """
-    if self._exception is not None:
-        raise self._exception
-
-    line = bytearray()
-    not_enough = True
-
-    while not_enough:
-        while self._buffer and not_enough:
-            search_results_pos_kind = (
-                (self._buffer.find(b"\r\n"), b"\r\n"),
-                (self._buffer.find(b"\n\r"), b"\n\r"),
-                (self._buffer.find(b"\r\x00"), b"\r\x00"),
-                (self._buffer.find(b"\r"), b"\r"),
-                (self._buffer.find(b"\n"), b"\n"),
-            )
-
-            # sort by (position, length * -1), so that the
-            # smallest sorted value is the longest-match,
-            # preferring '\r\n' over '\r', for example.
-            matches = [
-                (_pos, len(_kind) * -1, _kind)
-                for _pos, _kind in search_results_pos_kind
-                if _pos != -1
-            ]
-
-            if not matches:
-                line.extend(self._buffer)
-                self._buffer.clear()
-                continue
-
-            # position is nearest match,
-            pos, _, kind = min(matches)
-            if kind == b"\r\x00":
-                # trim out '\x00'
-                begin, end = pos + 1, pos + 2
-            elif kind in [b"\r\n", b"\n\r"]:
-                begin = end = pos + 2
-            else:
-                # '\r' or '\n'
-                begin = end = pos + 1
-            line.extend(self._buffer[:begin])
-            del self._buffer[:end]
-            not_enough = False
-
-        if self._eof:
-            break
-
-        if not_enough:
-            await self._wait_for_data("readline")
-
-    self._maybe_resume_transport()
-    buf = bytes(line)
-    return self.decode(buf)
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        """Register the prompt marks (IAC GA and IAC EOR) once the reader exists."""
+        super().connection_made(transport)
+        for cmd in (GA, CMD_EOR):
+            self.writer.set_iac_callback(cmd, self.reader.mark_prompt)

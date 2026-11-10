@@ -6,12 +6,13 @@ from contextlib import asynccontextmanager
 
 import pytest
 from telnetlib3 import open_connection
-from telnetlib3.telopt import DO, DONT, GMCP, IAC, MCCP2_COMPRESS, WILL
+from telnetlib3.telopt import CMD_EOR, DO, DONT, GA, GMCP, IAC, MCCP2_COMPRESS, WILL
 
 from bastproxy.libs.net.mud import (
     MudConnection,
+    MudLine,
     MudTelnetClient,
-    unicode_readline_monkeypatch,
+    MudTelnetReader,
 )
 
 Handler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
@@ -57,7 +58,6 @@ async def test_patched_readline_splits_on_separator(separator: bytes) -> None:
 
     async with raw_server(handler) as port:
         reader, writer = await _connect(port)
-        reader.readline = unicode_readline_monkeypatch.__get__(reader)
         lines = [await asyncio.wait_for(reader.readline(), TIMEOUT) for _ in range(3)]
         writer.close()
 
@@ -134,14 +134,12 @@ def _make_recorder(calls: list[list[str]]) -> Callable[..., Callable[[], None]]:
 async def _run_mud_read(
     monkeypatch: pytest.MonkeyPatch, payload: bytes
 ) -> tuple[MudConnection, list[list[str]]]:
-    from telnetlib3.stream_reader import TelnetReaderUnicode
-
     from bastproxy.libs.net import mud
 
     calls: list[list[str]] = []
     monkeypatch.setattr(mud, "ProcessDataToClient", _make_recorder(calls))
     conn = MudConnection("127.0.0.1", "4000")
-    reader = TelnetReaderUnicode(fn_encoding=lambda **_kw: "utf8")
+    reader = MudTelnetReader(fn_encoding=lambda **_kw: "utf8")
     if payload:
         reader.feed_data(payload)
     reader.feed_eof()
@@ -170,3 +168,263 @@ async def test_mud_read_eof_without_data(monkeypatch: pytest.MonkeyPatch) -> Non
     conn, calls = await _run_mud_read(monkeypatch, b"")
     assert conn.connected is False
     assert calls == []
+
+
+# --- MudTelnetReader line splitting and prompt marks (#65) ---
+
+
+def _reader(timeout: float = 5) -> MudTelnetReader:
+    reader = MudTelnetReader(fn_encoding=lambda **_kw: "utf8")
+    reader.line_timeout = timeout
+    return reader
+
+
+async def _read(reader: MudTelnetReader) -> MudLine:
+    return await asyncio.wait_for(reader.read_mud_line(), TIMEOUT)
+
+
+async def _step() -> None:
+    """Let a pending read run up to its next wait."""
+    for _ in range(3):
+        await asyncio.sleep(0)
+
+
+async def _drain(reader: MudTelnetReader) -> list[str]:
+    """Read every line until EOF, returning the texts."""
+    texts: list[str] = []
+    while rec := await _read(reader):
+        if not rec.text:
+            break
+        texts.append(rec.text)
+    return texts
+
+
+async def _lines_for(chunks: list[bytes]) -> list[str]:
+    """Feed the chunks one at a time, with a read pending, and return the lines."""
+    reader = _reader()
+    texts: list[str] = []
+
+    async def consume() -> None:
+        texts.extend(await _drain(reader))
+
+    task = asyncio.create_task(consume())
+    for chunk in chunks:
+        await _step()
+        reader.feed_data(chunk)
+    await _step()
+    reader.feed_eof()
+    await asyncio.wait_for(task, TIMEOUT)
+    return texts
+
+
+async def test_nr_ending_split_across_packets() -> None:
+    reader = _reader()
+    reader.feed_data(b"one\n")
+    task = asyncio.create_task(reader.read_mud_line())
+    await _step()
+    assert not task.done()
+    reader.feed_data(b"\rtwo\n\r")
+    reader.feed_eof()
+    first = await asyncio.wait_for(task, TIMEOUT)
+    assert [first.text, (await _read(reader)).text] == ["one\n\r", "two\n\r"]
+
+
+async def test_rn_ending_split_across_packets() -> None:
+    assert await _lines_for([b"one\r", b"\ntwo\r\n"]) == ["one\r\n", "two\r\n"]
+
+
+async def test_ambiguous_nrn_keeps_blank_line() -> None:
+    assert await _lines_for([b"one\n\r\ntwo\n"]) == ["one\n\r", "\n", "two\n"]
+    assert await _lines_for([b"one\n\r\n\rtwo"]) == ["one\n\r", "\n\r", "two"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b"one\n\rtwo\n\r", b"one\r\ntwo\r\n", b"one\n\r\ntwo\n", b"a\rb\x00c\r\x00d"],
+)
+async def test_split_matches_unsplit_at_every_index(payload: bytes) -> None:
+    whole = await _lines_for([payload])
+    for i in range(1, len(payload)):
+        assert await _lines_for([payload[:i], payload[i:]]) == whole, i
+
+
+async def test_cr_nul_trimmed_to_cr() -> None:
+    assert await _lines_for([b"a\r\x00b\r\x00"]) == ["a\r", "b\r"]
+
+
+async def test_timeout_without_ending_gives_partial() -> None:
+    reader = _reader(0.01)
+    reader.feed_data(b"prompt> ")
+    assert await _read(reader) == MudLine("prompt> ", False, False)
+
+
+async def test_timeout_with_trailing_lone_newline_gives_line() -> None:
+    reader = _reader(0.01)
+    reader.feed_data(b"one\n")
+    assert await _read(reader) == MudLine("one\n", True, False)
+
+
+async def test_mid_line_split_within_timeout_is_one_line() -> None:
+    assert await _lines_for([b"long li", b"ne\r\n"]) == ["long line\r\n"]
+
+
+async def test_prompt_mark_without_ending() -> None:
+    reader = _reader()
+    reader.feed_data(b"HP> ")
+    reader.mark_prompt(GA)
+    assert reader.line_ready()
+    assert await _read(reader) == MudLine("HP> ", False, True)
+
+
+async def test_prompt_mark_after_ending_and_following_bytes() -> None:
+    reader = _reader()
+    reader.feed_data(b"HP>\n\r")
+    reader.mark_prompt(GA)
+    reader.feed_data(b"next\r\n")
+    assert await _read(reader) == MudLine("HP>\n\r", True, True)
+    assert await _read(reader) == MudLine("next\r\n", True, False)
+
+
+async def test_prompt_mark_while_read_waits() -> None:
+    reader = _reader()
+    reader.feed_data(b"HP> ")
+    task = asyncio.create_task(reader.read_mud_line())
+    await _step()
+    assert not task.done()
+    reader.mark_prompt(CMD_EOR)
+    assert await asyncio.wait_for(task, TIMEOUT) == MudLine("HP> ", False, True)
+
+
+async def test_prompt_mark_on_empty_buffer_is_ignored() -> None:
+    reader = _reader()
+    reader.mark_prompt(GA)
+    assert not reader.line_ready()
+
+
+@pytest.mark.parametrize(("cmd", "text"), [(GA, "Name: "), (CMD_EOR, "Pass: ")])
+async def test_ga_and_eor_mark_prompts_through_the_client(cmd: bytes, text: str) -> None:
+    done = asyncio.Event()
+
+    async def handler(_r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        w.write(text.encode() + IAC + cmd)
+        await w.drain()
+        await asyncio.wait_for(done.wait(), TIMEOUT)
+        w.close()
+
+    async with raw_server(handler) as port:
+        reader, writer = await _connect(port)
+        reader.line_timeout = 5
+        assert await _read(reader) == MudLine(text, False, True)
+        done.set()
+        writer.close()
+
+
+async def test_mud_read_marks_prompt_lines(monkeypatch: pytest.MonkeyPatch) -> None:
+    from bastproxy.libs.net import mud
+
+    seen: list[tuple[str, bool, bool]] = []
+
+    def factory(data: object) -> Callable[[], None]:
+        def run() -> None:
+            seen.extend((str(x), x.is_prompt, x.had_line_endings) for x in data)  # type: ignore[attr-defined]
+
+        return run
+
+    monkeypatch.setattr(mud, "ProcessDataToClient", factory)
+    conn = MudConnection("127.0.0.1", "4000")
+    reader = _reader()
+    reader.feed_data(b"line\r\nHP> ")
+    reader.mark_prompt(GA)
+    reader.feed_eof()
+    conn.reader = reader
+    await asyncio.wait_for(conn.mud_read(), TIMEOUT)
+    assert seen == [("line", False, True), ("HP> ", True, False)]
+
+
+async def test_mud_read_uses_only_the_reader_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """mud_read needs read_mud_line, line_ready and at_eof, not the buffer."""
+    from bastproxy.libs.net import mud
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(mud, "ProcessDataToClient", _make_recorder(calls))
+
+    class _Double:
+        def __init__(self) -> None:
+            self.lines = [MudLine("a\r\n", True, False), MudLine("", False, False)]
+
+        async def read_mud_line(self) -> MudLine:
+            return self.lines.pop(0)
+
+        def line_ready(self) -> bool:
+            return True
+
+        def at_eof(self) -> bool:
+            return not self.lines
+
+    conn = MudConnection("127.0.0.1", "4000")
+    conn.reader = _Double()  # type: ignore[assignment]
+    await asyncio.wait_for(conn.mud_read(), TIMEOUT)
+    assert [line for call in calls for line in call] == ["a"]
+
+
+async def test_handler_applies_mudlinewait(monkeypatch: pytest.MonkeyPatch) -> None:
+    from unittest.mock import MagicMock
+
+    from bastproxy.libs.net import mud
+
+    conn = MudConnection("127.0.0.1", "4000")
+    asked: list[tuple[str, str]] = []
+
+    def setting_get(plugin_id: str, name: str) -> int:
+        asked.append((plugin_id, name))
+        return 250
+
+    conn.api = MagicMock(return_value=setting_get)
+    seen: list[float] = []
+
+    class _Stop(Exception):
+        pass
+
+    async def fake_setup() -> None:
+        assert conn.reader is not None
+        seen.append(conn.reader.line_timeout)
+        raise _Stop
+
+    async def idle() -> None:
+        await asyncio.Event().wait()
+
+    tasks: list[asyncio.Task] = []
+
+    class _Task:
+        def __init__(self, coro: object, name: str) -> None:
+            self.coro = coro
+
+        def create(self) -> asyncio.Task:
+            self.coro.close()  # type: ignore[attr-defined]
+            task = asyncio.create_task(idle())
+            tasks.append(task)
+            return task
+
+    monkeypatch.setattr(mud, "TaskItem", _Task)
+    monkeypatch.setattr(conn, "setup_mud", fake_setup)
+    writer = MagicMock()
+    writer.get_extra_info.return_value = ("127.0.0.1", 4000)
+    reader = _reader()
+
+    with pytest.raises(_Stop):
+        await asyncio.wait_for(conn.mud_telnet_handler(reader, writer), TIMEOUT)
+    for task in tasks:
+        task.cancel()
+
+    assert seen == [0.25]
+    assert asked == [("plugins.core.proxy", "mudlinewait")]
+
+
+def test_reader_wiring_and_protected_names_exist() -> None:
+    """Canary: the telnetlib3 names MudTelnetReader builds on are still there."""
+    from telnetlib3 import TelnetReaderUnicode
+
+    assert MudTelnetClient._reader_factory_encoding is MudTelnetReader
+    fresh = TelnetReaderUnicode(fn_encoding=lambda **_kw: "utf8")
+    for name in ("_buffer", "_eof", "_wait_for_data", "_maybe_resume_transport", "_wakeup_waiter"):
+        assert hasattr(fresh, name), name

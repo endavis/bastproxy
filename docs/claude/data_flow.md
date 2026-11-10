@@ -73,7 +73,7 @@ References in this page are to files and symbols, not line numbers, so they stay
 | `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords |
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
-| `client_write()` | Writer coroutine: writes queued lines, sends `IAC GA` after lines marked `is_prompt`, sets `was_sent` |
+| `client_write()` | Writer coroutine: writes queued lines, sends `IAC GA` through `writer.send_ga()` after lines marked `is_prompt` (nothing is sent when the client agreed to suppress go-ahead), sets `was_sent` |
 
 `client_read()` builds the record for each line from a logged-in, non-view-only client:
 
@@ -101,9 +101,17 @@ ProcessDataToMud(
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
 | `mud_write()` | Writer coroutine: writes queued lines (`send_iac` for `COMMAND-TELNET`), sets `was_sent` |
 
-`mud_read()` reads with the patched `unicode_readline_monkeypatch`, which splits on `\r\n`, `\n\r`, `\r\0`, `\r` and `\n`. It keeps reading complete lines into the same `NetworkData` until the reader's buffer holds no further newline or the batch reaches `max_lines_to_process` (15 by default). Then:
+`mud_read()` reads with `MudTelnetReader.read_mud_line()`. `MudTelnetClient` installs `MudTelnetReader`, a `TelnetReaderUnicode` subclass, by overriding the client's `_reader_factory_encoding`. `read_mud_line()` returns a `MudLine(text, ended, prompt)`:
 
-- If the buffer still holds a partial line (usually a prompt), it is read as one more line with `had_line_endings=False`.
+- A line ends at `\r\n`, `\n\r`, `\r\0` (trimmed to `\r`), or a lone `\r` or `\n` that is followed by another byte.
+- When the data ends in a lone `\r` or `\n`, or holds text with no ending, the reader waits for more bytes before it delivers what it holds. Each new chunk restarts the wait, so an ending split across two packets is one ending, not a line plus a blank line.
+- The wait is the `mudlinewait` setting of `plugins.core.proxy`, in milliseconds (default 100). `mud_telnet_handler` applies it to the reader when the connection opens, so a change applies to the next connection.
+- When the wait expires, a trailing lone `\r` or `\n` becomes a complete line (`ended=True`). Text with no ending becomes a partial line (`ended=False`), so a prompt with no line ending is delivered. At EOF the reader delivers at once.
+- Leftmost-longest matching means `one\n\r\ntwo` reads as `one\n\r`, a blank line `\n`, then `two`, whether or not a packet boundary falls inside it.
+- `IAC GA` and `IAC EOR` call `MudTelnetReader.mark_prompt`, which marks the end of the data received so far. The bytes up to the mark are delivered at once with `prompt=True`, and `mud_read()` sets `NetworkDataLine.is_prompt`. Without GA or EOR, nothing is marked as a prompt.
+
+`mud_read()` keeps reading lines into the same `NetworkData` while `line_ready()` is true and the batch is below `max_lines_to_process` (15 by default). Then:
+
 - If the reader is at EOF, the connection is marked closed and the coroutine returns.
 - Otherwise `ProcessDataToClient(data)()` runs for the batch, followed by `await asyncio.sleep(0)`.
 
@@ -120,7 +128,7 @@ ProcessDataToMud(
 | `originated` | An `Originated`: `MUD` (`"mud"`), `CLIENT` (`"client"`) or `INTERNAL` (`"internal"`). The constructor coerces a string, and an unknown value raises `ValueError` |
 | `line_type` | A `LineType`: `IO` (`"IO"`) or `COMMAND_TELNET` (`"COMMAND-TELNET"`), coerced the same way |
 | `send` | `False` means the line is dropped (gagged) before sending |
-| `is_prompt` | The client writer sends `IAC GA` after the line |
+| `is_prompt` | The client writer sends `IAC GA` after the line (through `send_ga()`, which skips it when the client agreed SGA) |
 | `had_line_endings` | `add_line_endings()` only adds `\r\n` when this is set |
 | `preamble`, `prelogin`, `color` | Formatting and client-filter flags |
 | `was_sent` | Set by the writer coroutine |
@@ -251,7 +259,7 @@ All three register at the default priority, 50.
               ├─ lock message; per line: format() → adds "\r\n", lock()
               ├─ per client: can_send_to_client() → clients:client.send → send_queue
               └─ raise ev_to_client_data_read
-  ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts
+  ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts (send_ga)
 ```
 
 ### Internal message to clients
