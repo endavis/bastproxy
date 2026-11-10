@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from bastproxy.libs.records.enums import LineType, Originated
 from bastproxy.libs.records.rtypes.clientdata import SendDataDirectlyToClient
 from bastproxy.libs.records.rtypes.muddata import SendDataDirectlyToMud
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
@@ -162,3 +163,30 @@ def test_send_formats_then_locks(monkeypatch: pytest.MonkeyPatch, record_cls: ty
     assert hidden._line_locked
     assert record.message.locked
     sent.was_sent = True
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("originated", Originated.MUD),
+        ("line_type", LineType.COMMAND_TELNET),
+        ("split_from", "other"),
+    ],
+)
+def test_locked_line_refuses_origin_fields(name: str, value: Any) -> None:
+    line = NetworkDataLine("a", originated=Originated.CLIENT)
+    line.lock()
+    before = getattr(line, name)
+    with pytest.raises(RuntimeError):
+        setattr(line, name, value)
+    assert getattr(line, name) == before
+
+
+def test_split_from_is_tracked_without_becoming_a_parent() -> None:
+    other = NetworkDataLine("other")
+    line = NetworkDataLine("a")
+    count = len(line.tracking_changes())
+    line.split_from = other
+    assert len(line.tracking_changes()) == count + 1
+    assert line not in other.parents
+    assert line.split_from is other
