@@ -47,6 +47,7 @@ from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
+from telnetlib3.telopt import ECHO, WILL, WONT
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
@@ -81,12 +82,11 @@ class ClientConnection:
         conn_type: str,
         reader: TelnetReaderUnicode,
         writer: TelnetWriterUnicode,
-        rows: int = 24,
     ) -> None:
         """Initialize a client connection.
 
         This constructor initializes the client connection with the provided address,
-        port, connection type, reader, writer, and optional number of rows.
+        port, connection type, reader, and writer.
 
         Args:
             addr: The address of the client.
@@ -94,13 +94,11 @@ class ClientConnection:
             conn_type: The type of connection (e.g., telnet).
             reader: The TelnetReaderUnicode instance for reading data.
             writer: The TelnetWriterUnicode instance for writing data.
-            rows: The number of rows for the client display (default is 24).
 
         """
         self.uuid = uuid4().hex
         self.addr: str = addr
         self.port: str = port
-        self.rows: int = rows
         self.api = API(owner_id=f"libs.net.client:{self.uuid}")
         self.login_attempts: int = 0
         self.conn_type: str = conn_type
@@ -114,6 +112,34 @@ class ClientConnection:
         self.telnet_server: TelnetServer | None = self.writer.protocol
         self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
         self.max_lines_to_process = 15
+
+    @property
+    def rows(self) -> int:
+        """Return the client's window height in rows.
+
+        telnetlib3 stores the value in the writer's extra info and updates it
+        when the client answers NAWS. Until then it is telnetlib3's server
+        default, 25 rows.
+
+        Returns:
+            The number of rows.
+
+        """
+        return int(self.writer.get_extra_info("rows"))
+
+    @property
+    def cols(self) -> int:
+        """Return the client's window width in columns.
+
+        telnetlib3 stores the value in the writer's extra info and updates it
+        when the client answers NAWS. Until then it is telnetlib3's server
+        default, 80 columns.
+
+        Returns:
+            The number of columns.
+
+        """
+        return int(self.writer.get_extra_info("cols"))
 
     @property
     def connected_length(self) -> str:
@@ -204,11 +230,10 @@ class ClientConnection:
         logger.debug("setup_client - Sending echo on to %s", self.uuid)
         # We send an IAC+WILL+ECHO to the client so that
         #  it won't locally echo the password.
-        networkdata = NetworkData(
-            [NetworkDataLine(telnet.echo_on(), line_type=LineType.COMMAND_TELNET, prelogin=True)],
-            owner_id=f"client:{self.uuid}",
-        )
-        SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
+        # Sent through the writer so telnetlib3 records the option and does not
+        # send a second WILL ECHO from its own deferred echo negotiation.
+        self.data_logger.info("%-12s : %s", "setup_client", "IAC WILL ECHO")
+        self.writer.iac(WILL, ECHO)
 
         if features := telnet.advertise_features():
             networkdata = NetworkData(
@@ -254,28 +279,20 @@ class ClientConnection:
         dpw = self.api("plugins.core.proxy:ssc.proxypw.get")()
         vpw = self.api("plugins.core.proxy:ssc.proxypwview.get")()
         if inp.strip() == dpw:
+            self.data_logger.info("%-12s : %s", "client_login", "IAC WONT ECHO")
+            self.writer.iac(WONT, ECHO)
             networkdata = NetworkData(
-                [
-                    NetworkDataLine(
-                        telnet.echo_off(), line_type=LineType.COMMAND_TELNET, prelogin=True
-                    )
-                ],
+                [NetworkDataLine("You are now logged in.", prelogin=True)],
                 owner_id=f"client:{self.uuid}",
             )
-            networkdata.append(NetworkDataLine("You are now logged in.", prelogin=True))
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
             self.api("plugins.core.clients:client.logged.in.set")(self.uuid)
         elif inp.strip() == vpw:
+            self.data_logger.info("%-12s : %s", "client_login", "IAC WONT ECHO")
+            self.writer.iac(WONT, ECHO)
             networkdata = NetworkData(
-                [
-                    NetworkDataLine(
-                        telnet.echo_off(), line_type=LineType.COMMAND_TELNET, prelogin=True
-                    )
-                ],
+                [NetworkDataLine("You are now logged in as view only user.", prelogin=True)],
                 owner_id=f"client:{self.uuid}",
-            )
-            networkdata.append(
-                NetworkDataLine("You are now logged in as view only user.", prelogin=True)
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
             self.api("plugins.core.clients:client.logged.in.set.view.only")(self.uuid)

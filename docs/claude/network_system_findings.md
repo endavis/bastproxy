@@ -63,6 +63,8 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
 - **A client that sends invalid UTF-8 is disconnected** (Q8, **verified**, #305). The listeners keep
   telnetlib3's server default `encoding_errors="strict"`, and `client_read` catches only `ConnectionError`.
   **Status:** fixed by #305 (`encoding_errors="replace"` on both listeners; `client_read` also ends cleanly on `UnicodeDecodeError`).
+- **Client echo and the empty `begin_advanced_negotiation` bypass telnetlib3's option state** (Q3, Q4 #3, **verified**, #66).
+  **Status:** fixed by #66. Echo goes through `writer.iac(WILL, ECHO)` and `writer.iac(WONT, ECHO)`, so each is sent once. The override sends `DO NAWS` and `WILL BINARY`, keeps `WILL SGA` off (GA, #272) and does not request CHARSET or MCCP. `ClientConnection.rows`/`cols` read the NAWS size from the writer; `echo_on` and `echo_off` are now unused (removed by #67).
 - **A failed MUD connect leaves the proxy believing it is connected** (Q8, **verified**, #306).
   `MudConnection.connected` starts `True`; after a refused connection `#bp.core.proxy.connect` answers "currently
   connected" and never retries.
