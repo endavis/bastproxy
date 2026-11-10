@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/events/_event.py
+# Filename: plugins/core/events/plugin/_event.py
 #
 # File Description: Holds base classes for event items
 #
@@ -303,6 +303,7 @@ class Event:
             )
             return None
 
+        # convert a dict to an EventDataRecord object
         if not isinstance(data, EventDataRecord):
             data = EventDataRecord(owner_id=actor, event_name=self.name, data=data)
 

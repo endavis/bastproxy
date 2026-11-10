@@ -1,10 +1,14 @@
 # Project: bastproxy
-# Filename: libs/records/rtypes/eventargs.py
+# Filename: plugins/core/events/libs/process/_raisedevent.py
 #
-# File Description: Holds the record type for event arguments
+# File Description: Holds the record for one raise of an event
 #
 # By: Bast
-"""Holds the log record type."""
+"""Holds ProcessRaisedEvent, the record for one raise of an event.
+
+It runs the event's callbacks in priority order for each item of data the
+raise carries.
+"""
 
 # Standard Library
 import logging
@@ -74,8 +78,6 @@ class ProcessRaisedEvent(BaseRecord):
                 self.called_from,
                 self.event_data,
             )
-
-        # convert a dict to an EventDataRecord object
 
         # Each pass visits the priorities in ascending order and runs each callback once per
         # raise (tracked in self.done). The loop repeats while any priority in a pass ran a
