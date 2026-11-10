@@ -88,7 +88,11 @@ class MudConnection:
         self.api = API(owner_id="libs.net.mud")
         # self.conn_type: str = conn_type
         # self.state: dict[str, bool] = {'connected': True}
-        self.connected = True
+        # not connected until the telnet connection opens (#306)
+        self.connected = False
+        # True from the connect command until the connection opens or fails, so a
+        # second connect cannot start another attempt in the meantime (#306)
+        self.connecting: bool = False
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: MudTelnetReader | None = None
@@ -105,28 +109,44 @@ class MudConnection:
         address and port. It sets up the reader and writer streams for communication
         and starts the telnet handler for managing the connection.
 
+        If the connection fails (refused, unreachable, timed out) the failure is
+        logged, the client is told why and the method returns with `connected`
+        left False, so a new connect can be attempted.
+
         Returns:
             None
 
         Raises:
-            ConnectionError: If the connection to the MUD server fails.
+            None
 
         """
         # create a mud connection through telnetlib3
-        await open_connection(
-            self.addr,
-            int(self.port),
-            term=self.term_type,
-            shell=self.mud_telnet_handler,
-            encoding="utf8",
-            client_factory=MudTelnetClient,
-            # telnetlib3 5.x accepts MCCP passively by default; the proxy
-            # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
-            compression=False,
-            # without BINARY negotiated telnetlib3 5.x decodes as US-ASCII
-            # regardless of encoding; force utf8 (#63).
-            force_binary=True,
-        )
+        try:
+            await open_connection(
+                self.addr,
+                int(self.port),
+                term=self.term_type,
+                shell=self.mud_telnet_handler,
+                encoding="utf8",
+                client_factory=MudTelnetClient,
+                # telnetlib3 5.x accepts MCCP passively by default; the proxy
+                # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
+                compression=False,
+                # without BINARY negotiated telnetlib3 5.x decodes as US-ASCII
+                # regardless of encoding; force utf8 (#63).
+                force_binary=True,
+            )
+        except OSError as exc:
+            self.connected = False
+            self.connecting = False
+            logger.error("Could not connect to the mud at %s:%s: %s", self.addr, self.port, exc)
+            SendDataDirectlyToClient(
+                NetworkData([f"Could not connect to the mud at {self.addr}:{self.port}: {exc}"])
+            )()
+        except BaseException:
+            # a bad port, a cancelled task: never leave the flag stuck
+            self.connecting = False
+            raise
 
     def disconnect_from_mud(self) -> None:
         """Disconnect from the MUD server.
@@ -142,6 +162,7 @@ class MudConnection:
 
         """
         self.connected = False
+        self.connecting = False
 
     def send_to(self, data: NetworkDataLine) -> None:
         """Send data to the MUD server.
@@ -320,6 +341,9 @@ class MudConnection:
 
         _, _, *rest = client_details
         logger.warning("Mud Connection opened - %s : %s : %s", self.addr, self.port, rest)
+        self.connected = True
+        self.connecting = False
+        self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader = reader
         self.writer = writer
         # milliseconds in the setting; a change applies to the next connection

@@ -332,6 +332,7 @@ async def test_mud_read_marks_prompt_lines(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(mud, "ProcessDataToClient", factory)
     conn = MudConnection("127.0.0.1", "4000")
+    conn.connected = True
     reader = _reader()
     reader.feed_data(b"line\r\nHP> ")
     reader.mark_prompt(GA)
@@ -362,6 +363,7 @@ async def test_mud_read_uses_only_the_reader_api(monkeypatch: pytest.MonkeyPatch
             return not self.lines
 
     conn = MudConnection("127.0.0.1", "4000")
+    conn.connected = True
     conn.reader = _Double()  # type: ignore[assignment]
     await asyncio.wait_for(conn.mud_read(), TIMEOUT)
     assert [line for call in calls for line in call] == ["a"]
@@ -428,3 +430,99 @@ def test_reader_wiring_and_protected_names_exist() -> None:
     fresh = TelnetReaderUnicode(fn_encoding=lambda **_kw: "utf8")
     for name in ("_buffer", "_eof", "_wait_for_data", "_maybe_resume_transport", "_wakeup_waiter"):
         assert hasattr(fresh, name), name
+
+
+def test_new_connection_is_not_connected() -> None:
+    assert MudConnection("127.0.0.1", "4000").connected is False
+
+
+def test_new_connection_is_not_connecting() -> None:
+    assert MudConnection("127.0.0.1", "4000").connecting is False
+
+
+async def test_failed_connect_reports_and_stays_disconnected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refused connect does not raise, tells the client and leaves connected False (#306)."""
+    import socket
+
+    from bastproxy.libs.net import mud
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    # the port is closed again, so the connect is refused
+
+    sent: list[object] = []
+
+    class _Recorder:
+        def __init__(self, data: object) -> None:
+            sent.append(data)
+
+        def __call__(self) -> None:
+            return None
+
+    monkeypatch.setattr(mud, "SendDataDirectlyToClient", _Recorder)
+
+    conn = MudConnection("127.0.0.1", str(port))
+    conn.connecting = True
+    await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+    assert conn.connecting is False
+
+    # the proxy's connect command only checks `connected`, so a new attempt can proceed
+    assert conn.connected is False
+    assert len(sent) == 1
+    text = " ".join(str(line) for line in sent[0])  # type: ignore[attr-defined]
+    assert "Could not connect to the mud" in text
+    assert f"127.0.0.1:{port}" in text
+
+
+async def test_handler_sets_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    from unittest.mock import MagicMock
+
+    from bastproxy.libs.net import mud
+
+    conn = MudConnection("127.0.0.1", "4000")
+    conn.api = MagicMock(return_value=lambda *_a: 250)
+    assert conn.connected is False
+    conn.connecting = True
+    before = conn.connected_time
+    seen: list[bool] = []
+
+    class _Stop(Exception):
+        pass
+
+    async def fake_setup() -> None:
+        seen.append(conn.connected)
+        raise _Stop
+
+    async def idle() -> None:
+        await asyncio.Event().wait()
+
+    tasks: list[asyncio.Task] = []
+
+    class _Task:
+        def __init__(self, coro: object, name: str) -> None:
+            self.coro = coro
+
+        def create(self) -> asyncio.Task:
+            # the real read/write loops run while connected, so it must be set by now
+            seen.append(conn.connected)
+            self.coro.close()  # type: ignore[attr-defined]
+            task = asyncio.create_task(idle())
+            tasks.append(task)
+            return task
+
+    monkeypatch.setattr(mud, "TaskItem", _Task)
+    monkeypatch.setattr(conn, "setup_mud", fake_setup)
+    writer = MagicMock()
+    writer.get_extra_info.return_value = ("127.0.0.1", 4000)
+
+    with pytest.raises(_Stop):
+        await asyncio.wait_for(conn.mud_telnet_handler(_reader(), writer), TIMEOUT)
+    for task in tasks:
+        task.cancel()
+
+    assert seen == [True, True, True]
+    assert conn.connecting is False
+    assert conn.connected_time >= before
