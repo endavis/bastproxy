@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794276321043,
+  "lastUpdate": 1794276947135,
   "repoUrl": "https://github.com/endavis/bastproxy",
   "entries": {
     "Benchmark": [
@@ -10916,6 +10916,233 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00030863850908542634",
             "extra": "mean: 545.9396150003215 usec\nrounds: 200"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "6662995+endavis@users.noreply.github.com",
+            "name": "Eric Davis",
+            "username": "endavis"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5eddd91f927622a3f0ff2979e42794081090340f",
+          "message": "fix: store a bytearray network line as bytes (merges PR #269, addresses #48)\n\nA NetworkDataLine built from a bytearray kept that object as both line and\noriginal_line, so an in-place change was untracked, changed the \"original\"\ntoo, and went through a locked line. __init__ and assignments to line now\nconvert a bytearray to bytes.\n\nThe rest of the issue was already addressed on main: AttributeMonitor is\ngone (#248) and every locked write raises RuntimeError. In-place changes to\na plain list, dict or set stored in a BaseDictRecord stay untracked; that\nis now documented as unsupported and pinned by a test.\n\nAddresses #48\n\n\nClaude-Session: https://claude.ai/code/session_01NXu1sbBxFsEQW16MiZv7Je\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-10T02:14:47Z",
+          "tree_id": "8624196e48096dbba81915b14ee1d97f95e176a2",
+          "url": "https://github.com/endavis/bastproxy/commit/5eddd91f927622a3f0ff2979e42794081090340f"
+        },
+        "date": 1794276946331,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_baseline_direct_call",
+            "value": 21967482.153318316,
+            "unit": "iter/sec",
+            "range": "stddev: 5.608160027746305e-9",
+            "extra": "mean: 45.52183054119128 nsec\nrounds: 199721"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_class_hit",
+            "value": 7576813.14503654,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0360803104745369e-8",
+            "extra": "mean: 131.98161032321158 nsec\nrounds: 77767"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_instance_hit",
+            "value": 10445008.815529073,
+            "unit": "iter/sec",
+            "range": "stddev: 9.239103974623092e-9",
+            "extra": "mean: 95.7395075160927 nsec\nrounds: 108897"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_get_miss",
+            "value": 428673.2990965601,
+            "unit": "iter/sec",
+            "range": "stddev: 1.6199233736186525e-7",
+            "extra": "mean: 2.3327788367214044 usec\nrounds: 44048"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_known_caller",
+            "value": 413438.2039821445,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5539155486971137e-7",
+            "extra": "mean: 2.418741157368195 usec\nrounds: 42510"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_nested_caller",
+            "value": 182656.36757809547,
+            "unit": "iter/sec",
+            "range": "stddev: 6.911271251302184e-7",
+            "extra": "mean: 5.474761232030118 usec\nrounds: 190549"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_get_caller_owner_id",
+            "value": 798253.6649169002,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0730032889850068e-7",
+            "extra": "mean: 1.25273461801657 usec\nrounds: 84768"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_stats_add_call",
+            "value": 3615858.52831159,
+            "unit": "iter/sec",
+            "range": "stddev: 3.3390304456924724e-8",
+            "extra": "mean: 276.55949262676097 nsec\nrounds: 198138"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_full_call_unknown_caller",
+            "value": 15823.495865935325,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002433128298337461",
+            "extra": "mean: 63.19716000007247 usec\nrounds: 50"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_api.py::test_bench_api_construct",
+            "value": 2922935.9624405387,
+            "unit": "iter/sec",
+            "range": "stddev: 3.9850485912896286e-8",
+            "extra": "mean: 342.12176142409857 nsec\nrounds: 43022"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_eventdatarecord.py::test_bench_eventdatarecord_create",
+            "value": 61849.956953709654,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000014688686332018979",
+            "extra": "mean: 16.168159999665477 usec\nrounds: 50"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_eventdatarecord.py::test_bench_eventdatarecord_set_line",
+            "value": 101273.82213101824,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000063659556189749394",
+            "extra": "mean: 9.87422000036986 usec\nrounds: 50"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_eventdatarecord.py::test_bench_eventdatarecord_line_cycle",
+            "value": 5321.0967972129165,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015284980343560452",
+            "extra": "mean: 187.93118000104414 usec\nrounds: 50"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_logger_debug_off_single_source",
+            "value": 1041.746316853575,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012134550391435232",
+            "extra": "mean: 959.926600000216 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_logger_debug_off_log_to_two_sources",
+            "value": 390.3799831884534,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000551022302657924",
+            "extra": "mean: 2.5616067499989015 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_logger_debug_on_null_handler",
+            "value": 48.405297048771075,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0001614593340551935",
+            "extra": "mean: 20.658896050001374 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_logging.py::test_bench_logger_debug_on_real_handlers",
+            "value": 15.553222921200517,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0009667791607024108",
+            "extra": "mean: 64.29535570000127 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_create",
+            "value": 2082.2733260755854,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000034627301463417034",
+            "extra": "mean: 480.24434999831556 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_attribute_change",
+            "value": 119220.55982288654,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000004212316909055364",
+            "extra": "mean: 8.387815000077126 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_build",
+            "value": 1651.1159066834562,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004237970495156738",
+            "extra": "mean: 605.651000000762 usec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdata_get_formatted_details",
+            "value": 504.1383456449607,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000681940971828865",
+            "extra": "mean: 1.9835824999994145 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_networkdataline.py::test_bench_networkdataline_lock",
+            "value": 594.9549958191061,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000026116410741512646",
+            "extra": "mean: 1.68079940000041 msec\nrounds: 20"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_flat",
+            "value": 3016.238633426642,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009000793357616886",
+            "extra": "mean: 331.53875456595927 usec\nrounds: 3121"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_keys_to_int_nested",
+            "value": 2697.979678738024,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000727001996855975",
+            "extra": "mean: 370.6477138729779 usec\nrounds: 2768"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_persistentdict.py::test_bench_convert_nested",
+            "value": 4638.419196274069,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000442800555115775",
+            "extra": "mean: 215.59069107062945 usec\nrounds: 4726"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_processing_records.py::test_bench_processing_record_create",
+            "value": 109515.23083377467,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000003652895969242575",
+            "extra": "mean: 9.131149999745958 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_processing_records.py::test_bench_processing_record_create_and_call",
+            "value": 6116.596831942096,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00042252158434795097",
+            "extra": "mean: 163.489605000251 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_processing_records.py::test_bench_processing_record_addupdate",
+            "value": 319293.46740253764,
+            "unit": "iter/sec",
+            "range": "stddev: 6.227061363983879e-7",
+            "extra": "mean: 3.1319150001252183 usec\nrounds: 200"
+          },
+          {
+            "name": "tests/benchmarks/test_bench_retention.py::test_bench_mud_to_client_round_at_cap",
+            "value": 1878.9931952351412,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00027916304006664875",
+            "extra": "mean: 532.1999050001125 usec\nrounds: 200"
           }
         ]
       }
