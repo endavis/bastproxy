@@ -279,7 +279,7 @@ data[0].line = "x"      # RuntimeError
 data[0].was_sent = True # allowed
 ```
 
-`NetworkDataLine.lock()` locks the eight content and flag fields (all but `was_sent`, which the network layer sets after the line is locked). `NetworkData.lock()` locks its lines through it. A second `lock()` does nothing, and `format()` does nothing on a locked line. The send steps (`SendDataDirectlyToClient`, `SendDataDirectlyToMud`) format the lines first and then lock the message, so unsent lines are locked too.
+`NetworkDataLine.lock()` locks the eleven tracked fields, including `originated`, `line_type` and `split_from` (all but `was_sent`, #264, which the network layer sets after the line is locked). `NetworkData.lock()` locks its lines through it. A second `lock()` does nothing, and `format()` does nothing on a locked line. The send steps (`SendDataDirectlyToClient`, `SendDataDirectlyToMud`) format the lines first and then lock the message, so unsent lines are locked too.
 
 **Plugin note:** a callback on `ev_to_client_data_read` or `ev_to_mud_data_read` that writes to a line now gets a `RuntimeError`. `Event.raise_priority` logs it and continues. No bundled plugin writes in those events. Change the line in the `*_data_modify` events, before the lock.
 

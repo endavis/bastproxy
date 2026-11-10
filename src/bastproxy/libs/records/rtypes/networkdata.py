@@ -34,10 +34,17 @@ _LINE_FIELDS = (
     "color",
     "line_modified",
     "was_sent",
+    "originated",
+    "line_type",
+    "split_from",
 )
 # The fields a lock freezes. was_sent stays writable because the network layer sets it after
-# the line is locked.
+# the line is locked. originated, line_type and split_from are tracked so the lock freezes them
+# too (#264).
 _LOCKED_FIELDS = tuple(name for name in _LINE_FIELDS if name != "was_sent")
+# Fields the detail view does not list as monitored rows: line_modified has its own row, and
+# originated and line_type already show through get_attributes_to_format.
+_UNMONITORED_ROWS = ("line_modified", "originated", "line_type", "split_from")
 
 
 class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
@@ -108,7 +115,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         self.had_line_endings: bool = had_line_endings
         self.was_sent: bool = False
         self.color = color
-        self.split_from = None
+        self.split_from: NetworkDataLine | None = None
 
         # preamble defaults to True because a large percentage
         # of the data that is internal will need it
@@ -146,8 +153,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             self.parents.append(parent)
 
     def _monitored_fields(self) -> list[str]:
-        """Return the monitored fields to show; line_modified has its own row."""
-        return [name for name in _LINE_FIELDS if name != "line_modified"]
+        """Return the monitored fields to show; the others have their own rows."""
+        return [name for name in _LINE_FIELDS if name not in _UNMONITORED_ROWS]
 
     def _original_value(self, name: str) -> Any:
         """Return the value a monitored field had when it was first set."""

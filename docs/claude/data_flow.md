@@ -129,7 +129,7 @@ ProcessDataToMud(
 
 Properties: `noansi` (ANSI stripped), `colorcoded`, `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the eight content and flag fields, not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the eleven tracked fields (the content and flag fields, plus `originated`, `line_type` and `split_from`, #264), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 
 ### NetworkData
 

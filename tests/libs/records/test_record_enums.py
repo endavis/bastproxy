@@ -1,5 +1,6 @@
 """Tests for the record enums and the isinstance parent check (#237)."""
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -166,3 +167,12 @@ def test_add_parent_ignores_other_parents() -> None:
     line.add_parent(BaseRecord())
     line.add_parent(object())
     assert line.parents == []
+
+
+def test_detail_view_lists_origin_and_type_once() -> None:
+    line = NetworkDataLine("a", originated=Originated.MUD)
+    details = "\n".join(line.get_formatted_details())
+    assert details.count("Originated") == 1
+    assert len(re.findall(r"Type\s*:\s*IO", details)) == 1
+    for name in ("originated", "line_type", "split_from"):
+        assert name not in details
