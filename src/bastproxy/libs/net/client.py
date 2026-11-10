@@ -126,6 +126,20 @@ class ClientConnection:
             self.connected_time, datetime.datetime.now(datetime.UTC)
         )
 
+    @property
+    def term_type(self) -> str:
+        """Return the terminal type the client reported through TTYPE.
+
+        telnetlib3 returns ``None`` for the ``TERM`` extra info until TTYPE
+        negotiation completes, and for good when the client never sends TTYPE.
+
+        Returns:
+            The reported terminal type, or ``"-"`` when it is None or empty.
+
+        """
+        term = self.writer.get_extra_info("TERM")
+        return str(term) if term else "-"
+
     def send_to(self, data: NetworkDataLine) -> None:
         """Send data to the client.
 

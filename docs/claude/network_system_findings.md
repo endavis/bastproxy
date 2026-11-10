@@ -67,7 +67,8 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
   `MudConnection.connected` starts `True`; after a refused connection `#bp.core.proxy.connect` answers "currently
   connected" and never retries.
 - **The Clients table shows the literal text "Term Type"** (Q3, **verified**, #307), although
-  telnetlib3 records the client's terminal type.
+  telnetlib3 records the client's terminal type. **Status:** fixed by #307; `ClientConnection.term_type`
+  reads `writer.get_extra_info("TERM")` and the table shows `-` until the client answers TTYPE (or if it never does).
 - **#272 does not hold as written** (Q7, **verified**). `CustomTelnetServer` never sends `WILL SGA`, so
   `send_ga()` does send GA to clients. #90's `assert` caveat is also stale: `idle` does not raise before
   the first byte. #66 and #67 hold with corrections.
@@ -218,7 +219,7 @@ The Python version of this run was 3.12.12. The code calls `asyncio.get_event_lo
 |---------|-------------------------|--------------------------------|---------|
 | Echo negotiation (#66) | `src/bastproxy/libs/net/telnet.py`: `echo_on`, `echo_off` return raw `IAC WILL/WONT ECHO`; `ClientConnection.setup_client` and `process_data_from_not_logged_in_client` send them with `writer.send_iac` | `writer.iac(WILL, ECHO)` records the option state; telnetlib3 also negotiates ECHO itself after TTYPE (`TelnetServer._negotiate_echo`) | **Switch** (#66). **Verified**: both a plain and a MUD client got `WILL ECHO` twice, see Q7 |
 | Idle and connected time (#90) | `ClientConnection.connected_time`, `connected_length` | `TelnetServer.duration` and `.idle` (`_base.py:108`, `:114`) | **Switch for idle**, keep `connected_time` for the timestamp (#90) |
-| Client terminal type, size | `src/bastproxy/plugins/core/clients/plugin/_clients.py`: `_api_client_list_formatted` writes the constant `"Term Type"`; `ClientConnection.rows` is set to 24 and never read | `writer.get_extra_info("TERM")`, `"rows"`, `"cols"` | **Switch** (#307). **Verified**: `TERM extra: xterm` after the client answered TTYPE. Rows and columns need NAWS, which is not negotiated (#66) |
+| Client terminal type, size | `src/bastproxy/plugins/core/clients/plugin/_clients.py`: `_api_client_list_formatted` writes the constant `"Term Type"`; `ClientConnection.rows` is set to 24 and never read | `writer.get_extra_info("TERM")`, `"rows"`, `"cols"` | **Switch** (#307; terminal type fixed by #307, rows and columns still open). **Verified**: `TERM extra: xterm` after the client answered TTYPE. Rows and columns need NAWS, which is not negotiated (#66) |
 | Terminal type and size sent to the MUD | `MudConnection.term_type = "bastproxy"`; no size | `open_connection(term=, cols=, rows=)`; `writer` answers NAWS from them | **Feature** (#308). **Verified**: the MUD connection answers `DO NAWS` with `WILL NAWS` and `SB NAWS`, from the fixed 80 by 25 default |
 | Line handling | `MudTelnetReader.read_mud_line`, `_LINE_END`, `_LINE_END_FINAL` | `TelnetReaderUnicode.readline()` splits at `\r\n`, `\r\0`, a lone `\r` and `\n`, with no wait, no `\n\r` and no partial line (**read**, `stream_reader.py:470` to `545`) | **Keep.** It does what `readline()` does not: `\n\r`, a wait for a split ending, partial lines and prompt marks (#65). There is no public alternative (Q1) |
 | Encoding fallback (#63) | `force_binary=True` in `Listeners._create_listeners` (both listeners) and `MudConnection.connect_to_mud` | `force_binary` is the public telnetlib3 argument | **Keep.** It is the telnetlib3 feature, not a reimplementation. The alternative, negotiating BINARY from `begin_advanced_negotiation`, is #66 |
@@ -404,7 +405,7 @@ The corrections are written out in the proposed edits to #66, #67, #90 and #272.
 | 6 | `contextlib.suppress(AttributeError)` around `drain()` | `register_client` (banned client) | **Keep, narrow.** It guards a closed transport. It could name the case in a comment |
 | 7 | One narrow `except ConnectionError` | `ClientConnection.client_read` | **Change** (#305): it misses `UnicodeDecodeError`, which kills the client |
 | 8 | Connection state defaulting to the connected state | `MudConnection.connected = True` in `__init__` | **Change** (#306). Verified defect |
-| 9 | Hard-coded placeholder as data | `_api_client_list_formatted`: `"term_type": "Term Type"` | **Change** (#307). Verified defect |
+| 9 | Hard-coded placeholder as data | `_api_client_list_formatted`: `"term_type": "Term Type"` | **Change** (#307). Verified defect; **fixed by #307** |
 | 10 | Unused state: `ClientConnection.rows` (set to 24, never read), `telnet_server` (read nowhere until #90), `MudConnection.term_type` comment lines about `_extra`, `telnet.main_negotiations`, `telnet.opcode_match` | `client.py`, `mud.py`, `telnet.py` | **Change** (#67; rest in #309) |
 | 11 | Copy-pasted log label: `mud_write` logs telnet commands to the MUD as `"to_client"` | `MudConnection.mud_write` | **Change** (#309) |
 | 12 | Copy-pasted headers: `mud.py` says `Filename: libs/net/client.py` and `File Description: Client connection handling.` | `src/bastproxy/libs/net/mud.py`, lines 1 to 6 | **Change** (#309) |
