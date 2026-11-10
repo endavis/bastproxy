@@ -1,7 +1,7 @@
 # Project: bastproxy
-# Filename: libs/net/client.py
+# Filename: libs/net/mud.py
 #
-# File Description: Client connection handling.
+# File Description: MUD connection handling.
 #
 # By: Bast/Jubelo
 """Module for handling client connections to a MUD server.
@@ -96,8 +96,6 @@ class MudConnection:
         self.writer: TelnetWriterUnicode | None = None
         self.max_lines_to_process = 15
         self.term_type = "bastproxy"
-        # rows = self.writer.protocol._extra['rows']
-        # term = self.writer.protocol._extra['TERM']
 
     async def connect_to_mud(self) -> None:
         """Establish a connection to the MUD server.
@@ -293,7 +291,7 @@ class MudConnection:
                 logger.debug("mud_write - Writing telnet option mud: %r", msg_obj.line)
                 self.writer.send_iac(msg_obj.line)
                 msg_obj.was_sent = True
-                logging.getLogger("data.mud").info("%-12s : %s", "to_client", msg_obj.line)
+                logging.getLogger("data.mud").info("%-12s : %s", "to_mud", msg_obj.line)
 
             if count >= self.max_lines_to_process:
                 await asyncio.sleep(0)
