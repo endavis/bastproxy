@@ -15,6 +15,8 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
+Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): the `priority` of `@RegisterToEvent` is ignored and every decorated callback is stored at 50 (#278), priority 0 is stored as 50 (#280), a callback registered during a raise can be dropped from that raise (#275), and raising an event from one of its own callbacks resets the outer raise (#281).
+
 ## Key Components
 
 ### Event Class
@@ -32,16 +34,26 @@ The `Event` class is the core of the event system. Each event has:
 
 ```python
 class Event:
+    MAX_RAISED_EVENTS: int = 10
+
     def __init__(self, name: str, created_by: str = "",
                  description: list | None = None,
                  arg_descriptions: dict[str, str] | None = None):
-        self.name = name
-        self.created_by = created_by
+        self.name: str = name
+        self.created_by: str = created_by
         self.description = description or []
         self.arg_descriptions = arg_descriptions or {}
+
+        self.owner_id: str = f"plugins.core.events:{self.name}"
+        self.api = API(owner_id=self.owner_id)
         self.priority_dictionary = {}
         self.raised_count = 0
+        self.raised_events: OrderedDict[str, ProcessRaisedEvent] = OrderedDict()
+        self.current_callback = None
+        self.active_event = None
 ```
+
+`priority_dictionary` maps a priority to a dictionary of `Callback` objects, each with a flag that says whether it ran in the current raise. `Event.register(func, func_owner_id, prio=50)` adds a callback; `raise_event(data, actor, data_list=None, key_name=None)` raises the event, where `actor` is the owner id of the caller (see Actors below).
 
 ### EventDataRecord
 **Location**: `src/bastproxy/plugins/core/events/libs/data/_event.py`
@@ -72,11 +84,15 @@ A record type that tracks the execution of a raised event:
 class ProcessRaisedEvent(BaseRecord):
     def __init__(self, event: "Event", event_data: "EventDataRecord",
                  called_from=""):
+        BaseRecord.__init__(self)
         self.event = event
         self.called_from = called_from
         self.event_name = event.name
         self.event_data = event_data
+        self.event_data.add_receiving_event(self)
         self.times_invoked = 0
+        self.id = f"{__name__}:{self.event.name}:{self.created}"
+        self.addupdate(UpdateFlag.INFO, "Init")
 ```
 
 ### RegisterToEvent Decorator
@@ -91,7 +107,15 @@ class RegisterToEvent:
         #   - event_name: the event to register to
         #   - priority: callback execution priority (default: 50)
         self.registration_args = {"event_name": "", "priority": 50} | kwargs
+
+    def __call__(self, func):
+        if not hasattr(func, "event_registration"):
+            func.event_registration = []
+        func.event_registration.append(self.registration_args)
+        return func
 ```
+
+Only methods whose name starts with `_eventcb_` are picked up (`get_event_registration_functions_in_object`); the decorator on any other name is silently ignored. The `priority` is stored but not honoured: `event.register.by.func` passes it as `priority=`, and `event.register` reads `prio`, so the callback runs at 50 (#278). The event name may contain `{attribute}` placeholders, filled from the plugin instance, as in `ev_{plugin_id}_var_raised_history_size_modified`.
 
 ### EventsPlugin
 **Location**: `src/bastproxy/plugins/core/events/plugin/_events.py`
@@ -111,7 +135,13 @@ def _eventcb_handle_data(self):
     # Process the event data
 ```
 
-The decorator marks the function with event registration metadata, which is processed during plugin initialization.
+The decorator marks the function with event registration metadata. The events plugin registers the decorated `_eventcb_*` methods of every loaded plugin once, when the post-startup event is raised, and afterwards on `ev_plugin_loaded` for each plugin that loads (the `ev_plugin_loaded` callback returns without registering while the proxy is still starting up).
+
+A callback can also be registered at runtime, with the priority under the keyword `prio`:
+
+```python
+self.api("plugins.core.events:event.register")("ev_my_event", self._eventcb_mine, prio=30)
+```
 
 ### 2. Event Creation
 
@@ -146,14 +176,20 @@ When an event is raised:
 1. A `ProcessRaisedEvent` instance is created
 2. The event data is wrapped in an `EventDataRecord` if it's not already
 3. Callbacks are executed in priority order (sorted by priority number)
-4. Each callback at a priority level is executed once
-5. If new callbacks are registered during execution, they are processed in subsequent iterations
+4. Each callback is executed once per raise (and per item of a `data_list`)
+5. If new callbacks are registered during execution, they are processed in subsequent passes, but one registered at an already visited priority from the second pass on can be dropped from that raise (#275)
 6. The event is reset after all callbacks complete
+7. An exception in a callback is logged and the remaining callbacks still run; `raise_event` returns `None` and logs an error when the data is neither a dict nor an `EventDataRecord` (the log line itself raises `AttributeError`, #276)
+
+#### Actors
+
+`event.raise` takes a `calledfrom` argument; when it is empty the events plugin looks up the owner id of the caller. That owner id is the `actor` passed to `Event.raise_event`, stored as `ProcessRaisedEvent.called_from`, used as the owner id of a new `EventDataRecord` and as `created_by` of an event that has none. Each callback runs under `tracking_actor("<owner_id>:<function name>")`, so changes it makes to the data are attributed to it.
 
 ### 4. Priority-Based Execution
 
 Callbacks are organized by priority (default: 50):
-- Lower numbers execute first (e.g., priority 1 before priority 50)
+- Lower numbers execute first (e.g., priority 1 before priority 50); priority 0 does not work as the lowest, it is stored as 50 (#280)
+- Within one priority, callbacks run in registration order
 - All callbacks at a given priority are executed before moving to the next priority
 - The system uses a while loop to handle callbacks registered during event execution
 
@@ -161,15 +197,23 @@ Callbacks are organized by priority (default: 50):
 def raise_priority(self, priority, already_done: bool) -> bool:
     found = False
     for call_back in list(self.priority_dictionary[priority].keys()):
-        if (call_back in self.priority_dictionary[priority] and
-            not self.priority_dictionary[priority][call_back] and
-            self.current_callback != call_back):
-            self.current_callback = call_back
-            self.priority_dictionary[priority][call_back] = True
-            call_back.execute()
-            found = True
+        try:
+            if (call_back in self.priority_dictionary[priority] and
+                not self.priority_dictionary[priority][call_back] and
+                self.current_callback != call_back):
+                self.current_callback = call_back
+                self.priority_dictionary[priority][call_back] = True
+                with tracking_actor(f"{call_back.owner_id}:{call_back.name}"):
+                    call_back.execute()
+                found = True
+                if already_done:
+                    ...  # logs a WARNING that the callback ran out of order
+        except Exception:
+            ...  # logs an ERROR with exc_info; the next callback still runs
     return found
 ```
+
+`already_done` is true when the priority was visited in an earlier pass; the warning is only logged then. A callback declared `async def` is called but never awaited, so its body never runs (#277).
 
 ### 5. Event Stack
 
@@ -201,7 +245,13 @@ if event_record:
 
 ### Event Plugin
 - `src/bastproxy/plugins/core/events/plugin/_events.py` - EventsPlugin that manages events
-- `src/bastproxy/plugins/core/events/__init__.py` - Plugin metadata and exports
+- `src/bastproxy/plugins/core/events/__init__.py` - Plugin metadata and the `RegisterToEvent` export
+- `src/bastproxy/plugins/core/events/plugin/__init__.py` - Exports the `Plugin` class
+
+The package has no libs/_event.py or plugin/_process_event.py: #241 deleted those duplicate copies of `Event` and `ProcessRaisedEvent`.
+
+### Events API
+The APIs of `plugins.core.events` (names as registered with `AddAPI`): `event.add`, `event.get`, `event.exists`, `event.register`, `event.register.by.func`, `event.unregister`, `event.unregister.for.owner`, `event.is.registered`, `event.raise`, `event.current.name.get`, `event.current.record.get`, `event.stack.get`, `event.detail.get`, `detail.get.for.plugin` and `summary.get.for.plugin`. `event.get` creates and keeps an `Event` for any name it has not seen (#283).
 
 ## Code Examples
 
@@ -232,7 +282,7 @@ self.api("plugins.core.events:event.raise")(
 ### Registering to an Event
 
 ```python
-@RegisterToEvent(event_name="ev_to_client_data_modify", priority=1)
+@RegisterToEvent(event_name="ev_to_client_data_modify", priority=1)  # stored at 50 today (#278)
 def _eventcb_process_client_data(self):
     """Process data before it's sent to the client."""
     event_record = self.api("plugins.core.events:event.current.record.get")()
@@ -268,17 +318,16 @@ self.api("plugins.core.events:event.unregister")(
 ## Integration Points
 
 ### Plugin System
-- Plugins automatically register their `@RegisterToEvent` decorated methods during initialization
+- At startup the events plugin registers the `@RegisterToEvent` decorated `_eventcb_*` methods of all loaded plugins when the post-startup event is raised; after startup it does the same for each plugin on `ev_plugin_loaded`
 - The `EventsPlugin` listens to `ev_plugin_loaded` and `ev_plugin_unloaded` to manage registrations
-- When a plugin unloads, all its event registrations are removed
+- When a plugin unloads, all its event registrations are removed (`event.unregister.for.owner`); the `Event` objects stay
 
 ### Data Flow
 - Events are the primary mechanism for data flow through the system
 - Key data flow events:
   - `ev_to_mud_data_modify` - Data from client to mud
   - `ev_to_client_data_modify` - Data from mud to client
-  - `ev_from_mud_event` - Raw data received from mud
-  - `ev_from_client_event` - Raw data received from client
+  - `ev_to_mud_data_read` and `ev_to_client_data_read` - The data after it was sent
 
 ### Command System
 - The command system uses events to track command execution
@@ -311,6 +360,8 @@ while found_callbacks:
 ```
 
 If the loop executes more than twice, a warning is logged indicating that callbacks were added during execution.
+
+`found_callbacks` is overwritten by each priority instead of being OR-ed, so a pass ends when the last priority ran nothing, and a callback registered from the second pass on at an already visited priority is not run in that raise (#275). A callback registered during the first pass runs after the callbacks at higher priorities, not in priority order, and the out-of-order warning is logged only for an already visited priority.
 
 ### Event Data Mutation Tracking
 
@@ -346,8 +397,8 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 ### Data Flow Events
 - `ev_to_mud_data_modify` - Modify data before sending to mud
 - `ev_to_client_data_modify` - Modify data before sending to client
-- `ev_from_mud_event` - Raw data received from mud
-- `ev_from_client_event` - Raw data received from client
+- `ev_to_mud_data_read` - Data that was sent to the mud
+- `ev_to_client_data_read` - Data that was sent to the client
 
 ### Network Events
 - `ev_libs.net.mud_mudconnect` - Connected to mud
