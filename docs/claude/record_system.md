@@ -364,6 +364,7 @@ while current.parent:
   The "before" run used a temporary patch that set the old `_SETUP_EVENTS` flag so that no events plugin was needed. The benchmark asserts the ADR-0005 target of 20 us for `addupdate`.
 - **With `capture_stacks` on**, each record and update pays for a formatted call stack (10 frames per record, 15 per update) again.
 - **Retention:** `RMANAGER` keeps the last `retained_trees` root trees (100 by default) and evicts each older tree whole, and each record keeps up to `tracking_max_changes` updates (1000 by default). The cap counts trees, not bytes. Measured with 15-line `ProcessDataToClient` rounds under `tracemalloc` (1,500 rounds, one run): before this change traced memory grew by about 0.68 MB per round, to 1012.3 MB; with 100 trees it stayed at 68.5 MB from round 250 to round 1,500, with 2,424 stored records. One `prune()` took 1.9 to 2.3 ms in steady state (3.5 ms for the first). See [Record System Findings](record_system_findings.md#q3-what-is-kept-and-what-does-it-cost) for measurements.
+- **Records are kept only in memory, by design.** Trees beyond the last `retained_trees` are gone, and none survive a restart. Persisting records was considered in #82 and not pursued: the retention cap already bounds memory, writing every line and change to disk would cost time on the hot path, and the raw MUD and client I/O already persists in the network data log (`data/logs/networkdata/networkdata.log` under `BASTPROXY_HOME`, rotated at midnight).
 - **Inspecting adds records:** every line printed by the records commands is a `NetworkDataLine`, so a long listing can push older records out of the store.
 - **Tree queries scan every stored record** at each level of the tree.
 
@@ -373,7 +374,6 @@ while current.parent:
 
 | Issue | Gap |
 |-------|-----|
-| #82 | Records are kept only in memory: those beyond the last `retained_trees` root trees are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 ## Best Practices
