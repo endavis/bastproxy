@@ -51,15 +51,12 @@ from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
 
 # Project
-from bastproxy.libs.net import telnet
 from bastproxy.libs.records import (
-    LineType,
     NetworkData,
     NetworkDataLine,
     Originated,
     ProcessDataToClient,
     SendDataDirectlyToClient,
-    SendDataDirectlyToMud,
 )
 
 logger = get_logger(__name__)
@@ -197,9 +194,8 @@ class MudConnection:
     async def setup_mud(self) -> None:
         """Set up the MUD connection with initial configurations.
 
-        This method advertises telnet features to the MUD server and sends them
-        using the `SendDataDirectlyToMud` method. It also ensures that the writer
-        stream is properly drained after sending the features.
+        This method ensures that the writer stream is drained after the connection
+        is established.
 
         Returns:
             None
@@ -208,17 +204,6 @@ class MudConnection:
             None
 
         """
-        if features := telnet.advertise_features():
-            logger.info("setup_mud - Sending telnet features")
-            networkdata = NetworkData([], owner_id="mud:setup_mud")
-            networkdata.append(
-                NetworkDataLine(
-                    features, originated=Originated.INTERNAL, line_type=LineType.COMMAND_TELNET
-                )
-            )
-            SendDataDirectlyToMud(networkdata)()
-            logger.info("setup_mud - telnet features sent")
-
         if self.writer:
             await self.writer.drain()
 

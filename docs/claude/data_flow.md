@@ -70,7 +70,7 @@ Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/
 
 | Method | Description |
 |--------|-------------|
-| `setup_client()` | Sends `WILL ECHO` through `writer.iac(WILL, ECHO)` (telnetlib3 records the option, so it is sent once), advertised telnet features and the password prompt (#66) |
+| `setup_client()` | Sends `WILL ECHO` through `writer.iac(WILL, ECHO)` (telnetlib3 records the option, so it is sent once) and the password prompt (#66) |
 | `client_read()` | Reader coroutine: one `readline()` per line, then login handling or `ProcessDataToMud` |
 | `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords; on a match sends `WONT ECHO` through `writer.iac(WONT, ECHO)` |
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
@@ -98,7 +98,7 @@ ProcessDataToMud(
 | Method | Description |
 |--------|-------------|
 | `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=False`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
-| `setup_mud()` | Advertises the proxy's telnet features to the MUD |
+| `setup_mud()` | Drains the MUD writer after the connection opens |
 | `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
 | `mud_write()` | Writer coroutine: writes queued lines (`send_iac` for `COMMAND-TELNET`), sets `was_sent` |
