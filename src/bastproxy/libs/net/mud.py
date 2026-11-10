@@ -90,6 +90,9 @@ class MudConnection:
         # self.state: dict[str, bool] = {'connected': True}
         # not connected until the telnet connection opens (#306)
         self.connected = False
+        # True from the connect command until the connection opens or fails, so a
+        # second connect cannot start another attempt in the meantime (#306)
+        self.connecting: bool = False
         self.send_queue: asyncio.Queue[NetworkDataLine] = asyncio.Queue()
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: MudTelnetReader | None = None
@@ -135,10 +138,15 @@ class MudConnection:
             )
         except OSError as exc:
             self.connected = False
+            self.connecting = False
             logger.error("Could not connect to the mud at %s:%s: %s", self.addr, self.port, exc)
             SendDataDirectlyToClient(
                 NetworkData([f"Could not connect to the mud at {self.addr}:{self.port}: {exc}"])
             )()
+        except BaseException:
+            # a bad port, a cancelled task: never leave the flag stuck
+            self.connecting = False
+            raise
 
     def disconnect_from_mud(self) -> None:
         """Disconnect from the MUD server.
@@ -154,6 +162,7 @@ class MudConnection:
 
         """
         self.connected = False
+        self.connecting = False
 
     def send_to(self, data: NetworkDataLine) -> None:
         """Send data to the MUD server.
@@ -333,6 +342,7 @@ class MudConnection:
         _, _, *rest = client_details
         logger.warning("Mud Connection opened - %s : %s : %s", self.addr, self.port, rest)
         self.connected = True
+        self.connecting = False
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader = reader
         self.writer = writer

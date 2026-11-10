@@ -436,6 +436,10 @@ def test_new_connection_is_not_connected() -> None:
     assert MudConnection("127.0.0.1", "4000").connected is False
 
 
+def test_new_connection_is_not_connecting() -> None:
+    assert MudConnection("127.0.0.1", "4000").connecting is False
+
+
 async def test_failed_connect_reports_and_stays_disconnected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -461,7 +465,9 @@ async def test_failed_connect_reports_and_stays_disconnected(
     monkeypatch.setattr(mud, "SendDataDirectlyToClient", _Recorder)
 
     conn = MudConnection("127.0.0.1", str(port))
+    conn.connecting = True
     await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+    assert conn.connecting is False
 
     # the proxy's connect command only checks `connected`, so a new attempt can proceed
     assert conn.connected is False
@@ -479,6 +485,7 @@ async def test_handler_sets_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     conn = MudConnection("127.0.0.1", "4000")
     conn.api = MagicMock(return_value=lambda *_a: 250)
     assert conn.connected is False
+    conn.connecting = True
     before = conn.connected_time
     seen: list[bool] = []
 
@@ -517,4 +524,5 @@ async def test_handler_sets_connected(monkeypatch: pytest.MonkeyPatch) -> None:
         task.cancel()
 
     assert seen == [True, True, True]
+    assert conn.connecting is False
     assert conn.connected_time >= before

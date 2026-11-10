@@ -290,6 +290,8 @@ class ProxyPlugin(BasePlugin):
                 )
                 # options = self.mud_connection.options_info()
                 # tmsg.extend(f"     {i}" for i in options)
+        elif self.mud_connection and self.mud_connection.connecting:
+            tmsg.append(template % ("Mud", "connecting"))
         else:
             tmsg.append(template % ("Mud", "disconnected"))
 
@@ -306,6 +308,9 @@ class ProxyPlugin(BasePlugin):
             self.mud_connection = None
 
             return True, ["Attempted to close the connection to the mud"]
+        if self.mud_connection and self.mud_connection.connecting:
+            # the connect task is still running and cannot be cancelled from here
+            return True, ["The proxy is connecting to the mud, try again once it has finished"]
         return True, ["The proxy is not connected to the mud"]
 
     @AddParser(description="connect to the mud")
@@ -313,11 +318,15 @@ class ProxyPlugin(BasePlugin):
         """Connect to the mud."""
         if self.mud_connection and self.mud_connection.connected:
             return True, ["The proxy is currently connected to the mud"]
+        if self.mud_connection and self.mud_connection.connecting:
+            return True, ["The proxy is already connecting to the mud"]
 
         self.mud_connection = MudConnection(
             self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudhost"),
             self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudport"),
         )
+        # set before the task is queued so a second command is refused too (#306)
+        self.mud_connection.connecting = True
 
         self.api("libs.asynch:task.add")(self.mud_connection.connect_to_mud, "Mud Connect Task")
 
@@ -365,7 +374,14 @@ class ProxyPlugin(BasePlugin):
             return
         tmsg = []
         divider = "@R------------------------------------------------@w"
-        if not self.mud_connection or not self.mud_connection.connected:
+        if self.mud_connection and self.mud_connection.connecting:
+            tmsg.extend(
+                (
+                    divider,
+                    f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}{self.api(f'{self.plugin_id}:preamble.get')()}: @GThe proxy is connecting to the mud@w",
+                )
+            )
+        elif not self.mud_connection or not self.mud_connection.connected:
             if not self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudhost"):
                 tmsg.extend(
                     (
