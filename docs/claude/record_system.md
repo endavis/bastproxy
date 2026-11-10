@@ -63,7 +63,7 @@ The owner ID is per class so that API stats stay bounded (#232); `uuid` is the r
 
 `BaseRecord` itself adds no update at creation. `__call__` adds `Info` updates around `_exec_()`.
 
-Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation time (`__lt__`).
+Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation time (`__lt__`). Two records, or two updates, with the same timestamp sort by a process-wide creation sequence from `next_creation_sequence()` in `src/bastproxy/libs/records/managers/records.py`, so creation order holds when the clock is too coarse to tell them apart (#320).
 
 ### Updates
 

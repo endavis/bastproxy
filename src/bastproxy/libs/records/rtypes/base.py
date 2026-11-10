@@ -25,7 +25,7 @@ from bastproxy.libs.api import API
 from bastproxy.libs.context import event_stack
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.enums import UpdateFlag
-from bastproxy.libs.records.managers.records import RMANAGER
+from bastproxy.libs.records.managers.records import RMANAGER, next_creation_sequence
 from bastproxy.libs.records.rtypes.update import (
     EVENT_STACK_SEPARATOR,
     RESERVED_KEYS,
@@ -244,6 +244,7 @@ class BaseRecord(RecordDisplayMixin):
         # Add an API
         self.api = API(owner_id=self.owner_id)
         self.created = datetime.datetime.now(datetime.UTC)
+        self._creation_sequence = next_creation_sequence()
         self._updates: deque[ChangeLogEntry] = deque(maxlen=RMANAGER.max_changes)
         self.execute_time_taken = -1
         self.track_record = track_record
@@ -309,7 +310,7 @@ class BaseRecord(RecordDisplayMixin):
         return f"{self.__class__.__name__}:{self.uuid}"
 
     def __lt__(self, other):
-        """Compare records by creation time.
+        """Compare records by creation time, then creation sequence when the times tie.
 
         Args:
             other: The other record to compare with.
@@ -318,7 +319,9 @@ class BaseRecord(RecordDisplayMixin):
             True if this record was created before the other.
 
         """
-        return self.created < other.created
+        if self.created != other.created:
+            return self.created < other.created
+        return self._creation_sequence < other._creation_sequence
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
@@ -358,6 +361,7 @@ class BaseRecord(RecordDisplayMixin):
         )
         if RMANAGER.capture_stacks:
             entry.stack = self._format_stack(UPDATE_STACK_LIMIT)
+        entry.creation_sequence = next_creation_sequence()
         self._updates.append(entry)
 
     @property

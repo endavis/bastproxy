@@ -26,7 +26,11 @@ from pydatatracker import tracking_actor
 
 # Project
 from bastproxy.libs.records.enums import UpdateFlag
-from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, RMANAGER
+from bastproxy.libs.records.managers.records import (
+    DEFAULT_MAX_CHANGES,
+    RMANAGER,
+    next_creation_sequence,
+)
 from bastproxy.libs.records.rtypes.base import RecordDisplayMixin
 from bastproxy.libs.records.rtypes.update import RESERVED_KEYS, TrackedUpdate
 
@@ -92,6 +96,7 @@ class TrackedRecordMixin(RecordDisplayMixin):
 
         """
         self.owner_id = owner_id or self.__class__.__name__
+        self._creation_sequence = next_creation_sequence()
         if not parent:
             parent = RMANAGER.get_latest_record()
         self.parent = parent
@@ -124,8 +129,10 @@ class TrackedRecordMixin(RecordDisplayMixin):
         return f"{self.__class__.__name__}:{self.uuid}"
 
     def __lt__(self, other: Any) -> bool:
-        """Order by creation time."""
-        return bool(self.created < other.created)
+        """Order by creation time, then by creation sequence when the times tie."""
+        if self.created != other.created:
+            return bool(self.created < other.created)
+        return bool(self._creation_sequence < other._creation_sequence)
 
     # --- updates ----------------------------------------------------------------------
 
