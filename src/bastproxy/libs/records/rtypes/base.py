@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: libs/records/rtypes/__init__.py
+# Filename: libs/records/rtypes/base.py
 #
 # File Description: Holds the base record type
 #

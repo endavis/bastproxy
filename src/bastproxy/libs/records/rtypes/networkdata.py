@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: libs/records/rtypes/dataline.py
+# Filename: libs/records/rtypes/networkdata.py
 #
 # File Description: Holds the records for network data
 #
