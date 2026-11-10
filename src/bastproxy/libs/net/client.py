@@ -217,8 +217,8 @@ class ClientConnection:
 
         This coroutine sets up the client connection by sending initial telnet commands
         and welcome messages. It sends an echo off command to prevent the client from
-        locally echoing the password, advertises telnet features, and sends a welcome
-        message prompting the user to enter their password.
+        locally echoing the password, and sends a welcome message prompting the user to
+        enter their password.
 
         Returns:
             None
@@ -234,15 +234,6 @@ class ClientConnection:
         # send a second WILL ECHO from its own deferred echo negotiation.
         self.data_logger.info("%-12s : %s", "setup_client", "IAC WILL ECHO")
         self.writer.iac(WILL, ECHO)
-
-        if features := telnet.advertise_features():
-            networkdata = NetworkData(
-                [NetworkDataLine(features, line_type=LineType.COMMAND_TELNET, prelogin=True)],
-                owner_id=f"client:{self.uuid}",
-            )
-            logger.debug("setup_client - Sending telnet features to %s", self.uuid)
-            SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
-            logger.debug("setup_client - telnet features sent to %s", self.uuid)
 
         await self.writer.drain()
 

@@ -59,7 +59,7 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
 - **The `telopt` patch is not needed** (Q4, **verified**). telnetlib3 5.0.1 defines all nine options. Eight have the
   proxy's names; the ninth, `A102`, is telnetlib3's `AARDWOLF` (byte 102). The patch only renames
   telnetlib3's own `_DEBUG_OPTS[102]` from `AARDWOLF` to `A102` at import. #67 says "8 of 9" and keeps `A102`;
-  nothing needs it.
+  nothing needs it. **Status:** fixed by #67; the whole patch is deleted.
 - **A client that sends invalid UTF-8 is disconnected** (Q8, **verified**, #305). The listeners keep
   telnetlib3's server default `encoding_errors="strict"`, and `client_read` catches only `ConnectionError`.
   **Status:** fixed by #305 (`encoding_errors="replace"` on both listeners; `client_read` also ends cleanly on `UnicodeDecodeError`).
@@ -148,7 +148,7 @@ module dict besides.
 | 4 | `TelnetReader._wakeup_waiter()` | `MudTelnetReader.mark_prompt` (called from the IAC GA and EOR callback) | Wake a `read_mud_line` that waits for data, because a prompt mark is new information | None. Same own-event alternative as #3 | Same as #1 |
 | 5 | `TelnetReader._maybe_resume_transport()` | `MudTelnetReader._consume` | Resume the paused transport after the buffer shrinks (flow control) | None. The public reads call it themselves; consuming from `_buffer` directly means calling it too | Same as #1 |
 | 6 | `BaseClient._reader_factory_encoding` (class attribute) | `src/bastproxy/libs/net/mud.py`: `MudTelnetClient._reader_factory_encoding = MudTelnetReader` | Make the MUD connection build `MudTelnetReader` | None on the client. The server side has the public `reader_factory_encoding` argument of `TelnetServer.__init__` (`server.py:111`); `open_connection` and `TelnetClient.__init__` have no equivalent | Same as #1 (**verified**: the canary test asserts the attribute) |
-| 7 | `telnetlib3.telopt._DEBUG_OPTS` (dict, written) | `src/bastproxy/libs/net/__init__.py`, module level | Name a telnet option byte in telnetlib3's log lines | None, and not needed: see Q4 | The write is a no-op in effect. It changes only log text |
+| 7 | `telnetlib3.telopt._DEBUG_OPTS` (dict, written) | `src/bastproxy/libs/net/__init__.py`, module level | Name a telnet option byte in telnetlib3's log lines | None, and not needed: see Q4 | The write is a no-op in effect. It changes only log text. **Status:** fixed by #67 (patch removed) |
 
 Not private, but not documented for subclassing either (**read**): `TelnetServer.begin_advanced_negotiation`
 is documented as a callback to override (`server_base.py:273`). `TelnetClient.connection_made` documents
@@ -231,7 +231,7 @@ The Python version of this run was 3.12.12. The code calls `asyncio.get_event_lo
 | GMCP, MSDP, MSSP | none; the proxy declines them | `telnetlib3.mud` (`gmcp_encode`/`gmcp_decode`, `msdp_*`, `mssp_*`, `zmp_*`, `atcp_decode`, `aardwolf_decode`) and `writer.send_gmcp`, `send_msdp`, `send_mssp`, `set_ext_callback` | **Use them** when #59 and #60 land. Nothing to switch today |
 | MXP, MSP, ATCP, Aardwolf | none; declined | handlers and `writer.ctx.*` data | #61 and later |
 | MCCP2 and 3 | none; refused with `compression=False` on every call | `compression=` argument and automatic (de)compression | #58 |
-| Option declaration | `telnet.GAME_CAPABILITIES` (empty), `telnet.advertise_features`, `telnet.code`, `telnet.iac*`, `telnet.handle` | `writer.iac`, `writer.always_will`/`always_do`/`passive_do`, the `telopt` constants | **Delete** (#67). **Verified**: see Q7 |
+| Option declaration | `telnet.GAME_CAPABILITIES` (empty), `telnet.advertise_features`, `telnet.code`, `telnet.iac*`, `telnet.handle` | `writer.iac`, `writer.always_will`/`always_do`/`passive_do`, the `telopt` constants | **Delete** (#67). **Verified**: see Q7. **Status:** fixed by #67 |
 | Prompt marking | `MudTelnetClient.connection_made` registers `mark_prompt` for GA and EOR | `writer.set_iac_callback` is the public hook for it | **Keep.** It already uses the public hook |
 | Relay example | the proxy's own two connection classes | `telnetlib3.relay_server.relay_shell` (**read**: a short example that relays one client to one server) | No. It has no multi-client, record or event model. Not a candidate |
 
@@ -244,7 +244,7 @@ to a telnetlib3 object exists). The reasons come from `git log -S` and `git log`
 
 | # | Where | What it changes | Added by, and why | Still needed on 5.x | Alternative or action |
 |---|-------|-----------------|-------------------|---------------------|-----------------------|
-| 1 | `src/bastproxy/libs/net/__init__.py`, module level: `setattr(telnetlib3.telopt, item, value)` for nine names | Adds names to telnetlib3's `telopt` module | `61cd764` "refactor receiving data from the mud" (2024-11-02): "add mud protocols to telnetlib3.telnet.telopt module". telnetlib3 2.0.4 lacked them | **No** (**verified**, below) | Delete the patch (#67, corrected) |
+| 1 | `src/bastproxy/libs/net/__init__.py`, module level: `setattr(telnetlib3.telopt, item, value)` for nine names | Adds names to telnetlib3's `telopt` module | `61cd764` "refactor receiving data from the mud" (2024-11-02): "add mud protocols to telnetlib3.telnet.telopt module". telnetlib3 2.0.4 lacked them | **No** (**verified**, below) | Delete the patch (#67, corrected). **Status:** fixed by #67 |
 | 2 | same file: `telnetlib3.telopt._DEBUG_OPTS[value] = item` | Renames option 102 in telnetlib3's log text from `AARDWOLF` to `A102` | same commit | **No** | Delete with #1 |
 | 3 | `src/bastproxy/libs/net/server.py`: `CustomTelnetServer.begin_advanced_negotiation` is empty, and does not call `super()` | Skips everything telnetlib3 sends after the first `DO` or `WILL`: `WILL SGA`, `WILL BINARY`, `DO NAWS`, `DO CHARSET`, `WILL MCCP2`, `WILL MCCP3` | `4389d7b` "convert to using telnetlib3 library" (2023-02-14) sent `DO NEW_ENVIRON`, `DO NAWS` and `DO CHARSET`. `61cd764` (2024-11-02) commented them out: "don't negotiate charset for now" | **Partly.** It keeps SGA off, so GA reaches clients. It also blocks NAWS and BINARY, which #63 and #66 need | #66 (replace with an override that keeps `DO NAWS` and `WILL BINARY`, and no `WILL SGA`) |
 | 4 | same file: `create_server` overwrites `kwargs["protocol_factory"]` | A caller cannot choose the protocol factory | `4389d7b` | Yes, as the way to install #3 | Keep; it is the public `protocol_factory` argument |
@@ -273,6 +273,7 @@ step also changed the log name: the fake-MUD probe shows `DONT A102` where an un
 print `DONT AARDWOLF`. Nothing in `src/` or `tests/` reads `telnetlib3.telopt.A102` (**verified** by `grep`).
 The patch also leaves telnetlib3's `_NAME_TO_OPT` map out of date, so `option_from_name("A102")` would raise
 `KeyError`. The patch runs for any import of `bastproxy.libs.net`, because the package `__init__` runs first.
+**Status:** fixed by #67. `src/bastproxy/libs/net/__init__.py` no longer touches `telnetlib3.telopt`.
 
 Evidence for #3: the bytes a client receives from `CustomTelnetServer` (**verified**, `create_server` with the
 listener's arguments, a client that answers TTYPE `xterm`):
@@ -367,8 +368,8 @@ What the missing lines are (**read**, mapped from the line ranges to symbols):
 | `listeners.py` | `Listeners.__init__`, `check_listeners_available` (retry, reset to defaults, exit), `reset_listener_settings`, the no-listener default, `create_listeners` | The start-up failure path is the one an operator meets with a busy port |
 | `client.py` | `ClientConnection.__init__`, `send_to`, `setup_client`, `process_data_from_not_logged_in_client`, the view-only path, the telnet-command branch of `client_write`, `register_client` success, `unregister_client`, `client_telnet_handler` | The login and password path, the client's life cycle and the cleanup are untested |
 | `mud.py` | `disconnect_from_mud`, `send_to`, `setup_mud`, `mud_write` (all of it), the tail of `mud_telnet_handler`, the `raise exc` branch of `read_mud_line` | The whole write side of the MUD link; and the connect-failure path (#306) |
-| `telnet.py` | `iac`, `iac_sb`, `split_opcode_from_input`, `advertise_features` loop, `echo_on`, `echo_off`, `handle` | Most of these are dead or broken (#67); `echo_on` and `echo_off` carry the password masking |
-| `__init__.py` | covered (100%) | covered by importing; no test checks what the patch does |
+| `telnet.py` | `iac`, `iac_sb`, `split_opcode_from_input`, `advertise_features` loop, `echo_on`, `echo_off`, `handle` | Most of these are dead or broken (#67); `echo_on` and `echo_off` carry the password masking. **Status:** fixed by #67 (dead helpers deleted; `echo_on`, `echo_off` and `go_ahead` now covered by `tests/libs/net/test_telnet.py`) |
+| `__init__.py` | covered (100%) | covered by importing; no test checks what the patch does. **Status:** fixed by #67 (patch deleted; `tests/libs/net/test_telnet.py` checks that importing the package leaves `telnetlib3.telopt` alone) |
 
 `tests/libs/net/` does hold real end-to-end tests, which carry more weight than the percentage: a real
 telnetlib3 client against a raw server for GA, EOR, MCCP and GMCP refusal, line splitting at every byte
@@ -384,7 +385,7 @@ Each claim was re-measured, not repeated.
 | Issue | Verdict | Evidence |
 |-------|---------|----------|
 | #66 echo and empty `begin_advanced_negotiation` | **Holds, two corrections** | Verified, Q4 #3: `WILL ECHO` twice for `xterm` and for `Mudlet`, no `DO NAWS`, no `WILL BINARY`, no `WILL SGA`. Correction 1: `DO NEW_ENVIRON` is still sent, so "disables everything" is too strong. Correction 2: because `WILL SGA` is not sent, SGA is the choice #66 already makes ("leave `WILL SGA` off") and it is the current behaviour, not only a plan |
-| #67 telopt patch and dead helpers | **Holds, one correction** | Verified: `iac([24])` gives `b'\xff24'`; `iac_sb([24, 1])` gives `b'\xff\xfa241\xff\xf0'`; three capabilities advertise 21 bytes, not 9; `split_opcode_from_input(b"Fine*")` gives `(b'F*', 'ine')`. Only `advertise_features`, `echo_on`, `echo_off` and `go_ahead` are called (**verified** by `grep`). Correction: the patch does not "still add `A102`". `A102` is `AARDWOLF`, defined in 5.0.1; the whole patch can go, not all but one name (Q4) |
+| #67 telopt patch and dead helpers | **Holds, one correction** | Verified: `iac([24])` gives `b'\xff24'`; `iac_sb([24, 1])` gives `b'\xff\xfa241\xff\xf0'`; three capabilities advertise 21 bytes, not 9; `split_opcode_from_input(b"Fine*")` gives `(b'F*', 'ine')`. Only `advertise_features`, `echo_on`, `echo_off` and `go_ahead` are called (**verified** by `grep`). Correction: the patch does not "still add `A102`". `A102` is `AARDWOLF`, defined in 5.0.1; the whole patch can go, not all but one name (Q4). **Status:** fixed by #67 |
 | #90 idle time | **Holds, one claim is stale** | `idle` and `duration` exist on `_base.py:108` to `:117` and use naive `datetime.now()`. The claim that `idle` "would raise before any data is received" is wrong: `_last_received` is set in `connection_made`. **Verified**: `idle at connect, no data received: 0.201`. Also, `self.telnet_server` is never `None` after `__init__` (it is `writer.protocol`), and it is read nowhere today (**verified** by `grep`). `idle` counts every received byte, negotiation included, not only typed input |
 | #272 GA to clients that agreed SGA | **Does not hold as written** | "The proxy's telnetlib3 server sends `WILL SGA` unless `line_mode` is set" is true of the stock `TelnetServer`, but `CustomTelnetServer.begin_advanced_negotiation` replaces that code. **Verified**: no `WILL SGA` in the bytes above, so `local_option.enabled(SGA)` is false and `send_ga()` sends GA (read, `stream_writer.py:1108`). The problem returns when #66 restores the stock override. Write the issue as a dependency of #66 |
 | #271 accept SGA from the MUD | **Holds** | **Verified**: the fake MUD's `WILL SGA` is answered `DO SGA` |
@@ -402,7 +403,7 @@ The corrections are written out in the proposed edits to #66, #67, #90 and #272.
 | # | Pattern | File and symbol | Verdict |
 |---|---------|-----------------|---------|
 | 1 | Subclass telnetlib3 types and install them through public arguments (`client_factory`, `protocol_factory`) | `MudTelnetClient`, `CustomTelnetServer` | **Keep.** It is the supported seam |
-| 2 | Import-time side effect: `src/bastproxy/libs/net/__init__.py` mutates `telnetlib3.telopt` and a private dict when anything in `bastproxy.libs.net` is imported | `src/bastproxy/libs/net/__init__.py` | **Change.** Global state, and unneeded (Q4). Delete it (#67) |
+| 2 | Import-time side effect: `src/bastproxy/libs/net/__init__.py` mutates `telnetlib3.telopt` and a private dict when anything in `bastproxy.libs.net` is imported | `src/bastproxy/libs/net/__init__.py` | **Change.** Global state, and unneeded (Q4). Delete it (#67). **Status:** fixed by #67 |
 | 3 | Import-time `try/except ImportError` that prints and calls `sys.exit(1)` | `src/bastproxy/libs/net/server.py`, top | **Change** (#309). telnetlib3 is a hard dependency in `pyproject.toml`, so the branch is dead; a `print` and `sys.exit` in an import is the "silent failure" pitfall in reverse. Coverage shows lines 39 to 42 unreached |
 | 4 | Empty override with a `Raises: NotImplementedError` docstring that does not raise | `CustomTelnetServer.begin_advanced_negotiation` | **Change** (#66; docstring in #309) |
 | 5 | Catch-all `contextlib.suppress(Exception)` around `ipv4_task.result` and `ipv6_task.result` | `Listeners.check_listeners_available`, two blocks | **Change, low priority** (#309). It hides why a listener failed to bind: the error is replaced by the generic "did not start ... please check errors" line. Log the exception |
@@ -410,10 +411,10 @@ The corrections are written out in the proposed edits to #66, #67, #90 and #272.
 | 7 | One narrow `except ConnectionError` | `ClientConnection.client_read` | **Change** (#305): it misses `UnicodeDecodeError`, which kills the client |
 | 8 | Connection state defaulting to the connected state | `MudConnection.connected = True` in `__init__` | **Change** (#306, fixed). Verified defect |
 | 9 | Hard-coded placeholder as data | `_api_client_list_formatted`: `"term_type": "Term Type"` | **Change** (#307). Verified defect; **fixed by #307** |
-| 10 | Unused state: `ClientConnection.rows` (set to 24, never read), `telnet_server` (read nowhere until #90), `MudConnection.term_type` comment lines about `_extra`, `telnet.main_negotiations`, `telnet.opcode_match` | `client.py`, `mud.py`, `telnet.py` | **Change** (#67; rest in #309) |
+| 10 | Unused state: `ClientConnection.rows` (set to 24, never read), `telnet_server` (read nowhere until #90), `MudConnection.term_type` comment lines about `_extra`, `telnet.main_negotiations`, `telnet.opcode_match` | `client.py`, `mud.py`, `telnet.py` | **Change** (#67; rest in #309). **Status:** the `telnet.main_negotiations` and `telnet.opcode_match` part is fixed by #67 |
 | 11 | Copy-pasted log label: `mud_write` logs telnet commands to the MUD as `"to_client"` | `MudConnection.mud_write` | **Change** (#309) |
 | 12 | Copy-pasted headers: `mud.py` says `Filename: libs/net/client.py` and `File Description: Client connection handling.` | `src/bastproxy/libs/net/mud.py`, lines 1 to 6 | **Change** (#309) |
-| 13 | A hidden global: `telnet.GAME_CAPABILITIES` list, mutated by nothing, read by `advertise_features` | `src/bastproxy/libs/net/telnet.py` | **Change** (#67) |
+| 13 | A hidden global: `telnet.GAME_CAPABILITIES` list, mutated by nothing, read by `advertise_features` | `src/bastproxy/libs/net/telnet.py` | **Change** (#67). **Status:** fixed by #67 |
 | 14 | `bastproxy.libs.net.*` is in the mypy `ignore_errors = true` list | `pyproject.toml` | **Keep for now.** This is the legacy strictness tracked in #6; do not widen it. Type-checking `libs/net` is a candidate for #6 |
 | 15 | A listener bound to `"localhost"` is described as IPv4 but binds IPv6 too | `Listeners._create_listeners`, `ipv4address` default | **Observation**, see Other Observations |
 | 16 | `asyncio.sleep(1)` at the end of both handlers | `client_telnet_handler`, `mud_telnet_handler` | **Keep.** Gives the writer time to flush; comment it if touched |
