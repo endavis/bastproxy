@@ -87,7 +87,7 @@ The repo admin decided on 2026-11-09:
 6. **Retention:**
     - keep the last N root trees, where N is configurable, and evict each tree whole, children included;
     - cap each record's changes with `tracking_max_changes`;
-    - no persistence across restarts by default. #82 stays opt-in.
+    - no persistence across restarts. Records stay in memory only (amended by #82, which was not pursued; the network data log keeps the raw I/O).
 7. **Cost targets, stacks off:** at most 50 us per line created and 20 us per change, measured by a benchmark in `tests/benchmarks/`.
 8. **Enums:** `StrEnum` for update flags and for `originated`, `line_type` and `message_type` (#237). `StrEnum` keeps the stored values readable.
 9. **Owner ID:** the class name, already done in #232. Whether records keep API stats at all stays open.
@@ -119,7 +119,7 @@ The repo admin decided on 2026-11-09:
 - Whether records keep API stats stays open (point 9).
 - Implemented by existing issues:
     - #81: stacks configurable;
-    - #82: persistence, opt-in;
+    - #82: persistence, not pursued;
     - #83: protocol and negotiation records;
     - #230: several parents;
     - #233: retention;
@@ -136,7 +136,7 @@ The repo admin decided on 2026-11-09:
 - #248 (processing records off `AttributeMonitor`, slice 4; implements points 2 and 10 in [Record System](../claude/record_system.md#updates))
 - #249 (retention by root tree, slice 5; implementation in [Record System: RecordManager](../claude/record_system.md#recordmanager))
 - #47, #48 (lock and in-place mutations)
-- #80 to #85 (follow-ups filed with #79; #80, #84 and #85 are closed)
+- #80 to #85 (follow-ups filed with #79; #80, #84 and #85 are closed; #82, persistence, was not pursued)
 - #106 (the record audit)
 - #229 to #239 (the audit findings)
 - #241

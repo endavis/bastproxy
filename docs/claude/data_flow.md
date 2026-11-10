@@ -392,7 +392,6 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 The audit of the record system lists the measurements and the new defects: [Record System Findings](record_system_findings.md).
@@ -413,4 +412,4 @@ The audit of the record system lists the measurements and the new defects: [Reco
 
 1. Load `plugins.debug.records` and follow a record's tree and updates (see [Inspecting records](#inspecting-records))
 2. Log with `get_logger(name).debug(...)` or `log_to([...], ...)` from `bastproxy.libs.logger`; see [Logging System](logging_system.md)
-3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log
+3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log, which persists across restarts. Records do not: they stay in memory only, by design (#82)
