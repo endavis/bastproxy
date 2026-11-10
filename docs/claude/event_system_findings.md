@@ -639,6 +639,8 @@ prefix.
 
 ### ES-11: Two code comments in the events plugin are wrong
 
+**Status:** fixed by #285 (the `_exec_once` comment describes the later-pass order of a callback registered during a raise; the `raise_priority` comment names `plugins.core.events:event.current.record.get`).
+
 **Issue:** #285
 **Location:** `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py`: `ProcessRaisedEvent._exec_once`;
 `src/bastproxy/plugins/core/events/plugin/_event.py`: `Event.raise_priority`.
