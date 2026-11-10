@@ -83,6 +83,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [install_tools Framework](development/install-tools-framework.md) - Reusable framework for installing developer tools from GitHub releases or other URLs into ~/.local/bin
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
+- [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
 - [Plugin System](claude/plugin_system.md) - Plugin structure, metadata, loading, reloading and lifecycle
@@ -124,6 +125,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [First 5 Minutes with an AI Agent](development/ai/first-5-minutes.md) - Narrative walkthrough of the AI agent workflow from issue to merge
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
+- [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [Plugin System](claude/plugin_system.md) - Plugin structure, metadata, loading, reloading and lifecycle
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Record System](claude/record_system.md) - Records that track data and operations, their lifecycle and relationships
@@ -204,6 +206,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
+- [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
