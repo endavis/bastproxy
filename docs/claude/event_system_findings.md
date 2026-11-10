@@ -628,6 +628,8 @@ event do not raise. Tests for ES-4 and ES-5 belong with their fixes, not this is
 
 ### ES-10: `@RegisterToEvent` on a method not named `_eventcb_*` is ignored without a message
 
+**Status:** fixed by #284 (the `_eventcb_` prefix is kept; `_register_events_for_plugin` logs a warning for a decorated method without it).
+
 **Issue:** #284
 **Location:** `src/bastproxy/plugins/core/events/plugin/_events.py`: `get_event_registration_functions_in_object`.
 **Evidence (read):** the `find_methods` predicate is `m.__name__.startswith("_eventcb_") and hasattr(m,

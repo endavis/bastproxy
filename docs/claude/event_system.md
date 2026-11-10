@@ -115,7 +115,7 @@ class RegisterToEvent:
         return func
 ```
 
-Only methods whose name starts with `_eventcb_` are picked up (`get_event_registration_functions_in_object`); the decorator on any other name is silently ignored. The `priority` is honoured: `event.register.by.func` passes it to `event.register` as `prio`. The event name may contain `{attribute}` placeholders, filled from the plugin instance, as in `ev_{plugin_id}_var_raised_history_size_modified`.
+Only methods whose name starts with `_eventcb_` are picked up (`get_event_registration_functions_in_object`); the decorator on any other name is ignored, and `_register_events_for_plugin` logs a WARNING naming the plugin, the method and the event names. The `priority` is honoured: `event.register.by.func` passes it to `event.register` as `prio`. The event name may contain `{attribute}` placeholders, filled from the plugin instance, as in `ev_{plugin_id}_var_raised_history_size_modified`.
 
 ### EventsPlugin
 **Location**: `src/bastproxy/plugins/core/events/plugin/_events.py`

@@ -117,6 +117,16 @@ class EventsPlugin(BasePlugin):
             plugin_id,
             len(event_functions),
         )
+        for func in self.get_ignored_event_registration_functions_in_object(plugin_instance):
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.WARNING,
+                "_register_events_for_plugin: %s.%s is decorated with RegisterToEvent for %s "
+                "but is ignored because its name lacks the _eventcb_ prefix",
+                plugin_id,
+                func.__name__,
+                [item["event_name"] for item in func.event_registration],
+            )
         if event_functions:
             names = [item.__name__ for item in event_functions]
             log_to(
@@ -146,6 +156,14 @@ class EventsPlugin(BasePlugin):
         return find_methods(
             base,
             lambda m: m.__name__.startswith("_eventcb_") and hasattr(m, "event_registration"),
+            recurse=recurse,
+        )
+
+    def get_ignored_event_registration_functions_in_object(self, base, recurse=True):
+        """Find decorated methods that are ignored because their name lacks `_eventcb_`."""
+        return find_methods(
+            base,
+            lambda m: not m.__name__.startswith("_eventcb_") and hasattr(m, "event_registration"),
             recurse=recurse,
         )
 
