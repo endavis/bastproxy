@@ -70,8 +70,8 @@ and a page that was behind the code in several places.
 **Key Findings:**
 
 - 11 new defects (ES-1 to ES-11). ES-1 to ES-3 are the Q1 rows for Design #4, Design #2 and Bug #4; ES-4 to
-  ES-11 are under [New Defects](#new-defects). All are filed (#275 to #285). Status since the audit: #275 to #283
-  are fixed (ES-1 to ES-3 by PRs #287 to #289, ES-4 by PR #290); #284 and #285 are open. The bullets above describe
+  ES-11 are under [New Defects](#new-defects). All are filed (#275 to #285). Status since the audit: #275 to #285
+  are fixed (ES-1 to ES-3 by PRs #287 to #289, ES-4 by PR #290, ES-10 by PR #297, ES-11 by PR #298). The bullets above describe
   the code as audited.
 - Of the 19 numbered old findings, 3 are fixed (Bug #1 to #3), 1 is obsolete (Design #1, the claim was
   wrong), 4 were open and filed or tracked (Bug #4, Design #2, #4 and #5; all but Design #5 are since fixed), and 11 are not pursued, as is the

@@ -15,7 +15,7 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
-Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a `@RegisterToEvent` on a method not named `_eventcb_*` is ignored without a message (#284), and two code comments in the events plugin are wrong (#285).
+The defects found by the event system audit (#275 to #285) are fixed; [Event System Findings](event_system_findings.md) records each one and its fix.
 
 ## Key Components
 
