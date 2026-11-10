@@ -68,7 +68,7 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
   connected" and never retries.
 - **The Clients table shows the literal text "Term Type"** (Q3, **verified**, #307), although
   telnetlib3 records the client's terminal type. **Status:** fixed by #307; `ClientConnection.term_type`
-  reads `writer.get_extra_info("TERM")` and the table shows `-` until the client answers TTYPE (or if it never does).
+  reads `writer.get_extra_info("TERM")` and the table shows `-` until the client answers TTYPE (or if it never does). The property keeps only letters, digits and `._+-`, capped at 32 characters.
 - **#272 does not hold as written** (Q7, **verified**). `CustomTelnetServer` never sends `WILL SGA`, so
   `send_ga()` does send GA to clients. #90's `assert` caveat is also stale: `idle` does not raise before
   the first byte. #66 and #67 hold with corrections.
