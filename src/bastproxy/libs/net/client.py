@@ -311,6 +311,8 @@ class ClientConnection:
 
         A broken pipe or a connection reset by the client (any ``ConnectionError``)
         ends the loop with ``connected`` set to False instead of propagating.
+        A ``UnicodeDecodeError`` (the stream ended in the middle of a multi-byte
+        character) is treated as end of stream the same way.
 
         Returns:
             None
@@ -328,6 +330,12 @@ class ClientConnection:
                 count += 1
             except ConnectionError:
                 # BrokenPipeError and ConnectionResetError (a client RST) both end here.
+                self.connected = False
+                continue
+            except UnicodeDecodeError:
+                # telnetlib3 can still raise this when the stream ends in the
+                # middle of a multi-byte character; treat it as end of stream.
+                logger.warning("client_read - undecodable data at end of stream for %s", self.uuid)
                 self.connected = False
                 continue
             logger.debug("client_read - Raw received data in client_read : %s", inp)
