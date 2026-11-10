@@ -7,20 +7,12 @@ import telnetlib3.telopt
 from bastproxy.libs.net import telnet
 
 
-def test_echo_on_bytes() -> None:
-    assert telnet.echo_on() == b"\xff\xfb\x01"
-
-
-def test_echo_off_bytes() -> None:
-    assert telnet.echo_off() == b"\xff\xfc\x01"
-
-
 def test_go_ahead_bytes() -> None:
     assert telnet.go_ahead() == b"\xff\xf9"
 
 
 def test_constants_come_from_telopt() -> None:
-    for name in ("IAC", "WILL", "WONT", "GA", "ECHO"):
+    for name in ("IAC", "GA"):
         assert getattr(telnet, name) is getattr(telnetlib3.telopt, name)
 
 

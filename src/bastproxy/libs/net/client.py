@@ -58,7 +58,6 @@ from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import telnet
 from bastproxy.libs.records import (
-    LineType,
     NetworkData,
     NetworkDataLine,
     Originated,

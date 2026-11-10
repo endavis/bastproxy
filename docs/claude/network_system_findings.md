@@ -58,13 +58,13 @@ is three defects, one feature gap, three housekeeping items and a set of stale c
   is pytest-asyncio's, about an unset config option (#310).
 - **The `telopt` patch is not needed** (Q4, **verified**). telnetlib3 5.0.1 defines all nine options. Eight have the
   proxy's names; the ninth, `A102`, is telnetlib3's `AARDWOLF` (byte 102). The patch only renames
-  telnetlib3's own `_DEBUG_OPTS[102]` from `AARDWOLF` to `A102` at import. #67 says "8 of 9" and keeps `A102`;
-  nothing needs it. **Status:** fixed by #67; the whole patch is deleted.
+  telnetlib3's own `_DEBUG_OPTS[102]` from `AARDWOLF` to `A102` at import. Issue #67 as filed said "8 of 9" and keeping `A102`; the
+  audit corrected this, and #67 deleted the whole patch. **Status:** fixed by #67; the whole patch is deleted.
 - **A client that sends invalid UTF-8 is disconnected** (Q8, **verified**, #305). The listeners keep
   telnetlib3's server default `encoding_errors="strict"`, and `client_read` catches only `ConnectionError`.
   **Status:** fixed by #305 (`encoding_errors="replace"` on both listeners; `client_read` also ends cleanly on `UnicodeDecodeError`).
 - **Client echo and the empty `begin_advanced_negotiation` bypass telnetlib3's option state** (Q3, Q4 #3, **verified**, #66).
-  **Status:** fixed by #66. Echo goes through `writer.iac(WILL, ECHO)` and `writer.iac(WONT, ECHO)`, so each is sent once. The override sends `DO NAWS` and `WILL BINARY`, keeps `WILL SGA` off (GA, #272) and does not request CHARSET or MCCP. `ClientConnection.rows`/`cols` read the NAWS size from the writer; `echo_on` and `echo_off` are now unused (removed by #67).
+  **Status:** fixed by #66. Echo goes through `writer.iac(WILL, ECHO)` and `writer.iac(WONT, ECHO)`, so each is sent once. The override sends `DO NAWS` and `WILL BINARY`, keeps `WILL SGA` off (GA, #272) and does not request CHARSET or MCCP. `ClientConnection.rows`/`cols` read the NAWS size from the writer; `echo_on` and `echo_off` had no callers left and were removed by #67.
 - **A failed MUD connect leaves the proxy believing it is connected** (Q8, **verified**, #306).
   `MudConnection.connected` starts `True`; after a refused connection `#bp.core.proxy.connect` answers "currently
   connected" and never retries.
@@ -221,7 +221,7 @@ The Python version of this run was 3.12.12. The code calls `asyncio.get_event_lo
 
 | Feature | Where the proxy does it | What telnetlib3 5.0.1 provides | Verdict |
 |---------|-------------------------|--------------------------------|---------|
-| Echo negotiation (#66) | `src/bastproxy/libs/net/telnet.py`: `echo_on`, `echo_off` return raw `IAC WILL/WONT ECHO`; `ClientConnection.setup_client` and `process_data_from_not_logged_in_client` send them with `writer.send_iac` | `writer.iac(WILL, ECHO)` records the option state; telnetlib3 also negotiates ECHO itself after TTYPE (`TelnetServer._negotiate_echo`) | **Switch** (#66). **Verified**: both a plain and a MUD client got `WILL ECHO` twice, see Q7 |
+| Echo negotiation (#66) | `src/bastproxy/libs/net/telnet.py`: `echo_on`, `echo_off` return raw `IAC WILL/WONT ECHO`; `ClientConnection.setup_client` and `process_data_from_not_logged_in_client` send them with `writer.send_iac` | `writer.iac(WILL, ECHO)` records the option state; telnetlib3 also negotiates ECHO itself after TTYPE (`TelnetServer._negotiate_echo`) | **Switch** (#66). **Verified**: both a plain and a MUD client got `WILL ECHO` twice, see Q7. **Status:** fixed by #66; the helpers were removed by #67 |
 | Idle and connected time (#90) | `ClientConnection.connected_time`, `connected_length` | `TelnetServer.duration` and `.idle` (`_base.py:108`, `:114`) | **Switch for idle**, keep `connected_time` for the timestamp (#90) |
 | Client terminal type, size | `src/bastproxy/plugins/core/clients/plugin/_clients.py`: `_api_client_list_formatted` writes the constant `"Term Type"`; `ClientConnection.rows` is set to 24 and never read | `writer.get_extra_info("TERM")`, `"rows"`, `"cols"` | **Switch** (#307; terminal type fixed by #307, rows and columns still open). **Verified**: `TERM extra: xterm` after the client answered TTYPE. Rows and columns need NAWS, which is not negotiated (#66) |
 | Terminal type and size sent to the MUD | `MudConnection.term_type = "bastproxy"`; no size | `open_connection(term=, cols=, rows=)`; `writer` answers NAWS from them | **Feature** (#308). **Verified**: the MUD connection answers `DO NAWS` with `WILL NAWS` and `SB NAWS`, from the fixed 80 by 25 default |
@@ -368,7 +368,7 @@ What the missing lines are (**read**, mapped from the line ranges to symbols):
 | `listeners.py` | `Listeners.__init__`, `check_listeners_available` (retry, reset to defaults, exit), `reset_listener_settings`, the no-listener default, `create_listeners` | The start-up failure path is the one an operator meets with a busy port |
 | `client.py` | `ClientConnection.__init__`, `send_to`, `setup_client`, `process_data_from_not_logged_in_client`, the view-only path, the telnet-command branch of `client_write`, `register_client` success, `unregister_client`, `client_telnet_handler` | The login and password path, the client's life cycle and the cleanup are untested |
 | `mud.py` | `disconnect_from_mud`, `send_to`, `setup_mud`, `mud_write` (all of it), the tail of `mud_telnet_handler`, the `raise exc` branch of `read_mud_line` | The whole write side of the MUD link; and the connect-failure path (#306) |
-| `telnet.py` | `iac`, `iac_sb`, `split_opcode_from_input`, `advertise_features` loop, `echo_on`, `echo_off`, `handle` | Most of these are dead or broken (#67); `echo_on` and `echo_off` carry the password masking. **Status:** fixed by #67 (dead helpers deleted; `echo_on`, `echo_off` and `go_ahead` now covered by `tests/libs/net/test_telnet.py`) |
+| `telnet.py` | `iac`, `iac_sb`, `split_opcode_from_input`, `advertise_features` loop, `echo_on`, `echo_off`, `handle` | Most of these are dead or broken (#67); `echo_on` and `echo_off` carry the password masking. **Status:** fixed by #67 (dead helpers deleted, including `echo_on` and `echo_off` and their tests; only `go_ahead` remains, covered by `tests/libs/net/test_telnet.py`) |
 | `__init__.py` | covered (100%) | covered by importing; no test checks what the patch does. **Status:** fixed by #67 (patch deleted; `tests/libs/net/test_telnet.py` checks that importing the package leaves `telnetlib3.telopt` alone) |
 
 `tests/libs/net/` does hold real end-to-end tests, which carry more weight than the percentage: a real
