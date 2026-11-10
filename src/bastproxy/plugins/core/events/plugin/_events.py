@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/events/_events.py
+# Filename: plugins/core/events/plugin/_events.py
 #
 # File Description: a plugin to handle events
 #
