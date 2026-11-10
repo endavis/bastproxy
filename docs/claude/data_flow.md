@@ -166,7 +166,7 @@ Code that wants to send to the MUD without the modify event calls this directly.
 1. Raises `ev_to_client_data_modify` with `data_list=[MUD I/O lines]`, `key_name="line"`
 2. If `send_to_clients` is still set, runs `SendDataDirectlyToClient(self.message, clients=..., exclude_clients=...)()`
 
-The constructor also accepts `preamble`, `prelogin`, `error` and `color_for_all_lines`, but `_exec_()` does not apply them, and the class's own `can_send_to_client()` is never called (#50).
+The constructor takes only `message`, `clients` and `exclude_clients`. Per-line formatting (preamble, prelogin, color) comes from each `NetworkDataLine`'s own fields; the send decision is `SendDataDirectlyToClient.can_send_to_client()`. The former `preamble`, `prelogin`, `error` and `color_for_all_lines` options were removed (#50).
 
 ### SendDataDirectlyToClient
 
@@ -384,7 +384,6 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 
 | Issue | Gap |
 |-------|-----|
-| #50 | `ProcessDataToClient` ignores `preamble`, `error` and `color_for_all_lines` |
 | #82 | Records are kept only in memory: those beyond the retention window are lost, and none survive a restart |
 | #83 | Telnet negotiation and protocol messages are not tracked as records |
 
