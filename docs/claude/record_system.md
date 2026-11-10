@@ -137,7 +137,7 @@ class RecordManager:
 
 **`NetworkData` and `NetworkDataLine`** are built on pydatatracker (`TrackedList` and `TrackedAttr`) through `TrackedRecordMixin` in `src/bastproxy/libs/records/tracking.py` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)).
 
-**`BaseDictRecord(TrackedRecordMixin, TrackedDict)`** keeps `original_data`. Every mutation (set, `del`, `pop`, `popitem`, `update`, `clear`, `setdefault`, `|=`) adds a `Modify` update, and once the record is locked each of them raises `RuntimeError` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). `copy()` is a read and returns a plain `dict`. `track_record` is accepted and ignored, because dict records are never executed. A stored value that is itself a record (`NetworkData`, `NetworkDataLine`) is not linked as a pydatatracker child, so it keeps its own parents and lock; a plain `TrackedDict` or `TrackedList` value is linked and locked with the record. `.data` is gone. `EventDataRecord` and `CmdArgsRecord` are dict records.
+**`BaseDictRecord(TrackedRecordMixin, TrackedDict)`** keeps `original_data`. Every mutation (set, `del`, `pop`, `popitem`, `update`, `clear`, `setdefault`, `|=`) adds a `Modify` update, and once the record is locked each of them raises `RuntimeError` ([ADR-0006](../decisions/0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md)). `copy()` is a read and returns a plain `dict`. `track_record` is accepted and ignored, because dict records are never executed. A stored value that is itself a record (`NetworkData`, `NetworkDataLine`) is not linked as a pydatatracker child, so it keeps its own parents and lock; a plain `TrackedDict` or `TrackedList` value is linked and locked with the record. A plain mutable value (list, dict, set) is stored as is: in-place changes to it are not tracked or locked, and `original_data` is a shallow copy. Assign a new value, or store a `TrackedList` or `TrackedDict`, to have changes tracked (#48). `.data` is gone. `EventDataRecord` and `CmdArgsRecord` are dict records.
 
 ## How It Works
 
@@ -263,7 +263,7 @@ Log messages are not records. `LogRecord` was removed in #247. The last 50 log l
 
 ## Tracked network data
 
-`NetworkDataLine` (`TrackedAttr`) declares its monitored fields with `_tracking_fields`, so the first assignment records nothing and later ones record an `update` entry. `line_modified` is set when `line` changes to a different value. `original_line` is a read-only property.
+`NetworkDataLine` (`TrackedAttr`) declares its monitored fields with `_tracking_fields`, so the first assignment records nothing and later ones record an `update` entry. `line_modified` is set when `line` changes to a different value. `original_line` is a read-only property. A `bytearray` line, given to `__init__` or assigned to `line`, is stored as `bytes`, so it cannot change in place and `original_line` is a snapshot (#48).
 
 `originated` and `line_type` are the `StrEnum`s `Originated` and `LineType` (in `src/bastproxy/libs/records/enums.py`, exported from `bastproxy.libs.records`). `NetworkDataLine.__init__` coerces its arguments first, so a string still works and an unknown value raises `ValueError` before any record is registered. A member equals its old string, so logs and debug output do not change. Locking these fields is tracked in #264.
 

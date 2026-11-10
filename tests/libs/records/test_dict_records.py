@@ -148,6 +148,19 @@ def test_nested_tracked_dict_is_locked_by_cascade() -> None:
         inner["x"] = 2
 
 
+def test_plain_list_value_is_not_tracked_or_locked() -> None:
+    """In-place changes to a plain mutable value are intentionally not tracked (#48)."""
+    items: list[int] = [1]
+    rec = BaseDictRecord(data={})
+    rec["items"] = items
+    before = len(rec.updates)
+    items.append(2)
+    assert len(rec.updates) == before
+    rec.lock()
+    items.append(3)
+    assert items == [1, 2, 3]
+
+
 @pytest.mark.usefixtures("plugin_apis")
 def test_display_event_data_record() -> None:
     rec = EventDataRecord(event_name="ev_test246", data={"a": "1"})
