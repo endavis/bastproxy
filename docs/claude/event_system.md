@@ -15,7 +15,7 @@ tags:
 
 The event system in bastproxy is a priority-based event dispatch system that allows plugins to register callbacks for specific events and process them in a defined order. Events can be raised by any component, and registered callbacks are executed based on their priority level (lower numbers execute first).
 
-Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a callback registered during a raise can be dropped from that raise (#275).
+Known gaps, each tracked as an issue and described in [Event System Findings](event_system_findings.md): a `@RegisterToEvent` on a method not named `_eventcb_*` is ignored without a message (#284), and two code comments in the events plugin are wrong (#285).
 
 ## Key Components
 
@@ -177,9 +177,9 @@ When an event is raised:
 2. The event data is wrapped in an `EventDataRecord` if it's not already
 3. Callbacks are executed in priority order (sorted by priority number)
 4. Each callback is executed once per raise (and per item of a `data_list`)
-5. If new callbacks are registered during execution, they are processed in subsequent passes, but one registered at an already visited priority from the second pass on can be dropped from that raise (#275)
+5. If new callbacks are registered during execution, they are processed in subsequent passes, whichever pass registers them and at whatever priority; one registered at an already visited priority runs out of priority order and logs the out-of-order warning (#275)
 6. The raise ends; its `done` set goes with it, and `active_event` and `current_callback` return to what they were before the raise
-7. An exception in a callback is logged and the remaining callbacks still run; `raise_event` returns `None` and logs an error when the data is neither a dict nor an `EventDataRecord` (the log line itself raises `AttributeError`, #276)
+7. An exception in a callback is logged and the remaining callbacks still run; `raise_event` returns `None` and logs an error when the data is neither a dict nor an `EventDataRecord` (the error log names the `actor`, #276)
 
 #### Actors
 
@@ -212,7 +212,7 @@ def raise_priority(self, priority, already_done: bool, done: set | None = None) 
     return found
 ```
 
-`already_done` is true when the priority was visited in an earlier pass; the warning is only logged then. A callback declared `async def` is called but never awaited, so its body never runs (#277).
+`already_done` is true when the priority was visited in an earlier pass; the warning is only logged then. A callback declared `async def` never reaches this method: `Event.register` rejects it (#277).
 
 ### 5. Event Stack
 
@@ -281,7 +281,7 @@ self.api("plugins.core.events:event.raise")(
 ### Registering to an Event
 
 ```python
-@RegisterToEvent(event_name="ev_to_client_data_modify", priority=1)  # stored at 50 today (#278)
+@RegisterToEvent(event_name="ev_to_client_data_modify", priority=1)  # stored at priority 1 (#278)
 def _eventcb_process_client_data(self):
     """Process data before it's sent to the client."""
     event_record = self.api("plugins.core.events:event.current.record.get")()
@@ -352,15 +352,16 @@ while found_callbacks:
     if keys := list(self.event.priority_dictionary.keys()):
         keys = sorted(keys)
         for priority in keys:
-            found_callbacks = self.event.raise_priority(
+            ran = self.event.raise_priority(
                 priority, priority in priorities_done, self.done
             )
+            found_callbacks = found_callbacks or bool(ran)
             priorities_done.append(priority)
 ```
 
 If the loop executes more than twice, a warning is logged indicating that callbacks were added during execution.
 
-`found_callbacks` is overwritten by each priority instead of being OR-ed, so a pass ends when the last priority ran nothing, and a callback registered from the second pass on at an already visited priority is not run in that raise (#275). A callback registered during the first pass runs after the callbacks at higher priorities, not in priority order, and the out-of-order warning is logged only for an already visited priority.
+`found_callbacks` is OR-ed across the priorities of a pass, so another pass runs whenever any priority ran a callback, and a callback registered from the second pass on at an already visited priority runs in that raise (#275). A callback registered during the first pass runs after the callbacks at higher priorities, not in priority order, and the out-of-order warning is logged only for an already visited priority.
 
 ### Event Data Mutation Tracking
 
