@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
-from bastproxy.libs.logger import get_logger
+from bastproxy.libs.logger import get_logger, input_placeholder
 from bastproxy.libs.net import mxp, telnet
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
@@ -460,9 +460,11 @@ class ClientConnection:
                 logger.warning("client_read - undecodable data at end of stream for %s", self.uuid)
                 self.connected = False
                 continue
-            logger.debug("client_read - Raw received data in client_read : %s", inp)
+            # until the client is logged in, log a placeholder instead of the line
+            logged_inp = inp if self.state["logged in"] else input_placeholder(inp)
+            logger.debug("client_read - Raw received data in client_read : %s", logged_inp)
             logger.debug("client_read - inp type = %s", type(inp))
-            self.data_logger.info("%-12s : %s", "client_read", inp)
+            self.data_logger.info("%-12s : %s", "client_read", logged_inp)
 
             if not inp:  # This is an EOF.  Hard disconnect.
                 self.connected = False

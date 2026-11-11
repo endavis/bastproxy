@@ -102,7 +102,11 @@ BASEAPI.BASEDATALOGPATH = BASEAPI.BASEDATAPATH / "logs"
 BASEAPI.BASEPLUGINPATH = BASTPROXY_HOME / "plugins"
 
 BASEAPI.BASEDATAPATH.mkdir(parents=True, exist_ok=True)
-BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True)
+if not BASEAPI.BASEDATALOGPATH.exists():
+    # mkdir's mode is masked by the umask, so set it explicitly; only a directory
+    # created here is changed
+    BASEAPI.BASEDATALOGPATH.mkdir(parents=True, exist_ok=True, mode=0o700)
+    BASEAPI.BASEDATALOGPATH.chmod(0o700)
 BASEAPI.BASEDATAPLUGINPATH.mkdir(parents=True, exist_ok=True)
 BASEAPI.BASEPLUGINPATH.mkdir(parents=True, exist_ok=True)
 
@@ -285,6 +289,8 @@ def main() -> None:
         # In quiet mode, set up a basic file handler for early logging
         # This will be replaced when plugins.core.log loads
         log_file = BASEAPI.BASEDATALOGPATH / "bastproxy.log"
+        # create the file with mode 0o600 before the handler opens it
+        os.close(os.open(log_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600))
         file_handler = logging.FileHandler(log_file, mode="a")
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s")

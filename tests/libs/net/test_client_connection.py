@@ -1,6 +1,7 @@
 """Tests for ClientConnection login, writing, registration and cleanup (#310)."""
 
 import asyncio
+import logging
 from collections.abc import Callable
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -314,3 +315,33 @@ async def test_client_telnet_handler_banned_client_is_closed(
         writer.close()
         srv.close()
         await srv.wait_closed()
+
+
+async def _read_lines(conn: ClientConnection, lines: list[str]) -> None:
+    conn.reader.readline = AsyncMock(side_effect=[*lines, ""])  # type: ignore[method-assign]
+    await conn.client_read()
+
+
+async def test_client_read_logs_placeholder_before_login(
+    fake_api: FakeApi, sent: list[list[str]], caplog: pytest.LogCaptureFixture
+) -> None:
+    conn, _ = _conn()
+    caplog.set_level(logging.DEBUG)
+    await _read_lines(conn, ["abc123xyz\r\n"])
+    messages = [r.getMessage() for r in caplog.records]
+    assert all("abc123xyz" not in m for m in messages)
+    assert any("<input before login, 11 chars>" in m for m in messages)
+    assert f"data.client.{conn.uuid}" in {r.name for r in caplog.records}
+
+
+async def test_client_read_logs_line_after_login(
+    fake_api: FakeApi, sent: list[list[str]], caplog: pytest.LogCaptureFixture
+) -> None:
+    conn, _ = _conn()
+    conn.state["logged in"] = True
+    conn.view_only = True
+    caplog.set_level(logging.DEBUG)
+    await _read_lines(conn, ["look\r\n"])
+    data = [r.getMessage() for r in caplog.records if r.name == f"data.client.{conn.uuid}"]
+    assert any("look" in m for m in data)
+    assert all("input before login" not in r.getMessage() for r in caplog.records)
