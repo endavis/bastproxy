@@ -118,6 +118,9 @@ class ProtocolManager:
         # MXP line modes of the MUD link (#61)
         self._mxp_default: mxp.MxpMode = mxp.MxpMode.OPEN
         self._mxp_current: mxp.MxpMode = mxp.MxpMode.OPEN
+        # Definition capture keeps its own carried state: ESC[4z covers only the next tag (#333).
+        self._mxp_capture_current: mxp.MxpMode = mxp.MxpMode.OPEN
+        self._mxp_capture_pending = False
         # secure-mode definitions, in order, by (kind, name) (#333)
         self._mxp_defs: dict[tuple[str, str], list[str]] = {}
         self._mxp_defs_chars = 0
@@ -232,6 +235,8 @@ class ProtocolManager:
         """Return the MUD's MXP modes to open."""
         self._mxp_default = mxp.MxpMode.OPEN
         self._mxp_current = mxp.MxpMode.OPEN
+        self._mxp_capture_current = mxp.MxpMode.OPEN
+        self._mxp_capture_pending = False
 
     def mxp_line_mode(self, text: str, *, ended: bool, enabled: bool) -> mxp.MxpMode | None:
         """Track the MUD's MXP modes over one received piece of a line (#61).
@@ -244,10 +249,15 @@ class ProtocolManager:
             self._mxp_reset()
             return None
         start = self._mxp_current
-        self._mxp_store(mxp.find_definitions(text, start, self._mxp_default))
+        tags, cap_current, _, cap_pending = mxp.scan_definitions(
+            text, self._mxp_capture_current, self._mxp_default, self._mxp_capture_pending
+        )
+        self._mxp_store(tags)
         current, default = mxp.scan_modes(text, start, self._mxp_default)
         self._mxp_default = default
         self._mxp_current = default if ended else current
+        self._mxp_capture_current = default if ended else cap_current
+        self._mxp_capture_pending = False if ended else cap_pending
         return start
 
     def _mxp_drop(self, tag: str) -> None:

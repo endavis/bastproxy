@@ -619,3 +619,36 @@ async def test_an_empty_store_sends_nothing_extra() -> None:
         client, _ = await join(stack, proxy, {MXP}, login="full")
         await settle()
         assert ESC not in _text(client)
+
+
+def _pieces(*pieces: tuple[str, bool]) -> list[str]:
+    for text, ended in pieces:
+        PROTOCOLS.mxp_line_mode(text, ended=ended, enabled=True)
+    return _stored()
+
+
+def test_temp_secure_at_the_end_of_a_piece_covers_only_the_next_tag() -> None:
+    stored = _pieces((f"x{ESC}[4z", False), ("<!EL a><!EL b><!EL c>", True))
+    assert stored == ["<!EL a>"]
+
+
+def test_temp_secure_followed_by_text_in_the_next_piece_covers_nothing() -> None:
+    assert _pieces((f"{ESC}[4z", False), ("hi <!EL a>", True)) == []
+
+
+def test_temp_secure_followed_by_text_covers_nothing() -> None:
+    assert mxp.find_definitions(f"{ESC}[4zhi <!EL a>", OP, OP) == []
+
+
+def test_temp_secure_does_not_carry_to_the_next_line() -> None:
+    assert _pieces((f"{ESC}[4z", True), ("<!EL a>", True)) == []
+
+
+def test_a_secure_line_mode_still_carries_over_pieces() -> None:
+    assert _pieces((f"{ESC}[1zx", False), ("<!EL a><!EL b>", True)) == ["<!EL a>", "<!EL b>"]
+
+
+def test_scan_definitions_reports_a_pending_temp_secure_only_at_the_end() -> None:
+    assert mxp.scan_definitions(f"x{ESC}[4z", OP, OP)[3] is True
+    assert mxp.scan_definitions(f"{ESC}[4zx", OP, OP)[3] is False
+    assert mxp.scan_definitions(f"{ESC}[4z<!EL a>", OP, OP)[3] is False

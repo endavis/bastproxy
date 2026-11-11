@@ -65,6 +65,7 @@ __all__ = [
     "definition_key",
     "find_definitions",
     "render_for_client",
+    "scan_definitions",
     "scan_modes",
     "strip",
     "sync_escape",
@@ -322,21 +323,32 @@ def definition_key(tag: str) -> tuple[tuple[str, str], str] | None:
 
 
 def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]:
-    """The definition tags in ``text`` that were sent in secure mode.
+    """The definition tags in ``text`` that were sent in secure mode (see ``scan_definitions``)."""
+    return scan_definitions(text, current, default)[0]
 
-    ``text`` is a piece of a line that starts in ``current`` with the MUD's ``default``. A tag
-    counts when the line was secure, ``ESC[1z`` came before it, or it is the first well-formed
-    tag after ``ESC[4z``. One forward pass, under the same look-ahead limit as ``strip``. A tag
-    with a line break or an ESC in it is skipped.
+
+def scan_definitions(
+    text: str, current: MxpMode, default: MxpMode, pending: bool = False
+) -> tuple[list[str], MxpMode, MxpMode, bool]:
+    """Find the definition tags in ``text`` sent in secure mode, and the capture state after it.
+
+    ``text`` is a piece of a line that starts in ``current`` with the MUD's ``default``.
+    ``pending`` is True when the previous piece ended right after ``ESC[4z``. A tag counts when
+    the mode is secure, or it is the tag that starts at the ``<`` immediately after ``ESC[4z``
+    (temporary secure covers only that one tag, as an MXP client applies it). ``ESC[4z`` never
+    changes ``current`` here, unlike ``apply_escape`` for stripping. One forward pass, under the
+    same look-ahead limit as ``strip``. A tag with a line break or an ESC in it is skipped.
+
+    Returns ``(tags, current, default, pending)``: the state to carry into the next piece of the
+    same line. ``pending`` is True only when ``ESC[4z`` was the last thing in ``text``.
     """
-    if "<" not in text:
-        return []
     found: list[str] = []
     last_gt = text.rfind(">")
     pos = 0
     size = len(text)
     budget = MXP_SCAN_FACTOR * size + MXP_MAX_TAG_LENGTH
-    pending = False
+    if pending and size and text[0] != "<":
+        pending = False
     while pos < size:
         match = _DEFINITION_SPECIAL_RE.search(text, pos)
         if match is None:
@@ -349,12 +361,16 @@ def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]
                 continue
             pos = esc[1]
             if esc[0] == 4:
-                pending = True
+                # Temporary secure applies only when the very next character is ``<``; at the
+                # end of the piece it carries over to the next piece of the line.
+                pending = pos >= size or text[pos] == "<"
             else:
                 pending = False
                 current, default = apply_escape(esc[0], current, default)
             continue
-        if current == MxpMode.LOCKED and not pending:
+        temp = pending
+        pending = False
+        if current == MxpMode.LOCKED and not temp:
             continue
         nxt = text[i + 1 : i + 2]
         if not nxt or not (nxt.isalpha() or nxt in "/!"):
@@ -364,8 +380,7 @@ def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]
         if end == -1:
             continue
         pos = end
-        secure = pending or current == MxpMode.SECURE
-        pending = False
+        secure = temp or current == MxpMode.SECURE
         tag = text[i:end]
         if (
             secure
@@ -374,7 +389,7 @@ def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]
             and not any(c in tag for c in "\r\n\x1b")
         ):
             found.append(tag)
-    return found
+    return found, current, default, pending
 
 
 def sync_escape(default: MxpMode) -> str:
