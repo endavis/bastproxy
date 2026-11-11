@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP, SGA
+from telnetlib3.telopt import CMD_EOR, ECHO, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP, SGA
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -66,6 +66,23 @@ logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetWriterUnicode
+
+
+def _echo_placeholder(line: str | bytes) -> str:
+    """Return a length-only stand-in for a line sent while the MUD has echo off.
+
+    The MUD sent WILL ECHO, asking that input not be echoed, so the line is not logged.
+    The length excludes the trailing line ending.
+
+    Args:
+        line: The line being sent to the MUD.
+
+    Returns:
+        A placeholder such as ``<... 8 chars>``.
+
+    """
+    text = line.rstrip(b"\r\n") if isinstance(line, bytes) else line.rstrip("\r\n")
+    return f"<... {len(text)} chars>"
 
 
 class MudConnection:
@@ -288,11 +305,16 @@ class MudConnection:
             count += 1
             if msg_obj.is_io:
                 if msg_obj.line:
-                    logger.debug("mud_write - Writing message to mud: %s", msg_obj.line)
+                    shown = (
+                        _echo_placeholder(msg_obj.line)
+                        if self.writer.remote_option.enabled(ECHO) is True
+                        else msg_obj.line
+                    )
+                    logger.debug("mud_write - Writing message to mud: %s", shown)
                     logger.debug("mud_write - type of msg_obj.msg = %s", type(msg_obj.line))
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
-                    logging.getLogger("data.mud").info("%-12s : %s", "to_mud", msg_obj.line)
+                    logging.getLogger("data.mud").info("%-12s : %s", "to_mud", shown)
                 else:
                     logger.debug("client_write - No message to write to client.")
             elif msg_obj.is_command_telnet:

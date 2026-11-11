@@ -86,6 +86,14 @@ Colours are applied when a record is output, not when it is logged:
 | `LogRecord(["l1", "l2"], ...)()` | one string: `"\n".join(lines)` |
 | `LogRecord("msg", level="error", sources=[a], exc_info=True)()` | `get_logger(a).error("msg", exc_info=True)` |
 
+## Input the MUD asked not to echo
+
+While the MUD has WILL ECHO in effect on the link (echo off), `MudConnection.mud_write` logs each line sent to the MUD as a length placeholder, `<... N chars>`, instead of the line. N excludes the trailing line ending. This applies to the `to_mud` message in `data.mud` and to the `mud_write` debug records.
+
+Masked: every line sent to the MUD while it has WILL ECHO in effect. Nothing on the wire says whether the line was typed as input or as a command, so a line sent while echo is off is masked whatever its content.
+
+Not masked: telnet commands sent to the MUD; lines sent before the MUD negotiates echo, which are logged as typed; and lines sent after the MUD sends WONT ECHO.
+
 ## Measured cost
 
 Scratch measurement after #247 (Python 3.12.12, one run, median of 5 runs of 2000 calls, a `NullHandler` only, no plugins): `get_logger(NAME).debug(...)` costs 0.54 us per call with debug off and 5.02 us with debug on; `log_to` with two sources costs 1.44 us with debug off and 5.03 us with debug on. `tests/benchmarks/test_bench_logging.py` asserts at most 5 us for the debug-off single-source call when benchmarks are enabled (`doit benchmark`).
