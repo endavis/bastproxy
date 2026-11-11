@@ -173,15 +173,26 @@ def make_log_dir(path: Path) -> None:
         created.chmod(LOG_DIR_MODE)
 
 
+def _private_opener(path: str, flags: int) -> int:
+    """Open ``path`` so a file created by the call has mode 0o600 from the start."""
+    return os.open(path, flags, LOG_FILE_MODE)
+
+
 class PrivateFileMixin:
-    """Open log files, including rotated ones, with mode 0o600 when newly created."""
+    """Open log files, including rotated ones, so new files are created with mode 0o600.
+
+    The mode is passed at creation through the ``opener`` hook, so the file never
+    exists with a wider mode. An existing file keeps its mode.
+    """
 
     def _open(self) -> Any:
-        existed = os.path.exists(self.baseFilename)  # type: ignore[attr-defined]
-        stream = super()._open()  # type: ignore[misc]
-        if not existed:
-            os.chmod(self.baseFilename, LOG_FILE_MODE)  # type: ignore[attr-defined]
-        return stream
+        return open(
+            self.baseFilename,  # type: ignore[attr-defined]
+            self.mode,  # type: ignore[attr-defined]
+            encoding=self.encoding,  # type: ignore[attr-defined]
+            errors=self.errors,  # type: ignore[attr-defined]
+            opener=_private_opener,
+        )
 
 
 class PrivateTimedRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotatingFileHandler):
