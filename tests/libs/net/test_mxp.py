@@ -413,3 +413,209 @@ async def test_mode_sync_reaches_an_mxp_client_only_when_the_default_is_not_open
         await locked_client.wait_for(lambda: f"{ESC}[7z" in _text(locked_client))
         await settle()
         assert ESC not in _text(plain_client)
+
+
+# definitions (#333) ---------------------------------------------------------------------
+
+S, OP, L = MxpMode.SECURE, MxpMode.OPEN, MxpMode.LOCKED
+
+
+def _defs(text: str, current: MxpMode = OP, default: MxpMode = OP) -> list[str]:
+    return mxp.find_definitions(text, current, default)
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "<!ELEMENT a '<b>'>",
+        "<!EL a '<b>'>",
+        "<!ENTITY x 'y'>",
+        "<!EN x 'y'>",
+        "<!ATTLIST a b='c'>",
+        "<!AT a b='c'>",
+        "<!TAG 20 FLAG=Room>",
+        "<!el a '<b>'>",
+    ],
+)
+def test_find_definitions_finds_each_kind_in_every_secure_form(tag: str) -> None:
+    assert _defs(f"{ESC}[1z{tag}") == [tag]
+    assert _defs(tag, current=S) == [tag]
+    assert _defs(f"{ESC}[6z{tag}") == [tag]
+    assert _defs(f"{ESC}[4z{tag}") == [tag]
+
+
+def test_find_definitions_ignores_open_and_locked_modes() -> None:
+    tag = "<!EL a>"
+    assert _defs(tag) == []
+    assert _defs(tag, current=L) == []
+    assert _defs(f"{ESC}[7z{tag}") == []
+    assert _defs(f"{ESC}[1z{ESC}[2z{tag}") == []
+    assert _defs(f"{ESC}[1z{ESC}[0z{tag}") == []
+
+
+def test_find_definitions_temp_secure_covers_only_the_next_tag() -> None:
+    assert _defs(f"{ESC}[4z<!EL a><!EL b>") == ["<!EL a>"]
+    assert _defs(f"{ESC}[4z<b>x</b><!EL b>") == []
+
+
+def test_find_definitions_ignores_other_declarations_and_unterminated_tags() -> None:
+    assert _defs(f"{ESC}[1z<!-- x --><!DOCTYPE a><!EL a") == []
+    assert _defs(f"{ESC}[1z<!EL a '>'") == []
+
+
+def test_find_definitions_skips_tags_with_line_breaks_or_escapes() -> None:
+    assert _defs(f"{ESC}[1z<!EN a 'x\ny'>") == []
+    assert _defs(f"{ESC}[1z<!EN a 'x\ry'>") == []
+    assert _defs(f"{ESC}[1z<!EN a 'x{ESC}[2zy'>") == []
+
+
+def test_find_definitions_respects_the_look_ahead_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mxp, "MXP_MAX_TAG_LENGTH", 10)
+    text = f"{ESC}[1z" + "<!EL a x" * 50
+    start = time.perf_counter()
+    assert _defs(text) == []
+    assert time.perf_counter() - start < 1
+
+
+def test_find_definitions_stays_linear_on_unterminated_tags() -> None:
+    text = f"{ESC}[1z" + "<!EL " * 20000 + ">"
+    start = time.perf_counter()
+    _defs(text)
+    assert time.perf_counter() - start < 2
+
+
+def test_definition_key_maps_abbreviations_and_cases_names() -> None:
+    assert mxp.definition_key("<!EL Foo '<b>'>") == (("ELEMENT", "foo"), "set")
+    assert mxp.definition_key("<!ELEMENT foo>") == (("ELEMENT", "foo"), "set")
+    assert mxp.definition_key("<!EN Foo 'x'>") == (("ENTITY", "Foo"), "set")
+    assert mxp.definition_key("<!AT A b=c>") == (("ATTLIST", "a"), "set")
+    assert mxp.definition_key("<!TAG 20>") == (("TAG", "20"), "set")
+    assert mxp.definition_key("<!-- x -->") is None
+    assert mxp.definition_key("<!DOCTYPE a>") is None
+    assert mxp.definition_key("<!EL>") is None
+
+
+def test_definition_key_actions() -> None:
+    assert mxp.definition_key("<!EL a DELETE>") == (("ELEMENT", "a"), "delete")
+    assert mxp.definition_key("<!EN a DELETE>") == (("ENTITY", "a"), "delete")
+    assert mxp.definition_key("<!EN a 'v' ADD>") == (("ENTITY", "a"), "add")
+    assert mxp.definition_key("<!EN a 'v' remove>") == (("ENTITY", "a"), "add")
+    assert mxp.definition_key("<!EN a 'DELETE'>") == (("ENTITY", "a"), "set")
+    assert mxp.definition_key('<!EN a "x DELETE">') == (("ENTITY", "a"), "set")
+
+
+def _feed(*tags: str) -> None:
+    PROTOCOLS.mxp_line_mode(f"{ESC}[1z" + "".join(tags), ended=True, enabled=True)
+
+
+def _stored() -> list[str]:
+    return [t for tags in PROTOCOLS._mxp_defs.values() for t in tags]
+
+
+def test_a_redefinition_replaces_and_moves_to_the_end() -> None:
+    _feed("<!EL a 'one'>", "<!EL b 'two'>")
+    _feed("<!EL A 'three'>")
+    assert _stored() == ["<!EL b 'two'>", "<!EL A 'three'>"]
+
+
+def test_delete_removes_and_stores_nothing() -> None:
+    _feed("<!EL a 'one'>", "<!EN x 'v'>")
+    _feed("<!EL a DELETE>")
+    assert _stored() == ["<!EN x 'v'>"]
+    assert PROTOCOLS._mxp_defs_chars == len("<!EN x 'v'>")
+
+
+def test_add_appends_and_a_plain_redefinition_resets() -> None:
+    _feed("<!EN x 'a'>", "<!EN x 'b' ADD>", "<!EN x 'c' REMOVE>")
+    assert _stored() == ["<!EN x 'a'>", "<!EN x 'b' ADD>", "<!EN x 'c' REMOVE>"]
+    _feed("<!EN x 'z'>")
+    assert _stored() == ["<!EN x 'z'>"]
+    assert PROTOCOLS._mxp_defs_chars == len("<!EN x 'z'>")
+
+
+def test_the_count_limit_drops_new_definitions_and_logs_once(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(mxp, "MXP_MAX_DEFINITIONS", 2)
+    with caplog.at_level("WARNING"):
+        _feed("<!EL a>", "<!EL b>", "<!EL c>", "<!EL d>")
+    assert _stored() == ["<!EL a>", "<!EL b>"]
+    assert len([r for r in caplog.records if "limit" in r.getMessage()]) == 1
+    _feed("<!EL a 'new'>")  # a replacement still fits
+    assert _stored() == ["<!EL b>", "<!EL a 'new'>"]
+    PROTOCOLS.mud_disconnected()
+    assert PROTOCOLS._mxp_defs_full_logged is False
+
+
+def test_the_size_limit_drops_new_definitions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mxp, "MXP_MAX_DEFINITION_CHARS", 20)
+    _feed("<!EL a 'x'>", "<!EL b 'yyyyyyyyyyyy'>")
+    assert _stored() == ["<!EL a 'x'>"]
+    _feed("<!EL a 'xxxxxxxxx'>")  # larger replacement that still fits
+    assert _stored() == ["<!EL a 'xxxxxxxxx'>"]
+    _feed("<!EL a 'xxxxxxxxxxxxxxxxxxxx'>")  # too large: the old one stays
+    assert _stored() == ["<!EL a 'xxxxxxxxx'>"]
+
+
+def test_disconnect_clears_and_nothing_is_stored_while_mxp_is_off() -> None:
+    _feed("<!EL a>")
+    PROTOCOLS.mud_disconnected()
+    assert _stored() == [] and PROTOCOLS._mxp_defs_chars == 0
+    PROTOCOLS.mxp_line_mode(f"{ESC}[1z<!EL a>", ended=True, enabled=False)
+    assert _stored() == []
+
+
+def test_the_mode_state_does_not_clear_the_store() -> None:
+    _feed("<!EL a>")
+    PROTOCOLS.mxp_line_mode("x", ended=True, enabled=False)
+    assert _stored() == ["<!EL a>"]
+
+
+async def test_a_late_joining_mxp_client_gets_the_definitions_in_order() -> None:
+    async with world() as (proxy, _mud, _push, _writer), AsyncExitStack() as stack:
+        PROTOCOLS.mxp_line_mode(f"{ESC}[7z", ended=True, enabled=True)
+        _feed("<!EL a '<b>'>", "<!EN x 'y'>")
+        mxp_client, conn = await join(stack, proxy, {MXP}, login="full")
+        plain, _ = await join(stack, proxy, set(), login="full")
+        expected = f"{ESC}[7z{ESC}[1z<!EL a '<b>'>\r\n{ESC}[1z<!EN x 'y'>\r\n"
+        await mxp_client.wait_for(lambda: expected in _text(mxp_client))
+        await settle()
+        assert ESC not in _text(plain) and "<!" not in _text(plain)
+        await _start_writers(stack, conn)
+        _enqueue(conn, _line("hello\r\n", MxpMode.OPEN))
+        await mxp_client.wait_for(lambda: "hello" in _text(mxp_client))
+        assert _text(mxp_client).index("<!EN x") < _text(mxp_client).index("hello")
+
+
+async def test_a_present_client_gets_a_live_definition_once() -> None:
+    async with world() as (proxy, _mud, _push, _writer), AsyncExitStack() as stack:
+        first, conn = await join(stack, proxy, {MXP}, login="full")
+        await wait_until(lambda: conn.mxp_enabled)
+        await _start_writers(stack, conn)
+        line = f"{ESC}[1z<!EL a '<b>'>\r\n"
+        mode_ = PROTOCOLS.mxp_line_mode(line, ended=True, enabled=True)
+        _enqueue(conn, _line(line, mode_))
+        await first.wait_for(lambda: "<!EL a" in _text(first))
+        await join(stack, proxy, {MXP}, login="full")
+        await settle()
+        assert _text(first).count("<!EL a") == 1
+
+
+async def test_enabling_mxp_after_login_replays_once() -> None:
+    async with world() as (proxy, _mud, _push, _writer), AsyncExitStack() as stack:
+        _feed("<!EL a '<b>'>")
+        client, conn = await join(stack, proxy, set(), login="full")
+        await settle()
+        assert "<!EL" not in _text(client)
+        client.send(IAC + DO + MXP)
+        await wait_until(lambda: conn.mxp_enabled)
+        await client.wait_for(lambda: "<!EL a" in _text(client))
+        await settle()
+        assert _text(client).count("<!EL a") == 1
+
+
+async def test_an_empty_store_sends_nothing_extra() -> None:
+    async with world() as (proxy, _mud, _push, _writer), AsyncExitStack() as stack:
+        client, _ = await join(stack, proxy, {MXP}, login="full")
+        await settle()
+        assert ESC not in _text(client)

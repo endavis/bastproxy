@@ -6,9 +6,14 @@
 # By: Bast
 """Terminate GMCP, MSDP and MSSP on the MUD link and publish them as events (#59, #60, ADR-0001).
 
-MXP (#61) is not decoded here. This manager only tracks the MUD's MXP line modes
+MXP (#61) is not decoded here. This manager tracks the MUD's MXP line modes
 (``mxp_line_mode``), logs the MUD's ``SB MXP`` start and, when an MXP client logs in or turns
 MXP on, sends it the MUD's default mode. Stripping and the per-client copy live in ``mxp``.
+It also keeps the secure-mode element, entity, attribute-list and tag definitions the MUD sent
+(#333): a redefinition replaces, ``DELETE`` removes, ``ADD``/``REMOVE`` of an entity append;
+at most ``MXP_MAX_DEFINITIONS`` definitions and ``MXP_MAX_DEFINITION_CHARS`` characters are
+kept (a new definition over a limit is dropped), and a disconnect clears them. An MXP client
+that logs in or turns MXP on gets them as ``ESC[1z`` + tag + ``\r\n`` lines after the mode.
 
 ``PROTOCOLS`` is the one ``ProtocolManager``. It outlives any one ``MudConnection``, which is
 rebuilt on each connect, and plugins can use its APIs before the MUD connects.
@@ -113,6 +118,10 @@ class ProtocolManager:
         # MXP line modes of the MUD link (#61)
         self._mxp_default: mxp.MxpMode = mxp.MxpMode.OPEN
         self._mxp_current: mxp.MxpMode = mxp.MxpMode.OPEN
+        # secure-mode definitions, in order, by (kind, name) (#333)
+        self._mxp_defs: dict[tuple[str, str], list[str]] = {}
+        self._mxp_defs_chars = 0
+        self._mxp_defs_full_logged = False
         # uuid -> ClientConnection, for clients that are logged in
         self._clients: dict[str, Any] = {}
 
@@ -214,6 +223,9 @@ class ProtocolManager:
         self._msdp_cache.clear()
         self._mssp = {}
         self._cap_logged = False
+        self._mxp_defs = {}
+        self._mxp_defs_chars = 0
+        self._mxp_defs_full_logged = False
         self._mxp_reset()
 
     def _mxp_reset(self) -> None:
@@ -232,24 +244,68 @@ class ProtocolManager:
             self._mxp_reset()
             return None
         start = self._mxp_current
+        self._mxp_store(mxp.find_definitions(text, start, self._mxp_default))
         current, default = mxp.scan_modes(text, start, self._mxp_default)
         self._mxp_default = default
         self._mxp_current = default if ended else current
         return start
+
+    def _mxp_drop(self, tag: str) -> None:
+        """Log once per MUD connection that a definition was dropped for a limit."""
+        if not self._mxp_defs_full_logged:
+            self._mxp_defs_full_logged = True
+            logger.warning(
+                "MXP definition limit reached, dropping new definitions (e.g. %.60s)", tag
+            )
+
+    def _mxp_store(self, tags: list[str]) -> None:
+        """Apply the definition ``tags`` to the stored definitions (#333)."""
+        for tag in tags:
+            if any(c in tag for c in "\r\n\x1b"):
+                continue
+            parsed = mxp.definition_key(tag)
+            if parsed is None:
+                continue
+            key, action = parsed
+            old = self._mxp_defs.get(key)
+            if action == "delete":
+                if old is not None:
+                    self._mxp_defs_chars -= sum(len(t) for t in old)
+                    del self._mxp_defs[key]
+                continue
+            freed = sum(len(t) for t in old) if old is not None and action == "set" else 0
+            if (
+                old is None and len(self._mxp_defs) >= mxp.MXP_MAX_DEFINITIONS
+            ) or self._mxp_defs_chars - freed + len(tag) > mxp.MXP_MAX_DEFINITION_CHARS:
+                self._mxp_drop(tag)
+                continue
+            if action == "add" and old is not None:
+                old.append(tag)
+            else:
+                self._mxp_defs.pop(key, None)
+                self._mxp_defs[key] = [tag]
+            self._mxp_defs_chars += len(tag) - freed
+
+    def _mxp_replay(self) -> str:
+        """The stored definitions as ``ESC[1z`` + tag + ``\\r\\n`` lines."""
+        return "".join(f"\x1b[1z{tag}\r\n" for tags in self._mxp_defs.values() for tag in tags)
 
     def on_mud_mxp(self, payload: bytes) -> None:
         """Log an ``SB MXP`` from the MUD; the payload is not kept (#61)."""
         logger.debug("MXP subnegotiation from the mud, %d bytes", len(payload))
 
     def _mxp_sync(self, conn: Any) -> None:
-        """Tell a logged-in MXP client the MUD's default mode when it is not open (#61)."""
+        """Tell a logged-in MXP client the MUD's default mode, then the stored definitions.
+
+        The mode goes only when it is not open (#61); the definitions go in order (#333).
+        """
         if not getattr(conn, "mxp_enabled", False) or conn.writer.is_closing():
             return
-        escape = mxp.sync_escape(self._mxp_default)
-        if not escape:
+        payload = mxp.sync_escape(self._mxp_default) + self._mxp_replay()
+        if not payload:
             return
         try:
-            conn.writer.write(escape)
+            conn.writer.write(payload)
         except Exception:
             logger.exception("Could not send the MXP mode to client %s", conn.uuid)
 

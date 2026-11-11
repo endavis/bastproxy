@@ -64,6 +64,7 @@ The cost is re-encoding on the client side and a cache to maintain. Each protoco
 - Issue #59: Terminate GMCP and MSDP and publish them as events (MUD side first)
 - Issue #60: Cache MUD MSSP data and answer client MSSP requests
 - Issue #61: Pass MXP to clients that negotiate it and strip it for others
+- Issue #333: Replay MXP element and entity definitions to late-joining clients
 
 ## Related Documentation
 

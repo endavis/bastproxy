@@ -32,6 +32,14 @@ Once a line has used that, every later ``<`` in it stays literal. A well-formed 
 ahead about once over each tag, far below the limit, so the work for any line stays
 proportional to its length.
 
+``find_definitions`` collects the element, entity, attribute-list and tag definitions
+(``<!EL>``, ``<!EN>``, ``<!AT>``, ``<!TAG>`` and their long forms) that the MUD sent in secure
+mode, so the proxy can replay them to an MXP client that joins later (#333). It runs in one
+forward pass under the same ``MXP_SCAN_FACTOR`` look-ahead limit as ``strip``. ``ESC[4z`` covers
+only the next well-formed tag. ``definition_key`` names a definition by kind and name in one
+forward pass over the tag. The stored count and size are limited by ``MXP_MAX_DEFINITIONS`` and
+``MXP_MAX_DEFINITION_CHARS``.
+
 Text the proxy sends to an MXP client as literal text (``render_for_client`` with no
 ``mxp_mode``) has its own mode escapes removed and every line in it locked, so nothing in it
 can turn MXP back on.
@@ -47,11 +55,15 @@ if TYPE_CHECKING:
 
 __all__ = [
     "LOCKED_LINE",
+    "MXP_MAX_DEFINITIONS",
+    "MXP_MAX_DEFINITION_CHARS",
     "MXP_MAX_ENTITY_LENGTH",
     "MXP_MAX_TAG_LENGTH",
     "MXP_SCAN_FACTOR",
     "MxpMode",
     "apply_escape",
+    "definition_key",
+    "find_definitions",
     "render_for_client",
     "scan_modes",
     "strip",
@@ -61,6 +73,8 @@ __all__ = [
 MXP_MAX_TAG_LENGTH = 2048
 MXP_MAX_ENTITY_LENGTH = 32
 MXP_SCAN_FACTOR = 2
+MXP_MAX_DEFINITIONS = 256
+MXP_MAX_DEFINITION_CHARS = 65536
 _MAX_ESCAPE_DIGITS = 6
 
 LOCKED_LINE = "\x1b[2z"
@@ -71,6 +85,16 @@ _ANY_MODE_ESCAPE_RE = re.compile(r"\x1b\[[0-9]*z")
 _OTHER_ESC_RE = re.compile(r"\x1b(?!\[[0-9;?]*[A-Za-y])")
 # A line end that is not the last character: ``\n``, or ``\r`` not followed by ``\n``.
 _LINE_END_RE = re.compile(r"(\n|\r(?!\n))(?!\Z)")
+_DEFINITION_SPECIAL_RE = re.compile(r"[<\x1b]")
+_DEFINITION_KINDS = {
+    "ELEMENT": "ELEMENT",
+    "EL": "ELEMENT",
+    "ENTITY": "ENTITY",
+    "EN": "ENTITY",
+    "ATTLIST": "ATTLIST",
+    "AT": "ATTLIST",
+    "TAG": "TAG",
+}
 _ENTITIES = {"lt": "<", "gt": ">", "amp": "&", "quot": '"'}
 
 
@@ -231,6 +255,126 @@ def strip(text: str, mode: MxpMode | str = MxpMode.OPEN) -> str:
                 out.append(decoded[0])
                 pos = decoded[1]
     return "".join(out)
+
+
+def _split_words(body: str) -> list[tuple[str, bool]]:
+    """Split ``body`` on whitespace outside quotes, in one forward pass.
+
+    Returns ``(word without its quote characters, word had a quote)`` pairs.
+    """
+    words: list[tuple[str, bool]] = []
+    chars: list[str] = []
+    quote = ""
+    quoted = False
+    in_word = False
+    for ch in body:
+        if quote:
+            if ch == quote:
+                quote = ""
+            else:
+                chars.append(ch)
+        elif ch in "'\"":
+            quote = ch
+            quoted = True
+            in_word = True
+        elif ch.isspace():
+            if in_word:
+                words.append(("".join(chars), quoted))
+                chars = []
+                quoted = False
+                in_word = False
+        else:
+            chars.append(ch)
+            in_word = True
+    if in_word:
+        words.append(("".join(chars), quoted))
+    return words
+
+
+def definition_key(tag: str) -> tuple[tuple[str, str], str] | None:
+    """Name the definition a ``<!KIND name ...>`` tag makes, or None for any other tag.
+
+    Returns ``((kind, name), action)``. The kind is the full kind (``ELEMENT``, ``ENTITY``,
+    ``ATTLIST`` or ``TAG``). Element, attribute-list and tag names are casefolded, entity names
+    keep their case. The action is ``delete`` for a bare ``DELETE`` word after the name, ``add``
+    for a bare ``ADD`` or ``REMOVE`` word in an entity definition, else ``set``.
+    """
+    if not tag.startswith("<!") or not tag.endswith(">"):
+        return None
+    words = _split_words(tag[2:-1])
+    if len(words) < 2 or words[0][1]:
+        return None
+    kind = _DEFINITION_KINDS.get(words[0][0].upper())
+    name = words[1][0]
+    if kind is None or not name:
+        return None
+    action = "set"
+    for word, quoted in words[2:]:
+        if quoted:
+            continue
+        upper = word.upper()
+        if upper == "DELETE":
+            action = "delete"
+            break
+        if upper in ("ADD", "REMOVE") and kind == "ENTITY":
+            action = "add"
+    return (kind, name if kind == "ENTITY" else name.casefold()), action
+
+
+def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]:
+    """The definition tags in ``text`` that were sent in secure mode.
+
+    ``text`` is a piece of a line that starts in ``current`` with the MUD's ``default``. A tag
+    counts when the line was secure, ``ESC[1z`` came before it, or it is the first well-formed
+    tag after ``ESC[4z``. One forward pass, under the same look-ahead limit as ``strip``. A tag
+    with a line break or an ESC in it is skipped.
+    """
+    if "<" not in text:
+        return []
+    found: list[str] = []
+    last_gt = text.rfind(">")
+    pos = 0
+    size = len(text)
+    budget = MXP_SCAN_FACTOR * size + MXP_MAX_TAG_LENGTH
+    pending = False
+    while pos < size:
+        match = _DEFINITION_SPECIAL_RE.search(text, pos)
+        if match is None:
+            break
+        i = match.start()
+        pos = i + 1
+        if text[i] == "\x1b":
+            esc = _escape_at(text, i)
+            if esc is None:
+                continue
+            pos = esc[1]
+            if esc[0] == 4:
+                pending = True
+            else:
+                pending = False
+                current, default = apply_escape(esc[0], current, default)
+            continue
+        if current == MxpMode.LOCKED and not pending:
+            continue
+        nxt = text[i + 1 : i + 2]
+        if not nxt or not (nxt.isalpha() or nxt in "/!"):
+            continue
+        end, used = _tag_end(text, i, last_gt, budget)
+        budget -= used
+        if end == -1:
+            continue
+        pos = end
+        secure = pending or current == MxpMode.SECURE
+        pending = False
+        tag = text[i:end]
+        if (
+            secure
+            and nxt == "!"
+            and definition_key(tag) is not None
+            and not any(c in tag for c in "\r\n\x1b")
+        ):
+            found.append(tag)
+    return found
 
 
 def sync_escape(default: MxpMode) -> str:
