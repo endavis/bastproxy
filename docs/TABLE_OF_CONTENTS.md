@@ -100,6 +100,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
+- [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 <!-- END:audience=contributors -->
 
 ### For AI Agents
@@ -137,6 +138,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
+- [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 <!-- END:audience=ai-agents -->
 
 ## Complete Index
@@ -225,6 +227,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
+- [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 <!-- END:all -->
 
