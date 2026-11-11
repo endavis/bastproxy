@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 from telnetlib3 import open_connection
-from telnetlib3.telopt import CMD_EOR, DO, DONT, GA, GMCP, IAC, MCCP2_COMPRESS, WILL
+from telnetlib3.telopt import CMD_EOR, DO, DONT, GA, GMCP, IAC, MCCP2_COMPRESS, SGA, WILL
 
 from bastproxy.libs.net.mud import (
     MudConnection,
@@ -97,6 +97,18 @@ async def test_mccp2_is_refused() -> None:
     received = await _negotiate_and_collect(MCCP2_COMPRESS)
     assert IAC + DO + MCCP2_COMPRESS not in received
     assert IAC + DONT + MCCP2_COMPRESS in received
+
+
+async def test_sga_is_refused() -> None:
+    received = await _negotiate_and_collect(SGA)
+    assert IAC + DONT + SGA in received
+    assert IAC + DO + SGA not in received
+
+
+@pytest.mark.parametrize("option", [GMCP, b"\x01", b"\x00"], ids=["gmcp", "echo", "binary"])
+async def test_other_will_offers_are_unaffected(option: bytes) -> None:
+    received = await _negotiate_and_collect(option)
+    assert IAC + DO + option in received
 
 
 async def test_client_never_announces_gmcp() -> None:

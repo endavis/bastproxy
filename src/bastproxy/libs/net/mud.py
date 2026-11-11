@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP
+from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP, SGA
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -554,6 +554,8 @@ class MudTelnetClient(TelnetClient):
     - it inflates a received chunk without a size limit. Here a chunk that inflates past
       ``MCCP2_MAX_INFLATED_CHUNK`` counts as a broken stream.
     - ``WONT MCCP3`` from the MUD never stops its compression of our writes.
+
+    SGA is refused (``DONT SGA``) so the MUD keeps sending ``IAC GA`` after prompts (#271).
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -622,7 +624,12 @@ class MudTelnetClient(TelnetClient):
     _writer_factory_encoding = RecordingTelnetWriter
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        """Register the prompt marks (IAC GA and IAC EOR) once the reader exists."""
+        """Register the prompt marks and refuse SGA once the reader exists.
+
+        ``WILL SGA`` from the MUD gets ``DONT SGA`` (#271): a MUD that is allowed to suppress
+        go-ahead stops sending ``IAC GA`` after prompts, and the prompt marks below depend on it.
+        """
         super().connection_made(transport)
+        self.writer.always_dont.add(SGA)
         for cmd in (GA, CMD_EOR):
             self.writer.set_iac_callback(cmd, self.reader.mark_prompt)

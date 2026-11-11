@@ -149,7 +149,7 @@ MXP markup is ordinary text in the data stream, so the proxy passes it to a clie
 - The wait is the `mudlinewait` setting of `plugins.core.proxy`, in milliseconds (default 100). `mud_telnet_handler` applies it to the reader when the connection opens, so a change applies to the next connection.
 - When the wait expires, a trailing lone `\r` or `\n` becomes a complete line (`ended=True`). Text with no ending becomes a partial line (`ended=False`), so a prompt with no line ending is delivered. At EOF the reader delivers at once.
 - Leftmost-longest matching means `one\n\r\ntwo` reads as `one\n\r`, a blank line `\n`, then `two`, whether or not a packet boundary falls inside it.
-- `IAC GA` and `IAC EOR` call `MudTelnetReader.mark_prompt`, which marks the end of the data received so far. The bytes up to the mark are delivered at once with `prompt=True`, and `mud_read()` sets `NetworkDataLine.is_prompt`. Without GA or EOR, nothing is marked as a prompt.
+- `IAC GA` and `IAC EOR` call `MudTelnetReader.mark_prompt`, which marks the end of the data received so far. The bytes up to the mark are delivered at once with `prompt=True`, and `mud_read()` sets `NetworkDataLine.is_prompt`. Without GA or EOR, nothing is marked as a prompt. The MUD link refuses SGA (`MudTelnetClient.connection_made` adds it to `writer.always_dont`, so `WILL SGA` gets `DONT SGA`), because a MUD that may suppress go-ahead stops sending GA (#271, ADR-0001).
 
 `mud_read()` keeps reading lines into the same `NetworkData` while `line_ready()` is true and the batch is below `max_lines_to_process` (15 by default). Then:
 
