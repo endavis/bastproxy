@@ -147,7 +147,7 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [0001](0001-terminate-mud-telnet-protocols-at-the-proxy.md) | Terminate MUD telnet protocols at the proxy | Proposed |
+| [0001](0001-terminate-mud-telnet-protocols-at-the-proxy.md) | Terminate MUD telnet protocols at the proxy | Accepted |
 | [0004](0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md) | API names are resource-first and cmdq is renamed mudcmds | Accepted |
 | [0005](0005-record-tracking-scope-change-contents-retention-and-cost.md) | Record tracking: scope, change contents, retention and cost | Accepted |
 | [0006](0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md) | Records adapt pydatatracker containers and locked writes raise RuntimeError | Accepted |
