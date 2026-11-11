@@ -1,6 +1,7 @@
 """Tests for MXP: the stripper, the modes, per-client rendering and the links (#61)."""
 
 import asyncio
+import re
 import time
 from collections.abc import Iterator
 from contextlib import AsyncExitStack
@@ -177,6 +178,36 @@ def test_render_literal_text_locks_every_line() -> None:
     assert rendered == (
         LOCKED_LINE + "one <b>\r\n" + LOCKED_LINE + "two <i>\n" + LOCKED_LINE + "three\r\n"
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("a\n\r<b>", "a\n" + LOCKED_LINE + "\r" + LOCKED_LINE + "<b>"),
+        ("a\r<b>", "a\r" + LOCKED_LINE + "<b>"),
+        ("a\n\n<b>", "a\n" + LOCKED_LINE + "\n" + LOCKED_LINE + "<b>"),
+    ],
+)
+def test_render_literal_text_locks_after_every_line_end(text: str, expected: str) -> None:
+    rendered = mxp.render_for_client(_line(text, None, Originated.INTERNAL), True)
+    assert rendered == LOCKED_LINE + expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["\x1b[\x1b[0zz<b>", "\x1b\x1b[0z<b>", "x\x1b[\x1b[\x1b[\x1b[0zzzz<b>", "\x1b[\x1b[z<b>"],
+)
+def test_render_literal_text_leaves_no_mode_escape_after_nesting(text: str) -> None:
+    rendered = mxp.render_for_client(_line(text, None, Originated.INTERNAL), True)
+    assert isinstance(rendered, str)
+    assert rendered.startswith(LOCKED_LINE)
+    assert re.search(r"\x1b\[[0-9]*z", rendered[len(LOCKED_LINE) :]) is None
+    assert rendered.endswith("<b>")
+
+
+def test_render_literal_text_keeps_ansi_colour() -> None:
+    text = "\x1b[1;31mred\x1b[0m <b>"
+    assert mxp.render_for_client(_line(text, None, Originated.INTERNAL), True) == LOCKED_LINE + text
 
 
 def test_render_literal_text_is_unchanged_for_a_client_without_mxp() -> None:

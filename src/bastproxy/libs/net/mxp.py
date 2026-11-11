@@ -67,7 +67,10 @@ LOCKED_LINE = "\x1b[2z"
 
 _SPECIAL_RE = re.compile(r"[<&\x1b]")
 _ANY_MODE_ESCAPE_RE = re.compile(r"\x1b\[[0-9]*z")
-_LINE_START_RE = re.compile(r"\n(?=[^\r\n])")
+# An ESC that does not start a CSI sequence ending in a letter other than ``z``.
+_OTHER_ESC_RE = re.compile(r"\x1b(?!\[[0-9;?]*[A-Za-y])")
+# A line end that is not the last character: ``\n``, or ``\r`` not followed by ``\n``.
+_LINE_END_RE = re.compile(r"(\n|\r(?!\n))(?!\Z)")
 _ENTITIES = {"lt": "<", "gt": ">", "amp": "&", "quot": '"'}
 
 
@@ -242,6 +245,17 @@ def sync_escape(default: MxpMode) -> str:
     return ""
 
 
+def _literal_text(text: str) -> str:
+    """``text`` with its mode escapes removed, for an MXP client to show as literal text.
+
+    Whole ``ESC[<n>z`` escapes are removed first. Then every ESC that does not start a CSI
+    sequence ending in a letter other than ``z`` is dropped. That second pass only removes ESC
+    characters, so it cannot form a new escape, and an escape left over from nesting
+    (``ESC[ESC[0zz``) loses its ESC. ANSI colour codes are kept.
+    """
+    return _OTHER_ESC_RE.sub("", _ANY_MODE_ESCAPE_RE.sub("", text))
+
+
 def render_for_client(line: "NetworkDataLine", client_mxp: bool) -> str | bytes:
     """The text to write to one client for ``line``.
 
@@ -249,8 +263,9 @@ def render_for_client(line: "NetworkDataLine", client_mxp: bool) -> str | bytes:
     ``mxp_mode`` set came from a MUD with MXP: an MXP client gets it as it is, any other client
     gets it stripped. A line with no ``mxp_mode`` is plain text the proxy made (or came from a
     MUD without MXP): an MXP client gets it behind ``ESC[2z`` so it shows as literal text, and any
-    other client gets it as it is. For an MXP client its own mode escapes are removed and each
-    of its lines is locked, so nothing in it can turn MXP back on.
+    other client gets it as it is. For an MXP client its own mode escapes are removed
+    (``_literal_text``) and every line in it is locked, including a line after a lone ``\r``,
+    so nothing in it can turn MXP back on.
     """
     text = line.line
     if line.is_command_telnet or not line.is_io or not isinstance(text, str):
@@ -258,7 +273,5 @@ def render_for_client(line: "NetworkDataLine", client_mxp: bool) -> str | bytes:
     if line.mxp_mode is None:
         if not client_mxp:
             return text
-        return LOCKED_LINE + _LINE_START_RE.sub(
-            "\n" + LOCKED_LINE, _ANY_MODE_ESCAPE_RE.sub("", text)
-        )
+        return LOCKED_LINE + _LINE_END_RE.sub(r"\1" + LOCKED_LINE, _literal_text(text))
     return text if client_mxp else strip(text, line.mxp_mode)
