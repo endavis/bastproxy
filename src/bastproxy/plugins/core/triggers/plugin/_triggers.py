@@ -600,11 +600,13 @@ class TriggersPlugin(BasePlugin):
 
         """
         args = {"line": data_line}
-        get_logger(self.plugin_id).debug(
-            "_eventcb_check_trigger - line %s matched the following regexes %s",
-            data_line.colorcoded,
-            regex_match_data,
-        )
+        match_logger = get_logger(self.plugin_id)
+        if match_logger.isEnabledFor(logging.DEBUG):
+            match_logger.debug(
+                "_eventcb_check_trigger - line %s matched the following regexes %s",
+                data_line.colorcoded,
+                regex_match_data,
+            )
         for regex_id in regex_match_data:
             match = None
             if regex_id not in self.regexes:

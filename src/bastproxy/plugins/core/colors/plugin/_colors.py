@@ -244,7 +244,8 @@ class ColorsPlugin(BasePlugin):
             try:
                 return f"@{CONVERTANSI[tstr]}"
             except KeyError:
-                logger.error("could not lookup color %s for text %r", tstr, text)
+                # SGR codes with no colorcode (22, 1, 4, 39, 49, ...) are dropped quietly
+                logger.debug("no colorcode for ansi code %s in text %r", tstr, text)
                 return ""
 
         return ANSI_COLOR_REGEX.sub(single_sub, text)
