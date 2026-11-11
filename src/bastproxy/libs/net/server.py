@@ -73,8 +73,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         - ``DO CHARSET``: ``force_binary=True`` on the listeners already fixes
           the encoding (#63) and CHARSET could renegotiate it.
         - ``WILL MCCP3``: telnetlib3 5.0.2 cannot serve client-side MCCP3 (it answers
-          ``DO MCCP3`` with ``WONT``, mishandles a stream that starts mid-chunk and
-          passes raw bytes on after a zlib error), so only MCCP2 is offered (#58).
+          ``DO MCCP3`` with ``WONT``), so only MCCP2 is offered (#58, #329).
 
         Sent when the listener passes ``compression=True`` and the link is not TLS
         (the guard telnetlib3 uses): ``WILL MCCP2_COMPRESS``. Compression starts when

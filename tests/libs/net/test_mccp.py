@@ -22,6 +22,7 @@ from telnetlib3.telopt import (
     WONT,
 )
 
+from bastproxy.libs.net import mud as mud_module
 from bastproxy.libs.net.client import ClientConnection
 from bastproxy.libs.net.mud import MudLine, MudTelnetClient
 from bastproxy.libs.records import RMANAGER, TelnetNegotiation
@@ -204,6 +205,52 @@ async def test_mud_broken_stream_closes_the_link(caplog: pytest.LogCaptureFixtur
     assert "�" not in everything
     assert "garbage" not in everything
     assert "later" not in everything
+
+
+async def test_mud_chunk_over_the_inflation_limit_closes_the_link(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mud_module, "MCCP2_MAX_INFLATED_CHUNK", 1000)
+
+    async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
+        c = zlib.compressobj()
+        w.write(START2 + c.compress(b"hello\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        await w.drain()
+        await asyncio.sleep(0.2)
+        w.write(c.compress(b"A" * 5000 + b"\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        await w.drain()
+
+    caplog.set_level(logging.ERROR)
+    async with scripted_mud(_offer_m2(script)) as mud:
+        reader, writer = await _connect(mud.port)
+        protocol = writer.protocol
+        got = await _lines(reader, 2)
+        await asyncio.sleep(0.4)
+        eof = reader.at_eof()
+        writer.close()
+    assert got[0] == MudLine("hello\r\n", True, False)
+    assert eof
+    assert protocol.mccp2_failed is True
+    assert any("inflation limit" in r.message for r in caplog.records)
+    assert "A" not in "".join(x.text for x in got)
+
+
+async def test_mud_chunk_under_the_inflation_limit_decodes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(mud_module, "MCCP2_MAX_INFLATED_CHUNK", 1000)
+    body = "B" * 900 + "\r\n"
+
+    async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
+        c = zlib.compressobj()
+        w.write(START2 + c.compress(body.encode()) + c.flush(zlib.Z_SYNC_FLUSH))
+        await w.drain()
+
+    async with scripted_mud(_offer_m2(script)) as mud:
+        reader, writer = await _connect(mud.port)
+        got = await _text(reader, len(body))
+        writer.close()
+    assert got == body
 
 
 async def test_mud_raw_deflate_on_first_chunk_decodes() -> None:
