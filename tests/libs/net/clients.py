@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
-from telnetlib3.mud import gmcp_encode, msdp_encode
+from telnetlib3.mud import gmcp_encode, msdp_encode, mssp_encode
 from telnetlib3.telopt import (
     DO,
     DONT,
@@ -21,6 +21,7 @@ from telnetlib3.telopt import (
     IAC,
     MCCP2_COMPRESS,
     MSDP,
+    MSSP,
     SB,
     SE,
     TTYPE,
@@ -177,6 +178,10 @@ class ScriptedClient:
         """Send an MSDP message."""
         self.send(sb_frame(MSDP, msdp_encode(variables)))
 
+    def mssp(self, variables: dict[str, str | list[str]]) -> None:
+        """Send an MSSP message."""
+        self.send(sb_frame(MSSP, mssp_encode(variables)))
+
     async def wait_for(self, predicate: Callable[[], bool]) -> None:
         """Wait until ``predicate()`` is true, or fail the test on timeout."""
         await wait_until(predicate)
@@ -310,6 +315,11 @@ class ScriptedMud:
     def msdp_frame(variables: dict[str, Any]) -> bytes:
         """The bytes of an MSDP message, to write from a script."""
         return sb_frame(MSDP, msdp_encode(variables))
+
+    @staticmethod
+    def mssp_frame(variables: dict[str, str | list[str]]) -> bytes:
+        """The bytes of an MSSP message, to write from a script."""
+        return sb_frame(MSSP, mssp_encode(variables))
 
 
 @asynccontextmanager

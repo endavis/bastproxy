@@ -16,6 +16,7 @@ from telnetlib3.telopt import (
     MCCP2_COMPRESS,
     MCCP3_COMPRESS,
     MSDP,
+    MSSP,
     NAWS,
     NEW_ENVIRON,
     SB,
@@ -217,6 +218,7 @@ def test_server_override_does_not_call_super() -> None:
         ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
+        ((WILL, MSSP),),
     ]
 
 
@@ -281,6 +283,7 @@ def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
         ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
+        ((WILL, MSSP),),
         ((WILL, MCCP2_COMPRESS),),
     ]
     assert ((WILL, MCCP3_COMPRESS),) not in writer.iac.call_args_list
@@ -294,6 +297,7 @@ def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:
         ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
+        ((WILL, MSSP),),
     ]
 
 
@@ -305,6 +309,7 @@ def test_begin_advanced_negotiation_no_mccp2_when_compression_off() -> None:
         ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
+        ((WILL, MSSP),),
     ]
 
 
