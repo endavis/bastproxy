@@ -35,7 +35,7 @@ from typing import Any
 
 # 3rd Party
 import telnetlib3
-from telnetlib3.telopt import BINARY, DO, GMCP, MCCP2_COMPRESS, MSDP, MSSP, NAWS, WILL
+from telnetlib3.telopt import BINARY, DO, GMCP, MCCP2_COMPRESS, MSDP, MSSP, MXP, NAWS, WILL
 
 # Project
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
@@ -65,6 +65,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         - ``DO NAWS``, so the client reports its window size (telnetlib3 stores
           it as the ``rows`` and ``cols`` extra info, see ``ClientConnection``).
         - ``WILL BINARY``, so the proxy may send 8-bit data (utf8) to the client.
+        - ``WILL MXP``, so a client can take the MUD's MXP markup; a client without MXP gets the
+          text with the markup stripped (#61).
         - ``WILL GMCP``, ``WILL MSDP`` and ``WILL MSSP``, so a client can take the MUD's
           out-of-band data and status table from the proxy, which terminates these protocols on
           every link (ADR-0001, #59, #60). A client receives nothing until it answers ``DO``
@@ -92,6 +94,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, GMCP)
         self.writer.iac(WILL, MSDP)
         self.writer.iac(WILL, MSSP)
+        self.writer.iac(WILL, MXP)
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
 

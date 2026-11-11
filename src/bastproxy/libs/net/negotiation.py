@@ -24,7 +24,7 @@ from uuid import uuid4
 
 # 3rd Party
 from telnetlib3 import TelnetWriterUnicode
-from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, MSSP, SB, SE, WILL, WONT, name_option
+from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, MSSP, MXP, SB, SE, WILL, WONT, name_option
 
 # Project
 from bastproxy.libs.logger import get_logger
@@ -104,11 +104,17 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
             for opt in (GMCP, MSDP):
                 self.set_ext_callback(opt, self._make_pending_callback(opt))
             self.set_ext_callback(MSSP, self._drop_client_mssp)
+            self.set_ext_callback(MXP, self._drop_client_mxp)
 
     @staticmethod
     def _drop_client_mssp(_variables: dict[str, Any]) -> None:
         """MSSP describes the game, so MSSP from a client is dropped, never stored (#60)."""
         logger.debug("Dropped an MSSP message from a client")
+
+    @staticmethod
+    def _drop_client_mxp(_payload: bytes) -> None:
+        """An ``SB MXP`` from a client is dropped, never stored (#61)."""
+        logger.debug("Dropped an MXP subnegotiation from a client")
 
     def _make_pending_callback(self, opt: bytes) -> Callable[..., None]:
         """Build the callback that queues a decoded message for ``opt`` until it is taken."""
@@ -167,14 +173,14 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         super().send_iac(buf)
 
     def _oob_changed(self, opt: bytes, enabled: bool) -> None:
-        """Tell ``oob_option_callback`` that GMCP, MSDP or MSSP changed state, if anyone listens.
+        """Tell ``oob_option_callback`` that GMCP, MSDP or MSSP changed state (and MXP), if anyone listens.
 
         telnetlib3 stores ``local_option`` only after ``handle_do`` and ``handle_dont`` return,
         so it is set here first; the callback can then send on the link.
         """
         was = self.local_option.enabled(opt)
         callback = self.oob_option_callback
-        if callback is None or opt not in (GMCP, MSDP, MSSP) or was == enabled:
+        if callback is None or opt not in (GMCP, MSDP, MSSP, MXP) or was == enabled:
             return
         self.local_option[opt] = enabled
         try:
@@ -185,7 +191,11 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     def handle_do(self, opt: bytes) -> bool:
         """Record a received DO, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "DO", opt, b"", IAC + DO + opt)
+        was_mxp = opt == MXP and self.local_option.enabled(MXP) is True
         result = super().handle_do(opt)
+        if opt == MXP and result and not was_mxp and self.server and not self.is_closing():
+            # MXP starts on this link: tell the client (#61); send_iac records it
+            self.send_iac(IAC + SB + MXP + IAC + SE)
         self._oob_changed(opt, result)
         return result
 

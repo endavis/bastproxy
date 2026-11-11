@@ -64,7 +64,7 @@ References in this page are to files and symbols, not line numbers, so they stay
 
 ### ClientConnection
 
-Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS`, `WILL BINARY`, `WILL GMCP`, `WILL MSDP` and `WILL MSSP` (#59, #60). It sends `WILL MCCP2_COMPRESS` when the listener passes `compression=True` and the link is not TLS (#58). It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or `WILL MCCP3_COMPRESS`. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
+Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS`, `WILL BINARY`, `WILL GMCP`, `WILL MSDP`, `WILL MSSP` (#59, #60) and `WILL MXP` (#61). It sends `WILL MCCP2_COMPRESS` when the listener passes `compression=True` and the link is not TLS (#58). It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or `WILL MCCP3_COMPRESS`. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
 
 MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD link `MudTelnetClient` (`src/bastproxy/libs/net/mud.py`) accepts MCCP2, and MCCP3 when the MUD offers it, and telnetlib3 decompresses the stream before `MudTelnetReader` splits lines and prompts. A broken MUD stream (a zlib error), or a received chunk that inflates past `MCCP2_MAX_INFLATED_CHUNK` (16 MiB), drops every later byte, logs at ERROR and closes the MUD link; lines decoded before the break are still delivered, and clients see "Connection to the mud has been closed." A clean end of stream (`Z_STREAM_END`) continues in plain text, and a later `SB MCCP2` starts a new stream. On client links `CustomTelnetServer` compresses a client's output after its `DO MCCP2`, and ends the stream (`Z_FINISH`) when the client sends `DONT MCCP2`; a later `DO` starts a new one. One client's choice affects no other client and not the MUD link; `ClientConnection.mccp2_active` reports it. Clients are not offered MCCP3: telnetlib3 5.0.2 answers `DO MCCP3` with `WONT` (client-side MCCP3 is #329).
 
@@ -117,6 +117,18 @@ The proxy keeps the MUD's MSSP table and answers clients itself; MSSP bytes are 
 - **Clients:** the proxy offers `WILL MSSP`; a client asks by answering `DO MSSP`. It gets the stored table once logged in (view-only included) and on a later `DO`, and a new table when one arrives. With no table stored yet it gets nothing, and the table goes out when it arrives. `Core.Supports.Set` does not resend it. The plaintext `MSSP-REQUEST` form is not supported. The proxy adds no variables of its own.
 - **Client to MUD:** MSSP from a client is decoded under the check, then dropped at DEBUG; it is never stored or forwarded.
 
+### MXP (#61, ADR-0001)
+
+MXP markup is ordinary text in the data stream, so the proxy passes it to a client that negotiated MXP and strips it for a client that did not. The helpers are in `src/bastproxy/libs/net/mxp.py`.
+
+- **MUD side:** `MudTelnetClient.setup_gmcp` adds MXP to `passive_do`, so `WILL MXP` is answered `DO MXP`. `IAC SB MXP IAC SE` goes to `PROTOCOLS.on_mud_mxp`, which logs it at DEBUG, so telnetlib3's `ctx.mxp_data` never grows. MXP makes no `TelnetProtocolMessage`, only `TelnetNegotiation` records.
+- **Modes:** the MUD sets the line mode with `ESC[<n>z`. `0` open, `1` secure, `2` locked and `4` temporary secure last to the end of the line. `3` resets the default to open, and `5`, `6`, `7` set the default to open, secure or locked. At the end of a line the mode returns to the default; a partial line carries its mode over. `PROTOCOLS.mxp_line_mode` tracks this (`_mxp_default`, `_mxp_current`, reset by `mud_disconnected`) and `MudConnection.mud_read` stores the mode at the start of each line as `NetworkDataLine.mxp_mode`. A line from a MUD without MXP gets `None`.
+- **Copy for each client:** lines are shared and locked, so `ClientConnection.client_write` makes each client's text with `mxp.render_for_client(line, client.mxp_enabled)`, and the data logger logs what was written. An MXP client gets a line with an `mxp_mode` as it is. A client without MXP gets it stripped. A line with no `mxp_mode` (`#BP` output, the login prompt, lines from a MUD without MXP) goes to an MXP client behind `ESC[2z` so it shows as literal text, and to other clients as it is. Telnet-command lines are never touched.
+- **Client negotiation:** the proxy offers `WILL MXP`. When a client's `DO MXP` turns MXP on, `RecordingTelnetWriter.handle_do` sends `IAC SB MXP IAC SE` (recorded by `send_iac`). When a logged-in MXP client becomes ready, or turns MXP on after login, the proxy sends `ESC[6z` or `ESC[7z` if the MUD's default mode is secure or locked, and nothing when it is open. After a `DONT MXP`, later lines are stripped. An `SB MXP` from a client is dropped.
+- **Stripping** (`mxp.strip`, used for clients without MXP and for `noansi` and `colorcoded` when `mxp_mode` is set): one forward pass. Mode escapes are removed. Outside locked mode, a tag starts at `<` followed by a letter, `/` or `!`, and ends at the first `>` outside a `'...'` or `"..."` value; every other `<` stays (`HP < 50`). `&lt;`, `&gt;`, `&amp;`, `&quot;` and decimal `&#NNN;` are decoded; custom entities stay as written. ANSI colour codes are kept. In locked mode the text is literal. Limits: `MXP_MAX_TAG_LENGTH` (2048) characters for a tag and `MXP_MAX_ENTITY_LENGTH` (32) for an entity; a `<` or `&` that does not close within them stays literal.
+- **Triggers:** `noansi` and `colorcoded` strip MXP first, so triggers, `matchcolor` ones included, see text without tags. A plugin that writes `noansi` text back into `line` drops the MXP markup.
+- **Known gaps:** a tag split over two lines is not handled (stripping is per line, and an unclosed `<` stays literal); custom entities are not decoded; a client that joins late gets only the MUD's default mode, not the `<!ELEMENT>` and `<!ENTITY>` definitions (#333).
+
 ### MudConnection
 
 `src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD. `connected` starts `False` and `mud_telnet_handler` sets it `True` when the connection opens.
@@ -162,10 +174,11 @@ The proxy keeps the MUD's MSSP table and answers clients itself; MSSP bytes are 
 | `was_sent` | Set by the writer coroutine |
 | `line_modified` | Set when `line` changes |
 | `split_from` | The line this one was split from by command splitting |
+| `mxp_mode` | An `MxpMode` (`open`, `secure`, `locked`): the MXP mode at the start of the line, set by `mud_read` when the MUD link has MXP enabled. `None` for every other line (#61) |
 
-Properties: `noansi` (ANSI stripped), `colorcoded`, `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
+Properties: `noansi` (ANSI stripped, and MXP stripped first when `mxp_mode` is set), `colorcoded` (same), `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the eleven tracked fields (the content and flag fields, plus `originated`, `line_type` and `split_from`, #264), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 
 ### NetworkData
 
@@ -256,7 +269,7 @@ All three register at the default priority, 50.
 
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
 - **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
-- **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
+- **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` (MXP markup already stripped for lines with an `mxp_mode`) against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
 
 ## Data Flow Paths
 
