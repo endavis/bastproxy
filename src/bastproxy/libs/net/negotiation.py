@@ -96,11 +96,48 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         """Initialize the writer and name its link."""
         super().__init__(*args, **kwargs)
         self.link_id: str = uuid4().hex if kwargs.get("server") else MUD_LINK_ID
+        # A client may send GMCP or MSDP right behind its ``DO``, before the shell runs and
+        # ``ClientConnection`` exists. Server writers hold those decoded messages (bounded) as
+        # ``(option, args)`` until the connection takes them with its own callbacks.
+        self.pending_oob: collections.deque[tuple[bytes, tuple[Any, ...]]] = collections.deque()
+        if kwargs.get("server"):
+            for opt in (GMCP, MSDP):
+                self.set_ext_callback(opt, self._make_pending_callback(opt))
+
+    def _make_pending_callback(self, opt: bytes) -> Callable[..., None]:
+        """Build the callback that queues a decoded message for ``opt`` until it is taken."""
+
+        def queue(*args: Any) -> None:
+            if len(self.pending_oob) < self.OOB_PENDING_MAX:
+                self.pending_oob.append((opt, args))
+            else:
+                logger.debug(
+                    "Dropped a %s message: too many held before the client attached",
+                    name_option(opt),
+                )
+
+        return queue
+
+    # How many decoded GMCP/MSDP messages a server writer holds until bastproxy attaches.
+    OOB_PENDING_MAX = 16
+
+    # Called as ``(option, enabled)`` when the peer turns GMCP or MSDP on or off for this
+    # (server side) link. ``ClientConnection`` sets it; ``None`` means nobody is listening.
+    oob_option_callback: Callable[[bytes, bool], None] | None = None
 
     def _record(
         self, direction: Direction, command: str, option: bytes, data: bytes, raw: bytes
     ) -> None:
-        """Create a record, never letting a records failure reach telnetlib3's parser."""
+        """Create a record, never letting a records failure reach telnetlib3's parser.
+
+        The data of a GMCP login message (``Char.Login``) is stored as ``<redacted>``, in both
+        ``data`` and ``raw``, whichever way it travels.
+        """
+        if command == "SB" and option == GMCP:
+            safe = oob.redact_gmcp_payload(data)
+            if safe is not data:
+                data = safe
+                raw = IAC + SB + option + data.replace(IAC, IAC + IAC) + IAC + SE
         try:
             TelnetNegotiation(
                 command=command,
@@ -123,15 +160,34 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
                 logger.exception("Could not parse sent telnet bytes")
         super().send_iac(buf)
 
+    def _oob_changed(self, opt: bytes, enabled: bool) -> None:
+        """Tell ``oob_option_callback`` that GMCP or MSDP changed state, if anyone listens.
+
+        telnetlib3 stores ``local_option`` only after ``handle_do`` and ``handle_dont`` return,
+        so it is set here first; the callback can then send on the link.
+        """
+        was = self.local_option.enabled(opt)
+        callback = self.oob_option_callback
+        if callback is None or opt not in (GMCP, MSDP) or was == enabled:
+            return
+        self.local_option[opt] = enabled
+        try:
+            callback(opt, enabled)
+        except Exception:
+            logger.exception("Could not handle %s changing on a link", name_option(opt))
+
     def handle_do(self, opt: bytes) -> bool:
         """Record a received DO, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "DO", opt, b"", IAC + DO + opt)
-        return super().handle_do(opt)
+        result = super().handle_do(opt)
+        self._oob_changed(opt, result)
+        return result
 
     def handle_dont(self, opt: bytes) -> None:
         """Record a received DONT, then let telnetlib3 handle it."""
         self._record(Direction.RECEIVED, "DONT", opt, b"", IAC + DONT + opt)
         super().handle_dont(opt)
+        self._oob_changed(opt, False)
 
     def handle_will(self, opt: bytes) -> None:
         """Record a received WILL, then let telnetlib3 answer."""

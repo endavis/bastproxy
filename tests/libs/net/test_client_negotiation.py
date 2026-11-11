@@ -11,9 +11,11 @@ from telnetlib3.telopt import (
     DONT,
     ECHO,
     GA,
+    GMCP,
     IAC,
     MCCP2_COMPRESS,
     MCCP3_COMPRESS,
+    MSDP,
     NAWS,
     NEW_ENVIRON,
     SB,
@@ -213,6 +215,8 @@ def test_server_override_does_not_call_super() -> None:
     assert server.writer.iac.call_args_list == [
         ((DO, NAWS),),
         ((WILL, BINARY),),
+        ((WILL, GMCP),),
+        ((WILL, MSDP),),
     ]
 
 
@@ -275,6 +279,8 @@ def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
     assert writer.iac.call_args_list == [
         ((DO, NAWS),),
         ((WILL, BINARY),),
+        ((WILL, GMCP),),
+        ((WILL, MSDP),),
         ((WILL, MCCP2_COMPRESS),),
     ]
     assert ((WILL, MCCP3_COMPRESS),) not in writer.iac.call_args_list
@@ -283,13 +289,23 @@ def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
 def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:
     server, writer = _server_with_writer(enabled=True, ssl_object=object())
     server.begin_advanced_negotiation()
-    assert writer.iac.call_args_list == [((DO, NAWS),), ((WILL, BINARY),)]
+    assert writer.iac.call_args_list == [
+        ((DO, NAWS),),
+        ((WILL, BINARY),),
+        ((WILL, GMCP),),
+        ((WILL, MSDP),),
+    ]
 
 
 def test_begin_advanced_negotiation_no_mccp2_when_compression_off() -> None:
     server, writer = _server_with_writer(enabled=False, ssl_object=None)
     server.begin_advanced_negotiation()
-    assert writer.iac.call_args_list == [((DO, NAWS),), ((WILL, BINARY),)]
+    assert writer.iac.call_args_list == [
+        ((DO, NAWS),),
+        ((WILL, BINARY),),
+        ((WILL, GMCP),),
+        ((WILL, MSDP),),
+    ]
 
 
 def test_mccp2_disabled_by_default_without_init() -> None:

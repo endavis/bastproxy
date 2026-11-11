@@ -38,16 +38,21 @@ __all__ = [
     "MSDP_MAX_DEPTH",
     "MSDP_MAX_NODES",
     "OOB_MAX_PAYLOAD",
+    "REDACTED",
     "OobDecodeError",
     "decode_gmcp",
     "decode_msdp",
+    "is_credential_package",
     "merge_gmcp",
     "package_wanted",
     "parse_supports",
+    "redact_gmcp_payload",
     "supports_payload",
     "valid_package",
     "valid_variable",
 ]
+
+REDACTED = "<redacted>"
 
 OOB_MAX_PAYLOAD = 256 * 1024
 MSDP_MAX_DEPTH = 16
@@ -283,3 +288,24 @@ def package_wanted(package: str, modules: Iterable[str]) -> bool:
     """
     lowered = package.lower()
     return any(lowered == m or lowered.startswith(f"{m}.") for m in modules)
+
+
+def is_credential_package(package: str) -> bool:
+    """Whether ``package`` carries login data: ``Char.Login`` or a package under it.
+
+    Records and logs keep the name of such a message but never its data.
+    """
+    lowered = package.lower()
+    return lowered == "char.login" or lowered.startswith("char.login.")
+
+
+def redact_gmcp_payload(payload: bytes) -> bytes:
+    """Return ``payload`` unchanged, or with its body replaced when it is login data.
+
+    The payload is ``Package.Name`` optionally followed by a space and JSON; for a package
+    that ``is_credential_package`` names, the JSON becomes ``REDACTED``.
+    """
+    package = payload.split(b" ", 1)[0].decode("ascii", errors="replace")
+    if is_credential_package(package):
+        return f"{package} {REDACTED}".encode("ascii", errors="replace")
+    return payload

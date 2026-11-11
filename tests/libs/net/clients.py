@@ -28,6 +28,8 @@ from telnetlib3.telopt import (
     WONT,
 )
 
+from bastproxy.libs.net.client import ClientConnection
+from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.net.server import create_server
 
 TIMEOUT = 5
@@ -62,8 +64,15 @@ class ScriptedClient:
 
     """
 
-    def __init__(self, agree: set[bytes] | None = None) -> None:
-        """Create the client; call ``connect`` to open it."""
+    def __init__(
+        self, agree: set[bytes] | None = None, after_answer: dict[bytes, bytes] | None = None
+    ) -> None:
+        """Create the client; call ``connect`` to open it.
+
+        ``after_answer`` maps an option to bytes written in the same write as the client's
+        answer to that option, so they reach the server behind the ``DO``.
+        """
+        self.after_answer: dict[bytes, bytes] = after_answer or {}
         # telnetlib3 starts advanced negotiation (where the proxy offers MCCP2)
         # only after the client affirms some option, so TTYPE is always accepted
         self.agree: set[bytes] = {TTYPE, *(agree or set())}
@@ -152,7 +161,8 @@ class ScriptedClient:
             return
         self._answered.add((verb, opt))
         yes, no = (DO, DONT) if verb == WILL else (WILL, WONT)
-        self.send(IAC + (yes if opt in self.agree else no) + opt)
+        extra = self.after_answer.get(opt, b"") if opt in self.agree else b""
+        self.send(IAC + (yes if opt in self.agree else no) + opt + extra)
 
     def send(self, data: bytes) -> None:
         """Write raw bytes to the server."""
@@ -188,28 +198,52 @@ class ProxyServer:
 
     ``writers[i]`` and ``queues[i]`` belong to the i-th connection. Put text on a
     queue to have that client's shell write it; put ``None`` to end the shell.
+
+    With ``connections=True`` the shell also builds a real ``ClientConnection`` for the link
+    (``connections[i]``) without the clients plugin. It is not logged in until the test calls
+    ``login(i)``, a simulated login that calls ``PROTOCOLS.client_ready`` as the real login
+    does; ``logout(i)`` calls ``client_gone``.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, connections: bool = False) -> None:
         """Create an empty server state."""
         self.writers: list[Any] = []
         self.queues: list[asyncio.Queue[str | None]] = []
+        self.connections: list[ClientConnection] = []
+        self.build_connections = connections
         self.port = 0
 
-    async def shell(self, _reader: Any, writer: Any) -> None:
+    def login(self, index: int, view_only: bool = False) -> ClientConnection:
+        """Mark the i-th connection logged in and tell the protocol manager."""
+        conn = self.connections[index]
+        conn.state["logged in"] = True
+        conn.view_only = view_only
+        PROTOCOLS.client_ready(conn)
+        return conn
+
+    def logout(self, index: int) -> None:
+        """Tell the protocol manager the i-th connection is gone."""
+        PROTOCOLS.client_gone(self.connections[index])
+
+    async def shell(self, reader: Any, writer: Any) -> None:
         """Write queued text to the client until told to stop."""
         queue: asyncio.Queue[str | None] = asyncio.Queue()
         self.queues.append(queue)
+        if self.build_connections:
+            addr, port, *_ = writer.get_extra_info("peername")
+            self.connections.append(ClientConnection(addr, port, "telnet", reader, writer))
         self.writers.append(writer)
         while (msg := await queue.get()) is not None:
             writer.write(msg)
             await writer.drain()
         writer.close()
 
-    async def connect(self, agree: set[bytes] | None = None) -> ScriptedClient:
+    async def connect(
+        self, agree: set[bytes] | None = None, after_answer: dict[bytes, bytes] | None = None
+    ) -> ScriptedClient:
         """Connect a new scripted client and wait for its shell to start."""
         before = len(self.writers)
-        client = ScriptedClient(agree)
+        client = ScriptedClient(agree, after_answer)
         await client.connect(self.port)
         await client.wait_for(lambda: len(self.writers) > before)
         # let the server's initial negotiation finish
@@ -218,9 +252,9 @@ class ProxyServer:
 
 
 @asynccontextmanager
-async def proxy_server() -> AsyncIterator[ProxyServer]:
+async def proxy_server(connections: bool = False) -> AsyncIterator[ProxyServer]:
     """Run ``create_server`` as the listeners do, with ``compression=True``."""
-    proxy = ProxyServer()
+    proxy = ProxyServer(connections)
     srv = await create_server(
         host="127.0.0.1",
         port=0,

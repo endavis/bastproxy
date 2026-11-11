@@ -284,7 +284,7 @@ Every option negotiation on the MUD link and on each client link makes a `Telnet
 
 **Retention.** The records are data records (`retention_root = False`). One made while a processing record is active joins its tree; otherwise it is a pending record under `MAX_PENDING`.
 
-**Protocol messages.** `TelnetProtocolMessage` (`protocol`, `package`, `data`, `direction`, `link`) defines the shape. `src/bastproxy/libs/net/protocols.py` creates the GMCP and MSDP instances (#59): one per GMCP message and one per MSDP variable received from the MUD, on the link `mud`. Records of GMCP and MSDP sent to or received from clients come with the next PR on #59, which redacts the data of a client's `Char.Login`. MSSP and the other protocols are #60 and #61.
+**Protocol messages.** `TelnetProtocolMessage` (`protocol`, `package`, `data`, `direction`, `link`) defines the shape. `src/bastproxy/libs/net/protocols.py` creates the GMCP and MSDP instances (#59): one per GMCP message and one per MSDP variable received from the MUD, on the link `mud`. It also makes one record for each message sent to a client (`SENT`, link = the client's uuid), each GMCP or MSDP message received from a logged-in client (`RECEIVED`, the client's link) and each message forwarded to the MUD (`SENT`, link `mud`). The data of `Char.Login` and packages under it is stored as `<redacted>`; `RecordingTelnetWriter` redacts the same payload in the `data` and `raw` of the `TelnetNegotiation` subnegotiation record. MSSP and the other protocols are #60 and #61.
 
 ## Tracked network data
 

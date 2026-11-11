@@ -14,8 +14,16 @@ value, then raise ``ev_libs.net.mud_gmcp`` (once per GMCP message) or ``ev_libs.
 (once per MSDP variable). Each event gets its own copy of the data.
 
 The proxy owns the ``Core`` GMCP package on each link: it sends its own ``Core.Hello`` and a
-``Core.Supports.Set`` holding the union of the modules plugins register, and it never caches
-``Core.*`` messages.
+``Core.Supports.Set`` holding the union of the modules plugins register and the modules of the
+logged-in clients that negotiated GMCP, and it never caches or forwards ``Core.*`` messages.
+
+Client links: the proxy offers GMCP and MSDP to each client. A client gets data only once it has
+logged in (view-only included) and answered ``DO``. Live GMCP is re-encoded for each client by
+its own ``Core.Supports``, MSDP goes to every MSDP client, and a client that joins or enables a
+protocol late gets the cached values. From a client, ``Core.Hello`` is absorbed,
+``Core.Supports.*`` updates that client's modules, ``Core.Ping`` is answered on its link, other
+GMCP and the MSDP commands ``LIST``, ``SEND`` and ``REPORT`` go to the MUD only from a logged-in
+client that is not view-only, and the data of ``Char.Login`` is recorded as ``<redacted>``.
 """
 
 # Standard Library
@@ -23,7 +31,7 @@ import copy
 from typing import Any
 
 # 3rd Party
-from telnetlib3.telopt import GMCP
+from telnetlib3.telopt import GMCP, MSDP
 
 # Project
 import bastproxy
@@ -41,6 +49,7 @@ API_OWNER = "libs.net.protocols"
 API = BASEAPI(owner_id=API_OWNER)
 
 MUD_LINK_ID = "mud"
+CLIENT_MSDP_COMMANDS = frozenset({"LIST", "SEND", "REPORT"})
 MUD_GMCP_EVENT = "ev_libs.net.mud_gmcp"
 MUD_MSDP_EVENT = "ev_libs.net.mud_msdp"
 EVENT_RAISE_API = "plugins.core.events:event.raise"
@@ -81,6 +90,8 @@ class ProtocolManager:
         self._gmcp_cache: dict[str, Any] = {}
         self._msdp_cache: dict[str, Any] = {}
         self._cap_logged = False
+        # uuid -> ClientConnection, for clients that are logged in
+        self._clients: dict[str, Any] = {}
 
         self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
@@ -91,10 +102,17 @@ class ProtocolManager:
         return str(self.api("libs.api:caller.owner.get")(ignore_owner_list=[API_OWNER]))
 
     @staticmethod
-    def _record(protocol: str, name: str, data: Any, direction: Direction) -> None:
-        """Make a record, never letting a records failure reach the telnet parser."""
+    def _record(
+        protocol: str, name: str, data: Any, direction: Direction, link: str = MUD_LINK_ID
+    ) -> None:
+        """Make a record, never letting a records failure reach the telnet parser.
+
+        The data of a login package such as ``Char.Login`` is stored as ``<redacted>``.
+        """
+        if protocol == "GMCP" and oob.is_credential_package(name):
+            data = oob.REDACTED
         try:
-            TelnetProtocolMessage(protocol, name, data, direction, MUD_LINK_ID)
+            TelnetProtocolMessage(protocol, name, data, direction, link)
         except Exception:
             logger.exception("Could not record %s %s", protocol, name)
 
@@ -130,7 +148,13 @@ class ProtocolManager:
     def union(self) -> dict[str, int]:
         """The modules to announce: lower-cased name to the highest version."""
         merged: dict[str, int] = {}
-        for modules in self._owner_modules.values():
+        sources = list(self._owner_modules.values())
+        sources.extend(
+            getattr(conn, "gmcp_modules", {})
+            for conn in self._clients.values()
+            if conn.gmcp_enabled
+        )
+        for modules in sources:
             for name, version in modules.items():
                 merged[name] = max(version, merged.get(name, 0))
         return merged
@@ -181,6 +205,9 @@ class ProtocolManager:
         if package.lower().startswith("core."):
             return
         self._cache_set(self._gmcp_cache, package, data, merge=True)
+        for conn in self._targets(GMCP):
+            if oob.package_wanted(package, conn.gmcp_modules):
+                self._send_gmcp_to_client(conn, package, data)
         self._raise(MUD_GMCP_EVENT, "package", package, data)
 
     def on_mud_msdp(self, variables: dict[str, Any]) -> None:
@@ -188,7 +215,169 @@ class ProtocolManager:
         for variable, value in variables.items():
             self._record("MSDP", variable, value, Direction.RECEIVED)
             self._cache_set(self._msdp_cache, variable, value, merge=False)
+            for conn in self._targets(MSDP):
+                self._send_msdp_to_client(conn, variable, value)
             self._raise(MUD_MSDP_EVENT, "variable", variable, value)
+
+    # ------------------------------------------------------------------ client links
+
+    def _targets(self, opt: bytes) -> list[Any]:
+        """The logged-in clients that negotiated ``opt`` and whose link is open."""
+        enabled = "gmcp_enabled" if opt == GMCP else "msdp_enabled"
+        return [
+            conn
+            for conn in list(self._clients.values())
+            if getattr(conn, enabled) and not conn.writer.is_closing()
+        ]
+
+    def _send_gmcp_to_client(self, conn: Any, package: str, data: Any) -> None:
+        """Send one GMCP message to a client and record it."""
+        try:
+            conn.writer.send_gmcp(package, copy.deepcopy(data))
+        except Exception:
+            logger.exception("Could not send GMCP %s to client %s", package, conn.uuid)
+            return
+        self._record("GMCP", package, data, Direction.SENT, conn.uuid)
+
+    def _send_msdp_to_client(self, conn: Any, variable: str, value: Any) -> None:
+        """Send one MSDP variable to a client and record it."""
+        try:
+            conn.writer.send_msdp({variable: copy.deepcopy(value)})
+        except Exception:
+            logger.exception("Could not send MSDP %s to client %s", variable, conn.uuid)
+            return
+        self._record("MSDP", variable, value, Direction.SENT, conn.uuid)
+
+    def _replay(
+        self,
+        conn: Any,
+        *,
+        gmcp: bool = True,
+        msdp: bool = True,
+        known: dict[str, int] | None = None,
+    ) -> None:
+        """Send the cached values to one client.
+
+        GMCP packages go only when the client's modules want them and, with ``known`` given,
+        its previous modules did not.
+        """
+        if conn.writer.is_closing():
+            return
+        if gmcp and conn.gmcp_enabled:
+            for package, value in list(self._gmcp_cache.items()):
+                if oob.package_wanted(package, conn.gmcp_modules) and not (
+                    known is not None and oob.package_wanted(package, known)
+                ):
+                    self._send_gmcp_to_client(conn, package, value)
+        if msdp and conn.msdp_enabled:
+            for variable, value in list(self._msdp_cache.items()):
+                self._send_msdp_to_client(conn, variable, value)
+
+    def client_ready(self, conn: Any) -> None:
+        """A client logged in: it now receives data, replay the cache and count its modules."""
+        self._clients[conn.uuid] = conn
+        self._replay(conn)
+        self._send_supports_if_changed()
+
+    def client_gone(self, conn: Any) -> None:
+        """A client disconnected: drop it, and shrink the union if it had modules in it."""
+        if self._clients.pop(conn.uuid, None) is not None:
+            self._send_supports_if_changed()
+
+    def client_option_changed(self, conn: Any, opt: bytes, enabled: bool) -> None:
+        """A client turned GMCP or MSDP on or off (``DO`` or ``DONT``)."""
+        if opt == GMCP and not enabled:
+            conn.gmcp_modules = {}
+        if conn.uuid not in self._clients:
+            return
+        if enabled:
+            self._replay(conn, gmcp=opt == GMCP, msdp=opt == MSDP)
+        elif opt == GMCP:
+            self._send_supports_if_changed()
+
+    def _core_from_client(self, conn: Any, package: str, data: Any, *, ready: bool) -> None:
+        """Handle a ``Core.*`` message from a client; none is passed on to the MUD."""
+        verb = package.lower()
+        if verb == "core.ping":
+            if ready:
+                self._send_gmcp_to_client(conn, "Core.Ping", None)
+            return
+        if verb not in ("core.supports.set", "core.supports.add", "core.supports.remove"):
+            return  # Core.Hello and the rest: absorbed
+        old: dict[str, int] = dict(conn.gmcp_modules)
+        parsed = oob.parse_supports(data)
+        new: dict[str, int]
+        if verb.endswith(".set"):
+            new = parsed
+        elif verb.endswith(".add"):
+            new = dict(old)
+            for name, version in parsed.items():
+                if name not in new and len(new) >= oob.CLIENT_MAX_MODULES:
+                    continue
+                new[name] = max(version, new.get(name, 0))
+        else:
+            new = {name: version for name, version in old.items() if name not in parsed}
+        conn.gmcp_modules = new
+        if ready:
+            self._replay(conn, msdp=False, known=old)
+            self._send_supports_if_changed()
+
+    def on_client_gmcp(self, conn: Any, package: str, data: Any) -> None:
+        """Handle one decoded GMCP message from a client."""
+        if not conn.gmcp_enabled:
+            return
+        ready = conn.uuid in self._clients
+        if package.lower().startswith("core."):
+            # a client sends its Core.Supports before it logs in; keep it for later
+            if ready or package.lower().startswith("core.supports."):
+                if ready:
+                    self._record("GMCP", package, data, Direction.RECEIVED, conn.uuid)
+                self._core_from_client(conn, package, data, ready=ready)
+            return
+        if not ready:
+            logger.debug("Dropped GMCP %s from client %s: not logged in", package, conn.uuid)
+            return
+        self._record("GMCP", package, data, Direction.RECEIVED, conn.uuid)
+        if conn.view_only:
+            logger.debug("Dropped GMCP %s from client %s: view only", package, conn.uuid)
+            return
+        writer = self._mud_writer
+        if writer is None or writer.is_closing() or not writer.remote_option.enabled(GMCP):
+            return
+        try:
+            writer.send_gmcp(package, data)
+        except Exception:
+            logger.exception("Could not forward GMCP %s to the mud", package)
+            return
+        self._record("GMCP", package, data, Direction.SENT)
+
+    def on_client_msdp(self, conn: Any, variables: dict[str, Any]) -> None:
+        """Handle one decoded MSDP message from a client: only some commands go to the MUD."""
+        if conn.uuid not in self._clients or not conn.msdp_enabled:
+            return
+        for variable, value in variables.items():
+            self._record("MSDP", variable, value, Direction.RECEIVED, conn.uuid)
+        wanted = {
+            variable.upper(): value
+            for variable, value in variables.items()
+            if variable.upper() in CLIENT_MSDP_COMMANDS
+        }
+        writer = self._mud_writer
+        if (
+            conn.view_only
+            or not wanted
+            or writer is None
+            or writer.is_closing()
+            or not writer.remote_option.enabled(MSDP)
+        ):
+            return
+        try:
+            writer.send_msdp(wanted)
+        except Exception:
+            logger.exception("Could not forward MSDP to the mud")
+            return
+        for variable, value in wanted.items():
+            self._record("MSDP", variable, value, Direction.SENT)
 
     # ------------------------------------------------------------------ APIs
 
