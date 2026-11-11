@@ -61,6 +61,7 @@ The cost is re-encoding on the client side and a cache to maintain. Each protoco
 - Issue #40: Decide how bastproxy handles MUD telnet protocols
 - Issue #39: Upgrade telnetlib3 from 2.0.4 to 5.0.1 (prerequisite)
 - Issue #58: Support MCCP2/3 compression on the MUD and client links
+- Issue #59: Terminate GMCP and MSDP and publish them as events (MUD side first)
 
 ## Related Documentation
 

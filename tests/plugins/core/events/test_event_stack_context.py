@@ -7,6 +7,7 @@ import pytest
 
 from bastproxy.libs.api import API
 from bastproxy.libs.context import event_stack
+from bastproxy.libs.net.protocols import PROTOCOL_EVENTS
 from bastproxy.libs.records.events import RECORD_EVENTS
 from bastproxy.plugins.core.events.plugin._event import Event
 from bastproxy.plugins.core.events.plugin._events import EventsPlugin
@@ -86,8 +87,9 @@ def test_initialize_registers_the_record_events() -> None:
     plugin.plugin_id = "plugins.core.events"
     plugin.api = _Api()
     EventsPlugin._phook_initialize(plugin)
-    assert len(added) == len(RECORD_EVENTS)
-    for (args, kwargs), spec in zip(added, RECORD_EVENTS, strict=True):
+    specs = (*RECORD_EVENTS, *PROTOCOL_EVENTS)
+    assert len(added) == len(specs)
+    for (args, kwargs), spec in zip(added, specs, strict=True):
         assert args == (spec.name, spec.created_by)
         assert kwargs == {
             "description": spec.description,

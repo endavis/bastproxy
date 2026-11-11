@@ -161,6 +161,28 @@ self.api("plugins.core.events:event.add")(
 
 The four events the processing records raise (`ev_to_client_data_modify`, `ev_to_client_data_read`, `ev_to_mud_data_modify` and `ev_to_mud_data_read`) are registered once, when the events plugin initializes, from `RECORD_EVENTS` in `src/bastproxy/libs/records/events.py`. Creating a record makes no `event.add` call.
 
+The two protocol events are registered the same way, from `PROTOCOL_EVENTS` in `src/bastproxy/libs/net/protocols.py`:
+
+| Event | Arguments | Raised |
+|-------|-----------|--------|
+| `ev_libs.net.mud_gmcp` | `package`, `data` | once per GMCP message from the MUD (`Core.*` excluded) |
+| `ev_libs.net.mud_msdp` | `variable`, `data` | once per MSDP variable from the MUD |
+
+Each event gets its own copy of `data` (`copy.deepcopy`), so a callback cannot change the cached value or what is sent to clients. A plugin that wants a GMCP package announces it to the MUD with `gmcp.modules.add`, which adds to the `Core.Supports.Set` the proxy sends:
+
+```python
+@RegisterToEvent(event_name="ev_libs.net.mud_gmcp")
+def _eventcb_mud_gmcp(self):
+    event_record = self.api("plugins.core.events:event.current.record.get")()
+    package, data = event_record["package"], event_record["data"]
+    ...
+
+def _phook_initialize(self):
+    self.api("libs.net.protocols:gmcp.modules.add")(["Char 1", "Room 1"])
+```
+
+A plugin's modules leave the union when it uninitializes.
+
 ### 3. Event Raising
 
 Events are raised by calling the `event.raise` API:
@@ -403,6 +425,8 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 ### Network Events
 - `ev_libs.net.mud_mudconnect` - Connected to mud
 - `ev_libs.net.mud_from_mud_event` - Data received from mud
+- `ev_libs.net.mud_gmcp` - A GMCP message from the mud (args `package`, `data`)
+- `ev_libs.net.mud_msdp` - An MSDP variable from the mud (args `variable`, `data`)
 
 ### Proxy Events
 - `ev_bastproxy_proxy_ready` - Proxy is ready to accept connections

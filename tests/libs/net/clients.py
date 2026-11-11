@@ -13,7 +13,20 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
-from telnetlib3.telopt import DO, DONT, IAC, MCCP2_COMPRESS, SB, SE, TTYPE, WILL, WONT
+from telnetlib3.mud import gmcp_encode, msdp_encode
+from telnetlib3.telopt import (
+    DO,
+    DONT,
+    GMCP,
+    IAC,
+    MCCP2_COMPRESS,
+    MSDP,
+    SB,
+    SE,
+    TTYPE,
+    WILL,
+    WONT,
+)
 
 from bastproxy.libs.net.server import create_server
 
@@ -28,6 +41,11 @@ async def wait_until(predicate: Callable[[], bool]) -> None:
             await asyncio.sleep(0.02)
 
 
+def sb_frame(option: bytes, payload: bytes) -> bytes:
+    """Frame ``payload`` as ``IAC SB option ... IAC SE``, escaping IAC bytes."""
+    return IAC + SB + option + payload.replace(IAC, IAC + IAC) + IAC + SE
+
+
 class ScriptedClient:
     """A raw telnet client that answers per option and inflates MCCP2 streams.
 
@@ -38,6 +56,7 @@ class ScriptedClient:
         raw: Every byte received, compressed bytes included.
         text: Received data with telnet commands removed and MCCP2 inflated.
         commands: Every ``(verb, option)`` received.
+        subnegotiations: Every ``(option, payload)`` SB received other than MCCP2, IAC IAC unescaped.
         mccp2_starts: Count of ``SB MCCP2`` received.
         stream_ends: Count of compressed streams that ended with ``Z_STREAM_END``.
 
@@ -51,6 +70,7 @@ class ScriptedClient:
         self.raw = bytearray()
         self.text = bytearray()
         self.commands: list[tuple[bytes, bytes]] = []
+        self.subnegotiations: list[tuple[bytes, bytes]] = []
         self.mccp2_starts = 0
         self.stream_ends = 0
         self._pending = bytearray()
@@ -110,6 +130,9 @@ class ScriptedClient:
                 if end == -1:
                     break
                 opt = bytes(buf[i + 2 : i + 3])
+                if opt != MCCP2_COMPRESS:
+                    payload = bytes(buf[i + 3 : end]).replace(IAC + IAC, IAC)
+                    self.subnegotiations.append((opt, payload))
                 i = end + 2
                 if opt == MCCP2_COMPRESS:
                     self.mccp2_starts += 1
@@ -135,6 +158,14 @@ class ScriptedClient:
         """Write raw bytes to the server."""
         assert self._writer is not None
         self._writer.write(data)
+
+    def gmcp(self, package: str, data: Any = None) -> None:
+        """Send a GMCP message."""
+        self.send(sb_frame(GMCP, gmcp_encode(package, data)))
+
+    def msdp(self, variables: dict[str, Any]) -> None:
+        """Send an MSDP message."""
+        self.send(sb_frame(MSDP, msdp_encode(variables)))
 
     async def wait_for(self, predicate: Callable[[], bool]) -> None:
         """Wait until ``predicate()`` is true, or fail the test on timeout."""
@@ -235,6 +266,16 @@ class ScriptedMud:
     async def wait_for(self, predicate: Callable[[], bool]) -> None:
         """Wait until ``predicate()`` is true, or fail the test on timeout."""
         await wait_until(predicate)
+
+    @staticmethod
+    def gmcp_frame(package: str, data: Any = None) -> bytes:
+        """The bytes of a GMCP message, to write from a script."""
+        return sb_frame(GMCP, gmcp_encode(package, data))
+
+    @staticmethod
+    def msdp_frame(variables: dict[str, Any]) -> bytes:
+        """The bytes of an MSDP message, to write from a script."""
+        return sb_frame(MSDP, msdp_encode(variables))
 
 
 @asynccontextmanager
