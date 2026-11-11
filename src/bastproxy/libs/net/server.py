@@ -31,12 +31,14 @@ Functions:
 
 # Standard Library
 from collections.abc import Coroutine
+from typing import Any
 
 # 3rd Party
 import telnetlib3
 from telnetlib3.telopt import BINARY, DO, NAWS, WILL
 
 # Project
+from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 
 
 class CustomTelnetServer(telnetlib3.TelnetServer):
@@ -46,6 +48,11 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     server with advanced negotiation capabilities.
 
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the server, defaulting to the writer that records negotiation (#83)."""
+        kwargs.setdefault("writer_factory_encoding", RecordingTelnetWriter)
+        super().__init__(*args, **kwargs)
 
     def begin_advanced_negotiation(self) -> None:
         """Begin advanced negotiation with a newly connected client.

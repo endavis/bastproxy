@@ -1,0 +1,156 @@
+# Project: bastproxy
+# Filename: libs/net/negotiation.py
+#
+# File Description: records telnet negotiation seen by telnetlib3's writers
+#
+# By: Bast
+"""Record every telnet option negotiation as a ``TelnetNegotiation`` (#83).
+
+``RecordingTelnetWriter`` is a ``TelnetWriterUnicode`` that both telnetlib3 protocols build
+through their writer factory. Sent negotiation all goes through ``send_iac``, including the
+replies telnetlib3 makes on its own. Received negotiation reaches ``handle_do``, ``handle_dont``,
+``handle_will``, ``handle_wont`` and ``handle_subnegotiation`` from ``feed_byte``.
+
+Two-byte commands (GA, EOR, NOP) are not recorded: a prompt already shows as
+``NetworkDataLine.is_prompt``. Raw wire bytes are not recorded; each record keeps its own IAC
+sequence as ``raw``.
+"""
+
+# Standard Library
+import collections
+from typing import Any
+from uuid import uuid4
+
+# 3rd Party
+from telnetlib3 import TelnetWriterUnicode
+from telnetlib3.telopt import DO, DONT, IAC, SB, SE, WILL, WONT, name_option
+
+# Project
+from bastproxy.libs.logger import get_logger
+from bastproxy.libs.records.enums import Direction
+from bastproxy.libs.records.rtypes.telnet import TelnetNegotiation
+
+logger = get_logger(__name__)
+
+MUD_LINK_ID = "mud"
+_VERBS: dict[bytes, str] = {DO: "DO", DONT: "DONT", WILL: "WILL", WONT: "WONT"}
+
+# (command, option, data, raw)
+ParsedNegotiation = tuple[str, bytes, bytes, bytes]
+
+
+def parse_iac(buf: bytes) -> list[ParsedNegotiation]:
+    """Split a buffer of bytes into its option negotiations.
+
+    Returns a ``(command, option, data, raw)`` tuple for each DO, DONT, WILL, WONT and SB. Data
+    bytes and two-byte commands are skipped. In an SB, ``IAC IAC`` is unescaped; an SB with no
+    ``IAC SE`` yields its partial payload, since telnetlib3 splits some SBs over two writes. A
+    bare ``IAC SE`` yields nothing.
+    """
+    found: list[ParsedNegotiation] = []
+    i = 0
+    size = len(buf)
+    while i < size:
+        if buf[i : i + 1] != IAC or i + 1 >= size:
+            i += 1
+            continue
+        verb = buf[i + 1 : i + 2]
+        if verb in _VERBS:
+            if i + 2 >= size:
+                break
+            found.append((_VERBS[verb], buf[i + 2 : i + 3], b"", buf[i : i + 3]))
+            i += 3
+        elif verb == SB:
+            j = i + 3
+            payload = bytearray()
+            end = size
+            while j < size:
+                if buf[j : j + 1] == IAC:
+                    nxt = buf[j + 1 : j + 2]
+                    if nxt == IAC:
+                        payload.append(255)
+                        j += 2
+                        continue
+                    if nxt == SE:
+                        end = j + 2
+                        break
+                payload.append(buf[j])
+                j += 1
+            found.append(("SB", buf[i + 2 : i + 3], bytes(payload), buf[i:end]))
+            i = end
+        else:
+            i += 2
+    return found
+
+
+class RecordingTelnetWriter(TelnetWriterUnicode):
+    """A telnet writer that makes a ``TelnetNegotiation`` for each option negotiation.
+
+    ``link_id`` names the link: ``"mud"`` on the client side, a fresh uuid hex on the server
+    side, which ``ClientConnection`` adopts as its own uuid.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the writer and name its link."""
+        super().__init__(*args, **kwargs)
+        self.link_id: str = uuid4().hex if kwargs.get("server") else MUD_LINK_ID
+
+    def _record(
+        self, direction: Direction, command: str, option: bytes, data: bytes, raw: bytes
+    ) -> None:
+        """Create a record, never letting a records failure reach telnetlib3's parser."""
+        try:
+            TelnetNegotiation(
+                command=command,
+                option=name_option(option),
+                direction=direction,
+                link=self.link_id,
+                data=data,
+                raw=raw,
+            )
+        except Exception:
+            logger.exception("Could not record telnet %s %r", command, option)
+
+    def send_iac(self, buf: bytes) -> None:
+        """Record the negotiation in ``buf``, then send it."""
+        if not self.is_closing():
+            try:
+                for command, option, data, raw in parse_iac(buf):
+                    self._record(Direction.SENT, command, option, data, raw)
+            except Exception:
+                logger.exception("Could not parse sent telnet bytes")
+        super().send_iac(buf)
+
+    def handle_do(self, opt: bytes) -> bool:
+        """Record a received DO, then let telnetlib3 answer."""
+        self._record(Direction.RECEIVED, "DO", opt, b"", IAC + DO + opt)
+        return super().handle_do(opt)
+
+    def handle_dont(self, opt: bytes) -> None:
+        """Record a received DONT, then let telnetlib3 handle it."""
+        self._record(Direction.RECEIVED, "DONT", opt, b"", IAC + DONT + opt)
+        super().handle_dont(opt)
+
+    def handle_will(self, opt: bytes) -> None:
+        """Record a received WILL, then let telnetlib3 answer."""
+        self._record(Direction.RECEIVED, "WILL", opt, b"", IAC + WILL + opt)
+        super().handle_will(opt)
+
+    def handle_wont(self, opt: bytes) -> None:
+        """Record a received WONT, then let telnetlib3 handle it."""
+        self._record(Direction.RECEIVED, "WONT", opt, b"", IAC + WONT + opt)
+        super().handle_wont(opt)
+
+    def handle_subnegotiation(self, buf: collections.deque[bytes]) -> None:
+        """Record a received SB from a copy of the payload, then let telnetlib3 consume it."""
+        try:
+            items = list(buf)
+            if items:
+                option = items[0]
+                payload = b"".join(items[1:])
+                escaped = payload.replace(IAC, IAC + IAC)
+                raw = IAC + SB + option + escaped + IAC + SE
+                self._record(Direction.RECEIVED, "SB", option, payload, raw)
+        except Exception:
+            logger.exception("Could not record a telnet subnegotiation")
+        super().handle_subnegotiation(buf)

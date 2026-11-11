@@ -245,6 +245,8 @@ From a client, the same information is available through `plugins.debug.records`
 | `SendDataDirectlyToMud` | `src/bastproxy/libs/records/rtypes/muddata.py` | `BaseRecord` | Formats and queues lines for the MUD |
 | `ProcessDataToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | MUD output before plugins see it |
 | `SendDataDirectlyToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | Formats and queues lines for clients |
+| `TelnetNegotiation` | `src/bastproxy/libs/records/rtypes/telnet.py` | `BaseRecord` | One telnet option negotiation (DO, DONT, WILL, WONT, SB); see [Telnet negotiation records](#telnet-negotiation-records) |
+| `TelnetProtocolMessage` | `src/bastproxy/libs/records/rtypes/telnet.py` | `BaseRecord` | One decoded protocol message (GMCP, MSDP, MSSP); the shape #58 to #61 fill in |
 | `ProcessRaisedEvent` | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` | `BaseRecord` | One raise of an event |
 | `EventDataRecord` | `src/bastproxy/plugins/core/events/libs/data/_event.py` | `BaseDictRecord` | The arguments of a raised event |
 | `CmdArgsRecord` | `src/bastproxy/plugins/core/commands/libs/data/cmdargs.py` | `BaseDictRecord` | Parsed arguments of a proxy command |
@@ -260,6 +262,29 @@ Log messages are not records. `LogRecord` was removed in #247. The last 50 log l
 ### Event records
 
 `Event.raise_event()` wraps the event arguments in an `EventDataRecord` and runs a `ProcessRaisedEvent` for them. The `ProcessRaisedEvent` is the active record while callbacks run, so records the callbacks create become its children. For events raised with `data_list`, the same `EventDataRecord` is reused and its `key_name` entry is set to each item in turn. Each invocation adds an `Info` "Invoked" update with a copy of the event data. If the caller passes an `EventDataRecord` instead of a dict, `EventDataRecord.add_receiving_event` records the event: the first event becomes `parent` and replaces the creating record in `parents`, and every later event is added to `parents`. A record passed to a second event is therefore listed under both events by `RMANAGER.get_children`. The triggers plugin does this with the data of `ev_to_client_data_modify`.
+
+## Telnet negotiation records
+
+Every option negotiation on the MUD link and on each client link makes a `TelnetNegotiation` (#83), including the ones telnetlib3 sends or answers on its own. The types are in `src/bastproxy/libs/records/rtypes/telnet.py`.
+
+| Field | Meaning |
+|-------|---------|
+| `command` | `DO`, `DONT`, `WILL`, `WONT` or `SB` |
+| `option` | The option name from telnetlib3, such as `TTYPE` |
+| `direction` | A `Direction` (`src/bastproxy/libs/records/enums.py`): `sent` or `received` |
+| `link` | `"mud"`, or the uuid of the client link |
+| `data` | The SB payload after the option, with `IAC IAC` unescaped; empty for the other commands |
+| `raw` | The IAC sequence as it travelled |
+
+**Hooks.** `RecordingTelnetWriter` in `src/bastproxy/libs/net/negotiation.py` is a `TelnetWriterUnicode` subclass. `MudTelnetClient` sets it as `_writer_factory_encoding`, and `CustomTelnetServer` defaults `writer_factory_encoding` to it. Sent negotiation all goes through `send_iac`, which covers `iac()`, telnetlib3's automatic replies, every `request_*` and the SB replies. Received negotiation reaches `handle_do`, `handle_dont`, `handle_will`, `handle_wont` and `handle_subnegotiation` from `feed_byte`; the record is made before telnetlib3 acts. `set_iac_callback` and `set_ext_callback` were not used: the first fires only for two-byte commands and the second gets decoded values for a few options and nothing outbound. A record failure is logged and never reaches telnetlib3's parser.
+
+**Link id.** telnetlib3 creates the `ClientConnection` only after negotiation, so the first negotiations come before a client uuid exists. The writer carries `link_id`: `"mud"` on the client side, a fresh uuid on the server side. `ClientConnection` adopts it as its `uuid`, so a client link's negotiation records, data logger and registered client share one id.
+
+**Not recorded.** Two-byte commands (GA, EOR, NOP): a prompt already shows as `NetworkDataLine.is_prompt`, and one record per prompt would push the negotiation records out of the pending cap. Raw wire bytes are out of scope ([ADR-0005](../decisions/0005-record-tracking-scope-change-contents-retention-and-cost.md) point 1); each record keeps only its own IAC sequence.
+
+**Retention.** The records are data records (`retention_root = False`). One made while a processing record is active joins its tree; otherwise it is a pending record under `MAX_PENDING`.
+
+**Protocol messages.** `TelnetProtocolMessage` (`protocol`, `package`, `data`, `direction`, `link`) only defines the shape. The protocol issues #58 to #61 create the instances for GMCP, MSDP and MSSP.
 
 ## Tracked network data
 
@@ -374,7 +399,6 @@ while current.parent:
 
 | Issue | Gap |
 |-------|-----|
-| #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 ## Best Practices
 

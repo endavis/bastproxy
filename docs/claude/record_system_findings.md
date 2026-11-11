@@ -137,7 +137,7 @@ Every item in the issue's list, with its current state.
 | Display and lookup bugs | **Open and confirmed**: `get_update` raises `AttributeError` for a child's update and returns `None` for a hit (two bugs); `str()` of a telnet line raises `TypeError`. `check_for_change` also raises and has no caller. **Fixed after this audit:** #248 rewrote `get_update` and deleted `check_for_change`; #49 made `str()` of a bytes line decode it as latin-1. | #49 |
 | Per-update capture cost | **Open.** Measured here: a monitored attribute change costs 74.8 microseconds; the stacks are 497 MiB of the 1,145 MB traced in the memory run. | #81, #80 |
 | Retention | **Open.** Q3 describes what is kept, and what outlives the cap. **After this audit:** #249 bounds memory by keeping the last N root trees; persistence across restarts (#82) was not pursued, and records stay in memory only. | #82 |
-| Protocol traffic not tracked | **Open**, not re-audited. | #83 |
+| Protocol traffic not tracked | **Negotiation fixed after this audit:** #83 added `TelnetNegotiation` records ([Telnet negotiation records](record_system.md#telnet-negotiation-records)). Protocol messages (GMCP, MSDP, MSSP) get `TelnetProtocolMessage` records from #58 to #61. | #83 |
 | Update flags as an enum | **Open**, comment on #79. Q6 row 9 adds the three other string-typed fields. | #79 |
 | Already fixed and closed | #44, #45, #84. Not re-checked. | n/a |
 

@@ -390,11 +390,14 @@ record / plugin ──send_to(line)──► send_queue ──await get()──�
 - The queues are unbounded (`asyncio.Queue()`). There is no backpressure: a slow client or MUD makes its queue grow.
 - The writer coroutines yield with `await asyncio.sleep(0)` every `max_lines_to_process` lines, so one busy connection does not starve the others.
 
+## Negotiation records
+
+Telnet option negotiation does not flow through the queues above. `RecordingTelnetWriter` (`src/bastproxy/libs/net/negotiation.py`) makes a `TelnetNegotiation` for each one on the MUD link and every client link; see [Telnet negotiation records](record_system.md#telnet-negotiation-records).
+
 ## Known Gaps
 
 | Issue | Gap |
 |-------|-----|
-| #83 | Telnet negotiation and protocol messages are not tracked as records |
 
 The audit of the record system lists the measurements and the new defects: [Record System Findings](record_system_findings.md).
 
