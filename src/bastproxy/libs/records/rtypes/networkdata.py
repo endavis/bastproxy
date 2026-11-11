@@ -15,6 +15,7 @@ from pydatatracker import TrackedAttr, TrackedList
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.net import mxp
 from bastproxy.libs.records.enums import LineType, Originated
 from bastproxy.libs.records.tracking import (
     TrackedRecordMixin,
@@ -37,6 +38,7 @@ _LINE_FIELDS = (
     "originated",
     "line_type",
     "split_from",
+    "mxp_mode",
 )
 # The fields a lock freezes. was_sent stays writable because the network layer sets it after
 # the line is locked. originated, line_type and split_from are tracked so the lock freezes them
@@ -119,6 +121,9 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         self.was_sent: bool = False
         self.color = color
         self.split_from: NetworkDataLine | None = None
+        # The MXP mode at the start of the line when it came from a MUD with MXP enabled, else
+        # None (#61). Set before the line is locked.
+        self.mxp_mode: mxp.MxpMode | None = None
 
         # preamble defaults to True because a large percentage
         # of the data that is internal will need it
@@ -182,6 +187,12 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         ):
             self.line_modified = True
 
+    def _without_mxp(self) -> str | bytes:
+        """The line with MXP markup stripped when ``mxp_mode`` is set, else the line (#61)."""
+        if self.mxp_mode is not None and isinstance(self.line, str):
+            return mxp.strip(self.line, self.mxp_mode)
+        return self.line
+
     @property
     def noansi(self):
         """Get the line with ANSI codes stripped.
@@ -192,7 +203,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         if self.is_command_telnet:
             return self.line
-        return self.api("plugins.core.colors:ansicode.strip")(self.line)
+        return self.api("plugins.core.colors:ansicode.strip")(self._without_mxp())
 
     @property
     def colorcoded(self):
@@ -204,7 +215,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         if self.is_command_telnet:
             return self.line
-        return self.api("plugins.core.colors:ansicode.to.colorcode")(self.line)
+        return self.api("plugins.core.colors:ansicode.to.colorcode")(self._without_mxp())
 
     def lock(self, attribute_name: str = "") -> None:
         """Lock the line so its fields refuse writes with ``RuntimeError``.
@@ -272,6 +283,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         new_line.prelogin = self.prelogin
         new_line.color = self.color
         new_line.split_from = self
+        new_line.mxp_mode = self.mxp_mode
 
     def color_line(self):
         """Color the message and convert all colors to ansicodes.

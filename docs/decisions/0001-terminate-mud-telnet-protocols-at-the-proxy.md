@@ -63,6 +63,7 @@ The cost is re-encoding on the client side and a cache to maintain. Each protoco
 - Issue #58: Support MCCP2/3 compression on the MUD and client links
 - Issue #59: Terminate GMCP and MSDP and publish them as events (MUD side first)
 - Issue #60: Cache MUD MSSP data and answer client MSSP requests
+- Issue #61: Pass MXP to clients that negotiate it and strip it for others
 
 ## Related Documentation
 

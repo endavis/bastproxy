@@ -6,6 +6,10 @@
 # By: Bast
 """Terminate GMCP, MSDP and MSSP on the MUD link and publish them as events (#59, #60, ADR-0001).
 
+MXP (#61) is not decoded here. This manager only tracks the MUD's MXP line modes
+(``mxp_line_mode``), logs the MUD's ``SB MXP`` start and, when an MXP client logs in or turns
+MXP on, sends it the MUD's default mode. Stripping and the per-client copy live in ``mxp``.
+
 ``PROTOCOLS`` is the one ``ProtocolManager``. It outlives any one ``MudConnection``, which is
 rebuilt on each connect, and plugins can use its APIs before the MUD connects.
 
@@ -37,14 +41,14 @@ import copy
 from typing import Any
 
 # 3rd Party
-from telnetlib3.telopt import GMCP, MSDP, MSSP
+from telnetlib3.telopt import GMCP, MSDP, MSSP, MXP
 
 # Project
 import bastproxy
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.net import oob
+from bastproxy.libs.net import mxp, oob
 from bastproxy.libs.records.enums import Direction
 from bastproxy.libs.records.events import RecordEventSpec
 from bastproxy.libs.records.rtypes.telnet import TelnetProtocolMessage
@@ -106,6 +110,9 @@ class ProtocolManager:
         self._msdp_cache: dict[str, Any] = {}
         self._mssp: dict[str, Any] = {}
         self._cap_logged = False
+        # MXP line modes of the MUD link (#61)
+        self._mxp_default: mxp.MxpMode = mxp.MxpMode.OPEN
+        self._mxp_current: mxp.MxpMode = mxp.MxpMode.OPEN
         # uuid -> ClientConnection, for clients that are logged in
         self._clients: dict[str, Any] = {}
 
@@ -207,6 +214,44 @@ class ProtocolManager:
         self._msdp_cache.clear()
         self._mssp = {}
         self._cap_logged = False
+        self._mxp_reset()
+
+    def _mxp_reset(self) -> None:
+        """Return the MUD's MXP modes to open."""
+        self._mxp_default = mxp.MxpMode.OPEN
+        self._mxp_current = mxp.MxpMode.OPEN
+
+    def mxp_line_mode(self, text: str, *, ended: bool, enabled: bool) -> mxp.MxpMode | None:
+        """Track the MUD's MXP modes over one received piece of a line (#61).
+
+        Returns the mode at the start of ``text``, or None (and resets the modes) when MXP is
+        not enabled on the MUD link. A piece that did not end its line carries its mode over to
+        the next piece; at the end of a line the mode returns to the default.
+        """
+        if not enabled:
+            self._mxp_reset()
+            return None
+        start = self._mxp_current
+        current, default = mxp.scan_modes(text, start, self._mxp_default)
+        self._mxp_default = default
+        self._mxp_current = default if ended else current
+        return start
+
+    def on_mud_mxp(self, payload: bytes) -> None:
+        """Log an ``SB MXP`` from the MUD; the payload is not kept (#61)."""
+        logger.debug("MXP subnegotiation from the mud, %d bytes", len(payload))
+
+    def _mxp_sync(self, conn: Any) -> None:
+        """Tell a logged-in MXP client the MUD's default mode when it is not open (#61)."""
+        if not getattr(conn, "mxp_enabled", False) or conn.writer.is_closing():
+            return
+        escape = mxp.sync_escape(self._mxp_default)
+        if not escape:
+            return
+        try:
+            conn.writer.write(escape)
+        except Exception:
+            logger.exception("Could not send the MXP mode to client %s", conn.uuid)
 
     def on_mud_will_gmcp(self, _opt: bytes) -> None:
         """Send ``Core.Hello`` once per connection, then the supports union if not empty."""
@@ -321,6 +366,7 @@ class ProtocolManager:
         """A client logged in: it now receives data, replay the cache and count its modules."""
         self._clients[conn.uuid] = conn
         self._replay(conn)
+        self._mxp_sync(conn)
         self._send_supports_if_changed()
 
     def client_gone(self, conn: Any) -> None:
@@ -333,6 +379,10 @@ class ProtocolManager:
         if opt == GMCP and not enabled:
             conn.gmcp_modules = {}
         if conn.uuid not in self._clients:
+            return
+        if opt == MXP:
+            if enabled:
+                self._mxp_sync(conn)
             return
         if enabled:
             self._replay(conn, gmcp=opt == GMCP, msdp=opt == MSDP, mssp=opt == MSSP)

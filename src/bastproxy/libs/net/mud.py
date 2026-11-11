@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP
+from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -238,6 +238,12 @@ class MudConnection:
                     had_line_endings=rec.ended,
                 )
                 line.is_prompt = rec.prompt
+                writer = self.writer
+                line.mxp_mode = PROTOCOLS.mxp_line_mode(
+                    rec.text,
+                    ended=rec.ended,
+                    enabled=writer is not None and writer.remote_option.enabled(MXP) is True,
+                )
                 data.append(line)
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", rec.text)
                 if not self.reader.line_ready() or len(data) >= self.max_lines_to_process:
@@ -594,15 +600,19 @@ class MudTelnetClient(TelnetClient):
         return result
 
     def setup_gmcp(self) -> None:
-        """Accept GMCP, MSDP and MSSP and wire them to the protocol manager (#59, #60).
+        """Accept GMCP, MSDP, MSSP and MXP and wire them to the protocol manager (#59, #60, #61).
+
+        MXP markup is ordinary text; the SB MXP start is only logged, so telnetlib3 does not
+        keep it in ``ctx.mxp_data``.
 
         telnetlib3's own ``Core.Hello`` handshake is not used: the manager sends the proxy's
         own once the MUD offers GMCP. This does not call ``super()``.
         """
-        self.writer.passive_do.update({GMCP, MSDP, MSSP})
+        self.writer.passive_do.update({GMCP, MSDP, MSSP, MXP})
         self.writer.set_ext_callback(GMCP, PROTOCOLS.on_mud_gmcp)
         self.writer.set_ext_callback(MSDP, PROTOCOLS.on_mud_msdp)
         self.writer.set_ext_callback(MSSP, PROTOCOLS.on_mud_mssp)
+        self.writer.set_ext_callback(MXP, PROTOCOLS.on_mud_mxp)
         self.writer.add_will_callback(GMCP, PROTOCOLS.on_mud_will_gmcp)
 
     def setup_zmp(self) -> None:

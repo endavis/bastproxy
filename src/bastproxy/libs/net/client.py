@@ -48,7 +48,7 @@ from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
-from telnetlib3.telopt import ECHO, GMCP, MSDP, MSSP, WILL, WONT
+from telnetlib3.telopt import ECHO, GMCP, MSDP, MSSP, MXP, WILL, WONT
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
-from bastproxy.libs.net import telnet
+from bastproxy.libs.net import mxp, telnet
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
     NetworkData,
@@ -199,6 +199,11 @@ class ClientConnection:
     def mssp_enabled(self) -> bool:
         """Return True while MSSP is negotiated on this client's link (we sent WILL, got DO)."""
         return bool(self.writer.local_option.enabled(MSSP))
+
+    @property
+    def mxp_enabled(self) -> bool:
+        """Return True while MXP is negotiated on this client's link (we sent WILL, got DO)."""
+        return self.writer.local_option.enabled(MXP) is True
 
     @property
     def msdp_enabled(self) -> bool:
@@ -511,9 +516,11 @@ class ClientConnection:
                         "client_write - Writing message to client %s: %s", self.uuid, msg_obj.line
                     )
                     logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
-                    self.writer.write(msg_obj.line)
+                    # each client gets its own copy: MXP kept or stripped (#61)
+                    out = mxp.render_for_client(msg_obj, self.mxp_enabled)
+                    self.writer.write(out)
                     msg_obj.was_sent = True
-                    self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
+                    self.data_logger.info("%-12s : %s", "client_write", out)
                 else:
                     logger.debug("client_write - No message to write to client.")
                 # send_ga writes IAC GA through send_iac and sends nothing
