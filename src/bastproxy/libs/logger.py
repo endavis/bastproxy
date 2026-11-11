@@ -42,6 +42,20 @@ LEVELS: dict[str, int] = {
 _thresholds: dict[str, int] = {}
 
 
+def input_placeholder(line: str, context: str = "input before login") -> str:
+    """Build a fixed log placeholder for a line that must not be logged.
+
+    Args:
+        line: the line being replaced; only its length is used
+        context: a short description of where the line came from
+
+    Returns:
+        ``<context, N chars>``
+
+    """
+    return f"<{context}, {len(line)} chars>"
+
+
 def get_toplevel(logger_name: str) -> str:
     """Get the toplevel logger from a name (the part before the first ``:``)."""
     return logger_name.split(":")[0] if ":" in logger_name else logger_name

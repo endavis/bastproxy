@@ -14,8 +14,11 @@ import copy
 import logging
 import logging.handlers
 import numbers
+import os
 import sys
 import traceback
+from pathlib import Path
+from typing import Any
 
 # Third Party
 # Project
@@ -155,7 +158,37 @@ class CustomConsoleHandler(logging.StreamHandler):
             super().emit(record)
 
 
-class CustomRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
+LOG_DIR_MODE = 0o700
+LOG_FILE_MODE = 0o600
+
+
+def make_log_dir(path: Path) -> None:
+    """Create a log directory (and missing parents) with mode 0o700.
+
+    Only directories created by this call are changed; existing ones keep their mode.
+    """
+    missing = [p for p in (path, *path.parents) if not p.exists()]
+    path.mkdir(parents=True, exist_ok=True, mode=LOG_DIR_MODE)
+    for created in missing:
+        created.chmod(LOG_DIR_MODE)
+
+
+class PrivateFileMixin:
+    """Open log files, including rotated ones, with mode 0o600 when newly created."""
+
+    def _open(self) -> Any:
+        existed = os.path.exists(self.baseFilename)  # type: ignore[attr-defined]
+        stream = super()._open()  # type: ignore[misc]
+        if not existed:
+            os.chmod(self.baseFilename, LOG_FILE_MODE)  # type: ignore[attr-defined]
+        return stream
+
+
+class PrivateTimedRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotatingFileHandler):
+    """A timed rotating file handler whose files are created with mode 0o600."""
+
+
+class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotatingFileHandler):
     def __init__(
         self,
         filename,
@@ -241,7 +274,7 @@ def setup_loggers(log_level: int):
     rootlogger.setLevel(logging.DEBUG)
 
     default_log_file_path = API.BASEDATALOGPATH / default_log_file
-    (API.BASEDATALOGPATH / "networkdata").mkdir(parents=True, exist_ok=True)
+    make_log_dir(API.BASEDATALOGPATH / "networkdata")
     data_logger_log_file_path = API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
 
     file_handler = CustomRotatingFileHandler(filename=default_log_file_path, when="midnight")
@@ -283,7 +316,7 @@ def setup_loggers(log_level: int):
     # logging network data to/from the client will use data.<client_uuid>
     data_logger = logging.getLogger("data")
     data_logger.setLevel(logging.INFO)
-    data_logger_file_handler = logging.handlers.TimedRotatingFileHandler(
+    data_logger_file_handler = PrivateTimedRotatingFileHandler(
         data_logger_log_file_path, when="midnight"
     )
     data_logger_file_handler.formatter = logging.Formatter(
