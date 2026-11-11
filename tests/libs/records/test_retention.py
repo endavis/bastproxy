@@ -164,6 +164,17 @@ def test_pending_cap_evicts_the_oldest(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _stored(orphans[2])
 
 
+def test_pending_cap_holds_without_root_activity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Adding pending records prunes them, with no root tree finishing (#83)."""
+    cap = 5
+    monkeypatch.setattr(records_module, "MAX_PENDING", cap)
+    monkeypatch.setattr(RMANAGER, "_pending_since_prune", 0)
+    orphans = [NetworkData([]) for _ in range(cap * 10)]
+    assert len(RMANAGER.record_instances) <= 2 * cap
+    assert _gone(orphans[0])
+    assert _stored(orphans[-1])
+
+
 def test_adopted_pending_record_joins_the_tree_of_its_root() -> None:
     RMANAGER.max_trees = 1
     orphan = NetworkData([])
