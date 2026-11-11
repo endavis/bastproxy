@@ -25,10 +25,15 @@ class BoundedDecompressor:
         self._inner = inner
         self._limit = limit
 
-    def decompress(self, data: bytes) -> bytes:
-        """Inflate *data*, raising ``zlib.error`` when the output exceeds the limit."""
-        out: bytes = self._inner.decompress(data, self._limit + 1)
-        if len(out) > self._limit or self._inner.unconsumed_tail:
+    def decompress(self, data: bytes, limit: int | None = None) -> bytes:
+        """Inflate *data*, raising ``zlib.error`` when the output exceeds the limit.
+
+        *limit*, when given, lowers the limit for this call only; the smaller of it and the
+        wrapper's own limit applies.
+        """
+        bound = self._limit if limit is None else max(0, min(limit, self._limit))
+        out: bytes = self._inner.decompress(data, bound + 1)
+        if len(out) > bound or self._inner.unconsumed_tail:
             raise zlib.error("chunk exceeded the inflation limit")
         return out
 

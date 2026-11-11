@@ -59,10 +59,20 @@ from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 
 logger = get_logger(__name__)
 
-#: Most bytes one received chunk of a client's MCCP3 stream may inflate to. An asyncio socket
-#: read is at most 256 KiB, so 16 MiB allows 64 to 1 on a full read; the same limit as the MUD
-#: side (``MCCP2_MAX_INFLATED_CHUNK``, #58).
+#: Most bytes one received chunk from a client may inflate to, counted across every MCCP3
+#: stream in that chunk (a client can end a stream and start another in the same read). An
+#: asyncio socket read is at most 256 KiB, so 16 MiB allows 64 to 1 on a full read; the same
+#: limit as the MUD side (``MCCP2_MAX_INFLATED_CHUNK``, #58).
 MCCP3_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
+
+#: Most bytes a client link may inflate to, over its whole life, per compressed byte it sent.
+#: Each read is bounded on its own above; this bound stops a client from repeating a
+#: full-size read, one per read, so memory cannot grow far faster than the bytes received.
+MCCP3_MAX_RATIO = 64
+
+#: Inflated bytes a client link is allowed beyond ``MCCP3_MAX_RATIO``, so a short session
+#: of very repetitive input is not cut off.
+MCCP3_RATIO_SLACK = 1024 * 1024
 
 _IAC_SE = IAC + SE
 
@@ -79,6 +89,12 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     _mccp2_enabled: bool = False
     _mccp3_inflater: BoundedDecompressor | None = None
     mccp3_failed: bool = False
+    #: What is left of ``MCCP3_MAX_INFLATED_CHUNK`` for the chunk being processed.
+    _mccp3_budget: int = 0
+    #: Compressed bytes inflated on this link so far, across every MCCP3 stream.
+    _mccp3_in: int = 0
+    #: What those bytes inflated to.
+    _mccp3_out: int = 0
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the server, defaulting to the writer that records negotiation (#83)."""
@@ -141,7 +157,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.mccp3_failed = True
         self._mccp3_inflater = None
         logger.error(
-            "MCCP3 decompression error on a client link (a broken stream or a chunk over the "
+            "MCCP3 decompression error on a client link (a broken stream or output over an "
             "inflation limit), closing the connection to the client"
         )
         self.writer.close()
@@ -189,19 +205,30 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         return b""
 
     def _feed_compressed(self, data: bytes) -> bytes:
-        """Inflate bounded *data* of an open stream and feed it on; return bytes after its end."""
+        """Inflate bounded *data* of an open stream and feed it on; return bytes after its end.
+
+        The output is limited by what is left of this read's budget and by the link's ratio
+        limit (``MCCP3_MAX_RATIO`` times the compressed bytes received, plus
+        ``MCCP3_RATIO_SLACK``), whichever is smaller.
+        """
         inflater = self._mccp3_inflater
         if inflater is None:
             return data
+        allowance = (
+            MCCP3_MAX_RATIO * (self._mccp3_in + len(data)) + MCCP3_RATIO_SLACK - self._mccp3_out
+        )
         try:
-            out = inflater.decompress(data)
+            out = inflater.decompress(data, min(self._mccp3_budget, allowance))
         except zlib.error:
             self._mccp3_fail()
             return b""
+        self._mccp3_budget -= len(out)
         rest = b""
         ended = bool(inflater.eof)
         if ended:
             rest = bytes(inflater.unused_data)
+        self._mccp3_in += len(data) - len(rest)
+        self._mccp3_out += len(out)
         self._feed_pieces(out)
         if ended:
             self._mccp3_inflater = None
@@ -211,11 +238,16 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         """Process client data, inflating a client's MCCP3 stream when it was agreed (#329).
 
         MCCP3 starts only when the proxy offered it and the client agreed (see
-        ``RecordingTelnetWriter._handle_sb_mccp3``); the stream can start mid-chunk. Every
-        inflate is bounded by ``MCCP3_MAX_INFLATED_CHUNK``. A broken stream or one over the
-        bound closes this client's link, and nothing more from it is processed. After a
-        clean end the rest of the data is plain again.
+        ``RecordingTelnetWriter._handle_sb_mccp3``); the stream can start mid-chunk. All that
+        *data* inflates to, across every MCCP3 stream in it, is bounded by
+        ``MCCP3_MAX_INFLATED_CHUNK``, so ending a stream and starting another in the same read
+        does not raise the limit. Across reads, the link may inflate to no more than
+        ``MCCP3_MAX_RATIO`` times the compressed bytes it sent, plus ``MCCP3_RATIO_SLACK``.
+        A broken stream or one over either bound closes this client's
+        link, and nothing more from it is processed. After a clean end the rest of the data is
+        plain again.
         """
+        self._mccp3_budget = MCCP3_MAX_INFLATED_CHUNK
         while data and not self.mccp3_failed:
             if self._mccp3_inflater is None:
                 data = self._feed_pieces(data)

@@ -38,3 +38,16 @@ def test_eof_and_unused_data_are_forwarded() -> None:
 
 def test_default_limit() -> None:
     assert MAX_INFLATED_CHUNK == 16 * 1024 * 1024
+
+
+@pytest.mark.parametrize("call_limit", [500, 0, -5])
+def test_a_lower_per_call_limit_applies(call_limit: int) -> None:
+    inflater = BoundedDecompressor(zlib.decompressobj(), 1000)
+    with pytest.raises(zlib.error):
+        inflater.decompress(_compressed(b"a" * 600), call_limit)
+
+
+def test_a_higher_per_call_limit_does_not_raise_the_wrapper_limit() -> None:
+    inflater = BoundedDecompressor(zlib.decompressobj(), 1000)
+    with pytest.raises(zlib.error):
+        inflater.decompress(_compressed(b"a" * 1001), 5000)

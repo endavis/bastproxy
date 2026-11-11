@@ -561,6 +561,79 @@ async def test_client_mccp3_chunk_over_the_bound_closes_the_link(
     assert any("inflation limit" in r.message for r in caplog.records)
 
 
+async def test_client_mccp3_restarts_in_one_chunk_share_the_bound(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_INFLATED_CHUNK", 1000)
+    caplog.set_level(logging.ERROR)
+    one = START3 + _stream(b"C" * 598 + b"\r\n", finish=True)
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        protocol.data_received(one * 3)
+        await client.wait_for(lambda: proxy.writers[0].is_closing())
+        await client.close()
+    assert protocol.mccp3_failed is True
+    assert any("inflation limit" in r.message for r in caplog.records)
+
+
+async def test_client_mccp3_streams_in_separate_chunks_each_get_the_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_INFLATED_CHUNK", 1000)
+    body = "D" * 598 + "\r\n"
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        protocol.data_received(START3 + _stream(body.encode(), finish=True))
+        protocol.data_received(START3 + _stream(body.encode(), finish=True))
+        first = await _line(proxy)
+        second = await _line(proxy)
+        await client.close()
+    assert protocol.mccp3_failed is False
+    assert first == second == body
+
+
+async def test_client_mccp3_ratio_limit_spans_reads_and_streams(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_RATIO", 2)
+    monkeypatch.setattr(server_module, "MCCP3_RATIO_SLACK", 1000)
+    caplog.set_level(logging.ERROR)
+    one = START3 + _stream(b"E" * 598 + b"\r\n", finish=True)
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        protocol.data_received(one)
+        first = await _line(proxy)
+        failed_after_one = protocol.mccp3_failed
+        protocol.data_received(one)
+        await client.wait_for(lambda: proxy.writers[0].is_closing())
+        await client.close()
+    assert first == "E" * 598 + "\r\n"
+    assert failed_after_one is False
+    assert protocol.mccp3_failed is True
+    assert any("inflation limit" in r.message for r in caplog.records)
+
+
+async def test_client_mccp3_low_ratio_input_passes_the_ratio_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_RATIO", 2)
+    monkeypatch.setattr(server_module, "MCCP3_RATIO_SLACK", 0)
+    lines = [f"say line {i} {bytes(range(65, 91)).decode()}\r\n" for i in range(3)]
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        protocol.data_received(START3 + _stream(lines[0].encode(), finish=True))
+        for line in lines[1:]:
+            protocol.data_received(START3 + _stream(line.encode(), finish=True))
+        got = [await _line(proxy) for _ in lines]
+        await client.close()
+    assert protocol.mccp3_failed is False
+    assert got == lines
+
+
 async def test_client_mccp3_chunk_under_the_bound_decodes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
