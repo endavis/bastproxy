@@ -1,12 +1,12 @@
 # Project: bastproxy
 # Filename: libs/net/oob.py
 #
-# File Description: bounded codecs for the out-of-band protocols GMCP and MSDP
+# File Description: bounded codecs for the out-of-band protocols GMCP, MSDP and MSSP
 #
 # By: Bast
-"""Bounded decoders and helpers for GMCP and MSDP (#59, ADR-0001).
+"""Bounded decoders and helpers for GMCP, MSDP and MSSP (#59, #60, ADR-0001).
 
-The proxy decodes GMCP and MSDP itself, on links where the option was negotiated, with the
+The proxy decodes GMCP, MSDP and MSSP itself, on links where the option was negotiated, with the
 decoders here. Every decoder checks a size limit first and runs in one pass over the payload,
 so the work for a message is proportional to its length. A message that does not decode raises
 ``OobDecodeError``; the caller drops that message and keeps the link open.
@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from typing import Any
 
 # 3rd Party
+from telnetlib3.mud import mssp_decode
 from telnetlib3.telopt import (
     MSDP_ARRAY_CLOSE,
     MSDP_ARRAY_OPEN,
@@ -31,23 +32,31 @@ from telnetlib3.telopt import (
 )
 
 # Project
+from bastproxy.libs.logger import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = [
     "CACHE_MAX_ENTRIES",
     "CLIENT_MAX_MODULES",
     "MSDP_MAX_DEPTH",
     "MSDP_MAX_NODES",
+    "MSSP_MAX_VALUES",
+    "MSSP_MAX_VALUE_LEN",
+    "MSSP_MAX_VARIABLES",
     "OOB_MAX_PAYLOAD",
     "REDACTED",
     "OobDecodeError",
     "decode_gmcp",
     "decode_msdp",
+    "decode_mssp",
     "is_credential_package",
     "merge_gmcp",
     "package_wanted",
     "parse_supports",
     "redact_gmcp_payload",
     "supports_payload",
+    "valid_mssp_name",
     "valid_package",
     "valid_variable",
 ]
@@ -59,9 +68,13 @@ MSDP_MAX_DEPTH = 16
 MSDP_MAX_NODES = 4096
 CACHE_MAX_ENTRIES = 512
 CLIENT_MAX_MODULES = 64
+MSSP_MAX_VARIABLES = 256
+MSSP_MAX_VALUES = 64
+MSSP_MAX_VALUE_LEN = 4096
 
 _PACKAGE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
 _VARIABLE_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
+_MSSP_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_ .-]{0,63}$")
 _MODULE_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_.]{0,63})(?: ([0-9]{1,3}))?$")
 
 _MSDP_DELIMITERS = frozenset(
@@ -76,7 +89,7 @@ _MSDP_ARRAY_CLOSE = MSDP_ARRAY_CLOSE[0]
 
 
 class OobDecodeError(ValueError):
-    """A GMCP or MSDP payload that does not decode within the limits.
+    """A GMCP, MSDP or MSSP payload that does not decode within the limits.
 
     ``name`` is the package or variable name when it was read before the failure.
     """
@@ -95,6 +108,11 @@ def valid_package(package: str) -> bool:
 def valid_variable(variable: str) -> bool:
     """Whether ``variable`` is an acceptable MSDP variable name."""
     return _VARIABLE_RE.fullmatch(variable) is not None
+
+
+def valid_mssp_name(name: str) -> bool:
+    """Whether ``name`` is an acceptable MSSP variable name (spaces allowed, as in CRAWL DELAY)."""
+    return _MSSP_NAME_RE.fullmatch(name) is not None
 
 
 def decode_gmcp(payload: bytes, encoding: str = "utf-8") -> tuple[str, Any]:
@@ -233,6 +251,57 @@ def decode_msdp(payload: bytes, encoding: str = "utf-8") -> dict[str, Any]:
     if not top:
         raise fail("payload has no variables")
     return top
+
+
+def decode_mssp(payload: bytes, encoding: str = "utf-8") -> dict[str, str | list[str]]:
+    """Decode an MSSP payload into a dict of variable name to a ``str`` or a ``list[str]``.
+
+    The payload is checked against ``OOB_MAX_PAYLOAD`` first, decoded with telnetlib3, then
+    filtered: a variable whose name is not valid is skipped; variables past
+    ``MSSP_MAX_VARIABLES`` are skipped; a variable keeps at most ``MSSP_MAX_VALUES`` values;
+    a value longer than ``MSSP_MAX_VALUE_LEN`` characters is skipped. One DEBUG line per call
+    says what was skipped.
+
+    Raises:
+        OobDecodeError: If the payload is over ``OOB_MAX_PAYLOAD``, or no valid variable is
+            left after filtering.
+
+    """
+    if len(payload) > OOB_MAX_PAYLOAD:
+        msg = "MSSP payload over the size limit"
+        raise OobDecodeError(msg)
+    raw = mssp_decode(payload, encoding)
+    result: dict[str, str | list[str]] = {}
+    bad_names = over_variables = over_values = long_values = 0
+    for name, value in raw.items():
+        if not valid_mssp_name(name):
+            bad_names += 1
+            continue
+        if len(result) >= MSSP_MAX_VARIABLES:
+            over_variables += 1
+            continue
+        values = value if isinstance(value, list) else [value]
+        if len(values) > MSSP_MAX_VALUES:
+            over_values += len(values) - MSSP_MAX_VALUES
+            values = values[:MSSP_MAX_VALUES]
+        kept = [item for item in values if len(item) <= MSSP_MAX_VALUE_LEN]
+        long_values += len(values) - len(kept)
+        if not kept:
+            continue
+        result[name] = kept if isinstance(value, list) and len(kept) > 1 else kept[0]
+    if bad_names or over_variables or over_values or long_values:
+        logger.debug(
+            "MSSP skipped: %d invalid names, %d variables past the limit, %d values past "
+            "the limit, %d values over the length limit",
+            bad_names,
+            over_variables,
+            over_values,
+            long_values,
+        )
+    if not result:
+        msg = "MSSP payload has no valid variables"
+        raise OobDecodeError(msg)
+    return result
 
 
 def merge_gmcp(old: Any, new: Any) -> Any:

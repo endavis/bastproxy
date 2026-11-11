@@ -18,6 +18,7 @@ from bastproxy.libs.net.protocols import (
     EVENT_RAISE_API,
     MUD_GMCP_EVENT,
     MUD_MSDP_EVENT,
+    MUD_MSSP_EVENT,
     PROTOCOL_EVENTS,
     PROTOCOLS,
 )
@@ -33,6 +34,7 @@ REMOVE_OWNER = "libs.net.protocols:gmcp.modules.remove.for.owner"
 SUPPORTS = "libs.net.protocols:gmcp.supports.get"
 GMCP_CACHE = "libs.net.protocols:gmcp.cache.get"
 MSDP_CACHE = "libs.net.protocols:msdp.cache.get"
+MSSP_CACHE = "libs.net.protocols:mssp.cache.get"
 
 
 class FakeApi:
@@ -92,15 +94,16 @@ class FakeWriter:
 
 
 def test_apis_exist() -> None:
-    for name in (ADD, REMOVE, REMOVE_OWNER, SUPPORTS, GMCP_CACHE, MSDP_CACHE):
+    for name in (ADD, REMOVE, REMOVE_OWNER, SUPPORTS, GMCP_CACHE, MSDP_CACHE, MSSP_CACHE):
         assert callable(PROTOCOLS.api(name)), name
 
 
 def test_protocol_events_are_defined() -> None:
     names = {spec.name: spec for spec in PROTOCOL_EVENTS}
-    assert set(names) == {MUD_GMCP_EVENT, MUD_MSDP_EVENT}
+    assert set(names) == {MUD_GMCP_EVENT, MUD_MSDP_EVENT, MUD_MSSP_EVENT}
     assert set(names[MUD_GMCP_EVENT].arg_descriptions) == {"package", "data"}
     assert set(names[MUD_MSDP_EVENT].arg_descriptions) == {"variable", "data"}
+    assert set(names[MUD_MSSP_EVENT].arg_descriptions) == {"data"}
 
 
 def test_events_plugin_registers_the_protocol_events() -> None:
@@ -116,7 +119,7 @@ def test_events_plugin_registers_the_protocol_events() -> None:
     plugin.plugin_id = "plugins.core.events"
     plugin.api = _Api()
     EventsPlugin._phook_initialize(plugin)
-    assert {MUD_GMCP_EVENT, MUD_MSDP_EVENT} <= set(added)
+    assert {MUD_GMCP_EVENT, MUD_MSDP_EVENT, MUD_MSSP_EVENT} <= set(added)
 
 
 def test_uninitialize_removes_the_plugin_modules() -> None:

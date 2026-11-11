@@ -48,7 +48,7 @@ from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
-from telnetlib3.telopt import ECHO, GMCP, MSDP, WILL, WONT
+from telnetlib3.telopt import ECHO, GMCP, MSDP, MSSP, WILL, WONT
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
@@ -121,7 +121,7 @@ class ClientConnection:
         self._wire_oob()
 
     def _wire_oob(self) -> None:
-        """Hand this link's GMCP and MSDP to the protocol manager (#59)."""
+        """Hand this link's GMCP, MSDP and MSSP to the protocol manager (#59)."""
         self.writer.oob_option_callback = self._on_oob_option  # type: ignore[attr-defined]
         self.writer.set_ext_callback(GMCP, self._on_gmcp)
         self.writer.set_ext_callback(MSDP, self._on_msdp)
@@ -147,7 +147,7 @@ class ClientConnection:
         try:
             PROTOCOLS.client_ready(self)
         except Exception:
-            logger.exception("Could not start GMCP and MSDP for client %s", self.uuid)
+            logger.exception("Could not start GMCP, MSDP and MSSP for client %s", self.uuid)
 
     @property
     def rows(self) -> int:
@@ -194,6 +194,11 @@ class ClientConnection:
     def gmcp_enabled(self) -> bool:
         """Return True while GMCP is negotiated on this client's link (we sent WILL, got DO)."""
         return bool(self.writer.local_option.enabled(GMCP))
+
+    @property
+    def mssp_enabled(self) -> bool:
+        """Return True while MSSP is negotiated on this client's link (we sent WILL, got DO)."""
+        return bool(self.writer.local_option.enabled(MSSP))
 
     @property
     def msdp_enabled(self) -> bool:
@@ -596,7 +601,7 @@ async def unregister_client(connection) -> None:
     try:
         PROTOCOLS.client_gone(connection)
     except Exception:
-        logger.exception("Could not clean up GMCP and MSDP for client %s", connection.uuid)
+        logger.exception("Could not clean up GMCP, MSDP and MSSP for client %s", connection.uuid)
 
     logger.debug("unregister_client - Unregistered client %s", connection.uuid)
 

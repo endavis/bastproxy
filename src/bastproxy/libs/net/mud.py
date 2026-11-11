@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP
+from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -532,9 +532,9 @@ class _BoundedDecompressor:
 
 
 class MudTelnetClient(TelnetClient):
-    """telnetlib3 client for the MUD side that terminates GMCP and MSDP and declines ZMP.
+    """telnetlib3 client for the MUD side that terminates GMCP, MSDP and MSSP and declines ZMP.
 
-    GMCP and MSDP are accepted and decoded by the proxy (ADR-0001, #59); the proxy sends its
+    GMCP, MSDP and MSSP are accepted and decoded by the proxy (ADR-0001, #59, #60); the proxy sends its
     own ``Core.Hello`` instead of telnetlib3's. ZMP is not negotiated (#39).
 
     It also accepts MCCP2 and MCCP3 (#58). telnetlib3 decompresses the MUD's
@@ -594,14 +594,15 @@ class MudTelnetClient(TelnetClient):
         return result
 
     def setup_gmcp(self) -> None:
-        """Accept GMCP and MSDP and wire them to the protocol manager (#59).
+        """Accept GMCP, MSDP and MSSP and wire them to the protocol manager (#59, #60).
 
         telnetlib3's own ``Core.Hello`` handshake is not used: the manager sends the proxy's
         own once the MUD offers GMCP. This does not call ``super()``.
         """
-        self.writer.passive_do.update({GMCP, MSDP})
+        self.writer.passive_do.update({GMCP, MSDP, MSSP})
         self.writer.set_ext_callback(GMCP, PROTOCOLS.on_mud_gmcp)
         self.writer.set_ext_callback(MSDP, PROTOCOLS.on_mud_msdp)
+        self.writer.set_ext_callback(MSSP, PROTOCOLS.on_mud_mssp)
         self.writer.add_will_callback(GMCP, PROTOCOLS.on_mud_will_gmcp)
 
     def setup_zmp(self) -> None:

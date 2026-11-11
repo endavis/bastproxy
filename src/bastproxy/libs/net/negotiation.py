@@ -24,7 +24,7 @@ from uuid import uuid4
 
 # 3rd Party
 from telnetlib3 import TelnetWriterUnicode
-from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, SB, SE, WILL, WONT, name_option
+from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, MSSP, SB, SE, WILL, WONT, name_option
 
 # Project
 from bastproxy.libs.logger import get_logger
@@ -103,6 +103,12 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         if kwargs.get("server"):
             for opt in (GMCP, MSDP):
                 self.set_ext_callback(opt, self._make_pending_callback(opt))
+            self.set_ext_callback(MSSP, self._drop_client_mssp)
+
+    @staticmethod
+    def _drop_client_mssp(_variables: dict[str, Any]) -> None:
+        """MSSP describes the game, so MSSP from a client is dropped, never stored (#60)."""
+        logger.debug("Dropped an MSSP message from a client")
 
     def _make_pending_callback(self, opt: bytes) -> Callable[..., None]:
         """Build the callback that queues a decoded message for ``opt`` until it is taken."""
@@ -161,14 +167,14 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         super().send_iac(buf)
 
     def _oob_changed(self, opt: bytes, enabled: bool) -> None:
-        """Tell ``oob_option_callback`` that GMCP or MSDP changed state, if anyone listens.
+        """Tell ``oob_option_callback`` that GMCP, MSDP or MSSP changed state, if anyone listens.
 
         telnetlib3 stores ``local_option`` only after ``handle_do`` and ``handle_dont`` return,
         so it is set here first; the callback can then send on the link.
         """
         was = self.local_option.enabled(opt)
         callback = self.oob_option_callback
-        if callback is None or opt not in (GMCP, MSDP) or was == enabled:
+        if callback is None or opt not in (GMCP, MSDP, MSSP) or was == enabled:
             return
         self.local_option[opt] = enabled
         try:
@@ -220,7 +226,7 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         decode: Callable[[bytes, str], Any],
         deliver: Callable[[Any], None],
     ) -> None:
-        """Decode a GMCP or MSDP subnegotiation with the bounded decoders in ``oob``.
+        """Decode a GMCP, MSDP or MSSP subnegotiation with the bounded decoders in ``oob``.
 
         The proxy decodes only protocols negotiated on the link: an SB for an option that is
         enabled in neither direction is dropped. A payload that does not decode is dropped with
@@ -257,4 +263,10 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         """Decode an MSDP subnegotiation and pass the variables to the MSDP callback."""
         self._handle_oob_sb(
             buf, MSDP, oob.decode_msdp, lambda result: self._ext_callback[MSDP](result)
+        )
+
+    def _handle_sb_mssp(self, buf: collections.deque[bytes]) -> None:
+        """Decode an MSSP subnegotiation and pass the table to the MSSP callback (#60)."""
+        self._handle_oob_sb(
+            buf, MSSP, oob.decode_mssp, lambda result: self._ext_callback[MSSP](result)
         )

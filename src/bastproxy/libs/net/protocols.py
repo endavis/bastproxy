@@ -1,10 +1,10 @@
 # Project: bastproxy
 # Filename: libs/net/protocols.py
 #
-# File Description: terminates GMCP and MSDP and publishes them as events
+# File Description: terminates GMCP, MSDP and MSSP and publishes them as events
 #
 # By: Bast
-"""Terminate GMCP and MSDP on the MUD link and publish them as events (#59, ADR-0001).
+"""Terminate GMCP, MSDP and MSSP on the MUD link and publish them as events (#59, #60, ADR-0001).
 
 ``PROTOCOLS`` is the one ``ProtocolManager``. It outlives any one ``MudConnection``, which is
 rebuilt on each connect, and plugins can use its APIs before the MUD connects.
@@ -13,11 +13,17 @@ For each message from the MUD, in order: make a ``TelnetProtocolMessage`` record
 value, then raise ``ev_libs.net.mud_gmcp`` (once per GMCP message) or ``ev_libs.net.mud_msdp``
 (once per MSDP variable). Each event gets its own copy of the data.
 
+MSSP: the MUD's table is stored whole (a new table replaces the old one, and a disconnect clears
+it), sent to every logged-in client with MSSP enabled, and raised once as
+``ev_libs.net.mud_mssp`` with the whole table. A client gets the stored table when it logs in or
+answers ``DO MSSP``; the plaintext ``MSSP-REQUEST`` form is not supported. MSSP from a client is
+dropped.
+
 The proxy owns the ``Core`` GMCP package on each link: it sends its own ``Core.Hello`` and a
 ``Core.Supports.Set`` holding the union of the modules plugins register and the modules of the
 logged-in clients that negotiated GMCP, and it never caches or forwards ``Core.*`` messages.
 
-Client links: the proxy offers GMCP and MSDP to each client. A client gets data only once it has
+Client links: the proxy offers GMCP, MSDP and MSSP to each client. A client gets data only once it has
 logged in (view-only included) and answered ``DO``. Live GMCP is re-encoded for each client by
 its own ``Core.Supports``, MSDP goes to every MSDP client, and a client that joins or enables a
 protocol late gets the cached values. From a client, ``Core.Hello`` is absorbed,
@@ -31,7 +37,7 @@ import copy
 from typing import Any
 
 # 3rd Party
-from telnetlib3.telopt import GMCP, MSDP
+from telnetlib3.telopt import GMCP, MSDP, MSSP
 
 # Project
 import bastproxy
@@ -52,6 +58,7 @@ MUD_LINK_ID = "mud"
 CLIENT_MSDP_COMMANDS = frozenset({"LIST", "SEND", "REPORT"})
 MUD_GMCP_EVENT = "ev_libs.net.mud_gmcp"
 MUD_MSDP_EVENT = "ev_libs.net.mud_msdp"
+MUD_MSSP_EVENT = "ev_libs.net.mud_mssp"
 EVENT_RAISE_API = "plugins.core.events:event.raise"
 
 PROTOCOL_EVENTS: tuple[RecordEventSpec, ...] = (
@@ -73,11 +80,19 @@ PROTOCOL_EVENTS: tuple[RecordEventSpec, ...] = (
             "data": "The decoded value, a str, list or dict; a copy the callback may keep",
         },
     ),
+    RecordEventSpec(
+        MUD_MSSP_EVENT,
+        API_OWNER,
+        ["Raised once for each MSSP table the mud sends"],
+        {
+            "data": "The whole MSSP table, str or list of str values; a copy the callback may keep",
+        },
+    ),
 )
 
 
 class ProtocolManager:
-    """Holds the GMCP and MSDP state for the MUD link."""
+    """Holds the GMCP, MSDP and MSSP state for the MUD link."""
 
     def __init__(self) -> None:
         """Create the manager with empty state and register its APIs."""
@@ -89,6 +104,7 @@ class ProtocolManager:
         self._last_supports: list[str] | None = None
         self._gmcp_cache: dict[str, Any] = {}
         self._msdp_cache: dict[str, Any] = {}
+        self._mssp: dict[str, Any] = {}
         self._cap_logged = False
         # uuid -> ClientConnection, for clients that are logged in
         self._clients: dict[str, Any] = {}
@@ -118,16 +134,20 @@ class ProtocolManager:
 
     def _raise(self, event: str, name_arg: str, name: str, data: Any) -> None:
         """Raise ``event`` with its own copy of ``data`` when the events plugin is loaded."""
+        self._raise_args(event, {name_arg: name, "data": data}, name)
+
+    def _raise_args(self, event: str, args: dict[str, Any], label: str) -> None:
+        """Raise ``event`` with a deep copy of ``args`` when the events plugin is loaded."""
         try:
             if not self.api("libs.api:api.exists")(EVENT_RAISE_API):
                 return
             self.api(EVENT_RAISE_API)(
                 event,
-                event_args={name_arg: name, "data": copy.deepcopy(data)},
+                event_args=copy.deepcopy(args),
                 calledfrom=API_OWNER,
             )
         except Exception:
-            logger.exception("Could not raise %s for %s", event, name)
+            logger.exception("Could not raise %s for %s", event, label)
 
     def _cache_set(self, cache: dict[str, Any], key: str, value: Any, merge: bool) -> None:
         """Store ``value`` under ``key``, honoring ``CACHE_MAX_ENTRIES``."""
@@ -185,6 +205,7 @@ class ProtocolManager:
         self._last_supports = None
         self._gmcp_cache.clear()
         self._msdp_cache.clear()
+        self._mssp = {}
         self._cap_logged = False
 
     def on_mud_will_gmcp(self, _opt: bytes) -> None:
@@ -219,11 +240,19 @@ class ProtocolManager:
                 self._send_msdp_to_client(conn, variable, value)
             self._raise(MUD_MSDP_EVENT, "variable", variable, value)
 
+    def on_mud_mssp(self, variables: dict[str, Any]) -> None:
+        """Handle one decoded MSSP table from the MUD: record, store, send, raise (#60)."""
+        self._record("MSSP", "", variables, Direction.RECEIVED)
+        self._mssp = copy.deepcopy(variables)
+        for conn in self._targets(MSSP):
+            self._send_mssp_to_client(conn)
+        self._raise_args(MUD_MSSP_EVENT, {"data": variables}, "MSSP")
+
     # ------------------------------------------------------------------ client links
 
     def _targets(self, opt: bytes) -> list[Any]:
         """The logged-in clients that negotiated ``opt`` and whose link is open."""
-        enabled = "gmcp_enabled" if opt == GMCP else "msdp_enabled"
+        enabled = {GMCP: "gmcp_enabled", MSDP: "msdp_enabled", MSSP: "mssp_enabled"}[opt]
         return [
             conn
             for conn in list(self._clients.values())
@@ -248,15 +277,28 @@ class ProtocolManager:
             return
         self._record("MSDP", variable, value, Direction.SENT, conn.uuid)
 
+    def _send_mssp_to_client(self, conn: Any) -> None:
+        """Send the stored MSSP table to a client and record it; an empty table sends nothing."""
+        if not self._mssp:
+            return
+        table = copy.deepcopy(self._mssp)
+        try:
+            conn.writer.send_mssp(table)
+        except Exception:
+            logger.exception("Could not send MSSP to client %s", conn.uuid)
+            return
+        self._record("MSSP", "", table, Direction.SENT, conn.uuid)
+
     def _replay(
         self,
         conn: Any,
         *,
         gmcp: bool = True,
         msdp: bool = True,
+        mssp: bool = True,
         known: dict[str, int] | None = None,
     ) -> None:
-        """Send the cached values to one client.
+        """Send the cached values and the stored MSSP table to one client.
 
         GMCP packages go only when the client's modules want them and, with ``known`` given,
         its previous modules did not.
@@ -272,6 +314,8 @@ class ProtocolManager:
         if msdp and conn.msdp_enabled:
             for variable, value in list(self._msdp_cache.items()):
                 self._send_msdp_to_client(conn, variable, value)
+        if mssp and conn.mssp_enabled:
+            self._send_mssp_to_client(conn)
 
     def client_ready(self, conn: Any) -> None:
         """A client logged in: it now receives data, replay the cache and count its modules."""
@@ -285,13 +329,13 @@ class ProtocolManager:
             self._send_supports_if_changed()
 
     def client_option_changed(self, conn: Any, opt: bytes, enabled: bool) -> None:
-        """A client turned GMCP or MSDP on or off (``DO`` or ``DONT``)."""
+        """A client turned GMCP, MSDP or MSSP on or off (``DO`` or ``DONT``)."""
         if opt == GMCP and not enabled:
             conn.gmcp_modules = {}
         if conn.uuid not in self._clients:
             return
         if enabled:
-            self._replay(conn, gmcp=opt == GMCP, msdp=opt == MSDP)
+            self._replay(conn, gmcp=opt == GMCP, msdp=opt == MSDP, mssp=opt == MSSP)
         elif opt == GMCP:
             self._send_supports_if_changed()
 
@@ -319,7 +363,7 @@ class ProtocolManager:
             new = {name: version for name, version in old.items() if name not in parsed}
         conn.gmcp_modules = new
         if ready:
-            self._replay(conn, msdp=False, known=old)
+            self._replay(conn, msdp=False, mssp=False, known=old)
             self._send_supports_if_changed()
 
     def on_client_gmcp(self, conn: Any, package: str, data: Any) -> None:
@@ -441,6 +485,13 @@ class ProtocolManager:
         if variable is None:
             return copy.deepcopy(self._msdp_cache)
         return copy.deepcopy(self._msdp_cache.get(variable))
+
+    @AddAPI("mssp.cache.get", description="get the MSSP table the mud sent")
+    def _api_mssp_cache_get(self, variable: str | None = None) -> Any:
+        """A copy of one MSSP variable (None if absent), or of the whole table."""
+        if variable is None:
+            return copy.deepcopy(self._mssp)
+        return copy.deepcopy(self._mssp.get(variable))
 
 
 PROTOCOLS = ProtocolManager()

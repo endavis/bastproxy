@@ -167,6 +167,7 @@ The two protocol events are registered the same way, from `PROTOCOL_EVENTS` in `
 |-------|-----------|--------|
 | `ev_libs.net.mud_gmcp` | `package`, `data` | once per GMCP message from the MUD (`Core.*` excluded) |
 | `ev_libs.net.mud_msdp` | `variable`, `data` | once per MSDP variable from the MUD |
+| `ev_libs.net.mud_mssp` | `data` | once per MSSP table from the MUD; `data` is the whole table |
 
 Each event gets its own copy of `data` (`copy.deepcopy`), so a callback cannot change the cached value or what is sent to clients. A plugin that wants a GMCP package announces it to the MUD with `gmcp.modules.add`, which adds to the `Core.Supports.Set` the proxy sends:
 
@@ -429,6 +430,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 - `ev_libs.net.mud_from_mud_event` - Data received from mud
 - `ev_libs.net.mud_gmcp` - A GMCP message from the mud (args `package`, `data`)
 - `ev_libs.net.mud_msdp` - An MSDP variable from the mud (args `variable`, `data`)
+- `ev_libs.net.mud_mssp` - An MSSP table from the mud (arg `data`, the whole table)
 
 ### Proxy Events
 - `ev_bastproxy_proxy_ready` - Proxy is ready to accept connections
