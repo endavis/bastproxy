@@ -45,6 +45,7 @@ Terminate MUD telnet protocols at the proxy (option 2).
 - **MCCP:** each link negotiates compression on its own. Compression to the MUD does not depend on compression to any client.
 - **MSSP:** the proxy keeps the MUD's MSSP data. It answers clients' MSSP requests itself.
 - **MXP:** the proxy passes MXP tags to clients that negotiated MXP, and strips them for clients that did not. MXP is the lowest priority.
+- **SGA and prompt marking:** the proxy refuses SGA from the MUD (`WILL SGA` gets `DONT SGA`), so the MUD keeps sending `IAC GA` after prompts and the proxy marks them ([data flow](../claude/data_flow.md)). Whether a client agreed SGA is decided on the client link on its own (#272).
 
 ## Rationale
 
@@ -56,6 +57,17 @@ Terminate MUD telnet protocols at the proxy (option 2).
 
 The cost is re-encoding on the client side and a cache to maintain. Each protocol also needs its own tests on both links.
 
+### SGA and prompt marking
+
+Measured against Evennia 6.1.0 (raw socket, login, four `look` commands, bytes after the prompt):
+
+| Reply to `WILL SGA` | `IAC GA` after prompt | `IAC EOR` | Output ends |
+| --- | --- | --- | --- |
+| `DO SGA` | 0 | 0 | `Exits: tutorial\r\n` (no GA) |
+| `DONT SGA` | 1 | 0 | `...\r\n\xff\xf9` |
+
+Evennia offered WILL for SGA, MCCP2, MSSP, MSDP, GMCP and MXP and never WILL EOR, so relying on EOR would give no prompt marks there. Accepting SGA turns GA off, so the proxy refuses it. This fits "each link negotiates on its own": it concerns the MUD link only.
+
 ## Related Issues
 
 - Issue #40: Decide how bastproxy handles MUD telnet protocols
@@ -65,6 +77,7 @@ The cost is re-encoding on the client side and a cache to maintain. Each protoco
 - Issue #60: Cache MUD MSSP data and answer client MSSP requests
 - Issue #61: Pass MXP to clients that negotiate it and strip it for others
 - Issue #333: Replay MXP element and entity definitions to late-joining clients
+- Issue #271: Decide whether the proxy accepts SGA from the MUD
 
 ## Related Documentation
 
