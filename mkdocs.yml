@@ -114,6 +114,7 @@ nav:
       - Settings System: claude/settings_system.md
       - Timers System: claude/timers_system.md
       - Triggers System: claude/triggers_system.md
+      - Triggers System Findings: claude/triggers_system_findings.md
       - Record System: claude/record_system.md
       - Record System Findings: claude/record_system_findings.md
       - Logging System: claude/logging_system.md
