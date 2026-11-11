@@ -128,3 +128,55 @@ async def test_client_write_prompt_when_ga_suppressed() -> None:
     writer.write.assert_any_call("HP> ")
     logged = [c.args for c in cast(MagicMock, client.data_logger).info.call_args_list]
     assert not any(b"\xff\xf9" in args for args in logged)
+
+
+def _logged(client: ClientConnection) -> list[tuple[object, ...]]:
+    return [c.args for c in cast(MagicMock, client.data_logger).info.call_args_list]
+
+
+async def test_client_write_prompt_sends_eor_when_agreed() -> None:
+    client, writer = _client_for_write(True, [_prompt_line(True)])
+    writer.send_eor.return_value = True
+    await _run_write(client)
+    writer.send_eor.assert_called_once_with()
+    writer.send_ga.assert_not_called()
+    writer.write.assert_any_call("HP> ")
+    logged = _logged(client)
+    assert any(b"\xff\xef" in args for args in logged)
+    assert not any(b"\xff\xf9" in args for args in logged)
+
+
+async def test_client_write_prompt_falls_back_to_ga_without_eor() -> None:
+    client, writer = _client_for_write(True, [_prompt_line(True)])
+    writer.send_eor.return_value = False
+    await _run_write(client)
+    writer.send_eor.assert_called_once_with()
+    writer.send_ga.assert_called_once_with()
+    logged = _logged(client)
+    assert any(b"\xff\xf9" in args for args in logged)
+    assert not any(b"\xff\xef" in args for args in logged)
+
+
+async def test_client_write_prompt_without_eor_or_ga_logs_no_signal() -> None:
+    client, writer = _client_for_write(False, [_prompt_line(True)])
+    writer.send_eor.return_value = False
+    await _run_write(client)
+    writer.write.assert_any_call("HP> ")
+    logged = _logged(client)
+    assert not any(b"\xff\xef" in args or b"\xff\xf9" in args for args in logged)
+
+
+async def test_client_write_non_prompt_sends_neither_signal() -> None:
+    client, writer = _client_for_write(True, [_prompt_line(False)])
+    writer.send_eor.return_value = True
+    await _run_write(client)
+    writer.send_eor.assert_not_called()
+    writer.send_ga.assert_not_called()
+
+
+async def test_client_write_eor_and_sga_agreed_sends_eor_only() -> None:
+    client, writer = _client_for_write(False, [_prompt_line(True)])
+    writer.send_eor.return_value = True
+    await _run_write(client)
+    writer.send_ga.assert_not_called()
+    assert any(b"\xff\xef" in args for args in _logged(client))

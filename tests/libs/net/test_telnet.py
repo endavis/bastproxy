@@ -11,6 +11,10 @@ def test_go_ahead_bytes() -> None:
     assert telnet.go_ahead() == b"\xff\xf9"
 
 
+def test_end_of_record_bytes() -> None:
+    assert telnet.end_of_record() == b"\xff\xef"
+
+
 def test_constants_come_from_telopt() -> None:
     for name in ("IAC", "GA"):
         assert getattr(telnet, name) is getattr(telnetlib3.telopt, name)

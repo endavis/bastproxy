@@ -10,6 +10,7 @@ from telnetlib3.telopt import (
     DO,
     DONT,
     ECHO,
+    EOR,
     GA,
     GMCP,
     IAC,
@@ -221,6 +222,7 @@ def test_server_override_does_not_call_super() -> None:
         ((WILL, MSDP),),
         ((WILL, MSSP),),
         ((WILL, MXP),),
+        ((WILL, EOR),),
     ]
 
 
@@ -287,6 +289,7 @@ def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
         ((WILL, MSDP),),
         ((WILL, MSSP),),
         ((WILL, MXP),),
+        ((WILL, EOR),),
         ((WILL, MCCP2_COMPRESS),),
     ]
     assert ((WILL, MCCP3_COMPRESS),) not in writer.iac.call_args_list
@@ -302,6 +305,7 @@ def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:
         ((WILL, MSDP),),
         ((WILL, MSSP),),
         ((WILL, MXP),),
+        ((WILL, EOR),),
     ]
 
 
@@ -315,8 +319,15 @@ def test_begin_advanced_negotiation_no_mccp2_when_compression_off() -> None:
         ((WILL, MSDP),),
         ((WILL, MSSP),),
         ((WILL, MXP),),
+        ((WILL, EOR),),
     ]
 
 
 def test_mccp2_disabled_by_default_without_init() -> None:
     assert CustomTelnetServer.__new__(CustomTelnetServer)._mccp2_enabled is False
+
+
+@pytest.mark.parametrize("ttype", [b"xterm", b"Mudlet"])
+async def test_proxy_offers_eor(ttype: bytes) -> None:
+    result = await _run(ttype)
+    assert (WILL, EOR) in result.cmds

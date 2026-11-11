@@ -523,10 +523,14 @@ class ClientConnection:
                     self.data_logger.info("%-12s : %s", "client_write", out)
                 else:
                     logger.debug("client_write - No message to write to client.")
-                # send_ga writes IAC GA through send_iac and sends nothing
-                # when the client agreed to suppress go-ahead (SGA)
-                if msg_obj.is_prompt and self.writer.send_ga():
-                    self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
+                # A client that agreed to EOR gets IAC EOR and never a GA. Others get
+                # IAC GA, which send_ga sends only when the client has not agreed to
+                # suppress go-ahead (SGA). send_eor returns the literal True/False.
+                if msg_obj.is_prompt:
+                    if self.writer.send_eor() is True:
+                        self.data_logger.info("%-12s : %s", "client_write", telnet.end_of_record())
+                    elif self.writer.send_ga():
+                        self.data_logger.info("%-12s : %s", "client_write", telnet.go_ahead())
             elif msg_obj.is_command_telnet:
                 logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
                 logger.debug(
