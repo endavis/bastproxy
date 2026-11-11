@@ -64,7 +64,9 @@ References in this page are to files and symbols, not line numbers, so they stay
 
 ### ClientConnection
 
-Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS` and `WILL BINARY`. It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or MCCP. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
+Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS` and `WILL BINARY`. It sends `WILL MCCP2_COMPRESS` when the listener passes `compression=True` and the link is not TLS (#58). It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or `WILL MCCP3_COMPRESS`. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
+
+MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD link `MudTelnetClient` (`src/bastproxy/libs/net/mud.py`) accepts MCCP2, and MCCP3 when the MUD offers it, and telnetlib3 decompresses the stream before `MudTelnetReader` splits lines and prompts. A broken MUD stream (a zlib error), or a received chunk that inflates past `MCCP2_MAX_INFLATED_CHUNK` (16 MiB), drops every later byte, logs at ERROR and closes the MUD link; lines decoded before the break are still delivered, and clients see "Connection to the mud has been closed." A clean end of stream (`Z_STREAM_END`) continues in plain text, and a later `SB MCCP2` starts a new stream. On client links `CustomTelnetServer` compresses a client's output after its `DO MCCP2`, and ends the stream (`Z_FINISH`) when the client sends `DONT MCCP2`; a later `DO` starts a new one. One client's choice affects no other client and not the MUD link; `ClientConnection.mccp2_active` reports it. Clients are not offered MCCP3: telnetlib3 5.0.2 answers `DO MCCP3` with `WONT` (client-side MCCP3 is #329).
 
 `src/bastproxy/libs/net/client.py`, class `ClientConnection`: one instance per connected client.
 
@@ -97,7 +99,7 @@ ProcessDataToMud(
 
 | Method | Description |
 |--------|-------------|
-| `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=False`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
+| `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=True`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
 | `setup_mud()` | Drains the MUD writer after the connection opens |
 | `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |

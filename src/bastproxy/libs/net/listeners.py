@@ -251,9 +251,9 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
-                    # telnetlib3 5.x accepts MCCP passively by default; refuse
-                    # it as telnetlib3 2.0.4 did.
-                    compression=False,
+                    # offer MCCP2 to each client; every client link negotiates
+                    # it on its own (ADR-0001, #58).
+                    compression=True,
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).
                     force_binary=True,
@@ -275,9 +275,9 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
-                    # telnetlib3 5.x accepts MCCP passively by default; refuse
-                    # it as telnetlib3 2.0.4 did.
-                    compression=False,
+                    # offer MCCP2 to each client; every client link negotiates
+                    # it on its own (ADR-0001, #58).
+                    compression=True,
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).
                     force_binary=True,

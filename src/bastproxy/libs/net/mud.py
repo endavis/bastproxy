@@ -39,12 +39,13 @@ import collections
 import datetime
 import logging
 import re
+import zlib
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA
+from telnetlib3.telopt import CMD_EOR, GA, MCCP3_COMPRESS
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -125,9 +126,9 @@ class MudConnection:
                 shell=self.mud_telnet_handler,
                 encoding="utf8",
                 client_factory=MudTelnetClient,
-                # telnetlib3 5.x accepts MCCP passively by default; the proxy
-                # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
-                compression=False,
+                # accept MCCP2 (and MCCP3 when the MUD offers it); the stream is
+                # decompressed before MudTelnetReader sees it (ADR-0001, #58).
+                compression=True,
                 # without BINARY negotiated telnetlib3 5.x decodes as US-ASCII
                 # regardless of encoding; force utf8 (#63).
                 force_binary=True,
@@ -494,13 +495,99 @@ class MudTelnetReader(TelnetReaderUnicode):
         return (await self.read_mud_line()).text
 
 
+#: Most bytes one received chunk of an MCCP2 stream may inflate to. An asyncio socket read is at
+#: most 256 KiB (``_SelectorSocketTransport.max_size``), and MUD text compresses about 10 to 20
+#: to 1, so a full read inflates to a few MiB. 16 MiB allows 64 to 1 on a full read; zlib can
+#: reach about 1000 to 1, which this stops.
+MCCP2_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
+
+
+class _BoundedDecompressor:
+    """Wrap a zlib decompressor so one chunk cannot inflate past ``MCCP2_MAX_INFLATED_CHUNK``.
+
+    telnetlib3 calls ``decompress`` with no output limit. An over-limit chunk raises
+    ``zlib.error``, which telnetlib3 treats as a broken stream.
+    """
+
+    def __init__(self, inner: Any) -> None:
+        """Wrap *inner*, a ``zlib.decompressobj`` result."""
+        self._inner = inner
+
+    def decompress(self, data: bytes) -> bytes:
+        """Inflate *data*, raising ``zlib.error`` when the output exceeds the limit."""
+        limit = MCCP2_MAX_INFLATED_CHUNK
+        out: bytes = self._inner.decompress(data, limit + 1)
+        if len(out) > limit or self._inner.unconsumed_tail:
+            raise zlib.error("chunk exceeded the inflation limit")
+        return out
+
+    def __getattr__(self, name: str) -> Any:
+        """Forward ``eof``, ``unused_data`` and the rest to the wrapped decompressor."""
+        return getattr(self._inner, name)
+
+
 class MudTelnetClient(TelnetClient):
     """telnetlib3 client for the MUD side that declines GMCP and ZMP.
 
     telnetlib3 5.x enables GMCP/ZMP and sends Core.Hello on the proxy's behalf.
     Until the protocol handling is decided (ADR-0001, #40) keep the 2.0.4
     behavior of not negotiating them (#39).
+
+    It also accepts MCCP2 and MCCP3 (#58). telnetlib3 decompresses the MUD's
+    stream; the overrides below cover what telnetlib3 5.0.2 gets wrong:
+
+    - after a decompression error it passes every later compressed byte on as
+      text. Here a broken stream sets ``mccp2_failed``, drops all later bytes
+      and closes the MUD link.
+    - its raw-deflate retry can start a new decompressor partway through a
+      stream. Here the retry is limited to the first chunk of a stream.
+    - it inflates a received chunk without a size limit. Here a chunk that inflates past
+      ``MCCP2_MAX_INFLATED_CHUNK`` counts as a broken stream.
+    - ``WONT MCCP3`` from the MUD never stops its compression of our writes.
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the client with no MCCP2 failure."""
+        self._bounded_mccp2: _BoundedDecompressor | None = None
+        super().__init__(*args, **kwargs)
+        self.mccp2_failed: bool = False
+
+    @property
+    def _mccp2_decompressor(self) -> Any:
+        """The MCCP2 decompressor, bounded per chunk, or None."""
+        return self._bounded_mccp2
+
+    @_mccp2_decompressor.setter
+    def _mccp2_decompressor(self, value: Any) -> None:
+        """Wrap each decompressor telnetlib3 assigns, including its raw-deflate retry."""
+        self._bounded_mccp2 = None if value is None else _BoundedDecompressor(value)
+
+    def _mccp2_end(self) -> None:
+        """End MCCP2 decompression; a stream that did not end cleanly closes the link."""
+        decompressor = self._mccp2_decompressor
+        broken = decompressor is not None and not decompressor.eof
+        super()._mccp2_end()
+        if broken:
+            self.mccp2_failed = True
+            logger.error(
+                "MCCP2 decompression error on the mud link (a broken stream or a chunk over the "
+                "inflation limit), closing the connection to the mud"
+            )
+            self.writer.close()
+
+    def _process_chunk(self, data: bytes) -> bool:
+        """Process a chunk, dropping data after a failed stream and ending MCCP3 on WONT."""
+        if self.mccp2_failed:
+            return False
+        result = super()._process_chunk(data)
+        if self._mccp2_decompressor is not None:
+            # a later error is a broken stream, not a stream in raw deflate form
+            self._mccp2_wbits_fallback = True
+        if self._mccp3_compressor is not None and not self.writer.remote_option.enabled(
+            MCCP3_COMPRESS
+        ):
+            self._mccp3_end()
+        return result
 
     def setup_gmcp(self) -> None:
         """Do not negotiate GMCP (see #39, #40)."""

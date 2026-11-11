@@ -12,6 +12,8 @@ from telnetlib3.telopt import (
     ECHO,
     GA,
     IAC,
+    MCCP2_COMPRESS,
+    MCCP3_COMPRESS,
     NAWS,
     NEW_ENVIRON,
     SB,
@@ -256,3 +258,39 @@ async def test_setup_client_sends_will_echo_through_writer(
     monkeypatch.setattr(client_mod, "SendDataDirectlyToClient", lambda *a, **k: lambda: None)
     await conn.setup_client()
     assert writer.iac.call_args_list == [((WILL, ECHO),)]
+
+
+def _server_with_writer(*, enabled: bool, ssl_object: object | None) -> tuple[Any, MagicMock]:
+    server = CustomTelnetServer.__new__(CustomTelnetServer)
+    server._mccp2_enabled = enabled
+    writer = MagicMock()
+    writer.get_extra_info.return_value = ssl_object
+    server.writer = writer
+    return server, writer
+
+
+def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
+    server, writer = _server_with_writer(enabled=True, ssl_object=None)
+    server.begin_advanced_negotiation()
+    assert writer.iac.call_args_list == [
+        ((DO, NAWS),),
+        ((WILL, BINARY),),
+        ((WILL, MCCP2_COMPRESS),),
+    ]
+    assert ((WILL, MCCP3_COMPRESS),) not in writer.iac.call_args_list
+
+
+def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:
+    server, writer = _server_with_writer(enabled=True, ssl_object=object())
+    server.begin_advanced_negotiation()
+    assert writer.iac.call_args_list == [((DO, NAWS),), ((WILL, BINARY),)]
+
+
+def test_begin_advanced_negotiation_no_mccp2_when_compression_off() -> None:
+    server, writer = _server_with_writer(enabled=False, ssl_object=None)
+    server.begin_advanced_negotiation()
+    assert writer.iac.call_args_list == [((DO, NAWS),), ((WILL, BINARY),)]
+
+
+def test_mccp2_disabled_by_default_without_init() -> None:
+    assert CustomTelnetServer.__new__(CustomTelnetServer)._mccp2_enabled is False
