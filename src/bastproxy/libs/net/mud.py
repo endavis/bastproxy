@@ -49,6 +49,7 @@ from telnetlib3.telopt import CMD_EOR, GA
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 
 # Project
 from bastproxy.libs.records import (
@@ -508,6 +509,7 @@ class MudTelnetClient(TelnetClient):
         """Do not negotiate ZMP (see #39, #40)."""
 
     _reader_factory_encoding = MudTelnetReader
+    _writer_factory_encoding = RecordingTelnetWriter
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         """Register the prompt marks (IAC GA and IAC EOR) once the reader exists."""

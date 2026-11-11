@@ -17,10 +17,18 @@ This module imports only the standard library, so any records module can import 
 from enum import StrEnum
 
 __all__ = [
+    "Direction",
     "LineType",
     "Originated",
     "UpdateFlag",
 ]
+
+
+class Direction(StrEnum):
+    """Which way a telnet negotiation or protocol message travelled."""
+
+    SENT = "sent"
+    RECEIVED = "received"
 
 
 class Originated(StrEnum):

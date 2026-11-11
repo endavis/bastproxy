@@ -95,7 +95,10 @@ class ClientConnection:
             writer: The TelnetWriterUnicode instance for writing data.
 
         """
-        self.uuid = uuid4().hex
+        # The writer names the link before the client exists, so negotiation records, the data
+        # logger and the registered client share one id (#83). Test writers have none.
+        link_id = getattr(writer, "link_id", None)
+        self.uuid = link_id if isinstance(link_id, str) else uuid4().hex
         self.addr: str = addr
         self.port: str = port
         self.api = API(owner_id=f"libs.net.client:{self.uuid}")

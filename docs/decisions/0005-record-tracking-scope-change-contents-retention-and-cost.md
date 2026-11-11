@@ -140,6 +140,7 @@ The repo admin decided on 2026-11-09:
 - #106 (the record audit)
 - #229 to #239 (the audit findings)
 - #241
+- #83 (telnet negotiation records; implementation in [Record System: Telnet negotiation records](../claude/record_system.md#telnet-negotiation-records))
 - #237 (enums; implements point 8 in [Record System](../claude/record_system.md#updates); message_type was removed in #43)
 
 ## Related Documentation

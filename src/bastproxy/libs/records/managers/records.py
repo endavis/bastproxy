@@ -60,6 +60,7 @@ class RecordManager:
         self.api = BASEAPI(owner_id="libs.records.managers.records")
         self.record_instances: dict[str, Any] = {}
         self._roots_since_prune: int = 0
+        self._pending_since_prune: int = 0
 
     def set_max_trees(self, value: int) -> None:
         """Set how many root record trees are kept, then prune.
@@ -276,6 +277,14 @@ class RecordManager:
         self.record_instances[record.uuid] = record
         if getattr(record, "retention_root", False) and not record.parents:
             self._roots_since_prune += 1
+        elif not record.parents:
+            # BaseRecord sets its parents before calling add, so a record that joins a
+            # tree is not counted here. One adopted later is still counted, which only
+            # brings an extra prune sooner; that is harmless.
+            self._pending_since_prune += 1
+            if self._pending_since_prune >= MAX_PENDING:
+                # Bounds stored pending records when no root tree finishes to trigger a prune.
+                self.prune()
 
     def _is_root(self, record) -> bool:
         """Return True if the record starts a tree: a processing record with no parents."""
@@ -301,6 +310,7 @@ class RecordManager:
         and never raised, because this runs from ``BaseRecord.__call__``.
         """
         self._roots_since_prune = 0
+        self._pending_since_prune = 0
         try:
             self._prune()
         except Exception:
