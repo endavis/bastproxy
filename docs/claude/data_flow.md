@@ -64,7 +64,7 @@ References in this page are to files and symbols, not line numbers, so they stay
 
 ### ClientConnection
 
-Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS`, `WILL BINARY`, `WILL GMCP`, `WILL MSDP`, `WILL MSSP` (#59, #60) and `WILL MXP` (#61). It sends `WILL MCCP2_COMPRESS` when the listener passes `compression=True` and the link is not TLS (#58). It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts), `DO CHARSET` (`force_binary` fixes the encoding) or `WILL MCCP3_COMPRESS`. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
+Client negotiation (#66): `CustomTelnetServer.begin_advanced_negotiation` (`src/bastproxy/libs/net/server.py`) sends `DO NAWS`, `WILL BINARY`, `WILL GMCP`, `WILL MSDP`, `WILL MSSP` (#59, #60), `WILL MXP` (#61) and `WILL EOR` (#272). It sends `WILL MCCP2_COMPRESS` when the listener passes `compression=True` and the link is not TLS (#58). It never sends `WILL SGA` (that would stop `send_ga()` sending GA, which MUD clients use to find prompts; a client that sends `DO SGA` itself still suppresses GA), `DO CHARSET` (`force_binary` fixes the encoding) or `WILL MCCP3_COMPRESS`. telnetlib3 itself still sends `DO NEW_ENVIRON` and defers `WILL ECHO` to its own `_negotiate_echo`, which skips it when the proxy already sent it. NAWS lands in the writer's extra info; `ClientConnection.rows` and `.cols` read it (80 by 25 until the client answers). It is not forwarded to the MUD (#308).
 
 MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD link `MudTelnetClient` (`src/bastproxy/libs/net/mud.py`) accepts MCCP2, and MCCP3 when the MUD offers it, and telnetlib3 decompresses the stream before `MudTelnetReader` splits lines and prompts. A broken MUD stream (a zlib error), or a received chunk that inflates past `MCCP2_MAX_INFLATED_CHUNK` (16 MiB), drops every later byte, logs at ERROR and closes the MUD link; lines decoded before the break are still delivered, and clients see "Connection to the mud has been closed." A clean end of stream (`Z_STREAM_END`) continues in plain text, and a later `SB MCCP2` starts a new stream. On client links `CustomTelnetServer` compresses a client's output after its `DO MCCP2`, and ends the stream (`Z_FINISH`) when the client sends `DONT MCCP2`; a later `DO` starts a new one. One client's choice affects no other client and not the MUD link; `ClientConnection.mccp2_active` reports it. Clients are not offered MCCP3: telnetlib3 5.0.2 answers `DO MCCP3` with `WONT` (client-side MCCP3 is #329).
 
@@ -77,7 +77,7 @@ MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD li
 | `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords; on a match sends `WONT ECHO` through `writer.iac(WONT, ECHO)` |
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
-| `client_write()` | Writer coroutine: writes queued lines, sends `IAC GA` through `writer.send_ga()` after lines marked `is_prompt` (nothing is sent when the client agreed to suppress go-ahead), sets `was_sent` |
+| `client_write()` | Writer coroutine: writes queued lines, sends `IAC EOR` through `writer.send_eor()` after lines marked `is_prompt` when the client agreed to EOR, otherwise `IAC GA` through `writer.send_ga()` (nothing is sent when the client agreed to suppress go-ahead; a client never gets both) (#272), sets `was_sent` |
 
 `client_read()` builds the record for each line from a logged-in, non-view-only client:
 
@@ -169,7 +169,7 @@ MXP markup is ordinary text in the data stream, so the proxy passes it to a clie
 | `originated` | An `Originated`: `MUD` (`"mud"`), `CLIENT` (`"client"`) or `INTERNAL` (`"internal"`). The constructor coerces a string, and an unknown value raises `ValueError` |
 | `line_type` | A `LineType`: `IO` (`"IO"`) or `COMMAND_TELNET` (`"COMMAND-TELNET"`), coerced the same way |
 | `send` | `False` means the line is dropped (gagged) before sending |
-| `is_prompt` | The client writer sends `IAC GA` after the line (through `send_ga()`, which skips it when the client agreed SGA) |
+| `is_prompt` | The client writer sends `IAC EOR` after the line when the client agreed EOR, otherwise `IAC GA` (through `send_ga()`, which skips it when the client agreed SGA) |
 | `had_line_endings` | `add_line_endings()` only adds `\r\n` when this is set |
 | `preamble`, `prelogin`, `color` | Formatting and client-filter flags |
 | `was_sent` | Set by the writer coroutine |
@@ -301,7 +301,7 @@ All three register at the default priority, 50.
               ├─ lock message; per line: format() → adds "\r\n", lock()
               ├─ per client: can_send_to_client() → clients:client.send → send_queue
               └─ raise ev_to_client_data_read
-  ClientConnection.client_write                 writer.write(line.line), IAC GA after prompts (send_ga)
+  ClientConnection.client_write                 writer.write(line.line), IAC EOR (send_eor) or IAC GA (send_ga) after prompts
 ```
 
 ### Internal message to clients

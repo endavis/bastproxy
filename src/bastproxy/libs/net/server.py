@@ -35,7 +35,7 @@ from typing import Any
 
 # 3rd Party
 import telnetlib3
-from telnetlib3.telopt import BINARY, DO, GMCP, MCCP2_COMPRESS, MSDP, MSSP, MXP, NAWS, WILL
+from telnetlib3.telopt import BINARY, DO, EOR, GMCP, MCCP2_COMPRESS, MSDP, MSSP, MXP, NAWS, WILL
 
 # Project
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
@@ -67,6 +67,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         - ``WILL BINARY``, so the proxy may send 8-bit data (utf8) to the client.
         - ``WILL MXP``, so a client can take the MUD's MXP markup; a client without MXP gets the
           text with the markup stripped (#61).
+        - ``WILL EOR``, so a client that agrees gets ``IAC EOR`` after each prompt instead of
+          ``IAC GA``; a client that refuses still gets ``IAC GA`` unless it agreed to SGA (#272).
         - ``WILL GMCP``, ``WILL MSDP`` and ``WILL MSSP``, so a client can take the MUD's
           out-of-band data and status table from the proxy, which terminates these protocols on
           every link (ADR-0001, #59, #60). A client receives nothing until it answers ``DO``
@@ -75,7 +77,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         Deliberately not sent:
 
         - ``WILL SGA``: with SGA enabled ``send_ga()`` sends no GA, and MUD
-          clients use GA to find prompts (#272 depends on it).
+          clients use GA to find prompts. A client may still send ``DO SGA`` on its own, which
+          telnetlib3 accepts and which then suppresses GA (#272).
         - ``DO CHARSET``: ``force_binary=True`` on the listeners already fixes
           the encoding (#63) and CHARSET could renegotiate it.
         - ``WILL MCCP3``: telnetlib3 5.0.2 cannot serve client-side MCCP3 (it answers
@@ -95,6 +98,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, MSDP)
         self.writer.iac(WILL, MSSP)
         self.writer.iac(WILL, MXP)
+        self.writer.iac(WILL, EOR)
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
 
