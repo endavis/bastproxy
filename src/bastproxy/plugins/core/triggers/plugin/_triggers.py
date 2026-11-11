@@ -529,6 +529,7 @@ class TriggersPlugin(BasePlugin):
         if trigger_id in self.triggers:
             needs_rebuild = False
             regex = self.regexes[self.triggers[trigger_id].regex_id]
+            self.triggers[trigger_id].enabled = bool(flag)
             if flag:
                 if trigger_id not in regex["triggers"]:
                     regex["triggers"].append(trigger_id)

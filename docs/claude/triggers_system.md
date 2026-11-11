@@ -19,7 +19,7 @@ This page describes what the code does today, including where that is not what t
 
 - A regex is matched from the **start of the line** (`match`, not `search`). `orc` does not match `You hit orc.`; `.*orc` does.
 - When several triggers with **different** regexes match one line, **only the first one added fires**. `priority` is stored but not used (TR-1).
-- `trigger.update` and `group.toggle.enable` do not work, and `trigger.toggle.enable` cannot enable a trigger that was added disabled (TR-2, TR-3, TR-4).
+- `trigger.update` and `group.toggle.enable` do not work (TR-3, TR-4). `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
 
 ## Key Components
 
@@ -35,7 +35,7 @@ class TriggerItem:
                  stopevaluating=False, argtypes=None, matchcolor=False,
                  trigger_id=None, event_name=None, original_regex_compiled=None):
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
-        self.enabled = enabled                      # Set once, at creation (TR-2)
+        self.enabled = enabled                      # Set at creation; trigger.toggle.enable updates it (TR-2)
         self.owner_id = owner_id
         self.trigger_name = trigger_name
         self.regex = regex                          # The regex as a string, named groups made unnamed
@@ -183,7 +183,7 @@ What follows from this (each is **verified** in the findings page, Q1 and Q3):
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None`
 - `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Raises `KeyError` for an unknown trigger (TR-9)
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; the same `KeyError`
-- `plugins.core.triggers:trigger.toggle.enable` - Add the trigger to, or take it out of, its regex's list. It does not change `TriggerItem.enabled`, so it cannot enable a trigger added with `enabled=False`, and the `list` command and the stats keep showing the value from creation (TR-2)
+- `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and add the trigger to, or take it out of, its regex's list. Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
 - `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag
 - `plugins.core.triggers:group.toggle.enable` - Meant to toggle every trigger of a group; it changes nothing and logs "does not exist" for each member (TR-4)
 - `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (no `force`)
@@ -461,7 +461,7 @@ self.api("plugins.core.triggers:trigger.update")(
 - `trigger_id`: `t_<owner_id>_<trigger_name>`, the key in `triggers`
 - `owner_id`: Plugin that owns trigger
 - `original_regex`: The pattern as given; `regex`: the same with named groups made unnamed; `regex_id`: the shared regex entry
-- `enabled`: The value given at creation; not updated by `trigger.toggle.enable` (TR-2)
+- `enabled`: The value given at creation, updated by `trigger.toggle.enable` (TR-2, fixed by #347)
 - `omit`: Hide matched lines from client
 - `group`: Group name
 - `argtypes`: Type conversions for captured groups

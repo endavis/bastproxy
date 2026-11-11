@@ -48,9 +48,9 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **One regex fires per line, and `priority` is not used** (TR-1). All regexes are joined into one alternation,
   which reports only the first alternative that matches, in the order the regexes were added. Two triggers
   with different regexes never both fire (Q1c).
-- **Three of the ten APIs do not work.** `trigger.update` raises `TypeError` on every call (TR-3),
-  `group.toggle.enable` changes nothing (TR-4), and `trigger.toggle.enable` cannot enable a trigger that was
-  added disabled (TR-2).
+- **Two of the ten APIs do not work.** `trigger.update` raises `TypeError` on every call (TR-3) and
+  `group.toggle.enable` changes nothing (TR-4). Before #347, `trigger.toggle.enable` could not enable a trigger
+  that was added disabled (TR-2, fixed).
 - **One regex can stop the matcher from being updated** (TR-5). A regex with a named backreference compiles
   alone and breaks the combined pattern; from then on every trigger added is dead, without an error at the
   call that added it. Numeric backreferences and a literal `\?P<x>` are changed silently.
@@ -244,8 +244,8 @@ plugin, so the owner lookup was the real one.
 
 ### Q2b: Toggle (TR-2)
 
-`trigger.toggle.enable` edits `regexes[regex_id]["triggers"]` and never sets `TriggerItem.enabled`.
-`process_match` checks `TriggerItem.enabled`.
+Fixed by #347. Before #347, `trigger.toggle.enable` edited `regexes[regex_id]["triggers"]` and never set
+`TriggerItem.enabled`, which `process_match` checks. The table is the behaviour before #347.
 
 | Case | `.enabled` after | In the regex list | Fired on its line |
 | :--- | :--- | :--- | :--- |
@@ -253,7 +253,7 @@ plugin, so the owner lookup was the real one.
 | Added enabled, then toggled off | True | No | No |
 | Then toggled on again | True | Yes | Yes |
 
-So a trigger created disabled can never be enabled, and the `list` command and the stats event, which read
+So, before #347, a trigger created disabled could never be enabled, and the `list` command and the stats event, which read
 `.enabled`, keep the value from creation. An unknown trigger name logs an error and returns `None`.
 
 ### Q2c: Group toggle and group data (TR-4)
@@ -459,7 +459,7 @@ probe or grep ran, output saved) or **read**.
 | 6 | Responding to Triggers | `success, trigger = ...trigger.add(...)` with no caveat | A failure returns a bare `False` (**verified**, Q2a) | Fixed (note added); TR-9 |
 | 7 | Trigger Matching | Six steps: "checks all enabled triggers", "matches against line (with or without color)" | One regex is chosen per line; the built-ins; two stages; `matchcolor` only in the second (**verified**, Q1) | Fixed (rewritten); TR-1, TR-6 |
 | 8 | Regex Optimization | Named groups "identify which trigger matched" | They identify which regex matched, and only the first; backreferences change meaning (**verified**, Q1f, Q3b) | Fixed (rewritten); TR-5 |
-| 9 | Common APIs | `trigger.update`, `trigger.toggle.enable` and `group.toggle.enable` listed as working | See Q2b to Q2d (**verified**) | Fixed; TR-2, TR-3, TR-4 |
+| 9 | Common APIs | `trigger.update`, `trigger.toggle.enable` and `group.toggle.enable` listed as working | See Q2b to Q2d (**verified**) | Fixed; TR-2 (fixed by #347), TR-3, TR-4 |
 | 10 | Built-in Triggers | "automatic triggers", no mention of `enabled` | Added with `enabled=False`, raised for every line anyway; `emptyline` rules; `^$` never fires (**verified**, Q1e) | Fixed; TR-8 |
 | 11 | Commands | A `#bp.triggers.listgroups` command | The plugin has `_command_list` and `_command_detail` only (**read**; the greps find no other `AddParser`) | Fixed (removed) |
 | 12 | Trigger Groups | The group toggle example | Changes nothing (**verified**, Q2c) | Fixed (note added); TR-4 |
@@ -689,7 +689,7 @@ fired; `stopevaluating` on a later regex had no effect.
 
 ### TR-2: `trigger.toggle.enable` does not set `TriggerItem.enabled`
 
-**Status:** open
+**Status:** fixed by #347
 **Issue:** #347
 **Location:** `TriggersPlugin._api_trigger_toggle_enable`; `TriggersPlugin.process_match` (the `enabled`
 check); `_command_list`, `_eventcb_triggers_ev_plugins_stats`.
