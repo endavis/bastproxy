@@ -86,11 +86,11 @@ async def _negotiate_and_collect(offer: bytes) -> bytes:
     return bytes(received)
 
 
-async def test_gmcp_is_declined() -> None:
+async def test_gmcp_is_accepted_without_telnetlib3_hello() -> None:
     received = await _negotiate_and_collect(GMCP)
-    assert IAC + DO + GMCP not in received
-    assert b"Core.Hello" not in received
-    assert IAC + DONT + GMCP in received
+    assert IAC + DO + GMCP in received
+    assert IAC + DONT + GMCP not in received
+    assert b"telnetlib3" not in received
 
 
 async def test_mccp2_is_refused() -> None:

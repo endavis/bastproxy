@@ -18,15 +18,17 @@ sequence as ``raw``.
 
 # Standard Library
 import collections
+from collections.abc import Callable
 from typing import Any
 from uuid import uuid4
 
 # 3rd Party
 from telnetlib3 import TelnetWriterUnicode
-from telnetlib3.telopt import DO, DONT, IAC, SB, SE, WILL, WONT, name_option
+from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, SB, SE, WILL, WONT, name_option
 
 # Project
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.net import oob
 from bastproxy.libs.records.enums import Direction
 from bastproxy.libs.records.rtypes.telnet import TelnetNegotiation
 
@@ -154,3 +156,49 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         except Exception:
             logger.exception("Could not record a telnet subnegotiation")
         super().handle_subnegotiation(buf)
+
+    def _handle_oob_sb(
+        self,
+        buf: collections.deque[bytes],
+        option: bytes,
+        decode: Callable[[bytes, str], Any],
+        deliver: Callable[[Any], None],
+    ) -> None:
+        """Decode a GMCP or MSDP subnegotiation with the bounded decoders in ``oob``.
+
+        The proxy decodes only protocols negotiated on the link: an SB for an option that is
+        enabled in neither direction is dropped. A payload that does not decode is dropped with
+        a log of the option, the name when known and the length, and the link stays open.
+        """
+        label = name_option(option)
+        if not (self.local_option.enabled(option) or self.remote_option.enabled(option)):
+            logger.debug(
+                "Dropped %s subnegotiation: %s is not negotiated on this link", label, label
+            )
+            return
+        buf.popleft()
+        payload = b"".join(buf)
+        try:
+            result = decode(payload, self.environ_encoding or "utf-8")
+        except oob.OobDecodeError as exc:
+            logger.warning(
+                "Dropped a %s message (%s): name=%s length=%d",
+                label,
+                exc,
+                exc.name or "-",
+                len(payload),
+            )
+            return
+        deliver(result)
+
+    def _handle_sb_gmcp(self, buf: collections.deque[bytes]) -> None:
+        """Decode a GMCP subnegotiation and pass ``(package, data)`` to the GMCP callback."""
+        self._handle_oob_sb(
+            buf, GMCP, oob.decode_gmcp, lambda result: self._ext_callback[GMCP](*result)
+        )
+
+    def _handle_sb_msdp(self, buf: collections.deque[bytes]) -> None:
+        """Decode an MSDP subnegotiation and pass the variables to the MSDP callback."""
+        self._handle_oob_sb(
+            buf, MSDP, oob.decode_msdp, lambda result: self._ext_callback[MSDP](result)
+        )

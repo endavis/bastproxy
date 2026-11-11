@@ -10,6 +10,7 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.context import event_stack, raised_event
 from bastproxy.libs.logger import get_logger, log_to
+from bastproxy.libs.net.protocols import PROTOCOL_EVENTS
 from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.records.events import RECORD_EVENTS
@@ -67,7 +68,7 @@ class EventsPlugin(BasePlugin):
         )
 
         # the processing records only name their events, they are registered here once
-        for spec in RECORD_EVENTS:
+        for spec in (*RECORD_EVENTS, *PROTOCOL_EVENTS):
             self.api(f"{self.plugin_id}:event.add")(
                 spec.name,
                 spec.created_by,

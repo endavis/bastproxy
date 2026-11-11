@@ -45,12 +45,13 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, MCCP3_COMPRESS
+from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
+from bastproxy.libs.net.protocols import PROTOCOLS
 
 # Project
 from bastproxy.libs.records import (
@@ -331,6 +332,7 @@ class MudConnection:
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader = reader
         self.writer = writer
+        PROTOCOLS.mud_connected(writer)
         # milliseconds in the setting; a change applies to the next connection
         reader.line_timeout = (
             self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "mudlinewait")
@@ -345,12 +347,15 @@ class MudConnection:
         if current_task := asyncio.current_task():
             current_task.set_name("mud telnet client handler")
 
-        await self.setup_mud()
+        try:
+            await self.setup_mud()
 
-        _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
+            _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
 
-        for task in rest:
-            task.cancel()
+            for task in rest:
+                task.cancel()
+        finally:
+            PROTOCOLS.mud_disconnected()
 
         self.connected = False
 
@@ -527,11 +532,10 @@ class _BoundedDecompressor:
 
 
 class MudTelnetClient(TelnetClient):
-    """telnetlib3 client for the MUD side that declines GMCP and ZMP.
+    """telnetlib3 client for the MUD side that terminates GMCP and MSDP and declines ZMP.
 
-    telnetlib3 5.x enables GMCP/ZMP and sends Core.Hello on the proxy's behalf.
-    Until the protocol handling is decided (ADR-0001, #40) keep the 2.0.4
-    behavior of not negotiating them (#39).
+    GMCP and MSDP are accepted and decoded by the proxy (ADR-0001, #59); the proxy sends its
+    own ``Core.Hello`` instead of telnetlib3's. ZMP is not negotiated (#39).
 
     It also accepts MCCP2 and MCCP3 (#58). telnetlib3 decompresses the MUD's
     stream; the overrides below cover what telnetlib3 5.0.2 gets wrong:
@@ -590,7 +594,15 @@ class MudTelnetClient(TelnetClient):
         return result
 
     def setup_gmcp(self) -> None:
-        """Do not negotiate GMCP (see #39, #40)."""
+        """Accept GMCP and MSDP and wire them to the protocol manager (#59).
+
+        telnetlib3's own ``Core.Hello`` handshake is not used: the manager sends the proxy's
+        own once the MUD offers GMCP. This does not call ``super()``.
+        """
+        self.writer.passive_do.update({GMCP, MSDP})
+        self.writer.set_ext_callback(GMCP, PROTOCOLS.on_mud_gmcp)
+        self.writer.set_ext_callback(MSDP, PROTOCOLS.on_mud_msdp)
+        self.writer.add_will_callback(GMCP, PROTOCOLS.on_mud_will_gmcp)
 
     def setup_zmp(self) -> None:
         """Do not negotiate ZMP (see #39, #40)."""

@@ -111,7 +111,8 @@ class TelnetNegotiation(TelnetRecord):
 class TelnetProtocolMessage(TelnetRecord):
     """One decoded protocol message such as GMCP, MSDP or MSSP.
 
-    Only the shape lives here; the protocol issues (#58 to #61) create the instances.
+    Only the shape lives here. ``libs/net/protocols.py`` creates the GMCP and MSDP instances (#59);
+    the other protocol issues create theirs.
     """
 
     def __init__(

@@ -124,7 +124,7 @@ async def test_mud_link_records() -> None:
         d == "sent" and c == "SB" and o == "TTYPE" and p.startswith(IS) for d, c, o, p in seen
     )
     assert ("received", "WILL", "GMCP", b"") in seen
-    assert ("sent", "DONT", "GMCP", b"") in seen
+    assert ("sent", "DO", "GMCP", b"") in seen
     assert {r.link for r in _records()} == {"mud"}
 
 

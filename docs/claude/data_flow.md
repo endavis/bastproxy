@@ -93,6 +93,16 @@ ProcessDataToMud(
 
 `inp.rstrip("\r\n")` removes only the line ending, so leading whitespace in client input is kept.
 
+### GMCP and MSDP (#59, ADR-0001)
+
+The proxy terminates GMCP and MSDP; it does not pass their bytes through. This covers the MUD side. Client links come with the next PR on #59.
+
+- **Negotiation:** `MudTelnetClient` (`mud.py`) answers the MUD's `WILL GMCP` and `WILL MSDP` with `DO`. It does not use telnetlib3's `Core.Hello`; the `ProtocolManager` in `src/bastproxy/libs/net/protocols.py` (`PROTOCOLS`) sends the proxy's own `Core.Hello` once per connection, then `Core.Supports.Set`.
+- **Supports union:** the modules plugins register through `libs.net.protocols:gmcp.modules.add`, keyed by lower-cased name with the highest version. It is sent again only when it changes.
+- **Decoding:** the proxy decodes only protocols negotiated on the link, with bounded decoders (`src/bastproxy/libs/net/oob.py`). `RecordingTelnetWriter` drops a GMCP or MSDP subnegotiation when the option is enabled in neither direction. Limits: 256 KiB per message, MSDP depth 16 and 4096 values, package and variable name patterns. A message that does not decode is dropped with a WARNING (option, name, length) and the link stays open.
+- **Per message:** record a `TelnetProtocolMessage`, update the cache (`gmcp.cache.get`, `msdp.cache.get`; at most 512 keys per protocol, GMCP dicts are shallow-merged, `Core.*` is never cached), then raise `ev_libs.net.mud_gmcp` or `ev_libs.net.mud_msdp`.
+- **Lifecycle:** `mud_telnet_handler` calls `PROTOCOLS.mud_connected` and, in a `finally`, `mud_disconnected`, which clears the cache and the Hello state.
+
 ### MudConnection
 
 `src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD. `connected` starts `False` and `mud_telnet_handler` sets it `True` when the connection opens.

@@ -429,6 +429,9 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         # remove anything out of the api
         self.api("libs.api:api.toplevel.remove")(self.plugin_id)
 
+        # modules the plugin registered for the mud's Core.Supports.Set leave the union
+        self.api("libs.net.protocols:gmcp.modules.remove.for.owner")(self.plugin_id)
+
     def uninitialize(self, _=None):
         """Uninitialize stuff."""
         self._process_plugin_hook("uninitialize")
