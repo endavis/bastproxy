@@ -105,7 +105,7 @@ async def test_client_never_announces_gmcp() -> None:
 
 
 async def test_connect_to_mud_uses_parity_options(monkeypatch: pytest.MonkeyPatch) -> None:
-    """connect_to_mud passes the MUD client factory and refuses MCCP."""
+    """connect_to_mud passes the MUD client factory and accepts MCCP."""
     from bastproxy.libs.net import mud
 
     calls: list[dict] = []
@@ -118,7 +118,7 @@ async def test_connect_to_mud_uses_parity_options(monkeypatch: pytest.MonkeyPatc
 
     assert len(calls) == 1
     assert calls[0]["client_factory"] is MudTelnetClient
-    assert calls[0]["compression"] is False
+    assert calls[0]["compression"] is True
 
 
 def _make_recorder(calls: list[list[str]]) -> Callable[..., Callable[[], None]]:

@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA
+from telnetlib3.telopt import CMD_EOR, GA, MCCP3_COMPRESS
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
@@ -125,9 +125,9 @@ class MudConnection:
                 shell=self.mud_telnet_handler,
                 encoding="utf8",
                 client_factory=MudTelnetClient,
-                # telnetlib3 5.x accepts MCCP passively by default; the proxy
-                # does not decompress, so keep refusing it as telnetlib3 2.0.4 did.
-                compression=False,
+                # accept MCCP2 (and MCCP3 when the MUD offers it); the stream is
+                # decompressed before MudTelnetReader sees it (ADR-0001, #58).
+                compression=True,
                 # without BINARY negotiated telnetlib3 5.x decodes as US-ASCII
                 # regardless of encoding; force utf8 (#63).
                 force_binary=True,
@@ -500,7 +500,48 @@ class MudTelnetClient(TelnetClient):
     telnetlib3 5.x enables GMCP/ZMP and sends Core.Hello on the proxy's behalf.
     Until the protocol handling is decided (ADR-0001, #40) keep the 2.0.4
     behavior of not negotiating them (#39).
+
+    It also accepts MCCP2 and MCCP3 (#58). telnetlib3 decompresses the MUD's
+    stream; the overrides below cover what telnetlib3 5.0.2 gets wrong:
+
+    - after a decompression error it passes every later compressed byte on as
+      text. Here a broken stream sets ``mccp2_failed``, drops all later bytes
+      and closes the MUD link.
+    - its raw-deflate retry can start a new decompressor partway through a
+      stream. Here the retry is limited to the first chunk of a stream.
+    - ``WONT MCCP3`` from the MUD never stops its compression of our writes.
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the client with no MCCP2 failure."""
+        super().__init__(*args, **kwargs)
+        self.mccp2_failed: bool = False
+
+    def _mccp2_end(self) -> None:
+        """End MCCP2 decompression; a stream that did not end cleanly closes the link."""
+        decompressor = self._mccp2_decompressor
+        broken = decompressor is not None and not decompressor.eof
+        super()._mccp2_end()
+        if broken:
+            self.mccp2_failed = True
+            logger.error(
+                "MCCP2 decompression error on the mud link, closing the connection to the mud"
+            )
+            self.writer.close()
+
+    def _process_chunk(self, data: bytes) -> bool:
+        """Process a chunk, dropping data after a failed stream and ending MCCP3 on WONT."""
+        if self.mccp2_failed:
+            return False
+        result = super()._process_chunk(data)
+        if self._mccp2_decompressor is not None:
+            # a later error is a broken stream, not a stream in raw deflate form
+            self._mccp2_wbits_fallback = True
+        if self._mccp3_compressor is not None and not self.writer.remote_option.enabled(
+            MCCP3_COMPRESS
+        ):
+            self._mccp3_end()
+        return result
 
     def setup_gmcp(self) -> None:
         """Do not negotiate GMCP (see #39, #40)."""

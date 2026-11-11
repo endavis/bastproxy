@@ -99,7 +99,7 @@ def test_create_listeners_ipv4_only(monkeypatch: pytest.MonkeyPatch) -> None:
     assert call["port"] == 9999
     assert call["shell"] is net_client.client_telnet_handler
     assert call["force_binary"] is True
-    assert call["compression"] is False
+    assert call["compression"] is True
     assert call["encoding_errors"] == "replace"
     assert [name for _, name in env.added] == [
         "Proxy Telnet Listener IPv4",

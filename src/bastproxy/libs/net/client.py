@@ -144,6 +144,19 @@ class ClientConnection:
         return int(self.writer.get_extra_info("cols"))
 
     @property
+    def mccp2_active(self) -> bool:
+        """Return True while the proxy compresses output to this client with MCCP2.
+
+        Each client negotiates MCCP2 on its own link; one client's choice does not
+        affect another client or the MUD link (ADR-0001, #58).
+
+        Returns:
+            True when this client's output is compressed.
+
+        """
+        return bool(self.writer.mccp2_active)
+
+    @property
     def connected_length(self) -> str:
         """Calculate the length of time the client has been connected.
 

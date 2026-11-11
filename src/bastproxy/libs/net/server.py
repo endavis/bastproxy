@@ -35,7 +35,7 @@ from typing import Any
 
 # 3rd Party
 import telnetlib3
-from telnetlib3.telopt import BINARY, DO, NAWS, WILL
+from telnetlib3.telopt import BINARY, DO, MCCP2_COMPRESS, NAWS, WILL
 
 # Project
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
@@ -48,6 +48,9 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     server with advanced negotiation capabilities.
 
     """
+
+    # class default for tests that build the protocol without __init__
+    _mccp2_enabled: bool = False
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the server, defaulting to the writer that records negotiation (#83)."""
@@ -69,7 +72,13 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
           clients use GA to find prompts (#272 depends on it).
         - ``DO CHARSET``: ``force_binary=True`` on the listeners already fixes
           the encoding (#63) and CHARSET could renegotiate it.
-        - MCCP: the listeners pass ``compression=False``.
+        - ``WILL MCCP3``: telnetlib3 5.0.2 cannot serve client-side MCCP3 (it answers
+          ``DO MCCP3`` with ``WONT``, mishandles a stream that starts mid-chunk and
+          passes raw bytes on after a zlib error), so only MCCP2 is offered (#58).
+
+        Sent when the listener passes ``compression=True`` and the link is not TLS
+        (the guard telnetlib3 uses): ``WILL MCCP2_COMPRESS``. Compression starts when
+        the client answers ``DO``.
 
         telnetlib3 still sends ``DO NEW_ENVIRON`` and its own deferred
         ``WILL ECHO`` from its own code, outside this method.
@@ -77,6 +86,21 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         """
         self.writer.iac(DO, NAWS)
         self.writer.iac(WILL, BINARY)
+        if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
+            self.writer.iac(WILL, MCCP2_COMPRESS)
+
+    def data_received(self, data: bytes) -> None:
+        """Process client data, ending MCCP2 when the client turns it off.
+
+        telnetlib3 5.0.2 starts compression on ``DO MCCP2`` but keeps compressing after
+        a later ``DONT MCCP2``. End the stream (``Z_FINISH``) so the rest is plain, and
+        a later ``DO`` starts a new stream (#58).
+        """
+        super().data_received(data)
+        if self._mccp2_compressor is not None and not self.writer.local_option.enabled(
+            MCCP2_COMPRESS
+        ):
+            self._mccp2_end()
 
 
 def create_server(*args, **kwargs) -> Coroutine:
