@@ -14,7 +14,7 @@ from pydatatracker import TrackedAttr, TrackedList
 
 # Project
 from bastproxy.libs.api import API
-from bastproxy.libs.logger import get_logger
+from bastproxy.libs.logger import echo_off_placeholder, get_logger
 from bastproxy.libs.net import mxp
 from bastproxy.libs.records.enums import LineType, Originated
 from bastproxy.libs.records.tracking import (
@@ -119,6 +119,9 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         self.is_prompt: bool = False
         self.had_line_endings: bool = had_line_endings
         self.was_sent: bool = False
+        # True for client input read while the MUD had echo off: logs and record summaries
+        # show a length placeholder instead of the line. The sent data is not changed.
+        self.mask_log: bool = False
         self.color = color
         self.split_from: NetworkDataLine | None = None
         # The MXP mode at the start of the line when it came from a MUD with MXP enabled, else
@@ -284,6 +287,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         new_line.color = self.color
         new_line.split_from = self
         new_line.mxp_mode = self.mxp_mode
+        new_line.mask_log = self.mask_log
 
     def color_line(self):
         """Color the message and convert all colors to ansicodes.
@@ -357,7 +361,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             A formatted summary string.
 
         """
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {self.line!r}"
+        shown = echo_off_placeholder(self.line) if self.mask_log else repr(self.line)
+        return f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {shown}"
 
     def __str__(self):
         """Return a string representation of the line.
@@ -470,18 +475,14 @@ class NetworkData(TrackedRecordMixin, TrackedList):
             The first valid line or "No data found" if empty.
 
         """
-        return (
-            "No data found"
-            if len(self) == 0
-            else next(
-                (
-                    networkline.original_line
-                    for networkline in self
-                    if networkline.original_line not in ["#BP", b"#BP", "", b"", "''", b"''"]
-                ),
-                "",
-            )
-        )
+        if len(self) == 0:
+            return "No data found"
+        for networkline in self:
+            if networkline.original_line not in ["#BP", b"#BP", "", b"", "''", b"''"]:
+                if networkline.mask_log:
+                    return echo_off_placeholder(networkline.original_line)
+                return networkline.original_line
+        return ""
 
     def one_line_summary(self):
         """Get a one line summary of the record."""

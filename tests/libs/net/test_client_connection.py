@@ -345,3 +345,62 @@ async def test_client_read_logs_line_after_login(
     data = [r.getMessage() for r in caplog.records if r.name == f"data.client.{conn.uuid}"]
     assert any("look" in m for m in data)
     assert all("input before login" not in r.getMessage() for r in caplog.records)
+
+
+class _EchoMud:
+    """Stand-in for the MUD connection with a switchable echo state."""
+
+    def __init__(self, echo_off: bool) -> None:
+        self.echo_off = echo_off
+
+
+async def _logged_in_read(
+    fake_api: FakeApi,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    *,
+    echo_off: bool,
+) -> tuple[ClientConnection, list[NetworkDataLine]]:
+    fake_api.values["plugins.core.proxy:mud.connection.get"] = _EchoMud(echo_off)
+    taken: list[NetworkDataLine] = []
+
+    def fake_process(data: Any, **_kwargs: Any) -> Callable[[], None]:
+        taken.extend(data)
+        # what the event and record logging prints for the line
+        logging.getLogger("event.test").debug("event data %s", {"line": data[0]})
+        return lambda: None
+
+    monkeypatch.setattr(client_mod, "ProcessDataToMud", fake_process)
+    conn, _ = _conn()
+    conn.state["logged in"] = True
+    caplog.set_level(logging.DEBUG)
+    await _read_lines(conn, ["typed line\r\n"])
+    return conn, taken
+
+
+async def test_client_read_masks_logged_in_line_while_mud_echo_off(
+    fake_api: FakeApi,
+    sent: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    conn, taken = await _logged_in_read(fake_api, monkeypatch, caplog, echo_off=True)
+    assert all("typed line" not in r.getMessage() for r in caplog.records)
+    assert all("typed line" not in str(r.args) for r in caplog.records)
+    data = [r.getMessage() for r in caplog.records if r.name == f"data.client.{conn.uuid}"]
+    assert any("<input while echo is off, 10 chars>" in m for m in data)
+    # the data sent on is unchanged
+    assert [line.line for line in taken] == ["typed line"]
+
+
+async def test_client_read_logs_logged_in_line_while_mud_echo_on(
+    fake_api: FakeApi,
+    sent: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    conn, _ = await _logged_in_read(fake_api, monkeypatch, caplog, echo_off=False)
+    data = [r.getMessage() for r in caplog.records if r.name == f"data.client.{conn.uuid}"]
+    assert any("typed line" in m for m in data)
+    assert any("typed line" in r.getMessage() for r in caplog.records if r.name == "event.test")
+    assert all("echo is off" not in r.getMessage() for r in caplog.records)

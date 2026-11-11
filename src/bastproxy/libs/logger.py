@@ -56,6 +56,23 @@ def input_placeholder(line: str, context: str = "input before login") -> str:
     return f"<{context}, {len(line)} chars>"
 
 
+def echo_off_placeholder(line: str | bytes) -> str:
+    """Build the log placeholder for a line typed while the MUD has echo off.
+
+    The length excludes the trailing line ending, whichever side of the proxy
+    the line is logged on, so the same line gets the same placeholder everywhere.
+
+    Args:
+        line: the line being replaced; only its length is used
+
+    Returns:
+        ``<input while echo is off, N chars>``
+
+    """
+    text = line if isinstance(line, str) else bytes(line).decode("latin-1")
+    return input_placeholder(text.rstrip("\r\n"), "input while echo is off")
+
+
 def get_toplevel(logger_name: str) -> str:
     """Get the toplevel logger from a name (the part before the first ``:``)."""
     return logger_name.split(":")[0] if ":" in logger_name else logger_name

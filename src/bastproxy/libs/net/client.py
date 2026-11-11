@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
-from bastproxy.libs.logger import get_logger, input_placeholder
+from bastproxy.libs.logger import echo_off_placeholder, get_logger, input_placeholder
 from bastproxy.libs.net import mxp, telnet
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
@@ -423,6 +423,11 @@ class ClientConnection:
         )
         SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
 
+    def _mud_echo_off(self) -> bool:
+        """True while the MUD link has WILL ECHO in effect."""
+        mud_connection = self.api("plugins.core.proxy:mud.connection.get")()
+        return bool(mud_connection and mud_connection.echo_off)
+
     async def client_read(self) -> None:
         """Read data from the client.
 
@@ -461,7 +466,14 @@ class ClientConnection:
                 self.connected = False
                 continue
             # until the client is logged in, log a placeholder instead of the line
-            logged_inp = inp if self.state["logged in"] else input_placeholder(inp)
+            # and, once logged in, while the MUD has echo off
+            echo_off = bool(self.state["logged in"]) and self._mud_echo_off()
+            if not self.state["logged in"]:
+                logged_inp = input_placeholder(inp)
+            elif echo_off:
+                logged_inp = echo_off_placeholder(inp)
+            else:
+                logged_inp = inp
             logger.debug("client_read - Raw received data in client_read : %s", logged_inp)
             logger.debug("client_read - inp type = %s", type(inp))
             self.data_logger.info("%-12s : %s", "client_read", logged_inp)
@@ -478,11 +490,10 @@ class ClientConnection:
                 self.process_data_from_view_only_client(inp)
             else:
                 # this is where we start processing data
+                data_line = NetworkDataLine(inp.rstrip("\r\n"), originated=Originated.CLIENT)
+                data_line.mask_log = echo_off
                 ProcessDataToMud(
-                    NetworkData(
-                        NetworkDataLine(inp.rstrip("\r\n"), originated=Originated.CLIENT),
-                        owner_id=f"client:{self.uuid}",
-                    ),
+                    NetworkData(data_line, owner_id=f"client:{self.uuid}"),
                     client_id=self.uuid,
                 )()
 

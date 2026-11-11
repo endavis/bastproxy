@@ -44,11 +44,11 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP, SGA
+from telnetlib3.telopt import CMD_EOR, ECHO, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP, SGA
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
-from bastproxy.libs.logger import get_logger
+from bastproxy.libs.logger import echo_off_placeholder, get_logger
 from bastproxy.libs.net.inflate import BoundedDecompressor
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 from bastproxy.libs.net.protocols import PROTOCOLS
@@ -145,6 +145,11 @@ class MudConnection:
             # a bad port, a cancelled task: never leave the flag stuck
             self.connecting = False
             raise
+
+    @property
+    def echo_off(self) -> bool:
+        """True while the MUD has WILL ECHO in effect on this link."""
+        return self.writer is not None and self.writer.remote_option.enabled(ECHO) is True
 
     def disconnect_from_mud(self) -> None:
         """Disconnect from the MUD server.
@@ -288,11 +293,16 @@ class MudConnection:
             count += 1
             if msg_obj.is_io:
                 if msg_obj.line:
-                    logger.debug("mud_write - Writing message to mud: %s", msg_obj.line)
+                    shown = (
+                        echo_off_placeholder(msg_obj.line)
+                        if self.echo_off or msg_obj.mask_log
+                        else msg_obj.line
+                    )
+                    logger.debug("mud_write - Writing message to mud: %s", shown)
                     logger.debug("mud_write - type of msg_obj.msg = %s", type(msg_obj.line))
                     self.writer.write(msg_obj.line)
                     msg_obj.was_sent = True
-                    logging.getLogger("data.mud").info("%-12s : %s", "to_mud", msg_obj.line)
+                    logging.getLogger("data.mud").info("%-12s : %s", "to_mud", shown)
                 else:
                     logger.debug("client_write - No message to write to client.")
             elif msg_obj.is_command_telnet:

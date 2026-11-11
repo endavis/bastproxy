@@ -86,6 +86,21 @@ Colours are applied when a record is output, not when it is logged:
 | `LogRecord(["l1", "l2"], ...)()` | one string: `"\n".join(lines)` |
 | `LogRecord("msg", level="error", sources=[a], exc_info=True)()` | `get_logger(a).error("msg", exc_info=True)` |
 
+## Input the MUD asked not to echo
+
+While the MUD has WILL ECHO in effect on the link (echo off), a line typed by a logged-in client is logged as a length placeholder, `<input while echo is off, N chars>` (`echo_off_placeholder` in `src/bastproxy/libs/logger.py`), at every step from the client to the MUD. N excludes the trailing line ending; the pre-login placeholder from `input_placeholder` counts the line as received.
+
+- `ClientConnection.client_read` checks the MUD link (`MudConnection.echo_off`) when it reads the line. It logs the placeholder in the `client_read` debug record and in `data.client.<uuid>`, and sets `NetworkDataLine.mask_log` on the line.
+- A line with `mask_log` set shows the placeholder wherever the line or the record that holds it is printed: `NetworkDataLine.one_line_summary` and `repr`, `NetworkData.get_first_line`, and so the event "raised with data" debug records and the record summaries. Line splitting keeps the flag.
+- `MudConnection.mud_write` logs the placeholder in the `mud_write` debug record and in `data.mud` when the MUD has echo on at write time or the line has `mask_log` set.
+- The `watch` plugin's debug record uses the placeholder for such a line.
+
+Only logging changes: the line sent to the MUD and the data the plugins receive are the same as with echo on. `str()` of a line and the line's own `line` attribute still hold the text, and so do the record change history and the command history, which are not log output.
+
+Masked: every line sent while the MUD has WILL ECHO in effect. Nothing on the wire says whether the line was typed as input or as a command, so a line sent while echo is off is masked whatever its content.
+
+Not masked: telnet commands sent to the MUD; lines read before the MUD negotiates echo, which are logged as typed; and lines after the MUD sends WONT ECHO.
+
 ## Measured cost
 
 Scratch measurement after #247 (Python 3.12.12, one run, median of 5 runs of 2000 calls, a `NullHandler` only, no plugins): `get_logger(NAME).debug(...)` costs 0.54 us per call with debug off and 5.02 us with debug on; `log_to` with two sources costs 1.44 us with debug off and 5.03 us with debug on. `tests/benchmarks/test_bench_logging.py` asserts at most 5 us for the debug-off single-source call when benchmarks are enabled (`doit benchmark`).
