@@ -13,7 +13,7 @@ tags:
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
