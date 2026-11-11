@@ -48,9 +48,9 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **One regex fires per line, and `priority` is not used** (TR-1). All regexes are joined into one alternation,
   which reports only the first alternative that matches, in the order the regexes were added. Two triggers
   with different regexes never both fire (Q1c).
-- **Two of the ten APIs do not work.** `trigger.update` raises `TypeError` on every call (TR-3) and
-  `group.toggle.enable` changes nothing (TR-4). Before #347, `trigger.toggle.enable` could not enable a trigger
-  that was added disabled (TR-2, fixed).
+- **One of the ten APIs does not work.** `group.toggle.enable` changes nothing (TR-4). Before #348,
+  `trigger.update` raised `TypeError` on every call (TR-3, fixed); before #347, `trigger.toggle.enable` could
+  not enable a trigger that was added disabled (TR-2, fixed).
 - **One regex can stop the matcher from being updated** (TR-5). A regex with a named backreference compiles
   alone and breaks the combined pattern; from then on every trigger added is dead, without an error at the
   call that added it. Numeric backreferences and a literal `\?P<x>` are changed silently.
@@ -710,7 +710,7 @@ toggled off still showed `enabled=True`.
 
 ### TR-3: `trigger.update` raises `TypeError` on every call
 
-**Status:** open
+**Status:** fixed by #348
 **Issue:** #348
 **Location:** `TriggersPlugin._api_trigger_update`.
 **Evidence (verified):** Q2d: `TypeError: 'TriggerItem' object is not subscriptable` for `{"omit": True}` and
