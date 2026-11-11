@@ -30,15 +30,51 @@ Functions:
 """
 
 # Standard Library
+import zlib
 from collections.abc import Coroutine
 from typing import Any
 
 # 3rd Party
 import telnetlib3
-from telnetlib3.telopt import BINARY, DO, EOR, GMCP, MCCP2_COMPRESS, MSDP, MSSP, MXP, NAWS, WILL
+from telnetlib3.telopt import (
+    BINARY,
+    DO,
+    EOR,
+    GMCP,
+    IAC,
+    MCCP2_COMPRESS,
+    MCCP3_COMPRESS,
+    MSDP,
+    MSSP,
+    MXP,
+    NAWS,
+    SE,
+    WILL,
+)
 
 # Project
+from bastproxy.libs.logger import get_logger
+from bastproxy.libs.net.inflate import BoundedDecompressor
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
+
+logger = get_logger(__name__)
+
+#: Most bytes one received chunk from a client may inflate to, counted across every MCCP3
+#: stream in that chunk (a client can end a stream and start another in the same read). An
+#: asyncio socket read is at most 256 KiB, so 16 MiB allows 64 to 1 on a full read; the same
+#: limit as the MUD side (``MCCP2_MAX_INFLATED_CHUNK``, #58).
+MCCP3_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
+
+#: Most bytes a client link may inflate to, over its whole life, per compressed byte it sent.
+#: Each read is bounded on its own above; this bound stops a client from repeating a
+#: full-size read, one per read, so memory cannot grow far faster than the bytes received.
+MCCP3_MAX_RATIO = 64
+
+#: Inflated bytes a client link is allowed beyond ``MCCP3_MAX_RATIO``, so a short session
+#: of very repetitive input is not cut off.
+MCCP3_RATIO_SLACK = 1024 * 1024
+
+_IAC_SE = IAC + SE
 
 
 class CustomTelnetServer(telnetlib3.TelnetServer):
@@ -51,6 +87,14 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
 
     # class default for tests that build the protocol without __init__
     _mccp2_enabled: bool = False
+    _mccp3_inflater: BoundedDecompressor | None = None
+    mccp3_failed: bool = False
+    #: What is left of ``MCCP3_MAX_INFLATED_CHUNK`` for the chunk being processed.
+    _mccp3_budget: int = 0
+    #: Compressed bytes inflated on this link so far, across every MCCP3 stream.
+    _mccp3_in: int = 0
+    #: What those bytes inflated to.
+    _mccp3_out: int = 0
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the server, defaulting to the writer that records negotiation (#83)."""
@@ -81,12 +125,12 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
           telnetlib3 accepts and which then suppresses GA (#272).
         - ``DO CHARSET``: ``force_binary=True`` on the listeners already fixes
           the encoding (#63) and CHARSET could renegotiate it.
-        - ``WILL MCCP3``: telnetlib3 5.0.2 cannot serve client-side MCCP3 (it answers
-          ``DO MCCP3`` with ``WONT``), so only MCCP2 is offered (#58, #329).
 
         Sent when the listener passes ``compression=True`` and the link is not TLS
-        (the guard telnetlib3 uses): ``WILL MCCP2_COMPRESS``. Compression starts when
-        the client answers ``DO``.
+        (the guard telnetlib3 uses): ``WILL MCCP2_COMPRESS`` and ``WILL MCCP3_COMPRESS``.
+        MCCP2 starts when the client answers ``DO``. MCCP3 is accepted only after this offer
+        (``always_will``); a client that agrees then sends ``SB MCCP3`` and compresses its
+        stream, which ``data_received`` inflates with a bound (#329).
 
         telnetlib3 still sends ``DO NEW_ENVIRON`` and its own deferred
         ``WILL ECHO`` from its own code, outside this method.
@@ -101,9 +145,25 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, EOR)
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
+            self.writer.always_will.add(MCCP3_COMPRESS)
+            self.writer.iac(WILL, MCCP3_COMPRESS)
 
-    def data_received(self, data: bytes) -> None:
-        """Process client data, ending MCCP2 when the client turns it off.
+    def _mccp3_start(self) -> None:
+        """Do nothing: telnetlib3's MCCP3 inflater is never used; ``data_received`` has its own."""
+        logger.debug("telnetlib3 MCCP3 start ignored on a client link")
+
+    def _mccp3_fail(self) -> None:
+        """Close this client's link after a broken or over-limit MCCP3 stream (#329)."""
+        self.mccp3_failed = True
+        self._mccp3_inflater = None
+        logger.error(
+            "MCCP3 decompression error on a client link (a broken stream or output over an "
+            "inflation limit), closing the connection to the client"
+        )
+        self.writer.close()
+
+    def _feed_telnet(self, data: bytes) -> None:
+        """Hand plain telnet bytes to telnetlib3, ending MCCP2 when the client turned it off.
 
         telnetlib3 5.0.2 starts compression on ``DO MCCP2`` but keeps compressing after
         a later ``DONT MCCP2``. End the stream (``Z_FINISH``) so the rest is plain, and
@@ -114,6 +174,85 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
             MCCP2_COMPRESS
         ):
             self._mccp2_end()
+
+    def _feed_pieces(self, data: bytes) -> bytes:
+        """Feed plain telnet bytes piece by piece, stopping where an MCCP3 stream starts.
+
+        Pieces end after each ``IAC SE`` (and after a leading ``SE``, for an ``IAC`` and
+        ``SE`` split across reads), so a parsed ``SB MCCP3`` is seen before the bytes behind
+        it are read. Splitting is safe: telnetlib3 parses byte by byte. Returns the bytes
+        after a started stream, which are compressed; otherwise ``b""``. A start requested
+        while a stream is already open is cleared.
+        """
+        while data and not self.mccp3_failed:
+            if data[:1] == SE:
+                end = 1
+            else:
+                found = data.find(_IAC_SE)
+                end = len(data) if found == -1 else found + 2
+            piece, data = data[:end], data[end:]
+            self._feed_telnet(piece)
+            if not self.writer.mccp3_start_requested:
+                continue
+            self.writer.mccp3_start_requested = False
+            if self._mccp3_inflater is not None:
+                logger.debug("Ignored an SB MCCP3 inside an open MCCP3 stream")
+                continue
+            self._mccp3_inflater = BoundedDecompressor(
+                zlib.decompressobj(), MCCP3_MAX_INFLATED_CHUNK
+            )
+            return data
+        return b""
+
+    def _feed_compressed(self, data: bytes) -> bytes:
+        """Inflate bounded *data* of an open stream and feed it on; return bytes after its end.
+
+        The output is limited by what is left of this read's budget and by the link's ratio
+        limit (``MCCP3_MAX_RATIO`` times the compressed bytes received, plus
+        ``MCCP3_RATIO_SLACK``), whichever is smaller.
+        """
+        inflater = self._mccp3_inflater
+        if inflater is None:
+            return data
+        allowance = (
+            MCCP3_MAX_RATIO * (self._mccp3_in + len(data)) + MCCP3_RATIO_SLACK - self._mccp3_out
+        )
+        try:
+            out = inflater.decompress(data, min(self._mccp3_budget, allowance))
+        except zlib.error:
+            self._mccp3_fail()
+            return b""
+        self._mccp3_budget -= len(out)
+        rest = b""
+        ended = bool(inflater.eof)
+        if ended:
+            rest = bytes(inflater.unused_data)
+        self._mccp3_in += len(data) - len(rest)
+        self._mccp3_out += len(out)
+        self._feed_pieces(out)
+        if ended:
+            self._mccp3_inflater = None
+        return rest
+
+    def data_received(self, data: bytes) -> None:
+        """Process client data, inflating a client's MCCP3 stream when it was agreed (#329).
+
+        MCCP3 starts only when the proxy offered it and the client agreed (see
+        ``RecordingTelnetWriter._handle_sb_mccp3``); the stream can start mid-chunk. All that
+        *data* inflates to, across every MCCP3 stream in it, is bounded by
+        ``MCCP3_MAX_INFLATED_CHUNK``, so ending a stream and starting another in the same read
+        does not raise the limit. Across reads, the link may inflate to no more than
+        ``MCCP3_MAX_RATIO`` times the compressed bytes it sent, plus ``MCCP3_RATIO_SLACK``.
+        A broken stream or one over either bound closes this client's
+        link, and nothing more from it is processed. After a clean end the rest of the data is
+        plain again.
+        """
+        self._mccp3_budget = MCCP3_MAX_INFLATED_CHUNK
+        while data and not self.mccp3_failed:
+            if self._mccp3_inflater is None:
+                data = self._feed_pieces(data)
+            else:
+                data = self._feed_compressed(data)
 
 
 def create_server(*args, **kwargs) -> Coroutine:

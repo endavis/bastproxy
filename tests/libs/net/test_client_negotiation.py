@@ -279,8 +279,9 @@ def _server_with_writer(*, enabled: bool, ssl_object: object | None) -> tuple[An
     return server, writer
 
 
-def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
+def test_begin_advanced_negotiation_offers_mccp2_and_mccp3() -> None:
     server, writer = _server_with_writer(enabled=True, ssl_object=None)
+    writer.always_will = set()
     server.begin_advanced_negotiation()
     assert writer.iac.call_args_list == [
         ((DO, NAWS),),
@@ -291,8 +292,9 @@ def test_begin_advanced_negotiation_offers_mccp2_only() -> None:
         ((WILL, MXP),),
         ((WILL, EOR),),
         ((WILL, MCCP2_COMPRESS),),
+        ((WILL, MCCP3_COMPRESS),),
     ]
-    assert ((WILL, MCCP3_COMPRESS),) not in writer.iac.call_args_list
+    assert MCCP3_COMPRESS in writer.always_will
 
 
 def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:

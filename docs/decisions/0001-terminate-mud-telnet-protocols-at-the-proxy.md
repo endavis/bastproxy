@@ -79,6 +79,7 @@ Evennia offered WILL for SGA, MCCP2, MSSP, MSDP, GMCP and MXP and never WILL EOR
 - Issue #333: Replay MXP element and entity definitions to late-joining clients
 - Issue #271: Decide whether the proxy accepts SGA from the MUD
 - Issue #272: Send a prompt signal (EOR, else GA) to clients
+- Issue #329: Offer MCCP3 on client links
 
 ## Related Documentation
 
