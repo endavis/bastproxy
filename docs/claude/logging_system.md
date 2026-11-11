@@ -88,11 +88,18 @@ Colours are applied when a record is output, not when it is logged:
 
 ## Input the MUD asked not to echo
 
-While the MUD has WILL ECHO in effect on the link (echo off), `MudConnection.mud_write` logs each line sent to the MUD as a length placeholder, `<... N chars>`, instead of the line. N excludes the trailing line ending. This applies to the `to_mud` message in `data.mud` and to the `mud_write` debug records.
+While the MUD has WILL ECHO in effect on the link (echo off), a line typed by a logged-in client is logged as a length placeholder, `<input while echo is off, N chars>` (`echo_off_placeholder` in `src/bastproxy/libs/logger.py`), at every step from the client to the MUD. N excludes the trailing line ending; the pre-login placeholder from `input_placeholder` counts the line as received.
 
-Masked: every line sent to the MUD while it has WILL ECHO in effect. Nothing on the wire says whether the line was typed as input or as a command, so a line sent while echo is off is masked whatever its content.
+- `ClientConnection.client_read` checks the MUD link (`MudConnection.echo_off`) when it reads the line. It logs the placeholder in the `client_read` debug record and in `data.client.<uuid>`, and sets `NetworkDataLine.mask_log` on the line.
+- A line with `mask_log` set shows the placeholder wherever the line or the record that holds it is printed: `NetworkDataLine.one_line_summary` and `repr`, `NetworkData.get_first_line`, and so the event "raised with data" debug records and the record summaries. Line splitting keeps the flag.
+- `MudConnection.mud_write` logs the placeholder in the `mud_write` debug record and in `data.mud` when the MUD has echo on at write time or the line has `mask_log` set.
+- The `watch` plugin's debug record uses the placeholder for such a line.
 
-Not masked: telnet commands sent to the MUD; lines sent before the MUD negotiates echo, which are logged as typed; and lines sent after the MUD sends WONT ECHO.
+Only logging changes: the line sent to the MUD and the data the plugins receive are the same as with echo on. `str()` of a line and the line's own `line` attribute still hold the text, and so do the record change history and the command history, which are not log output.
+
+Masked: every line sent while the MUD has WILL ECHO in effect. Nothing on the wire says whether the line was typed as input or as a command, so a line sent while echo is off is masked whatever its content.
+
+Not masked: telnet commands sent to the MUD; lines read before the MUD negotiates echo, which are logged as typed; and lines after the MUD sends WONT ECHO.
 
 ## Measured cost
 

@@ -10,7 +10,7 @@ import logging
 import re
 
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.logger import get_logger, log_to
+from bastproxy.libs.logger import echo_off_placeholder, get_logger, log_to
 
 # 3rd Party
 # Project
@@ -242,7 +242,7 @@ class WatchPlugin(BasePlugin):
                 get_logger(self.plugin_id).debug(
                     "_eventcb_check_command: watch %s matched %s, raising %s",
                     watch_name,
-                    client_data,
+                    echo_off_placeholder(client_data) if line.mask_log else client_data,
                     match_args["cmdname"],
                 )
                 self.api("plugins.core.events:event.raise")(

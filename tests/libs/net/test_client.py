@@ -44,6 +44,8 @@ async def test_client_read_keeps_leading_and_trailing_spaces(
     client.view_only = False
     client.max_lines_to_process = 100
     client.data_logger = MagicMock()
+    # no MUD connection, so echo is not off (the client was built without __init__, so no API)
+    client.api = MagicMock(return_value=lambda: None)
     sent: list[str] = []
 
     class _FakeProcess:

@@ -10,7 +10,7 @@ from telnetlib3.telopt import ECHO
 from bastproxy.libs.net.mud import MudConnection
 
 MUD_LOGGER = "bastproxy.libs.net.mud"
-LINE = "hunter2 line\r\n"
+LINE = "typed line\r\n"
 
 
 class FakeRemoteOption:
@@ -50,7 +50,9 @@ async def _run(
     conn.connected = True
     for line in lines:
         conn.send_queue.put_nowait(
-            SimpleNamespace(is_io=True, is_command_telnet=False, line=line, was_sent=False)  # type: ignore[arg-type]
+            SimpleNamespace(
+                is_io=True, is_command_telnet=False, line=line, was_sent=False, mask_log=False
+            )  # type: ignore[arg-type]
         )
     original = writer.write
 
@@ -76,10 +78,10 @@ async def test_echo_on_logs_placeholder_only(caplog: pytest.LogCaptureFixture) -
     writer = await _run(caplog, [LINE], [True])
 
     assert writer.sent == [LINE]
-    assert "hunter2" not in caplog.text
+    assert "typed line" not in caplog.text
     data = [r.getMessage() for r in caplog.records if r.name == "data.mud"]
-    assert data == [f"{'to_mud':<12} : <... {len(LINE) - 2} chars>"]
-    assert "Writing message to mud: <... 12 chars>" in caplog.text
+    assert data == [f"{'to_mud':<12} : <input while echo is off, {len(LINE) - 2} chars>"]
+    assert "Writing message to mud: <input while echo is off, 10 chars>" in caplog.text
 
 
 async def test_echo_off_logs_line(caplog: pytest.LogCaptureFixture) -> None:
@@ -88,7 +90,7 @@ async def test_echo_off_logs_line(caplog: pytest.LogCaptureFixture) -> None:
 
     data = [r.getMessage() for r in caplog.records if r.name == "data.mud"]
     assert data == [f"{'to_mud':<12} : {LINE}"]
-    assert "Writing message to mud: hunter2 line" in caplog.text
+    assert "Writing message to mud: typed line" in caplog.text
 
 
 async def test_echo_state_change_on_to_off(caplog: pytest.LogCaptureFixture) -> None:
@@ -97,5 +99,25 @@ async def test_echo_state_change_on_to_off(caplog: pytest.LogCaptureFixture) -> 
 
     data = [r.getMessage() for r in caplog.records if r.name == "data.mud"]
     assert "first one" not in caplog.text
-    assert data[0].endswith("<... 9 chars>")
+    assert data[0].endswith("<input while echo is off, 9 chars>")
     assert data[1].endswith("second\r\n")
+
+
+async def test_masked_line_stays_masked_after_echo_goes_off(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A line read from the client while echo was off stays masked when written."""
+    conn = MudConnection("127.0.0.1", "4000")
+    remote = FakeRemoteOption()
+    writer = FakeWriter(conn, remote, 1)
+    conn.writer = writer  # type: ignore[assignment]
+    conn.connected = True
+    conn.send_queue.put_nowait(
+        SimpleNamespace(
+            is_io=True, is_command_telnet=False, line="kept\r\n", was_sent=False, mask_log=True
+        )  # type: ignore[arg-type]
+    )
+    with caplog.at_level(logging.DEBUG, logger="data.mud"):
+        await asyncio.wait_for(conn.mud_write(), 5)
+    assert "kept" not in caplog.text
+    assert writer.sent == ["kept\r\n"]
