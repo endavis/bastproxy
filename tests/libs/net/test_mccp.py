@@ -23,6 +23,7 @@ from telnetlib3.telopt import (
 )
 
 from bastproxy.libs.net import mud as mud_module
+from bastproxy.libs.net import server as server_module
 from bastproxy.libs.net.client import ClientConnection
 from bastproxy.libs.net.mud import MudLine, MudTelnetClient
 from bastproxy.libs.records import RMANAGER, TelnetNegotiation
@@ -310,18 +311,19 @@ async def test_mud_mccp3_compresses_writes_until_wont() -> None:
 # Client links ------------------------------------------------------------
 
 
-async def test_server_offers_mccp2_never_mccp3() -> None:
+async def test_server_offers_mccp2_and_mccp3() -> None:
     async with proxy_server() as proxy:
         client = await proxy.connect()
         raw = bytes(client.raw)
         await client.close()
     assert IAC + WILL + MCCP2_COMPRESS in raw
-    assert IAC + WILL + MCCP3_COMPRESS not in raw
+    assert IAC + WILL + MCCP3_COMPRESS in raw
 
 
-async def test_do_mccp3_is_answered_wont() -> None:
-    async with proxy_server() as proxy:
+async def test_do_mccp3_is_answered_wont_when_compression_off() -> None:
+    async with proxy_server(compression=False) as proxy:
         client = await proxy.connect()
+        assert IAC + WILL + MCCP3_COMPRESS not in bytes(client.raw)
         client.send(IAC + DO + MCCP3_COMPRESS)
         await client.wait_for(lambda: IAC + WONT + MCCP3_COMPRESS in client.raw)
         await client.close()
@@ -386,3 +388,187 @@ async def test_dont_mid_session_ends_only_that_stream() -> None:
     assert b"one\r\n" in b_text
     assert b"two plain\r\n" in b_text
     assert b"three\r\n" in b_text
+
+
+# Client links: MCCP3 from the client (#329) ----------------------------------
+
+
+def _stream(*chunks: bytes, finish: bool = False) -> bytes:
+    """Compress ``chunks`` as one zlib stream, sync-flushed or finished."""
+    c = zlib.compressobj()
+    out = b"".join(c.compress(x) for x in chunks)
+    return out + c.flush(zlib.Z_FINISH if finish else zlib.Z_SYNC_FLUSH)
+
+
+async def _line(proxy: Any, index: int = 0) -> str:
+    return await asyncio.wait_for(proxy.readers[index].readline(), TIMEOUT)
+
+
+def _sb_mccp3_recorded(proxy: Any, index: int = 0) -> bool:
+    link = proxy.writers[index].link_id
+    return any(c == "SB" and "MCCP3" in o and d == "received" for d, c, o, _ in _seen(link))
+
+
+async def test_client_mccp3_agreed_is_inflated_and_recorded() -> None:
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        client.send(START3 + _stream(b"look\r\n"))
+        got = await _line(proxy)
+        recorded = _sb_mccp3_recorded(proxy)
+        do_recorded = any(
+            c == "DO" and "MCCP3" in o and d == "received"
+            for d, c, o, _ in _seen(proxy.writers[0].link_id)
+        )
+        await client.close()
+    assert got == "look\r\n"
+    assert recorded
+    assert do_recorded
+
+
+@pytest.mark.parametrize(
+    ("head", "tail"),
+    [
+        (START3[:-1], START3[-1:]),
+        (START3[:-2], START3[-2:]),
+    ],
+)
+async def test_client_mccp3_start_split_across_writes(head: bytes, tail: bytes) -> None:
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        client.send(head)
+        await asyncio.sleep(0.2)
+        client.send(tail + _stream(b"look\r\n"))
+        got = await _line(proxy)
+        await client.close()
+    assert got == "look\r\n"
+
+
+@pytest.mark.parametrize("offset", [1, 3, 7])
+async def test_client_mccp3_data_split_across_writes(offset: int) -> None:
+    data = _stream(b"look north\r\n")
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        client.send(START3 + data[:offset])
+        await asyncio.sleep(0.2)
+        client.send(data[offset:])
+        got = await _line(proxy)
+        await client.close()
+    assert got == "look north\r\n"
+
+
+@pytest.mark.parametrize("server_compression", [True, False])
+async def test_client_mccp3_not_agreed_stays_plain(
+    server_compression: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="bastproxy.libs.net.negotiation")
+    async with proxy_server(compression=server_compression) as proxy:
+        client = await proxy.connect()
+        client.send(START3 + b"look\r\n")
+        got = await _line(proxy)
+        writer = proxy.writers[0]
+        active = writer.mccp3_active
+        inflater = writer.protocol._mccp3_decompressor
+        own = writer.protocol._mccp3_inflater
+        recorded = _sb_mccp3_recorded(proxy)
+        await client.close()
+    assert got == "look\r\n"
+    assert active is False
+    assert inflater is None
+    assert own is None
+    assert recorded
+    assert any("Dropped an SB MCCP3" in r.message for r in caplog.records)
+
+
+async def test_client_mccp3_after_dont_stays_plain() -> None:
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        client.send(IAC + DONT + MCCP3_COMPRESS)
+        await asyncio.sleep(0.2)
+        client.send(START3 + b"look\r\n")
+        got = await _line(proxy)
+        writer = proxy.writers[0]
+        active = writer.mccp3_active
+        inflater = writer.protocol._mccp3_decompressor
+        await client.close()
+    assert got == "look\r\n"
+    assert active is False
+    assert inflater is None
+
+
+@pytest.mark.parametrize("same_write", [True, False])
+async def test_client_mccp3_clean_end_continues_plain_and_restarts(same_write: bool) -> None:
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        first = START3 + _stream(b"one\r\n", finish=True)
+        if same_write:
+            client.send(first + b"plain\r\n")
+        else:
+            client.send(first)
+            await asyncio.sleep(0.2)
+            client.send(b"plain\r\n")
+        lines = [await _line(proxy), await _line(proxy)]
+        client.send(START3 + _stream(b"again\r\n"))
+        lines.append(await _line(proxy))
+        await client.close()
+    assert lines == ["one\r\n", "plain\r\n", "again\r\n"]
+
+
+async def test_client_mccp3_broken_stream_closes_only_that_link(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.ERROR)
+    async with proxy_server() as proxy:
+        bad = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        good = await proxy.connect({MCCP3_COMPRESS})
+        bad.send(START3 + b"this is not a zlib stream\r\n")
+        await bad.wait_for(lambda: proxy.writers[0].is_closing())
+        rx_before = protocol.rx_bytes
+        protocol.data_received(b"later\r\n")
+        rx_after = protocol.rx_bytes
+        good.send(START3 + _stream(b"fine\r\n"))
+        got = await _line(proxy, 1)
+        good_open = not proxy.writers[1].is_closing()
+        await bad.close()
+        await good.close()
+    assert protocol.mccp3_failed is True
+    assert rx_after == rx_before
+    assert got == "fine\r\n"
+    assert good_open
+    assert any("MCCP3 decompression error" in r.message for r in caplog.records)
+
+
+async def test_client_mccp3_chunk_over_the_bound_closes_the_link(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_INFLATED_CHUNK", 1000)
+    caplog.set_level(logging.ERROR)
+    c = zlib.compressobj()
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        protocol = proxy.protocol_of(0)
+        client.send(START3 + c.compress(b"hello\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        first = await _line(proxy)
+        client.send(c.compress(b"A" * 5000 + b"\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        await client.wait_for(lambda: proxy.writers[0].is_closing())
+        rx_before = protocol.rx_bytes
+        protocol.data_received(b"later\r\n")
+        rx_after = protocol.rx_bytes
+        await client.close()
+    assert first == "hello\r\n"
+    assert protocol.mccp3_failed is True
+    assert rx_after == rx_before
+    assert any("inflation limit" in r.message for r in caplog.records)
+
+
+async def test_client_mccp3_chunk_under_the_bound_decodes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(server_module, "MCCP3_MAX_INFLATED_CHUNK", 1000)
+    body = "B" * 500 + "\r\n"
+    async with proxy_server() as proxy:
+        client = await proxy.connect({MCCP3_COMPRESS})
+        client.send(START3 + _stream(body.encode()))
+        got = await _line(proxy)
+        await client.close()
+    assert got == body

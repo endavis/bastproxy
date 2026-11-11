@@ -201,7 +201,7 @@ class ScriptedClient:
 class ProxyServer:
     """The proxy's client-link server; each connection's shell writes what a test queues.
 
-    ``writers[i]`` and ``queues[i]`` belong to the i-th connection. Put text on a
+    ``writers[i]``, ``readers[i]`` and ``queues[i]`` belong to the i-th connection. Put text on a
     queue to have that client's shell write it; put ``None`` to end the shell.
 
     With ``connections=True`` the shell also builds a real ``ClientConnection`` for the link
@@ -213,10 +213,15 @@ class ProxyServer:
     def __init__(self, connections: bool = False) -> None:
         """Create an empty server state."""
         self.writers: list[Any] = []
+        self.readers: list[Any] = []
         self.queues: list[asyncio.Queue[str | None]] = []
         self.connections: list[ClientConnection] = []
         self.build_connections = connections
         self.port = 0
+
+    def protocol_of(self, index: int) -> Any:
+        """The server protocol of the i-th connection."""
+        return self.writers[index].protocol
 
     def login(self, index: int, view_only: bool = False) -> ClientConnection:
         """Mark the i-th connection logged in and tell the protocol manager."""
@@ -237,6 +242,7 @@ class ProxyServer:
         if self.build_connections:
             addr, port, *_ = writer.get_extra_info("peername")
             self.connections.append(ClientConnection(addr, port, "telnet", reader, writer))
+        self.readers.append(reader)
         self.writers.append(writer)
         while (msg := await queue.get()) is not None:
             writer.write(msg)
@@ -257,15 +263,17 @@ class ProxyServer:
 
 
 @asynccontextmanager
-async def proxy_server(connections: bool = False) -> AsyncIterator[ProxyServer]:
-    """Run ``create_server`` as the listeners do, with ``compression=True``."""
+async def proxy_server(
+    connections: bool = False, *, compression: bool = True
+) -> AsyncIterator[ProxyServer]:
+    """Run ``create_server`` as the listeners do, with ``compression=True`` unless told not to."""
     proxy = ProxyServer(connections)
     srv = await create_server(
         host="127.0.0.1",
         port=0,
         shell=proxy.shell,
         encoding="utf8",
-        compression=True,
+        compression=compression,
         force_binary=True,
         encoding_errors="replace",
         connect_maxwait=0.3,

@@ -251,8 +251,8 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
-                    # offer MCCP2 to each client; every client link negotiates
-                    # it on its own (ADR-0001, #58).
+                    # offer MCCP2 and MCCP3 to each client; every client link negotiates
+                    # them on its own (ADR-0001, #58).
                     compression=True,
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).
@@ -275,8 +275,8 @@ class Listeners:
                     connect_maxwait=0.5,
                     timeout=3600,
                     encoding="utf8",
-                    # offer MCCP2 to each client; every client link negotiates
-                    # it on its own (ADR-0001, #58).
+                    # offer MCCP2 and MCCP3 to each client; every client link negotiates
+                    # them on its own (ADR-0001, #58).
                     compression=True,
                     # without BINARY negotiated telnetlib3 5.x encodes as
                     # US-ASCII regardless of encoding; force utf8 (#63).

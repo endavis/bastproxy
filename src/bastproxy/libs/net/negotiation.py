@@ -24,7 +24,21 @@ from uuid import uuid4
 
 # 3rd Party
 from telnetlib3 import TelnetWriterUnicode
-from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, MSSP, MXP, SB, SE, WILL, WONT, name_option
+from telnetlib3.telopt import (
+    DO,
+    DONT,
+    GMCP,
+    IAC,
+    MCCP3_COMPRESS,
+    MSDP,
+    MSSP,
+    MXP,
+    SB,
+    SE,
+    WILL,
+    WONT,
+    name_option,
+)
 
 # Project
 from bastproxy.libs.logger import get_logger
@@ -100,6 +114,9 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         # ``ClientConnection`` exists. Server writers hold those decoded messages (bounded) as
         # ``(option, args)`` until the connection takes them with its own callbacks.
         self.pending_oob: collections.deque[tuple[bytes, tuple[Any, ...]]] = collections.deque()
+        # Set by a parsed ``SB MCCP3`` that was offered and agreed on a server writer; the
+        # server protocol takes it and starts its own bounded inflater (#329).
+        self.mccp3_start_requested: bool = False
         if kwargs.get("server"):
             for opt in (GMCP, MSDP):
                 self.set_ext_callback(opt, self._make_pending_callback(opt))
@@ -280,3 +297,21 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         self._handle_oob_sb(
             buf, MSSP, oob.decode_mssp, lambda result: self._ext_callback[MSSP](result)
         )
+
+    def _handle_sb_mccp3(self, buf: collections.deque[bytes]) -> None:
+        """Handle ``SB MCCP3``; on a server writer, start only when offered and agreed (#329).
+
+        telnetlib3's own MCCP3 decompression is never used on a client link: this never sets
+        ``mccp3_active``. The stream starts only when the proxy offered ``WILL MCCP3`` and the
+        client answered ``DO MCCP3``; the server protocol then inflates it with a bound.
+        Any other ``SB MCCP3`` is dropped and the data after it stays plain. The MUD link
+        keeps telnetlib3's handling.
+        """
+        if not self.server:
+            super()._handle_sb_mccp3(buf)
+            return
+        buf.popleft()
+        if self.local_option.enabled(MCCP3_COMPRESS):
+            self.mccp3_start_requested = True
+        else:
+            logger.debug("Dropped an SB MCCP3 from a client: MCCP3 is not agreed on this link")

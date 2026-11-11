@@ -39,7 +39,6 @@ import collections
 import datetime
 import logging
 import re
-import zlib
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 # Third Party
@@ -50,6 +49,7 @@ from telnetlib3.telopt import CMD_EOR, GA, GMCP, MCCP3_COMPRESS, MSDP, MSSP, MXP
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.net.inflate import BoundedDecompressor
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 from bastproxy.libs.net.protocols import PROTOCOLS
 
@@ -513,30 +513,6 @@ class MudTelnetReader(TelnetReaderUnicode):
 MCCP2_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
 
 
-class _BoundedDecompressor:
-    """Wrap a zlib decompressor so one chunk cannot inflate past ``MCCP2_MAX_INFLATED_CHUNK``.
-
-    telnetlib3 calls ``decompress`` with no output limit. An over-limit chunk raises
-    ``zlib.error``, which telnetlib3 treats as a broken stream.
-    """
-
-    def __init__(self, inner: Any) -> None:
-        """Wrap *inner*, a ``zlib.decompressobj`` result."""
-        self._inner = inner
-
-    def decompress(self, data: bytes) -> bytes:
-        """Inflate *data*, raising ``zlib.error`` when the output exceeds the limit."""
-        limit = MCCP2_MAX_INFLATED_CHUNK
-        out: bytes = self._inner.decompress(data, limit + 1)
-        if len(out) > limit or self._inner.unconsumed_tail:
-            raise zlib.error("chunk exceeded the inflation limit")
-        return out
-
-    def __getattr__(self, name: str) -> Any:
-        """Forward ``eof``, ``unused_data`` and the rest to the wrapped decompressor."""
-        return getattr(self._inner, name)
-
-
 class MudTelnetClient(TelnetClient):
     """telnetlib3 client for the MUD side that terminates GMCP, MSDP and MSSP and declines ZMP.
 
@@ -560,7 +536,7 @@ class MudTelnetClient(TelnetClient):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the client with no MCCP2 failure."""
-        self._bounded_mccp2: _BoundedDecompressor | None = None
+        self._bounded_mccp2: BoundedDecompressor | None = None
         super().__init__(*args, **kwargs)
         self.mccp2_failed: bool = False
 
@@ -572,7 +548,9 @@ class MudTelnetClient(TelnetClient):
     @_mccp2_decompressor.setter
     def _mccp2_decompressor(self, value: Any) -> None:
         """Wrap each decompressor telnetlib3 assigns, including its raw-deflate retry."""
-        self._bounded_mccp2 = None if value is None else _BoundedDecompressor(value)
+        self._bounded_mccp2 = (
+            None if value is None else BoundedDecompressor(value, MCCP2_MAX_INFLATED_CHUNK)
+        )
 
     def _mccp2_end(self) -> None:
         """End MCCP2 decompression; a stream that did not end cleanly closes the link."""
