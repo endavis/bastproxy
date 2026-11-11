@@ -24,9 +24,17 @@ The limits are module constants, so a test can monkeypatch them:
 
 - ``MXP_MAX_TAG_LENGTH``: a ``<`` with no ``>`` within that many characters stays literal.
 - ``MXP_MAX_ENTITY_LENGTH``: an ``&`` with no ``;`` within that many characters stays literal.
+- ``MXP_SCAN_FACTOR``: the look-ahead limit for a whole line, per character of the line.
 
-Each ``<`` looks ahead at most ``MXP_MAX_TAG_LENGTH`` characters, so the work for a line is
-proportional to its length times that constant at most.
+Each ``<`` looks ahead at most ``MXP_MAX_TAG_LENGTH`` characters, and the look-ahead for a
+whole line is limited to ``MXP_SCAN_FACTOR`` times its length plus ``MXP_MAX_TAG_LENGTH``.
+Once a line has used that, every later ``<`` in it stays literal. A well-formed line looks
+ahead about once over each tag, far below the limit, so the work for any line stays
+proportional to its length.
+
+Text the proxy sends to an MXP client as literal text (``render_for_client`` with no
+``mxp_mode``) has its own mode escapes removed and every line in it locked, so nothing in it
+can turn MXP back on.
 """
 
 # Standard Library
@@ -41,6 +49,7 @@ __all__ = [
     "LOCKED_LINE",
     "MXP_MAX_ENTITY_LENGTH",
     "MXP_MAX_TAG_LENGTH",
+    "MXP_SCAN_FACTOR",
     "MxpMode",
     "apply_escape",
     "render_for_client",
@@ -51,11 +60,14 @@ __all__ = [
 
 MXP_MAX_TAG_LENGTH = 2048
 MXP_MAX_ENTITY_LENGTH = 32
+MXP_SCAN_FACTOR = 2
 _MAX_ESCAPE_DIGITS = 6
 
 LOCKED_LINE = "\x1b[2z"
 
 _SPECIAL_RE = re.compile(r"[<&\x1b]")
+_ANY_MODE_ESCAPE_RE = re.compile(r"\x1b\[[0-9]*z")
+_LINE_START_RE = re.compile(r"\n(?=[^\r\n])")
 _ENTITIES = {"lt": "<", "gt": ">", "amp": "&", "quot": '"'}
 
 
@@ -115,21 +127,23 @@ def scan_modes(text: str, current: MxpMode, default: MxpMode) -> tuple[MxpMode, 
     return current, default
 
 
-def _tag_end(text: str, start: int, last_gt: int) -> int:
-    """Return the index just past the tag that starts at ``start``, or -1 when it is not a tag.
+def _tag_end(text: str, start: int, last_gt: int, budget: int) -> tuple[int, int]:
+    """Find the end of the tag that starts at ``start``.
 
-    The tag ends at the first ``>`` outside a ``'...'`` or ``"..."`` value, within
-    ``MXP_MAX_TAG_LENGTH`` characters.
+    Returns ``(end, used)``: ``end`` is the index just past the tag, or -1 when it is not a
+    tag, and ``used`` is how many characters the look-ahead covered. The tag ends at the first
+    ``>`` outside a ``'...'`` or ``"..."`` value, within ``MXP_MAX_TAG_LENGTH`` characters and
+    within ``budget`` characters.
     """
-    if start >= last_gt:
-        return -1
-    window_end = min(len(text), start + MXP_MAX_TAG_LENGTH)
+    if start >= last_gt or budget <= 0:
+        return -1, 0
+    window_end = min(len(text), start + 1 + min(MXP_MAX_TAG_LENGTH, budget))
     first = text.find(">", start + 1, window_end)
     if first == -1:
-        return -1
+        return -1, window_end - start - 1
     segment = text[start + 1 : first]
     if "'" not in segment and '"' not in segment:
-        return first + 1
+        return first + 1, first - start
     quote = ""
     for k in range(start + 1, window_end):
         ch = text[k]
@@ -139,8 +153,8 @@ def _tag_end(text: str, start: int, last_gt: int) -> int:
         elif ch in "'\"":
             quote = ch
         elif ch == ">":
-            return k + 1
-    return -1
+            return k + 1, k - start
+    return -1, window_end - start - 1
 
 
 def _entity_at(text: str, i: int) -> tuple[str, int] | None:
@@ -174,6 +188,7 @@ def strip(text: str, mode: MxpMode | str = MxpMode.OPEN) -> str:
     out: list[str] = []
     pos = 0
     size = len(text)
+    budget = MXP_SCAN_FACTOR * size + MXP_MAX_TAG_LENGTH
     while pos < size:
         match = _SPECIAL_RE.search(text, pos)
         if match is None:
@@ -197,7 +212,10 @@ def strip(text: str, mode: MxpMode | str = MxpMode.OPEN) -> str:
             out.append(ch)
         elif ch == "<":
             nxt = text[i + 1 : i + 2]
-            end = _tag_end(text, i, last_gt) if nxt and (nxt.isalpha() or nxt in "/!") else -1
+            end = -1
+            if nxt and (nxt.isalpha() or nxt in "/!"):
+                end, used = _tag_end(text, i, last_gt, budget)
+                budget -= used
             if end == -1:
                 out.append(ch)
             else:
@@ -231,11 +249,16 @@ def render_for_client(line: "NetworkDataLine", client_mxp: bool) -> str | bytes:
     ``mxp_mode`` set came from a MUD with MXP: an MXP client gets it as it is, any other client
     gets it stripped. A line with no ``mxp_mode`` is plain text the proxy made (or came from a
     MUD without MXP): an MXP client gets it behind ``ESC[2z`` so it shows as literal text, and any
-    other client gets it as it is.
+    other client gets it as it is. For an MXP client its own mode escapes are removed and each
+    of its lines is locked, so nothing in it can turn MXP back on.
     """
     text = line.line
     if line.is_command_telnet or not line.is_io or not isinstance(text, str):
         return text
     if line.mxp_mode is None:
-        return LOCKED_LINE + text if client_mxp else text
+        if not client_mxp:
+            return text
+        return LOCKED_LINE + _LINE_START_RE.sub(
+            "\n" + LOCKED_LINE, _ANY_MODE_ESCAPE_RE.sub("", text)
+        )
     return text if client_mxp else strip(text, line.mxp_mode)

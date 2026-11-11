@@ -164,6 +164,47 @@ def test_render_all_four_combinations() -> None:
     assert mxp.render_for_client(plain, False) == "#BP: hi <b>"
 
 
+def test_render_literal_text_cannot_unlock_itself() -> None:
+    text = 'plain \x1b[0z<send href="x">y</send> \x1b[1234567z<b>z</b>'
+    plain = _line(text, None, Originated.INTERNAL)
+    rendered = mxp.render_for_client(plain, True)
+    assert rendered == LOCKED_LINE + 'plain <send href="x">y</send> <b>z</b>'
+
+
+def test_render_literal_text_locks_every_line() -> None:
+    plain = _line("one <b>\r\ntwo <i>\nthree\r\n", None, Originated.INTERNAL)
+    rendered = mxp.render_for_client(plain, True)
+    assert rendered == (
+        LOCKED_LINE + "one <b>\r\n" + LOCKED_LINE + "two <i>\n" + LOCKED_LINE + "three\r\n"
+    )
+
+
+def test_render_literal_text_is_unchanged_for_a_client_without_mxp() -> None:
+    text = "one \x1b[0z<b>\ntwo"
+    assert mxp.render_for_client(_line(text, None, Originated.INTERNAL), False) == text
+
+
+def test_strip_look_ahead_is_limited_per_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    used_total = 0
+    real_tag_end = mxp._tag_end
+
+    def counting(text: str, start: int, last_gt: int, budget: int) -> tuple[int, int]:
+        nonlocal used_total
+        end, used = real_tag_end(text, start, last_gt, budget)
+        used_total += used
+        return end, used
+
+    monkeypatch.setattr(mxp, "_tag_end", counting)
+    text = ("<a" * 1000 + "'>" + "x" * 2100) * 8 + ">"
+    strip_mxp(text)
+    assert used_total <= mxp.MXP_SCAN_FACTOR * len(text) + mxp.MXP_MAX_TAG_LENGTH
+
+
+def test_strip_look_ahead_limit_leaves_normal_lines_alone() -> None:
+    text = 'You see <send href="get sword" hint="a \'sharp\' sword">a sword</send>. ' * 200
+    assert strip_mxp(text) == "You see a sword. " * 200
+
+
 def test_render_leaves_telnet_commands_alone() -> None:
     line = NetworkDataLine(IAC + WILL + MXP, line_type=LineType.COMMAND_TELNET)
     assert mxp.render_for_client(line, True) == IAC + WILL + MXP
