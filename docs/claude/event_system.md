@@ -181,7 +181,9 @@ def _phook_initialize(self):
     self.api("libs.net.protocols:gmcp.modules.add")(["Char 1", "Room 1"])
 ```
 
-A plugin's modules leave the union when it uninitializes.
+A plugin's modules leave the union when it uninitializes. The events cover what the MUD sends; clients' GMCP and MSDP are not raised as events.
+
+Follow-up candidates (not part of #59): plugin APIs that send GMCP and MSDP to the MUD or to one client, and events for GMCP and MSDP that clients send to the proxy.
 
 ### 3. Event Raising
 

@@ -38,16 +38,17 @@ Classes:
 
 # Standard Library
 import asyncio
+import collections
 import contextlib
 import datetime
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, TelnetWriterUnicode
-from telnetlib3.telopt import ECHO, WILL, WONT
+from telnetlib3.telopt import ECHO, GMCP, MSDP, WILL, WONT
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetServer
@@ -57,6 +58,7 @@ from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import telnet
+from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
     NetworkData,
     NetworkDataLine,
@@ -114,6 +116,38 @@ class ClientConnection:
         self.telnet_server: TelnetServer | None = self.writer.protocol
         self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
         self.max_lines_to_process = 15
+        # the lower-cased modules and versions from the client's Core.Supports (#59)
+        self.gmcp_modules: dict[str, int] = {}
+        self._wire_oob()
+
+    def _wire_oob(self) -> None:
+        """Hand this link's GMCP and MSDP to the protocol manager (#59)."""
+        self.writer.oob_option_callback = self._on_oob_option  # type: ignore[attr-defined]
+        self.writer.set_ext_callback(GMCP, self._on_gmcp)
+        self.writer.set_ext_callback(MSDP, self._on_msdp)
+        # messages that arrived before this connection existed, such as a Core.Supports.Set
+        # sent right behind the client's DO
+        pending = getattr(self.writer, "pending_oob", None)
+        if isinstance(pending, collections.deque):
+            while pending:
+                opt, args = pending.popleft()
+                (self._on_gmcp if opt == GMCP else self._on_msdp)(*args)
+
+    def _on_oob_option(self, opt: bytes, enabled: bool) -> None:
+        PROTOCOLS.client_option_changed(self, opt, enabled)
+
+    def _on_gmcp(self, package: str, data: Any) -> None:
+        PROTOCOLS.on_client_gmcp(self, package, data)
+
+    def _on_msdp(self, variables: dict[str, Any]) -> None:
+        PROTOCOLS.on_client_msdp(self, variables)
+
+    def _client_ready(self) -> None:
+        """Tell the protocol manager this client logged in; a failure never stops the login."""
+        try:
+            PROTOCOLS.client_ready(self)
+        except Exception:
+            logger.exception("Could not start GMCP and MSDP for client %s", self.uuid)
 
     @property
     def rows(self) -> int:
@@ -155,6 +189,16 @@ class ClientConnection:
 
         """
         return bool(self.writer.mccp2_active)
+
+    @property
+    def gmcp_enabled(self) -> bool:
+        """Return True while GMCP is negotiated on this client's link (we sent WILL, got DO)."""
+        return bool(self.writer.local_option.enabled(GMCP))
+
+    @property
+    def msdp_enabled(self) -> bool:
+        """Return True while MSDP is negotiated on this client's link (we sent WILL, got DO)."""
+        return bool(self.writer.local_option.enabled(MSDP))
 
     @property
     def connected_length(self) -> str:
@@ -312,6 +356,7 @@ class ClientConnection:
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
             self.api("plugins.core.clients:client.logged.in.set")(self.uuid)
+            self._client_ready()
         elif inp.strip() == vpw:
             self.data_logger.info("%-12s : %s", "client_login", "IAC WONT ECHO")
             self.writer.iac(WONT, ECHO)
@@ -321,6 +366,7 @@ class ClientConnection:
             )
             SendDataDirectlyToClient(networkdata, clients=[self.uuid])()
             self.api("plugins.core.clients:client.logged.in.set.view.only")(self.uuid)
+            self._client_ready()
 
         elif self.login_attempts < 3:
             self.login_attempts = self.login_attempts + 1
@@ -547,6 +593,10 @@ async def unregister_client(connection) -> None:
     if connection.connected:
         connection.connected = False
     connection.api("plugins.core.clients:client.remove")(connection)
+    try:
+        PROTOCOLS.client_gone(connection)
+    except Exception:
+        logger.exception("Could not clean up GMCP and MSDP for client %s", connection.uuid)
 
     logger.debug("unregister_client - Unregistered client %s", connection.uuid)
 
