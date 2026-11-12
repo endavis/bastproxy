@@ -1,5 +1,6 @@
 """Tests that a failure on the command path is reported to the client (#397)."""
 
+import logging
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -56,6 +57,36 @@ def test_find_command_failure_tells_the_client(sent: list[Any]) -> None:
     assert line.send is False
     assert len(sent) == 1
     assert any("Error running command" in text for text in _text(sent[0]))
+
+
+def test_error_log_has_command_token_not_arguments(
+    sent: list[Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ERROR record names the command but not the user's arguments."""
+    logged: list[tuple[int, str]] = []
+
+    def fake_log_to(sources: Any, level: int, msg: str, *args: Any, **kwargs: Any) -> None:
+        logged.append((level, msg % args))
+
+    monkeypatch.setattr(_commands, "log_to", fake_log_to)
+    stub, line = _stub()
+    line.line = "#bp.core.commands.list secretarg"
+    stub._command_token = CommandsPlugin._command_token
+    stub.find_command.side_effect = RuntimeError("injected find_command failure")
+
+    CommandsPlugin.run_internal_command_from_event(stub)
+
+    errors = [text for level, text in logged if level == logging.ERROR]
+    assert any("#bp.core.commands.list" in text for text in errors)
+    assert not any("secretarg" in text for text in errors)
+
+
+@pytest.mark.parametrize("value", ["", "   ", None, 5])
+def test_command_token_never_raises(value: Any) -> None:
+    """An empty line or a non-string gives a placeholder, not an exception."""
+    record = {"line": MagicMock(line=value)}
+    assert isinstance(CommandsPlugin._command_token(record), str)
+    assert CommandsPlugin._command_token({}) == "<unknown>"
 
 
 def test_send_failure_is_contained(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1065,6 +1065,22 @@ class CommandsPlugin(BasePlugin):
 
         return found, new_package, new_plugin, tmessage, command_split, command_args
 
+    @staticmethod
+    def _command_token(event_record: Any) -> str:
+        """Return only the command word of the line, never its arguments.
+
+        The arguments are user input, so they stay out of the ERROR log. This
+        never raises, because it runs inside an exception handler.
+        """
+        try:
+            line = event_record["line"].line
+            if not isinstance(line, str):
+                return "<unknown>"
+            words = line.lstrip().split(None, 1)
+            return words[0] if words else "<empty>"
+        except Exception:
+            return "<unknown>"
+
     def run_internal_command_from_event(self):
         """Run the internal command from the client event.
 
@@ -1133,8 +1149,8 @@ class CommandsPlugin(BasePlugin):
             log_to(
                 [self.plugin_id],
                 logging.ERROR,
-                "Error running command for line: %r",
-                event_record["line"].line,
+                "Error running command: %s",
+                self._command_token(event_record),
                 exc_info=True,
             )
             try:
