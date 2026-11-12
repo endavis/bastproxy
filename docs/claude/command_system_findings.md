@@ -56,10 +56,10 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
   `try`. A `KeyError` there ends the loop over the plugin's remaining commands, and when the commands plugin
   itself reloads it ends the loop over the remaining plugins. The plugin still loads; the only trace is an
   ERROR line in the log.
-- **A plugin that has no command data makes the lookups raise** (CM-5, fixed in #392; CM-6 is still open).
+- **A plugin that has no command data makes the lookups raise** (CM-5, fixed in #392; CM-6, fixed in #393).
   `command.data.get`, `command.list.formatted`, `command.help.format`, `command.run` and
   `#bp.core.commands.list <plugin>` indexed `command_data[plugin_id]` directly; they now use
-  `.get(plugin_id, {})`. `command.list.formatted` still indexes the `Base` group. Before the fix, for a
+  `.get(plugin_id, {})`, and `command.list.formatted` reads the `Base` group with `.get`. Before the fix, for a
   client typing a command, the exception happened inside the event, which contained it: the line was dropped
   and nothing was shown.
 - **The history has an off-by-one** (CM-8). It keeps `historysize - 1` entries, and `!` indexes the list
@@ -640,7 +640,7 @@ and wrap the per-command and per-plugin loops so one failure cannot end them.
 
 ### CM-5: A plugin with no command data raises `KeyError` in the lookups
 
-**Status:** fixed in #392 (the four lookups use `self.command_data.get(plugin_id, {})`; `command.list.formatted` still raises for the `Base` group, CM-6)
+**Status:** fixed in #392 (the four lookups use `self.command_data.get(plugin_id, {})`; the `Base` group lookup in `command.list.formatted` is CM-6, fixed in #393)
 **Issue:** #392
 **Location:** `_api_command_data_get` (L526), `get_command_data_from_plugin` (L627), `_api_command_list_formatted`
 (L1260), `_command_list` (L1353).
