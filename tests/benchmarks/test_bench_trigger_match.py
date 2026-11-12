@@ -166,6 +166,24 @@ def test_bench_trigger_line_match_last(benchmark: Any, harness: Harness, count: 
 
 
 @pytest.mark.benchmark
+@pytest.mark.parametrize("count", SIZES)
+def test_bench_trigger_line_identical_triggers(
+    benchmark: Any, harness: Harness, count: int
+) -> None:
+    """Benchmark a line that ``count`` triggers sharing one regex all match (#383)."""
+    text = "You are hungry."
+    for index in range(count):
+        harness.add(f"dup{index}", r"^You are hungry\.$", priority=index)
+    expected = [f"dup{index}" for index in range(count)]
+    _set_line(harness, text)
+    assert harness.send(text) == expected
+    harness.raised.clear()
+    _set_line(harness, text)
+    benchmark.pedantic(_batch, args=(harness,), rounds=ROUNDS, iterations=1)
+    assert harness.raised == []
+
+
+@pytest.mark.benchmark
 def test_bench_trigger_add_100(benchmark: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """Benchmark adding 100 triggers one by one, each round on a fresh harness."""
     harnesses: list[Harness] = []
