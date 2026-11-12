@@ -662,7 +662,7 @@ nothing. The event system contained it; the next line was handled normally.
 
 ### CM-6: `command.list.formatted` raises `KeyError` for a plugin with no command in the `Base` group
 
-**Status:** open
+**Status:** fixed in #393 (`groups.get("Base", [])` in `_api_command_list_formatted`)
 **Issue:** #393
 **Location:** `_api_command_list_formatted` (L1302: `groups["Base"]`).
 **Evidence (verified):** Q3 and `out-q3d.txt`: typing an unknown command for a plugin whose only command is

@@ -1335,7 +1335,7 @@ class CommandsPlugin(BasePlugin):
                 message.append("")
 
         message.append(output_subheader_color + "-" * 5 + " " + "Base" + " " + "-" * 5 + "@w")
-        message.extend(self.format_command_list(groups["Base"]))
+        message.extend(self.format_command_list(groups.get("Base", [])))
         message.append("")
 
         return message
