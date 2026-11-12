@@ -59,7 +59,14 @@ class SettingInfo:
         self.readonly = False     # Can't be changed by user
         self.hidden = False       # Don't show in settings list
         self.aftersetmessage = "" # Message to show after setting changed
+        self.validator = None     # Optional callable(value) -> error message, or "" / None if valid
 ```
+
+When `validator` is given to `setting.add`, `setting.set` calls it with the converted value before storing it. A
+non-empty return value is raised as a `ValueError` carrying that message, the old value is kept, and
+`setting.set.from.user` shows the message to the user. A setting without a validator behaves as before. The
+`cmdprefix` setting of `plugins.core.commands` uses it to reject a prefix with a dot or a space, or of one
+character or less.
 
 ### Setting Types
 

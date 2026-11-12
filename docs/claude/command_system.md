@@ -549,7 +549,9 @@ def _command_process(self):
 ### Command Prefix
 
 The prefix is one setting for the whole proxy, `cmdprefix` of `plugins.core.commands` (change it with
-`#bp.core.commands.set cmdprefix <value>`). A prefix that contains a `.` never matches (CM-12). Read it with:
+`#bp.core.commands.set cmdprefix <value>`). The setting is validated when it is set: a prefix that contains a `.` or a space, or is one character or
+less, is rejected with a message and the old value is kept (CM-12, #399). A dotted prefix is therefore not
+supported. Read it with:
 
 ```python
 command_prefix = self.api("plugins.core.settings:setting.get")(

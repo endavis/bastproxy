@@ -33,6 +33,21 @@ from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandS
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
+def validate_cmdprefix(value: str) -> str:
+    """Validate a command prefix; return an error message, or "" when valid.
+
+    The prefix is stripped from a command string before it is split on '.',
+    so it cannot contain '.' or whitespace, and must be longer than one char.
+    """
+    if not isinstance(value, str) or len(value) <= 1:
+        return "the command prefix must be longer than one character"
+    if "." in value:
+        return "the command prefix cannot contain '.'"
+    if any(char.isspace() for char in value):
+        return "the command prefix cannot contain whitespace"
+    return ""
+
+
 class CommandsPlugin(BasePlugin):
     """a class to manage internal commands."""
 
@@ -85,6 +100,7 @@ class CommandsPlugin(BasePlugin):
             "#bp",
             str,
             "the prefix to signify the input is a command",
+            validator=validate_cmdprefix,
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -1029,13 +1045,12 @@ class CommandsPlugin(BasePlugin):
             "looking for %s, %s, %s", command_str, command_str, command_args
         )
 
+        # remove the command prefix (and the '.' after it) before splitting
+        command_str = command_str.removeprefix(commandprefix).removeprefix(".")
+
         # split the command by the '.'
         command_split = command_str.split(".")
         get_logger(self.plugin_id).debug("command_split=%r", command_split)
-
-        # remove the command prefix
-        if commandprefix in command_split:
-            del command_split[command_split.index(commandprefix)]
 
         # remove the literal 'plugins' string
         if command_split[0] == "plugins":

@@ -11,6 +11,10 @@
 # Project
 
 
+class SettingValidationError(ValueError):
+    """Raised when a setting's validator rejects a value."""
+
+
 class SettingInfo:
     def __init__(self, name, default, help, stype, **kwargs):
         self.name = name
@@ -22,3 +26,6 @@ class SettingInfo:
         self.readonly = kwargs.get("readonly", False)
         self.hidden = kwargs.get("hidden", False)
         self.aftersetmessage = kwargs.get("aftersetmessage", "")
+        # optional callable taking the converted value; returns None or "" when
+        # the value is valid, or an error message string when it is not
+        self.validator = kwargs.get("validator")
