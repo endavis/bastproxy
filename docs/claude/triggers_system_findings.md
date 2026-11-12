@@ -351,6 +351,8 @@ The strip also damages a literal: `^tag \?P<b> end$` was stored as `^tag \ end$`
 
 ### Q3c: A failure inside `process_match` (TR-7)
 
+Historical evidence, measured before TR-7 was fixed (#359, #352).
+
 `process_match` runs inside the `ev_to_client_data_modify` callback with no `try`. Anything that raises there
 ends `_eventcb_check_trigger` for that line: the event system logs it, the remaining triggers on the regex are
 skipped and `all` is not raised.
@@ -806,7 +808,7 @@ was shadowed.
 
 ### TR-7: An exception while a line's triggers run drops the rest of that line's triggers
 
-**Status:** open; the copy, the re-check per item and a local `try` landed with #359 (TR-14). Skipping the conversion of a group that is `None` remains (#352)
+**Status:** fixed by #352 (with #359): the copy, the re-check per item and a local `try` landed with #359 (TR-14); skipping the conversion of a group that is `None` landed with #352
 **Issue:** #352
 **Location:** `TriggersPlugin.process_match` (the `argtypes` conversion; the iteration over the live
 `regex["triggers"]` list; `self.triggers[trigger_id].stopevaluating` after the raise).

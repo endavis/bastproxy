@@ -557,7 +557,8 @@ class TriggersPlugin(BasePlugin):
                 group_dict = match.groupdict()
                 if item.argtypes:
                     for arg, argtype in item.argtypes.items():
-                        if arg in group_dict:
+                        # an optional group that did not take part stays None
+                        if group_dict.get(arg) is not None:
                             group_dict[arg] = argtype(group_dict[arg])
                 if debug:
                     match_logger.debug(
