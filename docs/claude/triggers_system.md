@@ -165,7 +165,7 @@ What follows from this:
 - Two triggers with different regexes that both match a line both fire, in priority order. Set `stopevaluating` on the earlier one to keep the later one from firing.
 - Backreferences (`\1`, `(?P=name)`) mean what they say, and a regex that does not compile is refused at `trigger.add` without affecting any other trigger.
 - A `matchcolor` trigger matches only the colour-coded text, so its regex can carry colour codes (`^@rWARNING`); it does not match the plain text.
-- Each trigger's match, conversion and raise run in their own `try`. An error is logged with the trigger id and the line, the next trigger runs, and a failed trigger does not apply `stopevaluating`. An `argtypes` conversion of a group that did not take part in the match still fails for that trigger (TR-7, #352).
+- Each trigger's match, conversion and raise run in their own `try`. An error is logged with the trigger id and the line, the next trigger runs, and a failed trigger does not apply `stopevaluating`. A group that did not take part in the match stays `None` in `matches` and is not converted by `argtypes` (TR-7, #352).
 - A callback that raises is logged by the event system and the other callbacks and triggers still run. A callback may remove or disable a later trigger; it then does not fire for this line.
 - Prompts and partial lines are matched like any other line.
 
@@ -386,7 +386,7 @@ def update_stats(self):
 
 1. **Efficient Patterns**: Use specific patterns that start with literal text; avoid `.*` catchalls
 2. **Named Groups**: Use named groups for clarity. Backreferences (`\1`, `(?P=name)`) work, as each trigger has its own regex
-3. **Type Conversion**: Specify `argtypes` for numeric values, only on groups that always take part in the match and always hold a value the type accepts (TR-7)
+3. **Type Conversion**: Specify `argtypes` for numeric values, groups that may not take part in the match are left `None`; every other group must hold a value the type accepts, or the trigger fails and is logged (TR-7)
 4. **Error Handling**: Handle missing groups gracefully, and check the result of `trigger.add` before unpacking it
 5. **Cleanup**: A plugin's triggers are removed when it is unloaded; no `uninitialize` code is needed for that. A callback may remove a trigger, including its own; matching walks a copy
 6. **Testing**: Test regex patterns thoroughly, against the start of the line

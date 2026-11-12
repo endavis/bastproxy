@@ -47,29 +47,29 @@ the beginning of the line, registers a callback, and no other trigger matches th
 most of the API surface does something other than what its name and the docs say. Fourteen items are proposed
 below (TR-1 to TR-14); eleven are defects found by running the code.
 
-- **One regex fires per line, and `priority` is not used** (TR-1). All regexes are joined into one alternation,
+- **One regex fires per line, and `priority` is not used** (TR-1, fixed by #346). All regexes are joined into one alternation,
   which reports only the first alternative that matches, in the order the regexes were added. Two triggers
   with different regexes never both fire (Q1c).
 - **The APIs listed as working now do.** Before #349, `group.toggle.enable` changed nothing (TR-4, fixed). Before #348,
   `trigger.update` raised `TypeError` on every call (TR-3, fixed); before #347, `trigger.toggle.enable` could
   not enable a trigger that was added disabled (TR-2, fixed).
-- **One regex can stop the matcher from being updated** (TR-5). A regex with a named backreference compiles
+- **One regex can stop the matcher from being updated** (TR-5, fixed by #359). A regex with a named backreference compiles
   alone and breaks the combined pattern; from then on every trigger added is dead, without an error at the
   call that added it. Numeric backreferences and a literal `\?P<x>` are changed silently.
-- **A failure inside matching drops the rest of the line's triggers** (TR-7): an `argtypes` conversion that
+- **A failure inside matching drops the rest of the line's triggers** (TR-7, fixed by #359 and #352): an `argtypes` conversion that
   raises, or a callback that removes its own trigger, ends `_eventcb_check_trigger` for that line.
 - **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
-  uncoloured text (TR-6), and triggers without a regex, the three built-ins included, raise `KeyError` from
-  remove and toggle (TR-8).
+  uncoloured text (TR-6, fixed by #359), and triggers without a regex, the three built-ins included, raise `KeyError` from
+  remove and toggle (TR-8; the `KeyError` is fixed by #359, the rest is open).
 - **Unload is clean for triggers and their callbacks** (Q2e, **verified**), except for an owner that has a trigger without a regex.
 - **Cost** (Q4): matching is cheap at realistic sizes, 6 us for a line that matches nothing against 100
   triggers. The two built-in events raised for every line cost about 250 us with nothing listening, and
-  loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10).
+  loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10). Both were measured before #359, which removed the recompile and raises the built-ins only when something listens.
 - **Tests** (Q5): the plugin file is about 30% covered. No API method except `trigger.register` and
   `trigger.unregister` has a test (TR-12).
 - **Design** (Q8): change the matcher, keep the API. Match each enabled trigger's own compiled regex in
   priority order; that removes TR-1, TR-5 and TR-6 as classes of bug and makes `priority` and
-  `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, needs an ADR).
+  `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, done in #359 with ADR-0007).
 
 **Key Findings:**
 
@@ -350,6 +350,8 @@ The strip also damages a literal: `^tag \?P<b> end$` was stored as `^tag \ end$`
 `tag ?P<b> end`.
 
 ### Q3c: A failure inside `process_match` (TR-7)
+
+Historical evidence, measured before TR-7 was fixed (#359, #352).
 
 `process_match` runs inside the `ev_to_client_data_modify` callback with no `try`. Anything that raises there
 ends `_eventcb_check_trigger` for that line: the event system logs it, the remaining triggers on the regex are
@@ -806,7 +808,7 @@ was shadowed.
 
 ### TR-7: An exception while a line's triggers run drops the rest of that line's triggers
 
-**Status:** open; the copy, the re-check per item and a local `try` landed with #359 (TR-14). Skipping the conversion of a group that is `None` remains (#352)
+**Status:** fixed by #352 (with #359): the copy, the re-check per item and a local `try` landed with #359 (TR-14); skipping the conversion of a group that is `None` landed with #352
 **Issue:** #352
 **Location:** `TriggersPlugin.process_match` (the `argtypes` conversion; the iteration over the live
 `regex["triggers"]` list; `self.triggers[trigger_id].stopevaluating` after the raise).

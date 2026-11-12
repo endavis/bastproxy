@@ -122,6 +122,29 @@ def test_callback_removing_a_later_trigger(harness: Harness) -> None:
     assert "t_plugins.test.owner_b" not in harness.triggers
 
 
+def test_none_group_is_not_converted(harness: Harness) -> None:
+    harness.add("opt", r"^opt(?: (?P<n>\d+))?$", argtypes={"n": int})
+    assert harness.send("opt") == ["opt"]
+    assert harness.errors() == []
+    assert [args["matches"] for _name, args in harness.raised] == [{"n": None}]
+
+
+def test_present_optional_group_is_still_converted(harness: Harness) -> None:
+    harness.add("opt", r"^opt(?: (?P<n>\d+))?$", argtypes={"n": int})
+    assert harness.send("opt 7") == ["opt"]
+    assert [args["matches"] for _name, args in harness.raised] == [{"n": 7}]
+
+
+def test_callback_removing_an_earlier_trigger(harness: Harness) -> None:
+    harness.add("a", r"^go")
+    harness.add("b", r"^go")
+    harness.add("c", r"^go")
+    harness.callbacks["b"] = lambda: harness._api_trigger_remove("a", force=True)
+    assert harness.send("go") == ["a", "b", "c"]
+    assert harness.errors() == []
+    assert harness.ordered_names() == ["b", "c"]
+
+
 def test_callback_removing_its_own_trigger(harness: Harness) -> None:
     harness.add("a", r"^go")
     harness.add("b", r"^go")
