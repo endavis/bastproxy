@@ -195,7 +195,7 @@ They are added enabled, and the flag is not checked for them (TR-8, #353): each 
 
 ## The `enabled` Setting
 
-The plugin has an `enabled` setting. While it is False, `_eventcb_check_trigger` returns before matching, so no trigger fires and the built-in `beall`, `all` and `emptyline` events are not raised either. The setting is read for every line, so it also applies when it was saved as False. (Before #356 the setting had no effect, TR-11.)
+The plugin has an `enabled` setting. While it is False, `_eventcb_check_trigger` returns before matching, so no trigger fires and the built-in `beall`, `all` and `emptyline` events are not raised either. The plugin keeps the value in `_matching_enabled`, updated by `_eventcb_enabled_modify` on `ev_plugins.core.triggers_var_enabled_modified`, so no setting lookup runs per line. The settings plugin raises that event for every setting when a plugin loads, so a value saved as False applies at startup. (Before #356 the setting had no effect, TR-11.)
 
 ## Commands
 

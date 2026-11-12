@@ -36,7 +36,6 @@ class Harness:
         self.line: Any = None
         self.current_record: Any = None
         self.command_args: dict[str, Any] = {}
-        self.setting_enabled = True
 
         def event_raise(event_name: str, event_args: dict[str, Any]) -> dict[str, Any]:
             self.raised.append((event_name, dict(event_args)))
@@ -69,8 +68,6 @@ class Harness:
             )
         if name == "plugins.core.events:event.exists":
             return lambda _event_name: False
-        if name == "plugins.core.settings:setting.get":
-            return lambda _plugin_id, _setting: self.setting_enabled
         if name == "plugins.core.commands:command.current.args.get":
             return lambda: self.command_args
         prefix = f"{PLUGIN}:"
