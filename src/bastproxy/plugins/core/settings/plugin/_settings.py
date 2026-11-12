@@ -21,7 +21,10 @@ from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
-from bastproxy.plugins.core.settings.libs._settinginfo import SettingInfo
+from bastproxy.plugins.core.settings.libs._settinginfo import (
+    SettingInfo,
+    SettingValidationError,
+)
 
 logger = get_logger(__name__)
 
@@ -57,6 +60,8 @@ class SettingsPlugin(BasePlugin):
           @Yreadonly@w   = if True, can't be changed by a client
           @Yhidden@w     = if True, don't show in @Ysettings@w command
           @Yaftersetmessage@w = message to send to client after setting is changed.
+          @Yvalidator@w  = optional callable taking the converted value; returns
+                           None or "" if valid, else an error message string
         """
         get_logger(self.plugin_id).debug(
             "setting %s.%s %s %s %s %s", plugin_id, setting_name, default, stype, help, kwargs
@@ -162,6 +167,10 @@ class SettingsPlugin(BasePlugin):
         @Ysetting@w    = the name of the setting to change
         @Yvalue@w      = the value to set it as.
 
+        Raises:
+          SettingValidationError (a ValueError) if the setting's validator
+          rejects the value; the old value is kept
+
         Returns:
           True if the value was changed, False otherwise
         """
@@ -177,6 +186,10 @@ class SettingsPlugin(BasePlugin):
             value = self.api("plugins.core.utils:value.verify")(
                 value, self.settings_info[plugin_id][setting].stype
             )
+
+        validator = getattr(self.settings_info[plugin_id][setting], "validator", None)
+        if validator and (error := validator(value)):
+            raise SettingValidationError(error)
 
         old_value = self.api("plugins.core.settings:setting.get")(plugin_id, setting)
 
@@ -485,6 +498,8 @@ class SettingsPlugin(BasePlugin):
             tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
             if setting_info.aftersetmessage:
                 tmsg.extend(["\n", setting_info.aftersetmessage])
+        except SettingValidationError as err:
+            return True, [str(err)]
         except ValueError:
             msg = [f"Cannot convert {val} to {setting_info.stype}"]
             return True, msg

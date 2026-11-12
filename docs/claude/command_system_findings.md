@@ -183,7 +183,8 @@ plugins of the package, the commands of the plugin and the packages (**read**).
 
 A `cmdprefix` containing a dot never matches: with the prefix set to `#b.p`, `#b.p.core.commands.list` printed
 the package error page, because `find_command_split_command_string` splits the line on `.` and looks for an
-element equal to the prefix (**verified**; CM-12). The same function deletes the first element equal to the
+element equal to the prefix (**verified**; CM-12, fixed in #399: such a prefix is now rejected when it is set, and
+the prefix is removed before the line is split). The same function deletes the first element equal to the
 prefix wherever it is, not only the first element (**read**); with `#bpx.#bp.core.commands.list` the first
 element is `#bpx`, so the result was the error page for package `#bpx` (**verified**).
 
@@ -499,7 +500,7 @@ checks are **verified** unless marked **read**.
 20. **Troubleshooting, "History Not Working."** Success is not a condition for recording; a command that
     fails is recorded the same.
 21. **"Custom Command Prefix: change the command prefix per plugin."** The prefix is one global setting,
-    `cmdprefix` of `plugins.core.commands`, and a prefix containing a dot never matches (CM-12).
+    `cmdprefix` of `plugins.core.commands`, and a prefix containing a dot is rejected when it is set (CM-12, fixed in #399).
 22. **"Conditional Command Registration"** defined a decorated function inside a method. Discovery scans the
     attributes of the plugin instance, so such a function is never found (**read**). Replaced with
     `autoadd=False` plus `command.add.by.func(..., force=True)`, which was tried.
@@ -790,7 +791,9 @@ format output`); a `str` message is treated as one line.
 
 ### CM-12: A `cmdprefix` containing `.` never matches, and nothing validates the setting
 
-**Status:** open
+**Status:** fixed in #399 (the prefix is removed with `str.removeprefix` before the split; `cmdprefix` has a
+validator that rejects a prefix with a dot, a space, or one character or less, and the settings plugin gained an
+optional `validator` for `setting.add`)
 **Issue:** #399
 **Location:** `find_command_split_command_string` (L987-992); the `cmdprefix` setting in `_phook_initialize`.
 **Evidence (verified):** Q1c: with `#b.p`, every `#b.p.<command>` printed the package error page. The line was
