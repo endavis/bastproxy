@@ -108,11 +108,13 @@ class CommandClass:
                 command_ran,
                 exc_info=True,
             )
-            return self.run_finish(False, message, "function returned False", format=format)
+            return self.run_finish(False, message, "function raised an exception", format=format)
 
         if isinstance(return_value, tuple):
             retval = return_value[0]
             message = return_value[1]
+            if isinstance(message, str):
+                message = [message]
         else:
             retval = return_value
             message = []
@@ -129,13 +131,30 @@ class CommandClass:
         self, success: bool, message: list[str], return_value: str, format=False
     ) -> tuple[bool, list[str], str]:
         """Run the command finisher."""
+        if isinstance(message, str):
+            message = [message]
         oldmessage = message[:]
         self.last_run_end_time = datetime.datetime.now(datetime.UTC)
-        if format:
-            message = self.format_return_message(oldmessage)
-        self.current_args = {}
-        self.current_arg_string = ""
-        self.api("plugins.core.commands:command.current.set")(None)
+        try:
+            if format:
+                message = self.format_return_message(oldmessage)
+        except Exception as exc:
+            self.record_error(exc)
+            log_to(
+                [self.plugin_id, "plugins.core.commands"],
+                logging.ERROR,
+                "Error formatting the output of command: %s %s",
+                self.full_cmd,
+                self.current_arg_string,
+                exc_info=True,
+            )
+            success = False
+            message = [f"Error running command: {self.full_cmd} {self.current_arg_string}"]
+            return_value = "could not format output"
+        finally:
+            self.current_args = {}
+            self.current_arg_string = ""
+            self.api("plugins.core.commands:command.current.set")(None)
         return success, message, return_value
 
     def parse_args(self, arg_string):

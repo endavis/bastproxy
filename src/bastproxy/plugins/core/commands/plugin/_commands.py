@@ -1066,58 +1066,91 @@ class CommandsPlugin(BasePlugin):
         return found, new_package, new_plugin, tmessage, command_split, command_args
 
     def run_internal_command_from_event(self):
-        """Run the internal command from the client event."""
+        """Run the internal command from the client event.
+
+        Any failure on the path (finding the command, formatting or sending the
+        output) is logged and reported to the client as `Error running command`
+        rather than being left to the event system, which would drop the line
+        without a reply (#397).
+        """
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         clients = [event_record["client_id"]] if event_record["client_id"] else None
 
         event_record["line"].send = False
 
-        # leading whitespace is kept on the line for the MUD (#52), but a proxy
-        # command is parsed from the left-stripped text
-        command_item, command_args, show_in_history, notes, message = self.find_command(
-            event_record["line"].line.lstrip()
-        )
-
-        if message:
-            if isinstance(message, list):
-                message = NetworkData(message, owner_id="run_internal_command_from_event")
-            SendDataDirectlyToClient(message, clients=clients)()
-
-        if event_record["showinhistory"] != show_in_history:
-            event_record["showinhistory"] = show_in_history
-            event_record.addupdate(
-                UpdateFlag.MODIFY, f"show_in_history set to {show_in_history}", savedata=False
+        try:
+            # leading whitespace is kept on the line for the MUD (#52), but a proxy
+            # command is parsed from the left-stripped text
+            command_item, command_args, show_in_history, notes, message = self.find_command(
+                event_record["line"].line.lstrip()
             )
-
-        event_record.addupdate(
-            UpdateFlag.INFO,
-            f"find_command returned {notes}, arg string: '{command_args}'",
-            savedata=False,
-        )
-
-        if command_item:
-            get_logger(self.plugin_id).debug(
-                "found command %s.%s", command_item.plugin_id, command_item.name
-            )
-
-            success, message, error = command_item.run(command_args, format=command_item.format)
-
-            if success:
-                event_record.addupdate(
-                    UpdateFlag.INFO,
-                    "run_command returned success",
-                    savedata=False,
-                )
-            else:
-                event_record.addupdate(
-                    UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
-                )
 
             if message:
+                if isinstance(message, str):
+                    message = [message]
                 if isinstance(message, list):
                     message = NetworkData(message, owner_id="run_internal_command_from_event")
                 SendDataDirectlyToClient(message, clients=clients)()
+
+            if event_record["showinhistory"] != show_in_history:
+                event_record["showinhistory"] = show_in_history
+                event_record.addupdate(
+                    UpdateFlag.MODIFY, f"show_in_history set to {show_in_history}", savedata=False
+                )
+
+            event_record.addupdate(
+                UpdateFlag.INFO,
+                f"find_command returned {notes}, arg string: '{command_args}'",
+                savedata=False,
+            )
+
+            if command_item:
+                get_logger(self.plugin_id).debug(
+                    "found command %s.%s", command_item.plugin_id, command_item.name
+                )
+
+                success, message, error = command_item.run(command_args, format=command_item.format)
+
+                if success:
+                    event_record.addupdate(
+                        UpdateFlag.INFO,
+                        "run_command returned success",
+                        savedata=False,
+                    )
+                else:
+                    event_record.addupdate(
+                        UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
+                    )
+
+                if message:
+                    if isinstance(message, str):
+                        message = [message]
+                    if isinstance(message, list):
+                        message = NetworkData(message, owner_id="run_internal_command_from_event")
+                    SendDataDirectlyToClient(message, clients=clients)()
+        except Exception:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "Error running command for line: %r",
+                event_record["line"].line,
+                exc_info=True,
+            )
+            try:
+                SendDataDirectlyToClient(
+                    NetworkData(
+                        ["Error running command"], owner_id="run_internal_command_from_event"
+                    ),
+                    clients=clients,
+                )()
+            except Exception:
+                log_to(
+                    [self.plugin_id],
+                    logging.ERROR,
+                    "Could not tell the client about the command error",
+                    exc_info=True,
+                )
 
     @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
     def _api_summary_get_for_plugin(self, plugin_id):
