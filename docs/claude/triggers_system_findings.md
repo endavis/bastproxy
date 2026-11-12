@@ -53,10 +53,10 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **The APIs listed as working now do.** Before #349, `group.toggle.enable` changed nothing (TR-4, fixed). Before #348,
   `trigger.update` raised `TypeError` on every call (TR-3, fixed); before #347, `trigger.toggle.enable` could
   not enable a trigger that was added disabled (TR-2, fixed).
-- **One regex can stop the matcher from being updated** (TR-5). A regex with a named backreference compiles
+- **One regex can stop the matcher from being updated** (TR-5, fixed by #359). A regex with a named backreference compiles
   alone and breaks the combined pattern; from then on every trigger added is dead, without an error at the
   call that added it. Numeric backreferences and a literal `\?P<x>` are changed silently.
-- **A failure inside matching drops the rest of the line's triggers** (TR-7): an `argtypes` conversion that
+- **A failure inside matching drops the rest of the line's triggers** (TR-7, fixed by #359 and #352): an `argtypes` conversion that
   raises, or a callback that removes its own trigger, ends `_eventcb_check_trigger` for that line.
 - **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
   uncoloured text (TR-6), and triggers without a regex, the three built-ins included, raise `KeyError` from
