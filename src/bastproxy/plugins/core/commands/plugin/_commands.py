@@ -965,7 +965,7 @@ class CommandsPlugin(BasePlugin):
         return (
             command_item,
             command_args,
-            True,
+            command_item.show_in_history,
             f"found {command_item.full_cmd}",
             message,
         )
@@ -1042,7 +1042,7 @@ class CommandsPlugin(BasePlugin):
         if event_record["showinhistory"] != show_in_history:
             event_record["showinhistory"] = show_in_history
             event_record.addupdate(
-                UpdateFlag.MODIFY, "show_in_history set to {show_in_history}", savedata=False
+                UpdateFlag.MODIFY, f"show_in_history set to {show_in_history}", savedata=False
             )
 
         event_record.addupdate(
