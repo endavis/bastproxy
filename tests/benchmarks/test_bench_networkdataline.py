@@ -19,10 +19,10 @@ count as trees, so it only trims them past its pending cap. Lines per round
 match the default ``max_lines_to_process`` of 15.
 
 Both records are built on pydatatracker (ADR-0006). The create and change benchmarks run
-under ``tracking_actor("bench")``, as the proxy does, and assert the ADR-0005 targets when
-benchmarks are enabled (``doit benchmark``): at most 50 us per line created and 20 us per
-change. A disabled run (``doit check``, CI tests) skips the assertion. The lock benchmark is
-informational.
+under ``tracking_actor("bench")``, as the proxy does, and assert the ADR-0006 gates when
+benchmarks are enabled (``doit benchmark``): at most 75 us per line created (the ADR-0005
+design target is 50 us; #412) and 20 us per change. A disabled run (``doit check``, CI
+tests) skips the assertion. The lock benchmark is informational.
 """
 
 from collections.abc import Callable, Iterator
@@ -37,7 +37,9 @@ from bastproxy.libs.records.tracking import tracking_actor
 DEFAULT_LINES = 15
 ROUNDS = 20
 CHANGE_ROUNDS = 200
-CREATE_TARGET_SECONDS = 50e-6  # per line created
+# CI gate for ubuntu-latest, whose speed varies about 1.9x between runs: 26-50 us per line
+# on unchanged code (#412). The ADR-0005 design target stays 50 us.
+CREATE_TARGET_SECONDS = 75e-6  # per line created
 CHANGE_TARGET_SECONDS = 20e-6  # per change
 
 

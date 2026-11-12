@@ -1,6 +1,6 @@
 ---
 title: "ADR-0006: Records adapt pydatatracker containers and locked writes raise RuntimeError"
-description: Records adapt pydatatracker containers through a mixin and a read-only update view; a locked NetworkDataLine or NetworkData raises RuntimeError on writes; the actor comes from a context variable; a benchmark gate enforces 50 us per line created and 20 us per change.
+description: Records adapt pydatatracker containers through a mixin and a read-only update view; a locked NetworkDataLine or NetworkData raises RuntimeError on writes; the actor comes from a context variable; a benchmark gate enforces 75 us per line created and 20 us per change.
 date: 2026-11-09
 audience: [contributors]
 tags: [adr, records]
@@ -36,7 +36,7 @@ This is slice 1 of #43. The repo admin approved the split and the breaking chang
 7. **One conversion hook.** `NetworkData._tracking_convert_item` turns str, bytes and bytearray into `NetworkDataLine`, rejects other types with `TypeError`, and makes the list the line's parent. Every way of storing an item goes through it.
 8. **Actor from a context variable.** The events plugin runs each callback, and the commands plugin runs each command, inside `tracking_actor("<owner>:<name>")`. Plugins import `tracking_actor` from `bastproxy.libs.records.tracking`, not from pydatatracker. Stack capture is off.
 9. **Retention.** `MAX_CHANGES = 1000` per record, the cap `UpdateManager` has. #249 and #233 make retention configurable.
-10. **Benchmark gate.** `tests/benchmarks/test_bench_networkdataline.py` runs create and change under `tracking_actor("bench")` and, when benchmarks are enabled, asserts at most 50 us per line created and 20 us per change, the ADR-0005 targets. `doit benchmark` and the benchmark workflow enforce it. A disabled run (`doit check`) skips the assertion. The targets are not loosened to pass.
+10. **Benchmark gate.** `tests/benchmarks/test_bench_networkdataline.py` runs create and change under `tracking_actor("bench")` and, when benchmarks are enabled, asserts at most 75 us per line created and 20 us per change. Creation is above the ADR-0005 target of 50 us because CI runner speed varies about 1.9x between runs (#412); the change gate is the ADR-0005 target. `doit benchmark` and the benchmark workflow enforce it. A disabled run (`doit check`) skips the assertion. The gate is not loosened to pass a slower change; it moved once, for runner speed (#412).
 
 ## Rationale
 
@@ -45,7 +45,7 @@ This is slice 1 of #43. The repo admin approved the split and the breaking chang
 - **Per-field lock (5):** locking the whole object would refuse `was_sent` and break the send path in `src/bastproxy/libs/net/client.py` and `src/bastproxy/libs/net/mud.py`.
 - **Raising (6):** a refused write that raises is caught and logged by `Event.raise_priority`, so the proxy keeps running, and the plugin author sees the error. The old drop was visible only in an update.
 - **One hook (7):** it replaces the constructor loop and four method overrides, and it also covers `+=` and slices, which the old class missed. It gives appended lines a parent, which closes the #47 gap for these two classes.
-- **Gate (10):** a target with no assertion fails nothing. The ADR-0005 text asks for the benchmark to measure the targets.
+- **Gate (10):** a target with no assertion fails nothing. The ADR-0005 text asks for the benchmark to measure the targets. The creation gate is 75 us, not the 50 us target, because the same unchanged code measured 26 to 50 us per line across `ubuntu-latest` runs (#412).
 
 ## Dict records
 
@@ -79,6 +79,7 @@ ADR-0005 measured the old `NetworkDataLine` at 95.9 us to create and 42.2 us per
 - #230, #234 (addressed by #246)
 - #47, #48 (lock and in-place mutations, for these two classes)
 - #79 (ADR-0005)
+- #412 (creation gate raised to 75 us for CI runner speed)
 
 ## Related Documentation
 
