@@ -111,6 +111,7 @@ nav:
       - Event System Findings: claude/event_system_findings.md
       - Network Layer Findings: claude/network_system_findings.md
       - Command System: claude/command_system.md
+      - Command System Findings: claude/command_system_findings.md
       - Settings System: claude/settings_system.md
       - Timers System: claude/timers_system.md
       - Triggers System: claude/triggers_system.md

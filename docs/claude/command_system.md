@@ -13,13 +13,13 @@ tags:
 
 ## Overview
 
-The command system in bastproxy provides a comprehensive framework for parsing and executing commands from clients. Commands follow the pattern `#bp.<plugin>.<command>` and support argument parsing, help text, command history, and automatic discovery.
+The command system in bastproxy provides a comprehensive framework for parsing and executing commands from clients. Commands follow the pattern `#bp.<package>.<plugin>.<command>` (for example `#bp.core.commands.list`) and support argument parsing, help text, command history, and automatic discovery.
 
 The system is built on:
 - **Automatic command registration**: Commands discovered via decorators
 - **Argument parsing**: Built on Python's argparse for robust parsing
 - **Command history**: Tracks and allows rerunning previous commands
-- **Fuzzy matching**: Intelligently matches partial plugin/command names
+- **Fuzzy matching**: Matches partial package, plugin and command names (rules under [Command Invocation](#2-command-invocation))
 - **Help generation**: Automatic help text from decorators and docstrings
 
 ## Key Components
@@ -31,16 +31,21 @@ The main plugin that manages all commands:
 
 ```python
 class CommandsPlugin(BasePlugin):
-    def __init__(self):
-        self.commands_list = {}          # All commands by unique ID
-        self.command_data = {}           # Commands organized by plugin
-        self.command_history_data = []   # Command history
-        self.command_prefix = "#bp"      # Default command prefix
+    @RegisterPluginHook("__init__")
+    def _phook_init_plugin(self):
+        self.commands_list: list[str] = []                    # "plugin_id.command" strings
+        self.command_data: dict[str, dict[str, CommandClass]] = {}  # by plugin id, then command name
+        self.command_history_data = ...                       # the saved history list (history.txt)
+        self.current_command: CommandClass | None = None      # the command that is running
+        self.current_input_event = None                       # guard for the event being handled
 ```
+
+The prefix is not an attribute: it is the `cmdprefix` setting (default `#bp`), read with
+`plugins.core.commands:command.prefix.get`.
 
 Features:
 - **Command registry**: Tracks all commands across all plugins
-- **Fuzzy matching**: Finds commands even with partial names
+- **Fuzzy matching**: Finds packages, plugins and commands from partial names
 - **History management**: Stores command history with size limit
 - **Output formatting**: Standardizes command output
 
@@ -51,19 +56,25 @@ Represents a single command:
 
 ```python
 class CommandClass:
-    def __init__(self, name, function, plugin_id, **kwargs):
-        self.name = name                    # Command name
-        self.function = function            # Function to execute
+    def __init__(self, plugin_id, name, function, arg_parser,
+                 format=True, group=None, preamble=True, show_in_history=True, shelp=""):
         self.plugin_id = plugin_id          # Owning plugin
-        self.arg_parser = ArgumentParser()  # Argument parser
-        self.group = kwargs.get('group', 'Base')
-        self.show_in_history = True
-        self.format = True
-        self.preamble = True
+        self.name = name                    # Command name
+        self.function = function            # Bound method to execute
+        self.arg_parser = arg_parser        # argp.ArgumentParser, built by the commands plugin
+        self.group = group or ""            # the plugin sets the plugin id when no group is given
+        self.show_in_history = show_in_history   # stored, not read (see below)
+        self.format = format                # stored, not read
+        self.preamble = preamble            # stored, not read
+        self.full_cmd = "#bp.core.commands.list"  # the prefix, plugin and name, as typed
         self.count = 0                      # lifetime calls, kept across plugin reloads
         self.count_since_reload = 0         # calls since this instance was created
         self.stats = CommandStats()         # error_count, last_error, last_error_time
 ```
+
+`show_in_history`, `format` and `preamble` are stored and nothing reads them: every command that is found is
+recorded in the history and its output is always framed, whatever the options say
+([Command System Findings](command_system_findings.md), CM-1 and CM-2).
 
 `count` and `stats` carry over when the plugin reloads or unloads and loads again, and when the
 commands plugin itself reloads. They reset when the proxy restarts. `count_since_reload` resets
@@ -74,7 +85,10 @@ error: bad arguments and a function returning `False` do not. `stats.last_error`
 ### Command Decorators
 **Location**: `src/bastproxy/plugins/core/commands/libs/_utils.py`
 
-Decorators for defining commands:
+Decorators for defining commands. A method is registered when its name starts with `_command_` and it
+carries `command_data`, which any of the three decorators creates; `AddCommand` is optional (a method with
+only `@AddParser` is named after the method). A decorated method with another name is skipped without a
+message.
 
 ```python
 @AddCommand(name="mycommand", show_in_history=True)
@@ -117,27 +131,38 @@ class MyPlugin(BasePlugin):
         return True, [f"Processed {value}"]
 ```
 
-Decorators must be applied in this order:
-1. `@AddCommand` - Marks method as a command
-2. `@AddParser` - Sets up argument parser
+Write the decorators in this order by convention:
+1. `@AddCommand` - Sets the name, group and options (optional)
+2. `@AddParser` - Sets up the argument parser
 3. `@AddArgument` (multiple) - Adds arguments
+
+Only the order of several `@AddArgument` lines matters: they are added to the parser from top to bottom.
+Names, descriptions and argument help are formatted with the plugin's attributes (`{plugin_id}`, for example),
+so a literal `{` or `}` in them raises `KeyError` and stops the remaining commands of the plugin from
+registering.
 
 ### 2. Command Invocation
 
 Commands are invoked from clients:
 
 ```
-#bp.myplugin.test myvalue -v
-#bp.myplugin test "value with spaces" --verbose
+#bp.<package>.myplugin.test myvalue -v
+#bp.<package>.myplugin.test "value with spaces" --verbose
 ```
 
+The package is required (`#bp.core.proxy.info` works, `#bp.proxy.info` does not), `plugins.` is optional and
+each part may be abbreviated (`#bp.c.comm.list`). A line is split on the command separator (`|` by default)
+before anything else, so an argument cannot contain it.
+
 The system:
-1. Detects command prefix (`#bp`)
-2. Parses plugin and command name
-3. Uses fuzzy matching to find command
-4. Parses arguments using argparse
-5. Executes command function
-6. Formats and returns output
+1. Detects the command prefix (`#bp`) at the start of the line, ignoring leading whitespace, and keeps the
+   line from the MUD
+2. Splits the line into package, plugin and command name
+3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command: an exact name, else the
+   only name that starts with the text, else the best `token_set_ratio` score above 80 if it is unique
+4. Parses arguments with `shlex` and argparse; unknown arguments are ignored
+5. Executes the command function
+6. Frames the output and sends it to the client that typed the command
 
 ### 3. Command Output
 
@@ -149,10 +174,12 @@ return (success: bool, messages: list[str])
 - `success`: True if command succeeded, False otherwise
 - `messages`: List of strings to display to user
 
-Output is automatically formatted with:
-- Preamble (`#BP:`) if `preamble=True`
-- Color code conversion
-- Line endings
+Output is framed by `CommandClass.format_return_message`: a `Begin Command` line, the start time, the
+messages, the finish time and an `End Command` line (more sections when the `simple_output` setting is off).
+Color codes are converted when the lines are sent. The `format` and `preamble` options do not change this.
+The messages must be a list of strings; a bare string is printed one character per line, and a command that
+returns `False` gets its help appended to the output. An exception in the command prints
+`Error running command` and is counted in the command's stats.
 
 ### 4. Argument Parsing
 
@@ -177,10 +204,10 @@ def _command_search(self):
 ### 5. Command History
 
 Commands are automatically tracked:
-- Stored in persistent dict
-- Size-limited queue
-- Can be listed and rerun
-- Commands with `show_in_history=False` are excluded
+- Stored in a persistent dict (`history.txt` in the plugin's data directory)
+- Holds at most `historysize - 1` entries; a line already in the history moves to the end
+- Can be listed and shown again with `!`
+- A found command is recorded whatever its `show_in_history` says; an unknown command is not (CM-1)
 
 ## Command Decorators
 
@@ -195,9 +222,13 @@ Marks a method as a command:
     format=True,                # Format output
     preamble=True,              # Add "#BP:" preamble
     group="MyGroup",            # Command group for organization
-    shelp="Short help text"     # One-line help
+    shelp="Short help text",    # One-line help
+    autoadd=True,               # False: do not register at load (add with command.add.by.func, force=True)
 )
 ```
+
+`show_in_history`, `format` and `preamble` are not used by the code. The default name is the method name
+without `_command_`.
 
 ### @AddParser
 
@@ -206,10 +237,12 @@ Configures the argument parser:
 ```python
 @AddParser(
     description="Full description of command",
-    formatter_class=argparse.RawDescriptionHelpFormatter,  # Optional
     epilog="Additional help text"  # Optional
 )
 ```
+
+`formatter_class` is replaced by `argp.CustomFormatter` after the parser is built, and positional arguments
+to `AddParser` are stored and never used. The `-h` and `--help` flags are added to every command.
 
 ### @AddArgument
 
@@ -259,29 +292,31 @@ Arguments support all argparse features:
 ### Command Execution
 - `plugins.core.commands:command.current.args.get` - Get parsed args for current command
 - `plugins.core.commands:command.format` - Get formatted command string
-- `plugins.core.commands:command.run` - Run a command programmatically
+- `plugins.core.commands:command.run` - Run a command programmatically; returns `(success, messages)`
 - `plugins.core.commands:output.line.length.get` - Get output line length for formatting
 
 ### Command Discovery
-- `plugins.core.commands:get.commands.for.plugin` - Get all commands for a plugin
+- `plugins.core.commands:command.add.by.func` - Add a command from a decorated method
+- `plugins.core.commands:command.remove.for.plugin` - Remove a plugin's commands
 - `plugins.core.commands:command.data.get` - Get command data for a plugin
 - `plugins.core.commands:command.list.formatted` - Get formatted command list
 - `plugins.core.commands:plugin.list.formatted` - Get formatted plugin list
 
 ### Output Formatting
 - `plugins.core.commands:output.header.format` - Format output header
-- `plugins.core.commands:format.output.line` - Format output line
+- `plugins.core.commands:output.subheader.format` - Format an output subheader
 
 ## Built-in Commands
 
 ### List Commands
 ```
-#bp.commands.list [plugin] [command]
+#bp.core.commands.list [plugin] [command]
 ```
-Lists available commands:
+Lists available commands. `plugin` is the full plugin id (`plugins.core.proxy`):
 - No args: Lists all plugins
+- A package such as `plugins.core`: Lists the plugins in it
 - `plugin`: Lists commands in plugin
-- `plugin command`: Shows help for specific command
+- `plugin command`: Shows help for specific command (the exact command name)
 
 ### Command Detail
 ```
@@ -293,18 +328,21 @@ error count, last error and its time, and the last run start and end. The comman
 
 ### Command History
 ```
-#bp.commands.history [-c|--clear]
+#bp.core.commands.history [-c|--clear]
 ```
 Shows command history or clears it with `-c`
 
 ### Rerun Command
 ```
-#bp.commands.! [number]
+#bp.core.commands.! [number]
 ```
-Reruns a command from history:
-- `!` - Reruns last command
-- `! -2` - Reruns command 2 back from end
-- `! 5` - Reruns command #5
+Shows a command from the history; it does not run it again. Numbers are those of `history` (0-based):
+- `!` - Shows the last entry
+- `! -2` - Shows the entry 2 back from the end
+- `! 5` - Shows entry 5
+
+The reply goes to every client, not only the one that typed it. When the history is as long as `historysize`
+the numbers are off by one (CM-8).
 
 ## Common Patterns
 
@@ -487,22 +525,24 @@ def _command_process(self):
 
 ## Command Execution Flow
 
-1. **Client Input**: User types command in client
-2. **Event Raised**: `ev_to_mud_data_modify` raised with input
-3. **Prefix Check**: Commands plugin checks for command prefix
-4. **Command Parse**: Plugin and command name extracted
-5. **Fuzzy Match**: Find matching plugin and command
-6. **Argument Parse**: Parse arguments using argparse
-7. **Command Execute**: Call command function
-8. **Format Output**: Format return messages
-9. **Send to Client**: Send formatted output to client
-10. **History Update**: Add to command history if enabled
+1. **Client Input**: User types a line in the client; `ProcessDataToMud` splits it on the command separator
+2. **Event Raised**: `ev_to_mud_data_modify` is raised once per resulting line
+3. **Prefix Check**: The commands plugin checks whether the left-stripped line starts with the prefix; if not, the
+   line goes through the antispam check and on to the MUD
+4. **Command Parse**: Package, plugin and command name are extracted; the line is marked not to be sent to the MUD
+5. **Fuzzy Match**: Find the matching package, plugin and command
+6. **Argument Parse**: Parse arguments with `shlex` and argparse
+7. **Command Execute**: Call the command function
+8. **Format Output**: Frame the returned messages
+9. **Send to Client**: Send the output to the client that typed the line
+10. **History Update**: Add the line to the history when the event says so (a found command always does)
 
 ## Advanced Features
 
-### Custom Command Prefix
+### Command Prefix
 
-Change the command prefix per plugin:
+The prefix is one setting for the whole proxy, `cmdprefix` of `plugins.core.commands` (change it with
+`#bp.core.commands.set cmdprefix <value>`). A prefix that contains a `.` never matches (CM-12). Read it with:
 
 ```python
 command_prefix = self.api("plugins.core.settings:setting.get")(
@@ -516,7 +556,9 @@ command_prefix = self.api("plugins.core.settings:setting.get")(
 Run commands from code:
 
 ```python
-success, message, error = self.api("plugins.core.commands:command.run")(
+# plugin id (full), command name, argument string; returns (success, messages),
+# or (None, []) when the command does not exist
+success, messages = self.api("plugins.core.commands:command.run")(
     "plugins.myplugin",
     "mycommand",
     "arg1 arg2 --flag"
@@ -544,18 +586,19 @@ def _command_limit(self):
 
 ### Conditional Command Registration
 
-```python
-@RegisterPluginHook("__init__")
-def _phook_init_plugin(self):
-    # Only add command if feature is available
-    if self.has_advanced_features():
-        self.register_advanced_commands()
+Discovery scans the attributes of the plugin instance, so a function defined inside a method is never found.
+Declare the command with `autoadd=False` and add it when the feature is available:
 
-def register_advanced_commands(self):
-    @AddCommand(name="advanced")
-    @AddParser(description="Advanced command")
-    def _command_advanced(self):
-        return True, ["Advanced feature"]
+```python
+@AddCommand(name="advanced", autoadd=False)
+@AddParser(description="Advanced command")
+def _command_advanced(self):
+    return True, ["Advanced feature"]
+
+@RegisterPluginHook("initialize")
+def _phook_initialize(self):
+    if self.has_advanced_features():
+        self.api("plugins.core.commands:command.add.by.func")(self._command_advanced, force=True)
 ```
 
 ## Debugging Commands
@@ -583,8 +626,8 @@ parser = command_obj.arg_parser
 try:
     args = parser.parse_args(["arg1", "arg2", "--flag"])
     print(f"Parsed: {args}")
-except SystemExit:
-    print("Argument parsing failed")
+except argp.ArgumentError as exc:  # the parser raises; it never exits
+    print(f"Argument parsing failed: {exc.message}")
 ```
 
 ## Troubleshooting
@@ -592,8 +635,10 @@ except SystemExit:
 ### Command Not Found
 - Check decorator order: @AddCommand, @AddParser, @AddArgument
 - Verify plugin is loaded
-- Check method name starts with `_command_`
-- Ensure `set_command_autoadd(True)` is called
+- Check method name starts with `_command_` (a decorated method with another name is skipped silently)
+- Check that `autoadd=False` is not set on `@AddCommand`
+- Look in the log for a `KeyError` from `ev_plugin_loaded`: a `{` or `}` in a name, description or argument
+  help stops the plugin's later commands from registering
 
 ### Arguments Not Parsing
 - Check argument names match what you're accessing
@@ -607,6 +652,6 @@ except SystemExit:
 - Ensure messages are strings, not other types
 
 ### History Not Working
-- Check `show_in_history=True` in @AddCommand
-- Verify command executed successfully
-- Check history size setting hasn't been exceeded
+- A found command is recorded whatever `show_in_history` says, and so is one that fails
+- An unknown `#bp` command is not recorded, and neither are the lines after it in the same input
+- The history holds `historysize - 1` entries
