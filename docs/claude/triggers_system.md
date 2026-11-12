@@ -54,7 +54,7 @@ class TriggerItem:
         self.event_name = f"event_{self.trigger_id}"  # Not a parameter (removed by #354)
 ```
 
-`raisetrigger(args)` counts a hit, sets `args["line"].sendtoclients = False` when `omit` is set, writes `trigger_name` and `trigger_id` into `args` and raises `event_name` with `args` as the event data.
+`raisetrigger(args)` counts a hit, sets `args["line"].send = False` when `omit` is set, writes `trigger_name` and `trigger_id` into `args` and raises `event_name` with `args` as the event data.
 
 ### TriggersPlugin Class
 **Location**: `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`
@@ -154,7 +154,7 @@ def handle_hp_warning(self):
 3. The text is `line.noansi`: colour codes and, when the line has an MXP mode, MXP markup are removed.
 4. If the text is `""`, the `emptyline` trigger's event is raised (if something is registered on it) and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
 5. Otherwise `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused.
-6. On a match the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.sendtoclients = False` before the callbacks run.
+6. On a match the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run.
 7. A trigger with `stopevaluating` that matched ends the walk.
 8. The `all` trigger's event is raised, if something is registered on it.
 

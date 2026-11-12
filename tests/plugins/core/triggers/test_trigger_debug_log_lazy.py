@@ -12,7 +12,7 @@ class _Line:
     """A line whose ``colorcoded`` property counts accesses."""
 
     internal = False
-    sendtoclients = True
+    send = True
 
     def __init__(self) -> None:
         self.reads = 0

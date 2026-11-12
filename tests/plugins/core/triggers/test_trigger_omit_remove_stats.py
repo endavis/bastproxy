@@ -5,21 +5,12 @@ import logging
 from typing import Any
 
 # Third Party
-import pytest
-
 # Project
 from bastproxy.plugins.core.triggers.plugin._triggers import TriggersPlugin
 
 from .conftest import OWNER, PLUGIN, Harness
 
 API = "plugins.core.triggers:"
-
-
-XFAIL_OMIT = pytest.mark.xfail(
-    strict=True,
-    reason="raisetrigger sets line.sendtoclients, which nothing reads; omit does not clear "
-    "line.send - omit does not hide the line yet (#370)",
-)
 
 
 def test_omit_trigger_fires_and_is_flagged_omit(harness: Harness) -> None:
@@ -29,7 +20,6 @@ def test_omit_trigger_fires_and_is_flagged_omit(harness: Harness) -> None:
     assert harness.send("secret stuff") == ["hide"]
 
 
-@XFAIL_OMIT
 def test_omit_trigger_clears_line_send(harness: Harness) -> None:
     harness.add("hide", r"^secret", omit=True)
     harness.send("secret stuff")
@@ -50,7 +40,6 @@ def test_toggle_omit_success_sets_omit(harness: Harness) -> None:
     assert harness.send("hello") == ["t"]
 
 
-@XFAIL_OMIT
 def test_toggle_omit_on_clears_line_send(harness: Harness) -> None:
     harness.add("t", r"^hello")
     harness.api(API + "trigger.toggle.omit")("t", True)

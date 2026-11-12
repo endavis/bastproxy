@@ -67,7 +67,7 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
   loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10). Both were measured before #359, which removed the recompile and raises the built-ins only when something listens.
 - **Tests** (Q5): the plugin file was about 30% covered; it is now 97.59% (TR-12, #357). Every Q5
   symbol that still exists has a test; `rebuild_regexes`, `find_regex_id` and `create_regex_id` were
-  removed by #359. The tests also found that omit does not hide the line yet (#370, see TR-12).
+  removed by #359. The tests also found that omit did not hide the line; fixed in #370 (see TR-12).
 - **Design** (Q8): change the matcher, keep the API. Match each enabled trigger's own compiled regex in
   priority order; that removes TR-1, TR-5 and TR-6 as classes of bug and makes `priority` and
   `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, done in #359 with ADR-0007).
@@ -150,14 +150,14 @@ Verification used throwaway scripts, deleted afterwards and not part of the repo
    each trigger whose `enabled` is true it matches `original_regex_compiled` again, against `line.colorcoded`
    when `matchcolor` is set and `line.noansi` otherwise.
 8. On a second-stage match: `groupdict()`, the `argtypes` conversions, `args["matches"] = group_dict`, then
-   `raisetrigger(args)`, which counts a hit, sets `line.sendtoclients = False` when `omit` is set, writes
+   `raisetrigger(args)`, which counts a hit, sets `line.send = False` when `omit` is set (it set `sendtoclients`, which nothing read, until #370), writes
    `trigger_name` and `trigger_id` into `args` and raises `event_<trigger_id>` with `args` as its data.
 9. `stopevaluating` breaks the loop of step 7.
 10. `all` is raised.
 
 For `HP: 10/20 ok` with one trigger `^HP: (?P<cur>\d+)/(?P<max>\d+)` and `argtypes` of `int`, the callbacks ran
 in the order `beall`, `hp` (matches `{'cur': 10, 'max': 20}`), `all`. An `omit` trigger left
-`line.sendtoclients` False.
+`line.sendtoclients` False (at the audit; since #370 it leaves `line.send` False).
 
 ### Q1b: The regex is anchored at the start of the line
 
@@ -964,9 +964,9 @@ registration and was raised 0 times; nothing in `src` or `tests` raises it.
 
 **Status:** tests added in #357 (plugin file 89.56% before this change, 97.59% after; about 30% at the
 audit). `rebuild_regexes`, `find_regex_id` and `create_regex_id` no longer exist (removed by #359), so they
-are removed from scope, not dropped. **Open finding:** `TriggerItem.raisetrigger` sets
-`line.sendtoclients = False`, which nothing reads (`NetworkDataLine` has `send`), so omit does not hide the
-line yet; `xfail(strict)` tests record it, and the fix is tracked separately in #370.
+are removed from scope, not dropped. **Finding fixed in #370:** `TriggerItem.raisetrigger` set
+`line.sendtoclients = False`, which nothing read (`NetworkDataLine` has `send`), so omit did not hide the
+line; it now sets `line.send = False` and the former `xfail(strict)` tests pass.
 **Issue:** #357
 **Location:** the symbols in the Q5 table.
 **Evidence (verified):** Q5: both coverage runs miss them.

@@ -78,7 +78,7 @@ class TriggerItem:
         """Raise an event for this trigger."""
         self.hits += 1
         if self.omit:
-            args["line"].sendtoclients = False
+            args["line"].send = False
 
         args["trigger_name"] = self.trigger_name
         args["trigger_id"] = self.trigger_id

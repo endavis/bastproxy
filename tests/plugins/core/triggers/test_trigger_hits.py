@@ -31,7 +31,7 @@ def test_hits_start_at_zero() -> None:
 
 def test_every_raise_counts_as_a_hit() -> None:
     item = _item()
-    line = SimpleNamespace(sendtoclients=True)
+    line = SimpleNamespace(send=True)
     item.raisetrigger({"line": line})
     item.raisetrigger({"line": line})
     assert item.hits == 2
