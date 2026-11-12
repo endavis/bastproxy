@@ -15,19 +15,22 @@ from .conftest import OWNER, PLUGIN, Harness
 API = "plugins.core.triggers:"
 
 
-def test_omit_trigger_stops_line_going_to_clients(harness: Harness) -> None:
-    """TriggerItem.raisetrigger: omit sets sendtoclients False."""
-    harness.add("hide", r"^secret", omit=True)
-    assert harness.send("secret stuff") == ["hide"]
-    assert harness.line.sendtoclients is False
-
-
-@pytest.mark.xfail(
+XFAIL_OMIT = pytest.mark.xfail(
     strict=True,
-    reason="raisetrigger sets line.sendtoclients, which nothing reads; NetworkDataLine has "
-    "line.send (omit is a no-op) - decision pending",
+    reason="raisetrigger sets line.sendtoclients, which nothing reads; omit does not clear "
+    "line.send - omit does not hide the line yet (#370)",
 )
-def test_omit_trigger_clears_a_flag_the_line_really_uses(harness: Harness) -> None:
+
+
+def test_omit_trigger_fires_and_is_flagged_omit(harness: Harness) -> None:
+    """An omit trigger still fires and carries omit=True (what is true today)."""
+    harness.add("hide", r"^secret", omit=True)
+    assert harness.item("hide").omit is True
+    assert harness.send("secret stuff") == ["hide"]
+
+
+@XFAIL_OMIT
+def test_omit_trigger_clears_line_send(harness: Harness) -> None:
     harness.add("hide", r"^secret", omit=True)
     harness.send("secret stuff")
     assert harness.line.send is False
@@ -35,24 +38,32 @@ def test_omit_trigger_clears_a_flag_the_line_really_uses(harness: Harness) -> No
 
 def test_non_omit_trigger_leaves_line_for_clients(harness: Harness) -> None:
     harness.add("show", r"^plain")
-    harness.send("plain text")
-    assert getattr(harness.line, "sendtoclients", True) is True
+    assert harness.send("plain text") == ["show"]
+    assert harness.line.send is True
 
 
-def test_toggle_omit_success_then_line_is_omitted(harness: Harness) -> None:
-    """trigger.toggle.omit success path, observed through send()."""
+def test_toggle_omit_success_sets_omit(harness: Harness) -> None:
+    """trigger.toggle.omit success path: return value, item flag, trigger still fires."""
     harness.add("t", r"^hello")
     assert harness.api(API + "trigger.toggle.omit")("t", True) is True
     assert harness.item("t").omit is True
+    assert harness.send("hello") == ["t"]
+
+
+@XFAIL_OMIT
+def test_toggle_omit_on_clears_line_send(harness: Harness) -> None:
+    harness.add("t", r"^hello")
+    harness.api(API + "trigger.toggle.omit")("t", True)
     harness.send("hello")
-    assert harness.line.sendtoclients is False
+    assert harness.line.send is False
 
 
 def test_toggle_omit_off_keeps_line(harness: Harness) -> None:
     harness.add("t", r"^hello", omit=True)
     assert harness.api(API + "trigger.toggle.omit")("t", False) is True
-    harness.send("hello")
-    assert getattr(harness.line, "sendtoclients", True) is True
+    assert harness.item("t").omit is False
+    assert harness.send("hello") == ["t"]
+    assert harness.line.send is True
 
 
 def test_toggle_omit_unknown_returns_false_and_logs(harness: Harness) -> None:
