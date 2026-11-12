@@ -281,7 +281,12 @@ class CommandsPlugin(BasePlugin):
             get_logger(self.plugin_id).debug(
                 "_eventdb_add_commands_on_startup: loading commands for %s", plugin_id
             )
-            self.update_commands_for_plugin(plugin_id)
+            try:
+                self.update_commands_for_plugin(plugin_id)
+            except Exception:
+                get_logger(self.plugin_id).error(
+                    "Could not update commands for %s", plugin_id, exc_info=True
+                )
         get_logger(self.plugin_id).debug("_eventcb_add_commands_on_reload: Finish")
 
     @RegisterToEvent(event_name="ev_plugin_loaded")
@@ -309,7 +314,15 @@ class CommandsPlugin(BasePlugin):
             command_names = [command.__name__ for command in command_functions]
             get_logger(self.plugin_id).debug("command_names = %r", command_names)
             for command in command_functions:
-                self.api(f"{self.plugin_id}:command.add.by.func")(command)
+                try:
+                    self.api(f"{self.plugin_id}:command.add.by.func")(command)
+                except Exception:
+                    get_logger(self.plugin_id).error(
+                        "Could not add command %s for %s",
+                        command.__name__,
+                        plugin_id,
+                        exc_info=True,
+                    )
 
     def get_command_functions_in_object(self, base, recurse=True):
         """Recursively search for functions that are commands in a plugin instance.
@@ -357,25 +370,41 @@ class CommandsPlugin(BasePlugin):
             )
             return
 
-        if "name" in command_data.command:
-            command_name = command_data.command["name"].format(**func.__self__.__dict__)
-        else:
-            command_name = func.__name__.replace("_command_", "")
+        # Placeholders in the name, description and argument help are filled from the
+        # plugin's attributes; a stray brace must skip only this command.
+        current_string = ""
+        try:
+            if "name" in command_data.command:
+                current_string = command_data.command["name"]
+                command_name = current_string.format(**func.__self__.__dict__)
+            else:
+                command_name = func.__name__.replace("_command_", "")
 
-        command_name = command_name.strip()
+            command_name = command_name.strip()
 
-        if "name" in command_data.command["kwargs"]:
-            del command_data.command["kwargs"]["name"]
+            if "name" in command_data.command["kwargs"]:
+                del command_data.command["kwargs"]["name"]
 
-        if "description" in command_data.argparse["kwargs"]:
-            command_data.argparse["kwargs"]["description"] = command_data.argparse["kwargs"][
-                "description"
-            ].format(**func.__self__.__dict__)
+            if "description" in command_data.argparse["kwargs"]:
+                current_string = command_data.argparse["kwargs"]["description"]
+                command_data.argparse["kwargs"]["description"] = current_string.format(
+                    **func.__self__.__dict__
+                )
 
-        parser = argp.ArgumentParser(**command_data.argparse["kwargs"])
-        for arg in command_data.arguments:
-            arg["kwargs"]["help"] = arg["kwargs"]["help"].format(**func.__self__.__dict__)
-            parser.add_argument(*arg["args"], **arg["kwargs"])
+            parser = argp.ArgumentParser(**command_data.argparse["kwargs"])
+            for arg in command_data.arguments:
+                current_string = arg["kwargs"]["help"]
+                arg["kwargs"]["help"] = current_string.format(**func.__self__.__dict__)
+                parser.add_argument(*arg["args"], **arg["kwargs"])
+        except Exception:
+            get_logger(self.plugin_id).error(
+                "Command %s in %s skipped: could not build it from %r",
+                func.__name__,
+                plugin_id,
+                current_string,
+                exc_info=True,
+            )
+            return
 
         parser.add_argument("-h", "--help", help="show help", action="store_true")
         parser.formatter_class = argp.CustomFormatter
