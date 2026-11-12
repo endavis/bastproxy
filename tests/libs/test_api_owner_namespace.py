@@ -17,13 +17,13 @@ from pathlib import Path
 
 import pytest
 
-from bastproxy.libs import timing  # noqa: F401  (registers its toplevel)
+from bastproxy.libs import timing  # noqa: F401  # registers its toplevel
 from bastproxy.libs.api import API
 from bastproxy.libs.api._apistats import STATS_MANAGER
 from bastproxy.libs.exceptions import APINotFoundError
 from bastproxy.libs.plugins import (
     loader,
-    reloadutils,  # noqa: F401  (registers its toplevel)
+    reloadutils,  # noqa: F401  # registers its toplevel
 )
 from bastproxy.libs.plugins.loader import PluginLoader
 

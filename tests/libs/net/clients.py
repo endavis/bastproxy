@@ -40,7 +40,7 @@ _VERBS = (DO, DONT, WILL, WONT)
 async def wait_until(predicate: Callable[[], bool]) -> None:
     """Poll until ``predicate()`` is true; raise ``TimeoutError`` after ``TIMEOUT`` seconds."""
     async with asyncio.timeout(TIMEOUT):
-        while not predicate():  # noqa: ASYNC110
+        while not predicate():  # noqa: ASYNC110  # polling a test predicate; no event to wait on
             await asyncio.sleep(0.02)
 
 

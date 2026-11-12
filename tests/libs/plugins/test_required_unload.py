@@ -101,7 +101,7 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
         loader.plugins_info[item["plugin_id"]] = info
     loader.weak_references_to_modules = {}
     settings: dict[str, list[str]] = {"pluginstoload": []}
-    setattr(loader, "test_settings", settings)  # noqa: B010
+    setattr(loader, "test_settings", settings)  # noqa: B010  # attribute the loader does not declare
 
     apis: dict[str, Callable[..., Any]] = {
         "plugin.unload": loader._api_plugin_unload,
@@ -121,7 +121,7 @@ def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
 
 
 def _settings(loader: PluginLoader) -> dict[str, list[str]]:
-    settings: dict[str, list[str]] = getattr(loader, "test_settings")  # noqa: B009
+    settings: dict[str, list[str]] = getattr(loader, "test_settings")  # noqa: B009  # attribute the loader does not declare
     return settings
 
 

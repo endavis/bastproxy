@@ -166,7 +166,7 @@ def test_supports_follow_hello_when_modules_are_registered() -> None:
 
 def test_union_add_readd_merge_and_remove() -> None:
     writer = _connect()
-    sets = lambda: [d for p, d in writer.sent if p == "Core.Supports.Set"]  # noqa: E731
+    sets = lambda: [d for p, d in writer.sent if p == "Core.Supports.Set"]  # noqa: E731  # re-read on each call
     PROTOCOLS.api(ADD)(["Char 1"], owner_id="a")
     assert sets() == [["char 1"]]
     PROTOCOLS.api(ADD)(["char 1"], owner_id="b")  # same union, no re-send
