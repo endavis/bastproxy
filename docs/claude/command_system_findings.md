@@ -416,12 +416,16 @@ history command `!` was the exception noted in Q2e: it sent to every client unti
 
 ## Q4: What Is Untested?
 
-Measured by `coverage.txt` (full suite) and `coverage-narrow.txt` (the five command test files).
+Measured by `coverage.txt` (full suite) and `coverage-narrow.txt` (the five command test files). The figures in
+the table are the audit's. After the fixes and the tests of #401, `uv run pytest tests/plugins/test_commands_*.py
+tests/plugins/core/commands --cov=bastproxy.plugins.core.commands --cov-report=term-missing -q` measured
+`_commands.py` at 73.15% (614 statements, 152 missed; 61.93% before the tests of #401) and `_command.py` at 91.80%
+(153 statements, 9 missed).
 
 | File | Statements | Missed | Cover (full suite) | Cover (command tests only) |
 | :--- | --: | --: | --: | --: |
-| `_commands.py` (the plugin) | 549 | 374 | 28.08% | 28.08% |
-| `_command.py` | 138 | 36 | 70.00% | 70.00% |
+| `_commands.py` (the plugin) | 549 | 374 | 28.08% (73.15% after #401) | 28.08% (73.15% after #401) |
+| `_command.py` | 138 | 36 | 70.00% (91.80% after #401) | 70.00% (91.80% after #401) |
 | `_utils.py` | 49 | 4 | 87.30% | 87.30% |
 | `cmdargs.py` | 12 | 0 | 100.00% | 41.67% |
 | `src/bastproxy/libs/argp.py` | 28 | 0 | 97.06% | 97.06% |
@@ -832,7 +836,7 @@ creation and a test of an always-empty dictionary. `CANRELOAD` is **not** dead: 
 
 ### CM-14: Most of the commands plugin is untested
 
-**Status:** open
+**Status:** fixed in #401 (`_commands.py` is at 73.15%; each of CM-1 to CM-12 has a regression test; Q4 has the command)
 **Issue:** #401
 **Location:** `_commands.py` (28.08%), `_command.py` (70.00%).
 **Evidence (verified):** Q4.
