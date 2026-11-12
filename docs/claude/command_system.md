@@ -161,7 +161,7 @@ The system:
 2. Splits the line into package, plugin and command name
 3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command: an exact name, else the
    only name that starts with the text, else the best `token_set_ratio` score above 80 if it is unique
-4. Parses arguments with `shlex` and argparse; unknown arguments are ignored
+4. Parses arguments with `shlex` and argparse; an unknown argument or an abbreviated option is an error, reported with the command's help
 5. Executes the command function
 6. Frames the output and sends it to the client that typed the command
 
