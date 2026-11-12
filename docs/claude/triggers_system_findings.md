@@ -60,8 +60,8 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
   raises, or a callback that removes its own trigger, ends `_eventcb_check_trigger` for that line.
 - **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
   uncoloured text (TR-6, fixed by #359), and triggers without a regex, the three built-ins included, raise `KeyError` from
-  remove and toggle (TR-8; the `KeyError` is fixed by #359, the rest is open).
-- **Unload is clean for triggers and their callbacks** (Q2e, **verified**), except for an owner that has a trigger without a regex.
+  remove and toggle (TR-8, fixed by #359 and #353).
+- **Unload is clean for triggers and their callbacks** (Q2e, **verified**), including an owner that has a trigger without a regex (TR-8, fixed by #353).
 - **Cost** (Q4): matching is cheap at realistic sizes, 6 us for a line that matches nothing against 100
   triggers. The two built-in events raised for every line cost about 250 us with nothing listening, and
   loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10). Both were measured before #359, which removed the recompile and raises the built-ins only when something listens.
@@ -835,7 +835,7 @@ sibling skipped the next trigger without an error.
 
 ### TR-8: Triggers without a regex: `KeyError` from remove and toggle, and the built-ins are raised for every line
 
-**Status:** open; #359 removed the `KeyError` from remove and toggle of regex-less triggers and raises the built-ins only with a listener. `remove.for.owner` and the ignored `enabled` flag of the built-ins remain (#353)
+**Status:** fixed; #359 removed the `KeyError` from remove and toggle of regex-less triggers and raises the built-ins only with a listener. #353 made `trigger.remove.for.owner` pass `force=True` and continue past a failing removal, and added the built-ins enabled (they ignore the flag; a listener decides)
 **Issue:** #353
 **Location:** `TriggersPlugin._api_trigger_remove`, `TriggersPlugin._api_trigger_toggle_enable`
 (`self.regexes[...regex_id]` with `regex_id` None); `TriggersPlugin._api_trigger_remove_for_owner` (no `force`,
