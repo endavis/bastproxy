@@ -305,7 +305,7 @@ in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
   `run_internal_command_from_event` then overwrites it with the third value of `find_command`. That value is
   `True` for every command that is found and `False` for a help or error page. So `#bp.core.commands.list`,
   whose command says `show_in_history=False`, was recorded, and `#bp.nope.x` was not (CM-1).
-- **The flag leaks to the next line.** After an unknown `#bp` command, the lines after it in the same input
+- **The flag leaked to the next line (fixed in #390).** Before the fix, after an unknown `#bp` command, the lines after it in the same input
   were not recorded: `#bp.nope.x|lookD` left the history without `lookD`, while `lookC|#bp.nope.x` recorded
   `lookC` (CM-3).
 - **`_command_run_history` (`!`)** indexes with `history[number]` when the list is shorter than `historysize`,
@@ -460,8 +460,8 @@ checks are **verified** unless marked **read**.
    `(plugin_id, name, function, arg_parser, format, group, preamble, show_in_history, shelp)`, the parser is
    built by the plugin, and the group defaults to the plugin id (**read**).
 4. **`format`, `preamble` and `show_in_history` are described as working.** When measured they were stored
-   and never read (Q1f, Q2e; CM-1, CM-2). `format` and `preamble` are now honoured (CM-2); `show_in_history`
-   is still not read, and the page says so.
+   and never read (Q1f, Q2e; CM-1, CM-2). All three are now honoured (CM-1 fixed in #388, CM-2 in
+   #389), and the page says so.
 5. **Output "with a `#BP:` preamble", color conversion and line endings.** The output is the framed block in
    Q1f.
 6. **Decorator order.** "Must be applied in this order: `AddCommand`, `AddParser`, `AddArgument`" and
@@ -518,9 +518,9 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 
 | # | Pattern | Where | Consistent? | Verdict |
 | --: | :--- | :--- | :--- | :--- |
-| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-1, CM-13; CM-2 is fixed). |
+| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-13; CM-1 and CM-2 are fixed). |
 | 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9).** A decorated method with the wrong name is skipped without a log line. |
-| 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it leaves on the record (CM-3). |
+| 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
 | 5 | **`parse_known_args`** | `CommandClass.parse_args` | Yes | **Change (CM-11).** Unknown arguments and abbreviated options are accepted silently. |
 | 6 | **`str.format(**plugin.__dict__)`** on names, descriptions and argument help, outside a `try` | `_api_command_add_by_func` | Yes | **Change (CM-4).** One bad string ends registration of the rest of the plugin and, on a commands reload, of the other plugins. |
@@ -590,13 +590,15 @@ documentation.
 
 ### CM-3: An unknown `#bp` command stops the lines after it in the same input from being recorded
 
-**Status:** open
+**Status:** fixed (#390)
 **Issue:** #390
 **Location:** `run_internal_command_from_event` (L1042-1046), `_eventcb_check_for_command` (L1169).
 **Evidence (verified):** Q2e: `#bp.nope.x|lookD` recorded neither line; `lookC|#bp.nope.x` recorded `lookC`;
 `#bp.nope.x|#bp.core.commands.list|lookI` recorded `lookI` again, because a found command sets the flag to True.
 **Fix:** decide per line, from the line's own result, and do not write the result into state the next line
-reads. The `UpdateFlag.MODIFY` text at L1045 is also not an f-string and prints `{show_in_history}`.
+reads. Done in #390: `_eventcb_check_for_command` reads the input's flag before the line runs, uses the
+line's own value for the history decision, and puts the input's value back. The `UpdateFlag.MODIFY` text
+at L1045 is also not an f-string and prints `{show_in_history}`; that is not part of #390.
 
 > **Proposed issue (fix):** `fix: a line after an unknown #bp command in the same input is not recorded in the history`
 >
