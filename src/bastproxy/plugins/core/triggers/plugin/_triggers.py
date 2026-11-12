@@ -9,6 +9,7 @@
 import bisect
 import logging
 import sys
+from typing import Any
 
 # 3rd Party
 import regex as re
@@ -71,6 +72,9 @@ class TriggerItem:
         self.matchcolor = matchcolor
         self.hits = 0
         self.order = order
+        # True while another enabled trigger has the same pattern and text variant
+        self.shared_pattern = False
+        self._share_key: tuple[Any, bool] | None = None
         self.trigger_id = trigger_id
         self.event_name = f"event_{self.trigger_id}"
 
@@ -119,6 +123,8 @@ class TriggersPlugin(BasePlugin):
 
         # The enabled regex triggers, sorted by (priority, order added)
         self._ordered: list = []
+        # enabled triggers per (compiled pattern, matchcolor) in _ordered
+        self._share_counts: dict[tuple[Any, bool], int] = {}
         self._next_order = 0
 
         # Mirror of the "enabled" setting, kept current by _eventcb_enabled_modify
@@ -148,18 +154,44 @@ class TriggersPlugin(BasePlugin):
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self.api(f"{self.plugin_id}:trigger.remove.for.owner")(event_record["plugin_id"])
 
+    def _set_shared(self, key, shared):
+        """Set ``shared_pattern`` on every item in the matching list with ``key``."""
+        for existing in self._ordered:
+            if existing._share_key == key:
+                existing.shared_pattern = shared
+
     def _sync_order_remove(self, item):
         """Take an item out of the matching list."""
         for index, existing in enumerate(self._ordered):
             if existing is item:
                 del self._ordered[index]
-                return
+                break
+        key = item._share_key
+        if key is None:
+            return
+        item._share_key = None
+        item.shared_pattern = False
+        count = self._share_counts.get(key, 1) - 1
+        if count > 0:
+            self._share_counts[key] = count
+            if count == 1:
+                self._set_shared(key, False)
+        else:
+            self._share_counts.pop(key, None)
 
     def _sync_order(self, item):
         """Put an item in or out of the matching list to fit its state."""
         self._sync_order_remove(item)
         if item.enabled and item.original_regex_compiled is not None:
             bisect.insort(self._ordered, item, key=_order_key)
+            key = (item.original_regex_compiled, bool(item.matchcolor))
+            item._share_key = key
+            count = self._share_counts.get(key, 0) + 1
+            self._share_counts[key] = count
+            if count == 2:
+                self._set_shared(key, True)
+            else:
+                item.shared_pattern = count > 2
 
     @staticmethod
     def create_trigger_id(name, owner_id):
@@ -278,7 +310,7 @@ class TriggersPlugin(BasePlugin):
                 if new_value:
                     self.trigger_groups.setdefault(new_value, []).append(trigger_id)
 
-        if new_regex is not None or {"enabled", "priority"} & trigger_data.keys():
+        if new_regex is not None or {"enabled", "priority", "matchcolor"} & trigger_data.keys():
             self._sync_order(item)
         return True
 
@@ -599,11 +631,16 @@ class TriggersPlugin(BasePlugin):
 
         Triggers run in (priority, order added) order. Each one sees the line as
         it was when matching began, and a failing trigger does not stop the rest.
+        Triggers that share a pattern (same text and flags) and the same text variant
+        reuse one match for the line; each still builds its own ``groupdict()``.
         """
         match_logger = get_logger(self.plugin_id)
         debug = match_logger.isEnabledFor(logging.DEBUG)
         colorcoded = None
         matched = False
+        # per-line match results, only for triggers that share a pattern (#383);
+        # compiled patterns compare equal for the same text and flags
+        shared_results: dict[tuple[Any, bool], Any] = {}
         for item in tuple(self._ordered):
             if not item.enabled or self.triggers.get(item.trigger_id) is not item:
                 continue
@@ -614,7 +651,14 @@ class TriggersPlugin(BasePlugin):
                     text = colorcoded
                 else:
                     text = data
-                match = item.original_regex_compiled.match(text)
+                if item.shared_pattern:
+                    key = (item.original_regex_compiled, bool(item.matchcolor))
+                    if key in shared_results:
+                        match = shared_results[key]
+                    else:
+                        match = shared_results[key] = item.original_regex_compiled.match(text)
+                else:
+                    match = item.original_regex_compiled.match(text)
                 if not match:
                     continue
                 matched = True

@@ -238,3 +238,144 @@ def test_detail_has_no_regex_id_rows(harness: Harness) -> None:
     assert "Regex ID" not in text
     assert "w/o Groups" not in text
     assert "Regex" in text
+
+
+class _CountingPattern:
+    """A compiled pattern stand-in that counts ``match`` calls in a shared list."""
+
+    def __init__(self, compiled: Any, calls: list[str]) -> None:
+        self._compiled = compiled
+        self._calls = calls
+        self.pattern = compiled.pattern
+        self.flags = compiled.flags
+
+    def __hash__(self) -> int:
+        return hash(self._compiled)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _CountingPattern) and self._compiled == other._compiled
+
+    def match(self, text: str) -> Any:
+        self._calls.append(text)
+        return self._compiled.match(text)
+
+
+def _spy(harness: Harness, *names: str) -> list[str]:
+    """Wrap the named triggers' compiled patterns; return the shared call list."""
+    calls: list[str] = []
+    for name in names:
+        item = harness.item(name)
+        item.original_regex_compiled = _CountingPattern(item.original_regex_compiled, calls)
+    return calls
+
+
+def test_shared_pattern_matches_once_and_all_fire_in_order(harness: Harness) -> None:
+    names = [f"dup{i}" for i in range(5)]
+    for name in names:
+        harness.add(name, r"^You are hungry\.$")
+    calls = _spy(harness, *names)
+    assert harness.send("You are hungry.") == names
+    assert calls == ["You are hungry."]
+
+
+def test_shared_pattern_that_does_not_match_is_tried_once(harness: Harness) -> None:
+    names = ["a", "b", "c"]
+    for name in names:
+        harness.add(name, r"^You are hungry\.$")
+    calls = _spy(harness, *names)
+    assert harness.send("You are full.") == []
+    assert len(calls) == 1
+
+
+def test_shared_pattern_keeps_stopevaluating(harness: Harness) -> None:
+    harness.add("one", r"^go", stopevaluating=True)
+    harness.add("two", r"^go")
+    assert harness.send("go") == ["one"]
+
+
+def test_same_pattern_different_matchcolor_matches_separately(harness: Harness) -> None:
+    harness.add("plain", r"^WARNING")
+    harness.add("color", r"^WARNING", matchcolor=True)
+    harness.add("plain2", r"^WARNING")
+    calls = _spy(harness, "plain", "color", "plain2")
+    colored = f"{RED_ANSI}WARNING{RESET_ANSI}"
+    # the colour-coded text starts with a colour code, so only the plain variants match
+    assert harness.send("WARNING", ansi=colored) == ["plain", "plain2"]
+    assert len(calls) == 2
+    assert calls[0] != calls[1]
+
+
+def test_argtypes_on_one_duplicate_do_not_change_another(harness: Harness) -> None:
+    harness.add("typed", r"^hp (?P<hp>\d+)", argtypes={"hp": int})
+    harness.add("raw", r"^hp (?P<hp>\d+)")
+    harness.add("typed2", r"^hp (?P<hp>\d+)", argtypes={"hp": float})
+    calls = _spy(harness, "typed", "raw", "typed2")
+    harness.send("hp 42")
+    assert len(calls) == 1
+    seen = {args["trigger_name"]: args["matches"] for _e, args in harness.raised}
+    assert seen["typed"] == {"hp": 42}
+    assert seen["raw"] == {"hp": "42"}
+    assert seen["typed2"] == {"hp": 42.0}
+    assert seen["typed"] is not seen["raw"]
+
+
+def test_shared_flag_follows_add_update_toggle_and_remove(harness: Harness) -> None:
+    harness.add("a", r"^go")
+    assert harness.item("a").shared_pattern is False
+    harness.add("b", r"^go")
+    assert harness.item("a").shared_pattern is True
+    assert harness.item("b").shared_pattern is True
+    harness.add("c", r"^go")
+    assert harness.item("c").shared_pattern is True
+
+    # a different regex leaves the group; two remain shared
+    harness._api_trigger_update("c", {"regex": r"^stop"})
+    assert harness.item("c").shared_pattern is False
+    assert harness.item("a").shared_pattern is True
+
+    # toggling one of two off leaves the other unshared, and on shares them again
+    harness._api_trigger_toggle_enable("b", False)
+    assert harness.item("a").shared_pattern is False
+    assert harness.item("b").shared_pattern is False
+    harness._api_trigger_toggle_enable("b", True)
+    assert harness.item("a").shared_pattern is True
+    assert harness.item("b").shared_pattern is True
+
+    # removing one of two leaves the survivor unshared
+    harness._api_trigger_remove("b")
+    assert harness.item("a").shared_pattern is False
+
+
+def test_matching_is_correct_after_each_shared_change(harness: Harness) -> None:
+    harness.add("a", r"^go")
+    harness.add("b", r"^go")
+    harness._api_trigger_update("b", {"regex": r"^stop"})
+    assert harness.send("go") == ["a"]
+    assert harness.send("stop") == ["b"]
+    harness._api_trigger_update("b", {"regex": r"^go"})
+    assert harness.send("go") == ["a", "b"]
+    harness._api_trigger_toggle_enable("a", False)
+    assert harness.send("go") == ["b"]
+    harness._api_trigger_toggle_enable("a", True)
+    harness._api_trigger_remove("a")
+    calls = _spy(harness, "b")
+    assert harness.send("go") == ["b"]
+    assert len(calls) == 1
+    assert harness.item("b").shared_pattern is False
+
+
+def test_unshared_trigger_is_matched_directly(harness: Harness) -> None:
+    harness.add("a", r"^go")
+    harness.add("b", r"^stop")
+    calls = _spy(harness, "a", "b")
+    assert harness.send("go") == ["a"]
+    assert len(calls) == 2
+
+
+def test_matchcolor_update_changes_sharing(harness: Harness) -> None:
+    harness.add("a", r"^go")
+    harness.add("b", r"^go", matchcolor=True)
+    assert harness.item("a").shared_pattern is False
+    harness._api_trigger_update("b", {"matchcolor": False})
+    assert harness.item("a").shared_pattern is True
+    assert harness.item("b").shared_pattern is True
