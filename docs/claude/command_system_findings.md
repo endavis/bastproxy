@@ -611,7 +611,7 @@ at L1045 is also not an f-string and prints `{show_in_history}`; that is not par
 
 ### CM-4: A bad placeholder in a command's name, description or argument help stops the plugin's other commands from registering
 
-**Status:** open
+**Status:** fixed in #391
 **Issue:** #391
 **Location:** `_api_command_add_by_func` (L360-378: the `.format(**func.__self__.__dict__)` calls);
 `update_commands_for_plugin` (L311) and `_add_commands_for_all_plugins` (L280) have no `try` around the

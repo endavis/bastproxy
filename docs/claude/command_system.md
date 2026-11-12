@@ -139,8 +139,8 @@ Write the decorators in this order by convention:
 
 Only the order of several `@AddArgument` lines matters: they are added to the parser from top to bottom.
 Names, descriptions and argument help are formatted with the plugin's attributes (`{plugin_id}`, for example),
-so a literal `{` or `}` in them raises `KeyError` and stops the remaining commands of the plugin from
-registering.
+so a literal `{` or `}` in them makes that one command fail to build. It is skipped with an ERROR log line
+naming the plugin, the function and the string, and the plugin's other commands register.
 
 ### 2. Command Invocation
 
@@ -642,8 +642,8 @@ except argp.ArgumentError as exc:  # the parser raises; it never exits
 - Verify plugin is loaded
 - Check method name starts with `_command_` (a decorated method with another name is skipped silently)
 - Check that `autoadd=False` is not set on `@AddCommand`
-- Look in the log for a `KeyError` from `ev_plugin_loaded`: a `{` or `}` in a name, description or argument
-  help stops the plugin's later commands from registering
+- Look in the log for an ERROR line "Command ... skipped": a `{` or `}` in a name, description or argument
+  help skips that command; the plugin's other commands still register
 
 ### Arguments Not Parsing
 - Check argument names match what you're accessing
