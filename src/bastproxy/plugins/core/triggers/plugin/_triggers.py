@@ -408,6 +408,13 @@ class TriggersPlugin(BasePlugin):
 
         self._sync_order_remove(self.triggers[trigger_id])
 
+        group = self.triggers[trigger_id].group
+        if group in self.trigger_groups:
+            members = self.trigger_groups[group]
+            self.trigger_groups[group] = [i for i in members if i != trigger_id]
+            if not self.trigger_groups[group]:
+                del self.trigger_groups[group]
+
         if trigger_id in self.triggers:
             del self.triggers[trigger_id]
 
@@ -517,8 +524,11 @@ class TriggersPlugin(BasePlugin):
             "toggletriggergroup - toggling trigger group %s to %s", trigger_group, flag
         )
         if trigger_group in self.trigger_groups:
-            for i in self.trigger_groups[trigger_group]:
-                self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
+            # The group holds trigger ids, not names, so set each item directly.
+            for trigger_id in self.trigger_groups[trigger_group]:
+                if trigger_id in self.triggers:
+                    self.triggers[trigger_id].enabled = bool(flag)
+                    self._sync_order(self.triggers[trigger_id])
 
     def _match_line(self, line, data):
         """Raise the event of every enabled trigger whose regex matches the line.
