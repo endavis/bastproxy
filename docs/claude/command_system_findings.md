@@ -56,11 +56,12 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
   `try`. A `KeyError` there ends the loop over the plugin's remaining commands, and when the commands plugin
   itself reloads it ends the loop over the remaining plugins. The plugin still loads; the only trace is an
   ERROR line in the log.
-- **A plugin that has no command data makes the lookups raise** (CM-5, CM-6). `command.data.get`,
-  `command.list.formatted`, `command.help.format`, `command.run` and `#bp.core.commands.list <plugin>`
-  index `command_data[plugin_id]` directly, and `command.list.formatted` indexes the `Base` group. For a
-  client typing a command, the exception happens inside the event, which contains it: the line is dropped
-  and nothing is shown.
+- **A plugin that has no command data makes the lookups raise** (CM-5, fixed in #392; CM-6 is still open).
+  `command.data.get`, `command.list.formatted`, `command.help.format`, `command.run` and
+  `#bp.core.commands.list <plugin>` indexed `command_data[plugin_id]` directly; they now use
+  `.get(plugin_id, {})`. `command.list.formatted` still indexes the `Base` group. Before the fix, for a
+  client typing a command, the exception happened inside the event, which contained it: the line was dropped
+  and nothing was shown.
 - **The history has an off-by-one** (CM-8). It keeps `historysize - 1` entries, and `!` indexes the list
   differently depending on whether it is full.
 - **A failure outside `CommandClass.run`'s `try` is silent for the client** (CM-10). Exceptions in
@@ -526,7 +527,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 6 | **`str.format(**plugin.__dict__)`** on names, descriptions and argument help, outside a `try` | `_api_command_add_by_func` | Yes | **Change (CM-4).** One bad string ends registration of the rest of the plugin and, on a commands reload, of the other plugins. |
 | 7 | **Service location through `self.api("...")`** | 125 calls; `CommandClass` builds its own `API` | Yes | **Keep.** The project-wide trade covered by [Plugin System Findings](plugin_system_findings.md) and [API System Findings](api_system_findings.md). |
 | 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The gap is the code outside it (CM-10). |
-| 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-5, CM-9).** The lookups raise `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
+| 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
 | 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7).** The list gets duplicates; it is read only by the summary count. |
 | 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
 | 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Change (CM-8).** |
@@ -639,7 +640,7 @@ and wrap the per-command and per-plugin loops so one failure cannot end them.
 
 ### CM-5: A plugin with no command data raises `KeyError` in the lookups
 
-**Status:** open
+**Status:** fixed in #392 (the four lookups use `self.command_data.get(plugin_id, {})`; `command.list.formatted` still raises for the `Base` group, CM-6)
 **Issue:** #392
 **Location:** `_api_command_data_get` (L526), `get_command_data_from_plugin` (L627), `_api_command_list_formatted`
 (L1260), `_command_list` (L1353).

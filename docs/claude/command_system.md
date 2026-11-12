@@ -303,7 +303,7 @@ Arguments support all argparse features:
 ### Command Discovery
 - `plugins.core.commands:command.add.by.func` - Add a command from a decorated method
 - `plugins.core.commands:command.remove.for.plugin` - Remove a plugin's commands
-- `plugins.core.commands:command.data.get` - Get command data for a plugin
+- `plugins.core.commands:command.data.get` - Get command data for a plugin (`{}` for a valid plugin with no commands, or an invalid one)
 - `plugins.core.commands:command.list.formatted` - Get formatted command list
 - `plugins.core.commands:plugin.list.formatted` - Get formatted plugin list
 

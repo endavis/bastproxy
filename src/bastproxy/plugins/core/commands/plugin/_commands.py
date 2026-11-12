@@ -552,7 +552,7 @@ class CommandsPlugin(BasePlugin):
         returns a dictionary of commands
         """
         if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            return self.command_data[plugin_id]
+            return self.command_data.get(plugin_id, {})
         return {}
 
     @AddAPI("command.run", description="run a command and return the output")
@@ -653,7 +653,7 @@ class CommandsPlugin(BasePlugin):
         """
         # find the instance
         if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id) and (
-            data := self.command_data[plugin_id]
+            data := self.command_data.get(plugin_id, {})
         ):
             # return the command
             return data.get(command, None)
@@ -1293,7 +1293,7 @@ class CommandsPlugin(BasePlugin):
             self.plugin_id, "output_subheader_color"
         )
 
-        commands: dict[str, CommandClass] = self.command_data[plugin_id]
+        commands: dict[str, CommandClass] = self.command_data.get(plugin_id, {})
 
         message = self.api(f"{self.plugin_id}:output.header.format")(
             f"Available Commands in {plugin_id.replace('plugins.', '')}"
@@ -1386,7 +1386,7 @@ class CommandsPlugin(BasePlugin):
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             return True, self.api(f"{self.plugin_id}:plugin.list.formatted")(package=plugin_id)
 
-        if plugin_commands := self.command_data[plugin_id]:
+        if plugin_commands := self.command_data.get(plugin_id, {}):
             if command and command in plugin_commands:
                 help_message = plugin_commands[command].arg_parser.format_help().splitlines()
                 message.extend(help_message)
