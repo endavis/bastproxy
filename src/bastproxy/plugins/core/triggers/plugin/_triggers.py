@@ -25,6 +25,10 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
 
+_UPDATABLE_TRIGGER_KEYS = frozenset(
+    {"regex", "enabled", "group", "omit", "priority", "stopevaluating", "argtypes", "matchcolor"}
+)
+
 
 class TriggerItem:
     def __init__(
@@ -222,50 +226,79 @@ class TriggersPlugin(BasePlugin):
             )
             return False
 
-        trigger_enabled = self.triggers[trigger_id].enabled
+        item = self.triggers[trigger_id]
 
-        for key in trigger_data:
-            old_value = self.triggers[trigger_id][key]
-            new_value = trigger_data[key]
+        unknown = [key for key in trigger_data if key not in _UPDATABLE_TRIGGER_KEYS]
+        if unknown:
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_update - trigger %s: unknown keys %s",
+                trigger_name,
+                unknown,
+            )
+            return False
+
+        new_regex = None
+        new_compiled = None
+        if "regex" in trigger_data and trigger_data["regex"] != item.original_regex:
+            new_regex = trigger_data["regex"]
+            try:
+                new_compiled = re.compile(new_regex)
+            except Exception:  # pylint: disable=broad-except
+                log_to(
+                    [self.plugin_id, owner_id],
+                    logging.ERROR,
+                    "_api_trigger_update - could not compile regex for trigger %s : %s",
+                    trigger_name,
+                    new_regex,
+                    exc_info=True,
+                )
+                return False
+
+        need_rebuild = False
+
+        if new_regex is not None:
+            stripped = re.sub(r"\?P\<.*?\>", "", new_regex)
+            old_regex_id = item.regex_id
+            new_regex_id = self.find_regex_id(stripped)
+            if (
+                old_regex_id in self.regexes
+                and trigger_id in self.regexes[old_regex_id]["triggers"]
+            ):
+                self.regexes[old_regex_id]["triggers"].remove(trigger_id)
+            if item.enabled and trigger_id not in self.regexes[new_regex_id]["triggers"]:
+                self.regexes[new_regex_id]["triggers"].append(trigger_id)
+            item.regex = stripped
+            item.regex_id = new_regex_id
+            item.original_regex = new_regex
+            item.original_regex_compiled = new_compiled
+            need_rebuild = True
+
+        for key, new_value in trigger_data.items():
+            if key == "regex":
+                continue
+            old_value = getattr(item, key)
             if old_value == new_value:
                 continue
-            setattr(self.triggers[trigger_id], key, new_value)
-            if key == "regex":
-                orig_regex = new_value
-                regex = re.sub(r"\?P\<.*?\>", "", orig_regex)
-
-                old_regex_id = self.triggers[trigger_id].regex_id
-                new_regex_id = self.find_regex_id(regex)
-
-                self.triggers[trigger_id].original_regex = orig_regex
-                try:
-                    self.triggers[trigger_id].original_regex_compiled = re.compile(orig_regex)
-                except Exception:  # pylint: disable=broad-except
-                    get_logger(self.plugin_id).error(
-                        "Could not compile regex for trigger: %s : %s",
-                        trigger_name,
-                        orig_regex,
-                        exc_info=True,
-                    )
-                    return False
-
-                get_logger(self.plugin_id).debug(
-                    "_api_trigger_update - converted %s to %s", orig_regex, regex
-                )
-
-                if trigger_id in self.regexes[old_regex_id]["triggers"]:
-                    self.regexes[old_regex_id]["triggers"].remove(trigger_id)
-                if trigger_enabled:
-                    self.regexes[new_regex_id]["triggers"].append(trigger_id)
-
-                self.rebuild_regexes()
-
+            setattr(item, key, new_value)
             if key == "group":
-                self.trigger_groups[old_value].remove(trigger_name)
-                if self.triggers[trigger_name].group not in self.trigger_groups:
-                    self.trigger_groups[self.triggers[trigger_name].group] = []
-                self.trigger_groups[self.triggers[trigger_name].group].append(trigger_name)
-        return None
+                if old_value is not None and trigger_id in self.trigger_groups.get(old_value, []):
+                    self.trigger_groups[old_value].remove(trigger_id)
+                if new_value:
+                    self.trigger_groups.setdefault(new_value, []).append(trigger_id)
+            elif key == "enabled":
+                regex_entry = self.regexes.get(item.regex_id)
+                if regex_entry is not None:
+                    if new_value and trigger_id not in regex_entry["triggers"]:
+                        regex_entry["triggers"].append(trigger_id)
+                    elif not new_value and trigger_id in regex_entry["triggers"]:
+                        regex_entry["triggers"].remove(trigger_id)
+                need_rebuild = True
+
+        if need_rebuild:
+            self.rebuild_regexes()
+        return True
 
     def find_regex_id(self, regex):
         """Look for a regex, if not create one."""

@@ -19,7 +19,7 @@ This page describes what the code does today, including where that is not what t
 
 - A regex is matched from the **start of the line** (`match`, not `search`). `orc` does not match `You hit orc.`; `.*orc` does.
 - When several triggers with **different** regexes match one line, **only the first one added fires**. `priority` is stored but not used (TR-1).
-- `trigger.update` and `group.toggle.enable` do not work (TR-3, TR-4). `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
+- `group.toggle.enable` does not work (TR-4). `trigger.update` was fixed in #348 (TR-3), and `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
 
 ## Key Components
 
@@ -179,7 +179,7 @@ What follows from this (each is **verified** in the findings page, Q1 and Q3):
 
 - `plugins.core.triggers:trigger.add` - Add a trigger; returns `(True, trigger_item)` or `False`
 - `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. Raises `KeyError` for a trigger without a regex (TR-8)
-- `plugins.core.triggers:trigger.update` - Meant to update a trigger in place; every call for an existing trigger raises `TypeError` (TR-3)
+- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns False for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None`
 - `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Raises `KeyError` for an unknown trigger (TR-9)
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; the same `KeyError`
@@ -432,7 +432,7 @@ The regex has to match twice: the text without colour codes first (the combined 
 
 ### Dynamic Trigger Updates
 
-`trigger.update` does not work today: for an existing trigger every call raises `TypeError: 'TriggerItem' object is not subscriptable` (TR-3). Remove the trigger and add it again instead. The intended use is:
+`trigger.update` works since #348 (TR-3). It rejects an unknown key or a regex that does not compile and changes nothing. Example:
 
 ```python
 # Update trigger without removing it
