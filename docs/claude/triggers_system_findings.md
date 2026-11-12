@@ -65,8 +65,9 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **Cost** (Q4): matching is cheap at realistic sizes, 6 us for a line that matches nothing against 100
   triggers. The two built-in events raised for every line cost about 250 us with nothing listening, and
   loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10). Both were measured before #359, which removed the recompile and raises the built-ins only when something listens.
-- **Tests** (Q5): the plugin file is about 30% covered. No API method except `trigger.register` and
-  `trigger.unregister` has a test (TR-12).
+- **Tests** (Q5): the plugin file was about 30% covered; it is now 97.59% (TR-12, #357). Every Q5
+  symbol that still exists has a test; `rebuild_regexes`, `find_regex_id` and `create_regex_id` were
+  removed by #359. The tests also found that `omit` is a no-op (see TR-12).
 - **Design** (Q8): change the matcher, keep the API. Match each enabled trigger's own compiled regex in
   priority order; that removes TR-1, TR-5 and TR-6 as classes of bug and makes `priority` and
   `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, done in #359 with ADR-0007).
@@ -445,7 +446,13 @@ each timed call runs 20 lines, so divide the reported mean by 20. The benchmark 
 `_api_trigger_unregister` for an id that exists; the main path of `_eventcb_check_trigger` and of
 `process_match` (one trigger, one regex, with and without `matchcolor`, MXP modes, the lazy debug line).
 
-**Not covered, by symbol:**
+**Status after #357:** every symbol below that still exists has a test in `tests/plugins/core/triggers/`
+(for example `test_trigger_matching.py`, `test_trigger_update.py`, `test_trigger_groups.py`,
+`test_trigger_toggle_enable.py`, `test_trigger_remove_for_owner.py`, `test_trigger_error_contract.py`,
+`test_trigger_omit_remove_stats.py`, `test_trigger_commands.py`). `rebuild_regexes`, `find_regex_id` and
+`create_regex_id` were removed by #359.
+
+**Not covered at the audit, by symbol:**
 
 | Symbol | What no test runs |
 | :--- | :--- |
@@ -955,7 +962,11 @@ registration and was raised 0 times; nothing in `src` or `tests` raises it.
 
 ### TR-12: The trigger APIs and the regex bookkeeping have no tests
 
-**Status:** open
+**Status:** tests added in #357 (plugin file 89.56% before this change, 97.59% after; about 30% at the
+audit). `rebuild_regexes`, `find_regex_id` and `create_regex_id` no longer exist (removed by #359), so they
+are removed from scope, not dropped. **Open finding:** `TriggerItem.raisetrigger` sets
+`line.sendtoclients = False`, which nothing reads (`NetworkDataLine` has `send`), so `omit` has no effect; an
+`xfail(strict)` test records it.
 **Issue:** #357
 **Location:** the symbols in the Q5 table.
 **Evidence (verified):** Q5: both coverage runs miss them.

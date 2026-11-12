@@ -36,6 +36,9 @@ class Harness:
         self.line: Any = None
         self.current_record: Any = None
         self.command_args: dict[str, Any] = {}
+        self.owner: str | None = OWNER
+        self.existing_events: set[str] = set()
+        self.event_details: dict[str, list[str]] = {}
 
         def event_raise(event_name: str, event_args: dict[str, Any]) -> dict[str, Any]:
             self.raised.append((event_name, dict(event_args)))
@@ -59,7 +62,7 @@ class Harness:
     def api(self, name: str) -> Callable[..., Any]:
         """Dispatch the API names the trigger methods use."""
         if name == "libs.api:caller.owner.get":
-            return lambda **_kw: OWNER
+            return lambda **_kw: self.owner
         if name == "plugins.core.events:event.current.record.get":
             return lambda: self.current_record
         if name == "plugins.core.events:event.get":
@@ -67,7 +70,9 @@ class Harness:
                 isempty=lambda: event_name not in self.listeners
             )
         if name == "plugins.core.events:event.exists":
-            return lambda _event_name: False
+            return lambda event_name: event_name in self.existing_events
+        if name == "plugins.core.events:event.detail.get":
+            return lambda event_name: self.event_details.get(event_name, [])
         if name == "plugins.core.commands:command.current.args.get":
             return lambda: self.command_args
         prefix = f"{PLUGIN}:"
