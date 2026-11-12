@@ -658,5 +658,5 @@ except argp.ArgumentError as exc:  # the parser raises; it never exits
 
 ### History Not Working
 - A command is recorded only when its `show_in_history` is true, and a failing one is recorded like any other
-- An unknown `#bp` command is not recorded, and neither are the lines after it in the same input
+- An unknown `#bp` command is not recorded; the lines after it in the same input are recorded as usual (each line is decided on its own result)
 - The history holds `historysize - 1` entries

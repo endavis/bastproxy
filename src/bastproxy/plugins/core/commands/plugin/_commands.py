@@ -1160,13 +1160,20 @@ class CommandsPlugin(BasePlugin):
 
         self.current_input_event = event_record
 
+        # the flag is shared by every line of the input, so a line's own result must not
+        # reach the next line (#390): read this line's value, then put the input's back
+        input_show_in_history = event_record["showinhistory"]
+
         if event_record["line"].line.lstrip().startswith(commandprefix):
             self.run_internal_command_from_event()
 
         else:
             self.pass_through_command_from_event()
 
-        if event_record["showinhistory"] and not event_record["line"].internal:
+        line_show_in_history = event_record["showinhistory"]
+        event_record["showinhistory"] = input_show_in_history
+
+        if line_show_in_history and not event_record["line"].internal:
             self.add_command_to_history(event_record["line"].line)
 
         self.current_input_event = None
