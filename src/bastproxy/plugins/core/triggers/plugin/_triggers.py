@@ -134,22 +134,6 @@ class TriggersPlugin(BasePlugin):
         self.api("plugins.core.triggers:trigger.add")("all", None, self.plugin_id)
         self.api("plugins.core.triggers:trigger.add")("emptyline", None, self.plugin_id)
 
-    @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
-    def _eventcb_enabled_modify(self):
-        """Setup the plugin on setting change."""
-        if event_record := self.api("plugins.core.events:event.current.record.get")():
-            change = event_record["newvalue"]
-            if change:
-                self.api("plugins.core.events:event.register")(
-                    "ev_libs.net.mud_from_mud_event",
-                    self._eventcb_check_trigger,
-                    prio=1,
-                )
-            else:
-                self.api("plugins.core.events:event.unregister")(
-                    "ev_libs.net.mud_from_mud_event", self._eventcb_check_trigger
-                )
-
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
         """A plugin was unloaded."""
@@ -601,6 +585,9 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self):
         """Check a line of text from the mud to see if it matches any triggers."""
+        if not self.api("plugins.core.settings:setting.get")(self.plugin_id, "enabled"):
+            return
+
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 

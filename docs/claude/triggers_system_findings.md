@@ -58,7 +58,7 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
   call that added it. Numeric backreferences and a literal `\?P<x>` are changed silently.
 - **A failure inside matching drops the rest of the line's triggers** (TR-7, fixed by #359 and #352): an `argtypes` conversion that
   raises, or a callback that removes its own trigger, ends `_eventcb_check_trigger` for that line.
-- **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
+- **The `enabled` setting did nothing** (TR-11, fixed by #356), `matchcolor` only works for regexes that also match the
   uncoloured text (TR-6, fixed by #359), and triggers without a regex, the three built-ins included, raise `KeyError` from
   remove and toggle (TR-8, fixed by #359 and #353).
 - **Unload is clean for triggers and their callbacks** (Q2e, **verified**), including an owner that has a trigger without a regex (TR-8, fixed by #353).
@@ -122,7 +122,7 @@ Verification used throwaway scripts, deleted afterwards and not part of the repo
 | #257: `trigger.register` passed its keyword arguments positionally | **Fixed, and holds** (**verified**: `tests/plugins/core/triggers/test_trigger_register_kwargs.py` passes; the probes registered callbacks with `prio=1` through `trigger.register`). | #257 |
 | #335: the debug line for an unmatched line is built only when logged | **Settled** (**verified**: `tests/plugins/core/triggers/test_trigger_debug_log_lazy.py` passes). | #335 |
 | #61: triggers match MXP-stripped text | **Holds** (**verified**: `tests/plugins/core/triggers/test_trigger_mxp.py` passes; `noansi` and `colorcoded` both strip MXP first, **read**). | #61 |
-| To check: does turning the `enabled` setting off stop matching? | **No** (**verified**, Q2f). The setting has no effect. | TR-11 |
+| To check: does turning the `enabled` setting off stop matching? | **No, before #356** (**verified**, Q2f). Fixed by #356: `_eventcb_check_trigger` returns early while the setting is False. | TR-11 |
 | To check: does a line that two triggers match fire both, and does order or priority decide? | **Only with the same regex.** With different regexes only the first added fires; `priority` is not read (**verified**, Q1c). | TR-1 |
 | To check: which triggers are live when the combined regex fails to compile? | **The ones in the last pattern that compiled.** Triggers added later never fire, and the offending trigger never fires either (**verified**, Q3b). | TR-5 |
 
@@ -305,6 +305,8 @@ including `regex`, before the new regex is compiled (**read**).
 
 ### Q2f: The `enabled` setting (TR-11)
 
+Fixed by #356; this is what was found before the fix.
+
 With the setting True a line fired its trigger. After `setting.set("plugins.core.triggers", "enabled", False)`
 the same line fired it again. `_eventcb_enabled_modify` registers and unregisters `_eventcb_check_trigger` on
 `ev_libs.net.mud_from_mud_event`; that event exists only because of this registration (priority 1, raised 0
@@ -432,7 +434,7 @@ and **46.57 s for 1,000**, during which the event loop is blocked. The 5,000 cas
 | :--- | :--- |
 | `TriggerItem.raisetrigger` | The `omit` branch |
 | `_phook_init_plugin`, `_phook_initialize` | All of it: the built-ins and the setting |
-| `_eventcb_enabled_modify`, `_eventcb_plugin_unloaded` | All of it |
+| `_eventcb_plugin_unloaded` | All of it |
 | `rebuild_regexes`, `find_regex_id`, `create_trigger_id`, `create_regex_id` | All of it |
 | `_api_trigger_register`, `_api_trigger_unregister` | The branch that builds an id from a name |
 | `_api_trigger_add`, `_api_trigger_update`, `_api_trigger_remove`, `_api_trigger_get`, `_api_trigger_remove_for_owner`, `_api_trigger_toggle_enable`, `_api_trigger_toggle_omit`, `_api_group_toggle_enable` | All of it |
@@ -503,7 +505,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/triggers` with `--include=*.py`
 | 1 | **One combined alternation for all triggers** | `TriggersPlugin.rebuild_regexes`, `_eventcb_check_trigger` | Yes | **Change (TR-14).** It makes one `match` call per line, which is what it is for, but it is the cause of TR-1, TR-5 and TR-6 and of the rebuild cost in TR-10. Q8 compares the alternatives. |
 | 2 | **Triggers delivered as raised events** (observer): one event per trigger, callbacks registered on it | `TriggerItem.raisetrigger`, `_api_trigger_register` | Yes | **Keep.** It gives callbacks priorities, isolation of a failing callback (Q3d) and the `detail` display for free, and it is the plugin-facing contract. It costs about 110 us per match (Q4); what should change is raising `beall` and `all` with no listener (TR-8). |
 | 3 | **Ids built from strings**: `t_<owner>_<name>`, `reg_<n>` | `create_trigger_id`, `create_regex_id` | No | **Change (TR-4, TR-9).** `reg_<n>` is a counter and is fine. The trigger id is the cause of TR-4 (an id passed where a name is expected) and of the two-way lookup in `trigger.register`, which accepts either. Owner ids contain dots and names can contain anything, so an id cannot be split back into its parts. Key triggers by `(owner_id, name)` or pass ids and names as different parameters. |
-| 4 | **The matcher registered twice**: by decorator on one event and by hand on another | `_eventcb_check_trigger`, `_eventcb_enabled_modify` | No | **Change (TR-11).** The hand registration is on an event nothing raises. |
+| 4 | **The matcher registered twice**: by decorator on one event and by hand on another | `_eventcb_check_trigger`, `_eventcb_enabled_modify` | No | **Changed (TR-11, fixed by #356).** The hand registration was on an event nothing raises; it is removed and the matcher checks the setting. |
 | 5 | **`TriggerItem` as an attribute bag** with one behaviour | `TriggerItem` | No | **Change (TR-2, TR-3).** State that belongs to the item (`enabled`, group membership, the regex) is also kept in three plugin dictionaries and they drift (Q2b, Q2c). `trigger.update` treats it as a dictionary. Make it a dataclass that owns its state, with the plugin's indexes derived from it. |
 | 6 | **Parallel indexes that only grow** | `regexes`, `regex_lookup_to_id`, `trigger_groups` | Yes | **Change (TR-4, TR-10).** Nothing removes an entry (Q2c, Q2e). |
 | 7 | **Silent failures**: log an error and return `False` or `None`; no exception | `_api_trigger_add`, `_api_trigger_update`, `_api_trigger_remove`, `_api_trigger_toggle_enable`, `_api_trigger_toggle_omit`, `_api_group_toggle_enable`, `rebuild_regexes` | No | **Change (TR-5, TR-9).** `AGENTS.md` asks for an error with context. Three shapes are in use: `False`, `None` with a log, and nothing at all (an unknown group). `rebuild_regexes` is the costly one: the caller is told the add worked. Two APIs raise `KeyError` by accident instead (`trigger.register`, `trigger.unregister`). |
@@ -915,12 +917,12 @@ regex entry when its last trigger goes; create the entry only after the compile 
 
 ### TR-11: The `enabled` setting has no effect
 
-**Status:** open
+**Status:** fixed by #356
 **Issue:** #356
 **Location:** `TriggersPlugin._eventcb_enabled_modify`; the decorator on `_eventcb_check_trigger`.
 **Evidence (verified):** Q2f: a trigger fired with the setting False; `ev_libs.net.mud_from_mud_event` has one
 registration and was raised 0 times; nothing in `src` or `tests` raises it.
-**Fix:** check the setting at the top of `_eventcb_check_trigger`, or register and unregister on
+**Fix (done):** `_eventcb_enabled_modify` was removed and `_eventcb_check_trigger` checks the setting. Options considered: check the setting at the top of `_eventcb_check_trigger`, or register and unregister on
 `ev_to_client_data_modify`; remove the dead event name.
 
 > **Proposed issue (bug):** `bug: the triggers plugin's enabled setting does not stop matching`

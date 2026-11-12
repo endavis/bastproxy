@@ -427,7 +427,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 
 ### Network Events
 - `ev_libs.net.mud_mudconnect` - Connected to mud
-- `ev_libs.net.mud_from_mud_event` - Not raised by anything. The triggers plugin registers on it when its `enabled` setting changes ([Triggers System Findings](triggers_system_findings.md), TR-11); MUD lines arrive on `ev_to_client_data_modify`
+- `ev_libs.net.mud_from_mud_event` - Not raised by anything ([Triggers System Findings](triggers_system_findings.md), TR-11); MUD lines arrive on `ev_to_client_data_modify`
 - `ev_libs.net.mud_gmcp` - A GMCP message from the mud (args `package`, `data`)
 - `ev_libs.net.mud_msdp` - An MSDP variable from the mud (args `variable`, `data`)
 - `ev_libs.net.mud_mssp` - An MSSP table from the mud (arg `data`, the whole table)

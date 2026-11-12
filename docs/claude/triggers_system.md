@@ -195,7 +195,7 @@ They are added enabled, and the flag is not checked for them (TR-8, #353): each 
 
 ## The `enabled` Setting
 
-The plugin has an `enabled` setting, but changing it does not stop or start matching (**verified**, TR-11). `_eventcb_enabled_modify` registers and unregisters `_eventcb_check_trigger` on `ev_libs.net.mud_from_mud_event`, an event nothing raises, while the registration that does the work, on `ev_to_client_data_modify`, stays.
+The plugin has an `enabled` setting. While it is False, `_eventcb_check_trigger` returns before matching, so no trigger fires and the built-in `beall`, `all` and `emptyline` events are not raised either. The setting is read for every line, so it also applies when it was saved as False. (Before #356 the setting had no effect, TR-11.)
 
 ## Commands
 
