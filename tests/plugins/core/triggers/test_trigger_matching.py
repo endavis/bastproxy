@@ -204,7 +204,7 @@ def test_add_compiles_each_regex_once(harness: Harness, monkeypatch: pytest.Monk
 def test_failed_compile_returns_false_and_changes_nothing(harness: Harness) -> None:
     before_triggers = dict(harness.triggers)
     before_ordered = list(harness._ordered)
-    assert harness.add("bad", "(unclosed") is False
+    assert harness.add("bad", "(unclosed") == (False, None)
     assert harness.triggers == before_triggers
     assert harness._ordered == before_ordered
 

@@ -301,8 +301,8 @@ class TriggersPlugin(BasePlugin):
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
 
-        this function returns (True, the new TriggerItem), or False (and logs an
-        error) on failure: check the result before unpacking it
+        this function always returns a 2-tuple: (True, the new TriggerItem), or
+        (False, None) on failure (and logs an error), so unpacking never raises
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
@@ -314,7 +314,7 @@ class TriggersPlugin(BasePlugin):
                 "_api_trigger_add - could not find an owner for trigger %s",
                 trigger_name,
             )
-            return False
+            return False, None
 
         if unknown := sorted(set(kwargs) - _ADD_KEYWORDS):
             log_to(
@@ -324,7 +324,7 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 unknown,
             )
-            return False
+            return False, None
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
@@ -336,7 +336,7 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 self.triggers[trigger_id].owner_id,
             )
-            return False
+            return False, None
 
         args = kwargs.copy()
 
@@ -359,7 +359,7 @@ class TriggersPlugin(BasePlugin):
                     original_regex,
                     exc_info=True,
                 )
-                return False
+                return False, None
 
         if args.get("group"):
             if args["group"] not in self.trigger_groups:

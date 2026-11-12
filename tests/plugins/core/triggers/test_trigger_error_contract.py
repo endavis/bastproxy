@@ -25,7 +25,14 @@ API = "plugins.core.triggers:"
 def test_add_duplicate_returns_false_and_logs(harness: Harness) -> None:
     assert harness.add("dup", r"^a")
     harness.logged.clear()
-    assert harness.add("dup", r"^b") is False
+    assert harness.add("dup", r"^b") == (False, None)
+    assert len(harness.errors()) == 1
+
+
+def test_add_bad_regex_returns_false_none_and_logs(harness: Harness) -> None:
+    harness.logged.clear()
+    success, trigger = harness.add("bad", r"(unclosed")
+    assert (success, trigger) == (False, None)
     assert len(harness.errors()) == 1
 
 
@@ -35,14 +42,14 @@ def test_add_without_owner_logs_and_does_not_print(
     harness.api = lambda name: lambda **_kw: None  # type: ignore[method-assign]
     harness.logged.clear()
     result = _triggers.TriggersPlugin._api_trigger_add(harness, "noowner", r"^a", None)
-    assert result is False
+    assert result == (False, None)
     assert len(harness.errors()) == 1
     assert capsys.readouterr().out == ""
 
 
 def test_add_unknown_keyword_returns_false_and_logs(harness: Harness) -> None:
     harness.logged.clear()
-    assert harness.add("kw", r"^a", event_name="mine") is False
+    assert harness.add("kw", r"^a", event_name="mine") == (False, None)
     assert len(harness.errors()) == 1
     assert harness.create_trigger_id("kw", OWNER) not in harness.triggers
 
@@ -180,7 +187,7 @@ def test_triggerex_handles_failed_add() -> None:
     class Stub:
         def api(self, name: str) -> Any:
             calls.append(name)
-            return lambda *a, **k: False
+            return lambda *a, **k: (False, None)
 
         _trigger_say = None
 
