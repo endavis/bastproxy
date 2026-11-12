@@ -47,7 +47,7 @@ the beginning of the line, registers a callback, and no other trigger matches th
 most of the API surface does something other than what its name and the docs say. Fourteen items are proposed
 below (TR-1 to TR-14); eleven are defects found by running the code.
 
-- **One regex fires per line, and `priority` is not used** (TR-1). All regexes are joined into one alternation,
+- **One regex fires per line, and `priority` is not used** (TR-1, fixed by #346). All regexes are joined into one alternation,
   which reports only the first alternative that matches, in the order the regexes were added. Two triggers
   with different regexes never both fire (Q1c).
 - **The APIs listed as working now do.** Before #349, `group.toggle.enable` changed nothing (TR-4, fixed). Before #348,
@@ -59,17 +59,17 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **A failure inside matching drops the rest of the line's triggers** (TR-7, fixed by #359 and #352): an `argtypes` conversion that
   raises, or a callback that removes its own trigger, ends `_eventcb_check_trigger` for that line.
 - **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
-  uncoloured text (TR-6), and triggers without a regex, the three built-ins included, raise `KeyError` from
-  remove and toggle (TR-8).
+  uncoloured text (TR-6, fixed by #359), and triggers without a regex, the three built-ins included, raise `KeyError` from
+  remove and toggle (TR-8; the `KeyError` is fixed by #359, the rest is open).
 - **Unload is clean for triggers and their callbacks** (Q2e, **verified**), except for an owner that has a trigger without a regex.
 - **Cost** (Q4): matching is cheap at realistic sizes, 6 us for a line that matches nothing against 100
   triggers. The two built-in events raised for every line cost about 250 us with nothing listening, and
-  loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10).
+  loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10). Both were measured before #359, which removed the recompile and raises the built-ins only when something listens.
 - **Tests** (Q5): the plugin file is about 30% covered. No API method except `trigger.register` and
   `trigger.unregister` has a test (TR-12).
 - **Design** (Q8): change the matcher, keep the API. Match each enabled trigger's own compiled regex in
   priority order; that removes TR-1, TR-5 and TR-6 as classes of bug and makes `priority` and
-  `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, needs an ADR).
+  `stopevaluating` mean what the docs said. No new dependency is needed (TR-14, done in #359 with ADR-0007).
 
 **Key Findings:**
 
