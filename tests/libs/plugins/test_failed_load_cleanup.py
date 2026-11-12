@@ -257,7 +257,7 @@ class _Env:
 def cleanup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[str], _Env]]:
     """Return a factory for a loader wired to the real API and the fake world."""
     # the real API needs these for the base plugin's reload-cache restore
-    from bastproxy.libs.plugins import reloadutils  # noqa: F401
+    from bastproxy.libs.plugins import reloadutils  # noqa: F401  # registers the reload-cache API the restore needs
 
     envs: list[_Env] = []
 

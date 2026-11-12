@@ -241,7 +241,7 @@ class TestCallbackEquality:
 
         assert callback != "string"
         assert callback != 42
-        assert callback != None  # noqa: E711
+        assert callback != None  # noqa: E711  # exercises __ne__ against None
         assert callback != {"key": "value"}
 
 

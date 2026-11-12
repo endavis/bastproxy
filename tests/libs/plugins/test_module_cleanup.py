@@ -54,7 +54,7 @@ def test_deletemodule_deletes_name_containing_baseplugin(fake_modules: list[str]
 
 def test_deletemodule_keeps_bundled_baseplugin_and_submodules() -> None:
     """The bundled _baseplugin package and its submodules are never deleted."""
-    import bastproxy.plugins._baseplugin  # noqa: F401
+    import bastproxy.plugins._baseplugin  # noqa: F401  # puts the package in sys.modules
 
     base = "bastproxy.plugins._baseplugin"
     children = [n for n in sys.modules if n.startswith(f"{base}.")]
@@ -102,7 +102,7 @@ def test_failed_load_cleanup_keeps_canreload_false_module(
         "from ._plugin import Plugin\n\n__all__ = ['Plugin']\n"
     )
     (plugin_dir / "plugin" / "_plugin.py").write_text(
-        "from . import _keep  # noqa: F401\n\n\n"
+        "from . import _keep  # noqa: F401  # loads the submodule\n\n\n"
         "class Plugin:\n"
         "    def __init__(self, plugin_id, plugin_info):\n"
         "        raise RuntimeError('boom')\n"
