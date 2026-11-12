@@ -135,7 +135,7 @@ single run and varies with load.
 | #89: internal `plugins.core.commands:run` calls | **Fixed, and holds** (**verified**): `grep -rnE 'core\.commands:run' src` has no match (exit 1, `out-known-89.txt`). The API is `command.run`, which exists (`out-q5.txt`). PR #156. | #89 |
 | #92: command counts, stats and a detail view | **Fixed, and holds** (**verified**): `count`, `count_since_reload` and `CommandStats` update as described, `#bp.core.commands.detail` prints them, and counts survive a plugin reload (Q2b). An exception counted one error with `"RuntimeError: boom@Rred"` and a `False` return counted none (`out-q3.txt`). `tests/plugins/test_commands_plugin_stats.py` passes. Exception: counts are lost when the commands plugin is reloaded through the loader API without the reload flag the `reload` command sets (Q2g), which is expected. PR #155. | #92 |
 | #52: leading whitespace on a command | **Fixed, and holds** (**verified**): `  #bp.core.commands.list` ran as a proxy command and was not sent to the MUD (`out-q1_flow.txt`). It is `.lstrip()` in `_eventcb_check_for_command` and `run_internal_command_from_event`. `tests/plugins/test_commands_plugin_whitespace.py` passes. PR #76. | #52 |
-| #98: the `_command_*` naming rule | **Still enforced in two places, and still silent** (**verified**, Q2a): `get_command_functions_in_object` filters on the prefix and `_api_command_add_by_func` re-checks it. A decorated method called `wrongname` was skipped at load with no log line; the "Function is not a command" warning appears only when `command.add.by.func` is called with it directly. | CM-9 |
+| #98: the `_command_*` naming rule | **Still enforced in two places, no longer silent** (**verified**, Q2a, before the fix): `get_command_functions_in_object` filters on the prefix and `_api_command_add_by_func` re-checks it. A decorated method called `wrongname` was skipped at load with no log line; the "Function is not a command" warning appeared only when `command.add.by.func` was called with it directly. Fixed in #396: discovery now logs a warning naming the method. | CM-9 (fixed in #396) |
 
 The issue also mentions `tests/plugins/core/commands/`. That directory does not exist; the command tests are
 flat files under `tests/plugins/`.
@@ -259,7 +259,7 @@ and `format_return_message` skips the `Begin Command`, start, finish and `End Co
   command registered as `raise`, and its `command_data.command` held only `autoadd` and `kwargs`.
   `AddCommand` is optional.
 - **`autoadd=False`** skipped a command at load and `command.add.by.func(..., force=True)` added it.
-- **A badly named decorated method** (`wrongname`, decorated with both) is skipped silently at load (CM-9).
+- **A badly named decorated method** (`wrongname`, decorated with both) was skipped silently at load; fixed in #396, which logs a warning naming the method (CM-9).
 - **A placeholder error** in a name stopped registration of the commands after it (`badfmt` ended with one
   command of four, `aaa`) (CM-4).
 
@@ -521,14 +521,14 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | # | Pattern | Where | Consistent? | Verdict |
 | --: | :--- | :--- | :--- | :--- |
 | 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-13; CM-1 and CM-2 are fixed). |
-| 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9).** A decorated method with the wrong name is skipped without a log line. |
+| 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9, fixed in #396).** A decorated method with the wrong name was skipped without a log line; discovery now warns. |
 | 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
 | 5 | **`parse_known_args`** | `CommandClass.parse_args` | Yes | **Change (CM-11).** Unknown arguments and abbreviated options are accepted silently. |
 | 6 | **`str.format(**plugin.__dict__)`** on names, descriptions and argument help, outside a `try` | `_api_command_add_by_func` | Yes | **Change (CM-4).** One bad string ends registration of the rest of the plugin and, on a commands reload, of the other plugins. |
 | 7 | **Service location through `self.api("...")`** | 125 calls; `CommandClass` builds its own `API` | Yes | **Keep.** The project-wide trade covered by [Plugin System Findings](plugin_system_findings.md) and [API System Findings](api_system_findings.md). |
 | 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The gap is the code outside it (CM-10). |
-| 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
+| 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9 fixed in #396; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
 | 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7, fixed in #394).** The list got duplicates; it is read only by the summary count. |
 | 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
 | 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Fixed in #395 (CM-8).** |
@@ -724,7 +724,7 @@ the event.
 
 ### CM-9: A decorated method not named `_command_*` is skipped without a message
 
-**Status:** open
+**Status:** fixed in #396 (`get_command_functions_in_object` logs a warning for a method with `command_data` and a name that does not start with `_command_`)
 **Issue:** #396
 **Location:** `get_command_functions_in_object` (L319); `_api_command_add_by_func` (L339-345).
 **Evidence (verified):** Status table (#98) and Q2a: `wrongname`, decorated with `AddCommand` and `AddParser`,

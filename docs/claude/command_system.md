@@ -88,8 +88,8 @@ error: bad arguments and a function returning `False` do not. `stats.last_error`
 
 Decorators for defining commands. A method is registered when its name starts with `_command_` and it
 carries `command_data`, which any of the three decorators creates; `AddCommand` is optional (a method with
-only `@AddParser` is named after the method). A decorated method with another name is skipped without a
-message.
+only `@AddParser` is named after the method). A decorated method with another name is skipped, and discovery
+logs a warning naming it.
 
 ```python
 @AddCommand(name="mycommand", show_in_history=True)
@@ -640,7 +640,7 @@ except argp.ArgumentError as exc:  # the parser raises; it never exits
 ### Command Not Found
 - Check decorator order: @AddCommand, @AddParser, @AddArgument
 - Verify plugin is loaded
-- Check method name starts with `_command_` (a decorated method with another name is skipped silently)
+- Check method name starts with `_command_` (a decorated method with another name is skipped, and the log has a WARNING line naming it)
 - Check that `autoadd=False` is not set on `@AddCommand`
 - Look in the log for an ERROR line "Command ... skipped": a `{` or `}` in a name, description or argument
   help skips that command; the plugin's other commands still register
