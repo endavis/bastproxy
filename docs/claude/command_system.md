@@ -72,9 +72,9 @@ class CommandClass:
         self.stats = CommandStats()         # error_count, last_error, last_error_time
 ```
 
-`show_in_history`, `format` and `preamble` are stored and nothing reads them: every command that is found is
-recorded in the history and its output is always framed, whatever the options say
-([Command System Findings](command_system_findings.md), CM-1 and CM-2).
+`show_in_history` decides whether the command line is recorded in the history: `find_command` returns it as its
+third value. `format` and `preamble` are stored and nothing reads them: output is always framed, whatever the
+options say ([Command System Findings](command_system_findings.md), CM-2).
 
 `count` and `stats` carry over when the plugin reloads or unloads and loads again, and when the
 commands plugin itself reloads. They reset when the proxy restarts. `count_since_reload` resets
@@ -207,7 +207,7 @@ Commands are automatically tracked:
 - Stored in a persistent dict (`history.txt` in the plugin's data directory)
 - Holds at most `historysize - 1` entries; a line already in the history moves to the end
 - Can be listed and shown again with `!`
-- A found command is recorded whatever its `show_in_history` says; an unknown command is not (CM-1)
+- A found command is recorded only when its `show_in_history` is true; an unknown command is not
 
 ## Command Decorators
 
@@ -227,7 +227,7 @@ Marks a method as a command:
 )
 ```
 
-`show_in_history`, `format` and `preamble` are not used by the code. The default name is the method name
+`format` and `preamble` are not used by the code (`show_in_history` is). The default name is the method name
 without `_command_`.
 
 ### @AddParser
@@ -652,6 +652,6 @@ except argp.ArgumentError as exc:  # the parser raises; it never exits
 - Ensure messages are strings, not other types
 
 ### History Not Working
-- A found command is recorded whatever `show_in_history` says, and so is one that fails
+- A command is recorded only when its `show_in_history` is true, and a failing one is recorded like any other
 - An unknown `#bp` command is not recorded, and neither are the lines after it in the same input
 - The history holds `historysize - 1` entries

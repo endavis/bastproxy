@@ -542,7 +542,7 @@ matching template in `.github/ISSUE_TEMPLATE/`. Line references are to
 
 ### CM-1: `show_in_history=False` on a command has no effect
 
-**Status:** open
+**Status:** fixed in #388 (`find_command` returns `command_item.show_in_history`)
 **Issue:** #388
 **Location:** `CommandsPlugin.find_command` (the `True` in the "got it all" return), `run_internal_command_from_event`
 (L1042); `CommandClass.show_in_history`.
