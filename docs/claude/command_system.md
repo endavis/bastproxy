@@ -180,9 +180,11 @@ messages, the finish time and an `End Command` line (more sections when the `sim
 Color codes are converted when the lines are sent. With `format=False` the command's messages are sent
 unframed, and with `preamble=False` the `Begin Command`, start, finish and `End Command` lines are left out
 of the frame (the rest of it is unchanged).
-The messages must be a list of strings; a bare string is printed one character per line, and a command that
-returns `False` gets its help appended to the output. An exception in the command prints
-`Error running command` and is counted in the command's stats.
+The messages should be a list of strings; a bare string is treated as one line (before #397 it was printed one
+character per line). A command that returns `False` gets its help appended to the output. An exception in the
+command prints `Error running command`, is counted in the command's stats and gives the reason `function raised
+an exception`. A failure while finding the command, formatting the output or sending it also prints
+`Error running command` and is logged (#397).
 
 ### 4. Argument Parsing
 

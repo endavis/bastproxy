@@ -64,9 +64,10 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
   and nothing was shown.
 - **The history had an off-by-one** (CM-8, fixed in #395). It kept `historysize - 1` entries, and `!` indexed the
   list differently depending on whether it was full.
-- **A failure outside `CommandClass.run`'s `try` is silent for the client** (CM-10). Exceptions in
-  `find_command` and `format_return_message` are caught by the event system and logged, but the client sees
-  nothing and the line is gone.
+- **A failure outside `CommandClass.run`'s `try` was silent for the client** (CM-10, fixed in #397). Exceptions
+  in `find_command` and `format_return_message` were caught by the event system and logged, but the client saw
+  nothing and the line was gone. Now `run_internal_command_from_event` and `run_finish` catch them and the
+  client gets `Error running command`.
 - **Registration appended duplicates** (CM-7, fixed in #394): `commands_list` held 151 entries against 133 commands after a
   re-add.
 - **Tests** (Q4): `_commands.py` is 28.08% covered by the full suite. `find_command*`, the history
@@ -371,8 +372,9 @@ counts stayed in `saved_command_counts` (**verified**, `out-q2bbad.txt`).
 | `-h` | the help | `True`, reason `help` | not counted |
 | Unknown command | the error page and the plugin's command list; the line is dropped | not run | not counted |
 
-The reason string for an exception says `function returned False`, the same as for a `False` return, so a
-caller of `command.run` cannot tell them apart (CM-10).
+Before the fix, the reason string for an exception said `function returned False`, the same as for a `False`
+return, so a caller of `command.run` could not tell them apart. It is now `function raised an exception`
+(CM-10, fixed in #397).
 
 ### Q3b: A failure outside the `try`
 
@@ -381,7 +383,8 @@ are outside it. **Verified**, `out-q3.txt`, `err-q3.txt`: with `find_command` re
 raised, the client received nothing, the line was dropped (`send` was already False), the event system logged
 `raise_event - event ev_to_mud_data_modify with function _eventcb_check_for_command raised an exception`, and
 the next line was handled normally. A failure in `format_return_message` did the same, after the command had
-run and been counted. The same happened for the real `KeyError` cases in CM-5 and CM-6. CM-10.
+run and been counted. The same happened for the real `KeyError` cases in CM-5 and CM-6. CM-10 (fixed in #397:
+the client now gets `Error running command`).
 
 ### Q3c: View-only clients
 
@@ -522,12 +525,12 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | --: | :--- | :--- | :--- | :--- |
 | 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-13; CM-1 and CM-2 are fixed). |
 | 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9, fixed in #396).** A decorated method with the wrong name was skipped without a log line; discovery now warns. |
-| 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). |
+| 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). The callback's failures are now contained (CM-10, fixed in #397). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
 | 5 | **`parse_known_args`** | `CommandClass.parse_args` | Yes | **Change (CM-11).** Unknown arguments and abbreviated options are accepted silently. |
 | 6 | **`str.format(**plugin.__dict__)`** on names, descriptions and argument help, outside a `try` | `_api_command_add_by_func` | Yes | **Change (CM-4).** One bad string ends registration of the rest of the plugin and, on a commands reload, of the other plugins. |
 | 7 | **Service location through `self.api("...")`** | 125 calls; `CommandClass` builds its own `API` | Yes | **Keep.** The project-wide trade covered by [Plugin System Findings](plugin_system_findings.md) and [API System Findings](api_system_findings.md). |
-| 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The gap is the code outside it (CM-10). |
+| 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The code outside it is now covered too (CM-10, fixed in #397). |
 | 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9 fixed in #396; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
 | 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7, fixed in #394).** The list got duplicates; it is read only by the summary count. |
 | 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
@@ -743,7 +746,7 @@ command: wrongname`.
 
 ### CM-10: A failure outside `CommandClass.run`'s `try` shows the client nothing, and the failure reasons are wrong
 
-**Status:** open
+**Status:** fixed (#397)
 **Issue:** #397
 **Location:** `run_internal_command_from_event` (`find_command`, the sends); `CommandClass.run` (reason strings,
 the message type); `CommandClass.run_finish` (`format_return_message`).
@@ -751,8 +754,10 @@ the message type); `CommandClass.run_finish` (`format_return_message`).
 reply, the line was dropped, and the only trace was the event system's ERROR line; `current_input_event` stayed
 set until the next line. An exception inside a command gave the reason `function returned False`. A command
 returning `(True, "hi")` printed `h` and `i` as two lines.
-**Fix:** wrap the body of `run_internal_command_from_event` so the client gets `Error running command` for any
-exception; give an exception its own reason string; treat a `str` message as one line.
+**Fix:** `run_internal_command_from_event` wraps its work (`_run_internal_command`) so the client gets `Error
+running command` for any exception, which is also logged; `CommandClass.run` gives an exception the reason
+`function raised an exception`; `run_finish` catches a `format_return_message` failure (reason `could not
+format output`); a `str` message is treated as one line.
 
 > **Proposed issue (fix):** `fix: tell the client when the command path itself fails, and report the right reason`
 >
