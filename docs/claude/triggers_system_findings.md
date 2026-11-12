@@ -583,6 +583,8 @@ Notes on the table:
   six starts with a group and cannot be indexed; those are tried on every line, and they are nearly all of the
   remaining cost (167 of 1,000). A real trigger set may have more or fewer of them; this was not measured on
   real plugins, because the repository has one trigger.
+- **(ii) decision:** not built for now. ADR-0007 point 9 (#384) records why and the threshold for
+  revisiting it.
 - **(iii) Direct callbacks instead of an event per match.** A direct call of the callback took 0.09 us against
   111.3 us for `raisetrigger` with one callback (Q4). The event buys callback priorities, the isolation of a
   failing callback, records, and the `detail` command's event display.
