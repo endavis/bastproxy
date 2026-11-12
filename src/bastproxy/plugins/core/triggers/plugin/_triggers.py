@@ -130,11 +130,9 @@ class TriggersPlugin(BasePlugin):
             self.plugin_id, "enabled", "True", bool, "enable triggers"
         )
 
-        self.api("plugins.core.triggers:trigger.add")("beall", None, self.plugin_id, enabled=False)
-        self.api("plugins.core.triggers:trigger.add")("all", None, self.plugin_id, enabled=False)
-        self.api("plugins.core.triggers:trigger.add")(
-            "emptyline", None, self.plugin_id, enabled=False
-        )
+        self.api("plugins.core.triggers:trigger.add")("beall", None, self.plugin_id)
+        self.api("plugins.core.triggers:trigger.add")("all", None, self.plugin_id)
+        self.api("plugins.core.triggers:trigger.add")("emptyline", None, self.plugin_id)
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self):
@@ -460,7 +458,18 @@ class TriggersPlugin(BasePlugin):
             if trigger.owner_id == owner_id
         ]
         for trigger in trigs:
-            self.api("plugins.core.triggers:trigger.remove")(trigger, owner_id=owner_id)
+            try:
+                self.api("plugins.core.triggers:trigger.remove")(
+                    trigger, force=True, owner_id=owner_id
+                )
+            except Exception:  # pylint: disable=broad-except
+                log_to(
+                    [self.plugin_id, owner_id],
+                    logging.ERROR,
+                    "_api_trigger_remove_for_owner - removing trigger %s failed",
+                    trigger,
+                    exc_info=True,
+                )
 
     @AddAPI("trigger.toggle.enable", description="toggle a trigger")
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):

@@ -180,7 +180,7 @@ What follows from this:
 - `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and put the trigger into, or take it out of, the matching order (it keeps its place). Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
 - `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag
 - `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); an unknown group returns `None` without a message
-- `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (no `force`)
+- `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (`force=True`; a failing removal is logged and the rest still go, TR-8, #353)
 
 The name-taking APIs build the trigger id from the name and the owner; without `owner_id` the owner is the calling plugin.
 
@@ -191,7 +191,7 @@ The plugin adds three triggers without a regex:
 - **all**: its event is raised for every MUD line, after the regexes
 - **emptyline**: its event is raised for a line whose text without colour codes is `""`
 
-They are added with `enabled=False`. The flag is still not checked for them (TR-8, #353): each is raised when something is registered on its event, and not otherwise. `trigger.toggle.enable` on them raises no error. They are passed the `ev_to_client_data_modify` event's own record, so `trigger_name` and `trigger_id` are written into it ([Data Flow](data_flow.md), #230). A regex trigger `^$` never fires, because an empty line is not matched against the regexes.
+They are added enabled, and the flag is not checked for them (TR-8, #353): each is raised when something is registered on its event, and not otherwise. `trigger.toggle.enable` on them raises no error. They are passed the `ev_to_client_data_modify` event's own record, so `trigger_name` and `trigger_id` are written into it ([Data Flow](data_flow.md), #230). A regex trigger `^$` never fires, because an empty line is not matched against the regexes.
 
 ## The `enabled` Setting
 
@@ -445,7 +445,7 @@ self.api("plugins.core.triggers:trigger.update")(
 ## Integration Points
 
 - **Event System**: Each trigger has its own event, `event_<trigger_id>`, raised once per match. The event data holds `line`, `matches`, `trigger_name` and `trigger_id`. The `Event` object stays after the trigger is removed.
-- **Plugin System**: On `ev_plugin_unloaded` the triggers plugin calls `trigger.remove.for.owner`. The events plugin has removed the owner's callbacks by then, so the removals are not refused (**verified**). The owner's entries in `trigger_groups` are removed with its triggers (TR-4, fixed by #349), and one trigger without a regex stops the removal of the triggers after it (TR-4, TR-8). The triggers plugin itself cannot be reloaded (`can_reload_f = False`).
+- **Plugin System**: On `ev_plugin_unloaded` the triggers plugin calls `trigger.remove.for.owner`. The events plugin has removed the owner's callbacks by then, so the removals are not refused (**verified**). The owner's entries in `trigger_groups` are removed with its triggers (TR-4, fixed by #349), and the removal passes `force=True` and continues past a failing one, so it does not depend on the events plugin running first (TR-8, fixed by #353). The triggers plugin itself cannot be reloaded (`can_reload_f = False`).
 - **Data Flow**: `_eventcb_check_trigger` is a callback of the `ev_to_client_data_modify` event; see [Data Flow](data_flow.md)
 - **Record System**: Each raise is a record; the built-in triggers share the outer event's record (#230)
 
