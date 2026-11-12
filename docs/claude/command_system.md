@@ -208,7 +208,7 @@ def _command_search(self):
 
 Commands are automatically tracked:
 - Stored in a persistent dict (`history.txt` in the plugin's data directory)
-- Holds at most `historysize - 1` entries; a line already in the history moves to the end
+- Holds at most `historysize` entries; a line already in the history moves to the end
 - Can be listed and shown again with `!`
 - A found command is recorded only when its `show_in_history` is true; an unknown command is not
 
@@ -346,8 +346,8 @@ Shows a command from the history; it does not run it again. Numbers are those of
 - `! -2` - Shows the entry 2 back from the end
 - `! 5` - Shows entry 5
 
-The reply goes to every client, not only the one that typed it. When the history is as long as `historysize`
-the numbers are off by one (CM-8).
+The reply goes to the client that typed it. Numbers index the history list the same way whether or not it is
+full, and a number outside `-len <= number < len` gets an "outside of history length" message (CM-8, fixed in #395).
 
 ## Common Patterns
 

@@ -625,7 +625,7 @@ class CommandsPlugin(BasePlugin):
         self.command_history_data.append(command)
 
         # if the size is greater than historysize, pop the first item
-        if len(self.command_history_data) >= self.api("plugins.core.settings:setting.get")(
+        if len(self.command_history_data) > self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "historysize"
         ):
             self.command_history_data.pop(0)
@@ -1465,20 +1465,25 @@ class CommandsPlugin(BasePlugin):
           @Ynumber@w    = The number of the command to rerun
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
-        if len(self.command_history_data) < abs(args["number"]):
+        number = args["number"]
+        history_length = len(self.command_history_data)
+        if not -history_length <= number < history_length:
             return True, ["# is outside of history length"]
 
-        if len(self.command_history_data) >= self.api("plugins.core.settings:setting.get")(
-            self.plugin_id, "historysize"
-        ):
-            command = self.command_history_data[args["number"] - 1]
-        else:
-            command = self.command_history_data[args["number"]]
+        command = self.command_history_data[number]
+
+        clients = None
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            client_id = event_record["client_id"]
+            clients = [client_id] if client_id else None
 
         SendDataDirectlyToClient(
-            NetworkData([f"Commands: rerunning command {command}"], owner_id="run_history")
+            NetworkData([f"Commands: rerunning command {command}"], owner_id="run_history"),
+            clients=clients,
         )(f"{self.plugin_id}:_command_run_history")
-        SendDataDirectlyToClient(NetworkData([f"{command}"], owner_id="run_history"))()
+        SendDataDirectlyToClient(
+            NetworkData([f"{command}"], owner_id="run_history"), clients=clients
+        )()
 
         return True, []
 

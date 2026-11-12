@@ -62,8 +62,8 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
   `.get(plugin_id, {})`, and `command.list.formatted` reads the `Base` group with `.get`. Before the fix, for a
   client typing a command, the exception happened inside the event, which contained it: the line was dropped
   and nothing was shown.
-- **The history has an off-by-one** (CM-8). It keeps `historysize - 1` entries, and `!` indexes the list
-  differently depending on whether it is full.
+- **The history had an off-by-one** (CM-8, fixed in #395). It kept `historysize - 1` entries, and `!` indexed the
+  list differently depending on whether it was full.
 - **A failure outside `CommandClass.run`'s `try` is silent for the client** (CM-10). Exceptions in
   `find_command` and `format_return_message` are caught by the event system and logged, but the client sees
   nothing and the line is gone.
@@ -297,8 +297,9 @@ in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
 
 **Verified**, `out-q2c.txt` and `out-q2d.txt` unless marked.
 
-- **Size.** `add_command_to_history` appends and then pops when `len >= historysize`. With `historysize=5` the
-  list stayed at 4 entries; `historysize` entries are never held (CM-8).
+- **Size (fixed in #395).** `add_command_to_history` appended and then popped when `len >= historysize`. With
+  `historysize=5` the list stayed at 4 entries; `historysize` entries were never held. It now pops when
+  `len > historysize` (CM-8).
 - **Dedupe.** Sending a line already in the history moved it to the end instead of adding a second copy.
 - **What is recorded.** `_eventcb_check_for_command` adds the line when `event_record["showinhistory"]` is true
   and the line is not internal. `showinhistory` starts as the `show_in_history` of the `ProcessDataToMud`
@@ -309,15 +310,15 @@ in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
 - **The flag leaked to the next line (fixed in #390).** Before the fix, after an unknown `#bp` command, the lines after it in the same input
   were not recorded: `#bp.nope.x|lookD` left the history without `lookD`, while `lookC|#bp.nope.x` recorded
   `lookC` (CM-3).
-- **`_command_run_history` (`!`)** indexes with `history[number]` when the list is shorter than `historysize`,
+- **`_command_run_history` (`!`) (fixed in #395; this is the behaviour before the fix)** indexed with `history[number]` when the list was shorter than `historysize`,
   and `history[number - 1]` when it is as long, so `! -1` shows the last entry in one case and the one before
   it in the other, `! 0` shows the first entry and `! 4` with four entries raises `IndexError` (the length
   guard uses `<` against `abs(number)`) (CM-8).
 - **`!` shows, it does not re-run.** It sends `Commands: rerunning command <x>` and then `<x>` to the clients
   as text. The line did not go to the MUD and the command was not run again (**verified**, `out-q1_flow.txt`:
-  the only line sent to the MUD after `! 1 2` was the original `! 1 2`, with `send` False). Both lines go to
-  `clients=None`, that is every logged-in client that may see internal lines, not only the client that typed
-  it (**verified**, `out-q3c.txt`) (CM-8).
+  the only line sent to the MUD after `! 1 2` was the original `! 1 2`, with `send` False). Before #395 both lines
+  went to `clients=None`, that is every logged-in client that may see internal lines, not only the client that
+  typed it (**verified**, `out-q3c.txt`); they now go to `clients=[client_id]` (CM-8).
 - **`history` numbering** uses `list.index`, so a duplicate would be shown with the first one's number (**verified**
   with a hand-made list `x, y, x`: `0 : x`, `1 : y`, `0 : x`). `add_command_to_history` removes duplicates
   first, so this does not arise through the plugin.
@@ -395,7 +396,7 @@ view-only input reaches `ev_to_mud_data_modify` (**read**).
 A command run from the event sends its reply to `clients=[client_id]`, so only the client that typed it gets
 it (**verified**). `SendDataDirectlyToClient.can_send_to_client` does not deliver an internal line to a view
 client unless the client is in `clients` (**read**, `src/bastproxy/libs/records/rtypes/clientdata.py`). The
-history command `!` is the exception noted in Q2e: it sends to every client.
+history command `!` was the exception noted in Q2e: it sent to every client until #395, and now sends to the client that typed it.
 
 ### Q3e: Antispam
 
@@ -489,7 +490,7 @@ checks are **verified** unless marked **read**.
 16. **`! 5`, "reruns".** `!` shows the history entry and does not run it; numbers are 0-based as in `history`
     (Q2e). The doc described re-execution.
 17. **History "Commands with `show_in_history=False` are excluded."** They are not (CM-1).
-18. **"Size-limited queue."** It holds `historysize - 1` entries (CM-8).
+18. **"Size-limited queue."** It held `historysize - 1` entries (CM-8, fixed in #395).
 19. **Troubleshooting, "Ensure `set_command_autoadd(True)` is called."** `autoadd` is true by default; the
     switch is `AddCommand(autoadd=False)`. `set_command_autoadd` is used once, by the base plugin.
 20. **Troubleshooting, "History Not Working."** Success is not a condition for recording; a command that
@@ -530,7 +531,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
 | 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7, fixed in #394).** The list got duplicates; it is read only by the summary count. |
 | 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
-| 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Change (CM-8).** |
+| 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Fixed in #395 (CM-8).** |
 | 13 | **Re-entrancy guard on a saved attribute** (`current_input_event`) | `_eventcb_check_for_command` | Yes | **Keep, small.** It matters only for the commands plugin's own reload (Q2f); a failing event leaves a stale record until the next line. |
 | 14 | **Strings for paths** | none | n/a | **Keep.** The package touches no path. |
 | 15 | **Hidden global state** | `CANRELOAD` (read by the loader) and `commands_at_startup` (never read) at module level; the rest is on the plugin instance | Yes | **Keep** `CANRELOAD`; remove `commands_at_startup` (CM-13). |
@@ -700,12 +701,12 @@ two `force=True` re-adds of one command listed it four times; 151 entries agains
 
 ### CM-8: The history keeps `historysize - 1` entries and `!` picks the wrong one in two cases
 
-**Status:** open
+**Status:** fixed in #395 (the history is trimmed when `len > historysize`, `!` indexes with `history[number]`, the guard is `-len <= number < len`, and the reply goes to the client that typed it)
 **Issue:** #395
 **Location:** `add_command_to_history` (L597), `_command_run_history` (L1430-1443).
 **Evidence (verified):** Q2e: with `historysize=5` the list stayed at 4. With four entries and `historysize=5`
 `! -1` showed the last entry; with four entries and `historysize=4` it showed the one before. `! 4` with four
-entries raised `IndexError` (`Error running command`); `! -4` raised it in the second case. `!` output goes to
+entries raised `IndexError` (`Error running command`); `! -4` raised it in the second case. `!` output went to
 every client (`clients=None`), not only the one that typed it.
 **Fix:** pop when `len > historysize`; index with one rule; guard `-len <= number < len`; pass `clients` from
 the event.
