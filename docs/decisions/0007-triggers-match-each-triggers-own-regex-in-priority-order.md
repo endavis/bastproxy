@@ -36,7 +36,15 @@ Each trigger matches its own compiled regex. The repo owner confirmed this scope
 5. **Isolation.** The loop runs over a copy of the list and re-checks each item before use (still enabled and still in `triggers`). Each trigger's match, argument conversion and raise run in their own `try`; an error is logged with the trigger id and the line, and the next trigger runs.
 6. **Built-ins only with a listener.** `beall`, `all` and `emptyline` are raised only when their event has a registered function. An empty line raises only `emptyline` and tries no regex.
 7. **Removed:** the regex table (`regexes`, `regex_lookup_to_id`), the combined regex (`created_regex`, `rebuild_regexes`), `process_match`, and the named-group strip. The ten trigger APIs and their signatures are unchanged. `TriggerItem.regex_id` stays as `None` for one release and `TriggerItem.regex` equals `original_regex`.
-8. **No new dependency.** `google-re2` was rejected in Q8. A first-word prefilter is the later option once the benchmark (#358) gives a budget.
+8. **No new dependency.** `google-re2` was rejected in Q8.
+9. **No prefilter for now (#384).** The #358 benchmark gives the budget: at 100 enabled triggers a line that matches nothing costs about 26.6 µs on this matcher, against 6.0 µs on the combined matcher it replaced (findings Q4, one local run). A first-word prefilter is not built, for these reasons:
+   - The cost is small next to a matching trigger's event: `raisetrigger` with one callback took 111.3 µs (findings Q4).
+   - Its failure mode is a trigger that silently never fires. Taking a literal first word from a regex has to handle case-insensitive flags, top-level alternation, optional groups, escapes and `matchcolor` text that starts with colour codes, and the bucket and the unindexed triggers have to be merged back into priority order.
+   - There is no real trigger set to measure. The prototype's figure of one regex in six that cannot be indexed comes from a generated set; the repository has one trigger.
+
+   The cost of triggers that share a pattern is handled separately: #383 tracks matching a shared pattern once per line.
+
+   Revisit when a real plugin set reaches several hundred enabled triggers, or when profiling shows trigger matching takes more than about 10% of line processing time. Before building it, measure what share of that set's regexes start with a literal word, and use `tests/benchmarks/test_bench_trigger_match.py` for the before and after figures.
 
 ## Rationale
 
@@ -112,6 +120,8 @@ The new total is lower than the old one at 10, 100 and 1,000 triggers for all th
 - #359 (TR-14: replace the combined regex with one regex per trigger)
 - #350 (TR-5), #351 (TR-6), #355 (TR-10)
 - #358 (TR-13: benchmark and budget)
+- #383 (match a regex shared by several triggers once per line)
+- #384 (no prefilter for now, and when to revisit it)
 
 ## Related Documentation
 
