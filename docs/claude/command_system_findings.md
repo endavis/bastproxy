@@ -68,6 +68,9 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
   in `find_command` and `format_return_message` were caught by the event system and logged, but the client saw
   nothing and the line was gone. Now `run_internal_command_from_event` and `run_finish` catch them and the
   client gets `Error running command`.
+- **Dead state was removed** (CM-13, fixed in #400): `commands_at_startup`, `default_help_command`,
+  `no_multiple_commands` and its branch, `api_get_all_commands_list`, `_api_remove_command`, and the positional
+  `AddParser` arguments. The last is a breaking change: `AddParser("x")` now raises `TypeError`.
 - **Registration appended duplicates** (CM-7, fixed in #394): `commands_list` held 151 entries against 133 commands after a
   re-add.
 - **Tests** (Q4): `_commands.py` is 28.08% covered by the full suite. `find_command*`, the history
@@ -290,7 +293,7 @@ and `current_input_event` was None again. So this is an ordinary, contained defe
 
 ### Q2d: `_api_remove_command`
 
-It has no `@AddAPI`, so `plugins.core.commands:remove.command` does not exist (**verified**, `out-q5.txt` shows
+Removed in #400 (CM-13); this section describes it at the audit. It has no `@AddAPI`, so `plugins.core.commands:remove.command` does not exist (**verified**, `out-q5.txt` shows
 the API list). Called directly it worked: it removed the command and called `<plugin>:data.update`
 (**verified**). It does not remove the `commands_list` entry (**read**). Nothing calls it (**verified**, grep
 in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
@@ -407,7 +410,7 @@ history command `!` was the exception noted in Q2e: it sent to every client unti
 **Verified**, `out-q3b.txt`: 45 identical lines reached the MUD as 47 lines, with the `antispamcommand`
 (`look`) inserted at positions 20 and 41 of the 47, that is before the 21st and the 41st identical line. The
 `no_multiple_commands` branch cannot run, because nothing ever adds to that dictionary (**verified**, grep in
-`out-q6-dead.txt`: two matches, its creation and its test) (CM-13).
+`out-q6-dead.txt`: two matches, its creation and its test) (CM-13, removed with its branch in #400).
 
 ---
 
@@ -427,7 +430,7 @@ The rest of the suite adds nothing to `_commands.py`. Of its missed ranges, the 
 settings registration (`82-156`), `command.add.by.func` (`328-411`), `command.remove.for.plugin`
 (`468->exit`), `pass_through_command_from_event` (`703-757`), every `error_*` page (`796-890`), `find_command`
 and `find_command_split_command_string` (`909-1021`), the body of `run_internal_command_from_event`
-(`1038-1075`), `_api_remove_command` (`1183-1212`), `command.list.formatted` (`1253-1305`), and the bodies of
+(`1038-1075`), `_api_remove_command` (`1183-1212`, removed in #400), `command.list.formatted` (`1253-1305`), and the bodies of
 `_command_list`, `_command_run_history` and `_command_history` (`1344-1362`, `1429-1445`, `1457-1468`).
 In `_command.py` the untested ranges are the `shlex` and `ArgumentError` branches of `parse_args`
 (`170-182`) and all of `format_return_message` (`196-302`).
@@ -476,7 +479,7 @@ checks are **verified** unless marked **read**.
    the order of several `AddArgument` lines matters.
 7. **`AddCommand` options.** `autoadd` was not listed. Added.
 8. **`AddParser` options.** `formatter_class` is overwritten by `argp.CustomFormatter` after the parser is
-   built, and positional `AddParser(...)` arguments are stored and never used (**read**, `_commands.py` L381;
+   built, and positional `AddParser(...)` arguments were stored and never used (removed in #400; **read**, `_commands.py` L381;
    grep in `out-q6-dead.txt`). Both are noted.
 9. **Default name.** "uses method name" is true, with `_command_` removed; an unnamed command given only
    `AddParser` is named in the `else` branch.
@@ -524,7 +527,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 
 | # | Pattern | Where | Consistent? | Verdict |
 | --: | :--- | :--- | :--- | :--- |
-| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-13; CM-1 and CM-2 are fixed). |
+| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needed fixing was what it stored and nothing read (CM-13, fixed in #400; CM-1 and CM-2 are fixed). |
 | 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9, fixed in #396).** A decorated method with the wrong name was skipped without a log line; discovery now warns. |
 | 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). The callback's failures are now contained (CM-10, fixed in #397). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
@@ -534,11 +537,11 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The code outside it is now covered too (CM-10, fixed in #397). |
 | 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9 fixed in #396; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
 | 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7, fixed in #394).** The list got duplicates; it is read only by the summary count. |
-| 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
+| 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Fixed in #400 (CM-13).** All removed. |
 | 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Fixed in #395 (CM-8).** |
 | 13 | **Re-entrancy guard on a saved attribute** (`current_input_event`) | `_eventcb_check_for_command` | Yes | **Keep, small.** It matters only for the commands plugin's own reload (Q2f); a failing event leaves a stale record until the next line. |
 | 14 | **Strings for paths** | none | n/a | **Keep.** The package touches no path. |
-| 15 | **Hidden global state** | `CANRELOAD` (read by the loader) and `commands_at_startup` (never read) at module level; the rest is on the plugin instance | Yes | **Keep** `CANRELOAD`; remove `commands_at_startup` (CM-13). |
+| 15 | **Hidden global state** | `CANRELOAD` (read by the loader) and `commands_at_startup` (never read) at module level; the rest is on the plugin instance | Yes | **Keep** `CANRELOAD`; `commands_at_startup` removed in #400 (CM-13). |
 | 16 | **`CmdArgsRecord` in the plugin's `libs/data`** | `cmdargs.py` | n/a | **Keep.** It is a record type used only by this plugin. Its header comment names a different directory (Other Observations). |
 | 17 | **Typing**: the package is under a mypy `ignore_errors` override and has no annotations | whole package | Yes | **Keep here.** Tracked by #6. |
 
@@ -812,7 +815,7 @@ or a single character at set time.
 
 ### CM-13: Dead state in the commands plugin
 
-**Status:** open
+**Status:** fixed in #400 (all six removed; `AddParser` is keyword-only, a breaking change, and `argparse["args"]` is gone)
 **Issue:** #400
 **Location:** `commands_at_startup` (`_utils.py`), `default_help_command`, `no_multiple_commands` (and its
 branch in `pass_through_command_from_event`), `api_get_all_commands_list`, `_api_remove_command`, and the

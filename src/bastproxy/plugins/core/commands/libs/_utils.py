@@ -16,8 +16,6 @@ see info/add_commands.txt for more info
 
 CANRELOAD = False
 
-commands_at_startup = {}
-
 
 def set_command_autoadd(func, autoadd):
     if not hasattr(func, "command_data"):
@@ -28,7 +26,7 @@ def set_command_autoadd(func, autoadd):
 class CommandFuncData:
     def __init__(self):
         self.command = {"autoadd": True, "kwargs": {}}
-        self.argparse = {"kwargs": {"add_help": False}, "args": []}
+        self.argparse = {"kwargs": {"add_help": False}}
         self.arguments = []
 
 
@@ -58,16 +56,17 @@ class AddCommand:
 
 
 class AddParser:
-    """a class to decorate a function with argparse data."""
+    """a class to decorate a function with argparse data.
 
-    def __init__(self, *args, **kwargs):
-        self.argparse_args = args
+    Only keyword arguments are accepted; they are passed to ``ArgumentParser``.
+    """
+
+    def __init__(self, **kwargs):
         self.argparse_kwargs = kwargs
 
     def __call__(self, func):
         if not hasattr(func, "command_data"):
             func.command_data = CommandFuncData()
-        func.command_data.argparse["args"] = self.argparse_args
         func.command_data.argparse["kwargs"].update(self.argparse_kwargs)
 
         return func
