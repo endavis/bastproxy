@@ -233,11 +233,11 @@ plugin, so the owner lookup was the real one.
 
 ### Q2a: Add
 
-- `trigger.add` returns `(True, TriggerItem)` on success and a bare `False` for a duplicate name, a regex that
-  does not compile, or no owner (TR-9).
-- `TriggerItem.event_name` is always `event_<trigger_id>`. `_api_trigger_add` computes
-  `args["event_name"] = f"{owner_id}_trigger_{trigger_id}"` and `TriggerItem.__init__` ignores the argument; a
-  caller's own `event_name=` keyword is ignored the same way (TR-9).
+- `trigger.add` returns `(True, TriggerItem)` on success and `(False, None)` for a duplicate name, a regex that
+  does not compile, no owner, or (since #354) an unknown keyword; each logs an error (TR-9, fixed by #354).
+- `TriggerItem.event_name` is always `event_<trigger_id>`. Before #354 `_api_trigger_add` computed a second
+  `event_name` that `TriggerItem.__init__` ignored; the parameter is gone and `trigger.add` refuses an
+  `event_name=` keyword (TR-9, fixed by #354).
 - A regex that fails to compile leaves its entry behind: `regexes` grew by one and `regex_lookup_to_id` kept
   the string, though no trigger was stored (TR-10).
 - A trigger added with `enabled=False` is stored with an empty trigger list on its regex and is not in the
@@ -299,7 +299,7 @@ including `regex`, before the new regex is compiled (**read**).
   `trigger.remove.for.owner`: the triggers after the bad one in dictionary order stay. In the probe the
   leftover trigger was first in the dictionary on the next unload, so the reload removed nothing and every
   `trigger.add` of the reloaded plugin failed with "already exists".
-- `trigger.register` and `trigger.unregister` raised `KeyError` for an unknown trigger (TR-9).
+- `trigger.register` and `trigger.unregister` raised `KeyError` for an unknown trigger; since #354 they log an error and return `False` (TR-9).
 - The triggers plugin sets `can_reload_f = False`; `plugin.reload` on it returned `False` with
   "cannot be unloaded".
 
@@ -327,7 +327,7 @@ also counts a line whose triggers all failed the second stage (**read**).
 
 ### Q3a: A regex that does not compile
 
-`trigger.add("bad", "^(abc")` logs the error with the traceback and returns `False`. No trigger is stored and
+`trigger.add("bad", "^(abc")` logs the error with the traceback and returns `(False, None)`. No trigger is stored and
 the matcher is unchanged. The regex table keeps the entry (Q2a).
 
 ### Q3b: A regex that compiles alone and breaks the combined pattern (TR-5)
@@ -462,7 +462,7 @@ probe or grep ran, output saved) or **read**.
 | 3 | TriggersPlugin Class | An `__init__` with four dictionaries; `regexes` holds "Compiled regexes" | A plugin hook; also `can_reload_f`, `latest_regex_id`, the three built-in ids and `created_regex`; `regexes` holds strings, trigger lists and hits (**read**) | Fixed |
 | 4 | Creating Triggers | Unanchored examples such as `r"HP: (\d+)/(\d+)"` | Matched from the start of the line (**verified**, Q1b) | Fixed (note added) |
 | 5 | Creating Triggers | `priority=10  # High priority` | Stored, not used (**verified**, Q1c) | Fixed; TR-1 |
-| 6 | Responding to Triggers | `success, trigger = ...trigger.add(...)` with no caveat | A failure returns a bare `False` (**verified**, Q2a) | Fixed (note added); TR-9 |
+| 6 | Responding to Triggers | `success, trigger = ...trigger.add(...)` with no caveat | A failure returned a bare `False` (**verified**, Q2a); it now returns `(False, None)` | Fixed (note added); TR-9, fixed by #354 |
 | 7 | Trigger Matching | Six steps: "checks all enabled triggers", "matches against line (with or without color)" | One regex is chosen per line; the built-ins; two stages; `matchcolor` only in the second (**verified**, Q1) | Fixed (rewritten); TR-1, TR-6 |
 | 8 | Regex Optimization | Named groups "identify which trigger matched" | They identify which regex matched, and only the first; backreferences change meaning (**verified**, Q1f, Q3b) | Fixed (rewritten); TR-5 |
 | 9 | Common APIs | `trigger.update`, `trigger.toggle.enable` and `group.toggle.enable` listed as working | See Q2b to Q2d (**verified**) | Fixed; TR-2 (fixed by #347), TR-3, TR-4 (fixed by #349) |
@@ -508,10 +508,10 @@ Greps, all scoped to `src/bastproxy/plugins/core/triggers` with `--include=*.py`
 | 4 | **The matcher registered twice**: by decorator on one event and by hand on another | `_eventcb_check_trigger`, `_eventcb_enabled_modify` | No | **Changed (TR-11, fixed by #356).** The hand registration was on an event nothing raises; the handler now sets a cached flag the matcher checks. |
 | 5 | **`TriggerItem` as an attribute bag** with one behaviour | `TriggerItem` | No | **Change (TR-2, TR-3).** State that belongs to the item (`enabled`, group membership, the regex) is also kept in three plugin dictionaries and they drift (Q2b, Q2c). `trigger.update` treats it as a dictionary. Make it a dataclass that owns its state, with the plugin's indexes derived from it. |
 | 6 | **Parallel indexes that only grow** | `regexes`, `regex_lookup_to_id`, `trigger_groups` | Yes | **Change (TR-4, TR-10).** Nothing removes an entry (Q2c, Q2e). |
-| 7 | **Silent failures**: log an error and return `False` or `None`; no exception | `_api_trigger_add`, `_api_trigger_update`, `_api_trigger_remove`, `_api_trigger_toggle_enable`, `_api_trigger_toggle_omit`, `_api_group_toggle_enable`, `rebuild_regexes` | No | **Change (TR-5, TR-9).** `AGENTS.md` asks for an error with context. Three shapes are in use: `False`, `None` with a log, and nothing at all (an unknown group). `rebuild_regexes` is the costly one: the caller is told the add worked. Two APIs raise `KeyError` by accident instead (`trigger.register`, `trigger.unregister`). |
-| 8 | **Catch-all `except Exception`** around `re.compile` | `_api_trigger_add`, `_api_trigger_update` | Yes | **Change (TR-9), small.** Catch `re.error`, as `rebuild_regexes` does. |
-| 9 | **Import-time side effect**: `print` and `sys.exit(1)` when `regex` is missing | module top of `_triggers.py` | No other plugin file was checked | **Change (TR-9).** `regex` is a declared dependency; an `ImportError` from the import says the same thing without ending the process from inside an import. |
-| 10 | **`print` for an error** | `_api_trigger_add` (no owner) | No | **Change (TR-9).** `_api_trigger_remove` logs the same condition. |
+| 7 | **Silent failures**: log an error and return `False` or `None`; no exception | `_api_trigger_add`, `_api_trigger_update`, `_api_trigger_remove`, `_api_trigger_toggle_enable`, `_api_trigger_toggle_omit`, `_api_group_toggle_enable`, `rebuild_regexes` | No | **Change (TR-5, TR-9; fixed by #354).** `AGENTS.md` asks for an error with context. Three shapes are in use: `False`, `None` with a log, and nothing at all (an unknown group). `rebuild_regexes` is the costly one: the caller is told the add worked. Two APIs raise `KeyError` by accident instead (`trigger.register`, `trigger.unregister`). |
+| 8 | **Catch-all `except Exception`** around `re.compile` | `_api_trigger_add`, `_api_trigger_update` | Yes | **Change (TR-9; fixed by #354), small.** Catch `re.error`, as `rebuild_regexes` does. |
+| 9 | **Import-time side effect**: `print` and `sys.exit(1)` when `regex` is missing | module top of `_triggers.py` | No other plugin file was checked | **Change (TR-9; fixed by #354).** `regex` is a declared dependency; an `ImportError` from the import says the same thing without ending the process from inside an import. |
+| 10 | **`print` for an error** | `_api_trigger_add` (no owner) | No | **Change (TR-9; fixed by #354).** `_api_trigger_remove` logs the same condition. |
 | 11 | **Service locator through string API names** | 29 `self.api(...)` calls; `TriggerItem` builds its own `API(owner_id=...)` | Yes | **Keep.** The project-wide trade covered by the plugin audit ([Plugin System Findings](plugin_system_findings.md)) and the API audit. `TriggerItem` needing an `API` object only to raise one event is tight coupling, and it is why the tests replace `item.api`; TR-14 passes the raise function in. |
 | 12 | **Tight coupling to event order**: unload cleanup works because the events plugin runs first at the same priority | `_eventcb_plugin_unloaded`, `_api_trigger_remove_for_owner` | n/a | **Change (TR-8).** Pass `force=True` from `trigger.remove.for.owner`, so the cleanup does not depend on registration order. |
 | 13 | **String paths instead of `Path`** | none | n/a | **Keep.** The package touches no path. |
@@ -867,7 +867,7 @@ for a built-in and make `list` show it.
 
 ### TR-9: The trigger APIs report errors in four different ways
 
-**Status:** open
+**Status:** fixed by #354 (contract: log at ERROR through `log_to`, return `False`, never raise; `trigger.add` returns `(True, item)` or `(False, None)`)
 **Issue:** #354
 **Location:** `TriggersPlugin._api_trigger_add` (returns `False` or a tuple; `print` when no owner; dead
 `args["event_name"]`; `except Exception`); `_api_trigger_register`, `_api_trigger_unregister` (`KeyError`);
@@ -880,8 +880,8 @@ the `event_name` parameter; catch `re.error`; let a missing `regex` raise `Impor
 
 > **Proposed issue (refactor):** `refactor: give the trigger APIs one error contract`
 >
-> **Current Code Issue:** `trigger.add` returns `(True, item)` or a bare `False`, so `success, trigger = ...`
-> raises `TypeError` on failure. `trigger.register` and `trigger.unregister` raise `KeyError` for an unknown
+> **Current Code Issue:** `trigger.add` returned `(True, item)` or a bare `False`, so `success, trigger = ...`
+> raised `TypeError` on failure (it now returns `(False, None)`). `trigger.register` and `trigger.unregister` raise `KeyError` for an unknown
 > trigger. The toggles log and return `None`; an unknown group is silent. `trigger.add` prints when it finds no
 > owner, computes an `event_name` that `TriggerItem` ignores, and catches `Exception` around `re.compile`. The
 > module calls `sys.exit(1)` at import when `regex` is missing.
@@ -1027,5 +1027,6 @@ the combination.
   `False`. The comments on `trigger_groups` ("a list of trigger_names") and `rebuild_regexes` ("Rebuild a regex
   for priority") do not describe the code (**read**).
 - **The shipped example plugin** `src/bastproxy/plugins/test/triggers/plugin/_triggerex.py` unpacks the result
-  of `trigger.add` and so raises `TypeError` in `initialize` if the add fails, for example on a second
-  initialize after an unload that left the trigger behind (**read**; TR-8, TR-9).
+  of `trigger.add` and so raised `TypeError` in `initialize` if the add failed, for example on a second
+  initialize after an unload that left the trigger behind (**read**; TR-8, TR-9). Fixed by #354: it checks the
+  success flag first (a failed add returns `(False, None)`, so the unpack is safe).

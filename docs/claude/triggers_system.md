@@ -33,7 +33,7 @@ class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex,
                  enabled=True, group=None, omit=False, priority=100,
                  stopevaluating=False, argtypes=None, matchcolor=False,
-                 trigger_id=None, event_name=None, original_regex_compiled=None, order=0):
+                 trigger_id=None, original_regex_compiled=None, order=0):
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
         self.enabled = enabled                      # Set at creation; trigger.toggle.enable updates it (TR-2)
         self.owner_id = owner_id
@@ -51,7 +51,7 @@ class TriggerItem:
         self.order = order                          # Counter set when the trigger is added; breaks priority ties
         self.hits = 0
         self.trigger_id = trigger_id                # "t_<owner_id>_<trigger_name>"
-        self.event_name = f"event_{self.trigger_id}"  # The event_name argument is ignored
+        self.event_name = f"event_{self.trigger_id}"  # Not a parameter (removed by #354)
 ```
 
 `raisetrigger(args)` counts a hit, sets `args["line"].sendtoclients = False` when `omit` is set, writes `trigger_name` and `trigger_id` into `args` and raises `event_name` with `args` as the event data.
@@ -110,7 +110,7 @@ self.api("plugins.core.triggers:trigger.add")(
 )
 ```
 
-`trigger.add` returns `(True, trigger_item)` on success and a bare `False` on failure (a name the owner already uses, a regex that does not compile, no owner found), so `success, trigger = ...` raises `TypeError` on a failure (TR-9). The regex is matched with `match`, so it must match from the first character of the line: `You hit .* for (?P<damage>\d+) damage` above does not match `[combat] You hit orc for 5 damage`. Start a pattern with `.*` to match anywhere in the line.
+`trigger.add` returns `(True, trigger_item)` on success and `(False, None)` on every failure (a name the owner already uses, a regex that does not compile, no owner found, an unknown keyword), logging an error with the reason, so `success, trigger = ...` never raises; check `success` before using `trigger` (TR-9, #354). The regex is matched with `match`, so it must match from the first character of the line: `You hit .* for (?P<damage>\d+) damage` above does not match `[combat] You hit orc for 5 damage`. Start a pattern with `.*` to match anywhere in the line.
 
 ### 2. Responding to Triggers
 
@@ -171,16 +171,18 @@ What follows from this:
 
 ## Common APIs
 
-- `plugins.core.triggers:trigger.add` - Add a trigger; returns `(True, trigger_item)` or `False`
+- `plugins.core.triggers:trigger.add` - Add a trigger; returns `(True, trigger_item)`, or `(False, None)` with an error logged (duplicate, no owner, regex that does not compile, unknown keyword)
 - `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. A trigger without a regex (a built-in) is removed without error
-- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns False for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
-- `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None`
-- `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Raises `KeyError` for an unknown trigger (TR-9)
-- `plugins.core.triggers:trigger.unregister` - Unregister a callback; the same `KeyError`
+- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns `True`, or `False` with an error logged for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
+- `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None` (a query: nothing is logged)
+- `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Returns `True`, or `False` with an error logged for an unknown trigger (TR-9, #354)
+- `plugins.core.triggers:trigger.unregister` - Unregister a callback; returns `True`, or `False` with an error logged for an unknown trigger
 - `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and put the trigger into, or take it out of, the matching order (it keeps its place). Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
-- `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag
-- `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); an unknown group returns `None` without a message
-- `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (`force=True`; a failing removal is logged and the rest still go, TR-8, #353)
+- `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag; returns `True`, or `False` with an error logged for an unknown trigger
+- `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); returns `True`, or `False` with an error logged for an unknown group (#354)
+- `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (`force=True`; a failing removal is logged and the rest still go, TR-8, #353; returns `False` if any removal failed, #354)
+
+**Error contract (#354):** an API that is given something it cannot act on logs an error at ERROR through `log_to` and returns `False`; it does not raise. Success is `True`, except `trigger.get`, which returns the item, and `trigger.add`, which always returns a 2-tuple: `(True, item)` or `(False, None)`.
 
 The name-taking APIs build the trigger id from the name and the owner; without `owner_id` the owner is the calling plugin.
 
@@ -387,7 +389,7 @@ def update_stats(self):
 1. **Efficient Patterns**: Use specific patterns that start with literal text; avoid `.*` catchalls
 2. **Named Groups**: Use named groups for clarity. Backreferences (`\1`, `(?P=name)`) work, as each trigger has its own regex
 3. **Type Conversion**: Specify `argtypes` for numeric values, groups that may not take part in the match are left `None`; every other group must hold a value the type accepts, or the trigger fails and is logged (TR-7)
-4. **Error Handling**: Handle missing groups gracefully, and check the result of `trigger.add` before unpacking it
+4. **Error Handling**: Handle missing groups gracefully, and check `success` from `trigger.add` before using the trigger
 5. **Cleanup**: A plugin's triggers are removed when it is unloaded; no `uninitialize` code is needed for that. A callback may remove a trigger, including its own; matching walks a copy
 6. **Testing**: Test regex patterns thoroughly, against the start of the line
 7. **Groups**: `group.toggle.enable` toggles every trigger in a group
