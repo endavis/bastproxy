@@ -123,6 +123,10 @@ class TriggersPlugin(BasePlugin):
         self._ordered: list = []
         self._next_order = 0
 
+        # Mirror of the "enabled" setting, kept current by _eventcb_enabled_modify
+        # so the per-line check does not pay for a setting.get
+        self._matching_enabled = True
+
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
         """Initialize the plugin."""
@@ -136,19 +140,9 @@ class TriggersPlugin(BasePlugin):
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self):
-        """Setup the plugin on setting change."""
+        """Cache the enabled setting; the settings plugin raises this at load and on change."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
-            change = event_record["newvalue"]
-            if change:
-                self.api("plugins.core.events:event.register")(
-                    "ev_libs.net.mud_from_mud_event",
-                    self._eventcb_check_trigger,
-                    prio=1,
-                )
-            else:
-                self.api("plugins.core.events:event.unregister")(
-                    "ev_libs.net.mud_from_mud_event", self._eventcb_check_trigger
-                )
+            self._matching_enabled = bool(event_record["newvalue"])
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
@@ -601,6 +595,9 @@ class TriggersPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self):
         """Check a line of text from the mud to see if it matches any triggers."""
+        if not self._matching_enabled:
+            return
+
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
