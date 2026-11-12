@@ -45,6 +45,7 @@ Terminate MUD telnet protocols at the proxy (option 2).
 - **MCCP:** each link negotiates compression on its own. Compression to the MUD does not depend on compression to any client.
 - **MSSP:** the proxy keeps the MUD's MSSP data. It answers clients' MSSP requests itself.
 - **MXP:** the proxy passes MXP tags to clients that negotiated MXP, and strips them for clients that did not. MXP is the lowest priority.
+- **NAWS:** the MUD link reports one window size: by default the size of the most recently active full-login client that reported one, overridable with the `mudwindowsize` setting (`client`, `off` or `COLSxROWS`). The terminal type is not forwarded and stays `bastproxy` ([data flow](../claude/data_flow.md)).
 - **SGA and prompt marking:** the proxy refuses SGA from the MUD (`WILL SGA` gets `DONT SGA`), so the MUD keeps sending `IAC GA` after prompts and the proxy marks them ([data flow](../claude/data_flow.md)). Whether a client agreed SGA is decided on the client link on its own (#272).
 
 ## Rationale
@@ -80,6 +81,7 @@ Evennia offered WILL for SGA, MCCP2, MSSP, MSDP, GMCP and MXP and never WILL EOR
 - Issue #271: Decide whether the proxy accepts SGA from the MUD
 - Issue #272: Send a prompt signal (EOR, else GA) to clients
 - Issue #329: Offer MCCP3 on client links
+- Issue #308: Forward the client's window size to the MUD
 
 ## Related Documentation
 

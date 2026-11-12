@@ -333,3 +333,50 @@ def test_mccp2_disabled_by_default_without_init() -> None:
 async def test_proxy_offers_eor(ttype: bytes) -> None:
     result = await _run(ttype)
     assert (WILL, EOR) in result.cmds
+
+
+def test_server_on_naws_marks_the_size_as_reported() -> None:
+    """The flag tells the window size forwarder the size is real (#308)."""
+    server = object.__new__(CustomTelnetServer)
+    server._extra = {"rows": 25, "cols": 80}
+    assert server.naws_reported is False
+    server.on_naws(40, 100)
+    assert server.naws_reported is True
+    assert (server._extra["rows"], server._extra["cols"]) == (40, 100)
+
+
+def test_server_on_naws_calls_the_hook_and_survives_its_failure() -> None:
+    server = object.__new__(CustomTelnetServer)
+    server._extra = {"rows": 25, "cols": 80}
+    calls: list[str] = []
+    server.on_naws_cb = lambda: calls.append("hook")
+    server.on_naws(40, 100)
+    assert calls == ["hook"]
+
+    def boom() -> None:
+        raise RuntimeError("boom")
+
+    server.on_naws_cb = boom
+    server.on_naws(41, 101)  # does not raise
+    assert server.naws_reported is True
+
+
+def test_client_connection_sets_the_hook_and_the_hook_forwards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bastproxy.libs.net import client as client_module
+
+    forwarder = MagicMock()
+    monkeypatch.setattr(client_module, "WINDOW_SIZE", forwarder)
+    conn = object.__new__(ClientConnection)
+    conn.telnet_server = MagicMock()
+    conn.telnet_server.on_naws_cb = None
+    conn.telnet_server.on_naws_cb = conn._on_naws
+    conn.telnet_server.on_naws_cb()
+    forwarder.client_resized.assert_called_once_with(conn)
+
+
+def test_client_naws_reported_is_false_without_a_server() -> None:
+    conn = object.__new__(ClientConnection)
+    conn.telnet_server = None
+    assert conn.naws_reported is False

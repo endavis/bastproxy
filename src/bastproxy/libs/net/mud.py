@@ -50,6 +50,7 @@ from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import echo_off_placeholder, get_logger
 from bastproxy.libs.net.inflate import BoundedDecompressor
+from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
 from bastproxy.libs.net.protocols import PROTOCOLS
 
@@ -98,6 +99,7 @@ class MudConnection:
         self.reader: MudTelnetReader | None = None
         self.writer: TelnetWriterUnicode | None = None
         self.max_lines_to_process = 15
+        # not forwarded from the client: the terminal type stays the proxy's own (#308)
         self.term_type = "bastproxy"
 
     async def connect_to_mud(self) -> None:
@@ -349,6 +351,7 @@ class MudConnection:
         self.reader = reader
         self.writer = writer
         PROTOCOLS.mud_connected(writer)
+        WINDOW_SIZE.mud_connected(writer)
         # milliseconds in the setting; a change applies to the next connection
         reader.line_timeout = (
             self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "mudlinewait")
@@ -372,6 +375,7 @@ class MudConnection:
                 task.cancel()
         finally:
             PROTOCOLS.mud_disconnected()
+            WINDOW_SIZE.mud_disconnected()
 
         self.connected = False
 
@@ -542,7 +546,14 @@ class MudTelnetClient(TelnetClient):
     - ``WONT MCCP3`` from the MUD never stops its compression of our writes.
 
     SGA is refused (``DONT SGA``) so the MUD keeps sending ``IAC GA`` after prompts (#271).
+
+    ``send_naws`` answers ``DO NAWS`` with the size ``WINDOW_SIZE`` chose (#308); later changes
+    are sent by ``WINDOW_SIZE`` itself with ``send_iac``.
     """
+
+    def send_naws(self) -> tuple[int, int]:
+        """Return (rows, cols) for the reply to ``DO NAWS`` (#308)."""
+        return WINDOW_SIZE.mud_reply()
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the client with no MCCP2 failure."""

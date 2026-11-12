@@ -8,6 +8,7 @@ is a raw TCP server standing in for a MUD that records the bytes it receives.
 """
 
 import asyncio
+import struct
 import zlib
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
@@ -22,6 +23,7 @@ from telnetlib3.telopt import (
     MCCP2_COMPRESS,
     MSDP,
     MSSP,
+    NAWS,
     SB,
     SE,
     TTYPE,
@@ -30,6 +32,7 @@ from telnetlib3.telopt import (
 )
 
 from bastproxy.libs.net.client import ClientConnection
+from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.net.server import create_server
 
@@ -47,6 +50,25 @@ async def wait_until(predicate: Callable[[], bool]) -> None:
 def sb_frame(option: bytes, payload: bytes) -> bytes:
     """Frame ``payload`` as ``IAC SB option ... IAC SE``, escaping IAC bytes."""
     return IAC + SB + option + payload.replace(IAC, IAC + IAC) + IAC + SE
+
+
+def naws_frames(data: bytes) -> list[tuple[int, int]]:
+    """Return the (cols, rows) of every ``IAC SB NAWS ... IAC SE`` in ``data``, IAC unescaped."""
+    sizes: list[tuple[int, int]] = []
+    start = IAC + SB + NAWS
+    i = data.find(start)
+    while i != -1:
+        end = data.find(IAC + SE, i)
+        # an escaped IAC (0xFF 0xFF) inside the payload must not end the frame early
+        while end != -1 and data[i + 3 : end].replace(IAC + IAC, b"").endswith(IAC):
+            end = data.find(IAC + SE, end + 1)
+        if end == -1:
+            break
+        payload = data[i + 3 : end].replace(IAC + IAC, IAC)
+        if len(payload) == 4:
+            sizes.append(struct.unpack("!HH", payload))
+        i = data.find(start, end)
+    return sizes
 
 
 class ScriptedClient:
@@ -229,11 +251,13 @@ class ProxyServer:
         conn.state["logged in"] = True
         conn.view_only = view_only
         PROTOCOLS.client_ready(conn)
+        WINDOW_SIZE.client_ready(conn)
         return conn
 
     def logout(self, index: int) -> None:
         """Tell the protocol manager the i-th connection is gone."""
         PROTOCOLS.client_gone(self.connections[index])
+        WINDOW_SIZE.client_gone(self.connections[index])
 
     async def shell(self, reader: Any, writer: Any) -> None:
         """Write queued text to the client until told to stop."""

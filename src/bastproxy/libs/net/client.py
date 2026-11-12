@@ -58,6 +58,7 @@ from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import echo_off_placeholder, get_logger, input_placeholder
 from bastproxy.libs.net import mxp, telnet
+from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
     NetworkData,
@@ -119,6 +120,18 @@ class ClientConnection:
         # the lower-cased modules and versions from the client's Core.Supports (#59)
         self.gmcp_modules: dict[str, int] = {}
         self._wire_oob()
+        if self.telnet_server is not None:
+            # a size reported before this connection existed is already stored on the server
+            self.telnet_server.on_naws_cb = self._on_naws  # type: ignore[attr-defined]
+
+    def _on_naws(self) -> None:
+        """Offer the client's new size to the MUD link (#308)."""
+        WINDOW_SIZE.client_resized(self)
+
+    @property
+    def naws_reported(self) -> bool:
+        """Return True once the client has reported a window size over NAWS."""
+        return bool(getattr(self.telnet_server, "naws_reported", False))
 
     def _wire_oob(self) -> None:
         """Hand this link's GMCP, MSDP and MSSP to the protocol manager (#59)."""
@@ -148,6 +161,7 @@ class ClientConnection:
             PROTOCOLS.client_ready(self)
         except Exception:
             logger.exception("Could not start GMCP, MSDP and MSSP for client %s", self.uuid)
+        WINDOW_SIZE.client_ready(self)
 
     @property
     def rows(self) -> int:
@@ -155,7 +169,7 @@ class ClientConnection:
 
         telnetlib3 stores the value in the writer's extra info and updates it
         when the client answers NAWS. Until then it is telnetlib3's server
-        default, 25 rows.
+        default, 25 rows. The active client's size is forwarded to the MUD (#308).
 
         Returns:
             The number of rows.
@@ -169,7 +183,7 @@ class ClientConnection:
 
         telnetlib3 stores the value in the writer's extra info and updates it
         when the client answers NAWS. Until then it is telnetlib3's server
-        default, 80 columns.
+        default, 80 columns. The active client's size is forwarded to the MUD (#308).
 
         Returns:
             The number of columns.
@@ -489,6 +503,7 @@ class ClientConnection:
             if self.view_only:
                 self.process_data_from_view_only_client(inp)
             else:
+                WINDOW_SIZE.client_input(self)
                 # this is where we start processing data
                 data_line = NetworkDataLine(inp.rstrip("\r\n"), originated=Originated.CLIENT)
                 data_line.mask_log = echo_off
@@ -626,6 +641,7 @@ async def unregister_client(connection) -> None:
         PROTOCOLS.client_gone(connection)
     except Exception:
         logger.exception("Could not clean up GMCP, MSDP and MSSP for client %s", connection.uuid)
+    WINDOW_SIZE.client_gone(connection)
 
     logger.debug("unregister_client - Unregistered client %s", connection.uuid)
 

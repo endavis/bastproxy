@@ -31,7 +31,7 @@ Functions:
 
 # Standard Library
 import zlib
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 # 3rd Party
@@ -95,6 +95,20 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     _mccp3_in: int = 0
     #: What those bytes inflated to.
     _mccp3_out: int = 0
+    #: True once the client has sent an ``SB NAWS``, so its rows and cols are real (#308).
+    naws_reported: bool = False
+    #: Called after each reported size; ``ClientConnection`` sets it to forward the size (#308).
+    on_naws_cb: Callable[[], None] | None = None
+
+    def on_naws(self, rows: int, cols: int) -> None:
+        """Store the client's window size, note it was reported and tell the connection (#308)."""
+        super().on_naws(rows, cols)
+        self.naws_reported = True
+        if self.on_naws_cb is not None:
+            try:
+                self.on_naws_cb()
+            except Exception:
+                logger.exception("Could not pass on the client's window size")
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the server, defaulting to the writer that records negotiation (#83)."""
@@ -107,7 +121,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         Replaces telnetlib3's implementation and does not call it. Sent here:
 
         - ``DO NAWS``, so the client reports its window size (telnetlib3 stores
-          it as the ``rows`` and ``cols`` extra info, see ``ClientConnection``).
+          it as the ``rows`` and ``cols`` extra info, see ``ClientConnection``); the size feeds
+          the window size forwarded to the MUD (#308).
         - ``WILL BINARY``, so the proxy may send 8-bit data (utf8) to the client.
         - ``WILL MXP``, so a client can take the MUD's MXP markup; a client without MXP gets the
           text with the markup stripped (#61).

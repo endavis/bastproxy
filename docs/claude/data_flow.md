@@ -130,6 +130,16 @@ MXP markup is ordinary text in the data stream, so the proxy passes it to a clie
 - **Triggers:** `noansi` and `colorcoded` strip MXP first, so triggers, `matchcolor` ones included, see text without tags. A plugin that writes `noansi` text back into `line` drops the MXP markup.
 - **Known gaps:** a tag split over two lines is not handled (stripping is per line, and an unclosed `<` stays literal); custom entities are not decoded; a late joiner gets the MUD's default mode and its stored definitions (see Definitions above).
 
+### Window size (NAWS) (#308)
+
+The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/bastproxy/libs/net/naws.py`), which outlives each `MudConnection`.
+
+- **Rule:** the active client is the eligible client that most recently sent input. Eligible means connected, logged in with the full password (view-only logins never count) and having reported a real size over NAWS (`CustomTelnetServer.naws_reported`; a 0 column or 0 row size is ignored). A successful full login counts as activity. Any client's resize is stored; a size is sent only when it differs from the last size sent on the current MUD link.
+- **Fallback:** when the active client disconnects, the next most recently active eligible client takes over. With none left, the last size sent stays.
+- **Setting:** `plugins.core.proxy` `mudwindowsize`: `client` (default, the rule above), `off` (telnetlib3's 80x25) or `COLSxROWS` (pinned, 1 to 65535 each). An invalid value logs a warning and acts as `client`. The plugin pushes it in with `WINDOW_SIZE.set_mode`.
+- **Wiring:** `MudTelnetClient.send_naws` answers `DO NAWS` with `WINDOW_SIZE.mud_reply()`; later changes are built as `IAC SB NAWS ... IAC SE` and sent with the public `send_iac` while NAWS is enabled on the MUD link. `ClientConnection` reports login (`client_ready`), input (`client_input`), a resize through `CustomTelnetServer.on_naws_cb` (`client_resized`) and disconnect (`client_gone`).
+- **Terminal type:** not forwarded. `MudConnection.term_type` stays `bastproxy`, so the MUD sees the proxy's own terminal, whatever the clients are.
+
 ### MudConnection
 
 `src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD. `connected` starts `False` and `mud_telnet_handler` sets it `True` when the connection opens.
@@ -137,6 +147,7 @@ MXP markup is ordinary text in the data stream, so the proxy passes it to a clie
 | Method | Description |
 |--------|-------------|
 | `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=True`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
+| `mud_telnet_handler()` | Also tells `WINDOW_SIZE` when the MUD link opens (`mud_connected`) and closes (`mud_disconnected`); see Window size (NAWS) |
 | `setup_mud()` | Drains the MUD writer after the connection opens |
 | `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
