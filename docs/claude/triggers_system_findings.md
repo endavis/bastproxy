@@ -73,7 +73,7 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 
 **Key Findings:**
 
-- 14 proposed issues: 11 defects (TR-1 to TR-11), a test gap (TR-12), a benchmark (TR-13) and the design
+- 14 proposed issues: 11 defects (TR-1 to TR-11), a test gap (TR-12), a benchmark (TR-13, fixed by #358) and the design
   change (TR-14). Each is filed as its own issue, #346 to #359; each entry under [New Defects](#new-defects)
   links its issue and keeps the body it was filed with.
 - The code disagreed with [Triggers System](triggers_system.md) in 17 places; the page is corrected for all of
@@ -416,6 +416,23 @@ cost at most; the event raises are the cost (TR-8).
 Adding N triggers one by one, as plugins do, therefore costs N growing compiles: 0.01 s for 10, 0.48 s for 100
 and **46.57 s for 1,000**, during which the event loop is blocked. The 5,000 case was not run (TR-10).
 
+**The same quantities on the per-trigger matcher** (#358, TR-13). `tests/benchmarks/test_bench_trigger_match.py`
+measures the Q4 quantities on the matcher that replaced the combined pattern (#359, ADR-0007), through the real
+`TriggersPlugin` on the stub harness. Microseconds per line, from two runs that agreed within about 10%; the
+event raise is a recording stub, as in the table above.
+
+| Enabled triggers | Line matches nothing | Matches the first trigger | Matches the last trigger |
+| ---: | ---: | ---: | ---: |
+| 10 | 5.4 | 7.7 | 6.6 |
+| 100 | 26.6 | 32.5 | 26.5 |
+| 1,000 | 256 | 302 | 237 |
+
+Adding 100 triggers one by one took about 1.2 ms in total (the median round was about 0.6 ms), against 0.48 s
+with the combined pattern. The figures are not the old ones: the matcher is a different one, so a non-matching
+line now costs about 4 times more at 100 triggers (26.6 us against 6.0 us), while a matching line costs about the same as before at 100 triggers (32.5 us against 31.1 us). Reproduce them with
+`BASTPROXY_HOME=$PWD uv run pytest tests/benchmarks/test_bench_trigger_match.py --benchmark-enable --benchmark-only -v`;
+each timed call runs 20 lines, so divide the reported mean by 20. The benchmark has no threshold.
+
 ---
 
 ## Q5: What Is Untested?
@@ -626,7 +643,7 @@ Reasons:
 - It needs no new dependency.
 - Alternative (ii) is the follow-up if a benchmark with a real trigger set shows (i) is too slow at the sizes
   people run: it is an index in front of (i), not a different design. It should not be built before the
-  benchmark exists (TR-13).
+  benchmark exists (TR-13, now `tests/benchmarks/test_bench_trigger_match.py`).
 - `google-re2` is not recommended now: it cannot run every regex, it adds a second dialect, and at realistic
   sizes matching is not where the time goes. Whether a linear-time engine is wanted for other reasons is part
   of the private follow-up to Q4, and would need the owner's approval as a dependency.
@@ -960,9 +977,9 @@ event; the fixes for TR-1 to TR-11 bring their own regression tests.
 
 ### TR-13: There is no trigger benchmark
 
-**Status:** open
+**Status:** fixed by #358
 **Issue:** #358
-**Location:** `tests/benchmarks/` (no trigger file).
+**Location:** `tests/benchmarks/test_bench_trigger_match.py`.
 **Evidence (read):** the directory has benchmarks for the API, events, records, logging and
 `NetworkDataLine`, and none for triggers. The Q4 and Q8 figures come from scratch scripts.
 **Fix:** a benchmark of the per-line matching cost at several trigger counts and of adding N triggers.
