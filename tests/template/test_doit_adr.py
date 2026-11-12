@@ -503,3 +503,228 @@ class TestOpenEditorWithTemplate:
             assert _open_editor_with_template("body") is None
 
         assert f"Opening {editor}..." in _ANSI.sub("", capsys.readouterr().out).splitlines()
+
+
+_README = """# Architecture Decision Records
+
+## Index
+
+### Template-meta ADRs (9XXX)
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [9001](9001-first.md) | First | Accepted |
+
+### Project-level ADRs (0001+)
+
+| ADR | Title | Status |
+|-----|-------|--------|
+
+_(No project-level ADRs yet.)_
+"""
+
+_MKDOCS = """site_name: Demo
+nav:
+  - Home: index.md
+  - Decisions:
+      - Overview: decisions/README.md
+      # keep this comment
+      - ADR-9001 First: decisions/9001-first.md
+  - Reference:
+      - API: reference/api.md
+"""
+
+
+class _RegisterBase:
+    """A repo-shaped tree under tmp_path, with ``ADR_DIR`` pointed at it (#1245)."""
+
+    @staticmethod
+    def _repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        adr_dir = tmp_path / "docs" / "decisions"
+        adr_dir.mkdir(parents=True)
+        (adr_dir / "README.md").write_text(_README, encoding="utf-8")
+        (adr_dir / "9001-first.md").write_text("# ADR-9001: First\n", encoding="utf-8")
+        (tmp_path / "mkdocs.yml").write_text(_MKDOCS, encoding="utf-8")
+        monkeypatch.setattr(adr_module, "ADR_DIR", adr_dir)
+        return adr_dir
+
+    @staticmethod
+    def _run(capsys: pytest.CaptureFixture[str], **kwargs: str | bool) -> str:
+        kwargs.setdefault("title", "Use Redis")
+        adr_module.task_adr()["actions"][0](**kwargs)
+        return _ANSI.sub("", capsys.readouterr().out)
+
+    @staticmethod
+    def _nav(tmp_path: Path) -> list[Any]:
+        data = yaml.safe_load((tmp_path / "mkdocs.yml").read_text(encoding="utf-8"))
+        (entry,) = (e for e in data["nav"] if isinstance(e, dict) and "Decisions" in e)
+        return list(entry["Decisions"])
+
+
+class TestBodyHeadingPlaceholder(_RegisterBase):
+    """A body's `# ADR-...` heading is replaced whatever follows `ADR-` (#1245)."""
+
+    @pytest.mark.parametrize(
+        "heading", ["# ADR-NNNN: Repro title", "# ADR-0042: Old"], ids=["placeholder", "old-number"]
+    )
+    @pytest.mark.parametrize("via", ["body", "body_file"])
+    def test_heading_is_numbered(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        heading: str,
+        via: str,
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        text = f"{heading}\n\n{_VALID_BODY}"
+        if via == "body":
+            self._run(capsys, template=True, body=text)
+        else:
+            f = tmp_path / "b.md"
+            f.write_text(text, encoding="utf-8")
+            self._run(capsys, template=True, body_file=str(f))
+
+        adr = (adr_dir / "9002-use-redis.md").read_text(encoding="utf-8")
+        assert "# ADR-9002: Use Redis\n" in adr
+        assert "ADR-NNNN" not in adr
+        assert "ADR-0042" not in adr
+
+    def test_backslash_title_is_kept(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        self._run(
+            capsys, title=r"Use C:\temp", template=True, body=f"# ADR-NNNN: x\n\n{_VALID_BODY}"
+        )
+
+        (adr,) = adr_dir.glob("9002-*.md")
+        assert "# ADR-9002: Use C:\\temp\n" in adr.read_text(encoding="utf-8")
+
+
+class TestRegisterInIndexAndNav(_RegisterBase):
+    """`doit adr` adds the ADR to the README index and the mkdocs nav (#1245)."""
+
+    def test_template_adr(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        self._run(capsys, template=True, body=_VALID_BODY.replace("Accepted", "Proposed"))
+
+        readme = (adr_dir / "README.md").read_text(encoding="utf-8")
+        assert (
+            "| [9001](9001-first.md) | First | Accepted |\n"
+            "| [9002](9002-use-redis.md) | Use Redis | Proposed |\n"
+        ) in readme
+        assert readme.endswith("_(No project-level ADRs yet.)_\n")
+        assert self._nav(tmp_path)[-1] == {"ADR-9002 Use Redis": "decisions/9002-use-redis.md"}
+
+    def test_project_adr_replaces_placeholder_and_sorts_in_nav(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        self._run(capsys, body=_VALID_BODY)
+
+        readme = (adr_dir / "README.md").read_text(encoding="utf-8")
+        assert "No project-level ADRs yet" not in readme
+        assert readme.endswith(
+            "|-----|-------|--------|\n| [0001](0001-use-redis.md) | Use Redis | Accepted |\n"
+        )
+        assert "| [9001](9001-first.md) | First | Accepted |\n\n###" in readme
+        nav = self._nav(tmp_path)
+        assert [next(iter(e.values())) for e in nav] == [
+            "decisions/README.md",
+            "decisions/0001-use-redis.md",
+            "decisions/9001-first.md",
+        ]
+        mkdocs = (tmp_path / "mkdocs.yml").read_text(encoding="utf-8")
+        assert "# keep this comment" in mkdocs
+        data = yaml.safe_load(mkdocs)
+        assert [next(iter(e)) for e in data["nav"]] == ["Home", "Decisions", "Reference"]
+
+    def test_title_with_colon_is_quoted_and_pipe_escaped(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        self._run(capsys, title="Use a | b: fast", template=True, body=_VALID_BODY)
+
+        assert "| Use a \\| b: fast |" in (adr_dir / "README.md").read_text(encoding="utf-8")
+        assert self._nav(tmp_path)[-1] == {
+            "ADR-9002 Use a | b: fast": "decisions/9002-use-a-b-fast.md"
+        }
+
+    def test_editor_mode_registers_too(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(adr_module, "_open_editor_with_template", lambda _t: _VALID_BODY)
+        self._run(capsys, template=True)
+
+        assert "9002-use-redis.md" in (adr_dir / "README.md").read_text(encoding="utf-8")
+        assert "9002-use-redis.md" in (tmp_path / "mkdocs.yml").read_text(encoding="utf-8")
+
+    def test_existing_entries_are_not_duplicated(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        readme, mkdocs = adr_dir / "README.md", tmp_path / "mkdocs.yml"
+        for _ in range(2):
+            assert adr_module._add_to_index(
+                readme, 9001, "First", "9001-first.md", "Accepted", True
+            )
+            assert adr_module._add_to_nav(mkdocs, 9001, "First", "decisions/9001-first.md")
+
+        assert readme.read_text(encoding="utf-8") == _README
+        assert mkdocs.read_text(encoding="utf-8") == _MKDOCS
+
+
+class TestRegisterFallbacks(_RegisterBase):
+    """An unplaceable entry leaves its file untouched and gets a reminder (#1245)."""
+
+    def test_both_files_missing(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = tmp_path / "docs" / "decisions"
+        monkeypatch.setattr(adr_module, "ADR_DIR", adr_dir)
+        out = "".join(self._run(capsys, template=True, body=_VALID_BODY).split())
+
+        # Rich folds a long path across lines, so compare with the whitespace removed.
+        assert f"CouldnotupdatetheADRindex{adr_dir / 'README.md'}" in out
+        assert f"Couldnotupdatethenavin{tmp_path / 'mkdocs.yml'}" in out
+        assert (adr_dir / "9001-use-redis.md").exists()
+
+    def test_missing_series_table_and_decisions_nav(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        adr_dir = self._repo(tmp_path, monkeypatch)
+        readme, mkdocs = adr_dir / "README.md", tmp_path / "mkdocs.yml"
+        readme.write_text("# ADRs\n\n## Index\n\nNothing here.\n", encoding="utf-8")
+        mkdocs.write_text("site_name: Demo\nnav:\n  - Home: index.md\n", encoding="utf-8")
+        before = (readme.read_bytes(), mkdocs.read_bytes())
+
+        out = "".join(self._run(capsys, template=True, body=_VALID_BODY).split())
+
+        assert (readme.read_bytes(), mkdocs.read_bytes()) == before
+        assert "CouldnotupdatetheADRindex" in out
+        assert "Couldnotupdatethenavin" in out

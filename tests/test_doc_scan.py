@@ -17,9 +17,7 @@ def _write_exclude_file(project_root: Path, patterns: list[str]) -> None:
 
 
 def _git(args: list[str], cwd: Path) -> None:
-    subprocess.run(  # nosec B603 B607  # fixed argv, no shell, test fixture only
-        ["git", *args], cwd=cwd, check=True, capture_output=True
-    )
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
 
 
 def _init_repo(root: Path) -> None:

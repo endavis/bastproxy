@@ -220,7 +220,7 @@ def _repo_has_version_tags() -> bool:
     (``0.1.0``) and drops the ``--prerelease`` flag, producing a
     production PR when a pre-release was requested (issue #448).
     """
-    result = subprocess.run(  # nosec B603 B607
+    result = subprocess.run(
         ["git", "tag", "--list", "v*"],
         capture_output=True,
         text=True,
@@ -724,7 +724,17 @@ def task_release() -> dict[str, Any]:
             console.print("[green]✓ CHANGELOG.md written by the version bump.[/green]")
         else:
             try:
-                changelog_cmd = ["uv", "run", "cz", "changelog", "--incremental"]
+                # --unreleased-version names the new section's heading; without it
+                # commitizen writes the unreleased commits under "## Unreleased".
+                changelog_cmd = [
+                    "uv",
+                    "run",
+                    "cz",
+                    "changelog",
+                    "--incremental",
+                    "--unreleased-version",
+                    f"v{next_version}",
+                ]
                 run_streamed(
                     changelog_cmd,
                 )
@@ -917,7 +927,7 @@ def task_release_tag() -> dict[str, Any]:
                     "--limit",
                     "1",
                     "--json",
-                    "title,mergedAt,headRefName",
+                    "title,mergedAt,headRefName,mergeCommit",
                 ],
                 check=True,
                 capture_output=True,
@@ -934,6 +944,16 @@ def task_release_tag() -> dict[str, Any]:
             pr = prs[0]
             pr_title = pr["title"]
             branch_name = pr["headRefName"]
+
+            # The tag belongs on the release PR's merge commit, not on whatever
+            # HEAD is after the pull: main may have moved past it (#1192).
+            merge_commit = pr.get("mergeCommit") or {}
+            merge_oid = merge_commit.get("oid") if isinstance(merge_commit, dict) else None
+            if not isinstance(merge_oid, str) or not merge_oid.strip():
+                console.print("[bold red]❌ Release PR has no merge commit.[/bold red]")
+                console.print(verbatim(f"PR title: {pr_title}", "yellow"))
+                sys.exit(1)
+            merge_oid = merge_oid.strip()
 
             # Extract version from PR title (format: "release: vX.Y.Z[suffix]"),
             # falling back to the branch name (format: "release/vX.Y.Z[suffix]").
@@ -963,11 +983,38 @@ def task_release_tag() -> dict[str, Any]:
             console.print(f"[bold red]❌ Tag {tag_name} already exists.[/bold red]")
             sys.exit(1)
 
+        # The merge commit must exist locally to be tagged.
+        oid_check = subprocess.run(
+            ["git", "cat-file", "-e", f"{merge_oid}^{{commit}}"],
+            capture_output=True,
+            text=True,
+        )
+        if oid_check.returncode != 0:
+            console.print(
+                "[bold red]❌ Release PR merge commit is not available locally.[/bold red]"
+            )
+            console.print(verbatim(f"Merge commit: {merge_oid}", "yellow"))
+            sys.exit(1)
+
+        head_oid = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if head_oid != merge_oid:
+            console.print(
+                verbatim(
+                    f"Note: main has moved past the release PR's merge commit "
+                    f"({head_oid[:12]}); tagging the merge commit {merge_oid[:12]}.",
+                    "yellow",
+                )
+            )
+
         # Create tag
         console.print(f"\n[cyan]Creating tag {tag_name}...[/cyan]")
         try:
             subprocess.run(
-                ["git", "tag", tag_name],
+                ["git", "tag", tag_name, merge_oid],
                 check=True,
                 capture_output=True,
                 text=True,

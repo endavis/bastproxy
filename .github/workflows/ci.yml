@@ -109,6 +109,11 @@ jobs:
     needs: setup
     if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
     runs-on: ${{ matrix.os }}
+    # id-token: write lets the Codecov upload authenticate with OIDC. The
+    # calling workflow must grant it too, or GitHub rejects the call.
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
@@ -156,15 +161,15 @@ jobs:
         run: uv run pytest -n auto -v --ignore=tests/benchmarks/
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest'
+        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest' && vars.CODECOV_ENABLED == 'true'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: ./tmp/coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          disable_search: true
 
   docs:
     needs: setup

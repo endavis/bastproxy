@@ -98,7 +98,7 @@ the recorded commit (a difference is a local customization, so the bug is the pr
 reproduce, check whether a newer template already fixes it, look for a duplicate, then file with:
 
 ```bash
-doit issue --upstream --type=bug --title="bug: <subject>" --body-file=issue.md
+doit issue --upstream --type=fix --title="fix: <subject>" --body-file=issue.md
 ```
 
 - **Target:** `endavis/pyproject-template`, fixed. Refused in the template repository itself, and

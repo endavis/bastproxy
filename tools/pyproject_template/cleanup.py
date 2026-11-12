@@ -34,7 +34,7 @@ _script_dir = Path(__file__).parent
 if str(_script_dir) not in sys.path:
     sys.path.insert(0, str(_script_dir))
 
-from utils import TEMPLATE_OWNED_TEST_FILES, Logger  # noqa: E402
+from utils import TEMPLATE_OWNED_TEST_FILES, Logger  # noqa: E402  # sys.path is set up above
 
 
 class CleanupMode(Enum):

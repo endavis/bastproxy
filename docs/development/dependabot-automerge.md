@@ -236,19 +236,110 @@ Grouping does not change auto-merge eligibility: `github/codeql-action` is not
 in `sensitive_dependencies`, and the group's `update-type` is the highest of
 its members, so a grouped patch bump still qualifies.
 
+### Minor and patch catch-all
+
+Each ecosystem also has a last group, `minor-and-patch`, matching `*` with
+`update-types: ["minor", "patch"]`, so a weekly batch arrives as one PR rather
+than one per dependency. The reason is rebase churn: the `main` ruleset's
+`strict` setting makes every merge leave the other open PRs behind, and
+Dependabot rebases and re-runs CI on all of them (see
+[Dependabot rebases on its own](#dependabot-rebases-on-its-own)). With N PRs
+that is roughly N + (N-1) + ... + 1 full CI runs.
+
+- **Sensitive dependencies stay out.** The group's `exclude-patterns` equals
+  `sensitive_dependencies` in `.github/automerge-config.json`. Auto-merge
+  refuses a whole PR if any dependency in it matches one, so without the
+  exclusion one sensitive bump would hold the entire batch for manual review.
+  `tests/test_dependabot_config.py` fails when the two lists drift apart. The
+  uv `dev-dependencies` group carries the same `exclude-patterns`, because its
+  `types-*` pattern would otherwise catch e.g. `types-pyOpenSSL`.
+- **Major bumps keep their own PRs** from the catch-all, because of
+  `update-types`. Majors of `dev-dependencies` members (now including type
+  stubs and build requirements) go into that group's PR instead, and
+  auto-merge refuses a PR containing a major.
+- **Order matters.** Per GitHub's `dependabot.yml` documentation, a dependency
+  matching more than one group goes into the first one listed, so the catch-all
+  is last, after `dev-dependencies` (uv) and `codeql-action` (github-actions).
+  A test asserts this.
+- **Trade-off:** one failing bump holds every update in its group until it is
+  fixed or pinned (for example with an `ignore` entry in `dependabot.yml`).
+
+### Updates the catch-all cannot take
+
+dependabot-core's `SemverGroupingRules#allow_grouping?`
+(`updater/lib/dependabot/updater/semver_grouping_rules.rb`) runs only for a
+group with `update-types`, and returns `false` in two cases the catch-all hits
+(#1231):
+
+- **Only the fourth version component changed.** Type stubs version as
+  `<upstream>.<date>` (`types-pyyaml` `6.0.12.20260906` to `6.0.12.20261030`),
+  so major, minor and patch are all equal and the bump is never grouped.
+- **No locked version.** `[build-system] requires` entries such as `hatchling`
+  and `hatch-vcs` are not in `uv.lock`, so there is no current version to
+  classify against.
+
+A group without `update-types` skips that check. So the uv `dev-dependencies`
+group, which has none, also lists `types-*`, `hatchling` and `hatch-vcs`,
+rather than adding new groups that would each open another weekly PR.
+`tests/test_dependabot_config.py` asserts that `types-pyyaml` and every
+`[build-system] requires` entry land in it.
+
+Known residual: any other dependency whose bump changes only the fourth
+version component still arrives as its own PR. That is expected, not a
+regression.
+
 ## Stale PRs
 
-When `main` advances after a dependabot PR is opened, the PR ends up
-`BEHIND` and stops auto-merging. There is no fully-automated rebase path
-the workflow can use, so the unstick step is manual:
+The `main` ruleset requires branches to be up to date before merging
+(`required_status_checks` with `strict: true`). When `main` advances after
+a dependabot PR is opened, the PR falls behind and cannot merge until it is
+rebased.
+
+### Dependabot rebases on its own
+
+Normally nobody has to act. Dependabot rebases its open PRs and
+force-pushes as `main` moves. The `synchronize` event re-runs the Merge
+Gate and CI, and the auto-merge the workflow already enabled fires when
+checks go green. A weekly batch of dependabot PRs clears this way without
+anyone stepping in.
+
+This is observed behaviour, not configured: no workflow in this repository
+rebases dependabot PRs, and `.github/dependabot.yml` sets no
+`rebase-strategy`, so Dependabot's default (`auto`) applies. On 2026-11-02,
+PR #1160 got no rebase comment, yet the timeline
+(`gh api repos/{owner}/{repo}/issues/1160/timeline`) shows
+`dependabot[bot]` force-pushing it a few minutes after each other
+dependabot PR merged:
+
+| `main` merge | #1160 force-push (UTC) |
+|---|---|
+| 15:49 (#1164) | 15:51 |
+| 15:55 (#1162) | 15:58 |
+| 16:01 (#1163) | 16:04 |
+| 16:07 (#1161) | 16:12 |
+| 16:22 (#1159) | 16:24, then auto-merged at 16:28 |
+
+What triggers the rebase is unconfirmed. Those bumps all touch `uv.lock`,
+so each merge may have caused a real conflict, and `auto` rebases on
+conflict. Dependabot may also rebase a PR that is only behind while
+auto-merge is enabled. The timeline does not tell the two apart, so do not
+rely on a PR that is behind with no conflict being rebased.
+
+The cost is CI time: when each merge leaves the remaining PRs behind and
+each is rebased, every one of them runs CI again, so a batch of N PRs can
+cost up to N + (N-1) + … + 1 runs.
+
+### Fallback: request the rebase
+
+If a PR sits behind `main` and no `dependabot[bot]` force-push arrives,
+ask for one:
 
 ```bash
 gh pr comment <number> --body "@dependabot rebase"
 ```
 
-Dependabot rebases the branch and force-pushes. The `synchronize` event
-re-runs the Merge Gate and CI, and the already-enabled auto-merge fires
-when checks go green.
+Dependabot rebases the branch and force-pushes, and CI and auto-merge
+proceed as above.
 
 > [!IMPORTANT]
 > The comment **must be posted by a real user** (your `gh` CLI auth, or

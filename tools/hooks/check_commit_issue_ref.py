@@ -19,6 +19,17 @@ A message that references no issue at all passes: plenty of legitimate commits
 do not cite one, and requiring it would be a different and more intrusive policy
 than this hook is for.
 
+Closing keywords (#1216)
+------------------------
+`doit pr_merge` squashes the PR, and the squash message carries every branch
+commit's message onto `main`. A commit line such as `Fixes #12` would then close
+the issue the moment it lands, while closing is `doit pr_merge --auto-close`'s
+job. So a message line where `close`/`fix`/`resolve` (any tense, any case, with
+an optional colon, and an optional `owner/repo` before the number) is followed
+by an issue reference is rejected, on every branch. Name the issue with
+`Addresses #N` instead. A type prefix such as `fix: handle #12 badly` is not a
+closing reference: only the keyword directly followed by the reference counts.
+
 Usage:
     check_commit_issue_ref.py <path-to-commit-msg-file>
 """
@@ -40,6 +51,14 @@ BRANCH_ISSUE = re.compile(r"^[a-z]+/(\d+)-")
 # `#1234ab` followed by more hex.
 MESSAGE_ISSUE = re.compile(r"(?<![\w#])#(\d+)\b")
 
+# GitHub's own closing syntax: keyword, optional colon, whitespace, then `#N` or
+# `owner/repo#N`. `fix: handle #12` does not match (text sits between).
+CLOSING_REFERENCE = re.compile(
+    r"(?<![\w-])(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)[ \t]*:?[ \t]+"
+    r"(?:[\w.-]+/[\w.-]+)?#\d+\b",
+    re.IGNORECASE,
+)
+
 # Messages git generates or that target an existing commit, where the issue
 # reference belongs to something other than the work being committed now.
 SKIP_PREFIXES = ("merge ", "revert ", "fixup!", "squash!", "amend!")
@@ -50,7 +69,7 @@ OVERRIDE_ENV = "ALLOW_ISSUE_REF_MISMATCH"
 def current_branch() -> str:
     """Return the checked-out branch name, or "" when detached or unavailable."""
     try:
-        result = subprocess.run(  # nosec B603 B607  # fixed argv, no shell
+        result = subprocess.run(
             ["git", "branch", "--show-current"],
             capture_output=True,
             text=True,
@@ -98,10 +117,34 @@ def should_skip(message: str) -> bool:
     return first_line[0].lower().startswith(SKIP_PREFIXES)
 
 
+def closing_references(message: str) -> list[str]:
+    """Return every closing-keyword reference (`Fixes #12`) in *message*."""
+    return [match.group(0) for match in CLOSING_REFERENCE.finditer(strip_comments(message))]
+
+
+def closing_error(found: list[str]) -> str:
+    """Return the error for closing keywords in a commit message."""
+    cited = ", ".join(f"'{text}'" for text in found)
+    return (
+        f"Commit message uses a closing keyword: {cited}.\n"
+        "\n"
+        "`doit pr_merge` squashes every branch commit's message onto main, so this\n"
+        "would close the issue on merge. Closing is `doit pr_merge --auto-close`'s job.\n"
+        "Name the issue with `Addresses #N` instead.\n"
+        "\n"
+        f"To commit anyway, set {OVERRIDE_ENV}=1 for this command.\n"
+        "Do not use --no-verify; AGENTS.md forbids it."
+    )
+
+
 def check(branch: str, message: str) -> str | None:
     """Return an error message when *branch* and *message* disagree, else None."""
     if should_skip(message):
         return None
+
+    closing = closing_references(message)
+    if closing:
+        return closing_error(closing)
 
     expected = branch_issue(branch)
     if expected is None:

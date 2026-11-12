@@ -5,8 +5,8 @@ Covers two concerns:
 1. ``task_security`` includes ``bootstrap.py`` iff it exists at cwd (template
    repo) and excludes it when removed (spawned consumer project). Addresses
    issue #469.
-2. All four security tasks gate their underlying tool on ``uv pip show
-   <package>`` (via ``install_check_or_skip``) so real failures (bandit
+2. All four security tasks gate their underlying tool on an import probe in the
+   project venv (via ``install_check_or_skip``) so real failures (bandit
    findings, pip-audit CVEs, etc.) propagate instead of being swallowed by
    the legacy ``|| echo 'not installed'`` pattern. Addresses issue #527.
 """
@@ -61,7 +61,7 @@ class TestTaskSecurity:
 
 
 class TestSecurityTaskGates:
-    """Each security task gates its tool via ``uv pip show <package>``.
+    """Each security task gates its tool by importing its module in the project venv.
 
     The gate replaces the swallow-prone ``cmd || echo 'not installed'``
     pattern. We assert: (a) the gate is present, (b) the install hint is
@@ -72,7 +72,7 @@ class TestSecurityTaskGates:
     def test_audit_gates_on_pip_audit_package(self) -> None:
         action = task_audit()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show pip-audit" in action
+        assert 'uv run --no-sync python -c "import pip_audit"' in action
         assert "pip-audit not installed. Run: doit install_dev" in action
         assert "uv run pip-audit --skip-editable" in action
         # Bug-fix invariant: the bare-swallow pattern must be gone.
@@ -81,7 +81,7 @@ class TestSecurityTaskGates:
     def test_security_gates_on_bandit_package(self) -> None:
         action = task_security()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show bandit" in action
+        assert 'uv run --no-sync python -c "import bandit"' in action
         assert "bandit not installed. Run: doit install_dev" in action
         assert "uv run bandit -c pyproject.toml -r src/ tools/" in action
         assert "|| echo 'bandit not installed" not in action
@@ -98,7 +98,7 @@ class TestSecurityTaskGates:
     def test_licenses_gates_on_pip_licenses_package(self) -> None:
         action = task_licenses()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show pip-licenses" in action
+        assert 'uv run --no-sync python -c "import piplicenses"' in action
         assert "pip-licenses not installed. Run: doit install_dev" in action
         assert "uv run pip-licenses --format=markdown --order=license" in action
         assert "|| echo 'pip-licenses not installed" not in action
@@ -112,7 +112,7 @@ class TestSecurityTaskGates:
         action = actions[1]
         assert isinstance(action, str)
         # CLI is ``cyclonedx-py`` but the package name is ``cyclonedx-bom``.
-        assert "uv pip show cyclonedx-bom" in action
+        assert 'uv run --no-sync python -c "import cyclonedx"' in action
         assert "cyclonedx-py not installed. Run: doit install_dev" in action
         assert "uv run cyclonedx-py environment --of JSON -o tmp/sbom.json" in action
         assert "uv run cyclonedx-py environment --of XML -o tmp/sbom.xml" in action

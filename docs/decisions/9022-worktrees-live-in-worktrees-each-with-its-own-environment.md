@@ -88,6 +88,8 @@ branch goes only if it still points at the commit the PR merged.
 - Issue #863: `doit pr_merge` removes the merged PR's worktree and deletes its branch itself
 - Issue #1012: two of the three doc-scanning walkers switched from a hardcoded skip list to
   `.gitignore`-driven discovery, which is what now gives them the `worktrees/` skip
+- Issue #1238: a project adds its own rebuildable names in `pyproject.toml`, recorded in
+  [ADR-9031](9031-a-project-adds-rebuildable-names-for-worktree-removal-in-pyprojecttoml.md)
 
 ## Related Documentation
 - [Doit Tasks Reference](../development/doit-tasks-reference.md) — the `worktree` task, how to

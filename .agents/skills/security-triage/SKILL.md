@@ -27,9 +27,9 @@ alone, which syncs to exactly that extra and uninstalls the `dev` extra's tools 
 needs — and run the task again. Triage nothing until you have seen a real scan.
 
 A sample under `tmp/agents/<agent>/` is not a stand-in for the real file: `[tool.bandit]
-exclude_dirs` in `pyproject.toml` excludes `tmp`, so a bandit run scoped there reports zero
-findings regardless of what the sample contains. That is a second way to get a clean result you
-have not earned — triage the finding against the real flagged file, under `src/`, `tools/` or
+exclude_dirs` in `pyproject.toml` excludes `tmp`, so a bandit run scoped to a repo-relative
+`tmp/...` path reports zero findings regardless of what the sample contains. That is a second way
+to get a clean result you have not earned — triage the finding against the real flagged file, under `src/`, `tools/` or
 `bootstrap.py`.
 
 ### Step 2: Triage a bandit finding
@@ -95,6 +95,11 @@ When the task is done, return to the `implement-issue` run, or commit and open a
 - Keep the reason out of the ID list. Bandit reads every word between `nosec` and the next `#` as
   a candidate test ID, so `# nosec B404 - reason words` prints a `Test in comment` warning per
   word. A second `#` ends the list: `# nosec B404  # reason words`. Keep reasons short.
+- Never name an ID listed in `[tool.bandit] skips` in a `# nosec`: bandit never runs that test, so
+  the comment is dead text. Delete the whole comment.
+- Never put a `# nosec` in a file bandit never reads, as `[tool.bandit] exclude_dirs` lists the
+  top-level `tests/` and `examples/` directories, anchored as `tests/*` because bandit
+  substring-matches a bare name: nothing there is scanned, so the comment suppresses nothing.
 - Remove a `# nosec` when bandit prints `nosec encountered (<ID>), but no failed test`: it
   suppresses nothing, either because the code no longer matches the test or because the comment is
   on a different line from the one bandit reports. Move it to that line, or delete it.

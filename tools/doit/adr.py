@@ -254,6 +254,201 @@ def _set_frontmatter_title(content: str, heading: str) -> str:
     return block + content[match.end() :]
 
 
+_NO_PROJECT_ADRS = "_(No project-level ADRs yet.)_"
+_YAML_SPECIALS = re.compile(r"[:#\[\]{},&*!|>'\"%@`?]")
+
+
+def _adr_status(content: str) -> str:
+    """Return the first non-empty line of the ``## Status`` section, or ``Accepted``.
+
+    Args:
+        content: ADR markdown
+
+    Returns:
+        The status text
+    """
+    match = re.search(
+        r"^##\s+Status\s*\n(.*?)(?=^##|\Z)", content, re.DOTALL | re.IGNORECASE | re.MULTILINE
+    )
+    if match:
+        for line in match.group(1).splitlines():
+            if line.strip():
+                return line.strip()
+    return "Accepted"
+
+
+def _add_to_index(
+    readme: Path, number: int, title: str, filename: str, status: str, template: bool
+) -> bool:
+    """Add a row for the ADR to the series table under ``## Index`` in *readme*.
+
+    The file is left unchanged when it, the ``## Index`` section or the series
+    table is missing. A row already linking *filename* is not added twice.
+
+    Args:
+        readme: Path of the ADR index file
+        number: ADR number
+        title: ADR title
+        filename: ADR file name, used as the link target
+        status: Status text for the row
+        template: True for the template (9XXX) series table, False for the project one
+
+    Returns:
+        True if the index lists the ADR afterwards, False if it could not be placed
+    """
+    if not readme.is_file():
+        return False
+    lines = readme.read_text(encoding="utf-8").split("\n")
+
+    index_at = next((i for i, line in enumerate(lines) if re.match(r"##\s+Index\s*$", line)), None)
+    if index_at is None:
+        return False
+    series = r"\(9XXX\)" if template else r"\(0001\+\)"
+    heading_at = next(
+        (i for i in range(index_at + 1, len(lines)) if re.match(rf"###\s.*{series}\s*$", lines[i])),
+        None,
+    )
+    if heading_at is None:
+        return False
+    end = next(
+        (i for i in range(heading_at + 1, len(lines)) if lines[i].startswith("#")), len(lines)
+    )
+    table = [i for i in range(heading_at + 1, end) if lines[i].startswith("|")]
+    if len(table) < 2:
+        return False
+    if any(f"]({filename})" in lines[i] for i in table):
+        return True
+
+    row = f"| [{number:04d}]({filename}) | {title.replace('|', chr(92) + '|')} | {status} |"
+    lines.insert(table[-1] + 1, row)
+    if not template:
+        end += 1
+        for i in range(table[-1] + 2, end):
+            if lines[i].strip() == _NO_PROJECT_ADRS:
+                after_blank = i + 1 >= len(lines) or not lines[i + 1].strip()
+                del lines[i]
+                if after_blank and lines[i - 1] == "":
+                    del lines[i - 1]
+                break
+    readme.write_text("\n".join(lines), encoding="utf-8")
+    return True
+
+
+def _add_to_nav(mkdocs: Path, number: int, title: str, nav_path: str) -> bool:
+    """Add the ADR to the ``- Decisions:`` list under ``nav:`` in *mkdocs*, in numeric order.
+
+    The edit is text-based, so comments and layout in the file survive. The file
+    is left unchanged when it or the list is missing. An entry already pointing
+    at *nav_path* is not added twice.
+
+    Args:
+        mkdocs: Path of ``mkdocs.yml``
+        number: ADR number
+        title: ADR title
+        nav_path: Path of the ADR relative to ``docs_dir``
+
+    Returns:
+        True if the nav lists the ADR afterwards, False if it could not be placed
+    """
+    if not mkdocs.is_file():
+        return False
+    lines = mkdocs.read_text(encoding="utf-8").split("\n")
+
+    nav_at = next((i for i, line in enumerate(lines) if re.match(r"nav:\s*(#.*)?$", line)), None)
+    if nav_at is None:
+        return False
+    decisions_at = next(
+        (i for i in range(nav_at + 1, len(lines)) if re.match(r"\s*- Decisions:\s*$", lines[i])),
+        None,
+    )
+    if decisions_at is None:
+        return False
+    base = len(lines[decisions_at]) - len(lines[decisions_at].lstrip())
+
+    def indent(line: str) -> int:
+        return len(line) - len(line.lstrip())
+
+    child: int | None = None
+    block_end = decisions_at + 1
+    for i in range(decisions_at + 1, len(lines)):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent(line) <= base:
+            break
+        if child is None:
+            child = indent(line)
+        block_end = i + 1
+    if child is None:
+        return False
+
+    items = [
+        i
+        for i in range(decisions_at + 1, block_end)
+        if lines[i].strip() and indent(lines[i]) == child and lines[i].lstrip().startswith("- ")
+    ]
+    if any(lines[i].rstrip().endswith(f": {nav_path}") for i in items):
+        return True
+
+    label = f"ADR-{number:04d} {title}"
+    if _YAML_SPECIALS.search(label):
+        label = json.dumps(label, ensure_ascii=False)
+    entry = f"{' ' * child}- {label}: {nav_path}"
+
+    insert_at = items[-1] + 1
+    for i in items:
+        found = re.search(r"(\d{4})-[^/\s]*\.md\s*$", lines[i])
+        if found and int(found.group(1)) > number:
+            insert_at = i
+            break
+    lines.insert(insert_at, entry)
+    mkdocs.write_text("\n".join(lines), encoding="utf-8")
+    return True
+
+
+def _register_adr(
+    console: "ConsoleType",
+    number: int,
+    title: str,
+    filename: str,
+    content: str,
+    template: bool,
+) -> None:
+    """Add the new ADR to the ADR index and the mkdocs nav, or say what to do by hand.
+
+    Both paths derive from ``ADR_DIR``, never the working directory: the index is
+    ``ADR_DIR/README.md`` and ``mkdocs.yml`` sits two levels above ``ADR_DIR``
+    (``docs/decisions`` under the repository root).
+
+    Args:
+        console: Rich console for output
+        number: ADR number
+        title: ADR title
+        filename: ADR file name
+        content: The ADR text, read for its status
+        template: Which series the ADR belongs to
+    """
+    readme = ADR_DIR / "README.md"
+    mkdocs = ADR_DIR.parent.parent / "mkdocs.yml"
+    nav_path = f"{ADR_DIR.name}/{filename}"
+    label = f"ADR-{number:04d}: {title}"
+
+    if _add_to_index(readme, number, title, filename, _adr_status(content), template):
+        console.print(verbatim(f"Added to {readme}", "dim"))
+    else:
+        console.print(
+            verbatim(f"Could not update the ADR index {readme}; add a row for {label}.", "yellow")
+        )
+    if _add_to_nav(mkdocs, number, title, nav_path):
+        console.print(verbatim(f"Added to {mkdocs}", "dim"))
+    else:
+        console.print(
+            verbatim(
+                f"Could not update the nav in {mkdocs}; add {nav_path} under Decisions.", "yellow"
+            )
+        )
+
+
 def _prepare_editor_template(title: str, number: int, date: str) -> str:
     """Prepare the editor template with title, number, and date filled in.
 
@@ -382,11 +577,10 @@ def task_adr() -> dict[str, Any]:
                 body_content = f"# ADR-{number:04d}: {title}\n\n{body_content}"
             else:
                 # Replace the header with correct number
-                body_content = re.sub(
-                    r"^# ADR-\d+: .+",
-                    f"# ADR-{number:04d}: {title}",
-                    body_content,
-                )
+                # Any first heading that starts "# ADR-": a number or the NNNN placeholder.
+                # A function replacement keeps a backslash in the title literal.
+                heading = f"# ADR-{number:04d}: {title}"
+                body_content = re.sub(r"^# ADR-[^\n]*", lambda _: heading, body_content, count=1)
 
             if frontmatter:
                 body_content = _set_frontmatter_title(
@@ -413,6 +607,8 @@ def task_adr() -> dict[str, Any]:
                 border_style="green",
             )
         )
+
+        _register_adr(console, number, title, filename, body_content, template)
 
         # The table of contents lists the description next to the title (#841)
         placeholder = get_adr_template().placeholder_description

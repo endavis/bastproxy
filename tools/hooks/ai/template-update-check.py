@@ -74,7 +74,7 @@ def read_recorded_commit(root: Path) -> str | None:
 def is_template_repo(root: Path) -> bool:
     """Return True when ``root`` is a checkout of the template repo itself."""
     try:
-        result = subprocess.run(  # nosec B603 B607  # list args, fixed git command
+        result = subprocess.run(
             ["git", "config", "--get", "remote.origin.url"],
             cwd=root,
             capture_output=True,
@@ -122,7 +122,7 @@ def fetch_remote_head() -> str | None:
     """Return the template ``main`` head SHA, or None on any failure."""
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     try:
-        result = subprocess.run(  # nosec B603 B607  # list args, fixed URL, no shell
+        result = subprocess.run(
             ["git", "ls-remote", TEMPLATE_URL, "refs/heads/main"],
             capture_output=True,
             text=True,

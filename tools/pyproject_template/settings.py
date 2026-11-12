@@ -6,7 +6,7 @@ Handles reading settings from multiple sources and tracking template sync state.
 
 from __future__ import annotations
 
-import subprocess  # nosec B404
+import subprocess  # nosec B404  # subprocess is required to run git and gh
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -23,7 +23,7 @@ _script_dir = Path(__file__).parent
 if str(_script_dir) not in sys.path:
     sys.path.insert(0, str(_script_dir))
 
-from utils import (  # noqa: E402
+from utils import (  # noqa: E402  # sys.path is set up above
     TEMPLATE_REPO,
     Logger,
     command_exists,
@@ -433,7 +433,7 @@ def get_template_commit(ref: str = "main") -> tuple[str, str] | None:
     api_url = f"https://api.github.com/repos/{TEMPLATE_REPO}/commits/{ref}"
     try:
         req = github_api_request(api_url)
-        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
+        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310  # fixed GitHub https URL, no user-supplied scheme
             data = json.loads(response.read())
             commit_sha = data.get("sha", "")  # Full SHA for GitHub compare
             commit_date = data.get("commit", {}).get("committer", {}).get("date", "")
@@ -468,7 +468,7 @@ def get_template_commits_since(since_commit: str) -> list[dict[str, str]] | None
     api_url = f"https://api.github.com/repos/{TEMPLATE_REPO}/commits?per_page=50"
     try:
         req = github_api_request(api_url)
-        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
+        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310  # fixed GitHub https URL, no user-supplied scheme
             data = json.loads(response.read())
 
         commits = []

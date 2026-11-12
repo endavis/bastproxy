@@ -194,7 +194,7 @@ findings keep the private-fork, publish-after-fix track. See
 **How to Handle:**
 1. Document in commit message with `BREAKING CHANGE:` footer
 2. Document in PR description with migration guide
-3. Don't edit CHANGELOG.md: `doit release` writes it from the commit messages, footer included
+3. With `update_changelog_on_bump = true` in `[tool.commitizen]`, don't edit CHANGELOG.md: `doit release` writes it from the commit messages, footer included. With it `false` or missing, the changelog is hand-written: add the change and its migration note under `## [Unreleased]`, or `doit release` aborts on an empty section (see [Release Automation — Downstream opt-ins](docs/development/release-and-automation.md#downstream-opt-ins-static-version-and-hand-written-changelog))
 4. Breaking changes bump MINOR before 1.0 and MAJOR from 1.0 on: set `major_version_zero = false` in `[tool.commitizen]` before releasing 1.0 (`doit release` refuses 1.0 or later until you do)
 
 ## Tooling & Environment
@@ -273,10 +273,11 @@ Dependabot PRs that pass CI are auto-merged by `.github/workflows/dependabot-aut
 the bot skips (major bumps, sensitive deps, `automerge-blocked`) is merged by hand.
 
 **Never** use the GitHub `update-branch` API or a local rebase to update a dependabot branch — both
-strip the verified commit signatures that branch protection requires. Use `@dependabot rebase`
-instead, posted from a real user account.
+strip the verified commit signatures that branch protection requires. Dependabot normally rebases
+its own PRs as `main` moves; when one stays behind, post `@dependabot rebase` from a real user
+account.
 
-The full procedure — requesting the rebase, confirming the force-push landed, merging — is in
+The full procedure — when Dependabot rebases on its own, requesting a rebase, confirming the force-push landed, merging — is in
 [Dependabot Auto-merge](docs/development/dependabot-automerge.md#stale-prs). Read it before
 merging a dependabot PR.
 
@@ -357,7 +358,7 @@ Where `<agent-type>` is one of: `claude`, `copilot`, `codex`, `antigravity`, or 
 - **Releases:** Never run `doit release` without explicit command.
 - **PRs:** Use `doit pr` to create PRs and `doit pr_merge` to merge with proper commit format. Issues are not automatically closed. Outside `merge-pr`, ask the user if they would like the related issue closed — pass `--auto-close` to `doit pr_merge` to close linked issues in one step. The `implement-issue` skill commits with `git commit` (not `doit commit`, which is interactive) and opens the PR itself with `doit pr` — it never applies `ready-to-merge`, merges, or closes the issue those steps remain the user's.
 - **The Merge Gate action:** is a manual action for the user to add to a PR. It requires the ready-to-merge label and should never be added by automation. Exception: the dependabot auto-merge workflow (`.github/workflows/dependabot-automerge.yml`) applies the `ready-to-merge` label to qualifying dependabot PRs only. AI agents may apply the label only when the human has set `ALLOW_AI_READY_TO_MERGE=1` in the shell that launched the AI CLI (see `docs/development/ai/command-blocking.md`).
-- **Issues:** Use `doit issue --type=<type>` to create issues (types: feature, bug, refactor, docs, chore). Labels are auto-applied. Manually close after PR merge with comment "Addressed in PR #XXX". Issues are not closed automatically when PRs are merged.
+- **Issues:** Use `doit issue --type=<type>` to create issues (types: feat, fix, refactor, docs, chore). Labels are auto-applied. Manually close after PR merge with comment "Addressed in PR #XXX". Issues are not closed automatically when PRs are merged.
 - **ADRs:** When implementing architectural decisions (typically `feat` or `refactor`, rarely `fix`), update related ADRs in `docs/decisions/` to add the issue link. Create new ADRs for significant decisions using `doit adr`. Every ADR must link to the documentation in `docs/` that describes the implementation. Doc and chore issues do not need ADRs. Issues with the `needs-adr` label require an ADR before the PR can be merged.
 
 ## PR Checklist (for AI agents)

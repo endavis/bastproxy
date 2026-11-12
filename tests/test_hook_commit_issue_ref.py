@@ -19,6 +19,7 @@ from tools.hooks.check_commit_issue_ref import (
     OVERRIDE_ENV,
     branch_issue,
     check,
+    closing_references,
     main,
     message_issues,
     should_skip,
@@ -197,3 +198,51 @@ class TestMain:
 class TestStripComments:
     def test_keeps_body_text(self) -> None:
         assert strip_comments("subject\n\nbody\n# comment\n") == "subject\n\nbody"
+
+
+class TestClosingKeywords:
+    """A closing keyword in a commit would close the issue on squash-merge (#1216)."""
+
+    @pytest.mark.parametrize(
+        "keyword",
+        [
+            "close", "closes", "closed", "fix", "fixes", "fixed",
+            "resolve", "resolves", "resolved", "FIXES", "Closes", "rEsOlVeD",
+        ],
+    )  # fmt: skip
+    def test_each_keyword_is_rejected(self, keyword: str) -> None:
+        error = check("fix/12-x", f"fix: thing\n\n{keyword} #12")
+        assert error is not None
+        assert "Addresses #N" in error
+
+    def test_colon_form_is_rejected(self) -> None:
+        assert check("fix/12-x", "fix: thing\n\nFixes: #12") is not None
+
+    def test_cross_repo_form_is_rejected(self) -> None:
+        assert check("fix/12-x", "fix: thing\n\nCloses owner/repo#12") is not None
+
+    def test_rejected_on_branch_without_an_issue(self) -> None:
+        assert check("main", "fix: thing\n\nResolves #12") is not None
+
+    def test_keyword_ending_a_line_does_not_reach_the_next(self) -> None:
+        assert check("fix/12-x", "fix: thing\n\nThis was hard to fix\n #12 tracks it") is None
+
+    def test_addresses_passes(self) -> None:
+        assert check("fix/12-x", "fix: thing\n\nAddresses #12") is None
+
+    def test_type_prefix_with_later_reference_passes(self) -> None:
+        assert check("fix/12-x", "fix: handle #12 badly\n\nAddresses #12") is None
+
+    def test_keyword_inside_a_word_passes(self) -> None:
+        assert closing_references("prefix #12 and suffixes #13") == []
+
+    def test_comment_lines_and_scissors_are_ignored(self) -> None:
+        scissors = "# ------------------------ >8 ------------------------"
+        message = f"fix: thing\n# Fixes #12\n{scissors}\nFixes #13"
+        assert closing_references(message) == []
+
+    def test_override_env_allows_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        msg = tmp_path / "msg"
+        msg.write_text("fix: thing\n\nFixes #12\n", encoding="utf-8")
+        monkeypatch.setenv(OVERRIDE_ENV, "1")
+        assert main([str(msg)]) == 0

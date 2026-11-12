@@ -30,6 +30,7 @@ from tools.doit.base import verbatim
 from tools.doit.git import remove_merged_worktree, worktree_for_branch
 from tools.doit.templates import (
     ISSUE_TYPE_TO_FILE,
+    RENAMED_ISSUE_TYPES,
     IssueTemplate,
     get_issue_template,
     get_pr_template,
@@ -80,6 +81,12 @@ _PR_TITLE_PATTERN = re.compile(
     r"^(feat|fix|refactor|docs|test|chore|ci|perf|release)(\(.+\))?:\s.+"
 )
 
+
+def _issue_title_pattern(issue_type: str) -> re.Pattern[str]:
+    """Return the pattern an issue title must match for ``--type=<issue_type>`` (#1229)."""
+    return re.compile(rf"^{re.escape(issue_type)}(\(.+\))?:\s.+")
+
+
 # GitHub refuses ``gh pr merge`` on a PR in a native stack with "This pull
 # request is part of a stack and must be merged using the asynchronous merge
 # REST API." ``doit pr_merge`` does not support stacks (#847, #853).
@@ -116,7 +123,7 @@ def _run_gh_with_retry(
     *,
     retries: int | None = None,
     backoff_base: float | None = None,
-    **subprocess_kwargs: Any,  # noqa: ANN401 - forwarded verbatim to subprocess.run
+    **subprocess_kwargs: Any,  # noqa: ANN401  # forwarded verbatim to subprocess.run
 ) -> subprocess.CompletedProcess[str]:
     """Run a ``gh`` command with exponential-backoff retry on transient errors.
 
@@ -192,7 +199,7 @@ def _run_gh_with_retry(
                 break
 
             delay = backoff_base * (_GH_BACKOFF_FACTOR ** (attempt - 1))
-            jitter = random.uniform(0, delay * 0.1)  # nosec B311
+            jitter = random.uniform(0, delay * 0.1)  # nosec B311  # retry jitter, not security-sensitive
             total = delay + jitter
             console.print(
                 verbatim(
@@ -318,7 +325,7 @@ def _validate_issue_content(
 
     Args:
         sections: Parsed markdown sections
-        issue_type: Type of issue (feature, bug, refactor, docs, chore)
+        issue_type: Type of issue (feat, fix, refactor, docs, chore)
         console: Rich console for output
         required_sections: Sections to require; None uses the local template's
 
@@ -471,18 +478,39 @@ def _refuse_security_content(title: str, body: str, console: "ConsoleType") -> N
     sys.exit(1)
 
 
-def _prompt_title(console: "ConsoleType") -> str:
-    """Ask for the issue title; exit 1 when it is empty."""
+def _validate_issue_title(title: str, issue_type: str, console: "ConsoleType") -> None:
+    """Exit 1 unless the title is `<issue_type>: <subject>` or `<issue_type>(<scope>): <subj>`."""
+    if _issue_title_pattern(issue_type).match(title):
+        return
+    found = _PR_TITLE_PATTERN.match(title)
+    if found:
+        reason = f"its type is {found.group(1)!r} but --type is {issue_type!r}."
+    else:
+        reason = "it has no conventional type prefix."
+    console.print(
+        verbatim(
+            f"Invalid issue title {title!r}: {reason} The title must be "
+            f"'{issue_type}: <subject>' or '{issue_type}(<scope>): <subject>', "
+            f"for example '{issue_type}: add export command'.",
+            "red",
+        )
+    )
+    sys.exit(1)
+
+
+def _prompt_title(console: "ConsoleType", issue_type: str) -> str:
+    """Ask for the issue title; exit 1 when it is empty or has the wrong type prefix."""
     console.print("[cyan]Issue title:[/cyan]")
     title = input("> ").strip()
     if not title:
         console.print("[red]Title is required.[/red]")
         sys.exit(1)
+    _validate_issue_title(title, issue_type, console)
     return title
 
 
 def task_issue() -> dict[str, Any]:
-    """Create issue from .github/ISSUE_TEMPLATE/<type>.yml (feature/bug/refactor/docs/chore).
+    """Create issue from .github/ISSUE_TEMPLATE/<type>.yml (feat/fix/refactor/docs/chore).
 
     Labels are automatically applied based on the issue type.
 
@@ -492,10 +520,14 @@ def task_issue() -> dict[str, Any]:
     3. --title + --body: Provides content directly (for AI/scripts)
 
     Examples:
-        Interactive:  doit issue --type=feature
-        From file:    doit issue --type=docs --title="Add guide" --body-file=issue.md
-        Direct:       doit issue --type=chore --title="Update CI" --body="## Description\\n..."
-        Upstream:     doit issue --upstream --type=bug --title="bug: x" --body-file=issue.md
+        Interactive:  doit issue --type=feat
+        From file:    doit issue --type=docs --title="docs: add guide" --body-file=issue.md
+        Direct:       doit issue --type=chore --title="chore: update CI"
+                      --body="## Description\\n..."
+        Upstream:     doit issue --upstream --type=fix --title="fix: x" --body-file=issue.md
+
+    The title must be ``<type>: <subject>`` or ``<type>(<scope>): <subject>`` with the same
+    ``<type>`` as ``--type``. The old ``--type=feature`` and ``--type=bug`` are rejected.
 
     ``--upstream`` files on the template repository, validated against its issue templates; it is
     refused in the template repository itself and for security-related content.
@@ -510,6 +542,15 @@ def task_issue() -> dict[str, Any]:
         include_origin: bool = False,
     ) -> None:
         console = Console()
+        if type in RENAMED_ISSUE_TYPES:
+            console.print(
+                verbatim(
+                    f"--type={type} was renamed to --type={RENAMED_ISSUE_TYPES[type]}. "
+                    "Nothing was filed.",
+                    "red",
+                )
+            )
+            sys.exit(1)
         console.print()
         console.print(
             Panel.fit(
@@ -536,6 +577,9 @@ def task_issue() -> dict[str, Any]:
                 console.print(verbatim(f"Template error: {e}", "red"))
                 sys.exit(1)
 
+        if title:
+            _validate_issue_title(title, type, console)
+
         labels = issue_template.labels
 
         # Determine body content
@@ -560,7 +604,7 @@ def task_issue() -> dict[str, Any]:
 
         # Get title if not provided (an upstream issue needs it for the security check)
         if upstream and not title:
-            title = _prompt_title(console)
+            title = _prompt_title(console, type)
 
         if upstream:
             _refuse_security_content(title or "", body_content, console)
@@ -571,16 +615,13 @@ def task_issue() -> dict[str, Any]:
         if not _validate_issue_content(sections, type, console, required):
             console.print("[red]Issue content validation failed.[/red]")
             console.print()
-            where = (
-                f"{TEMPLATE_REPO} .github/ISSUE_TEMPLATE/{ISSUE_TYPE_TO_FILE[type]}"
-                if upstream
-                else f".github/ISSUE_TEMPLATE/{type}.yml"
-            )
+            template_path = f".github/ISSUE_TEMPLATE/{ISSUE_TYPE_TO_FILE[type]}"
+            where = f"{TEMPLATE_REPO} {template_path}" if upstream else template_path
             console.print(verbatim(f"See template: {where}", "yellow"))
             sys.exit(1)
 
         if not title:
-            title = _prompt_title(console)
+            title = _prompt_title(console, type)
 
         create_cmd = ["gh", "issue", "create"]
         if upstream:
@@ -628,8 +669,8 @@ def task_issue() -> dict[str, Any]:
                 "name": "type",
                 "short": "t",
                 "long": "type",
-                "default": "feature",
-                "help": "Issue type: feature, bug, refactor, docs, chore",
+                "default": "feat",
+                "help": "Issue type: feat, fix, refactor, docs, chore",
             },
             {"name": "title", "long": "title", "default": None, "help": "Issue title"},
             {"name": "body", "long": "body", "default": None, "help": "Issue body (markdown)"},
@@ -1356,9 +1397,11 @@ def _check_branch_up_to_date(current_branch: str, console: Console, base: str = 
 
 
 def _ensure_branch_pushed(current_branch: str, console: Console, no_push: bool) -> None:
-    """Ensure the current branch has an upstream on ``origin``.
+    """Ensure the current branch's upstream is ``origin/<branch>``.
 
-    If the branch already has an upstream, returns silently. Otherwise,
+    If it is, returns silently. A missing upstream, or one that is another
+    branch (a worktree branch cut from ``origin/main``), counts as not pushed.
+    Otherwise,
     runs ``git push -u origin <branch>`` to create it. On push failure,
     calls ``sys.exit(1)``.
 
@@ -1371,19 +1414,21 @@ def _ensure_branch_pushed(current_branch: str, console: Console, no_push: bool) 
         no_push: If True, never push; abort if upstream is missing.
     """
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
             check=True,
             capture_output=True,
             text=True,
         )
-        return
+        if result.stdout.strip() == f"origin/{current_branch}":
+            return
     except subprocess.CalledProcessError:
         pass
 
     if no_push:
         console.print(
-            f"[red]Branch '{current_branch}' has no upstream and --no-push was passed.[/red]"
+            f"[red]Branch '{current_branch}' has no upstream of origin/{current_branch} "
+            "and --no-push was passed.[/red]"
         )
         console.print(f"[yellow]Push manually: git push -u origin {current_branch}[/yellow]")
         sys.exit(1)

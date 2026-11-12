@@ -1,5 +1,9 @@
 """Tests for doit task autodiscovery."""
 
+from pathlib import Path
+
+import pytest
+
 from tools.doit import discover_tasks
 
 
@@ -64,11 +68,36 @@ class TestDefaultTasks:
         for name in default_tasks:
             assert f"task_{name}" in discovered, f"{name!r} is not a doit task"
 
-    def test_default_task_runs_doit_list(self) -> None:
-        """The default task lists the available tasks."""
-        from tools.doit.maintenance import task_default
+    def test_default_task_lists_tasks_without_reopening_the_database(
+        self,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """Running the default task opens doit's database once, not twice (#1198).
 
-        task = task_default()
+        Under ``dbm.gnu`` a second open of ``.doit.db`` while the outer run holds it
+        fails with EAGAIN, so the listing must reuse the running dependency manager.
+        """
+        import doit.cmd_base as cmd_base
+        from doit.cmd_base import ModuleTaskLoader
+        from doit.doit_cmd import DoitMain
 
-        assert task["actions"] == ["uv run doit list"]
-        assert task_default.__doc__
+        import dodo
+
+        opened: list[str] = []
+        real_dependency = cmd_base.Dependency
+
+        class CountingDependency(real_dependency):  # type: ignore[misc, valid-type]
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                opened.append(str(args[1]))
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(cmd_base, "Dependency", CountingDependency)
+        db_file = tmp_path / "doit.db"
+
+        code = DoitMain(ModuleTaskLoader(dodo)).run(["--db-file", str(db_file), "default"])
+
+        assert code == 0
+        assert opened == [str(db_file)]
+        assert "cleanup" in capsys.readouterr().out

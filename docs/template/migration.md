@@ -236,7 +236,7 @@ for the full table.
 **Codecov** (optional, for coverage reporting):
 
 1. Sign up at [codecov.io](https://codecov.io) and add your repository.
-2. `gh secret set CODECOV_TOKEN`
+2. `gh variable set CODECOV_ENABLED --body true` (the upload authenticates with OIDC; no token)
 
 ### 14) Release Flow
 - **All releases go through a PR.** `doit release [--prerelease=alpha|beta|rc]` opens a release PR with the version bump and changelog updates.

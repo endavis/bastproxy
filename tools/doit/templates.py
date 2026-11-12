@@ -51,12 +51,15 @@ class IssueTemplate(NamedTuple):
 
 # Map issue types to template filenames
 ISSUE_TYPE_TO_FILE = {
-    "feature": "feature_request.yml",
-    "bug": "bug_report.yml",
+    "feat": "feature_request.yml",
+    "fix": "bug_report.yml",
     "refactor": "refactor.yml",
     "docs": "documentation.yml",
     "chore": "chore.yml",
 }
+
+# Issue type names used before they matched the PR-title types (#1229).
+RENAMED_ISSUE_TYPES = {"feature": "feat", "bug": "fix"}
 
 # Map YAML field IDs to section names for validation
 FIELD_ID_TO_SECTION = {
@@ -208,7 +211,7 @@ def get_issue_template(issue_type: str) -> IssueTemplate:
     """Get the issue template for a given type.
 
     Args:
-        issue_type: One of 'feature', 'bug', 'refactor', 'docs', 'chore'
+        issue_type: One of 'feat', 'fix', 'refactor', 'docs', 'chore'
 
     Returns:
         IssueTemplate with editor content and metadata
@@ -263,7 +266,7 @@ def get_issue_labels(issue_type: str) -> str:
     """Get the labels for a given issue type.
 
     Args:
-        issue_type: One of 'feature', 'bug', 'refactor', 'docs', 'chore'
+        issue_type: One of 'feat', 'fix', 'refactor', 'docs', 'chore'
 
     Returns:
         Comma-separated string of labels
@@ -276,7 +279,7 @@ def get_required_sections(issue_type: str) -> list[str]:
     """Get the required sections for a given issue type.
 
     Args:
-        issue_type: One of 'feature', 'bug', 'refactor', 'docs', 'chore'
+        issue_type: One of 'feat', 'fix', 'refactor', 'docs', 'chore'
 
     Returns:
         List of required section names

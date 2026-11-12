@@ -45,7 +45,7 @@ CONTRACT: tuple[tuple[int, str, str], ...] = (
     (4, "comment instead of filing", "add the reproduction as a comment"),
     (5, "nothing public", "file nothing public"),
     (5, "the security policy", "security/policy"),
-    (6, "the filing command", "doit issue --upstream --type=bug"),
+    (6, "the filing command", "doit issue --upstream --type=fix"),
     (7, "no silent patch", "Do not silently patch the template file"),
     (7, "a marked stopgap links the issue", "links the upstream issue"),
 )

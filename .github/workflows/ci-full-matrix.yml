@@ -12,6 +12,9 @@ jobs:
   dispatch:
     name: Dispatch full-matrix CI
     if: github.event.label.name == 'full-matrix'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/ci.yml
     with:
       full_matrix: true

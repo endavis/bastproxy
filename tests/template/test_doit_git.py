@@ -1,8 +1,8 @@
 """Tests for tools/doit/git.py task wiring.
 
 Verifies that ``task_commit``, ``task_bump``, and ``task_changelog`` gate
-their ``cz`` invocations on ``uv pip show commitizen`` (via
-``install_check_or_skip``) so real failures — pre-commit hook rejections,
+their ``cz`` invocations on an import probe of ``commitizen`` in the
+project venv (via ``install_check_or_skip``) so real failures — pre-commit hook rejections,
 tag/version bump failures, changelog generation failures — propagate
 instead of being swallowed by the legacy ``|| echo 'not installed'`` pattern.
 
@@ -26,7 +26,10 @@ import yaml
 from rich.console import Console
 
 from tools.doit.git import (
+    _is_rebuildable,
     _main_checkout,
+    _project_rebuildable,
+    _worktree_mounts,
     remove_merged_worktree,
     task_bump,
     task_changelog,
@@ -54,7 +57,7 @@ _PATH_NAMES = [
 
 
 class TestGitTaskGates:
-    """Each git task gates ``cz`` via ``uv pip show commitizen``.
+    """Each git task gates ``cz`` by importing ``commitizen`` in the project venv.
 
     The package name is ``commitizen`` (CLI is ``cz``). All three tasks
     share the same gating package; the underlying ``cz`` subcommand differs.
@@ -63,7 +66,7 @@ class TestGitTaskGates:
     def test_commit_gates_on_commitizen_package(self) -> None:
         action = task_commit()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show commitizen" in action
+        assert 'uv run --no-sync python -c "import commitizen"' in action
         assert "commitizen not installed. Run: doit install_dev" in action
         assert "uv run cz commit" in action
         # Bug-fix invariant: the bare-swallow pattern must be gone.
@@ -72,7 +75,7 @@ class TestGitTaskGates:
     def test_bump_gates_on_commitizen_package(self) -> None:
         action = task_bump()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show commitizen" in action
+        assert 'uv run --no-sync python -c "import commitizen"' in action
         assert "commitizen not installed. Run: doit install_dev" in action
         assert "uv run cz bump" in action
         assert "|| echo 'commitizen not installed" not in action
@@ -80,7 +83,7 @@ class TestGitTaskGates:
     def test_changelog_gates_on_commitizen_package(self) -> None:
         action = task_changelog()["actions"][0]
         assert isinstance(action, str)
-        assert "uv pip show commitizen" in action
+        assert 'uv run --no-sync python -c "import commitizen"' in action
         assert "commitizen not installed. Run: doit install_dev" in action
         assert "uv run cz changelog" in action
         assert "|| echo 'commitizen not installed" not in action
@@ -757,3 +760,246 @@ class TestRemoveMergedWorktree:
 
         assert path.is_dir()
         assert f"{self.BRANCH} is checked out in {path}, which" in out
+
+
+SETTING = '[tool.pyproject-template.worktree]\nrebuildable = ["app_home"]\n'
+
+
+def _app_home_file(worktree: Path) -> Path:
+    """Create an ignored `tmp/app_home/data/logs/app.log` in *worktree*."""
+    log = worktree / "tmp" / "app_home" / "data" / "logs" / "app.log"
+    log.parent.mkdir(parents=True)
+    log.write_text("log\n", encoding="utf-8")
+    return log
+
+
+class TestProjectRebuildable:
+    """`_project_rebuildable` reads a project's extra rebuildable names (#1238)."""
+
+    @staticmethod
+    def _read(tmp_path: Path, text: str | None) -> tuple[str, ...]:
+        pyproject = tmp_path / "pyproject.toml"
+        if text is not None:
+            pyproject.write_text(text, encoding="utf-8")
+        return _project_rebuildable(pyproject)
+
+    @pytest.mark.parametrize(
+        "text",
+        [None, "", "[tool.other]\nx = 1\n", "[tool.pyproject-template.worktree]\n"],
+    )
+    def test_absent_setting_is_empty(self, tmp_path: Path, text: str | None) -> None:
+        assert self._read(tmp_path, text) == ()
+
+    def test_valid_list_is_returned(self, tmp_path: Path) -> None:
+        text = '[tool.pyproject-template.worktree]\nrebuildable = ["app_home", "*_data"]\n'
+        assert self._read(tmp_path, text) == ("app_home", "*_data")
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "not = [toml",
+            "[tool]\npyproject-template = 1\n",
+            "[tool.pyproject-template]\nworktree = 1\n",
+            '[tool.pyproject-template.worktree]\nrebuildable = "app_home"\n',
+            "[tool.pyproject-template.worktree]\nrebuildable = [1]\n",
+            '[tool.pyproject-template.worktree]\nrebuildable = [""]\n',
+            '[tool.pyproject-template.worktree]\nrebuildable = ["tmp/app_home"]\n',
+            '[tool.pyproject-template.worktree]\nrebuildable = [".."]\n',
+            *(
+                f'[tool.pyproject-template.worktree]\nrebuildable = ["{n}"]\n'
+                for n in ("tmp", "*", "t*", ".envrc*", "agents")
+            ),
+        ],
+    )
+    def test_malformed_or_over_broad_raises(self, tmp_path: Path, text: str) -> None:
+        with pytest.raises(ValueError, match=r"pyproject\.toml"):
+            self._read(tmp_path, text)
+
+    def test_error_names_the_key(self, tmp_path: Path) -> None:
+        text = '[tool.pyproject-template.worktree]\nrebuildable = "x"\n'
+        with pytest.raises(ValueError, match=r"rebuildable"):
+            self._read(tmp_path, text)
+
+    def test_is_rebuildable_with_and_without_extra(self) -> None:
+        assert not _is_rebuildable("app_home")
+        assert _is_rebuildable("app_home", ("app_home",))
+        assert _is_rebuildable(".venv", ("app_home",))
+
+
+class TestRemoveMergedWorktreeProjectNames:
+    """`remove_merged_worktree` honors the main checkout's rebuildable names (#1238)."""
+
+    BRANCH = "feat/1-add-export"
+
+    @staticmethod
+    def _remove(path: Path, branch: str, merged_head: str) -> str:
+        output = io.StringIO()
+        remove_merged_worktree(path, branch, merged_head, Console(file=output, width=200))
+        return output.getvalue()
+
+    def test_without_the_setting_the_worktree_is_kept(self, main_checkout: Path) -> None:
+        path, head = _add_worktree(main_checkout, self.BRANCH)
+        _app_home_file(path)
+
+        out = self._remove(path, self.BRANCH, head)
+
+        assert path.exists()
+        assert "!! tmp/app_home/data/logs/app.log" in out
+
+    def test_with_the_setting_the_worktree_is_removed(self, main_checkout: Path) -> None:
+        (main_checkout / "pyproject.toml").write_text(SETTING, encoding="utf-8")
+        path, head = _add_worktree(main_checkout, self.BRANCH)
+        _app_home_file(path)
+
+        self._remove(path, self.BRANCH, head)
+
+        assert not path.exists()
+        assert not _has_branch(main_checkout, self.BRANCH)
+
+    def test_other_files_still_keep_it(self, main_checkout: Path) -> None:
+        (main_checkout / "pyproject.toml").write_text(SETTING, encoding="utf-8")
+        path, head = _add_worktree(main_checkout, self.BRANCH)
+        _app_home_file(path)
+        (path / "tmp" / "notes.md").write_text("n\n", encoding="utf-8")
+
+        out = self._remove(path, self.BRANCH, head)
+
+        assert path.exists()
+        assert "!! tmp/notes.md" in out
+        assert "app.log" not in out
+
+    def test_setting_only_in_the_worktree_is_ignored(self, main_checkout: Path) -> None:
+        path, head = _add_worktree(main_checkout, self.BRANCH)
+        (path / "pyproject.toml").write_text(SETTING, encoding="utf-8")
+        _app_home_file(path)
+
+        self._remove(path, self.BRANCH, head)
+
+        assert path.exists()
+
+    def test_malformed_setting_keeps_the_worktree_and_prints_commands(
+        self, main_checkout: Path
+    ) -> None:
+        (main_checkout / "pyproject.toml").write_text(
+            '[tool.pyproject-template.worktree]\nrebuildable = ["*"]\n', encoding="utf-8"
+        )
+        path, head = _add_worktree(main_checkout, self.BRANCH)
+
+        out = self._remove(path, self.BRANCH, head)
+
+        assert path.exists()
+        assert _has_branch(main_checkout, self.BRANCH)
+        lines = out.splitlines()
+        assert "rebuildable" in out
+        assert f"  git worktree remove {path}" in lines
+        assert f"  git branch -D {self.BRANCH}" in lines
+
+
+class TestWorktreeMounts:
+    """A mount at or below a worktree keeps it, whatever git status says (#1212)."""
+
+    @staticmethod
+    def _mountinfo(tmp_path: Path, *mount_points: str) -> Path:
+        lines = [f"{i} 1 0:{i} / {mp} rw - tmpfs tmpfs rw" for i, mp in enumerate(mount_points, 30)]
+        info = tmp_path / "mountinfo"
+        info.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return info
+
+    def _mounts(self, tmp_path: Path, worktree: Path, *mount_points: str) -> list[str]:
+        info = self._mountinfo(tmp_path, *mount_points)
+        with patch("tools.doit.git._MOUNTINFO", info):
+            return _worktree_mounts(worktree)
+
+    def test_mount_under_a_rebuildable_directory(self, tmp_path: Path) -> None:
+        wt = tmp_path / "wt"
+        mount = wt / "tmp" / "sandbox_cache" / "mnt" / "host"
+        mount.mkdir(parents=True)
+
+        assert self._mounts(tmp_path, wt, str(mount.resolve())) == [str(mount.resolve())]
+
+    def test_mount_under_a_non_rebuildable_ignored_directory(self, tmp_path: Path) -> None:
+        wt = tmp_path / "wt"
+        mount = wt / "tmp" / "agents" / "mnt"
+        mount.mkdir(parents=True)
+
+        assert self._mounts(tmp_path, wt, str(mount.resolve())) == [str(mount.resolve())]
+
+    def test_the_worktree_itself_counts(self, tmp_path: Path) -> None:
+        wt = tmp_path / "wt"
+        wt.mkdir()
+
+        assert self._mounts(tmp_path, wt, str(wt.resolve())) == [str(wt.resolve())]
+
+    def test_outside_and_sibling_prefix_mounts_are_ignored(self, tmp_path: Path) -> None:
+        wt = tmp_path / "wt"
+        wt.mkdir()
+        (tmp_path / "wt2").mkdir()
+        other = (tmp_path / "wt2").resolve()
+
+        assert self._mounts(tmp_path, wt, str(other), str(other / "x"), "/proc", "/") == []
+
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Windows refuses a tab in a name; mountinfo is Linux-only"
+    )
+    def test_escaped_mount_paths_are_decoded(self, tmp_path: Path) -> None:
+        wt = tmp_path / "wt"
+        (wt / "a b\tc\\d").mkdir(parents=True)
+        root = str(wt.resolve())
+        escaped = root + "/a\\040b\\011c\\134d"
+
+        assert self._mounts(tmp_path, wt, escaped) == [f"{root}/a b\tc\\d"]
+
+    def test_fallback_walks_rebuildable_directories_and_skips_mounts_and_links(
+        self, tmp_path: Path
+    ) -> None:
+        wt = tmp_path / "wt"
+        mount = wt / ".venv" / "mnt"
+        (mount / "inner").mkdir(parents=True)
+        (wt / "plain").mkdir()
+        (tmp_path / "target").mkdir()
+        link = wt / "link"
+        try:
+            link.symlink_to(tmp_path / "target", target_is_directory=True)
+        except OSError:
+            pytest.skip("symlinks unavailable")
+        resolved_mount = mount.resolve()
+        seen: list[str] = []
+
+        def ismount(path: object) -> bool:
+            seen.append(str(path))
+            return Path(str(path)) in {resolved_mount, link}
+
+        with (
+            patch("tools.doit.git._MOUNTINFO", tmp_path / "missing"),
+            patch("tools.doit.git.os.path.ismount", side_effect=ismount),
+        ):
+            found = _worktree_mounts(wt)
+
+        assert found == [str(resolved_mount)]
+        assert not any(p.endswith("inner") or p.endswith("link") for p in seen)
+
+    def test_a_mount_keeps_the_worktree_and_git_is_not_asked_to_remove_it(
+        self, main_checkout: Path
+    ) -> None:
+        path, head = _add_worktree(main_checkout, "feat/1-add-export")
+        mount = str((path / "tmp" / "sandbox_cache" / "mnt").resolve())
+        output = io.StringIO()
+        real_run = subprocess.run
+        calls: list[list[str]] = []
+
+        def spy(cmd: list[str], *args: object, **kwargs: object) -> object:
+            calls.append(cmd)
+            return real_run(cmd, *args, **kwargs)  # type: ignore[call-overload]
+
+        with (
+            patch("tools.doit.git._worktree_mounts", return_value=[mount]),
+            patch("tools.doit.git.subprocess.run", side_effect=spy),
+        ):
+            remove_merged_worktree(path, "feat/1-add-export", head, Console(file=output, width=300))
+
+        out = output.getvalue()
+        assert path.exists()
+        assert ["git", "worktree", "remove"] not in [c[:3] for c in calls]
+        assert "Unmount these first" in out
+        assert f"  {mount}" in out.splitlines()
+        assert f"  git worktree remove {path}" in out.splitlines()
