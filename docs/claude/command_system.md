@@ -248,8 +248,8 @@ Configures the argument parser:
 )
 ```
 
-`formatter_class` is replaced by `argp.CustomFormatter` after the parser is built, and positional arguments
-to `AddParser` are stored and never used. The `-h` and `--help` flags are added to every command.
+`formatter_class` is replaced by `argp.CustomFormatter` after the parser is built. `AddParser` takes keyword
+arguments only; a positional argument raises `TypeError` (removed in #400, they were never used). The `-h` and `--help` flags are added to every command.
 
 ### @AddArgument
 

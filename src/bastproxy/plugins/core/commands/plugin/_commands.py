@@ -66,15 +66,6 @@ class CommandsPlugin(BasePlugin):
         # command error stats (as primitive dicts) saved the same way
         self.saved_command_stats: dict[str, dict[str, dict[str, Any]]] = {}
 
-        # a list of commands that should not be run again if already in the queue
-        self.no_multiple_commands = {}
-
-        # the default command to run if no command is specified
-        self.default_help_command = {
-            "plugin_id": "plugins.core.pluginm",
-            "command": "list",
-        }
-
         # load the history
         self.history_save_file = self.plugin_info.data_directory / "history.txt"
         self.command_history_dict = PersistentDict(self.plugin_id, self.history_save_file, "c")
@@ -664,14 +655,6 @@ class CommandsPlugin(BasePlugin):
         # sync command history
         self.command_history_dict.sync()
 
-    # return a list of all commands known
-    def api_get_all_commands_list(self):
-        """Return a list of all commands.
-
-        returns a list of commands
-        """
-        return self.commands_list
-
     # retrieve a command from a plugin
     def get_command_data_from_plugin(self, plugin_id, command) -> CommandClass | None:
         """Get the command from the plugin data.
@@ -799,18 +782,6 @@ class CommandsPlugin(BasePlugin):
                 )()
 
                 self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)
-                return
-
-            # if the command is seen multiple times in a row and it has been flagged to only be sent once,
-            # swallow it
-            if original_command in self.no_multiple_commands:
-                event_record.addupdate(
-                    UpdateFlag.MODIFY,
-                    "this command has been flagged to only be sent once, sendtomud set to False",
-                    savedata=False,
-                )
-
-                event_record["line"].send = False
                 return
         else:
             # the command does not match the last command
@@ -1287,46 +1258,6 @@ class CommandsPlugin(BasePlugin):
             self.add_command_to_history(event_record["line"].line)
 
         self.current_input_event = None
-
-    # remove a command
-    def _api_remove_command(self, plugin_id, command_name):
-        """Remove a command.
-
-        @Yplugin@w        = the top level of the command
-        @Ycommand_name@w  = the name of the command.
-
-        this function returns no values
-        """
-        if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            log_to(
-                [self.plugin_id, plugin_id],
-                logging.WARNING,
-                "remove command: plugin %s does not exist",
-                plugin_id,
-            )
-            return False
-
-        data = self.command_data[plugin_id]
-        if data and command_name in data:
-            del data[command_name]
-            self.api(f"{plugin_id}:data.update")("commands", data)
-            log_to(
-                [self.plugin_id, plugin_id],
-                logging.DEBUG,
-                "removed command %s.%s",
-                plugin_id,
-                command_name,
-            )
-            return True
-
-        log_to(
-            [self.plugin_id, plugin_id],
-            logging.ERROR,
-            "remove command: command %s.%s does not exist",
-            plugin_id,
-            command_name,
-        )
-        return False
 
     def format_command_list(self, command_list: list[CommandClass]):
         """Format a list of commands by a category.
