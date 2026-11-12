@@ -19,7 +19,7 @@ This page describes what the code does today, including where that is not what t
 
 - A regex is matched from the **start of the line** (`match`, not `search`). `orc` does not match `You hit orc.`; `.*orc` does.
 - **Every** enabled trigger whose own regex matches the line fires, in `priority` order (lower first), then in the order added. `stopevaluating` stops every later trigger for the line. Each trigger has its own compiled regex ([ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md)).
-- `group.toggle.enable` does not work (TR-4). `trigger.update` was fixed in #348 (TR-3), and `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
+- `group.toggle.enable` was fixed in #349 (TR-4). `trigger.update` was fixed in #348 (TR-3), and `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
 
 ## Key Components
 
@@ -75,7 +75,7 @@ class TriggersPlugin(BasePlugin):
         self._next_order = 0            # Next value for TriggerItem.order
 ```
 
-`_ordered` is what matching walks. Add, update (regex, `enabled` or `priority`), toggle and remove keep it in step; a trigger without a regex is never in it. Entries in `trigger_groups` are never removed (TR-4).
+`_ordered` is what matching walks. Add, update (regex, `enabled` or `priority`), toggle and remove keep it in step; a trigger without a regex is never in it. `trigger.remove` removes the id from its group, and a group left empty is deleted (TR-4, fixed by #349).
 
 ## How It Works
 
@@ -179,7 +179,7 @@ What follows from this:
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; the same `KeyError`
 - `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and put the trigger into, or take it out of, the matching order (it keeps its place). Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
 - `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag
-- `plugins.core.triggers:group.toggle.enable` - Meant to toggle every trigger of a group; it changes nothing and logs "does not exist" for each member (TR-4)
+- `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); an unknown group returns `None` without a message
 - `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (no `force`)
 
 The name-taking APIs build the trigger id from the name and the owner; without `owner_id` the owner is the calling plugin.
@@ -338,7 +338,7 @@ def enable_quest_tracking(self, enabled):
     )
 ```
 
-The group is recorded, but `group.toggle.enable` does not toggle its triggers today (TR-4). Until that is fixed, call `trigger.toggle.enable` for each trigger name.
+`group.toggle.enable` enables or disables every trigger in the group (TR-4, fixed by #349).
 
 ### Stat Tracking
 
@@ -390,7 +390,7 @@ def update_stats(self):
 4. **Error Handling**: Handle missing groups gracefully, and check the result of `trigger.add` before unpacking it
 5. **Cleanup**: A plugin's triggers are removed when it is unloaded; no `uninitialize` code is needed for that. A callback may remove a trigger, including its own; matching walks a copy
 6. **Testing**: Test regex patterns thoroughly, against the start of the line
-7. **Groups**: Groups are recorded, but the group toggle does not work yet (TR-4)
+7. **Groups**: `group.toggle.enable` toggles every trigger in a group
 8. **Order**: Overlapping triggers all fire. Use `priority` (lower first) to order them and `stopevaluating` to keep later ones from firing
 
 ## Advanced Features
@@ -445,7 +445,7 @@ self.api("plugins.core.triggers:trigger.update")(
 ## Integration Points
 
 - **Event System**: Each trigger has its own event, `event_<trigger_id>`, raised once per match. The event data holds `line`, `matches`, `trigger_name` and `trigger_id`. The `Event` object stays after the trigger is removed.
-- **Plugin System**: On `ev_plugin_unloaded` the triggers plugin calls `trigger.remove.for.owner`. The events plugin has removed the owner's callbacks by then, so the removals are not refused (**verified**). The owner's entries in `trigger_groups` stay, and one trigger without a regex stops the removal of the triggers after it (TR-4, TR-8). The triggers plugin itself cannot be reloaded (`can_reload_f = False`).
+- **Plugin System**: On `ev_plugin_unloaded` the triggers plugin calls `trigger.remove.for.owner`. The events plugin has removed the owner's callbacks by then, so the removals are not refused (**verified**). The owner's entries in `trigger_groups` are removed with its triggers (TR-4, fixed by #349), and one trigger without a regex stops the removal of the triggers after it (TR-4, TR-8). The triggers plugin itself cannot be reloaded (`can_reload_f = False`).
 - **Data Flow**: `_eventcb_check_trigger` is a callback of the `ev_to_client_data_modify` event; see [Data Flow](data_flow.md)
 - **Record System**: Each raise is a record; the built-in triggers share the outer event's record (#230)
 

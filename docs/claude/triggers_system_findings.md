@@ -50,7 +50,7 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **One regex fires per line, and `priority` is not used** (TR-1). All regexes are joined into one alternation,
   which reports only the first alternative that matches, in the order the regexes were added. Two triggers
   with different regexes never both fire (Q1c).
-- **One of the ten APIs does not work.** `group.toggle.enable` changes nothing (TR-4). Before #348,
+- **The APIs listed as working now do.** Before #349, `group.toggle.enable` changed nothing (TR-4, fixed). Before #348,
   `trigger.update` raised `TypeError` on every call (TR-3, fixed); before #347, `trigger.toggle.enable` could
   not enable a trigger that was added disabled (TR-2, fixed).
 - **One regex can stop the matcher from being updated** (TR-5). A regex with a named backreference compiles
@@ -61,8 +61,7 @@ below (TR-1 to TR-14); eleven are defects found by running the code.
 - **The `enabled` setting does nothing** (TR-11), `matchcolor` only works for regexes that also match the
   uncoloured text (TR-6), and triggers without a regex, the three built-ins included, raise `KeyError` from
   remove and toggle (TR-8).
-- **Unload is clean for triggers and their callbacks** (Q2e, **verified**), except for group entries, which
-  are never removed, and for an owner that has a trigger without a regex.
+- **Unload is clean for triggers and their callbacks** (Q2e, **verified**), except for an owner that has a trigger without a regex.
 - **Cost** (Q4): matching is cheap at realistic sizes, 6 us for a line that matches nothing against 100
   triggers. The two built-in events raised for every line cost about 250 us with nothing listening, and
   loading 1,000 triggers one by one took 47 s because the combined pattern is recompiled on every add (TR-10).
@@ -265,9 +264,10 @@ were a name, which builds `t_<owner>_t_<owner>_<name>`. For a group of two, the 
 "does not exist" errors, and both triggers still fired afterwards. An unknown group returns `None` without a
 message.
 
-Group entries are never removed. After `trigger.remove(..., force=True)` the id was still in the group; after
+Before #349 group entries were never removed. After `trigger.remove(..., force=True)` the id was still in the group; after
 an unload the group still listed the unloaded plugin's trigger; after a second load and a reload the same id
-was in the list three times.
+was in the list three times. #349 fixed both: the toggle sets `enabled` by id, and `trigger.remove` removes the
+id from its group.
 
 ### Q2d: Update (TR-3)
 
@@ -461,7 +461,7 @@ probe or grep ran, output saved) or **read**.
 | 6 | Responding to Triggers | `success, trigger = ...trigger.add(...)` with no caveat | A failure returns a bare `False` (**verified**, Q2a) | Fixed (note added); TR-9 |
 | 7 | Trigger Matching | Six steps: "checks all enabled triggers", "matches against line (with or without color)" | One regex is chosen per line; the built-ins; two stages; `matchcolor` only in the second (**verified**, Q1) | Fixed (rewritten); TR-1, TR-6 |
 | 8 | Regex Optimization | Named groups "identify which trigger matched" | They identify which regex matched, and only the first; backreferences change meaning (**verified**, Q1f, Q3b) | Fixed (rewritten); TR-5 |
-| 9 | Common APIs | `trigger.update`, `trigger.toggle.enable` and `group.toggle.enable` listed as working | See Q2b to Q2d (**verified**) | Fixed; TR-2 (fixed by #347), TR-3, TR-4 |
+| 9 | Common APIs | `trigger.update`, `trigger.toggle.enable` and `group.toggle.enable` listed as working | See Q2b to Q2d (**verified**) | Fixed; TR-2 (fixed by #347), TR-3, TR-4 (fixed by #349) |
 | 10 | Built-in Triggers | "automatic triggers", no mention of `enabled` | Added with `enabled=False`, raised for every line anyway; `emptyline` rules; `^$` never fires (**verified**, Q1e) | Fixed; TR-8 |
 | 11 | Commands | A `#bp.triggers.listgroups` command | The plugin has `_command_list` and `_command_detail` only (**read**; the greps find no other `AddParser`) | Fixed (removed) |
 | 12 | Trigger Groups | The group toggle example | Changes nothing (**verified**, Q2c) | Fixed (note added); TR-4 |
@@ -646,7 +646,7 @@ change (**verified**, `out-docs-checks.txt`: no other caller in `src`).
 | `trigger.update` | Starts to work (TR-3): changing `regex` is one compile, changing `priority` one re-sort. |
 | `trigger.remove`, `trigger.remove.for.owner` | Unchanged; the latter passes `force=True`. |
 | `trigger.toggle.enable`, `trigger.toggle.omit` | Unchanged; enable sets `TriggerItem.enabled`. |
-| `group.toggle.enable` | Starts to work (TR-4). |
+| `group.toggle.enable` | Starts to work (TR-4, fixed by #349): it sets `enabled` on each member by id. |
 
 **Behaviour that changes for existing plugins** and belongs in the commit as a `BREAKING CHANGE:` footer:
 
@@ -734,7 +734,7 @@ group entries by id. Tests for each key.
 
 ### TR-4: `group.toggle.enable` changes nothing, and group entries are never removed
 
-**Status:** open
+**Status:** fixed by #349
 **Issue:** #349
 **Location:** `TriggersPlugin._api_group_toggle_enable`; `trigger_groups` in `_api_trigger_add` (the only
 writer) and `_api_trigger_remove` (no cleanup).
