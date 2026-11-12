@@ -25,6 +25,14 @@ def _mode(path: Path) -> int:
     return stat.S_IMODE(path.stat().st_mode)
 
 
+# Windows has no POSIX permission bits: stat reports 0o777 for a directory and 0o666 for a
+# writable file whatever mode was asked for, and the user's ACL keeps the files private.
+_POSIX_MODES = pytest.mark.skipif(
+    os.name == "nt", reason="POSIX permission bits; Windows uses ACLs"
+)
+
+
+@_POSIX_MODES
 def test_make_log_dir_creates_private_dirs(tmp_path: Path, umask022: None) -> None:
     target = tmp_path / "logs" / "networkdata"
     make_log_dir(target)
@@ -32,6 +40,7 @@ def test_make_log_dir_creates_private_dirs(tmp_path: Path, umask022: None) -> No
     assert _mode(target.parent) == 0o700
 
 
+@_POSIX_MODES
 def test_make_log_dir_keeps_existing_dir_mode(tmp_path: Path, umask022: None) -> None:
     existing = tmp_path / "logs"
     existing.mkdir()
@@ -40,6 +49,7 @@ def test_make_log_dir_keeps_existing_dir_mode(tmp_path: Path, umask022: None) ->
     assert _mode(existing / "networkdata") == 0o700
 
 
+@_POSIX_MODES
 @pytest.mark.parametrize("cls", [CustomRotatingFileHandler, PrivateTimedRotatingFileHandler])
 def test_log_files_are_private_including_after_rollover(
     cls: type, tmp_path: Path, umask022: None
@@ -57,6 +67,7 @@ def test_log_files_are_private_including_after_rollover(
         handler.close()
 
 
+@_POSIX_MODES
 def test_existing_log_file_mode_is_unchanged(tmp_path: Path, umask022: None) -> None:
     logfile = tmp_path / "test.log"
     logfile.write_text("old\n")
@@ -66,6 +77,7 @@ def test_existing_log_file_mode_is_unchanged(tmp_path: Path, umask022: None) -> 
     assert _mode(logfile) == 0o644
 
 
+@_POSIX_MODES
 @pytest.mark.parametrize("cls", [CustomRotatingFileHandler, PrivateTimedRotatingFileHandler])
 def test_new_log_files_are_created_private_without_a_chmod(
     cls: type, tmp_path: Path, umask022: None, monkeypatch: pytest.MonkeyPatch
