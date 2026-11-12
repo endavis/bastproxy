@@ -212,24 +212,25 @@ class CommandClass:
 
         command = self.api("plugins.core.commands:command.format")(self.plugin_id, self.name)
 
-        newmessage = [
-            "",
-            self.api("plugins.core.utils:string.center.colored")(
-                f"Begin Command: {command}",
-                "-",
-                line_length,
-                filler_color=preamble_color,
-            ),
-        ]
-        if include_date:
+        newmessage: list[str] = [""]
+        if self.preamble:
             newmessage.append(
                 self.api("plugins.core.utils:string.center.colored")(
-                    f"Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else 'Unknown'}",
+                    f"Begin Command: {command}",
                     "-",
                     line_length,
                     filler_color=preamble_color,
                 )
             )
+            if include_date:
+                newmessage.append(
+                    self.api("plugins.core.utils:string.center.colored")(
+                        f"Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else 'Unknown'}",
+                        "-",
+                        line_length,
+                        filler_color=preamble_color,
+                    )
+                )
 
         if not simple:
             newmessage.extend(
@@ -277,27 +278,25 @@ class CommandClass:
                 )
             )
 
-        if include_date:
-            newmessage.append(
-                self.api("plugins.core.utils:string.center.colored")(
-                    f"Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else 'Unknown'}",
-                    "-",
-                    line_length,
-                    filler_color=preamble_color,
+        if self.preamble:
+            if include_date:
+                newmessage.append(
+                    self.api("plugins.core.utils:string.center.colored")(
+                        f"Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else 'Unknown'}",
+                        "-",
+                        line_length,
+                        filler_color=preamble_color,
+                    )
                 )
-            )
-
-        newmessage.extend(
-            [
+            newmessage.append(
                 self.api("plugins.core.utils:string.center.colored")(
                     f"End Command: {command}",
                     "-",
                     line_length,
                     filler_color=preamble_color,
-                ),
-                "",
-            ]
-        )
+                )
+            )
+        newmessage.append("")
 
         return newmessage
 
