@@ -67,7 +67,7 @@ say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects fou
 - **A failure outside `CommandClass.run`'s `try` is silent for the client** (CM-10). Exceptions in
   `find_command` and `format_return_message` are caught by the event system and logged, but the client sees
   nothing and the line is gone.
-- **Registration appends duplicates** (CM-7): `commands_list` holds 151 entries against 133 commands after a
+- **Registration appended duplicates** (CM-7, fixed in #394): `commands_list` held 151 entries against 133 commands after a
   re-add.
 - **Tests** (Q4): `_commands.py` is 28.08% covered by the full suite. `find_command*`, the history
   code, the decorators, `command.add.by.func`, `command.data.get` and `command.list.formatted` have no test
@@ -249,7 +249,7 @@ and `format_return_message` skips the `Begin Command`, start, finish and `End Co
   starts with `_command_` and that have `command_data`. Any of the three decorators sets `command_data`. It
   runs from `ev_plugin_loaded` for the plugin, and for every loaded plugin at startup and when the commands
   plugin itself loads.
-- **Duplicates.** `_api_command_add_by_func` appends to `commands_list` every time. Calling
+- **Duplicates (fixed in #394).** Before the fix, `_api_command_add_by_func` appended to `commands_list` every time. Calling
   `update_commands_for_plugin` for a loaded plugin doubled its entries (16 to 32); two `force=True` re-adds of
   one command left it listed four times. After the run `commands_list` held 151 entries and the command table
   133 (CM-7). `command_data` is a dictionary and was not duplicated.
@@ -528,7 +528,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 7 | **Service location through `self.api("...")`** | 125 calls; `CommandClass` builds its own `API` | Yes | **Keep.** The project-wide trade covered by [Plugin System Findings](plugin_system_findings.md) and [API System Findings](api_system_findings.md). |
 | 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The gap is the code outside it (CM-10). |
 | 9 | **Silent returns**: `return None` or `return` with a warning, or nothing at all | `_api_command_add_by_func`, `get_command_data_from_plugin`, `_api_command_data_get` | No | **Change (CM-9; CM-5 fixed in #392).** The lookups raised `KeyError` for a plugin with no data while the same functions return `None` and `{}` for a plugin that is not valid. |
-| 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7).** The list gets duplicates; it is read only by the summary count. |
+| 10 | **Parallel indexes**: `commands_list` (list) beside `command_data` (dict) | `CommandsPlugin` | No | **Change (CM-7, fixed in #394).** The list got duplicates; it is read only by the summary count. |
 | 11 | **Dead state** | `commands_at_startup`, `default_help_command`, `no_multiple_commands`, `api_get_all_commands_list`, `_api_remove_command`, `AddParser` positional arguments | n/a | **Change (CM-13).** |
 | 12 | **Magic indexes into a list the plugin edits**: the history | `add_command_to_history`, `_command_run_history` | No | **Change (CM-8).** |
 | 13 | **Re-entrancy guard on a saved attribute** (`current_input_event`) | `_eventcb_check_for_command` | Yes | **Keep, small.** It matters only for the commands plugin's own reload (Q2f); a failing event leaves a stale record until the next line. |
@@ -682,7 +682,7 @@ inside the command. A normal plugin has the `Base` group from the base plugin's 
 
 ### CM-7: `commands_list` gets a duplicate entry every time a command is added again
 
-**Status:** open
+**Status:** fixed in #394
 **Issue:** #394
 **Location:** `_api_command_add_by_func` (L409); `update_commands_for_plugin`.
 **Evidence (verified):** Q2a: `update_commands_for_plugin` on a loaded plugin moved its entries from 16 to 32;

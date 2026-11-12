@@ -435,7 +435,9 @@ class CommandsPlugin(BasePlugin):
 
         self.update_command(plugin_id, command_name, command)
 
-        self.commands_list.append(f"{plugin_id}.{command_name}")
+        command_entry = f"{plugin_id}.{command_name}"
+        if command_entry not in self.commands_list:
+            self.commands_list.append(command_entry)
 
         log_to(
             [self.plugin_id, plugin_id],
