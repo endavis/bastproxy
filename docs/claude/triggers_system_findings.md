@@ -36,6 +36,8 @@ line flow, state consistency, failures, cost, test coverage, docs accuracy, patt
 12. [New Defects](#new-defects)
 13. [Other Observations](#other-observations)
 
+> **Update (#359):** the combined-regex matcher this audit describes was replaced by per-trigger matching in priority order ([ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md)). Q1 to Q4 describe the old code; the audit body below is not rewritten.
+
 ---
 
 ## Executive Summary
@@ -669,7 +671,7 @@ by TR-14; they are listed separately because they are observable bugs today and 
 
 ### TR-1: Only the first-added matching regex fires, and `priority` is ignored
 
-**Status:** open
+**Status:** fixed by #346 (with #359)
 **Issue:** #346
 **Location:** `TriggersPlugin.rebuild_regexes`, `TriggersPlugin._eventcb_check_trigger`; `TriggerItem.priority`.
 **Evidence (verified):** Q1c: of three overlapping triggers at priorities 200, 1 and 50, only the first added
@@ -755,7 +757,7 @@ times in a group after unload, load and reload.
 
 ### TR-5: A regex that is valid alone can break or change the combined pattern
 
-**Status:** open
+**Status:** fixed by #359 (TR-14)
 **Issue:** #350
 **Location:** `TriggersPlugin.rebuild_regexes` (keeps the previous compiled pattern on `re.error`);
 the strip `re.sub(r"\?P\<.*?\>", "", ...)` in `_api_trigger_add` and `_api_trigger_update`.
@@ -783,7 +785,7 @@ trigger and refuse the add on failure; refuse backreferences; strip names with a
 
 ### TR-6: A `matchcolor` trigger must also match the uncoloured text
 
-**Status:** open
+**Status:** fixed by #359 (TR-14)
 **Issue:** #351
 **Location:** `TriggersPlugin._eventcb_check_trigger` (first stage on `noansi`); `TriggersPlugin.process_match`
 (second stage on `colorcoded`).
@@ -804,7 +806,7 @@ was shadowed.
 
 ### TR-7: An exception while a line's triggers run drops the rest of that line's triggers
 
-**Status:** open
+**Status:** open; the copy, the re-check per item and a local `try` landed with #359 (TR-14). Skipping the conversion of a group that is `None` remains (#352)
 **Issue:** #352
 **Location:** `TriggersPlugin.process_match` (the `argtypes` conversion; the iteration over the live
 `regex["triggers"]` list; `self.triggers[trigger_id].stopevaluating` after the raise).
@@ -831,7 +833,7 @@ sibling skipped the next trigger without an error.
 
 ### TR-8: Triggers without a regex: `KeyError` from remove and toggle, and the built-ins are raised for every line
 
-**Status:** open
+**Status:** open; #359 removed the `KeyError` from remove and toggle of regex-less triggers and raises the built-ins only with a listener. `remove.for.owner` and the ignored `enabled` flag of the built-ins remain (#353)
 **Issue:** #353
 **Location:** `TriggersPlugin._api_trigger_remove`, `TriggersPlugin._api_trigger_toggle_enable`
 (`self.regexes[...regex_id]` with `regex_id` None); `TriggersPlugin._api_trigger_remove_for_owner` (no `force`,
@@ -888,7 +890,7 @@ the `event_name` parameter; catch `re.error`; let a missing `regex` raise `Impor
 
 ### TR-10: The combined pattern is recompiled on every change, and the regex table only grows
 
-**Status:** open
+**Status:** fixed by #359 (TR-14): there is no rebuild and no regex table
 **Issue:** #355
 **Location:** `TriggersPlugin.rebuild_regexes` and its callers `_api_trigger_add`, `_api_trigger_remove`,
 `_api_trigger_toggle_enable`, `_api_trigger_update`; `TriggersPlugin.find_regex_id`.
@@ -975,7 +977,7 @@ event; the fixes for TR-1 to TR-11 bring their own regression tests.
 
 ### TR-14: Replace the combined-regex matcher with per-trigger matching in priority order (needs an ADR)
 
-**Status:** open
+**Status:** fixed by #359
 **Issue:** #359
 **Location:** `TriggersPlugin.rebuild_regexes`, `find_regex_id`, `_eventcb_check_trigger`, `process_match`;
 `TriggerItem`.

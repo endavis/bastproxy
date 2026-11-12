@@ -151,3 +151,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0004](0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md) | API names are resource-first and cmdq is renamed mudcmds | Accepted |
 | [0005](0005-record-tracking-scope-change-contents-retention-and-cost.md) | Record tracking: scope, change contents, retention and cost | Accepted |
 | [0006](0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md) | Records adapt pydatatracker containers and locked writes raise RuntimeError | Accepted |
+| [0007](0007-triggers-match-each-triggers-own-regex-in-priority-order.md) | Triggers match each trigger's own regex in priority order | Accepted |

@@ -6,6 +6,7 @@
 # By: Bast
 
 # Standard Library
+import bisect
 import sys
 
 # 3rd Party
@@ -30,6 +31,11 @@ _UPDATABLE_TRIGGER_KEYS = frozenset(
 )
 
 
+def _order_key(item: "TriggerItem") -> tuple[int, int]:
+    """Sort key for matching: lower priority first, then the order added."""
+    return (item.priority, item.order)
+
+
 class TriggerItem:
     def __init__(
         self,
@@ -48,6 +54,7 @@ class TriggerItem:
         trigger_id=None,
         event_name=None,
         original_regex_compiled=None,
+        order=0,
     ) -> None:
         """Initialize the instance."""
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
@@ -65,6 +72,7 @@ class TriggerItem:
         self.argtypes = argtypes
         self.matchcolor = matchcolor
         self.hits = 0
+        self.order = order
         self.trigger_id = trigger_id
         self.event_name = f"event_{self.trigger_id}"
 
@@ -97,8 +105,6 @@ class TriggersPlugin(BasePlugin):
     def _phook_init_plugin(self):
         """Initialize the instance."""
         self.can_reload_f = False
-        self.latest_regex_id = 0
-
         self.beall_id = self.create_trigger_id("beall", self.plugin_id)
         self.all_id = self.create_trigger_id("all", self.plugin_id)
         self.emptyline_id = self.create_trigger_id("emptyline", self.plugin_id)
@@ -110,19 +116,12 @@ class TriggersPlugin(BasePlugin):
 
         # The dictionary of trigger groups
         # key is group name
-        # value is a list of trigger_names
+        # value is a list of trigger ids
         self.trigger_groups = {}
 
-        # The dictionary of unique regexes
-        # This will replace regex_lookup
-        # key is regex_id
-        # value is a dictionary including regex, a list of triggers, hit count, and the compiled without groups
-        self.regexes = {}
-        # lookup for regex to regex_id
-        self.regex_lookup_to_id = {}
-
-        # The compiled regex
-        self.created_regex: dict = {"created_regex": "", "created_regex_compiled": ""}
+        # The enabled regex triggers, sorted by (priority, order added)
+        self._ordered: list = []
+        self._next_order = 0
 
     @RegisterPluginHook("initialize")
     def _phook_initialize(self):
@@ -159,36 +158,23 @@ class TriggersPlugin(BasePlugin):
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self.api(f"{self.plugin_id}:trigger.remove.for.owner")(event_record["plugin_id"])
 
-    def rebuild_regexes(self):
-        """Rebuild a regex for priority.
+    def _sync_order_remove(self, item):
+        """Take an item out of the matching list."""
+        for index, existing in enumerate(self._ordered):
+            if existing is item:
+                del self._ordered[index]
+                return
 
-        will need a colored and a noncolored regex for each priority
-        """
-        if created_regex_list := [
-            f"(?P<{regex['regex_id']}>{regex['regex']})"
-            for regex in self.regexes.values()
-            if regex["triggers"]
-        ]:
-            self.created_regex["created_regex"] = "|".join(created_regex_list)
-            try:
-                self.created_regex["created_regex_compiled"] = re.compile(
-                    self.created_regex["created_regex"]
-                )
-            except re.error:
-                get_logger(self.plugin_id).error("Could not compile created regex", exc_info=True)
-        else:
-            self.created_regex["created_regex"] = ""
-            self.created_regex["created_regex_compiled"] = ""
+    def _sync_order(self, item):
+        """Put an item in or out of the matching list to fit its state."""
+        self._sync_order_remove(item)
+        if item.enabled and item.original_regex_compiled is not None:
+            bisect.insort(self._ordered, item, key=_order_key)
 
     @staticmethod
     def create_trigger_id(name, owner_id):
         """Get a unique name for a trigger."""
         return f"t_{owner_id}_{name}"
-
-    def create_regex_id(self):
-        """Get an id for a regex."""
-        self.latest_regex_id = self.latest_regex_id + 1
-        return f"reg_{self.latest_regex_id}"
 
     @AddAPI("trigger.register", description="register a function to a trigger")
     def _api_trigger_register(self, trigger_name, function, **kwargs):
@@ -256,24 +242,10 @@ class TriggersPlugin(BasePlugin):
                 )
                 return False
 
-        need_rebuild = False
-
         if new_regex is not None:
-            stripped = re.sub(r"\?P\<.*?\>", "", new_regex)
-            old_regex_id = item.regex_id
-            new_regex_id = self.find_regex_id(stripped)
-            if (
-                old_regex_id in self.regexes
-                and trigger_id in self.regexes[old_regex_id]["triggers"]
-            ):
-                self.regexes[old_regex_id]["triggers"].remove(trigger_id)
-            if item.enabled and trigger_id not in self.regexes[new_regex_id]["triggers"]:
-                self.regexes[new_regex_id]["triggers"].append(trigger_id)
-            item.regex = stripped
-            item.regex_id = new_regex_id
+            item.regex = new_regex
             item.original_regex = new_regex
             item.original_regex_compiled = new_compiled
-            need_rebuild = True
 
         for key, new_value in trigger_data.items():
             if key == "regex":
@@ -287,35 +259,10 @@ class TriggersPlugin(BasePlugin):
                     self.trigger_groups[old_value].remove(trigger_id)
                 if new_value:
                     self.trigger_groups.setdefault(new_value, []).append(trigger_id)
-            elif key == "enabled":
-                regex_entry = self.regexes.get(item.regex_id)
-                if regex_entry is not None:
-                    if new_value and trigger_id not in regex_entry["triggers"]:
-                        regex_entry["triggers"].append(trigger_id)
-                    elif not new_value and trigger_id in regex_entry["triggers"]:
-                        regex_entry["triggers"].remove(trigger_id)
-                need_rebuild = True
 
-        if need_rebuild:
-            self.rebuild_regexes()
+        if new_regex is not None or {"enabled", "priority"} & trigger_data.keys():
+            self._sync_order(item)
         return True
-
-    def find_regex_id(self, regex):
-        """Look for a regex, if not create one."""
-        regex_id = None
-        if regex not in self.regex_lookup_to_id:
-            regex_id = self.create_regex_id()
-            self.regexes[regex_id] = {
-                "regex": regex,
-                "regex_id": regex_id,
-                "triggers": [],
-                "hits": 0,
-            }
-            self.regex_lookup_to_id[regex] = regex_id
-        else:
-            regex_id = self.regex_lookup_to_id[regex]
-
-        return regex_id
 
     @AddAPI("trigger.add", description="add a trigger")
     def _api_trigger_add(self, trigger_name, regex, owner_id=None, **kwargs):  # pylint: disable=too-many-branches
@@ -336,7 +283,7 @@ class TriggersPlugin(BasePlugin):
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
 
-        this function returns no values
+        this function returns (True, the new TriggerItem), or False on failure
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
@@ -359,7 +306,6 @@ class TriggersPlugin(BasePlugin):
 
         args = kwargs.copy()
 
-        regex_id = None
         original_regex = None
 
         args["trigger_id"] = trigger_id
@@ -369,10 +315,6 @@ class TriggersPlugin(BasePlugin):
 
         if regex:
             original_regex = regex
-            regex = re.sub(r"\?P\<.*?\>", "", original_regex)
-
-            regex_id = self.find_regex_id(regex)
-
             try:
                 args["original_regex_compiled"] = re.compile(original_regex)
             except Exception:  # pylint: disable=broad-except
@@ -386,40 +328,22 @@ class TriggersPlugin(BasePlugin):
                 )
                 return False
 
-            log_to(
-                [self.plugin_id, owner_id],
-                logging.DEBUG,
-                "_api_trigger_add - converted %s to %s",
-                original_regex,
-                regex,
-            )
-
-            need_rebuild = False
-            if args.get("enabled"):
-                need_rebuild = True
-                if trigger_id not in self.regexes[regex_id]["triggers"]:
-                    self.regexes[regex_id]["triggers"].append(trigger_id)
-                else:
-                    log_to(
-                        [self.plugin_id, owner_id],
-                        logging.ERROR,
-                        "_api_trigger_add - trigger %s already exists in regex: %s",
-                        trigger_name,
-                        regex,
-                    )
-
-            # go through and rebuild the regexes
-            if need_rebuild:
-                self.rebuild_regexes()
-
         if args.get("group"):
             if args["group"] not in self.trigger_groups:
                 self.trigger_groups[args["group"]] = []
             self.trigger_groups[args["group"]].append(trigger_id)
 
         self.triggers[trigger_id] = TriggerItem(
-            owner_id, trigger_name, regex, regex_id, original_regex, **args
+            owner_id,
+            trigger_name,
+            original_regex,
+            None,
+            original_regex,
+            order=self._next_order,
+            **args,
         )
+        self._next_order += 1
+        self._sync_order(self.triggers[trigger_id])
 
         log_to(
             [self.plugin_id, owner_id],
@@ -482,18 +406,7 @@ class TriggersPlugin(BasePlugin):
             )
             return False
 
-        regex = self.regexes[self.triggers[trigger_id].regex_id]
-        need_rebuild = False
-        if trigger_id in regex["triggers"]:
-            log_to(
-                [self.plugin_id, owner_id],
-                logging.DEBUG,
-                "_api_trigger_remove - removing trigger %s from %s",
-                trigger_name,
-                regex["regex_id"],
-            )
-            need_rebuild = True
-            regex["triggers"].remove(trigger_id)
+        self._sync_order_remove(self.triggers[trigger_id])
 
         if trigger_id in self.triggers:
             del self.triggers[trigger_id]
@@ -505,10 +418,6 @@ class TriggersPlugin(BasePlugin):
             trigger_name,
             owner_id,
         )
-
-        # go through and rebuild the regexes
-        if need_rebuild:
-            self.rebuild_regexes()
 
         return True
 
@@ -560,19 +469,8 @@ class TriggersPlugin(BasePlugin):
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
         if trigger_id in self.triggers:
-            needs_rebuild = False
-            regex = self.regexes[self.triggers[trigger_id].regex_id]
             self.triggers[trigger_id].enabled = bool(flag)
-            if flag:
-                if trigger_id not in regex["triggers"]:
-                    regex["triggers"].append(trigger_id)
-                    needs_rebuild = True
-            elif trigger_id in regex["triggers"]:
-                regex["triggers"].remove(trigger_id)
-                needs_rebuild = True
-
-            if needs_rebuild:
-                self.rebuild_regexes()
+            self._sync_order(self.triggers[trigger_id])
         else:
             log_to(
                 [self.plugin_id, owner_id],
@@ -622,61 +520,66 @@ class TriggersPlugin(BasePlugin):
             for i in self.trigger_groups[trigger_group]:
                 self.api(f"{self.plugin_id}:trigger.toggle.enable")(i, flag)
 
-    def process_match(self, data_line, regex_match_data):
-        """Processes a match for triggers.
+    def _match_line(self, line, data):
+        """Raise the event of every enabled trigger whose regex matches the line.
 
-        Args:
-            data_line: The data line that matched triggers.
-            regex_match_data: The list of regexes that matched the data.
-
-        Returns:
-            None
-
+        Triggers run in (priority, order added) order. Each one sees the line as
+        it was when matching began, and a failing trigger does not stop the rest.
         """
-        args = {"line": data_line}
         match_logger = get_logger(self.plugin_id)
-        if match_logger.isEnabledFor(logging.DEBUG):
-            match_logger.debug(
-                "_eventcb_check_trigger - line %s matched the following regexes %s",
-                data_line.colorcoded,
-                regex_match_data,
-            )
-        for regex_id in regex_match_data:
-            match = None
-            if regex_id not in self.regexes:
-                get_logger(self.plugin_id).error(
-                    "_eventcb_check_trigger - regex_id %s not found in _eventcb_check_trigger",
-                    regex_id,
+        debug = match_logger.isEnabledFor(logging.DEBUG)
+        colorcoded = None
+        matched = False
+        for item in tuple(self._ordered):
+            if not item.enabled or self.triggers.get(item.trigger_id) is not item:
+                continue
+            try:
+                if item.matchcolor:
+                    if colorcoded is None:
+                        colorcoded = line.colorcoded
+                    text = colorcoded
+                else:
+                    text = data
+                match = item.original_regex_compiled.match(text)
+                if not match:
+                    continue
+                matched = True
+                group_dict = match.groupdict()
+                if item.argtypes:
+                    for arg, argtype in item.argtypes.items():
+                        if arg in group_dict:
+                            group_dict[arg] = argtype(group_dict[arg])
+                if debug:
+                    match_logger.debug(
+                        "_eventcb_check_trigger - line %s matched trigger %s",
+                        line.colorcoded,
+                        item.trigger_id,
+                    )
+                item.raisetrigger({"line": line, "matches": group_dict})
+            except Exception:  # pylint: disable=broad-except
+                log_to(
+                    [self.plugin_id, item.owner_id],
+                    logging.ERROR,
+                    "_eventcb_check_trigger - trigger %s failed on line %s",
+                    item.trigger_id,
+                    data,
+                    exc_info=True,
                 )
                 continue
+            if item.stopevaluating:
+                break
+        if not matched and debug:
+            match_logger.debug("_eventcb_check_trigger - line %s did not match any triggers", data)
 
-            self.regexes[regex_id]["hits"] = self.regexes[regex_id]["hits"] + 1
-            for trigger_id in self.regexes[regex_id]["triggers"]:
-                if not self.triggers[trigger_id].enabled:
-                    continue
-                if self.triggers[trigger_id].matchcolor:
-                    match = self.triggers[trigger_id].original_regex_compiled.match(
-                        data_line.colorcoded
-                    )
-                else:
-                    match = self.triggers[trigger_id].original_regex_compiled.match(
-                        data_line.noansi
-                    )
-                if match:
-                    group_dict = match.groupdict()
-                    if self.triggers[trigger_id].argtypes:
-                        for arg in self.triggers[trigger_id].argtypes:
-                            if arg in group_dict:
-                                group_dict[arg] = self.triggers[trigger_id].argtypes[arg](
-                                    group_dict[arg]
-                                )
-                    args["matches"] = group_dict
-                    self.triggers[trigger_id].raisetrigger(args)
-                    if self.triggers[trigger_id].stopevaluating:
-                        break
+    def _raise_builtin(self, trigger_id, event_record):
+        """Raise a built-in trigger, only if something listens to it."""
+        item = self.triggers[trigger_id]
+        event = self.api("plugins.core.events:event.get")(item.event_name)
+        if event and not event.isempty():
+            item.raisetrigger(event_record)
 
     @RegisterToEvent(event_name="ev_to_client_data_modify")
-    def _eventcb_check_trigger(self):  # pylint: disable=too-many-branches
+    def _eventcb_check_trigger(self):
         """Check a line of text from the mud to see if it matches any triggers."""
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
@@ -687,29 +590,14 @@ class TriggersPlugin(BasePlugin):
             return
 
         data = line.noansi
-        self.triggers[self.beall_id].raisetrigger(event_record)
+        self._raise_builtin(self.beall_id, event_record)
 
         if data == "":
-            self.triggers[self.emptyline_id].raisetrigger(event_record)
+            self._raise_builtin(self.emptyline_id, event_record)
         else:
-            if self.created_regex["created_regex_compiled"]:
-                match_data = self.created_regex["created_regex_compiled"].match(data)
-            else:
-                match_data = None
+            self._match_line(line, data)
 
-            if match_data:
-                match_groups = {k: v for k, v in match_data.groupdict().items() if v is not None}
-            else:
-                match_groups = {}
-
-            if regex_match_data := match_groups.keys():
-                self.process_match(event_record["line"], regex_match_data)
-            else:
-                get_logger(self.plugin_id).debug(
-                    "_eventcb_check_trigger - line %s did not match any regexes", data
-                )
-
-        self.triggers[self.all_id].raisetrigger(event_record)
+        self._raise_builtin(self.all_id, event_record)
 
     @AddParser(description="list triggers")
     @AddArgument(
@@ -765,8 +653,6 @@ class TriggersPlugin(BasePlugin):
                 else:
                     total_disabled_triggers = total_disabled_triggers + 1
 
-            regex_hits = sum(regex["hits"] for regex in self.regexes.values() if regex)
-
             event_record["stats"]["Triggers"] = {
                 "showorder": [
                     "Total Triggers",
@@ -774,18 +660,12 @@ class TriggersPlugin(BasePlugin):
                     "Disabled Triggers",
                     "Overall Trigger Hits",
                     "Triggers Memory Usage",
-                    "Total Regexes",
-                    "Total Regex Hits",
-                    "Regexes Memory Usage",
                 ],
                 "Total Triggers": len(self.triggers),
                 "Enabled Triggers": total_enabled_triggers,
                 "Disabled Triggers": total_disabled_triggers,
                 "Overall Trigger Hits": overall_hit_count,
                 "Triggers Memory Usage": sys.getsizeof(self.triggers),
-                "Total Regexes": len(self.regexes.keys()),
-                "Total Regex Hits": regex_hits,
-                "Regexes Memory Usage": sys.getsizeof(self.regexes),
             }
 
     @AddParser(description="get details for triggers")
@@ -811,8 +691,6 @@ class TriggersPlugin(BasePlugin):
                             f"{'Defined in':<{columnwidth}} : {self.triggers[trigger].owner_id}",
                             f"{'Enabled':<{columnwidth}} : {self.triggers[trigger].enabled}",
                             f"{'Regex':<{columnwidth}} : {self.triggers[trigger].original_regex}",
-                            f"{'Regex (w/o Groups)':<{columnwidth}} : {self.triggers[trigger].regex}",
-                            f"{'Regex ID':<{columnwidth}} : {self.triggers[trigger].regex_id}",
                             f"{'Event Name':<{columnwidth}} : {self.triggers[trigger].event_name}",
                             f"{'Match Color':<{columnwidth}} : {self.triggers[trigger].matchcolor}",
                             f"{'Group':<{columnwidth}} : {self.triggers[trigger].group}",

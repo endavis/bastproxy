@@ -1,15 +1,18 @@
 """The match debug log only builds ``colorcoded`` when DEBUG is enabled (#335)."""
 
 import logging
-from unittest.mock import MagicMock
+from typing import Any
 
 import pytest
 
-from bastproxy.plugins.core.triggers.plugin._triggers import TriggersPlugin
+from .conftest import Harness
 
 
 class _Line:
     """A line whose ``colorcoded`` property counts accesses."""
+
+    internal = False
+    sendtoclients = True
 
     def __init__(self) -> None:
         self.reads = 0
@@ -21,25 +24,32 @@ class _Line:
         return "abc"
 
 
-def _process(line: _Line) -> None:
-    stub = MagicMock()
-    stub.plugin_id = "plugins.core.triggers"
-    stub.regexes = {}
-    TriggersPlugin.process_match(stub, line, ["missing"])
+def _process(harness: Harness, line: _Line) -> None:
+    harness.add("t", r"^abc")
+    harness.current_record = {"line": line}
+    harness._eventcb_check_trigger()
 
 
-def test_colorcoded_not_read_when_debug_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
+def _logger(level: int) -> logging.Logger:
+    log = logging.getLogger("test_335_lazy")
+    log.setLevel(level)
+    return log
+
+
+def test_colorcoded_not_read_when_debug_is_off(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         "bastproxy.plugins.core.triggers.plugin._triggers.get_logger",
         lambda _name: _logger(logging.INFO),
     )
     line = _Line()
-    _process(line)
+    _process(harness, line)
     assert line.reads == 0
 
 
 def test_colorcoded_logged_when_debug_is_on(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    harness: Harness, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(
         "bastproxy.plugins.core.triggers.plugin._triggers.get_logger",
@@ -47,12 +57,7 @@ def test_colorcoded_logged_when_debug_is_on(
     )
     line = _Line()
     with caplog.at_level(logging.DEBUG, logger="test_335_lazy"):
-        _process(line)
+        _process(harness, line)
     assert line.reads == 1
-    assert any("matched the following regexes" in r.getMessage() for r in caplog.records)
-
-
-def _logger(level: int) -> logging.Logger:
-    log = logging.getLogger("test_335_lazy")
-    log.setLevel(level)
-    return log
+    records: list[Any] = caplog.records
+    assert any("matched trigger" in r.getMessage() for r in records)
