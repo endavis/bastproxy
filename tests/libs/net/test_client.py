@@ -182,3 +182,41 @@ async def test_client_write_eor_and_sga_agreed_sends_eor_only() -> None:
     await _run_write(client)
     writer.send_ga.assert_not_called()
     assert any(b"\xff\xef" in args for args in _logged(client))
+
+
+@pytest.mark.parametrize(("view_only", "expected"), [(False, 1), (True, 0)])
+async def test_client_read_reports_input_to_the_window_size_forwarder(
+    monkeypatch: pytest.MonkeyPatch, view_only: bool, expected: int
+) -> None:
+    """Only a full-login client's input makes it the active client (#308)."""
+    from bastproxy.libs.net import client as client_module
+
+    client = _make_client(AsyncMock(side_effect=["look\r\n", ""]))
+    client.state = {"logged in": True}
+    client.view_only = view_only
+    client.max_lines_to_process = 100
+    client.data_logger = MagicMock()
+    client.api = MagicMock(return_value=lambda: None)
+    forwarder = MagicMock()
+    monkeypatch.setattr(client_module, "WINDOW_SIZE", forwarder)
+    monkeypatch.setattr(client_module, "ProcessDataToMud", lambda *_a, **_k: lambda: None)
+    monkeypatch.setattr(client, "process_data_from_view_only_client", lambda _inp: None)
+
+    await client.client_read()
+
+    assert forwarder.client_input.call_count == expected
+
+
+async def test_unregister_client_tells_the_window_size_forwarder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bastproxy.libs.net import client as client_module
+
+    forwarder = MagicMock()
+    monkeypatch.setattr(client_module, "WINDOW_SIZE", forwarder)
+    monkeypatch.setattr(client_module, "PROTOCOLS", MagicMock())
+    connection = MagicMock()
+
+    await client_module.unregister_client(connection)
+
+    forwarder.client_gone.assert_called_once_with(connection)

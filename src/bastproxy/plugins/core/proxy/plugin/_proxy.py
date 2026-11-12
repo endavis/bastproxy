@@ -35,6 +35,7 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.mud import MudConnection
+from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.records import (
     NetworkData,
     NetworkDataLine,
@@ -143,6 +144,14 @@ class ProxyPlugin(BasePlugin):
             "ms to wait for the rest of a MUD line split across packets",
         )
         self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            "mudwindowsize",
+            "client",
+            str,
+            "window size sent to the mud: client (the most recently active client), "
+            "off (80x25), or COLSxROWS",
+        )
+        self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "username", "", str, "the mud username"
         )
 
@@ -202,6 +211,10 @@ class ProxyPlugin(BasePlugin):
             self.plugin_id,
             self.plugin_info.data_directory,
             desc="Mud password",
+        )
+
+        WINDOW_SIZE.set_mode(
+            self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudwindowsize")
         )
 
     @AddAPI("mud.is.connected", description="check if the mud is connected")
@@ -479,6 +492,12 @@ class ProxyPlugin(BasePlugin):
                 "\\" + newsep,
                 "\\" + newsep,
             )
+
+    @RegisterToEvent(event_name="ev_{plugin_id}_var_mudwindowsize_modified")
+    def _eventcb_mudwindowsize_change(self):
+        """Apply a changed mudwindowsize setting (#308)."""
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            WINDOW_SIZE.set_mode(event_record["newvalue"])
 
     @AddParser(description="output proxy resource usage")
     @AddArgument(
