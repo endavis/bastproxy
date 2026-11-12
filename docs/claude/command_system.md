@@ -63,9 +63,9 @@ class CommandClass:
         self.function = function            # Bound method to execute
         self.arg_parser = arg_parser        # argp.ArgumentParser, built by the commands plugin
         self.group = group or ""            # the plugin sets the plugin id when no group is given
-        self.show_in_history = show_in_history   # stored, not read (see below)
-        self.format = format                # stored, not read
-        self.preamble = preamble            # stored, not read
+        self.show_in_history = show_in_history   # read by find_command: False = not recorded in the history
+        self.format = format                # read when a client types the command: False = output not framed
+        self.preamble = preamble            # read by format_return_message: False = no Begin/End Command lines
         self.full_cmd = "#bp.core.commands.list"  # the prefix, plugin and name, as typed
         self.count = 0                      # lifetime calls, kept across plugin reloads
         self.count_since_reload = 0         # calls since this instance was created
@@ -73,8 +73,9 @@ class CommandClass:
 ```
 
 `show_in_history` decides whether the command line is recorded in the history: `find_command` returns it as its
-third value. `format` and `preamble` are stored and nothing reads them: output is always framed, whatever the
-options say ([Command System Findings](command_system_findings.md), CM-2).
+third value. `format` and `preamble` are honoured when a command runs from client input (CM-2): `format=False`
+returns the output unframed, and `preamble=False` drops the `Begin Command`, start time, finish time and
+`End Command` lines.
 
 `count` and `stats` carry over when the plugin reloads or unloads and loads again, and when the
 commands plugin itself reloads. They reset when the proxy restarts. `count_since_reload` resets
@@ -176,7 +177,9 @@ return (success: bool, messages: list[str])
 
 Output is framed by `CommandClass.format_return_message`: a `Begin Command` line, the start time, the
 messages, the finish time and an `End Command` line (more sections when the `simple_output` setting is off).
-Color codes are converted when the lines are sent. The `format` and `preamble` options do not change this.
+Color codes are converted when the lines are sent. With `format=False` the command's messages are sent
+unframed, and with `preamble=False` the `Begin Command`, start, finish and `End Command` lines are left out
+of the frame (the rest of it is unchanged).
 The messages must be a list of strings; a bare string is printed one character per line, and a command that
 returns `False` gets its help appended to the output. An exception in the command prints
 `Error running command` and is counted in the command's stats.
@@ -227,7 +230,9 @@ Marks a method as a command:
 )
 ```
 
-`format` and `preamble` are not used by the code (`show_in_history` is). The default name is the method name
+`show_in_history` decides whether the line is recorded in the history. `format=False` sends the output unframed
+and `preamble=False` drops the `Begin Command` and `End Command` lines (with the start and finish times), when the
+command runs from client input. The default name is the method name
 without `_command_`.
 
 ### @AddParser

@@ -1056,7 +1056,7 @@ class CommandsPlugin(BasePlugin):
                 "found command %s.%s", command_item.plugin_id, command_item.name
             )
 
-            success, message, error = command_item.run(command_args, format=True)
+            success, message, error = command_item.run(command_args, format=command_item.format)
 
             if success:
                 event_record.addupdate(

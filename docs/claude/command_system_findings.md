@@ -47,10 +47,10 @@ The five items the issue listed as known are all fixed and hold (19 tests pass, 
 the real plugin system). Outside that case, several options and checks do not do what their names and the docs
 say. Fourteen items are proposed below (CM-1 to CM-14); thirteen are defects found by running the code.
 
-- **Three command options are stored and never read** (CM-1, CM-2). `show_in_history=False`,
-  `format=False` and `preamble=False` are kept on `CommandClass` and nothing consults them. Every command
-  that is found is recorded in the history, including `list`, `history` and `!`, which ask not to be, and `!`
-  is framed like any other command.
+- **Three command options were stored and never read** (CM-1, CM-2, both now fixed). At the audit,
+  `show_in_history=False` was ignored, so every found command was recorded in the history, including `list`,
+  `history` and `!`, which ask not to be (fixed in #388). `format` and `preamble` were ignored too; they are
+  now honoured when a client types the command (fixed in #389).
 - **One bad name, description or argument-help string stops a plugin's commands from registering**
   (CM-4). The placeholder `.format(**plugin.__dict__)` calls in `_api_command_add_by_func` are outside any
   `try`. A `KeyError` there ends the loop over the plugin's remaining commands, and when the commands plugin
@@ -159,7 +159,7 @@ flat files under `tests/plugins/`.
    `pass_through_command_from_event`.
 4. `run_internal_command_from_event` sets `line.send = False` before anything else, calls `find_command` on
    the left-stripped text, sends any help or error page to the client, sets `event_record["showinhistory"]`
-   from `find_command`'s third value, and runs the command with `format=True`.
+   from `find_command`'s third value, and runs the command with the command's own `format` option.
 5. The caller adds the line to the history if `showinhistory` is true and the line is not internal, and
    `SendDataDirectlyToMud` sends the lines whose `send` is still true.
 
@@ -228,10 +228,13 @@ element is `#bpx`, so the result was the error page for package `#bpx` (**verifi
 `simple_output` setting is off. The output goes to `clients=[client_id]` of the client that typed the command
 and to every client (`clients=None`) when the line has no client id (**verified**, `out-q3c.txt`).
 
-`CommandClass.format` and `.preamble` are stored and nothing reads them. `AddCommand(format=False,
-preamble=False)`, used by `_command_run_history`, is not honoured: `#bp.core.commands.! -99` was framed with
-`Begin Command` (**verified**, `out-q1c.txt`; grep of the package: the only matches for `.format` and
-`.preamble` as attributes are the assignments in `CommandClass.__init__`). CM-2.
+When this was measured, `CommandClass.format` and `.preamble` were stored and nothing read them.
+`AddCommand(format=False, preamble=False)`, used by `_command_run_history`, was not honoured:
+`#bp.core.commands.! -99` was framed with `Begin Command` (**verified**, `out-q1c.txt`; grep of the package:
+the only matches for `.format` and `.preamble` as attributes were the assignments in
+`CommandClass.__init__`). Fixed in CM-2: `run_internal_command_from_event` now passes `command_item.format`
+and `format_return_message` skips the `Begin Command`, start, finish and `End Command` lines when
+`preamble` is false.
 
 ---
 
@@ -456,8 +459,9 @@ checks are **verified** unless marked **read**.
    `ArgumentParser()` created inside, and a `Base` group default. The constructor takes
    `(plugin_id, name, function, arg_parser, format, group, preamble, show_in_history, shelp)`, the parser is
    built by the plugin, and the group defaults to the plugin id (**read**).
-4. **`format`, `preamble` and `show_in_history` are described as working.** They are stored and never read
-   (Q1f, Q2e; CM-1, CM-2). The page now says so.
+4. **`format`, `preamble` and `show_in_history` are described as working.** When measured they were stored
+   and never read (Q1f, Q2e; CM-1, CM-2). `format` and `preamble` are now honoured (CM-2); `show_in_history`
+   is still not read, and the page says so.
 5. **Output "with a `#BP:` preamble", color conversion and line endings.** The output is the framed block in
    Q1f.
 6. **Decorator order.** "Must be applied in this order: `AddCommand`, `AddParser`, `AddArgument`" and
@@ -514,7 +518,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 
 | # | Pattern | Where | Consistent? | Verdict |
 | --: | :--- | :--- | :--- | :--- |
-| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-1, CM-2, CM-13). |
+| 1 | **Decorator-built parser**: `AddCommand`, `AddParser` and `AddArgument` hang a `CommandFuncData` on the function; the plugin builds the `ArgumentParser` at registration | `_utils.py`, `_api_command_add_by_func` | Yes | **Keep.** It keeps a command's parser next to its function and the order of `AddArgument` follows argparse. What needs fixing is what it stores and nothing reads (CM-1, CM-13; CM-2 is fixed). |
 | 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9).** A decorated method with the wrong name is skipped without a log line. |
 | 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it leaves on the record (CM-3). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
@@ -564,7 +568,8 @@ matching template in `.github/ISSUE_TEMPLATE/`. Line references are to
 
 ### CM-2: `format=False` and `preamble=False` on a command have no effect
 
-**Status:** open
+**Status:** fixed in #389 (the options are honoured: `run_internal_command_from_event` passes the command's `format`, and
+`format_return_message` drops the `Begin Command`/`End Command` lines when `preamble` is false)
 **Issue:** #389
 **Location:** `CommandClass.run_finish` (`if format:`, the argument, not the attribute), `CommandClass.__init__`
 (`self.format`, `self.preamble`); `run_internal_command_from_event` (passes `format=True`).
