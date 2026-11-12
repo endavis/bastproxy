@@ -329,11 +329,25 @@ class CommandsPlugin(BasePlugin):
 
         and it's attributes.
         """
-        return find_methods(
-            base,
-            lambda m: m.__name__.startswith("_command_") and hasattr(m, "command_data"),
-            recurse=recurse,
-        )
+        decorated = find_methods(base, lambda m: hasattr(m, "command_data"), recurse=recurse)
+        commands = []
+        warned: set[tuple[int, str]] = set()
+        for method in decorated:
+            if method.__name__.startswith("_command_"):
+                commands.append(method)
+                continue
+            key = (id(method.__self__), method.__name__)
+            if key in warned:
+                continue
+            warned.add(key)
+            owner = getattr(method.__self__, "plugin_id", type(method.__self__).__name__)
+            get_logger(self.plugin_id).warning(
+                "Method %s in %s has command_data but its name does not start with "
+                "'_command_', so it is not registered as a command",
+                method.__name__,
+                owner,
+            )
+        return commands
 
     @AddAPI("command.add.by.func", description="add a command based on a decorated function")
     def _api_command_add_by_func(self, func, force=False):
