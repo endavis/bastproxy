@@ -33,7 +33,7 @@ def main() -> int:
             return 0
 
         try:
-            result = subprocess.run(  # nosec B603 B607  # shutil.which guard validates path
+            result = subprocess.run(
                 [CLI_NAME, "hook", "claude-code", EVENT_NAME],
                 input=raw,
                 capture_output=True,

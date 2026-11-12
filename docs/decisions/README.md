@@ -90,6 +90,9 @@ its own. Either way, `doit adr` sets the title and fills in the date. If the des
 the template's placeholder, `doit adr` says so; replace it before you commit, because `doit check`
 fails on an ADR that keeps it.
 
+`doit adr` also adds the ADR to the Index below and to the `mkdocs.yml` nav, or prints a reminder
+naming the file it could not edit. The nav label is `ADR-NNNN <title>`; shorten it by hand if you like.
+
 ## When to Create an ADR
 
 Create an ADR when:
@@ -142,6 +145,7 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [9028](9028-implement-issues-runs-issues-in-parallel-background-agents.md) | implement-issues runs issues in parallel background agents | Accepted |
 | [9029](9029-implement-issue-host-plan-and-coder-checking-budget.md) | implement-issue host plan and Coder checking budget | Accepted |
 | [9030](9030-cross-agent-roles-resolve-through-a-per-user-config.md) | Cross-agent roles resolve through a per-user config | Accepted |
+| [9031](9031-a-project-adds-rebuildable-names-for-worktree-removal-in-pyprojecttoml.md) | A project adds rebuildable names for worktree removal in pyproject.toml | Accepted |
 
 ### Project-level ADRs (0001+)
 

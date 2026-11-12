@@ -496,6 +496,35 @@ class TestEnsureBranchPushed:
 
         assert mock_subprocess.call_count == 1
 
+    def test_upstream_on_another_branch_pushes(self, mock_subprocess: MagicMock) -> None:
+        """A branch cut from origin/main tracks origin/main; it is not pushed (#1197)."""
+        console = self._make_console()
+        mock_subprocess.register(
+            {
+                ("git", "rev-parse"): {"stdout": "origin/main\n"},
+                ("git", "push", "-u"): {},
+            }
+        )
+        _ensure_branch_pushed("feat/x", console, no_push=False)
+
+        assert mock_subprocess.call_count == 2
+        push_cmd = mock_subprocess.call_args_list[1].args[0]
+        assert push_cmd == ["git", "push", "-u", "origin", "feat/x"]
+
+    def test_no_push_flag_with_upstream_on_another_branch_aborts(
+        self, mock_subprocess: MagicMock
+    ) -> None:
+        """no_push=True with upstream origin/main → SystemExit(1), no push (#1197)."""
+        console = self._make_console()
+        mock_subprocess.register({("git", "rev-parse"): {"stdout": "origin/main\n"}})
+
+        with pytest.raises(SystemExit) as excinfo:
+            _ensure_branch_pushed("feat/x", console, no_push=True)
+
+        assert excinfo.value.code == 1
+        assert mock_subprocess.call_count == 1
+        assert "origin/feat/x" in console.file.getvalue()  # type: ignore[attr-defined]
+
 
 class TestLabelsSync:
     """Tests for the ``labels_sync`` doit task and its helpers."""
@@ -1743,28 +1772,28 @@ class TestValidateIssueContent:
     def test_missing_required_section_is_rejected(self) -> None:
         console = Console(file=io.StringIO())
 
-        assert _validate_issue_content({}, "feature", console) is False
+        assert _validate_issue_content({}, "feat", console) is False
         assert "Missing required sections" in console.file.getvalue()  # type: ignore[attr-defined]
 
     def test_section_present_but_empty_is_rejected(self) -> None:
         """Whitespace is not content — an empty heading must not pass."""
         console = Console(file=io.StringIO())
-        sections = dict.fromkeys(get_required_sections("feature"), "   \n  ")
+        sections = dict.fromkeys(get_required_sections("feat"), "   \n  ")
 
-        assert _validate_issue_content(sections, "feature", console) is False
+        assert _validate_issue_content(sections, "feat", console) is False
 
     def test_complete_sections_pass(self) -> None:
         console = Console(file=io.StringIO())
-        sections = dict.fromkeys(get_required_sections("feature"), "real content here")
+        sections = dict.fromkeys(get_required_sections("feat"), "real content here")
 
-        assert _validate_issue_content(sections, "feature", console) is True
+        assert _validate_issue_content(sections, "feat", console) is True
 
     def test_placeholder_text_warns_but_still_passes(self) -> None:
         """A warning, not a rejection: the text may be legitimately similar."""
         console = Console(file=io.StringIO())
-        sections = dict.fromkeys(get_required_sections("feature"), "Describe the problem")
+        sections = dict.fromkeys(get_required_sections("feat"), "Describe the problem")
 
-        assert _validate_issue_content(sections, "feature", console) is True
+        assert _validate_issue_content(sections, "feat", console) is True
         assert "placeholder" in console.file.getvalue().lower()  # type: ignore[attr-defined]
 
 
@@ -1848,7 +1877,7 @@ class TestCreateIssue:
     """`doit issue` — AGENTS.md mandates it for every issue (#708)."""
 
     @staticmethod
-    def _valid_body(issue_type: str = "feature") -> str:
+    def _valid_body(issue_type: str = "feat") -> str:
         return "\n".join(
             f"## {section}\nreal content for {section}\n"
             for section in get_required_sections(issue_type)
@@ -1863,7 +1892,7 @@ class TestCreateIssue:
             {("gh", "issue", "create"): {"stdout": "https://github.com/o/r/issues/42\n"}}
         )
 
-        _issue_action()(type="feature", title="feat: a thing", body_file=str(body))
+        _issue_action()(type="feat", title="feat: a thing", body_file=str(body))
 
         cmd = mock_subprocess.call_args.args[0]
         assert cmd[:3] == ["gh", "issue", "create"]
@@ -1873,7 +1902,7 @@ class TestCreateIssue:
     def test_creates_issue_from_inline_body(self, mock_subprocess: MagicMock) -> None:
         mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
 
-        _issue_action()(type="feature", title="feat: x", body=self._valid_body())
+        _issue_action()(type="feat", title="feat: x", body=self._valid_body())
 
         assert mock_subprocess.call_count == 1
 
@@ -1881,7 +1910,7 @@ class TestCreateIssue:
         """The label set is the template's, not the caller's — AGENTS.md relies on this."""
         mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
 
-        _issue_action()(type="bug", title="bug: x", body=self._valid_body("bug"))
+        _issue_action()(type="fix", title="fix: x", body=self._valid_body("fix"))
 
         cmd = mock_subprocess.call_args.args[0]
         assert "--label" in cmd
@@ -1889,7 +1918,7 @@ class TestCreateIssue:
 
     def test_unknown_issue_type_exits(self, capsys: pytest.CaptureFixture[str]) -> None:
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="not-a-type", title="x", body="## Problem\ncontent")
+            _issue_action()(type="not-a-type", title="feat: x", body="## Problem\ncontent")
 
         assert exc.value.code == 1
 
@@ -1899,14 +1928,14 @@ class TestCreateIssue:
     ) -> None:
         """The opening panel prints `--type` before it is validated (#907, #914)."""
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type=issue_type, title="x", body="## Problem\ncontent")
+            _issue_action()(type=issue_type, title="feat: x", body="## Problem\ncontent")
 
         assert exc.value.code == 1
         assert f"Creating {issue_type} Issue" in _plain(capsys.readouterr().out)
 
     def test_missing_body_file_exits(self, tmp_path: Path) -> None:
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="feature", title="x", body_file=str(tmp_path / "nope.md"))
+            _issue_action()(type="feat", title="feat: x", body_file=str(tmp_path / "nope.md"))
 
         assert exc.value.code == 1
 
@@ -1915,7 +1944,7 @@ class TestCreateIssue:
     ) -> None:
         """Validation must gate the API call, not follow it."""
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="feature", title="x", body="## Problem\n")
+            _issue_action()(type="feat", title="feat: x", body="## Problem\n")
 
         assert exc.value.code == 1
         assert mock_subprocess.call_count == 0
@@ -1927,7 +1956,7 @@ class TestCreateIssue:
         )
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="feature", title="x", body=self._valid_body())
+            _issue_action()(type="feat", title="feat: x", body=self._valid_body())
 
         assert exc.value.code == 1
 
@@ -1935,16 +1964,109 @@ class TestCreateIssue:
         mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
 
         with patch("builtins.input", return_value="feat: prompted title"):
-            _issue_action()(type="feature", body=self._valid_body())
+            _issue_action()(type="feat", body=self._valid_body())
 
         assert "feat: prompted title" in mock_subprocess.call_args.args[0]
 
     def test_empty_prompted_title_exits(self, mock_subprocess: MagicMock) -> None:
         with patch("builtins.input", return_value="   "), pytest.raises(SystemExit) as exc:
-            _issue_action()(type="feature", body=self._valid_body())
+            _issue_action()(type="feat", body=self._valid_body())
 
         assert exc.value.code == 1
         assert mock_subprocess.call_count == 0
+
+
+class TestIssueTitlePrefix:
+    """`doit issue` requires `<type>: <subject>` titles matching `--type` (#1229)."""
+
+    @pytest.mark.parametrize("issue_type", ["feat", "fix", "refactor", "docs", "chore"])
+    def test_valid_title_is_created(self, mock_subprocess: MagicMock, issue_type: str) -> None:
+        mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
+
+        _issue_action()(
+            type=issue_type,
+            title=f"{issue_type}: x",
+            body=TestCreateIssue._valid_body(issue_type),
+        )
+
+        assert f"{issue_type}: x" in mock_subprocess.call_args.args[0]
+
+    def test_scoped_title_is_created(self, mock_subprocess: MagicMock) -> None:
+        mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
+
+        _issue_action()(type="feat", title="feat(cli): x", body=TestCreateIssue._valid_body())
+
+        assert "feat(cli): x" in mock_subprocess.call_args.args[0]
+
+    @pytest.mark.parametrize("title", ["add export", "feat add export", "feat:", "Feat: x"])
+    def test_invalid_title_exits_before_gh(
+        self, mock_subprocess: MagicMock, title: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="feat", title=title, body=TestCreateIssue._valid_body())
+
+        assert exc.value.code == 1
+        assert mock_subprocess.call_count == 0
+        assert "feat: <subject>" in _plain(capsys.readouterr().out)
+
+    def test_mismatched_type_names_both(
+        self, mock_subprocess: MagicMock, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="feat", title="fix: x", body=TestCreateIssue._valid_body())
+
+        out = _plain(capsys.readouterr().out)
+        assert exc.value.code == 1
+        assert mock_subprocess.call_count == 0
+        assert "'fix'" in out
+        assert "'feat'" in out
+
+    @pytest.mark.parametrize(("old", "new"), [("feature", "feat"), ("bug", "fix")])
+    @pytest.mark.parametrize("upstream", [False, True])
+    def test_renamed_type_is_rejected(
+        self,
+        mock_subprocess: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+        old: str,
+        new: str,
+        upstream: bool,
+    ) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type=old, title=f"{new}: x", body="## Problem\nx", upstream=upstream)
+
+        assert exc.value.code == 1
+        assert mock_subprocess.call_count == 0
+        assert f"--type={new}" in _plain(capsys.readouterr().out)
+
+    def test_prompted_invalid_title_exits(self, mock_subprocess: MagicMock) -> None:
+        with patch("builtins.input", return_value="add export"), pytest.raises(SystemExit) as exc:
+            _issue_action()(type="feat", body=TestCreateIssue._valid_body())
+
+        assert exc.value.code == 1
+        assert mock_subprocess.call_count == 0
+
+    def test_prompted_valid_title_is_created(self, mock_subprocess: MagicMock) -> None:
+        mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
+
+        with patch("builtins.input", return_value="feat: prompted"):
+            _issue_action()(type="feat", body=TestCreateIssue._valid_body())
+
+        assert "feat: prompted" in mock_subprocess.call_args.args[0]
+
+    def test_bad_title_exits_before_the_editor(self, mock_subprocess: MagicMock) -> None:
+        with (
+            patch("tools.doit.github._open_editor_with_template") as editor,
+            pytest.raises(SystemExit) as exc,
+        ):
+            _issue_action()(type="feat", title="add export")
+
+        assert exc.value.code == 1
+        editor.assert_not_called()
+
+    def test_type_default_is_feat(self) -> None:
+        params = {p["name"]: p for p in task_issue()["params"]}
+
+        assert params["type"]["default"] == "feat"
 
 
 class TestIssueUpstream:
@@ -1990,7 +2112,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         with patch.object(github_mod, "read_recorded_commit", return_value="abc1234"):
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         (cmd,) = self._create_calls(mock_subprocess)
         assert cmd[:5] == ["gh", "issue", "create", "-R", "endavis/pyproject-template"]
@@ -2004,7 +2126,7 @@ class TestIssueUpstream:
     def test_fetches_the_template_from_main(self, mock_subprocess: MagicMock) -> None:
         self._register(mock_subprocess)
 
-        _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+        _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         fetch = next(
             c.args[0] for c in mock_subprocess.call_args_list if c.args[0][:2] == ["gh", "api"]
@@ -2020,7 +2142,7 @@ class TestIssueUpstream:
         """Local bug sections (Steps to Reproduce...) are not required; the upstream's are."""
         self._register(mock_subprocess)
 
-        _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+        _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert len(self._create_calls(mock_subprocess)) == 1
 
@@ -2030,7 +2152,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body="## Other\ntext\n", upstream=True)
+            _issue_action()(type="fix", title="fix: x", body="## Other\ntext\n", upstream=True)
 
         assert exc.value.code == 1
         assert not self._create_calls(mock_subprocess)
@@ -2039,7 +2161,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         with patch.object(github_mod, "read_recorded_commit", return_value=None):
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         (cmd,) = self._create_calls(mock_subprocess)
         assert "not recorded" in cmd[cmd.index("--body") + 1]
@@ -2048,7 +2170,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         _issue_action()(
-            type="bug", title="bug: x", body=self.BODY, upstream=True, include_origin=True
+            type="fix", title="fix: x", body=self.BODY, upstream=True, include_origin=True
         )
 
         (cmd,) = self._create_calls(mock_subprocess)
@@ -2063,11 +2185,11 @@ class TestIssueUpstream:
         )
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
         assert not self._create_calls(mock_subprocess)
-        assert "Could not fetch the upstream bug template" in capsys.readouterr().out
+        assert "Could not fetch the upstream fix template" in capsys.readouterr().out
 
     @pytest.mark.parametrize("stdout", ["name: [unclosed\n", "- just\n- a list\n"])
     def test_malformed_template_files_nothing(
@@ -2076,7 +2198,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess, template={"stdout": stdout})
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
         assert not self._create_calls(mock_subprocess)
@@ -2085,7 +2207,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="nope", title="x", body=self.BODY, upstream=True)
+            _issue_action()(type="nope", title="feat: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
         assert not self._create_calls(mock_subprocess)
@@ -2097,7 +2219,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess, slug=slug)
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
         assert not self._create_calls(mock_subprocess)
@@ -2109,17 +2231,17 @@ class TestIssueUpstream:
         )
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
 
     @pytest.mark.parametrize(
         ("title", "body", "term"),
         [
-            ("bug: a vulnerability", "## Bug Description\nx\n", "vulnerability"),
-            ("bug: x", "## Bug Description\nthis is a path traversal\n", "path traversal"),
-            ("bug: x", "## Bug Description\nhook bypass\n", "bypass"),
-            ("bug: CVE-2026-1", "## Bug Description\nx\n", "CVE-2026-1"),
+            ("fix: a vulnerability", "## Bug Description\nx\n", "vulnerability"),
+            ("fix: x", "## Bug Description\nthis is a path traversal\n", "path traversal"),
+            ("fix: x", "## Bug Description\nhook bypass\n", "bypass"),
+            ("fix: CVE-2026-1", "## Bug Description\nx\n", "CVE-2026-1"),
         ],
     )
     def test_security_content_is_refused(
@@ -2133,7 +2255,7 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title=title, body=body, upstream=True)
+            _issue_action()(type="fix", title=title, body=body, upstream=True)
 
         out = _plain(capsys.readouterr().out)
         assert exc.value.code == 1
@@ -2145,8 +2267,8 @@ class TestIssueUpstream:
         self._register(mock_subprocess)
 
         _issue_action()(
-            type="bug",
-            title="bug: security-triage skill crashes",
+            type="fix",
+            title="fix: security-triage skill crashes",
             body="## Bug Description\ndoit audit fails\n",
             upstream=True,
         )
@@ -2156,8 +2278,8 @@ class TestIssueUpstream:
     def test_title_is_prompted_before_the_security_check(self, mock_subprocess: MagicMock) -> None:
         self._register(mock_subprocess)
 
-        with patch("builtins.input", return_value="bug: an exploit"), pytest.raises(SystemExit):
-            _issue_action()(type="bug", body=self.BODY, upstream=True)
+        with patch("builtins.input", return_value="fix: an exploit"), pytest.raises(SystemExit):
+            _issue_action()(type="fix", body=self.BODY, upstream=True)
 
         assert not self._create_calls(mock_subprocess)
 
@@ -2168,16 +2290,16 @@ class TestIssueUpstream:
         )
 
         with pytest.raises(SystemExit) as exc:
-            _issue_action()(type="bug", title="bug: x", body=self.BODY, upstream=True)
+            _issue_action()(type="fix", title="fix: x", body=self.BODY, upstream=True)
 
         assert exc.value.code == 1
 
     def test_default_path_is_unchanged(self, mock_subprocess: MagicMock) -> None:
         """No `-R`, no footer, no `gh api` or `gh repo view`, local validation."""
         mock_subprocess.register({("gh", "issue", "create"): {"stdout": "url\n"}})
-        body = TestCreateIssue._valid_body("bug")
+        body = TestCreateIssue._valid_body("fix")
 
-        _issue_action()(type="bug", title="bug: x", body=body)
+        _issue_action()(type="fix", title="fix: x", body=body)
 
         (call,) = mock_subprocess.call_args_list
         cmd = call.args[0]
@@ -2186,12 +2308,32 @@ class TestIssueUpstream:
             "issue",
             "create",
             "--title",
-            "bug: x",
+            "fix: x",
             "--body",
             body,
             "--label",
-            get_issue_template("bug").labels,
+            get_issue_template("fix").labels,
         ]
+
+    def test_upstream_invalid_title_files_nothing(self, mock_subprocess: MagicMock) -> None:
+        self._register(mock_subprocess)
+
+        with pytest.raises(SystemExit) as exc:
+            _issue_action()(type="fix", title="add export", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
+
+    def test_upstream_invalid_prompted_title_exits_before_create(
+        self, mock_subprocess: MagicMock
+    ) -> None:
+        self._register(mock_subprocess)
+
+        with patch("builtins.input", return_value="feat: x"), pytest.raises(SystemExit) as exc:
+            _issue_action()(type="fix", body=self.BODY, upstream=True)
+
+        assert exc.value.code == 1
+        assert not self._create_calls(mock_subprocess)
 
     def test_task_declares_the_flags(self) -> None:
         params = {p["name"]: p for p in task_issue()["params"]}

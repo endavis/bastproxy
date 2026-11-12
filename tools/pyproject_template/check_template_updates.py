@@ -27,7 +27,7 @@ import fnmatch
 import os
 import re
 import shutil
-import subprocess  # nosec B404
+import subprocess  # nosec B404  # subprocess is required to run git and gh
 import sys
 import urllib.error
 import urllib.request
@@ -44,7 +44,7 @@ if str(_script_dir) not in sys.path:
     sys.path.insert(0, str(_script_dir))
 
 # Import shared utilities
-from utils import (  # noqa: E402
+from utils import (  # noqa: E402  # sys.path is set up above
     SHA_RE,
     TEMPLATE_OWNED_TEST_FILES,
     TEMPLATE_REPO,
@@ -140,7 +140,7 @@ def resolve_template_ref(ref: str) -> str:
     request = github_api_request(api_url, accept="application/vnd.github.sha")
     authenticated = request.has_header("Authorization")
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:  # nosec B310
+        with urllib.request.urlopen(request, timeout=15) as response:  # nosec B310  # fixed GitHub https URL, no user-supplied scheme
             sha: str = response.read().decode("utf-8").strip()
     except urllib.error.HTTPError as e:
         cause = "rate limited" if e.code in (403, 429) else str(e)

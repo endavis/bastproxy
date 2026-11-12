@@ -15,7 +15,7 @@ subprocess/PATH guards.
 import asyncio
 import os
 import shutil
-import subprocess  # nosec B404  # guarding subprocess use, not invoking it
+import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Iterator

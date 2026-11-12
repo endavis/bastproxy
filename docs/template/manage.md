@@ -216,7 +216,7 @@ Follow the Issue → Branch → PR workflow:
 
 ```bash
 # Create an issue
-doit issue --type=chore --title='Sync template state'
+doit issue --type=chore --title='chore: sync template state'
 
 # Create branch and commit
 git checkout -b chore/<issue#>-sync-template-state

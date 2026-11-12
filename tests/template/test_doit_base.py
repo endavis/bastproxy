@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import os
 import shlex
-import subprocess  # nosec B404  # test invokes bash deliberately to verify shell-snippet behaviour
+import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
@@ -61,7 +61,19 @@ class TestWarnIfEnvDrifted:
             mock_run.return_value.returncode = 1
             warn_if_env_drifted()  # must not raise
 
-        assert "uv.lock changed — run: doit install_dev" in capsys.readouterr().out
+        assert (
+            "environment does not match uv.lock — run: doit install_dev" in capsys.readouterr().out
+        )
+
+    def test_reminder_does_not_claim_uv_lock_changed(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Drift is environment vs lock, so the message must not say the lock changed."""
+        with patch("tools.doit.base.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            warn_if_env_drifted()
+
+        assert "uv.lock changed" not in capsys.readouterr().out
 
 
 def _touch(tmp_path: Path, rel: str) -> Path:
@@ -216,19 +228,19 @@ class TestOptionalRootDirs:
 
 
 def _write_fake_uv(tmp_path: Path) -> Path:
-    """Write a fake ``uv`` shim that gates ``pip show`` on the FAKE_INSTALLED env var.
+    """Write a fake ``uv`` shim that gates the import probe on FAKE_INSTALLED.
 
     Returns the directory containing the shim (suitable for prepending to PATH).
-    The shim accepts ``pip show <pkg>`` and exits 0 iff ``FAKE_INSTALLED=1``.
-    All other invocations exit 0 (we never actually run ``uv run`` in these
-    tests — the gate either skips or hands off to ``true`` / ``false``).
+    The shim accepts ``run --no-sync python ...`` and exits 0 iff
+    ``FAKE_INSTALLED=1``. All other invocations exit 0 (the gate either skips
+    or hands off to ``true`` / ``false``).
     """
     bindir = tmp_path / "bin"
     bindir.mkdir()
     shim = bindir / "uv"
     shim.write_text(
         "#!/bin/sh\n"
-        'if [ "$1" = "pip" ] && [ "$2" = "show" ]; then\n'
+        'if [ "$1" = "run" ] && [ "$2" = "--no-sync" ] && [ "$3" = "python" ]; then\n'
         '  [ "$FAKE_INSTALLED" = "1" ] && exit 0 || exit 1\n'
         "fi\n"
         "exit 0\n",
@@ -241,7 +253,7 @@ def _write_fake_uv(tmp_path: Path) -> Path:
 def _run_bash(action: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     """Run ``bash -c <action>`` with a deliberately minimal env. Used by the
     shell-level behavioural tests below."""
-    return subprocess.run(  # nosec B603 B607
+    return subprocess.run(
         ["bash", "-c", action],
         capture_output=True,
         text=True,
@@ -260,13 +272,30 @@ class TestInstallCheckOrSkip:
     specific and skipped on Windows.
     """
 
-    def test_snippet_contains_uv_pip_show_with_package(self) -> None:
-        """The gate uses ``uv pip show <package>`` to detect installation."""
+    def test_snippet_probes_module_import_in_project_venv(self) -> None:
+        """The gate imports the module via ``uv run --no-sync python`` (#1193)."""
         snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert "uv pip show bandit" in snippet
+        assert 'uv run --no-sync python -c "import bandit"' in snippet
 
-    def test_snippet_silences_pip_show_output(self) -> None:
-        """The gate must redirect ``uv pip show`` output so it doesn't pollute task logs."""
+    def test_snippet_does_not_use_uv_pip_show(self) -> None:
+        """``uv pip show`` honours UV_PYTHON and probes the wrong interpreter (#1193)."""
+        snippet = install_check_or_skip("bandit", "bandit not installed.")
+        assert "uv pip show" not in snippet
+        assert "pip show" not in snippet
+
+    def test_module_defaults_to_package_with_underscores(self) -> None:
+        """Without ``module``, hyphens in the package name become underscores."""
+        snippet = install_check_or_skip("pip-audit", "missing")
+        assert 'import pip_audit"' in snippet
+
+    def test_explicit_module_overrides_default(self) -> None:
+        """An explicit ``module`` is imported instead of the derived name."""
+        snippet = install_check_or_skip("pip-licenses", "missing", module="piplicenses")
+        assert 'import piplicenses"' in snippet
+        assert "pip_licenses" not in snippet
+
+    def test_snippet_silences_probe_output(self) -> None:
+        """The gate must redirect the probe's output so it doesn't pollute task logs."""
         snippet = install_check_or_skip("bandit", "bandit not installed.")
         assert ">/dev/null 2>&1" in snippet
 
@@ -381,7 +410,7 @@ class TestInstallCheckOrSkipShellBehavior:
         return env
 
     def test_not_installed_branch_exits_zero_and_prints_hint(self, tmp_path: Path) -> None:
-        """When ``uv pip show`` fails, the snippet prints the hint and exits 0."""
+        """When the import probe fails, the snippet prints the hint and exits 0."""
         bindir = _write_fake_uv(tmp_path)
         env = self._build_env(bindir, installed=False)
 
@@ -397,7 +426,7 @@ class TestInstallCheckOrSkipShellBehavior:
         assert "bandit not installed. Run: uv sync --extra security" in result.stdout
 
     def test_installed_and_tool_succeeds_exits_zero(self, tmp_path: Path) -> None:
-        """When ``uv pip show`` succeeds and the tool succeeds, the action exits 0."""
+        """When the import probe succeeds and the tool succeeds, the action exits 0."""
         bindir = _write_fake_uv(tmp_path)
         env = self._build_env(bindir, installed=True)
 
@@ -410,7 +439,7 @@ class TestInstallCheckOrSkipShellBehavior:
         assert "not installed" not in result.stdout
 
     def test_installed_and_tool_fails_propagates_nonzero(self, tmp_path: Path) -> None:
-        """When ``uv pip show`` succeeds and the tool fails, the action exits non-zero.
+        """When the import probe succeeds and the tool fails, the action exits non-zero.
 
         This is the bug fix from issue #527: previously the ``|| echo 'not
         installed'`` form swallowed real failures by exiting 0. The gate must
@@ -468,7 +497,7 @@ class TestNoUvCacheDefault:
             "print(repr(os.environ.get('UV_CACHE_DIR'))); "
             "print(hasattr(b, 'UV_CACHE_DIR'))"
         )
-        result = subprocess.run(  # nosec B603
+        result = subprocess.run(
             [sys.executable, "-c", code],
             env=env,
             capture_output=True,
@@ -489,7 +518,10 @@ class TestNoUvCacheDefault:
         assert self._imported_value(None).splitlines()[1] == "False"
 
     def test_envrc_leaves_uv_cache_unset(self) -> None:
-        """direnv must not point uv at a per-checkout cache; the other tool caches stay in tmp/."""
+        """direnv must not point uv or pre-commit at a per-checkout cache.
+
+        The other tool caches stay in tmp/.
+        """
         envrc = (Path(__file__).resolve().parents[2] / ".envrc").read_text(encoding="utf-8")
         exports = {
             line.split("=", 1)[0].split()[-1]: line
@@ -497,5 +529,6 @@ class TestNoUvCacheDefault:
             if line.strip().startswith("export ")
         }
         assert "UV_CACHE_DIR" not in exports
+        assert "PRE_COMMIT_HOME" not in exports
         for name in ("RUFF_CACHE_DIR", "MYPY_CACHE_DIR", "COVERAGE_FILE"):
             assert "/tmp/" in exports[name], name

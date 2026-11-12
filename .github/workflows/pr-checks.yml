@@ -53,36 +53,7 @@ jobs:
             const pr = context.payload.pull_request;
             const body = pr.body || '';
 
-            // Get list of changed files
-            const files = await github.rest.pulls.listFiles({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number
-            });
-
-            // Check if this is a docs-only PR
-            const docsOnlyPatterns = [
-              /^docs\//,
-              /^README\.md$/,
-              /^CHANGELOG\.md$/,
-              /\.md$/,
-              /^\.github\//,  // GitHub config files (workflows, issue templates, etc.)
-              /^\.claude\//,  // Claude configuration
-              /^\.pre-commit-config\.ya?ml$/,  // Pre-commit hooks configuration
-              /^examples\/.*\.md$/
-            ];
-
-            const isDocsOnly = files.data.every(file =>
-              docsOnlyPatterns.some(pattern => pattern.test(file.filename))
-            );
-
-            if (isDocsOnly) {
-              console.log('✅ Docs-only PR - issue link not required');
-              return;
-            }
-
-            // `doit release` opens release PRs from release/vX.Y.Z. A static-version release
-            // also changes pyproject.toml, uv.lock and version files, so it is not docs-only;
+            // `doit release` opens release PRs from release/vX.Y.Z;
             // `doit release --issue=N` links an issue when a project tracks one per release.
             if (pr.head.ref.startsWith('release/v')) {
               console.log('✅ Release PR - issue link not required');
@@ -107,10 +78,10 @@ jobs:
             if (!hasIssueLink) {
               core.setFailed(
                 '❌ PR must reference an issue number\n\n' +
-                'Code changes require a linked GitHub issue.\n' +
+                'Every change, documentation included, requires a linked GitHub issue.\n' +
                 'Add the following to your PR description:\n' +
                 '  - "Addresses #123"\n\n' +
-                '📝 Documentation-only PRs are exempt from this requirement.\n\n' +
+                'Release and Dependabot PRs are the only exceptions.\n\n' +
                 'Why? Issue-driven development ensures:\n' +
                 '  • Clear tracking of why changes were made\n' +
                 '  • Better project management\n' +

@@ -6,7 +6,7 @@ import json
 import os
 import re
 import shutil
-import subprocess  # nosec B404
+import subprocess  # nosec B404  # subprocess is required to run git and gh
 import sys
 import tarfile
 import urllib.request
@@ -301,7 +301,7 @@ def github_token() -> str | None:
     if token:
         return token
     try:
-        result = subprocess.run(  # nosec B603 B607
+        result = subprocess.run(
             ["gh", "auth", "token"],
             capture_output=True,
             text=True,
@@ -593,7 +593,7 @@ def download_and_extract_archive(url: str, target_dir: Path) -> Path:
 
     Logger.info(f"Downloading from {url}...")
     try:
-        urllib.request.urlretrieve(url, archive_path)  # nosec B310
+        urllib.request.urlretrieve(url, archive_path)  # nosec B310  # fixed GitHub https URL, no user-supplied scheme
     except Exception as e:
         Logger.error(f"Failed to download archive: {e}")
         sys.exit(1)
@@ -613,10 +613,15 @@ def download_and_extract_archive(url: str, target_dir: Path) -> Path:
         if zipfile.is_zipfile(archive_path):
             with zipfile.ZipFile(archive_path, "r") as zf:
                 # Filter out dangerous paths
-                for member in zf.namelist():
-                    if member.startswith("/") or ".." in member:
+                for info in zf.infolist():
+                    if info.filename.startswith("/") or ".." in info.filename:
                         continue
-                    zf.extract(member, extract_dir)
+                    extracted_path = Path(zf.extract(info, extract_dir))
+                    # zf.extract drops Unix modes; restore them so executable
+                    # scripts stay executable (#1199).
+                    mode = (info.external_attr >> 16) & 0o777
+                    if mode and not info.is_dir():
+                        extracted_path.chmod(mode)
         elif tarfile.is_tarfile(archive_path):
             with tarfile.open(archive_path, "r:*") as tf:
                 # Filter out dangerous members
@@ -625,7 +630,7 @@ def download_and_extract_archive(url: str, target_dir: Path) -> Path:
                     for m in tf.getmembers()
                     if m.name and not (m.name.startswith("/") or ".." in m.name)
                 ]
-                tf.extractall(extract_dir, members=safe_members)  # nosec B202
+                tf.extractall(extract_dir, members=safe_members)  # nosec B202  # members are filtered above to drop absolute and parent-relative paths
         else:
             raise ValueError("Unknown archive format")
     except Exception as e:

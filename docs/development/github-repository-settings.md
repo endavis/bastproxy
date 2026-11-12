@@ -164,8 +164,8 @@ each workflow, its trigger, and required permissions.
 
 | Workflow | File | Trigger | Permissions |
 | :--- | :--- | :--- | :--- |
-| **CI** | `ci.yml` | PR to `main` (opened, synchronize, reopened), `workflow_dispatch`, `workflow_call` | `contents: read` |
-| **CI (full matrix)** | `ci-full-matrix.yml` | PR to `main` (labeled with `full-matrix`) -- dispatches `ci.yml` with `full_matrix: true` | `contents: read` |
+| **CI** | `ci.yml` | PR to `main` (opened, synchronize, reopened), `workflow_dispatch`, `workflow_call` | `contents: read`, `id-token: write` |
+| **CI (full matrix)** | `ci-full-matrix.yml` | PR to `main` (labeled with `full-matrix`) -- dispatches `ci.yml` with `full_matrix: true` | `contents: read`, `id-token: write` |
 | **CodeQL** | `codeql.yml` | Push to `main`, PR to `main`, Scheduled (Monday 04:27 UTC) | `contents: read`, `security-events: write`, `actions: read` |
 | **Merge Gate** | `merge-gate.yml` | PR to `main` (opened, labeled, unlabeled, synchronize, reopened) | `contents: read` |
 | **PR Validation** | `pr-checks.yml` | PR (opened, edited, synchronize) | `contents: read`, `pull-requests: read` |
@@ -234,9 +234,21 @@ printed by `doit publish_setup` and the
 | Secret/Variable | Kind | Required | Purpose |
 | :--- | :--- | :--- | :--- |
 | `GITHUB_TOKEN` | Secret | Automatic | Provided by GitHub Actions; used by most workflows |
-| `CODECOV_TOKEN` | Secret | Optional | Upload coverage reports to Codecov |
+| `CODECOV_ENABLED` | **Variable** | Optional | Set to `true` to upload coverage to Codecov (see [Codecov opt-in](#codecov-opt-in)) |
 | `RELEASE_APP_ID` | **Variable** | Recommended | GitHub App ID used by release automation and the dependabot auto-merge workflow |
 | `RELEASE_APP_PRIVATE_KEY` | Secret | Recommended | GitHub App private key matching `RELEASE_APP_ID` |
+
+### Codecov opt-in
+
+The `Upload coverage to Codecov` step in `ci.yml` is off by default. The coverage floor
+(`fail_under` in `[tool.coverage.report]`) is enforced by pytest-cov and does not depend on
+Codecov; opting in adds the Codecov PR comment, history and badge.
+
+1. Sign up at [codecov.io](https://codecov.io) and install the Codecov GitHub app on the repository.
+2. Set the repository variable: `gh variable set CODECOV_ENABLED --body true`.
+
+The upload authenticates with OIDC (`use_oidc: true`, `id-token: write`), so no `CODECOV_TOKEN`
+secret is needed, and `disable_search: true` uploads only `tmp/coverage.xml`.
 
 PyPI publishing uses OIDC (trusted publishers), so no `PYPI_TOKEN` secret is
 needed.
@@ -391,7 +403,7 @@ configuration:
 
 1. **Environments** -- Run `doit publish_setup` to create the `testpypi` and `pypi` environments in one step
 2. **OIDC Trusted Publishers** -- Configure on PyPI and TestPyPI
-3. **Secrets** -- Add `CODECOV_TOKEN` and optional release app credentials
+3. **Variables and secrets** -- Optionally set `CODECOV_ENABLED=true` ([Codecov opt-in](#codecov-opt-in)) and add release app credentials
 4. **CODEOWNERS** -- Replace `@username` with the actual owner
 5. **Dependabot** -- Verify Dependabot is enabled in repository settings
 

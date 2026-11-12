@@ -902,7 +902,7 @@ class TestReleaseTagGhSearch:
         )
 
 
-class _ReachedCzBuild(Exception):  # noqa: N818 - sentinel, not a runtime error
+class _ReachedCzBuild(Exception):  # noqa: N818  # sentinel, not a runtime error
     """Sentinel raised from ``_build_cz_get_next_cmd`` to halt the task flow.
 
     Used by ``TestCreateReleasePrValidation`` to prove that control reached
@@ -1398,20 +1398,31 @@ class TestCreateReleaseTag:
         assert exc.value.code == 1
         assert "Error pulling latest changes" in capsys.readouterr().out
 
+    MERGE_OID = "a" * 40
+
     @staticmethod
-    def _patch_happy_path(monkeypatch: MonkeyPatch) -> None:
+    def _patch_happy_path(
+        monkeypatch: MonkeyPatch,
+        *,
+        merge_commit: object = {"oid": "a" * 40},
+        head: str = "a" * 40,
+    ) -> list[list[str]]:
         """Walk the action from entry to the final "Next steps" printout.
 
         Mocks ``subprocess.run`` for every call `create_release_tag` makes
         after the main-branch check: finding the merged release PR via
         ``gh pr list``, the existing-tag check, and ``git tag``. ``run_streamed``
-        (``git pull``, ``git push``) is a no-op.
+        (``git pull``, ``git push``) is a no-op. Returns every command run.
         """
+        calls: list[list[str]] = []
 
         def fake_run(
             cmd: list[str], *_args: object, **_kwargs: object
         ) -> subprocess.CompletedProcess[str]:
-            if cmd[:3] == ["git", "branch", "--show-current"]:
+            calls.append(cmd)
+            if cmd[:2] == ["git", "rev-parse"]:
+                stdout = f"{head}\n"
+            elif cmd[:3] == ["git", "branch", "--show-current"]:
                 stdout = "main\n"
             elif cmd[:2] == ["gh", "pr"]:
                 stdout = json.dumps(
@@ -1420,17 +1431,60 @@ class TestCreateReleaseTag:
                             "title": "release: v1.2.3",
                             "mergedAt": "2024-01-01T00:00:00Z",
                             "headRefName": "release/v1.2.3",
+                            "mergeCommit": merge_commit,
                         }
                     ]
                 )
             else:
-                # Covers ``git tag -l <tag>`` (no existing tag) and
-                # ``git tag <tag>`` (create).
+                # Covers ``git tag -l <tag>`` (no existing tag),
+                # ``git cat-file -e`` and ``git tag <tag> <oid>`` (create).
                 stdout = ""
             return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=stdout, stderr="")
 
         monkeypatch.setattr("tools.doit.release.subprocess.run", fake_run)
         monkeypatch.setattr("tools.doit.release.run_streamed", lambda *a, **kw: None)
+        return calls
+
+    def test_tag_command_receives_merge_commit_oid(self, monkeypatch: MonkeyPatch) -> None:
+        """The tag is created on the PR's merge commit, not implicit HEAD (#1192)."""
+        calls = self._patch_happy_path(monkeypatch)
+
+        _tag_action()()
+
+        assert ["git", "tag", "v1.2.3", self.MERGE_OID] in calls
+
+    def test_tags_merge_commit_and_notes_when_head_moved(
+        self, monkeypatch: MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        calls = self._patch_happy_path(monkeypatch, head="b" * 40)
+
+        _tag_action()()
+
+        assert ["git", "tag", "v1.2.3", self.MERGE_OID] in calls
+        assert "main has moved past the release PR's merge commit" in " ".join(
+            capsys.readouterr().out.split()
+        )
+
+    def test_no_note_when_head_is_merge_commit(
+        self, monkeypatch: MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._patch_happy_path(monkeypatch)
+
+        _tag_action()()
+
+        assert "moved past" not in capsys.readouterr().out
+
+    @pytest.mark.parametrize("merge_commit", [None, {}, {"oid": ""}, {"oid": None}])
+    def test_missing_merge_commit_exits_without_tagging(
+        self, monkeypatch: MonkeyPatch, merge_commit: object
+    ) -> None:
+        calls = self._patch_happy_path(monkeypatch, merge_commit=merge_commit)
+
+        with pytest.raises(SystemExit) as exc:
+            _tag_action()()
+
+        assert exc.value.code == 1
+        assert not [c for c in calls if c[:2] == ["git", "tag"] and "-l" not in c]
 
     def test_next_steps_mention_pypi_and_actions_with_release_workflow(
         self, tmp_path: Path, monkeypatch: MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -1499,7 +1553,7 @@ class TestMajorVersion:
         assert _major_version(version) == major
 
 
-class _ReachedBranchCreation(Exception):  # noqa: N818 - sentinel, not a runtime error
+class _ReachedBranchCreation(Exception):  # noqa: N818  # sentinel, not a runtime error
     """Sentinel raised at ``git checkout -b`` to prove the flow got past the version checks."""
 
 
@@ -1668,9 +1722,29 @@ class TestCreateReleasePrStaticVersionAndChangelogOptIns:
         _release_action()()
 
         assert not any("--files-only" in cmd for cmd in streamed_calls)
-        assert ["uv", "run", "cz", "changelog", "--incremental"] in streamed_calls
+        assert [
+            "uv",
+            "run",
+            "cz",
+            "changelog",
+            "--incremental",
+            "--unreleased-version",
+            f"v{self._NEXT_VERSION}",
+        ] in streamed_calls
         git_add_calls = [c for c in subprocess_calls if c[:2] == ["git", "add"]]
         assert git_add_calls == [["git", "add", "CHANGELOG.md"]]
+
+    def test_changelog_heading_flag_carries_v_prefixed_next_version(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
+        """#1196: the new section is headed ``v<next_version>``, not ``Unreleased``."""
+        pyproject = '[tool.commitizen]\nversion_provider = "scm"\nupdate_changelog_on_bump = true\n'
+        _, streamed_calls = self._patch(monkeypatch, tmp_path, pyproject)
+
+        _release_action()()
+
+        (cmd,) = [c for c in streamed_calls if "changelog" in c]
+        assert cmd[cmd.index("--unreleased-version") + 1] == f"v{self._NEXT_VERSION}"
 
     def test_static_version_bumps_files_and_lock(
         self, tmp_path: Path, monkeypatch: MonkeyPatch
@@ -1714,7 +1788,7 @@ class TestCreateReleasePrStaticVersionAndChangelogOptIns:
 
         _release_action()()
 
-        assert not any(cmd[-3:] == ["cz", "changelog", "--incremental"] for cmd in streamed_calls)
+        assert not any("changelog" in cmd and "--incremental" in cmd for cmd in streamed_calls)
         result = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
         today = date.today().isoformat()
         assert f"## [Unreleased]\n\n## [{self._NEXT_VERSION}] - {today}" in result
@@ -1752,7 +1826,7 @@ class TestCreateReleasePrStaticVersionAndChangelogOptIns:
 
         _release_action()()
 
-        assert not any(cmd[-3:] == ["cz", "changelog", "--incremental"] for cmd in streamed_calls)
+        assert not any("changelog" in cmd and "--incremental" in cmd for cmd in streamed_calls)
         result = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
         assert f"## [{self._NEXT_VERSION}] - {date.today().isoformat()}" in result
 
@@ -1768,7 +1842,7 @@ class TestCreateReleasePrStaticVersionAndChangelogOptIns:
         _release_action()()
 
         assert any("--files-only" in cmd for cmd in streamed_calls)
-        assert not any(cmd[-3:] == ["cz", "changelog", "--incremental"] for cmd in streamed_calls)
+        assert not any("changelog" in cmd and "--incremental" in cmd for cmd in streamed_calls)
 
     def test_abort_after_a_version_bump_discards_it_before_leaving_the_branch(
         self, tmp_path: Path, monkeypatch: MonkeyPatch

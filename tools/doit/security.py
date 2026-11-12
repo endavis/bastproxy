@@ -14,6 +14,7 @@ def task_audit() -> dict[str, Any]:
             install_check_or_skip(
                 "pip-audit",
                 "pip-audit not installed. Run: doit install_dev",
+                module="pip_audit",
             )
             + "uv run pip-audit --skip-editable"
         ],
@@ -46,6 +47,7 @@ def task_licenses() -> dict[str, Any]:
             install_check_or_skip(
                 "pip-licenses",
                 "pip-licenses not installed. Run: doit install_dev",
+                module="piplicenses",
             )
             + "uv run pip-licenses --format=markdown --order=license"
         ],
@@ -61,6 +63,7 @@ def task_sbom() -> dict[str, Any]:
             install_check_or_skip(
                 "cyclonedx-bom",
                 "cyclonedx-py not installed. Run: doit install_dev",
+                module="cyclonedx",
             )
             + "uv run cyclonedx-py environment --of JSON -o tmp/sbom.json && "
             "uv run cyclonedx-py environment --of XML -o tmp/sbom.xml",

@@ -69,7 +69,7 @@ refuses security-related content.
 Write the body with the sections of the upstream bug template, then:
 
 ```bash
-uv run doit issue --upstream --type=bug --title="bug: <subject>" --body-file=tmp/agents/<agent>/upstream-issue.md
+uv run doit issue --upstream --type=fix --title="fix: <subject>" --body-file=tmp/agents/<agent>/upstream-issue.md
 ```
 
 The command validates the body against the upstream template, applies its labels, adds a footer

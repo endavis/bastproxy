@@ -107,38 +107,48 @@ def optional_root_dirs(*names: str) -> str:
     return " " + " ".join(f"{name}/" for name in survivors)
 
 
-def install_check_or_skip(package: str, hint: str) -> str:
+def install_check_or_skip(package: str, hint: str, module: str | None = None) -> str:
     """Build a shell prefix that gates a doit action on ``package`` being installed.
 
-    Emits a shell snippet that exits 0 with ``hint`` printed when
-    ``uv pip show <package>`` reports the package missing, and otherwise lets
-    the rest of the action run so its real exit code reaches the operator
-    unmasked. Replaces the ``cmd || echo 'not installed'`` pattern, which
-    always swallowed real failures by exiting 0 regardless of why ``cmd``
-    failed. See issue #527.
+    Emits a shell snippet that exits 0 with ``hint`` printed when the package's
+    module cannot be imported, and otherwise lets the rest of the action run so
+    its real exit code reaches the operator unmasked. Replaces the
+    ``cmd || echo 'not installed'`` pattern, which always swallowed real
+    failures by exiting 0 regardless of why ``cmd`` failed. See issue #527.
+
+    The probe imports the module with ``uv run --no-sync python``, i.e. in the
+    project ``.venv`` the guarded ``uv run <tool>`` command uses. It does not
+    use ``uv pip show``: that honours ``UV_PYTHON`` and inspects whatever
+    interpreter it names, so it reported tools missing from ``.venv`` as
+    absent (or present when they were not). See issue #1193.
 
     The emitted snippet uses the form::
 
-        uv pip show <package> >/dev/null 2>&1 || { echo <hint>; exit 0; };
+        uv run --no-sync python -c "import <module>" >/dev/null 2>&1 || { echo <hint>; exit 0; };
 
-    If ``uv pip show`` succeeds (package present), the brace group is skipped
-    and the caller's real command runs; its exit code propagates unmasked.
-    If ``uv pip show`` fails (package absent), the brace group prints the hint
-    and ``exit 0`` terminates the shell before the real command is reached.
+    If the import succeeds, the brace group is skipped and the caller's real
+    command runs; its exit code propagates unmasked. If it fails, the brace
+    group prints the hint and ``exit 0`` terminates the shell before the real
+    command is reached.
 
     Args:
-        package: The package name as known to ``uv pip show`` (e.g.
-            ``"bandit"``, ``"commitizen"``, ``"cyclonedx-bom"``).
+        package: The distribution name (e.g. ``"bandit"``, ``"cyclonedx-bom"``).
+            Used to derive ``module`` when that is not given.
         hint: Human-readable install instruction printed when the package is
             absent (e.g. ``"bandit not installed. Run: doit install_dev"``).
             Shell-quoted via ``shlex.quote`` so embedded spaces and special
             characters are safe.
+        module: The importable module name when it differs from ``package``
+            with ``-`` replaced by ``_`` (e.g. ``"piplicenses"`` for
+            ``pip-licenses``). Defaults to that replaced form.
 
     Returns:
         A shell fragment ending with ``"; "`` suitable for prepending to the
         rest of a doit action string via plain string concatenation.
     """
-    return f"uv pip show {package} >/dev/null 2>&1 || {{ echo {shlex.quote(hint)}; exit 0; }}; "
+    module_name = module if module is not None else package.replace("-", "_")
+    probe = f'uv run --no-sync python -c "import {module_name}"'
+    return f"{probe} >/dev/null 2>&1 || {{ echo {shlex.quote(hint)}; exit 0; }}; "
 
 
 def warn_if_env_drifted() -> None:
@@ -157,7 +167,7 @@ def warn_if_env_drifted() -> None:
     choose to run a `doit` task — `doit check` and `doit test` call this
     first — on a branch they have already decided to trust.
     """
-    result = subprocess.run(  # nosec B603 B607
+    result = subprocess.run(
         ["uv", "sync", "--all-extras", "--dev", "--check"],
         capture_output=True,
         text=True,
@@ -166,7 +176,7 @@ def warn_if_env_drifted() -> None:
     if result.returncode != 0:
         console = Console()
         console.print(
-            verbatim("uv.lock changed — run: doit install_dev", "yellow"),
+            verbatim("environment does not match uv.lock — run: doit install_dev", "yellow"),
             soft_wrap=True,
         )
 
@@ -214,7 +224,7 @@ def run_streamed(
         subprocess.CalledProcessError: If ``check`` is ``True`` and the child
             exits with a non-zero return code.
     """
-    subprocess.run(  # nosec B603 B607
+    subprocess.run(
         cmd,
         env=_child_env(env),
         check=check,
@@ -263,7 +273,7 @@ def run_teed(
     # Popen with stdout piped and stderr merged into stdout. We read lines
     # from the pipe, echo each to sys.stdout (so the user sees live output),
     # and buffer them for the caller.
-    process = subprocess.Popen(  # nosec B603 B607
+    process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -278,7 +288,7 @@ def run_teed(
 
     buffer: list[str] = []
     # process.stdout is non-None because we asked for subprocess.PIPE.
-    assert process.stdout is not None  # nosec B101  # invariant from Popen args
+    assert process.stdout is not None  # invariant from Popen args
     try:
         for line in process.stdout:
             buffer.append(line)

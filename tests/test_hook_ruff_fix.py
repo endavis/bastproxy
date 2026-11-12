@@ -262,3 +262,31 @@ def test_absolute_path_inside_project(
 
     assert hook.main() == 0
     assert call_log == [target]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        subprocess.TimeoutExpired(cmd="ruff", timeout=1),
+        FileNotFoundError("uv"),
+        RuntimeError("unexpected"),
+    ],
+)
+def test_run_ruff_swallows_every_subprocess_error(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    error: Exception,
+) -> None:
+    """``run_ruff`` never raises, whatever ``subprocess.run`` raises, and runs both steps."""
+    calls: list[object] = []
+
+    def _raise(*args: object, **kwargs: object) -> None:
+        calls.append(args)
+        raise error
+
+    monkeypatch.setattr(hook.subprocess, "run", _raise)
+
+    hook.run_ruff(tmp_path / "foo.py")
+
+    assert len(calls) == 2

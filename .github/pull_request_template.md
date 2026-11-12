@@ -44,6 +44,7 @@ Addresses #(issue)
 - [ ] All new and existing tests pass (`doit test`)
 - [ ] I have updated the documentation accordingly
 - [ ] My changes generate no new warnings
+- [ ] My commits are signed (see "Signed Commits" in CONTRIBUTING.md)
 
 ## Screenshots (if applicable)
 

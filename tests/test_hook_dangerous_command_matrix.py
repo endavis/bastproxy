@@ -79,7 +79,7 @@ BASH_CASES = [
         "heredoc with --admin",
     ),
     (
-        "doit pr --body=\"$(cat <<'EOF'\n## Blocked Patterns\n- `--admin` (bypasses branch protection)\n- `rm -rf ~` (destructive)\nEOF\n)\"",  # noqa: E501 - migrated test data, kept verbatim
+        "doit pr --body=\"$(cat <<'EOF'\n## Blocked Patterns\n- `--admin` (bypasses branch protection)\n- `rm -rf ~` (destructive)\nEOF\n)\"",  # noqa: E501  # migrated test data, kept verbatim
         "ALLOW",
         "heredoc with markdown",
     ),
@@ -304,7 +304,7 @@ BASH_CASES = [
         "doit pr",
     ),
     (
-        "doit issue --type=bug",
+        "doit issue --type=fix",
         "ALLOW",
         "doit issue",
     ),

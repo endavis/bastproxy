@@ -39,7 +39,7 @@ class TestIssueTypeMapping:
 
     def test_all_issue_types_have_mapping(self) -> None:
         """All expected issue types should have file mappings."""
-        expected_types = {"feature", "bug", "refactor", "docs", "chore"}
+        expected_types = {"feat", "fix", "refactor", "docs", "chore"}
         assert set(ISSUE_TYPE_TO_FILE.keys()) == expected_types
 
     def test_mapping_files_exist(self) -> None:
@@ -53,7 +53,7 @@ class TestIssueTypeMapping:
 class TestGetIssueTemplate:
     """Test get_issue_template function."""
 
-    @pytest.mark.parametrize("issue_type", ["feature", "bug", "refactor", "docs", "chore"])
+    @pytest.mark.parametrize("issue_type", ["feat", "fix", "refactor", "docs", "chore"])
     def test_get_template_for_valid_types(self, issue_type: str) -> None:
         """Should return IssueTemplate for all valid types."""
         result = get_issue_template(issue_type)
@@ -70,12 +70,12 @@ class TestGetIssueTemplate:
 
     def test_feature_template_has_expected_labels(self) -> None:
         """Feature template should have enhancement label."""
-        result = get_issue_template("feature")
+        result = get_issue_template("feat")
         assert "enhancement" in result.labels
 
     def test_bug_template_has_expected_labels(self) -> None:
         """Bug template should have bug label."""
-        result = get_issue_template("bug")
+        result = get_issue_template("fix")
         assert "bug" in result.labels
 
     def test_refactor_template_has_expected_labels(self) -> None:
@@ -93,6 +93,12 @@ class TestGetIssueTemplate:
         with pytest.raises(ValueError, match="Invalid issue type"):
             get_issue_template("doc")
 
+    @pytest.mark.parametrize("old_type", ["feature", "bug"])
+    def test_renamed_types_raise_value_error(self, old_type: str) -> None:
+        """'feature' and 'bug' were renamed to 'feat' and 'fix' (#1229)."""
+        with pytest.raises(ValueError, match="Invalid issue type"):
+            get_issue_template(old_type)
+
     def test_chore_template_has_expected_labels(self) -> None:
         """Chore template should have chore label."""
         result = get_issue_template("chore")
@@ -100,14 +106,14 @@ class TestGetIssueTemplate:
 
     def test_editor_template_has_instructions(self) -> None:
         """Editor template should contain instruction comments."""
-        result = get_issue_template("feature")
+        result = get_issue_template("feat")
         assert "# Lines starting with #" in result.editor_template
         assert "## " in result.editor_template  # Should have markdown sections
 
     def test_caching_returns_same_instance(self) -> None:
         """Multiple calls should return cached result."""
-        result1 = get_issue_template("feature")
-        result2 = get_issue_template("feature")
+        result1 = get_issue_template("feat")
+        result2 = get_issue_template("feat")
         assert result1 is result2
 
 
@@ -116,13 +122,13 @@ class TestGetRequiredSections:
 
     def test_feature_required_sections(self) -> None:
         """Feature type should require Problem and Proposed Solution."""
-        sections = get_required_sections("feature")
+        sections = get_required_sections("feat")
         assert "Problem" in sections
         assert "Proposed Solution" in sections
 
     def test_bug_required_sections(self) -> None:
         """Bug type should require multiple sections."""
-        sections = get_required_sections("bug")
+        sections = get_required_sections("fix")
         assert "Bug Description" in sections
         assert "Steps to Reproduce" in sections
         assert "Expected vs Actual Behavior" in sections
@@ -152,8 +158,8 @@ class TestGetIssueLabels:
     @pytest.mark.parametrize(
         ("issue_type", "expected_label"),
         [
-            ("feature", "enhancement"),
-            ("bug", "bug"),
+            ("feat", "enhancement"),
+            ("fix", "bug"),
             ("refactor", "refactor"),
             ("docs", "documentation"),
             ("chore", "chore"),
@@ -242,11 +248,11 @@ class TestClearTemplateCache:
     def test_clears_issue_template_cache(self) -> None:
         """Should clear the issue template cache."""
         # Load a template to populate cache
-        result1 = get_issue_template("feature")
+        result1 = get_issue_template("feat")
 
         # Clear and reload
         clear_template_cache()
-        result2 = get_issue_template("feature")
+        result2 = get_issue_template("feat")
 
         # Should be equal but not the same object
         assert result1 == result2

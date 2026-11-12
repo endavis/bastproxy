@@ -91,9 +91,9 @@ After the script completes, you'll need to:
    >     | python3 - --sync --yes
    > ```
 
-2. **Add Codecov token** (optional, for coverage reports):
-   - Sign up at [codecov.io](https://codecov.io)
-   - Add `CODECOV_TOKEN` to repository secrets
+2. **Enable Codecov** (optional, for coverage reports):
+   - Sign up at [codecov.io](https://codecov.io) and install the Codecov GitHub app
+   - Set the repository variable `CODECOV_ENABLED=true` (no token needed; the upload uses OIDC)
 
 3. **Configure collaborators** if needed:
    - Settings → Collaborators and teams
@@ -259,8 +259,8 @@ Manually configure what the automated setup does automatically:
      [release automation guide](../development/release-and-automation.md#trusted-publisher-registration-manual)
      for the full table.
 
-4. **Secrets** (Settings → Secrets → Actions):
-   - Add `CODECOV_TOKEN` (optional, for coverage uploads)
+4. **Variables** (Settings → Secrets and variables → Actions):
+   - Set `CODECOV_ENABLED=true` (optional, for coverage uploads via OIDC)
 
 5. **Labels**:
    - The template includes standard labels

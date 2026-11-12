@@ -73,6 +73,10 @@ If you make two consecutive `Edit` calls on the same file and the first edit's r
 
 The friction is intentional — silencing the noise on every other turn is worth the occasional re-read.
 
+## Known Limitation: Import Added Before Its First Use
+
+F401 deletes an import that nothing uses yet. An import added in one `Edit`/`Write`/`MultiEdit` and first used in a later edit is removed in between, and the later code raises `NameError`. Mitigation: add an import in the same edit as the code that uses it, or after that code exists.
+
 ## Files
 
 | File | Description |

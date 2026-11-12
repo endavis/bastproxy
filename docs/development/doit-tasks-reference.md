@@ -281,7 +281,7 @@ doit env_check
 
 **What it does:**
 - Runs `uv sync --all-extras --dev --check`
-- If it exits non-zero, prints `uv.lock changed — run: doit install_dev` and returns — it never
+- If it exits non-zero, prints `environment does not match uv.lock — run: doit install_dev` and returns — it never
   fails the task and never runs `uv sync` itself
 
 **Why it exists (#1033):** it replaces the `uv-sync-on-pull`/`uv-sync-on-checkout` pre-commit hooks,
@@ -643,19 +643,24 @@ Create a GitHub issue from a template.
 
 ```bash
 # Interactive mode (opens $EDITOR)
-doit issue --type=feature
+doit issue --type=feat
 
 # Non-interactive mode (for scripts/AI)
-doit issue --type=feature --title="Add feature" --body="## Problem\n..."
-doit issue --type=bug --title="Fix bug" --body-file=issue.md
+doit issue --type=feat --title="feat: add feature" --body="## Problem\n..."
+doit issue --type=fix --title="fix: fix bug" --body-file=issue.md
 ```
 
 **Issue types:**
-- `feature` - New feature request
-- `bug` - Bug report
+- `feat` - New feature request
+- `fix` - Bug report
 - `refactor` - Code refactoring
 - `docs` - Documentation improvement
 - `chore` - Maintenance task
+
+The title must be `<type>: <subject>` or `<type>(<scope>): <subject>`, where `<type>` is the
+`--type` value; otherwise the task exits 1 before opening the editor or calling `gh`. The same
+check applies to `--upstream`. The old names `--type=feature` and `--type=bug` are rejected with a
+message naming the replacement (`feat`, `fix`).
 
 **Options:**
 - `--type` (required): Issue type
@@ -765,7 +770,10 @@ delete the branch. So when a linked worktree has the branch, the task merges wit
   modified or untracked files, which git refuses to remove, or an ignored file that cannot be
   rebuilt, such as `.envrc.local`, which git would delete without asking. `.venv/`, caches and
   build output are rebuilt, so they do not count. An ignored directory such as `tmp/agents/` is
-  judged by the files in it, so one holding only `__pycache__` does not count either
+  judged by the files in it, so one holding only `__pycache__` does not count either;
+  it is also kept, with the mount points listed, when anything is mounted at or below it, in a
+  rebuildable directory too: `git worktree remove` deletes the files inside a mount before it
+  fails, on the remote machine for a network mount. Unmount first
 - deletes the local branch if it still points at the commit the PR merged. A squash merge needs
   `git branch -D`, which would otherwise drop a commit that was never pushed
 - removes the directories under `worktrees/` that the worktree leaves empty
@@ -781,6 +789,28 @@ uv run doit pr_merge --pr=123 --auto-close
 Run from inside the worktree, the task merges but cannot remove the directory it runs in, so it
 prints the commands that do. A worktree outside `worktrees/`, such as one Claude Code made in
 `.claude/worktrees/`, is left in place with its branch.
+
+### Project rebuildable names
+
+A project can name more ignored files that a run rebuilds, such as an app home under `tmp/`, so they
+do not keep the worktree. List them in the **main checkout's** `pyproject.toml`; the worktree's copy
+is not read:
+
+```toml
+[tool.pyproject-template.worktree]
+rebuildable = ["app_home", "*_data"]
+```
+
+- Names match like the built-in ones: `fnmatch` on the last part of each path. They add to the
+  built-ins and cannot remove any. The mount check is unchanged.
+- A name is rejected when it is not a non-empty string, contains `/` or `\`, is `.` or `..`, or
+  matches `tmp`, `agents`, `checkpoints` or `.envrc.local`. So `tmp`, `*`, `t*` and `.envrc*` are
+  refused: deleting what they match would lose local env files or notes.
+- A malformed setting (bad TOML, a non-table, a non-list, a rejected name) keeps the worktree. The
+  task prints the error and the commands that remove it by hand.
+- No file, table or key leaves the built-in names alone.
+
+See [ADR-9031](../decisions/9031-a-project-adds-rebuildable-names-for-worktree-removal-in-pyprojecttoml.md) for why the setting lives under `[tool.pyproject-template]`.
 
 **Options:**
 - `--pr`: PR number to merge (defaults to PR for current branch)
@@ -812,6 +842,13 @@ doit adr --title="Use some tool" --template --body-file=adr.md
   that starts with its own frontmatter keeps it, and `doit adr` sets its title. If the
   description is still the template's placeholder, it says so; write one sentence that says
   what was decided, because `docs/TABLE_OF_CONTENTS.md` lists it next to the title
+- Replaces a body's first `# ADR-...` heading with the numbered one, including an `# ADR-NNNN:`
+  placeholder
+- Adds the ADR to the `## Index` table in `docs/decisions/README.md` (the series table for
+  `--template` or the project one) and to the `- Decisions:` list under `nav:` in `mkdocs.yml`,
+  in numeric order, in every input mode. Both edits are idempotent and keep comments. When a file
+  is missing or restructured so an entry cannot be placed safely, it leaves the file as it is and
+  prints a reminder naming the file. The nav label is `ADR-NNNN <title>`; shorten it by hand if you like
 
 **Series:**
 - Default (project-level, 0XXX): decisions specific to this project. Numbering starts at `0001`.

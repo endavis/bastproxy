@@ -1079,6 +1079,13 @@ _DYNAMIC_TARGET_BLOCKED = [
     "git checkout HEAD~1 -- ~/src/repo",
     "git -C .. checkout HEAD~1 -- repo/",
     "git --work-tree=.. restore -s HEAD~1 repo/",
+    # #1251: a plain revision no longer hides what the pathspecs do
+    "cd x && git checkout HEAD~1 -- ../y",
+    "cd x && git checkout HEAD~1 -- .",
+    "git checkout HEAD~1 -- .envrc.local.example",
+    "cd x && git checkout HEAD~1 -- .envrc.local.example",
+    "git checkout .envrc.local.example -- src/a.py",
+    "git checkout HEAD~1 --pathspec-from-file=p",
 ]
 
 _DYNAMIC_TARGET_ALLOWED = [
@@ -1091,6 +1098,12 @@ _DYNAMIC_TARGET_ALLOWED = [
     "git checkout main",
     "git checkout -b feature/x",
     "git checkout main -- src/foo.py",
+    # #1251: the revision is no pathspec (`~`, `{`, a leading `:`)
+    "cd /work/repo && git checkout HEAD~1 -- src/pkg/module.py",
+    "cd /work/repo && git checkout HEAD~1 src/pkg/module.py",
+    "cd /work/repo && git checkout HEAD@{1} -- src/pkg/module.py",
+    'git checkout ":/fix bug" -- src/a.py',
+    "git checkout HEAD~1 -- src/pkg/module.py",
     "git restore src/foo.py",
     'git commit -m "a >> $f"',
     # Guard the everyday forms next to the #1061 gaps
@@ -3207,3 +3220,44 @@ def test_all_substitution_payloads_gives_up_past_the_limit(hook: types.ModuleTyp
     is_dangerous, reason = hook.check_command(command)
     assert is_dangerous
     assert "too deeply" in reason
+
+
+_UNRESOLVED_MARK = "cannot determine which file this command writes"
+_CONFIRMED_MARK = "writes to shell or project config files"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cp a/$f b/$f",
+        "for f in $(git diff --name-only); do git checkout -q -- $f; done",
+        "echo hi > $(pwd)/x",
+        "git apply tmp/agents/claude/not-created-yet.patch",
+        "patch -p1 -i tmp/agents/claude/not-created-yet.patch",
+    ],
+)
+def test_unresolvable_write_target_gets_its_own_reason(
+    hook: types.ModuleType, command: str
+) -> None:
+    """A block caused only by an unknown write target says so (#1240)."""
+    is_dangerous, reason = hook.check_command(command)
+    assert is_dangerous
+    assert _UNRESOLVED_MARK in reason
+    assert "literal paths" in reason
+    assert _CONFIRMED_MARK not in reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo x >> ~/.bashrc",
+        "cp a.txt .envrc.local",
+        "tee .envrc",
+    ],
+)
+def test_confirmed_write_keeps_the_config_message(hook: types.ModuleType, command: str) -> None:
+    """A confirmed write to a protected file keeps the original reason (#1240)."""
+    is_dangerous, reason = hook.check_command(command)
+    assert is_dangerous
+    assert _CONFIRMED_MARK in reason
+    assert _UNRESOLVED_MARK not in reason

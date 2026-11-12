@@ -10,9 +10,13 @@ The hook is best-effort: any failure (timeout, ruff missing, malformed payload)
 is swallowed and the hook exits 0 so it never blocks a tool call. The next
 ``doit check`` will surface any genuine issue.
 
+Warning: F401 removes an import nothing uses yet, so add an import in the same
+edit as its first use, or after that code exists.
+
 For full documentation, see: docs/development/ai/ruff-fix-hook.md
 """
 
+import contextlib
 import json
 import os
 import subprocess  # nosec B404  # required to invoke ruff
@@ -50,8 +54,8 @@ def run_ruff(path: Path) -> None:
 
     Best-effort: every exception is swallowed. This function must never raise.
     """
-    try:
-        subprocess.run(  # nosec B603 B607  # trusted ruff invocation
+    with contextlib.suppress(Exception):  # hook must never raise; errors would block tool calls
+        subprocess.run(
             [
                 "uv",
                 "run",
@@ -67,22 +71,14 @@ def run_ruff(path: Path) -> None:
             timeout=RUFF_TIMEOUT_SECONDS,
             check=False,
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
-    except Exception:  # nosec B110  # hook must never raise; errors would block tool calls
-        pass
 
-    try:
-        subprocess.run(  # nosec B603 B607  # trusted ruff invocation
+    with contextlib.suppress(Exception):  # hook must never raise; errors would block tool calls
+        subprocess.run(
             ["uv", "run", "ruff", "format", "--quiet", str(path)],
             capture_output=True,
             timeout=RUFF_TIMEOUT_SECONDS,
             check=False,
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
-    except Exception:  # nosec B110  # hook must never raise; errors would block tool calls
-        pass
 
 
 def _normalize_path(raw_path: str, project_dir: str) -> str | None:
