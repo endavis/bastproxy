@@ -7,24 +7,23 @@
 
 # Standard Library
 import bisect
+import logging
 import sys
 
 # 3rd Party
-try:
-    import regex as re
-except ImportError:
-    print("Please install required libraries. regex is missing.")
-    print("From the root of the project: uv sync --all-extras")
-    sys.exit(1)
+import regex as re
 
 # Project
-import logging
-
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
+
+# Keyword arguments trigger.add passes on to TriggerItem
+_ADD_KEYWORDS = frozenset(
+    {"enabled", "group", "omit", "priority", "stopevaluating", "argtypes", "matchcolor"}
+)
 
 _UPDATABLE_TRIGGER_KEYS = frozenset(
     {"regex", "enabled", "group", "omit", "priority", "stopevaluating", "argtypes", "matchcolor"}
@@ -52,7 +51,6 @@ class TriggerItem:
         argtypes=None,
         matchcolor=False,
         trigger_id=None,
-        event_name=None,
         original_regex_compiled=None,
         order=0,
     ) -> None:
@@ -170,23 +168,51 @@ class TriggersPlugin(BasePlugin):
 
     @AddAPI("trigger.register", description="register a function to a trigger")
     def _api_trigger_register(self, trigger_name, function, **kwargs):
-        """Register a function to a trigger."""
-        if trigger_name not in self.triggers:
+        """Register a function to a trigger.
+
+        trigger_name is a trigger name or id.
+        this function returns True on success, False (and logs an error) for an unknown trigger
+        """
+        trigger_id = trigger_name
+        if trigger_id not in self.triggers:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
-            trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api("plugins.core.events:event.register")(
-            self.triggers[trigger_name].event_name, function, **kwargs
+            trigger_id = self.create_trigger_id(trigger_name, owner_id)
+        if trigger_id not in self.triggers:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "_api_trigger_register - could not find trigger %s",
+                trigger_name,
+            )
+            return False
+        self.api("plugins.core.events:event.register")(
+            self.triggers[trigger_id].event_name, function, **kwargs
         )
+        return True
 
     @AddAPI("trigger.unregister", description="unregister a function from a trigger")
     def _api_trigger_unregister(self, trigger_name, function):
-        """Unregister a function from a trigger."""
-        if trigger_name not in self.triggers:
+        """Unregister a function from a trigger.
+
+        trigger_name is a trigger name or id.
+        this function returns True on success, False (and logs an error) for an unknown trigger
+        """
+        trigger_id = trigger_name
+        if trigger_id not in self.triggers:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
-            trigger_name = self.create_trigger_id(trigger_name, owner_id)
-        return self.api("plugins.core.events:event.unregister")(
-            self.triggers[trigger_name].event_name, function
+            trigger_id = self.create_trigger_id(trigger_name, owner_id)
+        if trigger_id not in self.triggers:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "_api_trigger_unregister - could not find trigger %s",
+                trigger_name,
+            )
+            return False
+        self.api("plugins.core.events:event.unregister")(
+            self.triggers[trigger_id].event_name, function
         )
+        return True
 
     @AddAPI("trigger.update", description="update a trigger without deleting it")
     def _api_trigger_update(self, trigger_name, trigger_data):
@@ -223,7 +249,7 @@ class TriggersPlugin(BasePlugin):
             new_regex = trigger_data["regex"]
             try:
                 new_compiled = re.compile(new_regex)
-            except Exception:  # pylint: disable=broad-except
+            except re.error:
                 log_to(
                     [self.plugin_id, owner_id],
                     logging.ERROR,
@@ -275,13 +301,29 @@ class TriggersPlugin(BasePlugin):
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
 
-        this function returns (True, the new TriggerItem), or False on failure
+        this function returns (True, the new TriggerItem), or False (and logs an
+        error) on failure: check the result before unpacking it
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
-            print("could not add a owner for trigger name", trigger_name)
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "_api_trigger_add - could not find an owner for trigger %s",
+                trigger_name,
+            )
+            return False
+
+        if unknown := sorted(set(kwargs) - _ADD_KEYWORDS):
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_add - trigger %s: unknown keywords %s",
+                trigger_name,
+                unknown,
+            )
             return False
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
@@ -301,7 +343,6 @@ class TriggersPlugin(BasePlugin):
         original_regex = None
 
         args["trigger_id"] = trigger_id
-        args["event_name"] = f"{owner_id}_trigger_{trigger_id}"
         if "enabled" not in args:
             args["enabled"] = True
 
@@ -309,7 +350,7 @@ class TriggersPlugin(BasePlugin):
             original_regex = regex
             try:
                 args["original_regex_compiled"] = re.compile(original_regex)
-            except Exception:  # pylint: disable=broad-except
+            except re.error:
                 log_to(
                     [self.plugin_id, owner_id],
                     logging.ERROR,
@@ -364,8 +405,11 @@ class TriggersPlugin(BasePlugin):
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         if not owner_id:
-            get_logger(self.plugin_id).error(
-                "_api_trigger_remove - could not find owner for trigger %s", trigger_name
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "_api_trigger_remove - could not find owner for trigger %s",
+                trigger_name,
             )
             return False
 
@@ -425,6 +469,8 @@ class TriggersPlugin(BasePlugin):
         """Get a trigger.
 
         @Ytrigger_name@w   = The trigger name.
+
+        this function returns the TriggerItem, or None if there is none (a query: nothing is logged)
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
@@ -438,7 +484,8 @@ class TriggersPlugin(BasePlugin):
 
         @Yowner_id@w   = The owner id.
 
-        this function returns no values
+        this function returns True if every trigger was removed, False (and logs
+        an error) if any removal failed
         """
         log_to(
             [self.plugin_id, owner_id],
@@ -451,11 +498,13 @@ class TriggersPlugin(BasePlugin):
             for trigger in self.triggers.values()
             if trigger.owner_id == owner_id
         ]
+        all_removed = True
         for trigger in trigs:
             try:
-                self.api("plugins.core.triggers:trigger.remove")(
+                if not self.api("plugins.core.triggers:trigger.remove")(
                     trigger, force=True, owner_id=owner_id
-                )
+                ):
+                    all_removed = False
             except Exception:  # pylint: disable=broad-except
                 log_to(
                     [self.plugin_id, owner_id],
@@ -464,6 +513,8 @@ class TriggersPlugin(BasePlugin):
                     trigger,
                     exc_info=True,
                 )
+                all_removed = False
+        return all_removed
 
     @AddAPI("trigger.toggle.enable", description="toggle a trigger")
     def _api_trigger_toggle_enable(self, trigger_name, flag, owner_id=None):
@@ -472,16 +523,13 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_name@w = The trigger name
         @Yflag@w        = (optional) True to enable, False otherwise.
 
-        this function returns no values
+        this function returns True on success, False (and logs an error) for an unknown trigger
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
-        if trigger_id in self.triggers:
-            self.triggers[trigger_id].enabled = bool(flag)
-            self._sync_order(self.triggers[trigger_id])
-        else:
+        if trigger_id not in self.triggers:
             log_to(
                 [self.plugin_id, owner_id],
                 logging.ERROR,
@@ -489,6 +537,10 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 owner_id,
             )
+            return False
+        self.triggers[trigger_id].enabled = bool(flag)
+        self._sync_order(self.triggers[trigger_id])
+        return True
 
     @AddAPI("trigger.toggle.omit", description="toggle the omit flag for a trigger")
     def _api_trigger_toggle_omit(self, trigger_name, flag, owner_id=None):
@@ -497,15 +549,13 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_name@w = The trigger name
         @Yflag@w        = (optional) True to omit the line, False otherwise.
 
-        this function returns no values
+        this function returns True on success, False (and logs an error) for an unknown trigger
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
-        if trigger_id in self.triggers:
-            self.triggers[trigger_id].omit = flag
-        else:
+        if trigger_id not in self.triggers:
             log_to(
                 [self.plugin_id, owner_id],
                 logging.ERROR,
@@ -513,6 +563,9 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 owner_id,
             )
+            return False
+        self.triggers[trigger_id].omit = flag
+        return True
 
     @AddAPI("group.toggle.enable", description="toggle a trigger group")
     def _api_group_toggle_enable(self, trigger_group, flag):
@@ -521,17 +574,25 @@ class TriggersPlugin(BasePlugin):
         @Ytrigger_group@w = The triggergroup name
         @Yflag@w        = (optional) True to enable, False otherwise.
 
-        this function returns no values
+        this function returns True on success, False (and logs an error) for an unknown group
         """
         get_logger(self.plugin_id).debug(
             "toggletriggergroup - toggling trigger group %s to %s", trigger_group, flag
         )
-        if trigger_group in self.trigger_groups:
-            # The group holds trigger ids, not names, so set each item directly.
-            for trigger_id in self.trigger_groups[trigger_group]:
-                if trigger_id in self.triggers:
-                    self.triggers[trigger_id].enabled = bool(flag)
-                    self._sync_order(self.triggers[trigger_id])
+        if trigger_group not in self.trigger_groups:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "toggletriggergroup - trigger group %s does not exist",
+                trigger_group,
+            )
+            return False
+        # The group holds trigger ids, not names, so set each item directly.
+        for trigger_id in self.trigger_groups[trigger_group]:
+            if trigger_id in self.triggers:
+                self.triggers[trigger_id].enabled = bool(flag)
+                self._sync_order(self.triggers[trigger_id])
+        return True
 
     def _match_line(self, line, data):
         """Raise the event of every enabled trigger whose regex matches the line.
