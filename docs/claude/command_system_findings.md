@@ -209,7 +209,7 @@ element is `#bpx`, so the result was the error page for package `#bpx` (**verifi
 
 ### Q1e: Arguments
 
-`CommandClass.parse_args` uses `shlex.split`, then `parse_known_args`. **Verified**, `out-q1_flow.txt`:
+`CommandClass.parse_args` uses `shlex.split`, then `parse_args` (it was `parse_known_args` before #398). The two bullets below describe the behaviour before the fix (CM-11, fixed in #398). **Verified**, `out-q1_flow.txt`:
 
 - **Unknown arguments are dropped without a message.** `list -x`, `list --nope=1` and `list a b c d` ran as if
   the extra words were not there, and `history -c extra` cleared the history (CM-11).
@@ -527,7 +527,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 2 | **Discovery by name** (`_command_*` and `hasattr(command_data)`), checked twice | `get_command_functions_in_object`, `_api_command_add_by_func` | Yes | **Change (CM-9, fixed in #396).** A decorated method with the wrong name was skipped without a log line; discovery now warns. |
 | 3 | **Detection inside a modify event** on `ev_to_mud_data_modify`, which also keeps the line from the MUD | `_eventcb_check_for_command` | Yes | **Keep.** It lets other plugins see and change a line before or after. The risks are in what the callback does when it fails (CM-10) and the flag it left on the record (CM-3, fixed in #390). The callback's failures are now contained (CM-10, fixed in #397). |
 | 4 | **Raising `ArgumentParser.error`** instead of exiting | `argp.py` | Yes | **Keep.** No input in the fuzz run exited the process or escaped (Q1e). |
-| 5 | **`parse_known_args`** | `CommandClass.parse_args` | Yes | **Change (CM-11).** Unknown arguments and abbreviated options are accepted silently. |
+| 5 | **`parse_known_args`** | `CommandClass.parse_args` | Yes | **Change (CM-11, fixed in #398).** Unknown arguments and abbreviated options were accepted silently; `parse_args` now reports them and command parsers disable abbreviations. |
 | 6 | **`str.format(**plugin.__dict__)`** on names, descriptions and argument help, outside a `try` | `_api_command_add_by_func` | Yes | **Change (CM-4).** One bad string ends registration of the rest of the plugin and, on a commands reload, of the other plugins. |
 | 7 | **Service location through `self.api("...")`** | 125 calls; `CommandClass` builds its own `API` | Yes | **Keep.** The project-wide trade covered by [Plugin System Findings](plugin_system_findings.md) and [API System Findings](api_system_findings.md). |
 | 8 | **Catch-all `except Exception`** | `_api_command_add_by_func` (creating the `CommandClass`), `CommandClass.run` | Yes | **Keep.** Both log with `exc_info` and tell the user. The one in `run` is why a failing command never takes down the event. The code outside it is now covered too (CM-10, fixed in #397). |
@@ -771,7 +771,7 @@ format output`); a `str` message is treated as one line.
 
 ### CM-11: Unknown arguments and abbreviated options are accepted silently
 
-**Status:** open
+**Status:** fixed in #398 (`CommandClass.parse_args` uses `parse_args`, so unrecognised arguments raise `ArgumentError` and are reported with the help; command parsers are built with `allow_abbrev=False`)
 **Issue:** #398
 **Location:** `CommandClass.parse_args` (`parse_known_args`); `argp.ArgumentParser`.
 **Evidence (verified):** Q1e: `list -x`, `list --nope=1` and `list a b c d` ran with the extras dropped;

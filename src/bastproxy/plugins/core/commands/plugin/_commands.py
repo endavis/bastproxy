@@ -405,7 +405,8 @@ class CommandsPlugin(BasePlugin):
                     **func.__self__.__dict__
                 )
 
-            parser = argp.ArgumentParser(**command_data.argparse["kwargs"])
+            parser_kwargs = {"allow_abbrev": False, **command_data.argparse["kwargs"]}
+            parser = argp.ArgumentParser(**parser_kwargs)
             for arg in command_data.arguments:
                 current_string = arg["kwargs"]["help"]
                 arg["kwargs"]["help"] = current_string.format(**func.__self__.__dict__)

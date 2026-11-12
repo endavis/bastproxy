@@ -185,7 +185,7 @@ class CommandClass:
 
         # parse the arguments and deal with errors
         try:
-            args, _ = self.arg_parser.parse_known_args(split_args_list)
+            args = self.arg_parser.parse_args(split_args_list)
         except argp.ArgumentError as exc:
             fail_message = [f"@RError: {exc.message}@w", ""]
             fail_message.extend(self.arg_parser.format_help().splitlines())
