@@ -18,7 +18,7 @@ The triggers system in bastproxy provides pattern matching on MUD output using r
 This page describes what the code does today, including where that is not what the API suggests. The audit behind it is [Triggers System Findings](triggers_system_findings.md); defects are referred to by their number there (TR-1, TR-2 and so on). The points most likely to surprise:
 
 - A regex is matched from the **start of the line** (`match`, not `search`). `orc` does not match `You hit orc.`; `.*orc` does.
-- When several triggers with **different** regexes match one line, **only the first one added fires**. `priority` is stored but not used (TR-1).
+- **Every** enabled trigger whose own regex matches the line fires, in `priority` order (lower first), then in the order added. `stopevaluating` stops every later trigger for the line. Each trigger has its own compiled regex ([ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md)).
 - `group.toggle.enable` does not work (TR-4). `trigger.update` was fixed in #348 (TR-3), and `trigger.toggle.enable` sets `TriggerItem.enabled`, so it can enable a trigger added disabled (TR-2, fixed by #347).
 
 ## Key Components
@@ -33,21 +33,22 @@ class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex,
                  enabled=True, group=None, omit=False, priority=100,
                  stopevaluating=False, argtypes=None, matchcolor=False,
-                 trigger_id=None, event_name=None, original_regex_compiled=None):
+                 trigger_id=None, event_name=None, original_regex_compiled=None, order=0):
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
         self.enabled = enabled                      # Set at creation; trigger.toggle.enable updates it (TR-2)
         self.owner_id = owner_id
         self.trigger_name = trigger_name
-        self.regex = regex                          # The regex as a string, named groups made unnamed
-        self.regex_id = regex_id                    # Shared regex id ("reg_<n>"), None without a regex
+        self.regex = regex                          # Equal to original_regex
+        self.regex_id = regex_id                    # Always None, kept for one release
         self.original_regex = original_regex        # The regex as given, with named groups
         self.original_regex_compiled = original_regex_compiled
         self.group = group                          # Trigger group
         self.omit = omit                            # Gag matched lines
-        self.priority = priority                    # Stored and displayed, not used (TR-1)
+        self.priority = priority                    # Orders matching: lower runs first
         self.stopevaluating = stopevaluating
         self.argtypes = argtypes                    # Type conversions
-        self.matchcolor = matchcolor                # Second-stage match on colour-coded text
+        self.matchcolor = matchcolor                # Match the colour-coded text instead of the plain text
+        self.order = order                          # Counter set when the trigger is added; breaks priority ties
         self.hits = 0
         self.trigger_id = trigger_id                # "t_<owner_id>_<trigger_name>"
         self.event_name = f"event_{self.trigger_id}"  # The event_name argument is ignored
@@ -65,18 +66,16 @@ class TriggersPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         self.can_reload_f = False       # The triggers plugin cannot be reloaded
-        self.latest_regex_id = 0        # Counter behind "reg_<n>"
         self.beall_id = ...             # Ids of the three built-in triggers
         self.all_id = ...
         self.emptyline_id = ...
         self.triggers = {}              # trigger_id -> TriggerItem
         self.trigger_groups = {}        # group name -> list of trigger ids
-        self.regexes = {}               # regex_id -> {"regex", "regex_id", "triggers", "hits"}
-        self.regex_lookup_to_id = {}    # regex string -> regex_id (deduplication)
-        self.created_regex = {"created_regex": "", "created_regex_compiled": ""}
+        self._ordered = []              # Enabled regex triggers, sorted by (priority, order)
+        self._next_order = 0            # Next value for TriggerItem.order
 ```
 
-`regexes[regex_id]["triggers"]` lists the **enabled** triggers on that regex; it, not `TriggerItem.enabled`, decides whether a regex is part of the combined pattern. Entries in `regexes`, `regex_lookup_to_id` and `trigger_groups` are never removed (TR-4, TR-10).
+`_ordered` is what matching walks. Add, update (regex, `enabled` or `priority`), toggle and remove keep it in step; a trigger without a regex is never in it. Entries in `trigger_groups` are never removed (TR-4).
 
 ## How It Works
 
@@ -106,7 +105,7 @@ self.api("plugins.core.triggers:trigger.add")(
     r"Secret: .*",
     owner_id=self.plugin_id,
     omit=True,                                   # Hide from client
-    priority=10,                                 # Stored, but not used for ordering (TR-1)
+    priority=10,                                 # Lower runs first; ties go in the order added
     group="secrets"                              # Trigger group
 )
 ```
@@ -151,39 +150,34 @@ def handle_hp_warning(self):
 `_eventcb_check_trigger` is registered on `ev_to_client_data_modify`, which `ProcessDataToClient` raises once per record with every MUD I/O line in it. For each line:
 
 1. A line that is `internal` is skipped.
-2. The `beall` trigger's event is raised.
+2. The `beall` trigger's event is raised, if something is registered on it.
 3. The text is `line.noansi`: colour codes and, when the line has an MXP mode, MXP markup are removed.
-4. If the text is `""`, the `emptyline` trigger's event is raised and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
-5. Otherwise the combined regex is matched from the start of the text. It is one alternation with a named group per distinct regex, `(?P<reg_1>...)|(?P<reg_2>...)`, in the order the regexes were first added. At most one alternative can match, so **one regex is chosen per line: the first added that matches**.
-6. `process_match` goes through the triggers on that regex, in the order they were added. Each one's own compiled regex (`original_regex_compiled`, with its named groups) is matched again, against `line.colorcoded` for a `matchcolor` trigger and `line.noansi` otherwise.
-7. On a match the named groups are converted with `argtypes`, stored as `matches`, and `raisetrigger` raises the trigger's event. `omit` sets `line.sendtoclients = False` before the callbacks run.
-8. A trigger with `stopevaluating` ends the loop over the triggers on that regex.
-9. The `all` trigger's event is raised.
+4. If the text is `""`, the `emptyline` trigger's event is raised (if something is registered on it) and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
+5. Otherwise `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused.
+6. On a match the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.sendtoclients = False` before the callbacks run.
+7. A trigger with `stopevaluating` that matched ends the walk.
+8. The `all` trigger's event is raised, if something is registered on it.
 
-What follows from this (each is **verified** in the findings page, Q1 and Q3):
+Every trigger sees the line as it was when matching began. Why each trigger has its own regex, and what it costs, is in [ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md).
 
-- Two triggers with different regexes that both match a line do not both fire, and `priority` does not decide which one does (TR-1). Two triggers with the **same** regex (after named groups are made unnamed) both fire, in the order they were added.
-- A `matchcolor` trigger must first match the text without colour codes in step 5 and then the colour-coded text in step 6, so a regex that contains a colour code never fires (TR-6).
-- An `argtypes` conversion that raises, for example `int` on a group that did not take part in the match, ends the processing of that line: later triggers and `all` are skipped (TR-7).
-- A callback that raises is logged by the event system and the other callbacks and triggers still run.
+What follows from this:
+
+- Two triggers with different regexes that both match a line both fire, in priority order. Set `stopevaluating` on the earlier one to keep the later one from firing.
+- Backreferences (`\1`, `(?P=name)`) mean what they say, and a regex that does not compile is refused at `trigger.add` without affecting any other trigger.
+- A `matchcolor` trigger matches only the colour-coded text, so its regex can carry colour codes (`^@rWARNING`); it does not match the plain text.
+- Each trigger's match, conversion and raise run in their own `try`. An error is logged with the trigger id and the line, the next trigger runs, and a failed trigger does not apply `stopevaluating`. An `argtypes` conversion of a group that did not take part in the match still fails for that trigger (TR-7, #352).
+- A callback that raises is logged by the event system and the other callbacks and triggers still run. A callback may remove or disable a later trigger; it then does not fire for this line.
 - Prompts and partial lines are matched like any other line.
-
-### 4. The Combined Regex
-
-- Each distinct regex is stored once in `regexes`, with the triggers that use it; named groups are made unnamed first with `re.sub(r"\?P\<.*?\>", "", regex)`, so two regexes that differ only in group names share an entry.
-- `rebuild_regexes` joins every regex that has an enabled trigger into the combined pattern and compiles it. It runs on every add of an enabled trigger and on every remove or toggle that changes a regex's trigger list, so loading N triggers compiles N growing patterns (TR-10).
-- The combination changes what some regexes mean: numeric backreferences such as `\1` point at another regex's group, a named backreference `(?P=name)` makes the combined pattern fail to compile, and a literal `\?P<x>` is cut out of the pattern (TR-5).
-- When the combined pattern fails to compile, the error is logged and the previous compiled pattern stays in use: triggers added from then on never fire until the offending trigger is removed (TR-5).
 
 ## Common APIs
 
 - `plugins.core.triggers:trigger.add` - Add a trigger; returns `(True, trigger_item)` or `False`
-- `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. Raises `KeyError` for a trigger without a regex (TR-8)
+- `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. A trigger without a regex (a built-in) is removed without error
 - `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns False for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None`
 - `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Raises `KeyError` for an unknown trigger (TR-9)
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; the same `KeyError`
-- `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and add the trigger to, or take it out of, its regex's list. Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
+- `plugins.core.triggers:trigger.toggle.enable` - Set `TriggerItem.enabled` and put the trigger into, or take it out of, the matching order (it keeps its place). Before #347 it left `enabled` alone, so it could not enable a trigger added with `enabled=False` (TR-2)
 - `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag
 - `plugins.core.triggers:group.toggle.enable` - Meant to toggle every trigger of a group; it changes nothing and logs "does not exist" for each member (TR-4)
 - `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (no `force`)
@@ -197,7 +191,7 @@ The plugin adds three triggers without a regex:
 - **all**: its event is raised for every MUD line, after the regexes
 - **emptyline**: its event is raised for a line whose text without colour codes is `""`
 
-They are added with `enabled=False` and are raised anyway: the flag is not checked for them, and `trigger.toggle.enable` raises `KeyError` on them (TR-8). Both `beall` and `all` are raised for every line whether or not anything is registered on them (cost in the findings page, Q4). They are passed the `ev_to_client_data_modify` event's own record, so `trigger_name` and `trigger_id` are written into it ([Data Flow](data_flow.md), #230). A regex trigger `^$` never fires, because an empty line is not matched against the regexes.
+They are added with `enabled=False`. The flag is still not checked for them (TR-8, #353): each is raised when something is registered on its event, and not otherwise. `trigger.toggle.enable` on them raises no error. They are passed the `ev_to_client_data_modify` event's own record, so `trigger_name` and `trigger_id` are written into it ([Data Flow](data_flow.md), #230). A regex trigger `^$` never fires, because an empty line is not matched against the regexes.
 
 ## The `enabled` Setting
 
@@ -391,30 +385,30 @@ def update_stats(self):
 ## Best Practices
 
 1. **Efficient Patterns**: Use specific patterns that start with literal text; avoid `.*` catchalls
-2. **Named Groups**: Use named groups for clarity. Do not use backreferences (`\1`, `(?P=name)`); they break in the combined regex (TR-5)
+2. **Named Groups**: Use named groups for clarity. Backreferences (`\1`, `(?P=name)`) work, as each trigger has its own regex
 3. **Type Conversion**: Specify `argtypes` for numeric values, only on groups that always take part in the match and always hold a value the type accepts (TR-7)
 4. **Error Handling**: Handle missing groups gracefully, and check the result of `trigger.add` before unpacking it
-5. **Cleanup**: A plugin's triggers are removed when it is unloaded; no `uninitialize` code is needed for that. Do not remove a trigger from one of its own callbacks (TR-7)
+5. **Cleanup**: A plugin's triggers are removed when it is unloaded; no `uninitialize` code is needed for that. A callback may remove a trigger, including its own; matching walks a copy
 6. **Testing**: Test regex patterns thoroughly, against the start of the line
 7. **Groups**: Groups are recorded, but the group toggle does not work yet (TR-4)
-8. **Order**: Do not rely on `priority`. Give triggers regexes that do not overlap, because only the first-added matching regex fires (TR-1)
+8. **Order**: Overlapping triggers all fire. Use `priority` (lower first) to order them and `stopevaluating` to keep later ones from firing
 
 ## Advanced Features
 
 ### Stop Evaluating
 
 ```python
-# Stop the triggers added later on the same regex
+# Stop every later trigger for this line
 self.api("plugins.core.triggers:trigger.add")(
     "critical_error",
     r"FATAL ERROR:",
     owner_id=self.plugin_id,
     stopevaluating=True,
-    priority=1  # Stored, not used (TR-1)
+    priority=1  # Runs before the triggers with a higher number
 )
 ```
 
-`stopevaluating` only ends the loop over the triggers that share this trigger's regex, so it affects triggers added after it with the same regex. Triggers with other regexes are not reached for this line in any case.
+`stopevaluating` ends the walk over the triggers when the trigger matched, so no later trigger runs for this line, whatever its regex. The `all` built-in is still raised. A trigger that does not match, or that fails, stops nothing.
 
 ### Match with Color
 
@@ -424,11 +418,11 @@ self.api("plugins.core.triggers:trigger.add")(
     "red_warning",
     r".*WARNING.*",
     owner_id=self.plugin_id,
-    matchcolor=True  # Second-stage match on the colour-coded text
+    matchcolor=True  # Match the colour-coded text
 )
 ```
 
-The regex has to match twice: the text without colour codes first (the combined regex), then the colour-coded text, for example `@RWARNING@x: fire`. `.*WARNING.*` matches both. A regex with a colour code in it, such as `^@RWARNING`, never fires, and neither does `^WARNING` on a line that starts with a colour code (TR-6).
+The regex is matched against the colour-coded text only, for example `@rWARNING@x: fire`, so `.*WARNING.*` matches and `^@rWARNING` matches a red `WARNING` at the start of a line. A `matchcolor` trigger does not match the plain text.
 
 ### Dynamic Trigger Updates
 
@@ -460,14 +454,14 @@ self.api("plugins.core.triggers:trigger.update")(
 - `trigger_name`: The name given by the owner
 - `trigger_id`: `t_<owner_id>_<trigger_name>`, the key in `triggers`
 - `owner_id`: Plugin that owns trigger
-- `original_regex`: The pattern as given; `regex`: the same with named groups made unnamed; `regex_id`: the shared regex entry
+- `original_regex`: The pattern as given; `regex`: equal to `original_regex`; `regex_id`: always `None`, kept for one release
 - `enabled`: The value given at creation, updated by `trigger.toggle.enable` (TR-2, fixed by #347)
 - `omit`: Hide matched lines from client
 - `group`: Group name
 - `argtypes`: Type conversions for captured groups
-- `priority`: Stored and shown by `detail`; not used (TR-1)
+- `priority`: Orders matching, lower first; ties go in the order added (`order`)
 - `matchcolor`: Match the trigger's own regex against the colour-coded text
-- `stopevaluating`: Stop the later triggers on the same regex
+- `stopevaluating`: Stop every later trigger for the line when this one matches
 - `event_name`: Event raised on match, always `event_<trigger_id>`
 - `hits`: How many times the trigger's event was raised
 
@@ -483,10 +477,10 @@ self.api("plugins.core.triggers:trigger.update")(
 
 ## Performance Notes
 
-Measured figures are in [Triggers System Findings](triggers_system_findings.md#q4-what-does-a-line-cost).
+The audit's figures for the old matcher are in [Triggers System Findings](triggers_system_findings.md#q4-what-does-a-line-cost). The measured cost of the current matcher, old against new, is in [ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md).
 
-- Each trigger's own regex is compiled once, when it is added; the combined pattern is compiled again on every change (TR-10)
-- Triggers with the same pattern share one alternative of the combined pattern
-- A trigger disabled with `trigger.toggle.enable` is out of the combined pattern once no enabled trigger uses its regex. A trigger added with `enabled=False` is never in it
-- The `beall` and `all` events are raised for every line; that costs more than the matching itself at realistic trigger counts (TR-8)
+- Each trigger's regex is compiled once, when it is added, and never again: there is no rebuild on add, remove, toggle or update. Adding 1,000 triggers one by one took 0.141 s (29.60 s with the combined regex).
+- Each line costs one `match` per enabled trigger, until a `stopevaluating` trigger matches. At 100 triggers the matcher alone took 17.7 to 25.4 us per line (stubbed harness); the whole `ev_to_client_data_modify` raise for a line was lower than with the combined regex at 10, 100 and 1,000 triggers.
+- A disabled trigger, and a trigger without a regex, cost nothing per line.
+- The `beall`, `all` and `emptyline` events are raised only when something is registered on them. Raising `beall` and `all` for every line cost about 270 us per line in the old code.
 - Matching runs on the event loop. Complex patterns may slow matching; use specific patterns over generic ones
