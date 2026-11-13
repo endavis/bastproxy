@@ -144,11 +144,11 @@ success = self.api("plugins.core.settings:setting.set")(
     new_value
 )
 
-# Setting to "default" resets to default value
-self.api("plugins.core.settings:setting.set")(
+# Reset one setting to its default value
+# (the word "default" is an ordinary value for setting.set)
+self.api("plugins.core.settings:setting.reset")(
     plugin_id,
-    "setting_name",
-    "default"
+    "setting_name"
 )
 ```
 
@@ -215,8 +215,8 @@ Settings system listens to:
 - `plugins.core.settings:setting.add` - Register a new setting
 - `plugins.core.settings:setting.get` - Get a setting value
 - `plugins.core.settings:setting.set` - Change a setting value
-- `plugins.core.settings:setting.set.from.user` - Validate user input (empty value, unknown, hidden or readonly setting) and change a setting, returning `(success, message lines)`; shared by `pset` and the per-plugin `set`
-- `plugins.core.settings:setting.reset` - Reset all plugin settings to defaults
+- `plugins.core.settings:setting.set.from.user` - Validate user input (a missing value, unknown, hidden or readonly setting) and change a setting, or reset it with `reset=True`, returning `(success, message lines)`; an empty string is a value, and a value together with `reset=True` is refused; shared by `pset` and the per-plugin `set`
+- `plugins.core.settings:setting.reset(plugin_id, setting=None)` - Reset one setting, or all settings of the plugin when `setting` is None, to defaults
 - `plugins.core.settings:setting.info.get` - Get metadata for a setting
 - `plugins.core.settings:setting.list` - Get all settings for a plugin
 - `plugins.core.settings:setting.format` - Format a setting for display
@@ -239,17 +239,18 @@ Lists all settings, optionally filtered:
 
 ### Change Setting
 ```
-#bp.settings.pset <name> <value> [-p plugin]
+#bp.settings.pset <name> [<value> | --default] [-p plugin]
 ```
 Change a setting value:
 - `name`: Setting name
-- `value`: New value (or "default" to reset)
+- `value`: New value; `""` stores an empty string unless the setting's validator refuses it
+- `--default`: Reset the setting to its default value (not with a value)
 - `-p plugin`: Plugin ID (optional, auto-detected from setting name)
 
 ### Per-Plugin Set Command
 Each plugin also gets a `set` command:
 ```
-#bp.<plugin>.set <name> <value>
+#bp.<plugin>.set <name> [<value> | --default]
 ```
 List or set settings for that specific plugin. `set` and `pset` share the
 `plugins.core.settings:setting.set.from.user` API; `set` passes its own plugin id.
@@ -471,10 +472,12 @@ Settings are automatically initialized when plugins load:
 
 ### Default Reset
 
-Using "default" as a value resets to default:
+Use `--default` to reset a setting to its default value:
 ```
-#bp.settings.pset my_setting default
+#bp.settings.pset my_setting --default
 ```
+The word `default` is an ordinary value and is stored as itself. From code, call
+`setting.reset(plugin_id, setting)`.
 
 ## Examples
 

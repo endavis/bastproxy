@@ -38,6 +38,7 @@ class Env:
             **settings,
         }
         self.sets: list[tuple[str, Any]] = []
+        self.resets: list[str] = []
         self.added: list[tuple[Any, str]] = []
         self.server_calls: list[dict[str, Any]] = []
         self.task_factory: Callable[[str], Any] = lambda name: FakeTask()
@@ -66,6 +67,13 @@ class Env:
                     self.settings[key] = value
 
             return set_
+        if name == "plugins.core.settings:setting.reset":
+
+            def reset(_plugin: str, key: str) -> bool:
+                self.resets.append(key)
+                return True
+
+            return reset
         if name == "libs.asynch:task.add":
 
             def add(obj: Any, taskname: str, **_kwargs: Any) -> Any:
@@ -78,16 +86,11 @@ class Env:
         raise AssertionError(name)
 
 
-def test_reset_listener_settings_sets_every_key_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reset_listener_settings_resets_every_key(monkeypatch: pytest.MonkeyPatch) -> None:
     env = Env(monkeypatch)
     env.obj.reset_listener_settings()
-    assert env.sets == [
-        ("ipv4", "default"),
-        ("ipv6", "default"),
-        ("ipv4address", "default"),
-        ("ipv6address", "default"),
-        ("listenport", "default"),
-    ]
+    assert env.resets == ["ipv4", "ipv6", "ipv4address", "ipv6address", "listenport"]
+    assert env.sets == []
 
 
 def test_create_listeners_ipv4_only(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -181,13 +184,8 @@ async def test_none_up_resets_settings_and_retries(
     assert any(m.startswith("IPv4 Listener did not start on 127.0.0.1:9999") for m in messages)
     assert any(m.startswith("IPv6 Listener did not start on ::1:9999") for m in messages)
     assert "No listeners available, resetting to defaults" in messages
-    assert [key for key, value in env.sets if value == "default"] == [
-        "ipv4",
-        "ipv6",
-        "ipv4address",
-        "ipv6address",
-        "listenport",
-    ]
+    assert env.resets == ["ipv4", "ipv6", "ipv4address", "ipv6address", "listenport"]
+    assert env.sets == []
     assert env.obj.listener_tries == 2
     # listeners were created again, and the new check task is named for the retry
     assert len(env.server_calls) == 2

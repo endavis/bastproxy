@@ -15,6 +15,7 @@ PLUGIN_VERSION = 1
 __all__ = [
     "SettingValidationError",
     "int_range",
+    "non_empty",
     "validate_ipv4_host",
     "validate_ipv6_host",
     "validate_port",
@@ -24,6 +25,7 @@ __all__ = [
 from .libs._settinginfo import SettingValidationError
 from .libs._validators import (
     int_range,
+    non_empty,
     validate_ipv4_host,
     validate_ipv6_host,
     validate_port,
