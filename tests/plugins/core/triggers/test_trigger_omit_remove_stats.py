@@ -6,7 +6,7 @@ from typing import Any
 
 # Third Party
 # Project
-from bastproxy.plugins.core.triggers.plugin._triggers import TriggersPlugin
+from bastproxy.plugins.core.triggers.plugin._triggers import TriggersPlugin, TriggerStats
 
 from .conftest import OWNER, PLUGIN, Harness
 
@@ -178,3 +178,10 @@ def test_builtins_start_disabled_in_harness_and_enabled_by_initialize(harness: H
 def test_errors_helper_only_counts_error_level(harness: Harness) -> None:
     harness.logged.append(([PLUGIN], logging.DEBUG, "x"))
     assert harness.errors() == []
+
+
+def test_stats_keys_match_typeddict(harness: Harness) -> None:
+    """The Triggers stats section has exactly the TriggerStats keys (#419)."""
+    harness.current_record = {"stats": {}}
+    harness._eventcb_triggers_ev_plugins_stats()
+    assert set(harness.current_record["stats"]["Triggers"]) == set(TriggerStats.__required_keys__)
