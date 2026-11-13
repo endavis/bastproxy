@@ -12,7 +12,6 @@
         after #66 moves client negotiation onto telnetlib3's API
     # TODO: command to see details about clients and the mud
         negotiated telnet options (#83), idle time (#90), lines and data counts (#79)
-    # TODO: rename the plugin hook "initialize"?
     # TODO: internal webserver for large command output, such as record details
     # TODO: Discord bot?
     # TODO: a data class for function returns
