@@ -78,3 +78,51 @@ def test_timing_uses_registered_api() -> None:
 
     assert ("libs.timing:timing.start", ("cmd_t1",)) in seen
     assert ("libs.timing:timing.finish", ("uid1",)) in seen
+
+
+def _stub_recording_events() -> tuple[MagicMock, list[tuple[str, tuple[Any, ...]]]]:
+    """Build a stub whose event.add calls are recorded."""
+    stub = _stub()
+    events: list[tuple[str, tuple[Any, ...]]] = []
+    base_api = stub.api
+
+    def api(name: str) -> Any:
+        if name == "plugins.core.events:event.add":
+
+            def add(*a: Any, **k: Any) -> None:
+                events.append((name, a))
+
+            return add
+        return base_api(name)
+
+    stub.api = api
+    return stub, events
+
+
+def test_type_add_owner_kwarg_is_stored_and_used_for_events() -> None:
+    """owner= alone is stored and passed to both event.add calls (#437)."""
+    stub, events = _stub_recording_events()
+
+    MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$", owner=OTHER)
+
+    assert stub.cmds["t1"]["owner"] == OTHER
+    assert [a for _, a in events] == [("cmd_t1_send", OTHER), ("cmd_t1_completed", OTHER)]
+
+
+def test_type_add_plugin_kwarg_alone_does_not_raise() -> None:
+    """plugin= without owner= is ignored and the caller owner is stored (#437)."""
+    stub = _stub()
+
+    MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$", plugin=True)
+
+    assert stub.cmds["t1"]["owner"] == PID
+
+
+def test_type_add_no_kwargs_uses_caller_owner() -> None:
+    """With no kwargs the caller owner is stored and used for events (#437)."""
+    stub, events = _stub_recording_events()
+
+    MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$")
+
+    assert stub.cmds["t1"]["owner"] == PID
+    assert [a[1] for _, a in events] == [PID, PID]
