@@ -813,7 +813,7 @@ The `benchmark.yml` workflow runs on three triggers:
 | Trigger | Behavior |
 |---------|----------|
 | **Push to `main`** | Runs the benchmarks, uploads the `benchmark-results` artifact, and stores the results on the `gh-benchmarks` data branch for long-term tracking |
-| **Pull request** | Runs the benchmarks and uploads the `benchmark-results` artifact. Nothing is stored, and nothing is posted on the PR |
+| **Pull request** | Runs the benchmarks with the fixed limits report-only, uploads the `benchmark-results` artifact, then compares the `NetworkDataLine` benchmarks with the PR's base on the same runner (bastproxy-specific, #439). Nothing is stored, and nothing is posted on the PR |
 | **Manual dispatch** | Runs the benchmarks and uploads the artifact only |
 
 Only pushes to `main` store results. The `store` job holds the workflow's only write permission (`contents: write`) and never runs for a pull request, so code from a PR never gets a write-capable token (#695).
@@ -830,7 +830,7 @@ Benchmark data is stored in a dedicated `gh-benchmarks` branch, separate from th
 
 ### Pull Requests
 
-A pull request gets no benchmark comment or comparison. Its run uploads the `benchmark-results` artifact, kept for 90 days, which you can download from the workflow run to compare by hand. For a before-and-after number to put in a PR, use the local `doit benchmark_save` and `doit benchmark_compare` loop.
+A pull request gets no benchmark comment. Its job fails only when the `NetworkDataLine` creation or change median is more than 25% slower than the base, measured on the same runner by `.github/scripts/benchmark_vs_base.sh` (it benchmarks `HEAD^1` in a worktree with its own synced environment, then the PR). The fixed limits in the test file stay enforced by local `doit benchmark` and pushes to main; `BENCH_ABSOLUTE_GATE=report` turns them off on PRs. The `fetch-depth: 2` checkout and the compare step diverge from pyproject-template and must survive a template sync. Its run uploads the `benchmark-results` artifact, kept for 90 days, which you can download from the workflow run to compare by hand. For a before-and-after number to put in a PR, use the local `doit benchmark_save` and `doit benchmark_compare` loop.
 
 ### Alert Threshold
 

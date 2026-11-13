@@ -23,8 +23,14 @@ under ``tracking_actor("bench")``, as the proxy does, and assert the ADR-0006 ga
 benchmarks are enabled (``doit benchmark``): at most 75 us per line created (the ADR-0005
 design target is 50 us; #412) and 20 us per change. A disabled run (``doit check``, CI
 tests) skips the assertion. The lock benchmark is informational.
+
+The fixed limits depend on runner speed, so on pull requests the benchmark workflow sets
+``BENCH_ABSOLUTE_GATE=report`` and skips them. It compares the PR against its base on the
+same runner instead (``.github/scripts/benchmark_vs_base.sh``, #439). Local runs and pushes
+to main still enforce them.
 """
 
+import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -37,10 +43,16 @@ from bastproxy.libs.records.tracking import tracking_actor
 DEFAULT_LINES = 15
 ROUNDS = 20
 CHANGE_ROUNDS = 200
-# CI gate for ubuntu-latest, whose speed varies about 1.9x between runs: 26-50 us per line
-# on unchanged code (#412). The ADR-0005 design target stays 50 us.
+# Fixed limits, enforced locally and on pushes to main. Pull requests run with
+# BENCH_ABSOLUTE_GATE=report and are gated against their base instead (#439). Creation is
+# above the ADR-0005 design target of 50 us for runner speed (#412).
 CREATE_TARGET_SECONDS = 75e-6  # per line created
 CHANGE_TARGET_SECONDS = 20e-6  # per change
+
+
+def _absolute_gate_enforced() -> bool:
+    """Return whether the fixed limits are asserted; only ``BENCH_ABSOLUTE_GATE=report`` disables."""
+    return os.environ.get("BENCH_ABSOLUTE_GATE") != "report"
 
 
 def _get_keys_from_dict(d: dict[Any, Any]) -> list[Any]:
@@ -114,7 +126,7 @@ def test_bench_networkdataline_create(benchmark: Any) -> None:
     result = benchmark.pedantic(create, rounds=ROUNDS, iterations=1)
     assert len(result) == DEFAULT_LINES
     assert result[0].line == "line 0"
-    if not benchmark.disabled:
+    if not benchmark.disabled and _absolute_gate_enforced():
         per_line = benchmark.stats.stats.median / DEFAULT_LINES
         assert per_line <= CREATE_TARGET_SECONDS, f"{per_line * 1e6:.1f} us per line created"
 
@@ -135,7 +147,7 @@ def test_bench_networkdataline_attribute_change(benchmark: Any) -> None:
     result = benchmark.pedantic(change, rounds=CHANGE_ROUNDS, iterations=1)
     assert result in values
     assert line.line_modified
-    if not benchmark.disabled:
+    if not benchmark.disabled and _absolute_gate_enforced():
         median = benchmark.stats.stats.median
         assert median <= CHANGE_TARGET_SECONDS, f"{median * 1e6:.1f} us per change"
 
@@ -171,3 +183,18 @@ def test_bench_networkdataline_lock(benchmark: Any) -> None:
     done = built[len(pending) :]
     assert done
     assert all(data.locked for data in done)
+
+
+@pytest.mark.parametrize(
+    ("value", "enforced"),
+    [(None, True), ("", True), ("enforce", True), ("report", False)],
+)
+def test_absolute_gate_enforced(
+    monkeypatch: pytest.MonkeyPatch, value: str | None, enforced: bool
+) -> None:
+    """Only BENCH_ABSOLUTE_GATE=report turns the fixed limits off."""
+    if value is None:
+        monkeypatch.delenv("BENCH_ABSOLUTE_GATE", raising=False)
+    else:
+        monkeypatch.setenv("BENCH_ABSOLUTE_GATE", value)
+    assert _absolute_gate_enforced() is enforced

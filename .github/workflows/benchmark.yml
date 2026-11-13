@@ -31,7 +31,12 @@ jobs:
       has-benchmarks: ${{ steps.check-benchmarks.outputs.exists }}
 
     steps:
+      # DIVERGES FROM pyproject-template (#439): fetch-depth 2 gives the PR merge commit
+      # its first parent (the base), which the compare step benchmarks against. Keep it
+      # on a template sync.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
 
       - name: Check for benchmark tests
         id: check-benchmarks
@@ -74,13 +79,24 @@ jobs:
         if: steps.check-benchmarks.outputs.exists == 'true'
         run: mkdir -p "$BASTPROXY_HOME"
 
+      # DIVERGES FROM pyproject-template (#439): on pull requests the fixed limits in
+      # the benchmark tests are report-only; the next step gates against the base instead.
       - name: Run benchmarks
         if: steps.check-benchmarks.outputs.exists == 'true'
+        env:
+          BENCH_ABSOLUTE_GATE: ${{ github.event_name == 'pull_request' && 'report' || 'enforce' }}
         run: |
           mkdir -p tmp
           uv run pytest tests/benchmarks/ \
             --benchmark-enable --benchmark-only \
             --benchmark-json=tmp/benchmark-results.json -v
+
+      # DIVERGES FROM pyproject-template (#439): fail a PR only when it makes the gated
+      # benchmarks slower than its base on this same runner. HEAD^1 is the base for the
+      # merge commit a pull_request run checks out.
+      - name: Compare benchmarks with the base
+        if: github.event_name == 'pull_request' && steps.check-benchmarks.outputs.exists == 'true'
+        run: .github/scripts/benchmark_vs_base.sh HEAD^1
 
       - name: Upload benchmark results
         if: always() && steps.check-benchmarks.outputs.exists == 'true'
