@@ -110,7 +110,7 @@ self.api("plugins.core.triggers:trigger.add")(
 )
 ```
 
-`trigger.add` returns `(True, trigger_item)` on success and `(False, None)` on every failure (a name the owner already uses, a regex that does not compile, no owner found, an unknown keyword), logging an error with the reason, so `success, trigger = ...` never raises; check `success` before using `trigger` (TR-9, #354). The regex is matched with `match`, so it must match from the first character of the line: `You hit .* for (?P<damage>\d+) damage` above does not match `[combat] You hit orc for 5 damage`. Start a pattern with `.*` to match anywhere in the line.
+`trigger.add` returns a `TriggerAddResult(success, trigger)`: `success=True` with `trigger` set to the new item, or `success=False` with `trigger=None` on every failure (a name the owner already uses, a regex that does not compile, no owner found, an unknown keyword), logging an error with the reason. Check `result.success` before using `result.trigger`; the result is always truthy, so test `result.success`, not the result (TR-9, #354). Before #426 it returned a `(success, trigger)` tuple; unpacking the result now raises `TypeError`. The regex is matched with `match`, so it must match from the first character of the line: `You hit .* for (?P<damage>\d+) damage` above does not match `[combat] You hit orc for 5 damage`. Start a pattern with `.*` to match anywhere in the line.
 
 ### 2. Responding to Triggers
 
@@ -118,12 +118,14 @@ Register callbacks for trigger events:
 
 ```python
 # Create trigger
-success, trigger = self.api("plugins.core.triggers:trigger.add")(
+result = self.api("plugins.core.triggers:trigger.add")(
     "hp_low",
     r"HP: (?P<current>\d+)/(?P<max>\d+)",
     owner_id=self.plugin_id,
     argtypes={"current": int, "max": int}
 )
+if not result.success:
+    return
 
 # Register callback
 self.api("plugins.core.triggers:trigger.register")(
@@ -171,7 +173,7 @@ What follows from this:
 
 ## Common APIs
 
-- `plugins.core.triggers:trigger.add` - Add a trigger; returns `(True, trigger_item)`, or `(False, None)` with an error logged (duplicate, no owner, regex that does not compile, unknown keyword)
+- `plugins.core.triggers:trigger.add` - Add a trigger; returns a `TriggerAddResult(success, trigger)` (`trigger` is `None` when `success` is false), with an error logged on failure (duplicate, no owner, regex that does not compile, unknown keyword)
 - `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. A trigger without a regex (a built-in) is removed without error
 - `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns `True`, or `False` with an error logged for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None` (a query: nothing is logged)
@@ -182,7 +184,7 @@ What follows from this:
 - `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); returns `True`, or `False` with an error logged for an unknown group (#354)
 - `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (`force=True`; a failing removal is logged and the rest still go, TR-8, #353; returns `False` if any removal failed, #354)
 
-**Error contract (#354):** an API that is given something it cannot act on logs an error at ERROR through `log_to` and returns `False`; it does not raise. Success is `True`, except `trigger.get`, which returns the item, and `trigger.add`, which always returns a 2-tuple: `(True, item)` or `(False, None)`.
+**Error contract (#354):** an API that is given something it cannot act on logs an error at ERROR through `log_to` and returns `False`; it does not raise. Success is `True`, except `trigger.get`, which returns the item, and `trigger.add`, which always returns a `TriggerAddResult(success, trigger)` (since #426; before it was a `(success, trigger)` tuple). Check `result.success` before using `result.trigger`.
 
 The name-taking APIs build the trigger id from the name and the owner; without `owner_id` the owner is the calling plugin.
 
@@ -223,11 +225,13 @@ There is no command that lists trigger groups.
 @RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Trigger on tells
-    success, trigger = self.api("plugins.core.triggers:trigger.add")(
+    result = self.api("plugins.core.triggers:trigger.add")(
         "tell_received",
         r"^(?P<sender>\w+) tells you '(?P<message>.*)'",
         owner_id=self.plugin_id
     )
+    if not result.success:
+        return
 
     # Register callback
     self.api("plugins.core.triggers:trigger.register")(

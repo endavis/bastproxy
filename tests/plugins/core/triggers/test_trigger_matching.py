@@ -8,6 +8,7 @@ import pytest
 
 # Project
 from bastproxy.plugins.core.triggers.plugin import _triggers
+from bastproxy.plugins.core.triggers.plugin._triggers import TriggerAddResult
 
 from .conftest import OWNER, PLUGIN, RED_ANSI, RESET_ANSI, Harness
 
@@ -204,7 +205,7 @@ def test_add_compiles_each_regex_once(harness: Harness, monkeypatch: pytest.Monk
 def test_failed_compile_returns_false_and_changes_nothing(harness: Harness) -> None:
     before_triggers = dict(harness.triggers)
     before_ordered = list(harness._ordered)
-    assert harness.add("bad", "(unclosed") == (False, None)
+    assert harness.add("bad", "(unclosed") == TriggerAddResult(False, None)
     assert harness.triggers == before_triggers
     assert harness._ordered == before_ordered
 
@@ -217,7 +218,7 @@ def test_regexless_trigger_remove_and_toggle(harness: Harness) -> None:
 
 
 def test_item_regex_equals_original_regex(harness: Harness) -> None:
-    _ok, item = harness.add("named", r"^(?P<w>\w+)")
+    item = harness.add("named", r"^(?P<w>\w+)").trigger
     assert item.regex == item.original_regex == r"^(?P<w>\w+)"
     assert item.regex_id is None
 

@@ -7,6 +7,7 @@
 
 # Standard Library
 import bisect
+import dataclasses
 import logging
 import sys
 from typing import Any, TypedDict
@@ -112,6 +113,14 @@ class TriggerItem:
         )
 
         return args
+
+
+@dataclasses.dataclass(slots=True)
+class TriggerAddResult:
+    """The result of ``plugins.core.triggers:trigger.add``."""
+
+    success: bool
+    trigger: TriggerItem | None
 
 
 class TriggersPlugin(BasePlugin):
@@ -347,8 +356,9 @@ class TriggersPlugin(BasePlugin):
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
 
-        this function always returns a 2-tuple: (True, the new TriggerItem), or
-        (False, None) on failure (and logs an error), so unpacking never raises
+        returns a TriggerAddResult: success=True with trigger set to the new
+        TriggerItem, or success=False with trigger None on failure (and logs an
+        error). Check result.success before using result.trigger.
         """
         if not owner_id:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
@@ -360,7 +370,7 @@ class TriggersPlugin(BasePlugin):
                 "_api_trigger_add - could not find an owner for trigger %s",
                 trigger_name,
             )
-            return False, None
+            return TriggerAddResult(False, None)
 
         if unknown := sorted(set(kwargs) - _ADD_KEYWORDS):
             log_to(
@@ -370,7 +380,7 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 unknown,
             )
-            return False, None
+            return TriggerAddResult(False, None)
 
         trigger_id = self.create_trigger_id(trigger_name, owner_id)
 
@@ -382,7 +392,7 @@ class TriggersPlugin(BasePlugin):
                 trigger_name,
                 self.triggers[trigger_id].owner_id,
             )
-            return False, None
+            return TriggerAddResult(False, None)
 
         args = kwargs.copy()
 
@@ -405,7 +415,7 @@ class TriggersPlugin(BasePlugin):
                     original_regex,
                     exc_info=True,
                 )
-                return False, None
+                return TriggerAddResult(False, None)
 
         if args.get("group"):
             if args["group"] not in self.trigger_groups:
@@ -433,7 +443,7 @@ class TriggersPlugin(BasePlugin):
             owner_id,
         )
 
-        return True, self.triggers[trigger_id]
+        return TriggerAddResult(True, self.triggers[trigger_id])
 
     @AddAPI("trigger.remove", description="remove a trigger")
     def _api_trigger_remove(self, trigger_name, force=False, owner_id=None):

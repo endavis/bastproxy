@@ -14,7 +14,7 @@ import pytest
 
 # Project
 from bastproxy.plugins.core.triggers.plugin import _triggers
-from bastproxy.plugins.core.triggers.plugin._triggers import TriggerItem
+from bastproxy.plugins.core.triggers.plugin._triggers import TriggerAddResult, TriggerItem
 from bastproxy.plugins.test.triggers.plugin._triggerex import TriggerExPlugin
 
 from .conftest import OWNER, Harness
@@ -23,16 +23,15 @@ API = "plugins.core.triggers:"
 
 
 def test_add_duplicate_returns_false_and_logs(harness: Harness) -> None:
-    assert harness.add("dup", r"^a")
+    assert harness.add("dup", r"^a").success is True
     harness.logged.clear()
-    assert harness.add("dup", r"^b") == (False, None)
+    assert harness.add("dup", r"^b") == TriggerAddResult(False, None)
     assert len(harness.errors()) == 1
 
 
 def test_add_bad_regex_returns_false_none_and_logs(harness: Harness) -> None:
     harness.logged.clear()
-    success, trigger = harness.add("bad", r"(unclosed")
-    assert (success, trigger) == (False, None)
+    assert harness.add("bad", r"(unclosed") == TriggerAddResult(False, None)
     assert len(harness.errors()) == 1
 
 
@@ -42,22 +41,22 @@ def test_add_without_owner_logs_and_does_not_print(
     harness.api = lambda name: lambda **_kw: None  # type: ignore[method-assign]
     harness.logged.clear()
     result = _triggers.TriggersPlugin._api_trigger_add(harness, "noowner", r"^a", None)
-    assert result == (False, None)
+    assert result == TriggerAddResult(False, None)
     assert len(harness.errors()) == 1
     assert capsys.readouterr().out == ""
 
 
 def test_add_unknown_keyword_returns_false_and_logs(harness: Harness) -> None:
     harness.logged.clear()
-    assert harness.add("kw", r"^a", event_name="mine") == (False, None)
+    assert harness.add("kw", r"^a", event_name="mine") == TriggerAddResult(False, None)
     assert len(harness.errors()) == 1
     assert harness.create_trigger_id("kw", OWNER) not in harness.triggers
 
 
-def test_add_success_returns_tuple(harness: Harness) -> None:
-    ok, item = harness.add("good", r"^a")
-    assert ok is True
-    assert item.trigger_name == "good"
+def test_add_success_returns_result(harness: Harness) -> None:
+    result = harness.add("good", r"^a")
+    assert result.success is True
+    assert result.trigger.trigger_name == "good"
 
 
 def test_trigger_item_has_no_event_name_parameter() -> None:
@@ -187,7 +186,7 @@ def test_triggerex_handles_failed_add() -> None:
     class Stub:
         def api(self, name: str) -> Any:
             calls.append(name)
-            return lambda *a, **k: (False, None)
+            return lambda *a, **k: TriggerAddResult(False, None)
 
         _trigger_say = None
 
