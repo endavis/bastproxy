@@ -12,7 +12,8 @@ import dataclasses
 import datetime
 import logging
 import shlex
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from bastproxy.libs import argp
@@ -87,77 +88,98 @@ class CommandClass:
         self.last_run_start_time: datetime.datetime | None = None
         self.last_run_end_time: datetime.datetime | None = None
 
+    @contextmanager
+    def _run_state(self, arg_string: str) -> Iterator[None]:
+        """Hold the per-run command state, and reset it however the run exits.
+
+        Saves the previous ``current_args`` and ``current_arg_string`` and restores
+        them on exit, like the token reset in ``libs/context.py``. Also clears
+        ``command.current``, which a ``BaseException`` from the command, or an
+        exception from the error handling, would otherwise leave set.
+        """
+        prev_args = self.current_args
+        prev_string = self.current_arg_string
+        self.current_arg_string = arg_string
+        try:
+            yield
+        finally:
+            self.current_args = prev_args
+            self.current_arg_string = prev_string
+            self.api("plugins.core.commands:command.current.set")(None)
+
     def run(self, arg_string: str = "", format=False) -> CommandRunResult:
         """Run the command."""
         self.last_run_start_time = datetime.datetime.now(datetime.UTC)
-        self.current_arg_string = arg_string
-        message: list[str] = []
-        command_ran = f"{self.full_cmd} {arg_string}"
-        get_logger(self.plugin_id).debug("running %s", command_ran)
+        with self._run_state(arg_string):
+            message: list[str] = []
+            command_ran = f"{self.full_cmd} {arg_string}"
+            get_logger(self.plugin_id).debug("running %s", command_ran)
 
-        parsed = self.parse_args(arg_string)
+            parsed = self.parse_args(arg_string)
 
-        if not parsed.success:
-            message.extend(parsed.message)
-            return self.run_finish(False, message, "could not parse args", format=format)
+            if not parsed.success:
+                message.extend(parsed.message)
+                return self.run_finish(False, message, "could not parse args", format=format)
 
-        args = CmdArgsRecord(
-            f"{self.plugin_id}:{self.name}",
-            vars(parsed.args),
-            arg_string=arg_string,
-            command=self.full_cmd,
-        )
-
-        if args["help"]:
-            message.extend(self.arg_parser.format_help().splitlines())
-            return self.run_finish(True, message, "help", format=format)
-
-        self.current_args = args
-        self.api("plugins.core.commands:command.current.set")(self)
-
-        # run the command
-        try:
-            with tracking_actor(f"{self.plugin_id}:{self.name}"), running_command(args):
-                return_value = self()
-        except Exception as exc:
-            self.record_error(exc)
-            message.extend([f"Error running command: {command_ran}"])
-            log_to(
-                [self.plugin_id, "plugins.core.commands"],
-                logging.ERROR,
-                "Error running command: %s",
-                command_ran,
-                exc_info=True,
-            )
-            return self.run_finish(False, message, "function raised an exception", format=format)
-
-        if not isinstance(return_value, CommandResult):
-            returned = type(return_value).__name__
-            self.record_error(TypeError(f"returned {returned}, not a CommandResult"))
-            log_to(
-                [self.plugin_id, "plugins.core.commands"],
-                logging.ERROR,
-                "Command %s returned %s, not a CommandResult",
-                command_ran,
-                returned,
-            )
-            return self.run_finish(
-                False,
-                [f"Error running command: {command_ran}"],
-                "function returned an invalid result",
-                format=format,
+            args = CmdArgsRecord(
+                f"{self.plugin_id}:{self.name}",
+                vars(parsed.args),
+                arg_string=arg_string,
+                command=self.full_cmd,
             )
 
-        raw_message = return_value.message
-        message = [raw_message] if isinstance(raw_message, str) else list(raw_message)
+            if args["help"]:
+                message.extend(self.arg_parser.format_help().splitlines())
+                return self.run_finish(True, message, "help", format=format)
 
-        # did not succeed
-        if not return_value.success:
-            message.append("")
-            message.extend(self.arg_parser.format_help().splitlines())
-            return self.run_finish(False, message, "function returned False", format=format)
+            self.current_args = args
+            self.api("plugins.core.commands:command.current.set")(self)
 
-        return self.run_finish(True, message, "command ran successfully", format=format)
+            # run the command
+            try:
+                with tracking_actor(f"{self.plugin_id}:{self.name}"), running_command(args):
+                    return_value = self()
+            except Exception as exc:
+                self.record_error(exc)
+                message.extend([f"Error running command: {command_ran}"])
+                log_to(
+                    [self.plugin_id, "plugins.core.commands"],
+                    logging.ERROR,
+                    "Error running command: %s",
+                    command_ran,
+                    exc_info=True,
+                )
+                return self.run_finish(
+                    False, message, "function raised an exception", format=format
+                )
+
+            if not isinstance(return_value, CommandResult):
+                returned = type(return_value).__name__
+                self.record_error(TypeError(f"returned {returned}, not a CommandResult"))
+                log_to(
+                    [self.plugin_id, "plugins.core.commands"],
+                    logging.ERROR,
+                    "Command %s returned %s, not a CommandResult",
+                    command_ran,
+                    returned,
+                )
+                return self.run_finish(
+                    False,
+                    [f"Error running command: {command_ran}"],
+                    "function returned an invalid result",
+                    format=format,
+                )
+
+            raw_message = return_value.message
+            message = [raw_message] if isinstance(raw_message, str) else list(raw_message)
+
+            # did not succeed
+            if not return_value.success:
+                message.append("")
+                message.extend(self.arg_parser.format_help().splitlines())
+                return self.run_finish(False, message, "function returned False", format=format)
+
+            return self.run_finish(True, message, "command ran successfully", format=format)
 
     def run_finish(
         self, success: bool, message: list[str], return_value: str, format=False
@@ -183,10 +205,6 @@ class CommandClass:
             success = False
             message = [f"Error running command: {self.full_cmd} {self.current_arg_string}"]
             return_value = "could not format output"
-        finally:
-            self.current_args = {}
-            self.current_arg_string = ""
-            self.api("plugins.core.commands:command.current.set")(None)
         return CommandRunResult(success, message, return_value)
 
     def parse_args(self, arg_string: str) -> ParsedArgs:

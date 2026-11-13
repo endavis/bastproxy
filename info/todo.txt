@@ -14,7 +14,6 @@
         negotiated telnet options (#83), idle time (#90), lines and data counts (#79)
     # TODO: internal webserver for large command output, such as record details
     # TODO: Discord bot?
-    # TODO: look at where context managers can be used
     # TODO: change the way we do validation to use a validation library (new dependency)
 
 # IDEAS
