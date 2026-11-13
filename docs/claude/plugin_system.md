@@ -711,6 +711,7 @@ class Plugin(BasePlugin):
 - `<plugin_id>:plugin.reloading.set` - Set the `is_reloading_f` flag so reload attributes are cached
 - `<plugin_id>:plugin.hook.list` - Get plugin hooks
 - `<plugin_id>:plugin.state.save` - Run the `save` hooks and raise the save events
+- `<plugin_id>:plugin.stats.get` - Raise `ev_<plugin_id>_stats` and `ev_plugin_stats` and return the stats sections callbacks added (shown by the `plugins.debug.plugins` `stats` command)
 - `<plugin_id>:plugin.reset` - Raise `ev_plugin_reset`
 - `<plugin_id>:plugin.dump` - Dump plugin state
 

@@ -470,8 +470,16 @@ class PluginManager(BasePlugin):
             self.plugin_id,
             description=["Raised when any plugin is loaded"],
             arg_descriptions={
-                "plugin": "The plugin name",
                 "plugin_id": "The plugin id",
+            },
+        )
+        self.api("plugins.core.events:event.add")(
+            "ev_plugin_stats",
+            self.plugin_id,
+            description=["Raised for every plugin by plugin.stats.get so callbacks add stats"],
+            arg_descriptions={
+                "plugin_id": "The plugin id",
+                "stats": "dict of section name to stats section; callbacks add sections",
             },
         )
         self.api("plugins.core.events:event.add")(
@@ -479,7 +487,6 @@ class PluginManager(BasePlugin):
             self.plugin_id,
             description=["Raised when any plugin is unloaded"],
             arg_descriptions={
-                "plugin": "The plugin name",
                 "plugin_id": "The plugin id",
             },
         )

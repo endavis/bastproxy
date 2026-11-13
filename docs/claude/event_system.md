@@ -205,6 +205,7 @@ When an event is raised:
 5. If new callbacks are registered during execution, they are processed in subsequent passes, whichever pass registers them and at whatever priority; one registered at an already visited priority runs out of priority order and logs the out-of-order warning (#275)
 6. The raise ends; its `done` set goes with it, and `active_event` and `current_callback` return to what they were before the raise
 7. An exception in a callback is logged and the remaining callbacks still run; `raise_event` returns `None` and logs an error when the data is neither a dict nor an `EventDataRecord` (the error log names the `actor`, #276)
+8. Before the dict is wrapped, `raise_event` compares the payload keys (plus `key_name` for a `data_list` raise) with the event's `arg_descriptions`. A key that is not declared logs one WARNING per event and key, naming the event, the actor and the keys, and the raise goes on. `{"None": None}` declares no keys; an event with no `arg_descriptions` is not checked, and keys that callbacks add later are never checked (#466)
 
 #### Actors
 
@@ -414,8 +415,9 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 ## Common Event Names
 
 ### Core Events
-- `ev_plugin_loaded` - A plugin was loaded
-- `ev_plugin_unloaded` - A plugin was unloaded
+- `ev_plugin_loaded` - A plugin was loaded (payload: `plugin_id`)
+- `ev_plugin_unloaded` - A plugin was unloaded (payload: `plugin_id`)
+- `ev_plugin_{plugin_id}_stats` and `ev_plugin_stats` - Raised by `plugin.stats.get` (payload: `plugin_id`, `stats`); callbacks add sections to `stats`. The first is per plugin, the second is raised for every plugin
 - `ev_plugin_save` - A plugin should save its state
 - `ev_plugin_reset` - A plugin should reset to defaults
 

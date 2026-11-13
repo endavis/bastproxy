@@ -62,6 +62,8 @@ class Event:
         self.raised_events: OrderedDict[str, ProcessRaisedEvent] = OrderedDict()
         self.current_callback = None
         self.active_event = None
+        # keys already warned about as undeclared in arg_descriptions (#466)
+        self._warned_undeclared_keys: set[str] = set()
 
     def get_active_event(self):
         """Get the active event."""
@@ -281,6 +283,32 @@ class Event:
 
         return found
 
+    def _warn_undeclared_keys(
+        self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
+    ) -> None:
+        """Warn once per event and key about payload keys missing from arg_descriptions."""
+        if not self.arg_descriptions:
+            return
+
+        declared = set(self.arg_descriptions) - {"None"}
+        sent = set(data.keys())
+        if data_list and key_name:
+            sent.add(key_name)
+
+        undeclared = sorted(sent - declared - self._warned_undeclared_keys)
+        if not undeclared:
+            return
+
+        self._warned_undeclared_keys.update(undeclared)
+        log_to(
+            [self.created_by, "plugins.core.events"],
+            logging.WARNING,
+            "raise_event - event %s raised by %s sent keys not in arg_descriptions: %s",
+            self.name,
+            actor,
+            ", ".join(undeclared),
+        )
+
     def raise_event(
         self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
     ) -> ProcessRaisedEvent | None:
@@ -302,6 +330,8 @@ class Event:
                 "The event will not be processed",
             )
             return None
+
+        self._warn_undeclared_keys(data, actor, data_list=data_list, key_name=key_name)
 
         # convert a dict to an EventDataRecord object
         if not isinstance(data, EventDataRecord):
