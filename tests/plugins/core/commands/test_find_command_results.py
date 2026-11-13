@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from bastproxy.libs.plugins.loader import PluginIdMatch
 from bastproxy.plugins.core.commands.plugin._commands import (
     CommandLookup,
     CommandSplit,
@@ -56,12 +57,12 @@ def test_dataclass_fields_and_slots() -> None:
 @pytest.mark.parametrize(
     ("match", "error"),
     [
-        (("plugins.core", "plugins.core.commands"), ""),
-        (("plugins.core", ""), "Bad Plugin"),
-        (("", ""), "Bad Package"),
+        (PluginIdMatch("plugins.core", "plugins.core.commands"), ""),
+        (PluginIdMatch("plugins.core", ""), "Bad Plugin"),
+        (PluginIdMatch(), "Bad Package"),
     ],
 )
-def test_split_returns_commandsplit(match: tuple[str, str], error: str) -> None:
+def test_split_returns_commandsplit(match: PluginIdMatch, error: str) -> None:
     """The split helper returns a CommandSplit with the matching error text."""
     stub = _stub({"libs.plugins.loader:plugin.id.match": lambda _id, active_only: match})
     result = CommandsPlugin.find_command_split_command_string(stub, "#bp.core.commands.list x")

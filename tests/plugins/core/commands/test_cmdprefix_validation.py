@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from bastproxy.libs.plugins.loader import PluginIdMatch
 from bastproxy.plugins.core.commands.plugin._commands import (
     CommandSplit,
     CommandsPlugin,
@@ -23,7 +24,7 @@ def test_invalid_prefix(value: str) -> None:
 
 
 def _split(prefix: str, command: str) -> tuple[CommandSplit, list[str], MagicMock]:
-    seen = MagicMock(return_value=("plugins.core", "commands"))
+    seen = MagicMock(return_value=PluginIdMatch("plugins.core", "commands"))
 
     def api(name: str) -> Any:
         if name == "plugins.core.settings:setting.get":

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.libs.plugins.loader import PluginIdMatch
 from bastproxy.plugins.core.commands.plugin._commands import (
     CommandLookup,
     CommandSplit,
@@ -134,7 +135,7 @@ def test_found_command_returns_command_args_and_history_flag() -> None:
     assert result.message == []
 
 
-def _split(line: str, match: tuple[str, str]) -> CommandSplit:
+def _split(line: str, match: PluginIdMatch) -> CommandSplit:
     stub = _stub({"libs.plugins.loader:plugin.id.match": lambda _id, active_only: match})
     return CommandsPlugin.find_command_split_command_string(stub, line)
 
@@ -142,7 +143,8 @@ def _split(line: str, match: tuple[str, str]) -> CommandSplit:
 def test_split_found_plugin() -> None:
     """The prefix and a leading `plugins` are removed and arguments are split off."""
     result = _split(
-        "#bp.plugins.core.commands.list -c x", ("plugins.core", "plugins.core.commands")
+        "#bp.plugins.core.commands.list -c x",
+        PluginIdMatch("plugins.core", "plugins.core.commands"),
     )
 
     assert (result.found, result.error) == (True, "")
@@ -153,7 +155,7 @@ def test_split_found_plugin() -> None:
 
 def test_split_single_element_is_padded() -> None:
     """A single element after the prefix gets an empty second element."""
-    result = _split("#bp.core", ("plugins.core", ""))
+    result = _split("#bp.core", PluginIdMatch("plugins.core", ""))
 
     assert result.parts == ["core", ""]
     assert result.args == ""
@@ -161,13 +163,13 @@ def test_split_single_element_is_padded() -> None:
 
 def test_split_bad_plugin() -> None:
     """A matching package with no matching plugin is `Bad Plugin`."""
-    result = _split("#bp.core.zzz", ("plugins.core", ""))
+    result = _split("#bp.core.zzz", PluginIdMatch("plugins.core", ""))
 
     assert (result.found, result.error) == (False, "Bad Plugin")
 
 
 def test_split_bad_package() -> None:
     """No matching package is `Bad Package`."""
-    result = _split("#bp.zzz.yyy", ("", ""))
+    result = _split("#bp.zzz.yyy", PluginIdMatch())
 
     assert (result.found, result.error) == (False, "Bad Package")

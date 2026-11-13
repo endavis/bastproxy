@@ -1055,22 +1055,24 @@ class CommandsPlugin(BasePlugin):
 
         plugin_id_temp_str = f"{command_split[0]}.{command_split[1]}"
 
-        new_package, new_plugin = self.api("libs.plugins.loader:plugin.id.match")(
+        match = self.api("libs.plugins.loader:plugin.id.match")(
             plugin_id_temp_str, active_only=True
         )
 
         found = False
         tmessage = ""
-        if new_package and new_plugin:
+        if match.package and match.plugin:
             found = True
-        elif new_package:
+        elif match.package:
             tmessage = "Bad Plugin"
             found = False
         else:
             tmessage = "Bad Package"
             found = False
 
-        return CommandSplit(found, new_package, new_plugin, tmessage, command_split, command_args)
+        return CommandSplit(
+            found, match.package, match.plugin, tmessage, command_split, command_args
+        )
 
     @staticmethod
     def _command_token(event_record: Any) -> str:
