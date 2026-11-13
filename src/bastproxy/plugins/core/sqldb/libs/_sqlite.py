@@ -7,13 +7,15 @@
 
 # Standard Library
 import contextlib
-import copy
 import datetime
 import logging
 import shutil
 import sqlite3
 import zipfile
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 # Project
@@ -25,6 +27,21 @@ from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
 def dict_factory(cursor, row):
     """Create a dictionary for a sql row."""
     return {column[0]: row[index] for index, column in enumerate(cursor.description)}
+
+
+@dataclass(slots=True)
+class SQLTable:
+    """One registered table: its create statement, hooks and derived columns."""
+
+    name: str
+    createsql: str
+    keyfield: str | None = None
+    precreate: Callable[[], None] | None = None
+    postcreate: Callable[[], None] | None = None
+    columns: list[str] = field(default_factory=list)
+    columns_by_keys: dict[str, bool] = field(default_factory=dict)
+    default_column_values: dict[str, str | None] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 class Sqldb:
@@ -48,7 +65,7 @@ class Sqldb:
         self.connections = 0
         self.version = 1
         self.version_functions = {}
-        self.tables = {}
+        self.tables: dict[str, SQLTable] = {}
 
     @AddAPI(
         "{database_name}.select",
@@ -280,26 +297,26 @@ class Sqldb:
             **kwargs: Optional arguments including precreate, postcreate, keyfield.
 
         """
-        args = copy.copy(kwargs) if kwargs else {}
-        if "precreate" not in args:
-            args["precreate"] = None
-        if "postcreate" not in args:
-            args["postcreate"] = None
-        if "keyfield" not in args:
-            args["keyfield"] = None
-
-        args["createsql"] = sql
-
-        self.tables[tablename] = args
-        column, columnbykeys, defcolumnvals = self.getcolumnumnsfromsql(tablename)
-        self.tables[tablename]["columnumns"] = column
-        self.tables[tablename]["columnumnsbykeys"] = columnbykeys
-        self.tables[tablename]["defcolumnvals"] = defcolumnvals
+        extra = dict(kwargs)
+        self.tables[tablename] = SQLTable(
+            name=tablename,
+            createsql=sql,
+            keyfield=extra.pop("keyfield", None),
+            precreate=extra.pop("precreate", None),
+            postcreate=extra.pop("postcreate", None),
+            extra=extra,
+        )
+        table = self.tables[tablename]
+        (
+            table.columns,
+            table.columns_by_keys,
+            table.default_column_values,
+        ) = self.getcolumnumnsfromsql(tablename)
 
     def remove(self, table, rownumber):
         """Remove an item."""
         if table in self.tables:
-            key_field = self.tables[table]["keyfield"]
+            key_field = self.tables[table].keyfield
             sql = f"DELETE FROM {table} where {key_field}={rownumber};" % (
                 table,
                 key_field,
@@ -316,7 +333,7 @@ class Sqldb:
         columnumnsbykeys = {}
         columnumn_defaults = {}
         if self.tables[tablename]:
-            sql_statement_list = self.tables[tablename]["createsql"].splitlines()
+            sql_statement_list = self.tables[tablename].createsql.splitlines()
             for sql_line in sql_statement_list:
                 stripped_sql_line = sql_line.strip()
                 if (
@@ -342,8 +359,8 @@ class Sqldb:
         a new dictionary.
         """
         new_dict = {}
-        columnumns = self.tables[tablename]["columnumns"]
-        columnumn_defaults = self.tables[tablename]["defcolumnvals"]
+        columnumns = self.tables[tablename].columns
+        columnumn_defaults = self.tables[tablename].default_column_values
         for column in columnumns:
             if column not in temp_dict:
                 new_dict[column] = columnumn_defaults[column]
@@ -355,20 +372,20 @@ class Sqldb:
         """Create an insert statement based on the columnumns of a table."""
         sql_string = ""
         if self.tables[tablename]:
-            columns = self.tables[tablename]["columnumns"]
+            columns = self.tables[tablename].columns
             temp_list = [f":{i}" for i in columns]
             columnstring = ", ".join(temp_list)
             if replace:
                 sql_string = f"INSERT OR REPLACE INTO {tablename} VALUES ({columnstring})"
             else:
                 sql_string = f"INSERT INTO {tablename} VALUES ({columnstring})"
-            if keynull and self.tables[tablename]["keyfield"]:
-                sql_string = sql_string.replace(f":{self.tables[tablename]['keyfield']}", "NULL")
+            if keynull and self.tables[tablename].keyfield:
+                sql_string = sql_string.replace(f":{self.tables[tablename].keyfield}", "NULL")
         return sql_string
 
     def checkcolumnumnexists(self, table, columnumnname):
         """Check if a columnumn exists."""
-        return table in self.tables and columnumnname in self.tables[table]["columnumnsbykeys"]
+        return table in self.tables and columnumnname in self.tables[table].columns_by_keys
 
     def converttoupdate(self, tablename, wherekey="", nokey=None):
         """Create an update statement based on the columnumns of a table."""
@@ -376,7 +393,7 @@ class Sqldb:
             nokey = {}
         sql_string = ""
         if self.tables[tablename]:
-            columns = self.tables[tablename]["columnumns"]
+            columns = self.tables[tablename].columns
             sql_string_list = [
                 f"{column} = :{column}"
                 for column in columns
@@ -400,11 +417,11 @@ class Sqldb:
     def checktable(self, tablename):
         """Check to see if a table exists, if not create it."""
         if self.tables[tablename] and not self.checktableexists(tablename):
-            if self.tables[tablename]["precreate"]:
-                self.tables[tablename]["precreate"]()
-            self.modifyscript(self.tables[tablename]["createsql"])
-            if self.tables[tablename]["postcreate"]:
-                self.tables[tablename]["postcreate"]()
+            if self.tables[tablename].precreate:
+                self.tables[tablename].precreate()
+            self.modifyscript(self.tables[tablename].createsql)
+            if self.tables[tablename].postcreate:
+                self.tables[tablename].postcreate()
         return True
 
     def checktableexists(self, tablename):
@@ -596,7 +613,7 @@ class Sqldb:
             )
             return {}
 
-        column_id_name = self.tables[table_name]["keyfield"]
+        column_id_name = self.tables[table_name].keyfield
         sql_string = ""
         if where:
             sql_string = f"SELECT * FROM {table_name} WHERE {where} ORDER by {column_id_name} desc limit {num}"
@@ -616,7 +633,7 @@ class Sqldb:
             )
             return {}
 
-        column_id_name = self.tables[table_name]["keyfield"]
+        column_id_name = self.tables[table_name].keyfield
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
@@ -624,7 +641,7 @@ class Sqldb:
 
     def getlastrowid(self, table_name):
         """Return the id of the last row in a table."""
-        column_id_name = self.tables[table_name]["keyfield"]
+        column_id_name = self.tables[table_name].keyfield
         return (
             rows[0]["MAX"]
             if (
