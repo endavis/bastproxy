@@ -19,7 +19,7 @@ class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
         """'__init__' - invoked for __init__ at the end of baseplugin.__init__.
 
-        'initialize' - invoked when the initialize method is ran
+        'after_load' - invoked when the initialize method is ran
         'save' - invoked when saving the plugin
         'uninitialize' - invoked when the unitialize method is ran.
 

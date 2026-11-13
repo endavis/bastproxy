@@ -82,7 +82,7 @@ class ProxyPlugin(BasePlugin):
         self.mud_connection: MudConnection | None = None
         self.attributes_to_save_on_reload = ["mud_connection"]
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"

@@ -125,7 +125,7 @@ Decorator for registering functions to plugin lifecycle hooks:
 ```python
 class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
-        self.hook_name = hook_name  # '__init__', 'initialize', 'save', 'uninitialize'
+        self.hook_name = hook_name  # '__init__', 'after_load', 'save', 'uninitialize'
         self.priority = priority
 ```
 
@@ -283,7 +283,7 @@ For each directory found, it creates a `PluginInfo` object and extracts metadata
    The `__init__` plugin hooks run inside the base `__init__`, in priority order. The base
    class registers the plugin's APIs there.
 
-3. **Initialization** (each plugin, dependencies first): `initialize()` runs the `initialize`
+3. **Initialization** (each plugin, dependencies first): `initialize()` runs the `after_load`
    hooks. Its last base hook (priority 91) flags the plugin loaded, adds the
    `ev_<plugin_id>_loaded` and `ev_<plugin_id>_unloaded` events and, unless the proxy is
    starting up, raises `ev_<plugin_id>_loaded` and `ev_plugin_loaded`.
@@ -295,17 +295,17 @@ on it. A failed load runs the same subsystem cleanup as an unload: the loader ra
 
 ### 3. Initialization
 
-Plugins add their own initialization with an `initialize` hook:
+Plugins add their own initialization with an `after_load` hook:
 
 ```python
 class Plugin(BasePlugin):
-    @RegisterPluginHook("initialize", priority=50)
+    @RegisterPluginHook("after_load", priority=50)
     def _phook_initialize(self):
         """Custom initialization logic."""
         get_logger(self.plugin_id).info("Initializing my plugin")
 ```
 
-`initialize` runs after every plugin in the same `plugin.load` call has been imported and
+The `after_load` hooks run after every plugin in the same `plugin.load` call has been imported and
 instantiated, and after the plugin's declared dependencies have been initialized. Other plugins
 in the batch that are not dependencies may not be initialized yet.
 
@@ -395,7 +395,7 @@ everything unloaded and loaded again.
 
 `BasePlugin` is `class BasePlugin(Plugin, Commands, Settings)`. The `Commands` mixin
 (`src/bastproxy/plugins/_baseplugin/libs/_commands.py`) adds the `help`, `reset` and `save` commands, and the `Settings` mixin
-(`src/bastproxy/plugins/_baseplugin/libs/_settings.py`) adds the `set` command and the settings `initialize` hook. Every
+(`src/bastproxy/plugins/_baseplugin/libs/_settings.py`) adds the `set` command and the settings `after_load` hook. Every
 plugin inherits them, so they are present before any plugin initializes and survive reloads.
 
 A `_patch_base.py` in a plugin package is no longer applied: the loader ignores it, and
@@ -412,7 +412,7 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
    - Use for: Defaults, `attributes_to_save_on_reload`, creating objects that have APIs
    - Priority order matters
 
-2. **`initialize`**: Called by the loader once the plugin and every plugin in the same load call has been instantiated, dependencies first
+2. **`after_load`**: Called by the loader once the plugin and every plugin in the same load call has been instantiated, dependencies first
    - Use for: Setup that requires other plugins to be available
    - Cross-plugin initialization
 
@@ -434,11 +434,11 @@ The base class registers these, which sets the order a plugin's own hooks run ag
 | :--- | ---: | :--- | :--- |
 | `__init__` | 1 | `_phook_base_init_add_apis` | Add the plugin's APIs |
 | `__init__` | 75 | `_phook_base_init` | Add APIs again |
-| `initialize` | 1 | `_phook_base_initialize` | `_version` setting, disconnect callback, `ev_<id>_savestate` |
-| `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enable the `reset` command |
-| `initialize` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | Initialize the plugin's settings |
-| `initialize` | 90 | `_phook_base_post_initialize_update_version` | Run `version_functions` after a version bump |
-| `initialize` | 91 | `_phook_base_post_initialize_setup` | Add APIs, flag the plugin loaded, raise the loaded events |
+| `after_load` | 1 | `_phook_base_initialize` | `_version` setting, disconnect callback, `ev_<id>_savestate` |
+| `after_load` | 50 | `_phook_base_post_initialize_add_reset_command` | Enable the `reset` command |
+| `after_load` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | Initialize the plugin's settings |
+| `after_load` | 90 | `_phook_base_post_initialize_update_version` | Run `version_functions` after a version bump |
+| `after_load` | 91 | `_phook_base_post_initialize_setup` | Add APIs, flag the plugin loaded, raise the loaded events |
 | `uninitialize` | 100 | `_phook_base_unitialize_hook` | Save, cache reload attributes, raise the unloaded events, remove APIs |
 
 The default priority is 50. A plugin must call `plugins.core.settings:setting.add` before priority 75
@@ -460,7 +460,7 @@ class Plugin(BasePlugin):
         """Late initialization."""
         self.late_data = {}
 
-    @RegisterPluginHook("initialize", priority=50)
+    @RegisterPluginHook("after_load", priority=50)
     def _phook_initialize(self):
         """Main initialization after all plugins loaded."""
         # Can now safely call APIs from other plugins
@@ -484,9 +484,9 @@ class Plugin(BasePlugin):
 - Hooks are executed in priority order (lower numbers first)
 - Multiple hooks at the same priority are executed in alphabetical order of the method name
 - Hook functions must start with `_phook_` to run
-- A hook that raises in `__init__` fails the load; in `initialize` the loader unloads the plugin
+- A hook that raises in `__init__` fails the load; in `after_load` the loader unloads the plugin
   (clearing its loaded flag first, so it is cleaned up rather than uninitialized); in
-  `uninitialize` the unload stops and returns `False`. A failed `__init__` or `initialize`
+  `uninitialize` the unload stops and returns `False`. A failed `__init__` or `after_load`
   still has its registrations removed
 - `<plugin_id>:plugin.hook.list` lists the same hooks, in the same order, that the plugin runs,
   including hooks that share a priority (fixed for
@@ -663,7 +663,7 @@ class Plugin(BasePlugin):
 - `src/bastproxy/plugins/_baseplugin/_base.py` - BasePlugin class
 - `src/bastproxy/plugins/_baseplugin/libs/_pluginhooks.py` - RegisterPluginHook decorator
 - `src/bastproxy/plugins/_baseplugin/libs/_commands.py` - Command-related base functionality
-- `src/bastproxy/plugins/_baseplugin/libs/_settings.py` - The `set` command and the settings `initialize` hook
+- `src/bastproxy/plugins/_baseplugin/libs/_settings.py` - The `set` command and the settings `after_load` hook
 - `src/bastproxy/plugins/_baseplugin/__init__.py` - Exports `BasePlugin` and `RegisterPluginHook`
 
 ### Plugin Loader

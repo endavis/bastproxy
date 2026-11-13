@@ -82,7 +82,7 @@ class CommandsPlugin(BasePlugin):
             "saved_command_stats",
         ]
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the instance."""
         self.api("plugins.core.settings:setting.add")(

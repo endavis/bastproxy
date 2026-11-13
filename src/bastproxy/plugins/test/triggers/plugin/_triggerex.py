@@ -16,7 +16,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 class TriggerExPlugin(BasePlugin):
     """a plugin to test triggers"""
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_triggerex_initialize(self):
         """Register a test trigger to capture say events."""
         success, trigger = self.api("plugins.core.triggers:trigger.add")(

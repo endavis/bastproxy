@@ -499,7 +499,7 @@ class Plugin(BasePlugin):
         # Initialize internal state
         self.service = None
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         # Get settings and initialize
         if self.api("plugins.core.settings:setting.get")(self.plugin_id, "enabled"):

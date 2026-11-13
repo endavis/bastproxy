@@ -145,7 +145,7 @@ class TriggersPlugin(BasePlugin):
         # so the per-line check does not pay for a setting.get
         self._matching_enabled = True
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(

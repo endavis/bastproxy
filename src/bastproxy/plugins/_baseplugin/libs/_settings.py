@@ -55,7 +55,7 @@ class Settings(Protocol):
             args["name"], args["value"], self.plugin_id
         )
 
-    @RegisterPluginHook("initialize", priority=75)
+    @RegisterPluginHook("after_load", priority=75)
     def _phook_settings_post_initialize(self: "Plugin"):
         """Setup the settings for the plugin."""
         self.reset_f = False

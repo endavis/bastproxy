@@ -163,7 +163,7 @@ it raises `ev_baseplugin_patched`. The loader calls it in `_import_single_plugin
 `_patch_base.py` found in the plugin package, and skips it when `has_been_reloaded` is set.
 
 Only `_patch_base.py` (removed, in the settings plugin) uses it. It adds the `set` command
-(`_command_settings_plugin_set`) and the `initialize` hook `_phook_settings_post_initialize`
+(`_command_settings_plugin_set`) and the `after_load` hook `_phook_settings_post_initialize`
 (priority 75) to every plugin.
 
 Behaviour, all **verified** with throwaway modules patched onto `Plugin`:
@@ -186,7 +186,7 @@ settings plugin itself (it takes the proxy down).
 Should patching be replaced? **Yes.** The one user needs nothing a mixin cannot do:
 `_commands.py` already shows the shape (`class Commands(Protocol)` mixed into `BasePlugin`, and
 it already imports from the commands plugin). A `_settings.py` mixin beside it would carry the
-`set` command and the `initialize` hook, with no `setattr`, no reload skip, no
+`set` command and the `after_load` hook, with no `setattr`, no reload skip, no
 `ev_baseplugin_patched` and no ordering dependence on which plugin imported first. That removes
 `_patch.py`, `modules_patched`, the `_patch_base.py` discovery in the loader and the two
 `ev_baseplugin_patched` handlers. See PS-7.
@@ -207,11 +207,11 @@ priority.
   "the order they're discovered". Verified: `_phook_base_post_initialize_add_reset_command`
   ran before `_phook_pa_initialize`, both at priority 50.
 - The hook name is not validated. `@RegisterPluginHook("stats")` (commented out in the timers
-  plugin) or a misspelled `"initialize"` is accepted and never runs.
+  plugin) or a misspelled `"after_load"` is accepted and never runs.
 - The `_phook_` prefix is required to run but not to be registered, and the second lookup,
   `_get_all_plugin_hook_functions` (behind the `plugin.hook.list` API), ignores the prefix and
   loses hooks that share a priority (PS-6).
-- A hook that raises in `__init__` fails the plugin; in `initialize` the loader unloads it
+- A hook that raises in `__init__` fails the plugin; in `after_load` the loader unloads it
   (PS-1 shows what that leaves behind); in `uninitialize` the unload stops and returns `False`.
 - The `kwargs` branch of `_process_plugin_hook` (`kwargs = func(**kwargs)`) is dead: every
   caller passes none.
@@ -222,11 +222,11 @@ priority.
 | :--- | ---: | :--- | :--- |
 | `__init__` | 1 | `_phook_base_init_add_apis` | Adds the plugin's APIs |
 | `__init__` | 75 | `_phook_base_init` | Adds the APIs again |
-| `initialize` | 1 | `_phook_base_initialize` | Adds the `_version` setting, registers the disconnect callback, adds `ev_<id>_savestate` |
-| `initialize` | 50 | `_phook_base_post_initialize_add_reset_command` | Enables the `reset` command |
-| `initialize` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | `settings:setting.initialize.for.plugin` |
-| `initialize` | 90 | `_phook_base_post_initialize_update_version` | Runs `version_functions` for a version bump |
-| `initialize` | 91 | `_phook_base_post_initialize_setup` | Adds APIs again, flags the plugin loaded, adds `ev_<id>_loaded`/`_unloaded`, raises the loaded events (not at startup) |
+| `after_load` | 1 | `_phook_base_initialize` | Adds the `_version` setting, registers the disconnect callback, adds `ev_<id>_savestate` |
+| `after_load` | 50 | `_phook_base_post_initialize_add_reset_command` | Enables the `reset` command |
+| `after_load` | 75 | `_phook_settings_post_initialize` (`Settings` mixin) | `settings:setting.initialize.for.plugin` |
+| `after_load` | 90 | `_phook_base_post_initialize_update_version` | Runs `version_functions` for a version bump |
+| `after_load` | 91 | `_phook_base_post_initialize_setup` | Adds APIs again, flags the plugin loaded, adds `ev_<id>_loaded`/`_unloaded`, raises the loaded events (not at startup) |
 | `uninitialize` | 100 | `_phook_base_unitialize_hook` | Saves, caches reload attributes, raises the unloaded events, removes the APIs |
 
 Everything else in the tree uses the default priority 50, except the log plugin's `__init__`
@@ -257,7 +257,7 @@ Corrected in [Plugin System](plugin_system.md) in this change:
 | Section | Said | Code |
 | :--- | :--- | :--- |
 | Loading, steps 1 to 2 | `importlib.import_module` of the package, then of the class module | One `imputils.importmodule` of the `.plugin` module, which returns the module if already in `sys.modules`; then `patch()` for `_patch_base.py` |
-| Loading, step 6 | `ev_plugin_loaded` is raised when the plugin loads | Raised at the end of `initialize` (hook priority 91), and not at startup |
+| Loading, step 6 | `ev_plugin_loaded` is raised when the plugin loads | Raised at the end of the `after_load` hooks (hook priority 91), and not at startup |
 | Initialization | `initialize` runs "after all plugins are loaded" | Per batch: import all, instantiate all, then `initialize` each in dependency order |
 | Saving | `ev_plugin_save` triggers the `save` hook | The `plugin.state.save` API runs the `save` hooks first, then raises `ev_<id>_save` and `ev_plugin_save` |
 | Unloading | Separate API removal and event unregistration steps | Both happen through the base `uninitialize` hook and the `ev_plugin_unloaded` handlers; order given in Q1 |
@@ -295,7 +295,7 @@ of this audit's page and is left for the event system audit.
 | 9 | **Catch-all `except`** | `loader.py` in `_instantiate_single_plugin`, `_run_initialize_single_plugin`, `_api_plugin_unload` (two, one an `except Exception` around a dict lookup); `imputils.importmodule`; `plugininfo.check_file_is_valid_python_code`; `_patch.py` `patch` | Mostly justified: each logs with `exc_info` and either exits or unloads | **Keep**, with one change: the dict-lookup `except Exception` in `_api_plugin_unload` should be `except KeyError`. |
 | 10 | **Silent failures** | mudcmds and watch unload handlers (PS-2, PS-3) log through the events plugin and unload carries on; `patch()` returns `True` when it skipped everything | No | **Change.** `plugin.unload` returns `True` while handlers failed. Handlers should not raise after partially deleting; the loader cannot see their errors today. |
 | 11 | **String concatenation for paths** | Loader and `PluginInfo` use `Path` throughout; `plugin_info.data_directory` is a `Path` | Yes | **Fits.** The only string "paths" are import locations, which are not file paths. |
-| 12 | **Repeated work in hooks** | `libs.api:api.add.for.object` is called by three base hooks (priority 1, 75 and 91) | n/a | **Keep, document.** 75 picks up objects created by `__init__` hooks below 75 and 91 those created in `initialize`; neither is written down. Not filed separately. |
+| 12 | **Repeated work in hooks** | `libs.api:api.add.for.object` is called by three base hooks (priority 1, 75 and 91) | n/a | **Keep, document.** 75 picks up objects created by `__init__` hooks below 75 and 91 those created in `after_load`; neither is written down. Not filed separately. |
 | 13 | **Magic-string exclusion** | `imputils.deletemodule` skipped any module whose name contained `baseplugin` or `baseconfig` | n/a | **Changed** (PS-10, fixed): exact package prefix match. |
 | 14 | **Dead return value** | `update_all_plugin_information` returns `None`; two callers branch on it | n/a | **Change** (PS-9). |
 
@@ -313,7 +313,7 @@ of this audit's page and is left for the event system audit.
 `_api_timer_remove_for_plugin` (needs `plugin.instance.get`, which needs the loaded flag).
 
 **Evidence (verified):** Two throwaway user plugins. `pb` registers a timer, a watch and an
-event callback in an `initialize` hook and then raises. `pc` raises in `__init__` after
+event callback in an `after_load` hook and then raises. `pc` raises in `__init__` after
 `super().__init__()`. After `plugin.load` returned both as bad, the registries still held:
 
 ```text
@@ -425,7 +425,7 @@ before any plugin loads. The other lines fail quietly.
 **Location:** `_base.py` `_get_all_plugin_hook_functions` (the `append` is inside the
 `if ... not in` block).
 
-**Evidence (verified):** For a plugin with two `initialize` hooks at priority 50,
+**Evidence (verified):** For a plugin with two `after_load` hooks at priority 50,
 `plugin.hook.list` listed only `_phook_base_post_initialize_add_reset_command` at 50, while the
 real run list (`_get_plugin_hook_functions`) had both. The API is the only way to see hooks
 from outside, and the two lookups also disagree on the `_phook_` prefix.
@@ -435,7 +435,7 @@ priority order, tie order and `plugin.hook.list`.
 
 ### PS-7: `patch()` has silent failure modes and one user
 
-**Status:** fixed in the PR for #131; the `set` command and the settings `initialize` hook are now the `Settings` mixin on `BasePlugin` (`src/bastproxy/plugins/_baseplugin/libs/_settings.py`). `patch()`, `modules_patched`, the loader's `_patch_base.py` branch, `PluginInfo.has_been_reloaded` and the two `ev_baseplugin_patched` handlers are removed. Breaking for plugins that shipped a `_patch_base.py`.
+**Status:** fixed in the PR for #131; the `set` command and the settings `after_load` hook are now the `Settings` mixin on `BasePlugin` (`src/bastproxy/plugins/_baseplugin/libs/_settings.py`). `patch()`, `modules_patched`, the loader's `_patch_base.py` branch, `PluginInfo.has_been_reloaded` and the two `ev_baseplugin_patched` handlers are removed. Breaking for plugins that shipped a `_patch_base.py`.
 
 **Issue:** [#131](https://github.com/endavis/bastproxy/issues/131)
 **Location:** `_patch.py` `patch`; `loader.py` `_import_single_plugin`;

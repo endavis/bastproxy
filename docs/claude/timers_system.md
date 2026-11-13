@@ -154,7 +154,7 @@ Toggle whether timer fires are logged
 ### Regular Interval Timer
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Check for updates every 5 minutes
     self.api("plugins.core.timers:add")(
@@ -174,7 +174,7 @@ def check_updates(self):
 ### Daily Timer
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Backup database daily at 3 AM
     self.api("plugins.core.timers:add")(
@@ -217,7 +217,7 @@ def process_pending(self):
 ### Conditional Timer
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Add timer
     self.api("plugins.core.timers:add")(

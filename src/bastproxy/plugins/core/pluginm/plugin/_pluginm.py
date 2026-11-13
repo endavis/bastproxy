@@ -452,7 +452,7 @@ class PluginManager(BasePlugin):
         )
 
     # initialize this plugin
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize plugin."""
         self.api("plugins.core.settings:setting.add")(

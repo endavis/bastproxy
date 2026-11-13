@@ -604,7 +604,7 @@ Declare the command with `autoadd=False` and add it when the feature is availabl
 def _command_advanced(self):
     return True, ["Advanced feature"]
 
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     if self.has_advanced_features():
         self.api("plugins.core.commands:command.add.by.func")(self._command_advanced, force=True)

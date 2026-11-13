@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class Commands(Protocol):
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_base_post_initialize_add_reset_command(self: "Plugin"):
         """Add commands to the plugin."""
         if self.can_reset_f:

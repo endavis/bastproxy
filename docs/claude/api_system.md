@@ -227,7 +227,7 @@ Plugins automatically discover API functions during initialization. `BasePlugin`
 ```python
 # _phook_base_init_add_apis (__init__ hook, priority 1)
 # _phook_base_init (__init__ hook, priority 75)
-# _phook_base_post_initialize_setup (initialize hook, priority 91)
+# _phook_base_post_initialize_setup (after_load hook, priority 91)
 self.api("libs.api:api.add.for.object")(self.plugin_id, self)
 ```
 

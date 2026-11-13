@@ -39,7 +39,7 @@ class EventsPlugin(BasePlugin):
 
         self.events: dict[str, Event] = {}
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(
