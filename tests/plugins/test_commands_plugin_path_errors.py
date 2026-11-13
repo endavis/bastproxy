@@ -9,7 +9,7 @@ import pytest
 from bastproxy.libs import argp
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
 from bastproxy.plugins.core.commands.libs import _command
-from bastproxy.plugins.core.commands.libs._command import CommandClass
+from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandRunResult
 from bastproxy.plugins.core.commands.plugin import _commands
 from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
@@ -93,7 +93,7 @@ def test_send_failure_is_contained(monkeypatch: pytest.MonkeyPatch) -> None:
     """A failure while sending the command output does not escape."""
     stub, _ = _stub()
     command = MagicMock()
-    command.run.return_value = (True, ["hi"], "command ran successfully")
+    command.run.return_value = CommandRunResult(True, ["hi"], "command ran successfully")
     stub.find_command.return_value = CommandLookup(command, "", True, "", [])
 
     def boom(data: Any, clients: Any = None) -> Any:
@@ -122,11 +122,11 @@ def _raiser() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_exception_has_its_own_reason() -> None:
     """An exception in the command is not reported as `function returned False`."""
-    success, message, reason = _make(_raiser).run("")
-    assert success is False
-    assert reason == "function raised an exception"
-    assert any("Error running command" in line for line in message)
-    assert _make(lambda: False).run("")[2] == "function returned False"
+    result = _make(_raiser).run("")
+    assert result.success is False
+    assert result.reason == "function raised an exception"
+    assert any("Error running command" in line for line in result.message)
+    assert _make(lambda: False).run("").reason == "function returned False"
 
 
 @pytest.mark.usefixtures("_patch_command_module")
@@ -138,10 +138,10 @@ def test_format_failure_is_contained() -> None:
         raise RuntimeError("format failed")
 
     cmd.format_return_message = bad_format  # type: ignore[method-assign]
-    success, message, reason = cmd.run("", format=True)
-    assert success is False
-    assert reason == "could not format output"
-    assert any("Error running command" in line for line in message)
+    result = cmd.run("", format=True)
+    assert result.success is False
+    assert result.reason == "could not format output"
+    assert any("Error running command" in line for line in result.message)
     assert cmd.stats.error_count == 1
     assert cmd.current_args == {}
 
@@ -149,15 +149,15 @@ def test_format_failure_is_contained() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_str_message_is_one_line() -> None:
     """A command returning `(True, "hi")` gives one line, not `h` and `i`."""
-    success, message, _ = _make(lambda: (True, "hi")).run("")
-    assert success is True
-    assert message == ["hi"]
+    result = _make(lambda: (True, "hi")).run("")
+    assert result.success is True
+    assert result.message == ["hi"]
 
 
 @pytest.mark.usefixtures("_patch_command_module")
 def test_run_finish_str_message_is_one_line() -> None:
     """run_finish treats a str message as a single line."""
-    assert _make(lambda: True).run_finish(True, "hello", "x")[1] == ["hello"]  # type: ignore[arg-type]
+    assert _make(lambda: True).run_finish(True, "hello", "x").message == ["hello"]  # type: ignore[arg-type]
 
 
 def test_str_find_command_message_is_one_line(sent: list[Any]) -> None:

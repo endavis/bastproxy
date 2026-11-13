@@ -7,11 +7,13 @@
 
 # Standard Library
 
+import argparse
 import dataclasses
 import datetime
 import logging
 import shlex
 from collections.abc import Callable
+from typing import Any
 
 from bastproxy.libs import argp
 
@@ -32,6 +34,24 @@ class CommandStats:
     error_count: int = 0
     last_error: str = ""
     last_error_time: datetime.datetime | None = None
+
+
+@dataclasses.dataclass(slots=True)
+class CommandRunResult:
+    """The outcome of CommandClass.run: success flag, output lines and the reason."""
+
+    success: bool
+    message: list[str]
+    reason: str
+
+
+@dataclasses.dataclass(slots=True)
+class ParsedArgs:
+    """The outcome of CommandClass.parse_args."""
+
+    success: bool
+    args: argparse.Namespace | dict[str, Any]
+    message: list[str]
 
 
 class CommandClass:
@@ -66,7 +86,7 @@ class CommandClass:
         self.last_run_start_time: datetime.datetime | None = None
         self.last_run_end_time: datetime.datetime | None = None
 
-    def run(self, arg_string: str = "", format=False) -> tuple[bool | None, list[str], str]:
+    def run(self, arg_string: str = "", format=False) -> CommandRunResult:
         """Run the command."""
         self.last_run_start_time = datetime.datetime.now(datetime.UTC)
         self.current_arg_string = arg_string
@@ -74,15 +94,15 @@ class CommandClass:
         command_ran = f"{self.full_cmd} {arg_string}"
         get_logger(self.plugin_id).debug("running %s", command_ran)
 
-        success, parsed_args, fail_message = self.parse_args(arg_string)
+        parsed = self.parse_args(arg_string)
 
-        if not success:
-            message.extend(fail_message)
+        if not parsed.success:
+            message.extend(parsed.message)
             return self.run_finish(False, message, "could not parse args", format=format)
 
         args = CmdArgsRecord(
             f"{self.plugin_id}:{self.name}",
-            vars(parsed_args),
+            vars(parsed.args),
             arg_string=arg_string,
             command=self.full_cmd,
         )
@@ -129,7 +149,7 @@ class CommandClass:
 
     def run_finish(
         self, success: bool, message: list[str], return_value: str, format=False
-    ) -> tuple[bool, list[str], str]:
+    ) -> CommandRunResult:
         """Run the command finisher."""
         if isinstance(message, str):
             message = [message]
@@ -155,14 +175,14 @@ class CommandClass:
             self.current_args = {}
             self.current_arg_string = ""
             self.api("plugins.core.commands:command.current.set")(None)
-        return success, message, return_value
+        return CommandRunResult(success, message, return_value)
 
-    def parse_args(self, arg_string):
+    def parse_args(self, arg_string: str) -> ParsedArgs:
         """Parse an argument string for this command."""
         # split it with shlex
         split_args_list = []
-        args = {}
-        fail_message = []
+        args: argparse.Namespace | dict[str, Any] = {}
+        fail_message: list[str] = []
         if arg_string:
             try:
                 split_args_list = shlex.split(arg_string)
@@ -181,7 +201,7 @@ class CommandClass:
                     arg_string,
                     exc.args[0],
                 )
-                return False, args, fail_message
+                return ParsedArgs(False, args, fail_message)
 
         # parse the arguments and deal with errors
         try:
@@ -198,9 +218,9 @@ class CommandClass:
                 arg_string,
                 exc.message,
             )
-            return False, args, fail_message
+            return ParsedArgs(False, args, fail_message)
 
-        return True, args, ""
+        return ParsedArgs(True, args, [])
 
     def format_return_message(self, message):
         """Format a return message.
