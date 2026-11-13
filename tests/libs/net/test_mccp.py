@@ -54,12 +54,12 @@ def _seen(link: str) -> set[tuple[str, str, str, bytes]]:
 # MUD link ----------------------------------------------------------------
 
 
-async def _connect(port: int) -> tuple[Any, Any]:
+async def _connect(port: int, client_factory: Any = MudTelnetClient) -> tuple[Any, Any]:
     return await asyncio.wait_for(
         open_connection(
             "127.0.0.1",
             port,
-            client_factory=MudTelnetClient,
+            client_factory=client_factory,
             compression=True,
             connect_maxwait=0.3,
             encoding="utf8",
@@ -67,6 +67,23 @@ async def _connect(port: int) -> tuple[Any, Any]:
         ),
         TIMEOUT,
     )
+
+
+async def _connect_keeping_protocol(port: int) -> tuple[Any, Any, MudTelnetClient]:
+    """Connect and return the protocol the factory made, not ``writer.protocol``.
+
+    A link the mud breaks can close before ``open_connection`` returns, and then
+    ``writer.protocol`` is already None (#448).
+    """
+    made: list[MudTelnetClient] = []
+
+    def factory(**kwargs: Any) -> MudTelnetClient:
+        client = MudTelnetClient(**kwargs)
+        made.append(client)
+        return client
+
+    reader, writer = await _connect(port, factory)
+    return reader, writer, made[0]
 
 
 async def _lines(reader: Any, count: int) -> list[MudLine]:
@@ -191,8 +208,7 @@ async def test_mud_broken_stream_closes_the_link(caplog: pytest.LogCaptureFixtur
 
     caplog.set_level(logging.ERROR)
     async with scripted_mud(_offer_m2(script)) as mud:
-        reader, writer = await _connect(mud.port)
-        protocol = writer.protocol
+        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
         got = await _lines(reader, 2)
         await asyncio.sleep(0.4)
         eof = reader.at_eof()
@@ -223,8 +239,7 @@ async def test_mud_chunk_over_the_inflation_limit_closes_the_link(
 
     caplog.set_level(logging.ERROR)
     async with scripted_mud(_offer_m2(script)) as mud:
-        reader, writer = await _connect(mud.port)
-        protocol = writer.protocol
+        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
         got = await _lines(reader, 2)
         await asyncio.sleep(0.4)
         eof = reader.at_eof()
@@ -267,14 +282,30 @@ async def test_mud_raw_deflate_on_first_chunk_decodes() -> None:
     assert got[0].text == "raw\r\n"
 
 
+async def test_connect_keeping_protocol_outlives_writer_protocol() -> None:
+    """The helper's protocol is the factory's instance and survives the close (#448)."""
+
+    async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
+        w.write(START2 + b"\x00\xff\x13garbagegarbage")
+        await w.drain()
+
+    async with scripted_mud(_offer_m2(script)) as mud:
+        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
+        await _lines(reader, 1)
+        writer.close()
+        await asyncio.sleep(0.1)
+    assert isinstance(protocol, MudTelnetClient)
+    assert writer.protocol is None
+    assert protocol.mccp2_failed is True
+
+
 async def test_mud_garbage_on_first_chunk_closes_the_link() -> None:
     async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
         w.write(START2 + b"\x00\xff\x13garbagegarbage")
         await w.drain()
 
     async with scripted_mud(_offer_m2(script)) as mud:
-        reader, writer = await _connect(mud.port)
-        protocol = writer.protocol
+        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
         got = await _lines(reader, 1)
         writer.close()
     assert got[0].text == ""
