@@ -67,7 +67,7 @@ def plugin_env(
     """Return a loader stub with one discovered throwaway plugin and its root."""
     _write_plugin(tmp_path, "v7")
     monkeypatch.syspath_prepend(str(tmp_path))
-    _, found, _ = imputils.find_packages_and_plugins(tmp_path / ROOT_PKG, f"{ROOT_PKG}.")
+    found = imputils.find_packages_and_plugins(tmp_path / ROOT_PKG, f"{ROOT_PKG}.").plugins
     assert [p["plugin_id"] for p in found] == [PACKAGE]
 
     plugin_info = PluginInfo(plugin_id=PLUGIN_ID)

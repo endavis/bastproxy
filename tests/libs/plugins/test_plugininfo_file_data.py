@@ -38,7 +38,7 @@ def _spy(info: PluginInfo) -> list[str]:
     calls: list[str] = []
     real = info.check_file_is_valid_python_code
 
-    def wrapper(file: Path) -> tuple[bool, Exception | None]:
+    def wrapper(file: Path) -> Exception | None:
         calls.append(str(file.relative_to(info.package_path).as_posix()))
         return real(file)
 

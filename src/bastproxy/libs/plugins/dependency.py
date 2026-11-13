@@ -15,6 +15,7 @@ The resolver is pure: it does no logging and never exits. Callers log the failur
 it returns.
 
 Classes:
+    - `DependencyResolution`: the load order and failures `resolve` returns.
     - `PluginDependencyResolver`: orders plugins and finds dependents.
     - `CircularDependencyError`: a dependency cycle, carrying the cycle path.
 
@@ -22,6 +23,7 @@ Classes:
 
 # Standard Library
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 # 3rd Party
@@ -39,6 +41,20 @@ class CircularDependencyError(PluginDependencyError):
         """Store the cycle path (first and last entries are the same plugin)."""
         self.cycle = cycle
         super().__init__(f"Circular dependency detected: {' -> '.join(cycle)}")
+
+
+@dataclass(slots=True)
+class DependencyResolution:
+    """The outcome of resolving plugin dependencies.
+
+    Attributes:
+        order: The plugins that can be loaded, in load order.
+        failed: Each failed plugin mapped to the error explaining why.
+
+    """
+
+    order: list[str] = field(default_factory=list)
+    failed: dict[str, PluginDependencyError] = field(default_factory=dict)
 
 
 class PluginDependencyResolver:
@@ -60,9 +76,7 @@ class PluginDependencyResolver:
         self.plugins_info = plugins_info
         self.loaded: set[str] = set(loaded or [])
 
-    def resolve(
-        self, plugin_ids: Iterable[str]
-    ) -> tuple[list[str], dict[str, PluginDependencyError]]:
+    def resolve(self, plugin_ids: Iterable[str]) -> DependencyResolution:
         """Order plugins so that dependencies come before their dependents.
 
         Dependencies that are not in ``plugin_ids`` and not loaded are pulled into
@@ -73,12 +87,14 @@ class PluginDependencyResolver:
             plugin_ids: The plugin IDs to order.
 
         Returns:
-            ``(order, failed)``: the plugins that can be loaded, in load order, and
-            a map of each failed plugin to the error explaining why.
+            A `DependencyResolution`: ``order`` holds the plugins that can be loaded,
+            in load order, and ``failed`` maps each failed plugin to the error
+            explaining why.
 
         """
-        order: list[str] = []
-        failed: dict[str, PluginDependencyError] = {}
+        result = DependencyResolution()
+        order = result.order
+        failed = result.failed
         done: set[str] = set()
         stack: list[str] = []
 
@@ -120,7 +136,7 @@ class PluginDependencyResolver:
         for plugin_id in plugin_ids:
             visit(plugin_id)
 
-        return order, failed
+        return result
 
     def dependents_of(self, plugin_id: str, candidates: Iterable[str]) -> list[str]:
         """Return the plugins among ``candidates`` that depend on ``plugin_id``.

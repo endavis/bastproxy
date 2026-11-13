@@ -110,7 +110,7 @@ def test_failed_load_cleanup_keeps_canreload_false_module(
     (plugin_dir / "plugin" / "_keep.py").write_text("CANRELOAD = False\n")
 
     monkeypatch.syspath_prepend(str(tmp_path))
-    _, found, _ = imputils.find_packages_and_plugins(tmp_path / root_pkg, f"{root_pkg}.")
+    found = imputils.find_packages_and_plugins(tmp_path / root_pkg, f"{root_pkg}.").plugins
     info = PluginInfo(plugin_id=package)
     info.package_init_file_path = found[0]["package_init_file_path"]
     info.package_path = found[0]["package_path"]

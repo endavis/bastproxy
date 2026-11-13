@@ -44,7 +44,6 @@ import weakref
 from collections.abc import KeysView
 from functools import partial
 from pathlib import Path
-from typing import Any
 
 # 3rd Party
 # Project
@@ -490,7 +489,7 @@ class PluginLoader:
 
         return False
 
-    def _discover_plugins(self) -> tuple[list[dict[str, Any]], dict[str, tuple]]:
+    def _discover_plugins(self) -> imputils.DiscoveryResult:
         """Search every plugin search path and return the plugins and import errors.
 
         Plugin IDs are rewritten from the import location with the search path's
@@ -498,11 +497,11 @@ class PluginLoader:
         refused with an error log and the bundled plugin is kept.
 
         Returns:
-            The discovered plugins and a dict of import errors by package name.
+            A `DiscoveryResult` with the discovered plugins, the packages found and
+            the import errors by package name.
 
         """
-        plugins: list[dict[str, Any]] = []
-        errors: dict[str, tuple] = {}
+        result = imputils.DiscoveryResult()
         bundled_packages: set[str] = set()
         seen_ids: set[str] = set()
 
@@ -516,10 +515,11 @@ class PluginLoader:
                 search_path.mkdir(parents=True, exist_ok=True)
                 imputils.register_import_root(import_prefix.rstrip("."), search_path)
 
-            _, plug, err = imputils.find_packages_and_plugins(search_path, import_prefix)
-            errors.update(err)
+            scan = imputils.find_packages_and_plugins(search_path, import_prefix)
+            result.errors.update(scan.errors)
+            result.packages.extend(scan.packages)
 
-            for p in plug:
+            for p in scan.plugins:
                 plugin_id = id_prefix + p["package_import_location"].removeprefix(import_prefix)
                 p["plugin_id"] = plugin_id
                 package = plugin_id.rsplit(".", 1)[0]
@@ -533,9 +533,9 @@ class PluginLoader:
                 seen_ids.add(plugin_id)
                 if not is_user:
                     bundled_packages.add(package)
-                plugins.append(p)
+                result.plugins.append(p)
 
-        return plugins, errors
+        return result
 
     def update_all_plugin_information(self) -> None:
         """Update all plugin information.
@@ -557,7 +557,9 @@ class PluginLoader:
         """
         logger.info("Read all plugin information")
 
-        plugins, errors = self._discover_plugins()
+        discovered = self._discover_plugins()
+        plugins = discovered.plugins
+        errors = discovered.errors
 
         logger.info(
             "Found %s total plugins from %s",
@@ -849,15 +851,15 @@ class PluginLoader:
                 if info.runtime_info.is_loaded
             ],
         )
-        load_order, failed_plugins = resolver.resolve(plugins_not_loaded)
-        for plugin_id, error in failed_plugins.items():
+        resolution = resolver.resolve(plugins_not_loaded)
+        for plugin_id, error in resolution.failed.items():
             log_to(
                 [__name__, plugin_id], logging.ERROR, "%-30s : not loading, %s", plugin_id, error
             )
             if plugin_id not in bad_plugins:
                 bad_plugins.append(plugin_id)
 
-        plugins_not_loaded = load_order
+        plugins_not_loaded = resolution.order
 
         # import bastproxy.plugins
         for plugin_id in plugins_not_loaded:
@@ -901,7 +903,7 @@ class PluginLoader:
         #   their initialize method did not run
         #   could not be instantiated
         #   had a dependency that failed
-        for plugin_id in [*load_order, *failed_plugins, *known_plugins]:
+        for plugin_id in [*resolution.order, *resolution.failed, *known_plugins]:
             plugin_info = self.plugins_info.get(plugin_id)
             if plugin_info is None or plugin_id in already_loaded_plugins:
                 continue
@@ -994,9 +996,13 @@ class PluginLoader:
                 return False
 
         # unload furthest dependent first
-        unload_order, _ = PluginDependencyResolver(
-            self.plugins_info, [pid for pid in loaded if pid not in to_reload]
-        ).resolve(to_reload)
+        unload_order = (
+            PluginDependencyResolver(
+                self.plugins_info, [pid for pid in loaded if pid not in to_reload]
+            )
+            .resolve(to_reload)
+            .order
+        )
         pluginstoload = self.api("plugins.core.settings:setting.get")(
             "plugins.core.pluginm", "pluginstoload"
         )

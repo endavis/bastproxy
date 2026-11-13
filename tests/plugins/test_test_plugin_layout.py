@@ -34,10 +34,9 @@ PREFIX = "bastproxy.plugins."
 LAYOUT_PLUGINS = ["test.cmddec", "test._sqldb", "test.exception"]
 
 
-def _discover() -> tuple[list[dict[str, Any]], dict[str, tuple]]:
+def _discover() -> imputils.DiscoveryResult:
     """Discover the bundled plugins the way the loader does."""
-    _, plugins, errors = imputils.find_packages_and_plugins(PLUGINS_DIR, PREFIX)
-    return plugins, errors
+    return imputils.find_packages_and_plugins(PLUGINS_DIR, PREFIX)
 
 
 def _info_for(plugin: dict[str, Any]) -> PluginInfo:
@@ -51,7 +50,7 @@ def _info_for(plugin: dict[str, Any]) -> PluginInfo:
 
 
 def _by_suffix(suffix: str) -> dict[str, Any]:
-    plugins, _ = _discover()
+    plugins = _discover().plugins
     matches = [p for p in plugins if p["package_import_location"] == PREFIX + suffix]
     assert matches, f"{suffix} was not discovered as a plugin"
     return matches[0]
@@ -59,13 +58,13 @@ def _by_suffix(suffix: str) -> dict[str, Any]:
 
 def test_discovery_has_no_import_errors() -> None:
     """Plugin discovery reports no import errors."""
-    _, errors = _discover()
+    errors = _discover().errors
     assert errors == {}
 
 
 def test_every_plugin_imports_from_plugin_subpackage() -> None:
     """Each discovered plugin's ``.plugin`` module imports and exposes ``Plugin``."""
-    plugins, _ = _discover()
+    plugins = _discover().plugins
     assert plugins
     failures: list[str] = []
     for plugin in plugins:

@@ -83,7 +83,7 @@ def _plugin_modules() -> list[str]:
 
 def _make_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     monkeypatch.syspath_prepend(str(root))
-    _, found, _ = imputils.find_packages_and_plugins(root / ROOT_PKG, f"{ROOT_PKG}.")
+    found = imputils.find_packages_and_plugins(root / ROOT_PKG, f"{ROOT_PKG}.").plugins
     assert [p["plugin_id"] for p in found] == [PACKAGE]
 
     plugin_info = PluginInfo(plugin_id=PLUGIN_ID)
