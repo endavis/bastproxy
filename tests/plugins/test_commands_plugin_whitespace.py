@@ -4,7 +4,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
-from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
 
 class _Record(dict):
@@ -57,7 +57,7 @@ def test_indented_command_is_parsed_like_unindented() -> None:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.commands"
     stub.api = lambda name: lambda: record
-    stub.find_command.return_value = (None, "", False, "", [])
+    stub.find_command.return_value = CommandLookup(None, "", False, "", [])
 
     CommandsPlugin.run_internal_command_from_event(stub)
 

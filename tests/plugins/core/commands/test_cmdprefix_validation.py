@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.plugins.core.commands.plugin._commands import (
+    CommandSplit,
     CommandsPlugin,
     validate_cmdprefix,
 )
@@ -21,7 +22,7 @@ def test_invalid_prefix(value: str) -> None:
     assert validate_cmdprefix(value) != ""
 
 
-def _split(prefix: str, command: str) -> tuple[Any, list[str], MagicMock]:
+def _split(prefix: str, command: str) -> tuple[CommandSplit, list[str], MagicMock]:
     seen = MagicMock(return_value=("plugins.core", "commands"))
 
     def api(name: str) -> Any:
@@ -35,13 +36,13 @@ def _split(prefix: str, command: str) -> tuple[Any, list[str], MagicMock]:
     stub.plugin_id = "plugins.core.commands"
     stub.api = api
     result = CommandsPlugin.find_command_split_command_string(stub, command)
-    return result, result[4], seen
+    return result, result.parts, seen
 
 
 def test_split_strips_prefix_before_splitting() -> None:
     result, split, seen = _split("#bp", "#bp.core.commands.list arg")
     assert split == ["core", "commands", "list"]
-    assert result[5] == "arg"
+    assert result.args == "arg"
     seen.assert_called_once_with("core.commands", active_only=True)
 
 

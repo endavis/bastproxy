@@ -72,8 +72,8 @@ class CommandClass:
         self.stats = CommandStats()         # error_count, last_error, last_error_time
 ```
 
-`show_in_history` decides whether the command line is recorded in the history: `find_command` returns it as its
-third value. `format` and `preamble` are honoured when a command runs from client input (CM-2): `format=False`
+`show_in_history` decides whether the command line is recorded in the history: `find_command` returns it as the
+`show_in_history` field of its `CommandLookup`. `format` and `preamble` are honoured when a command runs from client input (CM-2): `format=False`
 returns the output unframed, and `preamble=False` drops the `Begin Command`, start time, finish time and
 `End Command` lines.
 

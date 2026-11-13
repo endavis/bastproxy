@@ -10,7 +10,7 @@ import pytest
 from bastproxy.libs import argp
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
-from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
 PID = "plugins.test.a"
 
@@ -173,7 +173,7 @@ def test_detail_command_found() -> None:
     stub, captured = _detail_stub("a.b.x")
     cmd = _make(lambda: True)
     cmd.full_cmd = "#bp.a.b.x"
-    stub.find_command.return_value = (cmd, "", False, "", [])
+    stub.find_command.return_value = CommandLookup(cmd, "", False, "", [])
     stub.command_detail_data.return_value = [{"item": "i", "value": "v"}]
     result = CommandsPlugin._command_detail(stub)
     assert result == (True, ["table"])
@@ -183,7 +183,7 @@ def test_detail_command_found() -> None:
 
 def test_detail_command_not_found() -> None:
     stub, _ = _detail_stub("nope")
-    stub.find_command.return_value = (None, "", False, "", ["not found"])
+    stub.find_command.return_value = CommandLookup(None, "", False, "", ["not found"])
     assert CommandsPlugin._command_detail(stub) == (True, ["not found"])
 
 

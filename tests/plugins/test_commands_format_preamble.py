@@ -10,7 +10,7 @@ from bastproxy.libs import argp
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass
 from bastproxy.plugins.core.commands.plugin import _commands
-from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
 PID = "plugins.test.a"
 
@@ -88,7 +88,7 @@ def test_run_internal_command_passes_command_format(
     stub = MagicMock()
     stub.plugin_id = "plugins.core.commands"
     stub.api = lambda name: lambda: record
-    stub.find_command.return_value = (command_item, "", True, "", [])
+    stub.find_command.return_value = CommandLookup(command_item, "", True, "", [])
 
     CommandsPlugin.run_internal_command_from_event(stub)
 
