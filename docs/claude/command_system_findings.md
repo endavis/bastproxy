@@ -164,7 +164,7 @@ flat files under `tests/plugins/`.
    `pass_through_command_from_event`.
 4. `run_internal_command_from_event` sets `line.send = False` before anything else, calls `find_command` on
    the left-stripped text, sends any help or error page to the client, sets `event_record["showinhistory"]`
-   from `find_command`'s third value, and runs the command with the command's own `format` option.
+   from `find_command`'s `show_in_history` field, and runs the command with the command's own `format` option.
 5. The caller adds the line to the history if `showinhistory` is true and the line is not internal, and
    `SendDataDirectlyToMud` sends the lines whose `send` is still true.
 
@@ -309,7 +309,7 @@ in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
 - **What is recorded.** `_eventcb_check_for_command` adds the line when `event_record["showinhistory"]` is true
   and the line is not internal. `showinhistory` starts as the `show_in_history` of the `ProcessDataToMud`
   (True for client input; a record built with `show_in_history=False` was not recorded), and
-  `run_internal_command_from_event` then overwrites it with the third value of `find_command`. That value is
+  `run_internal_command_from_event` then overwrites it with the `show_in_history` field of `find_command`'s result. That value is
   `True` for every command that is found and `False` for a help or error page. So `#bp.core.commands.list`,
   whose command says `show_in_history=False`, was recorded, and `#bp.nope.x` was not (CM-1).
 - **The flag leaked to the next line (fixed in #390).** Before the fix, after an unknown `#bp` command, the lines after it in the same input

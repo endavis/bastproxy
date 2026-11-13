@@ -11,7 +11,7 @@ from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass
 from bastproxy.plugins.core.commands.plugin import _commands
-from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
 
 class _Record(dict):
@@ -94,7 +94,7 @@ def test_send_failure_is_contained(monkeypatch: pytest.MonkeyPatch) -> None:
     stub, _ = _stub()
     command = MagicMock()
     command.run.return_value = (True, ["hi"], "command ran successfully")
-    stub.find_command.return_value = (command, "", True, "", [])
+    stub.find_command.return_value = CommandLookup(command, "", True, "", [])
 
     def boom(data: Any, clients: Any = None) -> Any:
         raise RuntimeError("send failed")
@@ -163,7 +163,7 @@ def test_run_finish_str_message_is_one_line() -> None:
 def test_str_find_command_message_is_one_line(sent: list[Any]) -> None:
     """A str message from find_command is sent as one line."""
     stub, _ = _stub()
-    stub.find_command.return_value = (None, "", False, "", "Bad Plugin")
+    stub.find_command.return_value = CommandLookup(None, "", False, "", "Bad Plugin")
 
     CommandsPlugin.run_internal_command_from_event(stub)
 

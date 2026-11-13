@@ -5,7 +5,11 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
-from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.commands.plugin._commands import (
+    CommandLookup,
+    CommandSplit,
+    CommandsPlugin,
+)
 
 
 class _Record(dict):
@@ -34,7 +38,7 @@ def _stub() -> MagicMock:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.commands"
     stub.api = api
-    stub.find_command_split_command_string.side_effect = lambda s: (
+    stub.find_command_split_command_string.side_effect = lambda s: CommandSplit(
         True,
         "pkg",
         "pkg.p",
@@ -48,17 +52,17 @@ def _stub() -> MagicMock:
 
 def test_find_command_false_for_hidden_command() -> None:
     """A command with show_in_history=False is reported as not shown."""
-    assert CommandsPlugin.find_command(_stub(), "nohist")[2] is False
+    assert CommandsPlugin.find_command(_stub(), "nohist").show_in_history is False
 
 
 def test_find_command_true_for_shown_command() -> None:
     """A command with show_in_history=True is reported as shown."""
-    assert CommandsPlugin.find_command(_stub(), "hist")[2] is True
+    assert CommandsPlugin.find_command(_stub(), "hist").show_in_history is True
 
 
 def test_find_command_unknown_command_false() -> None:
     """An unknown command is not shown in history."""
-    assert CommandsPlugin.find_command(_stub(), "nope")[2] is False
+    assert CommandsPlugin.find_command(_stub(), "nope").show_in_history is False
 
 
 def test_run_internal_command_sets_showinhistory() -> None:
@@ -68,7 +72,7 @@ def test_run_internal_command_sets_showinhistory() -> None:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.commands"
     stub.api = lambda name: lambda: record
-    stub.find_command.return_value = (None, "", False, "", [])
+    stub.find_command.return_value = CommandLookup(None, "", False, "", [])
 
     CommandsPlugin.run_internal_command_from_event(stub)
 

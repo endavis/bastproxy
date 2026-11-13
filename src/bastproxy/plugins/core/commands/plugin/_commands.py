@@ -48,6 +48,29 @@ def validate_cmdprefix(value: str) -> str:
     return ""
 
 
+@dataclasses.dataclass(slots=True)
+class CommandSplit:
+    """The parts of a command string, from `find_command_split_command_string`."""
+
+    found: bool
+    package: str
+    plugin: str
+    error: str  # "", "Bad Plugin" or "Bad Package"
+    parts: list[str]
+    args: str
+
+
+@dataclasses.dataclass(slots=True)
+class CommandLookup:
+    """The result of `find_command`."""
+
+    command: CommandClass | None
+    args: str
+    show_in_history: bool
+    notes: str
+    message: list[str] | str
+
+
 class CommandsPlugin(BasePlugin):
     """a class to manage internal commands."""
 
@@ -935,9 +958,7 @@ class CommandsPlugin(BasePlugin):
         ]
         return self.proxy_help("Proxy Help", "", message)
 
-    def find_command(
-        self, command_line: str
-    ) -> tuple[CommandClass | None, str, bool, str, list[str]]:
+    def find_command(self, command_line: str) -> CommandLookup:
         """Find a command from the client."""
         message: list[str] = []
         get_logger(self.plugin_id).debug("find_command: %s", command_line)
@@ -954,31 +975,31 @@ class CommandsPlugin(BasePlugin):
             f"{commandprefix}.plugins",
             f"{commandprefix}.plugins.",
         ]:
-            return None, "", False, "Proxy Help", self.find_command_only_prefix()
+            return CommandLookup(None, "", False, "Proxy Help", self.find_command_only_prefix())
 
         # split the string into the command and the command_args
-        found, new_package, new_plugin, tmessage, command_split, command_args = (
-            self.find_command_split_command_string(command_str)
+        split = self.find_command_split_command_string(command_str)
+
+        if not split.found:
+            if split.error == "Bad Package":
+                # did not get a package, so output the list of packages
+                output = self.error_package_not_found(split.parts[0])
+                return CommandLookup(None, "", False, command_str, output)
+            if split.error == "Bad Plugin":
+                # did not get a plugin, so output the list of plugins in the package
+                output = self.error_plugin_not_found(split.parts[1], split.package)
+                return CommandLookup(None, "", False, command_str, output)
+
+        get_logger(self.plugin_id).debug(
+            "%s %s %s %s", split.found, split.package, split.plugin, split.error
         )
 
-        if not found:
-            if tmessage == "Bad Package":
-                # did not get a package, so output the list of packages
-                output = self.error_package_not_found(command_split[0])
-                return None, "", False, command_str, output
-            if tmessage == "Bad Plugin":
-                # did not get a plugin, so output the list of plugins in the package
-                output = self.error_plugin_not_found(command_split[1], new_package)
-                return None, "", False, command_str, output
-
-        get_logger(self.plugin_id).debug("%s %s %s %s", found, new_package, new_plugin, tmessage)
-
         # get all the pieces of the command
-        temp_package = command_split[0]
+        temp_package = split.parts[0]
         get_logger(self.plugin_id).debug("temp_package=%r", temp_package)
-        temp_command = command_split[2] if len(command_split) > 2 else ""
+        temp_command = split.parts[2] if len(split.parts) > 2 else ""
         # try and find the command
-        command_data = self.api(f"{self.plugin_id}:command.data.get")(new_plugin)
+        command_data = self.api(f"{self.plugin_id}:command.data.get")(split.plugin)
         command_list = list(command_data.keys())
         get_logger(self.plugin_id).debug("command_list=%r", command_list)
         get_logger(self.plugin_id).debug("temp_command=%r", temp_command)
@@ -989,23 +1010,21 @@ class CommandsPlugin(BasePlugin):
 
         if not new_command:
             # did not get a command, so output the list of commands in the plugin
-            output = self.error_command_not_found_in_plugin(new_plugin, temp_command)
-            return None, "", False, command_str, output
+            output = self.error_command_not_found_in_plugin(split.plugin, temp_command)
+            return CommandLookup(None, "", False, command_str, output)
 
         # got it all
         command_item = command_data[new_command]
 
-        return (
+        return CommandLookup(
             command_item,
-            command_args,
+            split.args,
             command_item.show_in_history,
             f"found {command_item.full_cmd}",
             message,
         )
 
-    def find_command_split_command_string(
-        self, command_str: str
-    ) -> tuple[bool, str, str, str, list, str]:
+    def find_command_split_command_string(self, command_str: str) -> CommandSplit:
         """Split a command string into its parts."""
         commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
 
@@ -1050,7 +1069,7 @@ class CommandsPlugin(BasePlugin):
             tmessage = "Bad Package"
             found = False
 
-        return found, new_package, new_plugin, tmessage, command_split, command_args
+        return CommandSplit(found, new_package, new_plugin, tmessage, command_split, command_args)
 
     @staticmethod
     def _command_token(event_record: Any) -> str:
@@ -1085,9 +1104,12 @@ class CommandsPlugin(BasePlugin):
         try:
             # leading whitespace is kept on the line for the MUD (#52), but a proxy
             # command is parsed from the left-stripped text
-            command_item, command_args, show_in_history, notes, message = self.find_command(
-                event_record["line"].line.lstrip()
-            )
+            lookup = self.find_command(event_record["line"].line.lstrip())
+            command_item = lookup.command
+            command_args = lookup.args
+            show_in_history = lookup.show_in_history
+            notes = lookup.notes
+            message = lookup.message
 
             if message:
                 if isinstance(message, str):
@@ -1445,9 +1467,10 @@ class CommandsPlugin(BasePlugin):
         if not args["command"]:
             return False, []
 
-        command_item, _, _, _, message = self.find_command(args["command"])
+        lookup = self.find_command(args["command"])
+        command_item = lookup.command
         if command_item is None:
-            return True, message
+            return True, lookup.message
 
         columns = [
             {"name": "Item", "key": "item", "width": 20},
