@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "bastproxy"
@@ -46,12 +48,13 @@ class _Stub(BasePlugin):
     def _phook_stub_after_load(self) -> None:
         self.calls.append("after_load")
 
-    @RegisterPluginHook("initialize")
-    def _phook_stub_old_name(self) -> None:
-        self.calls.append("initialize")
-
 
 def test_initialize_runs_after_load_hooks_only() -> None:
     stub = _Stub()
     stub.initialize()
     assert stub.calls == ["after_load"]
+
+
+def test_registering_the_old_initialize_name_raises() -> None:
+    with pytest.raises(ValueError, match="after_load"):
+        RegisterPluginHook("initialize")

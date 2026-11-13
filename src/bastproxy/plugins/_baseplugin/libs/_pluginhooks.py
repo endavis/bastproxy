@@ -14,6 +14,23 @@ points in the plugins lifecycle.
 
 # Project
 
+VALID_HOOK_NAMES: tuple[str, ...] = ("__init__", "after_load", "save", "uninitialize")
+
+
+def validate_hook_name(hook_name: str) -> None:
+    """Raise ValueError unless hook_name is one of VALID_HOOK_NAMES.
+
+    A misspelled name used to register and never run (#446).
+    """
+    if hook_name in VALID_HOOK_NAMES:
+        return
+    message = (
+        f"unknown plugin hook name {hook_name!r}; valid hooks are: {', '.join(VALID_HOOK_NAMES)}"
+    )
+    if hook_name == "initialize":
+        message += " ('initialize' was renamed to 'after_load', #423)"
+    raise ValueError(message)
+
 
 class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
@@ -25,7 +42,10 @@ class RegisterPluginHook:
 
         hook_name: the hook to register to
         priority: the priority to register the function with (default: 50)
+
+        Raises ValueError for a hook name not in VALID_HOOK_NAMES.
         """
+        validate_hook_name(hook_name)
         self.hook_name = hook_name
         self.priority = priority
 
