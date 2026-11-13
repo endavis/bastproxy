@@ -32,7 +32,7 @@ def _format_record_logs(record_uuid: str) -> list[str]:
 class RecordPlugin(BasePlugin):
     """a plugin to inspect records."""
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the instance."""
         self.api("plugins.core.settings:setting.add")(

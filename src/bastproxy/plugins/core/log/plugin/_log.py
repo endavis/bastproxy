@@ -63,7 +63,7 @@ class LogPlugin(BasePlugin):
             for name in list(self.handlers[handler]):
                 self._sync_threshold(name)
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(

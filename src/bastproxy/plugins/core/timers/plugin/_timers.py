@@ -148,7 +148,7 @@ class TimersPlugin(BasePlugin):
         self.overall_fire_count: int = 0
         self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.UTC)
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         get_logger(self.plugin_id).debug("initialize - lasttime:  %s", self.time_last_checked)

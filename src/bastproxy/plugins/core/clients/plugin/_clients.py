@@ -65,7 +65,7 @@ class ClientPlugin(BasePlugin):
         self.clients: dict[str, ClientConnection] = {}
         self.banned: dict[str, BanRecord] = {}
 
-    @RegisterPluginHook("initialize")
+    @RegisterPluginHook("after_load")
     def _phook_initialize(self):
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(

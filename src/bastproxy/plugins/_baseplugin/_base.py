@@ -302,7 +302,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         return True, message
 
-    @RegisterPluginHook("initialize", priority=90)
+    @RegisterPluginHook("after_load", priority=90)
     def _phook_base_post_initialize_update_version(self):
         """Update plugin data.
 
@@ -341,7 +341,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
             self.api(f"{self.plugin_id}:plugin.state.save")()
 
-    @RegisterPluginHook("initialize", priority=91)
+    @RegisterPluginHook("after_load", priority=91)
     def _phook_base_post_initialize_setup(self):
         """Do something after the initialize function is run."""
         # add newly created api functions, this will happen if the plugin (in its
@@ -436,7 +436,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         """Uninitialize stuff."""
         self._process_plugin_hook("uninitialize")
 
-    @RegisterPluginHook("initialize", priority=1)
+    @RegisterPluginHook("after_load", priority=1)
     def _phook_base_initialize(self):
         """Initialize the plugin, do most things here."""
         self.api("plugins.core.settings:setting.add")(
@@ -455,7 +455,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         )
 
     def initialize(self):
-        self._process_plugin_hook("initialize")
+        self._process_plugin_hook("after_load")
 
     @AddAPI("plugin.state.save", "Save the state of the plugin")
     def _api_plugin_state_save(self):

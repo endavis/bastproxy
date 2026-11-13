@@ -220,7 +220,7 @@ There is no command that lists trigger groups.
 ### Simple Trigger
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Trigger on tells
     success, trigger = self.api("plugins.core.triggers:trigger.add")(
@@ -253,7 +253,7 @@ def handle_tell(self):
 ### Combat Tracker
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Track damage dealt
     self.api("plugins.core.triggers:trigger.add")(
@@ -300,7 +300,7 @@ def track_damage_taken(self):
 ### Gagging Lines
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Gag spam messages
     self.api("plugins.core.triggers:trigger.add")(
@@ -314,7 +314,7 @@ def _phook_initialize(self):
 ### Trigger Groups
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Create multiple related triggers
     triggers = [
@@ -345,7 +345,7 @@ def enable_quest_tracking(self, enabled):
 ### Stat Tracking
 
 ```python
-@RegisterPluginHook("initialize")
+@RegisterPluginHook("after_load")
 def _phook_initialize(self):
     # Track stat changes
     self.api("plugins.core.triggers:trigger.add")(
