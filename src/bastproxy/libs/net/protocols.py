@@ -249,15 +249,16 @@ class ProtocolManager:
             self._mxp_reset()
             return None
         start = self._mxp_current
-        tags, cap_current, _, cap_pending = mxp.scan_definitions(
+        scan = mxp.scan_definitions(
             text, self._mxp_capture_current, self._mxp_default, self._mxp_capture_pending
         )
-        self._mxp_store(tags)
-        current, default = mxp.scan_modes(text, start, self._mxp_default)
+        self._mxp_store(scan.tags)
+        modes = mxp.scan_modes(text, start, self._mxp_default)
+        default = modes.default
         self._mxp_default = default
-        self._mxp_current = default if ended else current
-        self._mxp_capture_current = default if ended else cap_current
-        self._mxp_capture_pending = False if ended else cap_pending
+        self._mxp_current = default if ended else modes.current
+        self._mxp_capture_current = default if ended else scan.current
+        self._mxp_capture_pending = False if ended else scan.pending
         return start
 
     def _mxp_drop(self, tag: str) -> None:

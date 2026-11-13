@@ -649,6 +649,6 @@ def test_a_secure_line_mode_still_carries_over_pieces() -> None:
 
 
 def test_scan_definitions_reports_a_pending_temp_secure_only_at_the_end() -> None:
-    assert mxp.scan_definitions(f"x{ESC}[4z", OP, OP)[3] is True
-    assert mxp.scan_definitions(f"{ESC}[4zx", OP, OP)[3] is False
-    assert mxp.scan_definitions(f"{ESC}[4z<!EL a>", OP, OP)[3] is False
+    assert mxp.scan_definitions(f"x{ESC}[4z", OP, OP).pending is True
+    assert mxp.scan_definitions(f"{ESC}[4zx", OP, OP).pending is False
+    assert mxp.scan_definitions(f"{ESC}[4z<!EL a>", OP, OP).pending is False
