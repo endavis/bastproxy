@@ -366,9 +366,9 @@ counts stayed in `saved_command_counts` (**verified**, `out-q2bbad.txt`).
 
 **Verified**, `out-q3.txt`; the client sees the lines shown.
 
-| What the command does | What the client gets | `run()` returns | Counted |
+| What the command does | What the client gets | `run()` returns (`CommandRunResult`: `success`, `message`, `reason`) | Counted |
 | :--- | :--- | :--- | :--- |
-| Raises `RuntimeError` | `Error running command: <cmd>`; ERROR log with traceback | `False`, reason `function returned False` | one error, `last_error` `RuntimeError: ...` |
+| Raises `RuntimeError` | `Error running command: <cmd>`; ERROR log with traceback | `success` `False`, `reason` `function raised an exception` | one error, `last_error` `RuntimeError: ...` |
 | Returns `(False, [msg])` | `msg`, a blank line, then the help | `False`, reason `function returned False` | a call, no error |
 | Returns `None` or a bare `True` | the frame, no lines | `True`, `command ran successfully` | a call |
 | Returns `(True, "hi")` | one line per character: `h`, `i` | `True` | a call |

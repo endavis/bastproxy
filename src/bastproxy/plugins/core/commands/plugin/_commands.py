@@ -629,7 +629,8 @@ class CommandsPlugin(BasePlugin):
             argument_string,
         )
         if command := self.get_command_data_from_plugin(plugin_id, command_name):
-            success, message, _ = command.run(argument_string, format)
+            result = command.run(argument_string, format)
+            success, message = result.success, result.message
             if not success:
                 log_to(
                     [self.plugin_id, plugin_id],
@@ -1135,7 +1136,9 @@ class CommandsPlugin(BasePlugin):
                     "found command %s.%s", command_item.plugin_id, command_item.name
                 )
 
-                success, message, error = command_item.run(command_args, format=command_item.format)
+                result = command_item.run(command_args, format=command_item.format)
+                success, error = result.success, result.reason
+                message = result.message
 
                 if success:
                     event_record.addupdate(

@@ -1,6 +1,7 @@
 """Regression tests for #398: commands reject unknown arguments and abbreviated options."""
 
 # Standard Library
+import argparse
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -46,17 +47,17 @@ def _parser(**kwargs: Any) -> argp.ArgumentParser:
 
 
 def test_unknown_option_is_rejected_with_help() -> None:
-    success, _, message = _command_with(_parser(), []).parse_args("--nope 1")
-    assert success is False
-    assert "unrecognized arguments" in message[0]
-    assert "--nope" in message[0]
-    assert any("--flag" in line for line in message[2:])
+    parsed = _command_with(_parser(), []).parse_args("--nope 1")
+    assert parsed.success is False
+    assert "unrecognized arguments" in parsed.message[0]
+    assert "--nope" in parsed.message[0]
+    assert any("--flag" in line for line in parsed.message[2:])
 
 
 def test_extra_positional_is_rejected() -> None:
-    success, _, message = _command_with(_parser(), []).parse_args("stray")
-    assert success is False
-    assert "unrecognized arguments: stray" in message[0]
+    parsed = _command_with(_parser(), []).parse_args("stray")
+    assert parsed.success is False
+    assert "unrecognized arguments: stray" in parsed.message[0]
 
 
 def test_unknown_option_does_not_run_function() -> None:
@@ -66,15 +67,16 @@ def test_unknown_option_does_not_run_function() -> None:
 
 
 def test_abbreviated_option_is_rejected_without_abbrev() -> None:
-    success, _, message = _command_with(_parser(allow_abbrev=False), []).parse_args("--fl y")
-    assert success is False
-    assert "--fl" in message[0]
+    parsed = _command_with(_parser(allow_abbrev=False), []).parse_args("--fl y")
+    assert parsed.success is False
+    assert "--fl" in parsed.message[0]
 
 
 def test_full_option_still_works() -> None:
-    success, args, _ = _command_with(_parser(allow_abbrev=False), []).parse_args("--flag y")
-    assert success is True
-    assert args.flag == "y"
+    parsed = _command_with(_parser(allow_abbrev=False), []).parse_args("--flag y")
+    assert parsed.success is True
+    assert isinstance(parsed.args, argparse.Namespace)
+    assert parsed.args.flag == "y"
 
 
 def test_registered_command_parser_disallows_abbreviations() -> None:

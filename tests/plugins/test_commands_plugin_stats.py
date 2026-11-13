@@ -57,7 +57,7 @@ def test_returning_false_is_not_an_error() -> None:
 
 def test_exception_is_recorded() -> None:
     cmd = _make(_raiser)
-    assert cmd.run("")[0] is False
+    assert cmd.run("").success is False
     assert cmd.stats.error_count == 1
     assert cmd.stats.last_error == "ValueError: boom"
     assert isinstance(cmd.stats.last_error, str)

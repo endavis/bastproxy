@@ -8,7 +8,7 @@ import pytest
 
 from bastproxy.libs import argp
 from bastproxy.plugins.core.commands.libs import _command
-from bastproxy.plugins.core.commands.libs._command import CommandClass
+from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandRunResult
 from bastproxy.plugins.core.commands.plugin import _commands
 from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
 
@@ -50,22 +50,20 @@ def _make(**kwargs: Any) -> CommandClass:
 
 
 def test_unformatted_run_returns_plain_messages() -> None:
-    success, message, _ = _make().run("", format=False)
-    assert success is True
-    assert message == ["hello"]
+    result = _make().run("", format=False)
+    assert result.success is True
+    assert result.message == ["hello"]
 
 
 def test_formatted_with_preamble_has_begin_and_end() -> None:
-    _, message, _ = _make(preamble=True).run("", format=True)
-    text = "\n".join(message)
+    text = "\n".join(_make(preamble=True).run("", format=True).message)
     assert "Begin Command" in text
     assert "End Command" in text
     assert "hello" in text
 
 
 def test_formatted_without_preamble_drops_begin_and_end() -> None:
-    _, message, _ = _make(preamble=False).run("", format=True)
-    text = "\n".join(message)
+    text = "\n".join(_make(preamble=False).run("", format=True).message)
     assert "Begin Command" not in text
     assert "End Command" not in text
     assert "hello" in text
@@ -84,7 +82,7 @@ def test_run_internal_command_passes_command_format(
     }[key]
     command_item = MagicMock()
     command_item.format = fmt
-    command_item.run.return_value = (True, [], "")
+    command_item.run.return_value = CommandRunResult(True, [], "")
     stub = MagicMock()
     stub.plugin_id = "plugins.core.commands"
     stub.api = lambda name: lambda: record
