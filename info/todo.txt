@@ -6,8 +6,6 @@
 # Finished and older items are in this file's git history (before the 2026-11-02 cleanup, #102).
 
 # UNSCOPED (file an issue once there is a concrete problem or design)
-    # TODO: create classes for structured items that are still dicts
-        watches, triggers, plugin stats (events and commands are done)
     # TODO: help plugin, for how to use the proxy as well as how to develop for it
         every plugin already has a help command, and docs/ covers development
     # TODO: separate line length for each client, from telnet negotiation (NAWS)
