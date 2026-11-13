@@ -81,12 +81,19 @@ class MUDCmdsPlugin(BasePlugin):
 
     @AddAPI("type.add", description="add a command type")
     def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
-        """Add a command type."""
-        owner = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
+        """Add a command type.
+
+        Optional keyword arguments:
+            owner: the plugin id that owns the type. Defaults to the calling
+                plugin, found with libs.api:caller.owner.get.
+            beforef: function to call before the command is sent
+            afterf: function to call after the command completes
+        """
+        owner = kwargs.get("owner") or self.api("libs.api:caller.owner.get")(
+            ignore_owner_list=[self.plugin_id]
+        )
         beforef = kwargs.get("beforef")
         afterf = kwargs.get("afterf")
-        if "plugin" in kwargs:
-            owner = kwargs["owner"]
         if cmdtype not in self.cmds:
             self.cmds[cmdtype] = {
                 "cmd": cmd,
