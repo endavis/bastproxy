@@ -8,6 +8,8 @@
 # Standard Library
 import logging
 import re
+from dataclasses import dataclass, field
+from typing import Any
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import echo_off_placeholder, get_logger, log_to
@@ -19,6 +21,19 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
+@dataclass(slots=True)
+class WatchItem:
+    """One registered watch: a compiled client-input regex and its hit count."""
+
+    name: str
+    regex: str
+    owner: str
+    event_name: str
+    compiled: re.Pattern[str]
+    hits: int = 0
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
 class WatchPlugin(BasePlugin):
     """a plugin to watch for commands coming from the client."""
 
@@ -27,8 +42,8 @@ class WatchPlugin(BasePlugin):
         """Initialize the instance."""
         self.can_reload_f = False
 
-        self.regex_lookup = {}
-        self.watch_data = {}
+        self.regex_lookup: dict[str, str] = {}
+        self.watch_data: dict[str, WatchItem] = {}
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self):
@@ -64,8 +79,8 @@ class WatchPlugin(BasePlugin):
         ]
         for watch_name in watches:
             watch = self.watch_data[watch_name]
-            if not match or match in watch_name or watch["owner"] == match:
-                message.append(template % (watch_name, watch["owner"], watch["hits"]))
+            if not match or match in watch_name or watch.owner == match:
+                message.append(template % (watch_name, watch.owner, watch.hits))
 
         return True, message
 
@@ -79,14 +94,14 @@ class WatchPlugin(BasePlugin):
             columnwidth = 13
             for watch in args["watch"]:
                 if watch in self.watch_data:
-                    event_name = self.watch_data[watch]["event_name"]
-                    watch_event = self.api("plugins.core.events:event.detail.get")(event_name)
+                    item = self.watch_data[watch]
+                    watch_event = self.api("plugins.core.events:event.detail.get")(item.event_name)
                     message.extend(
                         (
                             f"{'Name':<{columnwidth}} : {watch}",
-                            f"{'Defined in':<{columnwidth}} : {self.watch_data[watch]['owner']}",
-                            f"{'Regex':<{columnwidth}} : {self.watch_data[watch]['regex']}",
-                            f"{'Hits':<{columnwidth}} : {self.watch_data[watch]['hits']}",
+                            f"{'Defined in':<{columnwidth}} : {item.owner}",
+                            f"{'Regex':<{columnwidth}} : {item.regex}",
+                            f"{'Hits':<{columnwidth}} : {item.hits}",
                         )
                     )
                     message.extend(watch_event)
@@ -105,7 +120,7 @@ class WatchPlugin(BasePlugin):
         @Yregex@w    = the regular expression that matches this command
         @Yplugin@w   = the plugin this comes from
         @Ykeyword args@w arguments:
-          None as of now.
+          stored unchanged in the watch's `extra` dict.
 
         this function returns no values
         """
@@ -127,23 +142,9 @@ class WatchPlugin(BasePlugin):
                 self.regex_lookup[regex],
             )
             return
-        watch_args = kwargs.copy()
-        watch_args["regex"] = regex
-        watch_args["owner"] = owner
-        watch_args["eventname"] = f"watch_{watch_name}"
         try:
-            self.watch_data[watch_name] = watch_args
-            self.watch_data[watch_name]["hits"] = 0
-            self.watch_data[watch_name]["compiled"] = re.compile(watch_args["regex"])
-            self.regex_lookup[watch_args["regex"]] = watch_name
-            log_to(
-                [self.plugin_id, owner],
-                logging.DEBUG,
-                "_api_watch_add: watch %s added for %s",
-                watch_name,
-                owner,
-            )
-        except Exception:  # pylint: disable=broad-except
+            compiled = re.compile(regex)
+        except re.error:
             log_to(
                 [self.plugin_id, owner],
                 logging.ERROR,
@@ -152,12 +153,31 @@ class WatchPlugin(BasePlugin):
                 regex,
                 exc_info=True,
             )
+            return
+
+        item = WatchItem(
+            name=watch_name,
+            regex=regex,
+            owner=owner,
+            event_name=f"watch_{watch_name}",
+            compiled=compiled,
+            extra=dict(kwargs),
+        )
+        self.watch_data[watch_name] = item
+        self.regex_lookup[regex] = watch_name
+        log_to(
+            [self.plugin_id, owner],
+            logging.DEBUG,
+            "_api_watch_add: watch %s added for %s",
+            watch_name,
+            owner,
+        )
 
         # add the event so it can be tracked
         self.api("plugins.core.events:event.add")(
-            watch_args["eventname"],
-            watch_args["owner"],
-            description=[f"event for {watch_name} for {watch_args['regex']}"],
+            item.event_name,
+            item.owner,
+            description=[f"event for {watch_name} for {regex}"],
             arg_descriptions={
                 "matched": "The matched arguments from the regex",
                 "cmdname": "The command name that was matched",
@@ -175,10 +195,9 @@ class WatchPlugin(BasePlugin):
         this function returns no values
         """
         if watch_name in self.watch_data:
-            event = self.api("plugins.core.events:event.get")(
-                self.watch_data[watch_name]["eventname"]
-            )
-            plugin = self.watch_data[watch_name]["owner"]
+            item = self.watch_data[watch_name]
+            event = self.api("plugins.core.events:event.get")(item.event_name)
+            plugin = item.owner
             if event and not event.isempty() and not force:
                 log_to(
                     [self.plugin_id, plugin],
@@ -188,7 +207,7 @@ class WatchPlugin(BasePlugin):
                     plugin,
                 )
                 return False
-            del self.regex_lookup[self.watch_data[watch_name]["regex"]]
+            del self.regex_lookup[item.regex]
             del self.watch_data[watch_name]
             log_to(
                 [self.plugin_id, plugin],
@@ -217,9 +236,9 @@ class WatchPlugin(BasePlugin):
             "_api_watch_remove_for_plugin: removing watches for plugin %s",
             plugin,
         )
-        for i in list(self.watch_data):
-            if self.watch_data[i]["owner"] == plugin:
-                self.api(f"{self.plugin_id}:watch.remove")(i)
+        for name, item in list(self.watch_data.items()):
+            if item.owner == plugin:
+                self.api(f"{self.plugin_id}:watch.remove")(name)
 
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
     def _eventcb_check_command(self):
@@ -230,10 +249,9 @@ class WatchPlugin(BasePlugin):
         if not line.is_io:
             return
         client_data = line.line
-        for watch_name in self.watch_data:
-            cmdre = self.watch_data[watch_name]["compiled"]
-            if match_data := cmdre.match(client_data):
-                self.watch_data[watch_name]["hits"] = self.watch_data[watch_name]["hits"] + 1
+        for watch_name, item in self.watch_data.items():
+            if match_data := item.compiled.match(client_data):
+                item.hits += 1
                 match_args = {
                     "matched": match_data.groupdict(),
                     "cmdname": f"cmd_{watch_name}",
@@ -245,6 +263,4 @@ class WatchPlugin(BasePlugin):
                     echo_off_placeholder(client_data) if line.mask_log else client_data,
                     match_args["cmdname"],
                 )
-                self.api("plugins.core.events:event.raise")(
-                    self.watch_data[watch_name]["eventname"], event_args=match_args
-                )
+                self.api("plugins.core.events:event.raise")(item.event_name, event_args=match_args)
