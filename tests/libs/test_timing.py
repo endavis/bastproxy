@@ -18,7 +18,9 @@ import logging
 import time
 from unittest.mock import patch
 
-from bastproxy.libs.timing import Timing, duration
+import pytest
+
+from bastproxy.libs.timing import TimerRecord, Timing, duration
 
 
 # Helper function for testing the duration decorator
@@ -144,7 +146,7 @@ class TestTimerLifecycle:
         uid = timing._api_timing_start("custom_timer_name")
 
         assert uid in timing.timing
-        assert timing.timing[uid]["name"] == "custom_timer_name"
+        assert timing.timing[uid].name == "custom_timer_name"
 
     def test_start_timer_with_args(self) -> None:
         """Test starting a timer with arguments."""
@@ -154,7 +156,7 @@ class TestTimerLifecycle:
         uid = timing._api_timing_start("timer_with_args", args=test_args)
 
         assert uid in timing.timing
-        assert timing.timing[uid]["args"] == test_args
+        assert timing.timing[uid].args == test_args
 
     def test_finish_timer(self) -> None:
         """Test finishing a timer."""
@@ -299,9 +301,9 @@ class TestTimerData:
 
         uid = timing._api_timing_start("test_timer")
 
-        assert "start" in timing.timing[uid]
-        assert isinstance(timing.timing[uid]["start"], float)
-        assert timing.timing[uid]["start"] > 0
+        assert isinstance(timing.timing[uid], TimerRecord)
+        assert isinstance(timing.timing[uid].start, float)
+        assert timing.timing[uid].start > 0
 
     def test_timer_has_owner_id(self) -> None:
         """Test that started timers record owner ID."""
@@ -309,8 +311,8 @@ class TestTimerData:
 
         uid = timing._api_timing_start("test_timer")
 
-        assert "owner_id" in timing.timing[uid]
-        assert isinstance(timing.timing[uid]["owner_id"], str)
+        assert isinstance(timing.timing[uid], TimerRecord)
+        assert isinstance(timing.timing[uid].owner_id, str)
 
     def test_timer_stores_name(self) -> None:
         """Test that timer name is stored correctly."""
@@ -318,7 +320,7 @@ class TestTimerData:
 
         uid = timing._api_timing_start("my_custom_timer")
 
-        assert timing.timing[uid]["name"] == "my_custom_timer"
+        assert timing.timing[uid].name == "my_custom_timer"
 
     def test_timer_without_args(self) -> None:
         """Test that timers without args have None for args."""
@@ -326,7 +328,7 @@ class TestTimerData:
 
         uid = timing._api_timing_start("timer_no_args")
 
-        assert timing.timing[uid]["args"] is None
+        assert timing.timing[uid].args is None
 
     def test_elapsed_time_increases(self) -> None:
         """Test that elapsed time increases with longer execution."""
@@ -344,6 +346,41 @@ class TestTimerData:
         assert elapsed1 is not None
         assert elapsed2 is not None
         assert elapsed2 > elapsed1  # Slow timer should take longer
+
+
+class TestTimerRecord:
+    """Test the TimerRecord dataclass."""
+
+    def test_fields_and_default_args(self) -> None:
+        """A record keeps its fields and defaults args to None."""
+        record = TimerRecord(name="t", start=1.5, owner_id="owner")
+
+        assert (record.name, record.start, record.owner_id, record.args) == (
+            "t",
+            1.5,
+            "owner",
+            None,
+        )
+
+    def test_uses_slots(self) -> None:
+        """A record has no __dict__, so a misspelled field raises."""
+        record = TimerRecord(name="t", start=1.5, owner_id="owner")
+
+        assert not hasattr(record, "__dict__")
+        with pytest.raises(AttributeError):
+            record.not_a_field = "x"  # type: ignore[attr-defined]
+
+    def test_start_stores_a_timer_record(self) -> None:
+        """timing.start stores a TimerRecord with the given name and args."""
+        timing = Timing()
+
+        uid = timing._api_timing_start("rec_timer", args={"a": 1})
+
+        assert uid is not None
+        record = timing.timing[uid]
+        assert isinstance(record, TimerRecord)
+        assert record.name == "rec_timer"
+        assert record.args == {"a": 1}
 
 
 class TestDurationDecorator:

@@ -35,6 +35,7 @@ Classes:
 # Standard Library
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import wraps
 from timeit import default_timer
 from typing import Any
@@ -48,6 +49,16 @@ from bastproxy.libs.logger import log_to
 
 API_OWNER = "libs.timing"
 API = BASEAPI(owner_id=API_OWNER)
+
+
+@dataclass(slots=True)
+class TimerRecord:
+    """One running timer: its name, start time, owning caller and arguments."""
+
+    name: str
+    start: float
+    owner_id: str
+    args: Any = None
 
 
 def duration(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -121,7 +132,7 @@ class Timing:
         self.api: BASEAPI = API
         self.enabled: bool = True
 
-        self.timing: dict[str, Any] = {}
+        self.timing: dict[str, TimerRecord] = {}
 
         self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
@@ -167,12 +178,12 @@ class Timing:
         uid = uuid4().hex
         if self.enabled:
             owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.api.owner_id])
-            self.timing[uid] = {
-                "name": timername,
-                "start": default_timer(),
-                "owner_id": owner_id,
-                "args": args,
-            }
+            self.timing[uid] = TimerRecord(
+                name=timername,
+                start=default_timer(),
+                owner_id=owner_id,
+                args=args,
+            )
             log_to(
                 [__name__, owner_id],
                 logging.DEBUG,
@@ -214,11 +225,11 @@ class Timing:
             timer = self.timing.pop(uid)
             if not self.enabled:
                 return None
-            timername = timer["name"]
-            time_taken = (timerfinish - timer["start"]) * 1000.0
-            if args := timer["args"]:
+            timername = timer.name
+            time_taken = (timerfinish - timer.start) * 1000.0
+            if args := timer.args:
                 log_to(
-                    [__name__, timer["owner_id"]],
+                    [__name__, timer.owner_id],
                     logging.DEBUG,
                     "finishtimer - %s %-20s : finished in %s ms - with args %s",
                     uid,
@@ -228,7 +239,7 @@ class Timing:
                 )
             else:
                 log_to(
-                    [__name__, timer["owner_id"]],
+                    [__name__, timer.owner_id],
                     logging.DEBUG,
                     "finishtimer - %s %-20s : finished in %s ms",
                     uid,

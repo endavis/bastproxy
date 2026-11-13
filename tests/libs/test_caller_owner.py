@@ -30,7 +30,7 @@ class _OwnerIdCaller:
 def test_timing_start_records_real_caller() -> None:
     uid = _Caller().start_timer()
     try:
-        assert TIMING.timing[uid]["owner_id"] == "plugins.probe.caller"
+        assert TIMING.timing[uid].owner_id == "plugins.probe.caller"
     finally:
         TIMING.timing.pop(uid, None)
 
