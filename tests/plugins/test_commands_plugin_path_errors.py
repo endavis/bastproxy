@@ -113,6 +113,7 @@ def _patch_command_module(monkeypatch: pytest.MonkeyPatch) -> None:
 def _make(function: Any) -> CommandClass:
     parser = argp.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("words", nargs="*")
     return CommandClass("plugins.test.a", "x", function, parser)
 
 
@@ -170,3 +171,70 @@ def test_str_find_command_message_is_one_line(sent: list[Any]) -> None:
 
     assert len(sent) == 1
     assert _text(sent[0]) == ["Bad Plugin"]
+
+
+class _Cancel(BaseException):
+    """A test-defined BaseException, such as a cancel."""
+
+
+def _current_set_calls(cmd: CommandClass) -> MagicMock:
+    api = MagicMock()
+    cmd.api = api
+    return api
+
+
+@pytest.mark.usefixtures("_patch_command_module")
+def test_base_exception_resets_command_state() -> None:
+    """A BaseException from the command still resets the per-run state (#427)."""
+
+    def cancel() -> None:
+        raise _Cancel
+
+    cmd = _make(cancel)
+    api = _current_set_calls(cmd)
+    with pytest.raises(_Cancel):
+        cmd.run("some args")
+    assert cmd.current_args == {}
+    assert cmd.current_arg_string == ""
+    api.assert_any_call("plugins.core.commands:command.current.set")
+    assert api.return_value.call_args_list[-1].args == (None,)
+
+
+@pytest.mark.usefixtures("_patch_command_module")
+def test_record_error_failure_resets_command_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An exception from the error handling does not leave the state set (#427)."""
+    cmd = _make(_raiser)
+    api = _current_set_calls(cmd)
+
+    def bad_record_error(exc: Exception) -> None:
+        raise RuntimeError("record_error failed")
+
+    monkeypatch.setattr(cmd, "record_error", bad_record_error)
+    with pytest.raises(RuntimeError, match="record_error failed"):
+        cmd.run("abc")
+    assert cmd.current_args == {}
+    assert cmd.current_arg_string == ""
+    assert api.return_value.call_args_list[-1].args == (None,)
+
+
+@pytest.mark.usefixtures("_patch_command_module")
+def test_nested_run_keeps_outer_state() -> None:
+    """A nested run of the same instance leaves the outer run's state alone (#427)."""
+    seen: dict[str, Any] = {}
+    depth = {"n": 0}
+
+    def command() -> CommandResult:
+        if depth["n"] == 0:
+            depth["n"] += 1
+            outer_args = cmd.current_args
+            cmd.run("inner")
+            seen["string"] = cmd.current_arg_string
+            seen["same_args"] = cmd.current_args is outer_args
+        return CommandResult(True)
+
+    cmd = _make(command)
+    _current_set_calls(cmd)
+    cmd.run("outer")
+    assert seen == {"string": "outer", "same_args": True}
+    assert cmd.current_args == {}
+    assert cmd.current_arg_string == ""

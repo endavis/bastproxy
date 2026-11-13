@@ -16,11 +16,14 @@ Test Classes:
 
 import logging
 import time
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from bastproxy.libs.timing import TimerRecord, Timing, duration
+from bastproxy.libs import timing as timing_module
+from bastproxy.libs.timing import TIMING, TimedBlock, TimerRecord, Timing, duration
 
 
 # Helper function for testing the duration decorator
@@ -402,3 +405,73 @@ class TestDurationDecorator:
         """Test that decorated functions maintain their name."""
         assert timed_function_fast.__name__ == "timed_function_fast"
         assert timed_function_slow.__name__ == "timed_function_slow"
+
+
+class _FakeAPI:
+    """Record the timing.start and timing.finish calls."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple[Any, ...]]] = []
+
+    def __call__(self, name: str) -> Callable[..., Any]:
+        def call(*args: Any) -> Any:
+            self.calls.append((name, args))
+            return "uid-1" if name.endswith("start") else 1.5
+
+        return call
+
+
+@pytest.fixture
+def fake_api(monkeypatch: pytest.MonkeyPatch) -> _FakeAPI:
+    """Replace the timing module's API with a recorder."""
+    fake = _FakeAPI()
+    monkeypatch.setattr(timing_module, "API", fake)
+    return fake
+
+
+class TestTimedBlock:
+    """Test the TimedBlock context manager (#427)."""
+
+    def test_starts_and_finishes_with_same_uid(self, fake_api: _FakeAPI) -> None:
+        with TimedBlock("n", {"a": 1}) as block:
+            assert block.uid == "uid-1"
+        assert fake_api.calls == [
+            ("libs.timing:timing.start", ("n", {"a": 1})),
+            ("libs.timing:timing.finish", ("uid-1",)),
+        ]
+        assert block.elapsed == 1.5
+
+    def test_raising_body_still_finishes(self, fake_api: _FakeAPI) -> None:
+        with pytest.raises(ValueError, match="boom"), TimedBlock("n"):
+            raise ValueError("boom")
+        assert [c[0] for c in fake_api.calls] == [
+            "libs.timing:timing.start",
+            "libs.timing:timing.finish",
+        ]
+
+    def test_duration_raising_function_still_finishes(self, fake_api: _FakeAPI) -> None:
+        @duration
+        def raiser() -> None:
+            raise ValueError("boom")
+
+        with pytest.raises(ValueError, match="boom"):
+            raiser()
+        assert fake_api.calls[-1] == ("libs.timing:timing.finish", ("uid-1",))
+        assert len(fake_api.calls) == 2
+
+
+class _OwnerProbe:
+    """A caller that owns itself, to check whom TimedBlock attributes the timer to."""
+
+    owner_id = "plugins.test.owner"
+
+    def run(self) -> TimerRecord:
+        with TimedBlock("owner_probe") as block:
+            assert block.uid is not None
+            return TIMING.timing[block.uid]
+
+
+def test_timed_block_attributes_timer_to_the_caller() -> None:
+    """The TimedBlock frame is skipped, so the real caller owns the timer (#427)."""
+    record = _OwnerProbe().run()
+    assert record.owner_id == "plugins.test.owner"

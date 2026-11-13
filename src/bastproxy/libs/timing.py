@@ -14,6 +14,7 @@ information using the provided API.
 Key Components:
     - Timing: A class that manages timing operations.
     - duration: A decorator to measure the duration of function calls.
+    - TimedBlock: A context manager that times a block and always finishes the timer.
 
 Features:
     - Start and finish timers with unique identifiers.
@@ -29,6 +30,7 @@ Usage:
 
 Classes:
     - `Timing`: Manages timing operations and logs timing information.
+    - `TimedBlock`: Times a ``with`` block, finishing the timer even when it raises.
 
 """
 
@@ -61,6 +63,29 @@ class TimerRecord:
     args: Any = None
 
 
+class TimedBlock:
+    """Time a ``with`` block, finishing the timer even when the block raises.
+
+    ``elapsed`` holds the finish result once the block exits.
+    """
+
+    # No owner_id or api attribute: get_caller_owner_id walks the ``self`` of each
+    # frame, so this frame must not look like an owner. It is skipped to the caller.
+
+    def __init__(self, name: str, args: Any = None) -> None:
+        self.name = name
+        self.args = args
+        self.uid: str | None = None
+        self.elapsed: float | None = None
+
+    def __enter__(self) -> "TimedBlock":
+        self.uid = API("libs.timing:timing.start")(self.name, self.args)
+        return self
+
+    def __exit__(self, _exc_type: Any, _exc: Any, _tb: Any) -> None:
+        self.elapsed = API("libs.timing:timing.finish")(self.uid)
+
+
 def duration(func: Callable[..., Any]) -> Callable[..., Any]:
     """Measure the duration of a function call.
 
@@ -83,7 +108,8 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
         """Measure execution time.
 
         This function wraps the original function to measure its execution time.
-        It logs the start and finish times using the API.
+        It logs the start and finish times using the API. The timer finishes
+        even when the wrapped function raises.
 
         Args:
             *arg: Positional arguments passed to the wrapped function.
@@ -95,11 +121,8 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
             None
 
         """
-        tname = f"{func.__name__}"
-        uid = API("libs.timing:timing.start")(tname, arg)
-        res = func(*arg)
-        API("libs.timing:timing.finish")(uid)
-        return res
+        with TimedBlock(func.__name__, arg):
+            return func(*arg)
 
     return wrapper
 
