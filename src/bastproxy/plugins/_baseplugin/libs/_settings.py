@@ -35,14 +35,21 @@ class Settings(Protocol):
         ),
     )
     @AddArgument("name", help="the setting name", default="list", nargs="?")
-    @AddArgument("value", help="the new value of the setting", default="", nargs="?")
+    @AddArgument(
+        "value",
+        help='the new value of the setting, "" for an empty string',
+        default=None,
+        nargs="?",
+    )
+    @AddArgument("--default", help="reset the setting to its default value", action="store_true")
     def _command_settings_plugin_set(self: "Plugin"):
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         List or set vars
-        @CUsage@w: var @Y<varname>@w @Y<varvalue>@w
-            @Yname@w    = The setting to set
-            @Yvalue@w   = The value to set it to
+        @CUsage@w: set @Y<name>@w [@Y<value>@w | @Y--default@w]
+            @Yname@w      = The setting to set
+            @Yvalue@w     = The value to set it to, "" for an empty string
+            @Y--default@w = Reset the setting to its default value
             if there are no arguments or 'list' is the first argument then
             it will list the settings for the plugin.
         """
@@ -53,9 +60,14 @@ class Settings(Protocol):
                 True, self.api("plugins.core.settings:setting.list.formatted")(self.plugin_id)
             )
 
-        success, message = self.api("plugins.core.settings:setting.set.from.user")(
-            args["name"], args["value"], self.plugin_id
-        )
+        if args.get("default"):
+            success, message = self.api("plugins.core.settings:setting.set.from.user")(
+                args["name"], args["value"], self.plugin_id, reset=True
+            )
+        else:
+            success, message = self.api("plugins.core.settings:setting.set.from.user")(
+                args["name"], args["value"], self.plugin_id
+            )
         return CommandResult(success, message)
 
     @RegisterPluginHook("after_load", priority=75)

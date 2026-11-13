@@ -11,6 +11,7 @@ from bastproxy.plugins.core.proxy.plugin import _proxy
 from bastproxy.plugins.core.proxy.plugin._proxy import ProxyPlugin
 from bastproxy.plugins.core.settings import (
     int_range,
+    non_empty,
     validate_ipv4_host,
     validate_ipv6_host,
     validate_port,
@@ -29,6 +30,14 @@ def test_int_range_boundaries_and_label() -> None:
     assert check("3") != ""
     assert int_range(0)(0) == ""
     assert int_range(0)(-1) != ""
+
+
+def test_non_empty() -> None:
+    check = non_empty(label="command separator")
+    assert check("|") == ""
+    assert "command separator" in check("")
+    assert "command separator" in check(5)
+    assert non_empty()("") == "the value cannot be empty"
 
 
 def test_ports() -> None:
@@ -94,6 +103,7 @@ def _capture(plugin_cls: Any, plugin_id: str, monkeypatch: pytest.MonkeyPatch) -
                 "mudwindowsize",
                 "linelen",
                 "mudlinewait",
+                "cmdseperator",
             },
         ),
         (CommandsPlugin, "plugins.core.commands", {"spamcount", "historysize", "command_indent"}),

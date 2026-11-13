@@ -47,6 +47,7 @@ from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, 
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.settings import (
     int_range,
+    non_empty,
     validate_ipv4_host,
     validate_ipv6_host,
     validate_port,
@@ -200,6 +201,7 @@ class ProxyPlugin(BasePlugin):
             "|",
             str,
             "the seperator for sending multiple commands",
+            validator=non_empty(label="command separator"),
         )
 
         self.api("plugins.core.events:event.add")(

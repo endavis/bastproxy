@@ -38,6 +38,17 @@ def int_range(
     return validator
 
 
+def non_empty(*, label: str = "value") -> Callable[[Any], str]:
+    """Build a validator that refuses an empty string or a non-str value."""
+
+    def validator(value: Any) -> str:
+        if not isinstance(value, str) or not value:
+            return f"the {label} cannot be empty"
+        return ""
+
+    return validator
+
+
 validate_port = int_range(1, MAX_PORT, label="port")
 
 

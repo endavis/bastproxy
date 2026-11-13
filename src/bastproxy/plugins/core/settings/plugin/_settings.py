@@ -30,6 +30,45 @@ from bastproxy.plugins.core.settings.libs._settinginfo import (
 logger = get_logger(__name__)
 
 
+def _store_and_notify(plugin, plugin_id, setting, value) -> bool:
+    """Store a converted value, sync it, and raise the modified event.
+
+    Shared by setting.set and setting.reset. Nothing is raised when the value
+    is unchanged, the plugin is not loaded, the setting is hidden or startup
+    is in progress.
+    """
+    old_value = plugin.api("plugins.core.settings:setting.get")(plugin_id, setting)
+
+    if old_value == value:
+        return True
+
+    plugin.settings_values[plugin_id][setting] = value
+    plugin.settings_values[plugin_id].sync()
+
+    if not plugin.api("libs.plugins.loader:plugin.is.loaded")(plugin_id) or plugin.api(
+        "plugins.core.settings:setting.is.hidden"
+    )(plugin_id, setting):
+        return True
+    if plugin.api.startup:
+        return True
+
+    new_value = plugin.api("plugins.core.settings:setting.get")(plugin_id, setting)
+
+    event_name = f"ev_{plugin_id}_var_{setting}_modified"
+
+    if plugin.api("libs.api:api.exists")("plugins.core.events:event.raise"):
+        plugin.api("plugins.core.events:event.raise")(
+            event_name,
+            event_args={
+                "var": setting,
+                "newvalue": new_value,
+                "oldvalue": old_value,
+            },
+        )
+
+    return True
+
+
 class SettingsPlugin(BasePlugin):
     """a test plugin."""
 
@@ -192,13 +231,35 @@ class SettingsPlugin(BasePlugin):
             self.api(f"{self.plugin_id}:setting.reset")(plugin_id)
             event_record["plugins_that_acted"].append(self.plugin_id)
 
-    @AddAPI("setting.reset", description="reset all settings for a plugin to their default values")
-    def _api_setting_reset(self, plugin_id):
-        """Reset all settings for a plugin to their default values."""
-        self.settings_values[plugin_id].clear()
-        for i in self.settings_info[plugin_id]:
-            self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i].default
-        self.settings_values[plugin_id].sync()
+    @AddAPI(
+        "setting.reset",
+        description="reset one setting, or all settings for a plugin, to their default values",
+    )
+    def _api_setting_reset(self, plugin_id, setting=None):
+        """Reset settings for a plugin to their default values.
+
+        @Yplugin_id@w  = the plugin_id of the owner of the settings
+        @Ysetting@w    = the name of the setting to reset, all settings of the
+                         plugin when None. The default is not validated again,
+                         it was converted when the setting was added.
+
+        Returns:
+          with a setting, True if it was reset and False if the plugin or the
+          setting is unknown. Without one, None.
+        """
+        if setting is None:
+            self.settings_values[plugin_id].clear()
+            for i in self.settings_info[plugin_id]:
+                self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i].default
+            self.settings_values[plugin_id].sync()
+            return None
+
+        if plugin_id not in self.settings_info or setting not in self.settings_info[plugin_id]:
+            return False
+
+        return _store_and_notify(
+            self, plugin_id, setting, self.settings_info[plugin_id][setting].default
+        )
 
     @AddAPI("setting.set", description="change the value of a setting")
     def _api_setting_set(self, plugin_id, setting, value):
@@ -206,7 +267,8 @@ class SettingsPlugin(BasePlugin):
 
         @Yplugin_id@w     = the plugin_id of the owner of the setting
         @Ysetting@w    = the name of the setting to change
-        @Yvalue@w      = the value to set it as.
+        @Yvalue@w      = the value to set it as. The word "default" is an
+                         ordinary value, use setting.reset to reset a setting.
 
         Raises:
           SettingValidationError (a ValueError) if the setting's validator
@@ -222,45 +284,14 @@ class SettingsPlugin(BasePlugin):
             return False
 
         setting_info = self.settings_info[plugin_id][setting]
-        if value == "default":
-            value = setting_info.default
-        elif self.api("libs.plugins.loader:plugin.is.loaded")("plugins.core.utils"):
+        if self.api("libs.plugins.loader:plugin.is.loaded")("plugins.core.utils"):
             value = self._convert_and_validate(plugin_id, setting_info, value)
         elif (validator := getattr(setting_info, "validator", None)) and (
             error := validator(value)
         ):
             raise SettingValidationError(error)
 
-        old_value = self.api("plugins.core.settings:setting.get")(plugin_id, setting)
-
-        if old_value == value:
-            return True
-
-        self.settings_values[plugin_id][setting] = value
-        self.settings_values[plugin_id].sync()
-
-        if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id) or self.api(
-            "plugins.core.settings:setting.is.hidden"
-        )(plugin_id, setting):
-            return True
-        if self.api.startup:
-            return True
-
-        new_value = self.api("plugins.core.settings:setting.get")(plugin_id, setting)
-
-        event_name = f"ev_{plugin_id}_var_{setting}_modified"
-
-        if self.api("libs.api:api.exists")("plugins.core.events:event.raise"):
-            self.api("plugins.core.events:event.raise")(
-                event_name,
-                event_args={
-                    "var": setting,
-                    "newvalue": new_value,
-                    "oldvalue": old_value,
-                },
-            )
-
-        return True
+        return _store_and_notify(self, plugin_id, setting, value)
 
     @AddAPI("setting.info.get", description="get the info for a setting")
     def _api_setting_info_get(self, plugin_id, setting):
@@ -481,19 +512,33 @@ class SettingsPlugin(BasePlugin):
                 change a setting in the plugin
 
                 if there are no arguments or 'list' is the first argument then
-                it will list the settings for the plugin"""
+                it will list the settings for the plugin
+
+                give "" as the value to set an empty string, or --default
+                to reset the setting to its default value"""
         ),
     )
     @AddArgument("name", help="the setting name", default="list", nargs="?")
-    @AddArgument("value", help="the new value of the setting", default="", nargs="?")
+    @AddArgument(
+        "value",
+        help='the new value of the setting, "" for an empty string',
+        default=None,
+        nargs="?",
+    )
+    @AddArgument("--default", help="reset the setting to its default value", action="store_true")
     @AddArgument("-p", "--plugin", help="the plugin of the setting", default="", nargs="?")
     def _command_settings_plugin_sets(self):
         """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        success, message = self.api(f"{self.plugin_id}:setting.set.from.user")(
-            args["name"], args["value"], args["plugin"]
-        )
+        if args.get("default"):
+            success, message = self.api(f"{self.plugin_id}:setting.set.from.user")(
+                args["name"], args["value"], args["plugin"], reset=True
+            )
+        else:
+            success, message = self.api(f"{self.plugin_id}:setting.set.from.user")(
+                args["name"], args["value"], args["plugin"]
+            )
         return CommandResult(success, message)
 
     @AddAPI(
@@ -501,20 +546,24 @@ class SettingsPlugin(BasePlugin):
         description="validate and change a setting from user input, returning a message",
     )
     def _api_setting_set_from_user(
-        self, setting_name: str, value: str, plugin_id: str = ""
+        self, setting_name: str, value: str | None, plugin_id: str = "", reset: bool = False
     ) -> tuple[bool, list[str]]:
         """Validate user input and change a setting.
 
         @Ysetting_name@w = the name of the setting to change
-        @Yvalue@w        = the value to set it as
+        @Yvalue@w        = the value to set it as, "" is an empty string
         @Yplugin_id@w    = the plugin that owns the setting, looked up from the
                            settings map when empty
+        @Yreset@w        = reset the setting to its default instead, no value
+                           may be given with it
 
         Returns:
           a tuple of (success, list of message lines to show the user)
         """
-        if not value:
-            return False, ["please specify a value to set the setting to"]
+        if reset and value is not None:
+            return False, ["give a value or --default, not both"]
+        if not reset and value is None:
+            return False, ["please specify a value, or --default to reset the setting"]
 
         if setting_name not in self.settings_map:
             return True, [f"plugin setting {setting_name} does not exist"]
@@ -534,15 +583,20 @@ class SettingsPlugin(BasePlugin):
 
         val = value
         try:
-            self.api("plugins.core.settings:setting.set")(plugin_id, setting_name, val)
+            if reset:
+                self.api("plugins.core.settings:setting.reset")(plugin_id, setting_name)
+            else:
+                self.api("plugins.core.settings:setting.set")(plugin_id, setting_name, val)
             tsetting_name = self.format_setting_for_print(plugin_id, setting_name)
-            tmsg = [f"{plugin_id} : {setting_name} is now set to {tsetting_name}"]
+            verb = "reset to its default, now" if reset else "now set to"
+            tmsg = [f"{plugin_id} : {setting_name} is {verb} {tsetting_name}"]
             if setting_info.aftersetmessage:
                 tmsg.extend(["\n", setting_info.aftersetmessage])
         except SettingValidationError as err:
             return True, [str(err)]
         except ValueError:
-            msg = [f"Cannot convert {val} to {stype_name(setting_info.stype)}"]
+            shown = val if val else '""'
+            msg = [f"Cannot convert {shown} to {stype_name(setting_info.stype)}"]
             return True, msg
         else:
             return True, tmsg

@@ -67,7 +67,7 @@ def test_hook_without_settings_plugin_is_a_noop() -> None:
 class _Args(dict):
     arg_string = ""
 
-    def __init__(self, name: str, value: str = "") -> None:
+    def __init__(self, name: str, value: str | None = "") -> None:
         super().__init__(name=name, value=value)
         self.arg_string = f"{name} 5"
 
@@ -96,6 +96,57 @@ def test_set_with_name_calls_change_from_user() -> None:
         change.assert_called_once_with("foo", "5", "plugins.test.stub")
         requested = [c.args[0] for c in stub.api.call_args_list]
         assert "plugins.core.commands:command.run" not in requested
+
+
+def test_set_default_flag_passes_reset() -> None:
+    change = MagicMock(return_value=(True, ["done"]))
+    args = _Args("foo", None)
+    args["default"] = True
+    stub: Any = _Stub(
+        {
+            "plugins.core.commands:command.current.args.get": lambda: args,
+            "plugins.core.settings:setting.set.from.user": change,
+        }
+    )
+    assert stub._command_settings_plugin_set() == CommandResult(True, ["done"])
+    change.assert_called_once_with("foo", None, "plugins.test.stub", reset=True)
+
+
+def test_set_empty_string_passes_through() -> None:
+    change = MagicMock(return_value=(True, ["done"]))
+    stub: Any = _Stub(
+        {
+            "plugins.core.commands:command.current.args.get": lambda: _Args("foo", ""),
+            "plugins.core.settings:setting.set.from.user": change,
+        }
+    )
+    stub._command_settings_plugin_set()
+    change.assert_called_once_with("foo", "", "plugins.test.stub")
+
+
+def _parse(func: Any, line: list[str]) -> Any:
+    from bastproxy.libs import argp
+
+    parser = argp.ArgumentParser(allow_abbrev=False, add_help=False)
+    for arg in func.command_data.arguments:
+        parser.add_argument(*arg["args"], **arg["kwargs"])
+    return parser.parse_args(line)
+
+
+def test_set_and_pset_declare_default_flag_and_optional_value() -> None:
+    from bastproxy.plugins.core.settings.plugin._settings import SettingsPlugin
+
+    for func in (
+        Settings._command_settings_plugin_set,
+        SettingsPlugin._command_settings_plugin_sets,
+    ):
+        assert _parse(func, ["foo"]).value is None
+        assert _parse(func, ["foo", ""]).value == ""
+        assert _parse(func, ["foo", "default"]).value == "default"
+        assert _parse(func, ["foo", "default"]).default is False
+        flagged = _parse(func, ["foo", "--default"])
+        assert flagged.default is True
+        assert flagged.value is None
 
 
 def test_patch_machinery_removed() -> None:

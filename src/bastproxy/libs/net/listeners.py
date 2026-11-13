@@ -194,15 +194,8 @@ class Listeners:
             None
 
         """
-        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv4", "default")
-        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "ipv6", "default")
-        self.api("plugins.core.settings:setting.set")(
-            "plugins.core.proxy", "ipv4address", "default"
-        )
-        self.api("plugins.core.settings:setting.set")(
-            "plugins.core.proxy", "ipv6address", "default"
-        )
-        self.api("plugins.core.settings:setting.set")("plugins.core.proxy", "listenport", "default")
+        for name in ("ipv4", "ipv6", "ipv4address", "ipv6address", "listenport"):
+            self.api("plugins.core.settings:setting.reset")("plugins.core.proxy", name)
 
     def _create_listeners(self) -> None:
         """Create listeners for both IPv4 and IPv6 addresses.

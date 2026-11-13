@@ -28,3 +28,21 @@ def test_setting_reset_restores_defaults_and_syncs() -> None:
     values.clear.assert_called_once_with()
     values.__setitem__.assert_called_once_with("x", 5)
     values.sync.assert_called_once_with()
+
+
+def test_setting_reset_with_setting_uses_shared_store(monkeypatch) -> None:
+    from unittest.mock import MagicMock
+
+    from bastproxy.plugins.core.settings.plugin import _settings
+
+    store = MagicMock(return_value=True)
+    monkeypatch.setattr(_settings, "_store_and_notify", store)
+    stub = MagicMock()
+    info = MagicMock()
+    info.default = 5
+    stub.settings_info = {"p": {"x": info}}
+
+    assert SettingsPlugin._api_setting_reset(stub, "p", "x") is True
+    store.assert_called_once_with(stub, "p", "x", 5)
+    assert SettingsPlugin._api_setting_reset(stub, "p", "nope") is False
+    assert SettingsPlugin._api_setting_reset(stub, "q", "x") is False
