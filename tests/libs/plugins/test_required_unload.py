@@ -90,7 +90,7 @@ def _write_plugin(
 
 def _build_loader(root: Path, monkeypatch: pytest.MonkeyPatch) -> PluginLoader:
     monkeypatch.syspath_prepend(str(root))
-    _, found, _ = imputils.find_packages_and_plugins(root / ROOT_PKG, f"{ROOT_PKG}.")
+    found = imputils.find_packages_and_plugins(root / ROOT_PKG, f"{ROOT_PKG}.").plugins
     loader = PluginLoader.__new__(PluginLoader)
     loader.plugins_info = {}
     for item in found:

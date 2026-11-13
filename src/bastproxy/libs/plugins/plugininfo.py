@@ -127,20 +127,18 @@ class PluginInfo:
             return ""
         return f"{self.package_import_location}.plugin"
 
-    def check_file_is_valid_python_code(self, file: Path) -> tuple[bool, Exception | None]:
+    def check_file_is_valid_python_code(self, file: Path) -> Exception | None:
         """Check if a file contains valid Python code.
 
         This method attempts to parse the provided file to determine if it contains
-        valid Python code. If the file is valid, it returns True and None. If the
-        file is invalid, it returns False and the exception encountered during
-        parsing.
+        valid Python code. If the file is valid, it returns None. If the file is
+        invalid, it returns the exception encountered during parsing.
 
         Args:
             file: The path to the file to check.
 
         Returns:
-            A tuple containing a boolean indicating validity and an exception if
-            the file is invalid.
+            None if the file is valid, otherwise the exception raised by parsing.
 
         Raises:
             None
@@ -149,9 +147,9 @@ class PluginInfo:
         try:
             ast.parse(file.read_text(encoding="utf-8"))
         except Exception as E:
-            return False, E
+            return E
         else:
-            return True, None
+            return None
 
     def _get_files_by_flag_helper(self, files: dict, flag: str) -> list[dict[str, Any]]:
         """Get files by a specific flag helper method.
@@ -259,7 +257,8 @@ class PluginInfo:
                 self.files[parent_dir]["files"][file.name] = cached
                 continue
 
-            success, exception = self.check_file_is_valid_python_code(file)
+            exception = self.check_file_is_valid_python_code(file)
+            success = exception is None
             self.is_valid_python_code = success and self.is_valid_python_code
 
             module_parts = [self.package_import_location]

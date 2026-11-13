@@ -104,8 +104,9 @@ def test_user_plugin_is_discovered(tmp_path: Path) -> None:
     """A user tree ``mine/zzu`` is found with a ``plugins.`` ID and no errors."""
     _write_plugin(tmp_path, "mine", "zzu")
     loader = _loader(tmp_path)
-    plugins, errors = loader._discover_plugins()
-    assert errors == {}
+    result = loader._discover_plugins()
+    plugins = result.plugins
+    assert result.errors == {}
     assert [p["plugin_id"] for p in plugins] == ["plugins.mine.zzu"]
     assert plugins[0]["package_import_location"] == f"{ROOT}.mine.zzu"
 
@@ -121,7 +122,7 @@ def test_user_plugin_in_bundled_package_is_refused(tmp_path: Path) -> None:
     sys.path.insert(0, str(bundled))
     try:
         loader = _loader(user, bundled / "zzbundled110")
-        plugins, _ = loader._discover_plugins()
+        plugins = loader._discover_plugins().plugins
     finally:
         sys.path.remove(str(bundled))
         for name in [n for n in sys.modules if n.startswith("zzbundled110")]:
@@ -144,7 +145,7 @@ def test_user_plugin_imports_unloads_and_reloads(tmp_path: Path) -> None:
     """A user plugin imports, unloads cleanly and reloads with changed code."""
     _write_plugin(tmp_path, "mine", "zzu", "v1")
     loader = _loader(tmp_path)
-    plugins, _ = loader._discover_plugins()
+    plugins = loader._discover_plugins().plugins
     info = PluginInfo(plugin_id=plugins[0]["plugin_id"])
     info.package_init_file_path = plugins[0]["package_init_file_path"]
     info.package_path = plugins[0]["package_path"]

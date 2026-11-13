@@ -12,8 +12,9 @@ packages and plugins in a directory, import a module, and delete a module.
 
 Key Components:
     - is_plugin: Checks if a module is a plugin.
+    - DiscoveryResult: The packages, plugins and errors found by a scan.
     - find_packages_and_plugins: Finds all packages and plugins recursively in a
-        directory.
+        directory, returning a `DiscoveryResult`.
     - importmodule: Imports a single module.
     - deletemodule: Deletes a module.
 
@@ -44,6 +45,7 @@ Functions:
 import pkgutil
 import re
 import sys
+from dataclasses import dataclass, field
 from importlib import import_module
 from importlib.util import find_spec, module_from_spec, spec_from_loader
 from pathlib import Path
@@ -110,33 +112,49 @@ def register_import_root(name: str, directory: Path) -> ModuleType:
     return module
 
 
-def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, tuple]]:
+@dataclass(slots=True)
+class DiscoveryResult:
+    """The outcome of scanning for plugins.
+
+    Attributes:
+        packages: Plain (non-plugin) packages found.
+        plugins: Plugins found, as dicts of plugin information.
+        errors: Import errors by package name; each value is a ``sys.exc_info()`` tuple.
+
+    """
+
+    packages: list[dict[str, Any]] = field(default_factory=list)
+    plugins: list[dict[str, Any]] = field(default_factory=list)
+    errors: dict[str, tuple] = field(default_factory=dict)
+
+
+def find_packages_and_plugins(directory, prefix) -> DiscoveryResult:
     """Find all packages and plugins recursively in a directory.
 
     This function walks through the specified directory and identifies all
-    packages and plugins. It returns a tuple containing lists of packages,
-    plugins, and a dictionary of errors encountered during the process.
+    packages and plugins. It returns a `DiscoveryResult` holding lists of
+    packages and plugins, and a dictionary of errors encountered during the process.
 
     Args:
         directory: The directory to search for packages and plugins.
         prefix: The prefix to use for the package names.
 
     Returns:
-        A tuple containing:
-            - A list of packages found.
-            - A list of plugins found.
-            - A dictionary of errors encountered.
+        A `DiscoveryResult` with:
+            - packages: A list of packages found.
+            - plugins: A list of plugins found.
+            - errors: A dictionary of errors encountered.
 
     Raises:
         None
 
     Example:
         >>> find_packages_and_plugins(Path("/path/to/dir"), "prefix")
-        (['package1', 'package2'], ['plugin1', 'plugin2'], {})
+        DiscoveryResult(packages=[...], plugins=[...], errors={})
 
     """
-    matches = {"packages": [], "plugins": []}
-    errors = {}
+    result = DiscoveryResult()
+    errors = result.errors
 
     def on_error(package: str) -> None:
         """Handle errors encountered during package and plugin discovery.
@@ -164,7 +182,7 @@ def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, 
             if tspec.origin:
                 if is_plugin(tspec.origin):
                     # if the name ends in .plugin, remove it
-                    matches["plugins"].append(
+                    result.plugins.append(
                         {
                             "plugin_id": re.sub(".plugin$", "", tspec.name),
                             "package_init_file_path": Path(loader_path),
@@ -173,14 +191,14 @@ def find_packages_and_plugins(directory, prefix) -> tuple[list, list, dict[str, 
                         }
                     )
                 else:
-                    matches["packages"].append(
+                    result.packages.append(
                         {
                             "package_id": tspec.name,
                             "fullpath": Path(loader_path).parent,
                         }
                     )
 
-    return matches["packages"], matches["plugins"], errors
+    return result
 
 
 # import a module
