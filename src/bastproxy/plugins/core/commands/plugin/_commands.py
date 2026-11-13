@@ -31,6 +31,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.settings import int_range
 
 
 def validate_cmdprefix(value: str) -> str:
@@ -122,6 +123,7 @@ class CommandsPlugin(BasePlugin):
             20,
             int,
             "the # of times a command can be run before an antispam command",
+            validator=int_range(0, label="spam count"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -147,7 +149,12 @@ class CommandsPlugin(BasePlugin):
             readonly=True,
         )
         self.api("plugins.core.settings:setting.add")(
-            self.plugin_id, "historysize", 50, int, "the size of the history to keep"
+            self.plugin_id,
+            "historysize",
+            50,
+            int,
+            "the size of the history to keep",
+            validator=int_range(0, label="history size"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -171,7 +178,12 @@ class CommandsPlugin(BasePlugin):
             "the color to use for a subheader in the output of a command",
         )
         self.api("plugins.core.settings:setting.add")(
-            self.plugin_id, "command_indent", 0, int, "the indent for a command"
+            self.plugin_id,
+            "command_indent",
+            0,
+            int,
+            "the indent for a command",
+            validator=int_range(0, label="indent"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,

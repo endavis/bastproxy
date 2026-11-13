@@ -5,10 +5,16 @@
 #
 # By: Bast
 # Standard Library
+from typing import Any
 
 # 3rd Party
 
 # Project
+
+
+def stype_name(stype: Any) -> str:
+    """Return a readable name for a setting type (a class or a string like "color")."""
+    return str(getattr(stype, "__name__", stype))
 
 
 class SettingValidationError(ValueError):

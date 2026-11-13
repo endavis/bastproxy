@@ -21,6 +21,7 @@ from bastproxy.libs.scan import find_methods
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.settings import int_range
 
 from ._event import Event
 
@@ -56,6 +57,7 @@ class EventsPlugin(BasePlugin):
             10,
             int,
             "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
+            validator=int_range(0, label="history size"),
         )
         self._apply_raised_history_size(
             self.api("plugins.core.settings:setting.get")(self.plugin_id, "raised_history_size")

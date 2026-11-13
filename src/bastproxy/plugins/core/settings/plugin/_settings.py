@@ -6,7 +6,7 @@
 # By: Bast
 
 # Standard Library
-import contextlib
+import copy
 import logging
 import textwrap
 from pathlib import Path
@@ -24,6 +24,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.settings.libs._settinginfo import (
     SettingInfo,
     SettingValidationError,
+    stype_name,
 )
 
 logger = get_logger(__name__)
@@ -46,6 +47,20 @@ class SettingsPlugin(BasePlugin):
         # a dictionary of settings values with plugin_id as key
         # the value is a PersistentDict object
         self.settings_values = {}
+
+    def _convert_and_validate(self, plugin_id, setting_info, value):
+        """Convert a value to the setting's type, then run its validator.
+
+        Raises:
+          ValueError if the value cannot be converted, SettingValidationError
+          (a ValueError) if the validator rejects it
+        """
+        if self.api("libs.api:api.exists")("plugins.core.utils:value.verify"):
+            value = self.api("plugins.core.utils:value.verify")(value, setting_info.stype)
+        validator = getattr(setting_info, "validator", None)
+        if validator and (error := validator(value)):
+            raise SettingValidationError(error)
+        return value
 
     @AddAPI("setting.add", description="add a setting to a plugin")
     def _api_setting_add(self, plugin_id, setting_name, default, stype, help, **kwargs):
@@ -75,6 +90,18 @@ class SettingsPlugin(BasePlugin):
             return
 
         setting_info = SettingInfo(setting_name, default, help, stype, **kwargs)
+        try:
+            setting_info.default = self._convert_and_validate(
+                plugin_id, setting_info, setting_info.default
+            )
+        except ValueError as err:
+            get_logger(self.plugin_id).error(
+                "setting %s.%s: default %r is invalid (%s)",
+                plugin_id,
+                setting_name,
+                default,
+                err,
+            )
         get_logger(self.plugin_id).debug(
             "setting info %s", self.dump_object_as_string(setting_info)
         )
@@ -94,7 +121,24 @@ class SettingsPlugin(BasePlugin):
             settings_file: Path = data_directory / "settingvalues.txt"
             self.settings_values[plugin_id] = PersistentDict(plugin_id, settings_file, "c")
 
-        if setting_name not in self.settings_values[plugin_id]:
+        if setting_name in self.settings_values[plugin_id]:
+            stored = self.settings_values[plugin_id][setting_name]
+            try:
+                converted = self._convert_and_validate(plugin_id, setting_info, stored)
+            except ValueError as err:
+                get_logger(self.plugin_id).warning(
+                    "%s.%s: stored value %r is invalid (%s); using the default %r",
+                    plugin_id,
+                    setting_name,
+                    stored,
+                    err,
+                    setting_info.default,
+                )
+                self.settings_values[plugin_id][setting_name] = setting_info.default
+            else:
+                if converted != stored or type(converted) is not type(stored):
+                    self.settings_values[plugin_id][setting_name] = converted
+        else:
             self.settings_values[plugin_id][setting_name] = setting_info.default
 
         self.settings_info[plugin_id][setting_name] = setting_info
@@ -106,22 +150,19 @@ class SettingsPlugin(BasePlugin):
         @Ysetting@w = the setting value to get
         @Yplugin@w = the plugin to get the setting from (optional).
 
+        The stored value was converted and validated when it was added or set, so
+        no conversion happens here. A list or dict is returned as a copy.
+
         Returns:
           the value of the setting, None if not found
         """
-        returnval = None
-
-        with contextlib.suppress(KeyError):
-            returnval = (
-                self.api("plugins.core.utils:value.verify")(
-                    self.settings_values[plugin_id][setting],
-                    self.settings_info[plugin_id][setting].stype,
-                )
-                if self.api("libs.api:api.exists")("plugins.core.utils:value.verify")
-                else self.settings_values[plugin_id][setting]
-            )
-
-        return returnval
+        try:
+            value = self.settings_values[plugin_id][setting]
+        except KeyError:
+            return None
+        if isinstance(value, (list, dict)):
+            return copy.copy(value)
+        return value
 
     @RegisterToEvent(event_name="ev_plugin_loaded")
     def _eventcb_settings_plugin_loaded(self):
@@ -180,15 +221,14 @@ class SettingsPlugin(BasePlugin):
         if setting not in self.settings_info[plugin_id]:
             return False
 
+        setting_info = self.settings_info[plugin_id][setting]
         if value == "default":
-            value = self.settings_info[plugin_id][setting].default
+            value = setting_info.default
         elif self.api("libs.plugins.loader:plugin.is.loaded")("plugins.core.utils"):
-            value = self.api("plugins.core.utils:value.verify")(
-                value, self.settings_info[plugin_id][setting].stype
-            )
-
-        validator = getattr(self.settings_info[plugin_id][setting], "validator", None)
-        if validator and (error := validator(value)):
+            value = self._convert_and_validate(plugin_id, setting_info, value)
+        elif (validator := getattr(setting_info, "validator", None)) and (
+            error := validator(value)
+        ):
             raise SettingValidationError(error)
 
         old_value = self.api("plugins.core.settings:setting.get")(plugin_id, setting)
@@ -502,7 +542,7 @@ class SettingsPlugin(BasePlugin):
         except SettingValidationError as err:
             return True, [str(err)]
         except ValueError:
-            msg = [f"Cannot convert {val} to {setting_info.stype}"]
+            msg = [f"Cannot convert {val} to {stype_name(setting_info.stype)}"]
             return True, msg
         else:
             return True, tmsg

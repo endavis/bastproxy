@@ -55,6 +55,24 @@ def naws_frame(cols: int, rows: int) -> bytes:
     return IAC + SB + NAWS + body + IAC + SE
 
 
+def parse_window_mode(value: Any) -> str | Size | None:
+    """Parse a ``mudwindowsize`` value; return the mode, or None when it is not valid."""
+    text = str(value).strip().lower()
+    if text in (MODE_CLIENT, MODE_OFF):
+        return text
+    match = _PINNED.match(text)
+    if match and all(1 <= int(g) <= NAWS_MAX for g in match.groups()):
+        return (int(match.group(1)), int(match.group(2)))
+    return None
+
+
+def validate_window_size(value: Any) -> str:
+    """Validate a ``mudwindowsize`` setting; return "" when valid, else an error message."""
+    if parse_window_mode(value) is None:
+        return f"the window size must be client, off or COLSxROWS (1 to {NAWS_MAX})"
+    return ""
+
+
 class WindowSizeForwarder:
     """Track the clients' window sizes and send the chosen one to the MUD."""
 
@@ -80,20 +98,14 @@ class WindowSizeForwarder:
 
     def set_mode(self, value: str) -> None:
         """Select ``client``, ``off`` or a pinned ``COLSxROWS``; a bad value acts as ``client``."""
-        text = str(value).strip().lower()
-        mode: str | Size = MODE_CLIENT
-        if text == MODE_OFF:
-            mode = MODE_OFF
-        elif text != MODE_CLIENT:
-            match = _PINNED.match(text)
-            if match and all(1 <= int(g) <= NAWS_MAX for g in match.groups()):
-                mode = (int(match.group(1)), int(match.group(2)))
-            else:
-                logger.warning(
-                    "mudwindowsize %r is not client, off or COLSxROWS (1 to %d); using client",
-                    value,
-                    NAWS_MAX,
-                )
+        mode = parse_window_mode(value)
+        if mode is None:
+            logger.warning(
+                "mudwindowsize %r is not client, off or COLSxROWS (1 to %d); using client",
+                value,
+                NAWS_MAX,
+            )
+            mode = MODE_CLIENT
         self._mode = mode
         self._safe_update()
 
