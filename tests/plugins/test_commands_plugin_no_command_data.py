@@ -3,6 +3,7 @@
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
 
 PID = "plugins.debug.api"
@@ -56,4 +57,4 @@ def test_command_list_formatted_does_not_look_up_missing_plugin() -> None:
 def test_command_list_reports_no_commands() -> None:
     """The list command says there are no commands in the plugin."""
     result = CommandsPlugin._command_list(_stub())
-    assert result == (True, [f"There are no commands in plugin {PID}"])
+    assert result == CommandResult(True, [f"There are no commands in plugin {PID}"])

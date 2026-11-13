@@ -10,6 +10,7 @@ import pytest
 
 # Project
 from bastproxy.libs import argp
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass
 
@@ -32,9 +33,9 @@ def _patch_command_module(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _command_with(parser: argp.ArgumentParser, ran: list[bool]) -> CommandClass:
-    def function() -> bool:
+    def function() -> CommandResult:
         ran.append(True)
-        return True
+        return CommandResult(True)
 
     return CommandClass("plugins.test398", "cmd", function, parser)
 

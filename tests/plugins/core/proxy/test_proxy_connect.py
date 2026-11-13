@@ -24,9 +24,11 @@ def test_second_connect_while_connecting_is_refused() -> None:
     task_add = MagicMock()
     stub = _stub(task_add)
 
-    _, first = ProxyPlugin._command_connect(stub)
+    result = ProxyPlugin._command_connect(stub)
+    first = result.message
     conn = stub.mud_connection
-    _, second = ProxyPlugin._command_connect(stub)
+    result = ProxyPlugin._command_connect(stub)
+    second = result.message
 
     assert first == ["Connecting to the mud"]
     assert conn.connecting is True
@@ -41,7 +43,8 @@ def test_connect_retries_after_a_failure() -> None:
 
     ProxyPlugin._command_connect(stub)
     stub.mud_connection.connecting = False  # what a failed connect_to_mud does
-    _, msg = ProxyPlugin._command_connect(stub)
+    result = ProxyPlugin._command_connect(stub)
+    msg = result.message
 
     assert msg == ["Connecting to the mud"]
     assert task_add.call_count == 2
@@ -52,7 +55,8 @@ def test_connect_refused_when_connected() -> None:
     stub = _stub(task_add)
     stub.mud_connection = MagicMock(connected=True, connecting=False)
 
-    _, msg = ProxyPlugin._command_connect(stub)
+    result = ProxyPlugin._command_connect(stub)
+    msg = result.message
 
     assert "currently connected" in msg[0]
     task_add.assert_not_called()
@@ -63,7 +67,8 @@ def test_disconnect_while_connecting_does_not_drop_the_connection() -> None:
     conn = MagicMock(connected=False, connecting=True)
     stub.mud_connection = conn
 
-    _, msg = ProxyPlugin._command_disconnect(stub)
+    result = ProxyPlugin._command_disconnect(stub)
+    msg = result.message
 
     assert "connecting" in msg[0]
     assert stub.mud_connection is conn
@@ -76,7 +81,8 @@ def test_info_shows_connecting() -> None:
     stub.api.proxy_start_time = None
     stub.api.side_effect = lambda name: lambda *a, **k: ["H"] if "header" in name else []
 
-    _, msg = ProxyPlugin._command_info(stub)
+    result = ProxyPlugin._command_info(stub)
+    msg = result.message
 
     assert any("connecting" in line for line in msg)
     assert not any("disconnected" in line for line in msg)

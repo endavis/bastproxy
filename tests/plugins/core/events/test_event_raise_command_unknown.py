@@ -33,7 +33,9 @@ class _FakeEvents:
 
 
 def _run(fake: _FakeEvents) -> list[str]:
-    _ok, message = EventsPlugin._command_raise(fake)
+    result = EventsPlugin._command_raise(fake)
+    _ok = result.success
+    message = result.message
     return list(message)
 
 

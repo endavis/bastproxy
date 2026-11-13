@@ -14,7 +14,7 @@ from pathlib import Path
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 
 class SSC:
@@ -60,9 +60,9 @@ class SSC:
             with Path(self.file_name).open("w", encoding="utf-8") as data_file:
                 data_file.write(args["value"])
             Path(self.file_name).chmod(stat.S_IRUSR | stat.S_IWUSR)
-            return True, [f"{self.desc} saved"]
+            return CommandResult(True, [f"{self.desc} saved"])
 
-        return True, [f"Please enter the {self.desc}"]
+        return CommandResult(True, [f"Please enter the {self.desc}"])
 
 
 class SSCPlugin(BasePlugin):

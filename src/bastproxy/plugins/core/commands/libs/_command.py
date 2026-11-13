@@ -24,6 +24,7 @@ from bastproxy.libs.context import running_command
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.records.tracking import tracking_actor
 
+from ._utils import CommandResult
 from .data.cmdargs import CmdArgsRecord
 
 
@@ -130,17 +131,28 @@ class CommandClass:
             )
             return self.run_finish(False, message, "function raised an exception", format=format)
 
-        if isinstance(return_value, tuple):
-            retval = return_value[0]
-            message = return_value[1]
-            if isinstance(message, str):
-                message = [message]
-        else:
-            retval = return_value
-            message = []
+        if not isinstance(return_value, CommandResult):
+            returned = type(return_value).__name__
+            self.record_error(TypeError(f"returned {returned}, not a CommandResult"))
+            log_to(
+                [self.plugin_id, "plugins.core.commands"],
+                logging.ERROR,
+                "Command %s returned %s, not a CommandResult",
+                command_ran,
+                returned,
+            )
+            return self.run_finish(
+                False,
+                [f"Error running command: {command_ran}"],
+                "function returned an invalid result",
+                format=format,
+            )
+
+        raw_message = return_value.message
+        message = [raw_message] if isinstance(raw_message, str) else list(raw_message)
 
         # did not succeed
-        if retval is False:
+        if not return_value.success:
             message.append("")
             message.extend(self.arg_parser.format_help().splitlines())
             return self.run_finish(False, message, "function returned False", format=format)
@@ -340,7 +352,7 @@ class CommandClass:
         return newmessage
 
     def record_error(self, exc: BaseException) -> None:
-        """Record an exception raised by the command function.
+        """Record an exception raised by the command function, or an invalid return value.
 
         Only a string summary is kept, never the exception or its traceback.
         """

@@ -14,6 +14,7 @@ from bastproxy.plugins.core.commands import (
     AddArgument,
     AddCommand,
     AddParser,
+    CommandResult,
     set_command_autoadd,
 )
 
@@ -116,7 +117,7 @@ class Commands(Protocol):
         if args["api"] and (api_list := self.api("libs.api:api.list.formatted")(self.plugin_id)):
             msg.extend((f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w"))
             msg.extend(api_list)
-        return True, msg
+        return CommandResult(True, msg)
 
     @AddCommand(group="Base")
     @AddParser(description="save the plugin state")
@@ -127,7 +128,7 @@ class Commands(Protocol):
         @CUsage@w: save.
         """
         self.api(f"{self.plugin_id}:plugin.state.save")()
-        return True, ["Plugin settings saved"]
+        return CommandResult(True, ["Plugin settings saved"])
 
     @AddCommand(group="Base", autoadd=False)
     @AddParser(description="reset the plugin")
@@ -145,6 +146,6 @@ class Commands(Protocol):
                 f"Plugins that {self.plugin_id}'s data was reset for:",
                 *[f"    {plugin}" for plugin in plugins_that_acted],
             ]
-            return True, msg
+            return CommandResult(True, msg)
 
-        return True, ["This plugin cannot be reset"]
+        return CommandResult(True, ["This plugin cannot be reset"])

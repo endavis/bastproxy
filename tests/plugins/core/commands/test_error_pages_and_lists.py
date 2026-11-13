@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
 
 PID = "plugins.core.commands"
@@ -215,14 +216,16 @@ def test_command_list_invalid_plugin_lists_plugins() -> None:
     """`list` with a name that is not a plugin lists plugins of that package."""
     stub = _command_list_stub({"plugin": "core", "command": ""}, False, {})
 
-    assert CommandsPlugin._command_list(stub) == (True, ["plugins in core"])
+    assert CommandsPlugin._command_list(stub) == CommandResult(True, ["plugins in core"])
 
 
 def test_command_list_plugin_without_commands() -> None:
     """A plugin with no commands says so."""
     stub = _command_list_stub({"plugin": "plugins.x", "command": ""}, True, {})
 
-    ok, message = CommandsPlugin._command_list(stub)
+    result = CommandsPlugin._command_list(stub)
+    ok = result.success
+    message = result.message
 
     assert ok is True
     assert message == ["There are no commands in plugin plugins.x"]
@@ -233,7 +236,7 @@ def test_command_list_plugin_commands() -> None:
     data = {"plugins.x": {"run": SimpleNamespace()}}
     stub = _command_list_stub({"plugin": "plugins.x", "command": ""}, True, data)
 
-    assert CommandsPlugin._command_list(stub) == (True, ["commands of plugins.x"])
+    assert CommandsPlugin._command_list(stub) == CommandResult(True, ["commands of plugins.x"])
 
 
 def test_command_list_single_command_shows_its_help() -> None:
@@ -243,7 +246,7 @@ def test_command_list_single_command_shows_its_help() -> None:
     data = {"plugins.x": {"run": SimpleNamespace(arg_parser=parser)}}
     stub = _command_list_stub({"plugin": "plugins.x", "command": "run"}, True, data)
 
-    assert CommandsPlugin._command_list(stub) == (True, ["usage: run", "more"])
+    assert CommandsPlugin._command_list(stub) == CommandResult(True, ["usage: run", "more"])
 
 
 def _pass_through(line: str, settings: dict[str, Any]) -> MagicMock:

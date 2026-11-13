@@ -7,6 +7,7 @@ import pytest
 from bastproxy.libs import argp
 from bastproxy.libs.context import get_command_args
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass
 
@@ -20,9 +21,9 @@ def _patch_command_module(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_command_changes_carry_the_command_actor() -> None:
     line = NetworkDataLine("a")
 
-    def function() -> bool:
+    def function() -> CommandResult:
         line.line = "changed"
-        return True
+        return CommandResult(True)
 
     parser = argp.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action="store_true")
@@ -33,9 +34,9 @@ def test_command_changes_carry_the_command_actor() -> None:
 def test_command_args_are_set_while_the_command_runs() -> None:
     seen: dict[str, object] = {}
 
-    def function() -> bool:
+    def function() -> CommandResult:
         seen["args"] = dict(get_command_args())
-        return True
+        return CommandResult(True)
 
     parser = argp.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action="store_true")

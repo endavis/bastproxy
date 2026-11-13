@@ -13,7 +13,7 @@ import traceback
 # Project
 from bastproxy.libs.api import API
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 
 class APIPlugin(BasePlugin):
@@ -61,7 +61,7 @@ class APIPlugin(BasePlugin):
         else:  # args <= 0
             tmsg.append("Please provide an api to detail")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="list functions in the API")
     @AddArgument("toplevel", help="the top level api to show (optional)", default="", nargs="?")
@@ -94,7 +94,7 @@ class APIPlugin(BasePlugin):
         else:
             tmsg.append(f"{args['toplevel']} does not exist in the api")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="call an API")
     @AddArgument("-a", "--api", help="the api to detail (optional)", default="", nargs="?")
@@ -114,6 +114,6 @@ class APIPlugin(BasePlugin):
             tmsg = self.dump_object_as_string(returnstuff)
         except Exception as e:
             exc_str = traceback.format_exception(e)
-            return True, ["Api returned an error:", *exc_str]
+            return CommandResult(True, ["Api returned an error:", *exc_str])
         else:
-            return True, ["Api returned:", "", tmsg]
+            return CommandResult(True, ["Api returned:", "", tmsg])

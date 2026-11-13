@@ -10,6 +10,7 @@ from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.plugins._baseplugin.libs._commands import Commands
 from bastproxy.plugins._baseplugin.libs._settings import Settings
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
 from bastproxy.plugins.core.events.plugin._events import EventsPlugin
 
@@ -79,7 +80,7 @@ def test_set_list_returns_formatted_settings() -> None:
                 "plugins.core.settings:setting.list.formatted": lambda pid: f"fmt {pid}",
             }
         )
-        assert stub._command_settings_plugin_set() == (True, "fmt plugins.test.stub")
+        assert stub._command_settings_plugin_set() == CommandResult(True, "fmt plugins.test.stub")  # type: ignore[arg-type]
 
 
 def test_set_with_name_calls_change_from_user() -> None:
@@ -91,7 +92,7 @@ def test_set_with_name_calls_change_from_user() -> None:
                 "plugins.core.settings:setting.set.from.user": change,
             }
         )
-        assert stub._command_settings_plugin_set() == result
+        assert stub._command_settings_plugin_set() == CommandResult(*result)
         change.assert_called_once_with("foo", "5", "plugins.test.stub")
         requested = [c.args[0] for c in stub.api.call_args_list]
         assert "plugins.core.commands:command.run" not in requested

@@ -15,7 +15,7 @@ from bastproxy.libs.net.client import ClientConnection
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 
 class BanRecord:
@@ -345,7 +345,7 @@ class ClientPlugin(BasePlugin):
     @AddParser(description="list clients that are connected")
     def _command_show(self):
         """Show all clients."""
-        return True, self.api(f"{self.plugin_id}:client.list.formatted")()
+        return CommandResult(True, self.api(f"{self.plugin_id}:client.list.formatted")())
 
     @AddParser(description="add or remove a banned ip")
     @AddArgument(
@@ -365,7 +365,7 @@ class ClientPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["ips"]:
-            return True, ["No IPs specified"]
+            return CommandResult(True, ["No IPs specified"])
 
         removed = []
         added = []
@@ -391,4 +391,4 @@ class ClientPlugin(BasePlugin):
         if not tmsg:
             tmsg = ["No changes made"]
 
-        return True, tmsg
+        return CommandResult(True, tmsg)

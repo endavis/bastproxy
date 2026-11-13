@@ -234,7 +234,9 @@ def test_stats_have_no_regex_rows(harness: Harness) -> None:
 def test_detail_has_no_regex_id_rows(harness: Harness) -> None:
     harness.add("named", r"^go")
     harness.command_args = {"trigger": [harness.item("named").trigger_id]}
-    _ok, message = harness._command_detail()
+    result = harness._command_detail()
+    _ok = result.success
+    message = result.message
     text = "\n".join(message)
     assert "Regex ID" not in text
     assert "w/o Groups" not in text

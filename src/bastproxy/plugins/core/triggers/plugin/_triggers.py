@@ -19,7 +19,7 @@ import regex as re
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 # The "Triggers" section this plugin adds to a stats event record's "stats" dict.
@@ -783,7 +783,7 @@ class TriggersPlugin(BasePlugin):
                     )
                 )
 
-        return True, message
+        return CommandResult(True, message)
 
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
     def _eventcb_triggers_ev_plugins_stats(self):
@@ -866,4 +866,4 @@ class TriggersPlugin(BasePlugin):
         else:
             message.append("Please provide a trigger name")
 
-        return True, message
+        return CommandResult(True, message)

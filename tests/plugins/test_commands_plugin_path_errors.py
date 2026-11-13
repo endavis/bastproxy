@@ -8,6 +8,7 @@ import pytest
 
 from bastproxy.libs import argp
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandRunResult
 from bastproxy.plugins.core.commands.plugin import _commands
@@ -126,13 +127,13 @@ def test_exception_has_its_own_reason() -> None:
     assert result.success is False
     assert result.reason == "function raised an exception"
     assert any("Error running command" in line for line in result.message)
-    assert _make(lambda: False).run("").reason == "function returned False"
+    assert _make(lambda: CommandResult(False)).run("").reason == "function returned False"
 
 
 @pytest.mark.usefixtures("_patch_command_module")
 def test_format_failure_is_contained() -> None:
     """A failure in format_return_message gives an error reply and its own reason."""
-    cmd = _make(lambda: (True, ["ok"]))
+    cmd = _make(lambda: CommandResult(True, ["ok"]))
 
     def bad_format(message: list[str]) -> list[str]:
         raise RuntimeError("format failed")
@@ -149,7 +150,7 @@ def test_format_failure_is_contained() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_str_message_is_one_line() -> None:
     """A command returning `(True, "hi")` gives one line, not `h` and `i`."""
-    result = _make(lambda: (True, "hi")).run("")
+    result = _make(lambda: CommandResult(True, "hi")).run("")  # type: ignore[arg-type]
     assert result.success is True
     assert result.message == ["hi"]
 
@@ -157,7 +158,7 @@ def test_str_message_is_one_line() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_run_finish_str_message_is_one_line() -> None:
     """run_finish treats a str message as a single line."""
-    assert _make(lambda: True).run_finish(True, "hello", "x").message == ["hello"]  # type: ignore[arg-type]
+    assert _make(lambda: CommandResult(True)).run_finish(True, "hello", "x").message == ["hello"]  # type: ignore[arg-type]
 
 
 def test_str_find_command_message_is_one_line(sent: list[Any]) -> None:

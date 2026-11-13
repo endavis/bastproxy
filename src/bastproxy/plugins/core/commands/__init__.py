@@ -21,6 +21,18 @@ PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = True
 
-__all__ = ["AddArgument", "AddCommand", "AddParser", "set_command_autoadd"]
+__all__ = [
+    "AddArgument",
+    "AddCommand",
+    "AddParser",
+    "CommandResult",
+    "set_command_autoadd",
+]
 
-from .libs._utils import AddArgument, AddCommand, AddParser, set_command_autoadd
+from .libs._utils import (
+    AddArgument,
+    AddCommand,
+    AddParser,
+    CommandResult,
+    set_command_autoadd,
+)

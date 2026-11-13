@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.libs import argp
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
 from bastproxy.plugins.core.commands.plugin._commands import CommandLookup, CommandsPlugin
@@ -32,7 +33,7 @@ def _raiser() -> None:
 
 
 def test_counts_increment_on_run() -> None:
-    cmd = _make(lambda: True)
+    cmd = _make(lambda: CommandResult(True))
     cmd.run("")
     cmd.run("")
     assert cmd.count == 2
@@ -41,7 +42,7 @@ def test_counts_increment_on_run() -> None:
 
 
 def test_parse_failure_and_help_do_not_count() -> None:
-    cmd = _make(lambda: True)
+    cmd = _make(lambda: CommandResult(True))
     cmd.run('"unterminated')
     cmd.run("-h")
     assert cmd.count == 0
@@ -49,7 +50,7 @@ def test_parse_failure_and_help_do_not_count() -> None:
 
 
 def test_returning_false_is_not_an_error() -> None:
-    cmd = _make(lambda: False)
+    cmd = _make(lambda: CommandResult(False))
     cmd.run("")
     assert cmd.count == 1
     assert cmd.stats.error_count == 0
@@ -86,7 +87,7 @@ def test_live_replace_carries_count_and_stats() -> None:
     old = _make(_raiser)
     old.run("")
     stub.command_data[PID] = {"x": old}
-    new = _make(lambda: True)
+    new = _make(lambda: CommandResult(True))
     CommandsPlugin.update_command(stub, PID, "x", new)
     assert new.count == 1
     assert new.stats is old.stats
@@ -102,7 +103,7 @@ def test_unload_and_reload_restores_stats() -> None:
     CommandsPlugin._api_command_remove_for_plugin(stub, PID)
     saved = stub.saved_command_stats[PID]["x"]
     assert isinstance(saved, dict)
-    new = _make(lambda: True)
+    new = _make(lambda: CommandResult(True))
     CommandsPlugin.update_command(stub, PID, "x", new)
     assert new.stats == expected
     assert new.count == 1
@@ -111,7 +112,7 @@ def test_unload_and_reload_restores_stats() -> None:
 
 def test_uninitialize_hook_saves_only_when_reloading() -> None:
     stub = _stub()
-    stub.command_data[PID] = {"x": _make(lambda: True)}
+    stub.command_data[PID] = {"x": _make(lambda: CommandResult(True))}
     stub.is_reloading_f = False
     CommandsPlugin._phook_commands_save_on_reload(stub)
     assert stub.saved_command_counts == {}
@@ -171,12 +172,12 @@ def _detail_stub(argument: str) -> tuple[MagicMock, list[Any]]:
 
 def test_detail_command_found() -> None:
     stub, captured = _detail_stub("a.b.x")
-    cmd = _make(lambda: True)
+    cmd = _make(lambda: CommandResult(True))
     cmd.full_cmd = "#bp.a.b.x"
     stub.find_command.return_value = CommandLookup(cmd, "", False, "", [])
     stub.command_detail_data.return_value = [{"item": "i", "value": "v"}]
     result = CommandsPlugin._command_detail(stub)
-    assert result == (True, ["table"])
+    assert result == CommandResult(True, ["table"])
     assert captured[0] == "Command: #bp.a.b.x"
     assert captured[1] == [{"item": "i", "value": "v"}]
 
@@ -184,9 +185,9 @@ def test_detail_command_found() -> None:
 def test_detail_command_not_found() -> None:
     stub, _ = _detail_stub("nope")
     stub.find_command.return_value = CommandLookup(None, "", False, "", ["not found"])
-    assert CommandsPlugin._command_detail(stub) == (True, ["not found"])
+    assert CommandsPlugin._command_detail(stub) == CommandResult(True, ["not found"])
 
 
 def test_detail_command_empty_argument() -> None:
     stub, _ = _detail_stub("")
-    assert CommandsPlugin._command_detail(stub)[0] is False
+    assert CommandsPlugin._command_detail(stub).success is False

@@ -105,7 +105,9 @@ def test_initialize_adds_capture_stacks_off_by_default() -> None:
 
 
 def test_types_output_starts_with_the_tree_header() -> None:
-    ok, lines = RecordPlugin._command_types(_StubPlugin())
+    result = RecordPlugin._command_types(_StubPlugin())
+    ok = result.success
+    lines = result.message
     assert ok
     assert lines[0] == f"Root trees: {RMANAGER.root_count()} (retaining {RMANAGER.max_trees})"
     assert lines[1] == "Record Types:"

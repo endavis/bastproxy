@@ -28,7 +28,7 @@ from bastproxy.libs.records import (
 )
 from bastproxy.libs.scan import find_methods
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
 from bastproxy.plugins.core.events import RegisterToEvent
 
@@ -1423,7 +1423,9 @@ class CommandsPlugin(BasePlugin):
         plugin_id = args["plugin"]
 
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            return True, self.api(f"{self.plugin_id}:plugin.list.formatted")(package=plugin_id)
+            return CommandResult(
+                True, self.api(f"{self.plugin_id}:plugin.list.formatted")(package=plugin_id)
+            )
 
         if plugin_commands := self.command_data.get(plugin_id, {}):
             if command and command in plugin_commands:
@@ -1434,7 +1436,7 @@ class CommandsPlugin(BasePlugin):
         else:
             message.append(f"There are no commands in plugin {plugin_id}")
 
-        return True, message
+        return CommandResult(True, message)
 
     def command_detail_data(self, command: CommandClass) -> list[dict[str, str]]:
         """Build the rows shown by the detail command."""
@@ -1470,19 +1472,22 @@ class CommandsPlugin(BasePlugin):
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["command"]:
-            return False, []
+            return CommandResult(False, [])
 
         lookup = self.find_command(args["command"])
         command_item = lookup.command
         if command_item is None:
-            return True, lookup.message
+            return CommandResult(True, lookup.message)
 
         columns = [
             {"name": "Item", "key": "item", "width": 20},
             {"name": "Value", "key": "value", "width": 40},
         ]
-        return True, self.api("plugins.core.utils:table.format")(
-            f"Command: {command_item.full_cmd}", self.command_detail_data(command_item), columns
+        return CommandResult(
+            True,
+            self.api("plugins.core.utils:table.format")(
+                f"Command: {command_item.full_cmd}", self.command_detail_data(command_item), columns
+            ),
         )
 
     @AddCommand(
@@ -1506,7 +1511,7 @@ class CommandsPlugin(BasePlugin):
         number = args["number"]
         history_length = len(self.command_history_data)
         if not -history_length <= number < history_length:
-            return True, ["# is outside of history length"]
+            return CommandResult(True, ["# is outside of history length"])
 
         command = self.command_history_data[number]
 
@@ -1523,7 +1528,7 @@ class CommandsPlugin(BasePlugin):
             NetworkData([f"{command}"], owner_id="run_history"), clients=clients
         )()
 
-        return True, []
+        return CommandResult(True, [])
 
     @AddCommand(shelp="list or run a command in history", show_in_history=False)
     @AddParser(description="list the command history")
@@ -1546,7 +1551,7 @@ class CommandsPlugin(BasePlugin):
             message.extend(
                 f"{self.command_history_data.index(i)} : {i}" for i in self.command_history_data
             )
-        return True, message
+        return CommandResult(True, message)
 
     @RegisterPluginHook("uninitialize")
     def _phook_commands_save_on_reload(self):

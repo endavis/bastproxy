@@ -32,7 +32,9 @@ def _stub(loaded: bool) -> tuple[MagicMock, dict[str, MagicMock]]:
 def test_reload_unloaded_plugin_returns_message_and_does_nothing() -> None:
     """A valid but unloaded plugin id is refused before any state changes."""
     stub, funcs = _stub(loaded=False)
-    ok, msgs = PluginManager._command_reload(stub)
+    result = PluginManager._command_reload(stub)
+    ok = result.success
+    msgs = result.message
     assert ok is True
     assert msgs == [f"{PLUGIN_ID} is not loaded; use #bp.core.pluginm.load {PLUGIN_ID}"]
     funcs[f"{PLUGIN_ID}:plugin.reloading.set"].assert_not_called()
@@ -43,7 +45,9 @@ def test_reload_unloaded_plugin_returns_message_and_does_nothing() -> None:
 def test_reload_loaded_plugin_still_reloads() -> None:
     """A loaded plugin is flagged as reloading and reloaded."""
     stub, funcs = _stub(loaded=True)
-    ok, msgs = PluginManager._command_reload(stub)
+    result = PluginManager._command_reload(stub)
+    ok = result.success
+    msgs = result.message
     assert ok is True
     assert msgs == [f"{PLUGIN_ID} reloaded"]
     funcs[f"{PLUGIN_ID}:plugin.reloading.set"].assert_called_once_with()

@@ -17,7 +17,7 @@ from bastproxy.libs.logger import echo_off_placeholder, get_logger, log_to
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -82,7 +82,7 @@ class WatchPlugin(BasePlugin):
             if not match or match in watch_name or watch.owner == match:
                 message.append(template % (watch_name, watch.owner, watch.hits))
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="get details of a watch")
     @AddArgument("watch", help="the trigger to detail", default=[], nargs="*")
@@ -110,7 +110,7 @@ class WatchPlugin(BasePlugin):
         else:
             message.append("Please provide a watch name")
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddAPI("watch.add", description="add a watch")
     def _api_watch_add(self, watch_name, regex, owner=None, **kwargs):

@@ -369,9 +369,9 @@ counts stayed in `saved_command_counts` (**verified**, `out-q2bbad.txt`).
 | What the command does | What the client gets | `run()` returns (`CommandRunResult`: `success`, `message`, `reason`) | Counted |
 | :--- | :--- | :--- | :--- |
 | Raises `RuntimeError` | `Error running command: <cmd>`; ERROR log with traceback | `success` `False`, `reason` `function raised an exception` | one error, `last_error` `RuntimeError: ...` |
-| Returns `(False, [msg])` | `msg`, a blank line, then the help | `False`, reason `function returned False` | a call, no error |
-| Returns `None` or a bare `True` | the frame, no lines | `True`, `command ran successfully` | a call |
-| Returns `(True, "hi")` | one line per character: `h`, `i` | `True` | a call |
+| Returns `CommandResult(False, [msg])` | `msg`, a blank line, then the help | `False`, reason `function returned False` | a call, no error |
+| Returns `CommandResult(True, "hi")` | one line: `hi` | `True` | a call |
+| Returns anything else (a tuple, a bool, `None`) | `Error running command: <cmd>`; ERROR log | `False`, reason `function returned an invalid result` | one error |
 | Bad or missing argument, unclosed quote | `@RError: ...`, a blank line, the help | `False`, reason `could not parse args` | not counted |
 | `-h` | the help | `True`, reason `help` | not counted |
 | Unknown command | the error page and the plugin's command list; the line is dropped | not run | not counted |

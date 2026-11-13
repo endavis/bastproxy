@@ -19,7 +19,7 @@ from bastproxy.plugins.core.colors.libs._colors import (
     CONVERTANSI,
     CONVERTCOLORS,
 )
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 logger = get_logger(__name__)
 
@@ -322,7 +322,7 @@ class ColorsPlugin(BasePlugin):
 
         message.append("")
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="show color examples")
     def _command_example(self):
@@ -344,4 +344,4 @@ class ColorsPlugin(BasePlugin):
             "Note: see the show command to show the table of colors",
             "",
         ]
-        return True, message
+        return CommandResult(True, message)

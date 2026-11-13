@@ -21,7 +21,7 @@ from typing import Any
 # Project
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import log_to
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 
 def dict_factory(cursor, row):
@@ -170,7 +170,7 @@ class Sqldb:
                 message.extend(f"{i}" for i in results)
             else:
                 message.append("Please enter a select statement")
-        return True, message
+        return CommandResult(True, message)
 
     @AddCommand(group="DB")
     @AddParser(description="show tables and fields in database")
@@ -182,7 +182,7 @@ class Sqldb:
         if args:
             if args["table"]:
                 if not self.checktable(args["table"]):
-                    return True, [f"Table {args['table']} does not exist"]
+                    return CommandResult(True, [f"Table {args['table']} does not exist"])
                 if self.db_connection:
                     cursor = self.db_connection.cursor()
                     cursor.execute(f"PRAGMA table_info({args['table']})")
@@ -190,7 +190,7 @@ class Sqldb:
                     cursor.close()
                     message.extend((f"Fields in table {args['table']}:", "-" * 40))
                     message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
-                    return True, message
+                    return CommandResult(True, message)
             else:
                 tables = []
                 if self.db_connection:
@@ -207,8 +207,8 @@ class Sqldb:
                     message.extend(f"{item}" for item in tables if item != "sqlite_sequence")
                 else:
                     message.append(f"No tables in database {self.database_name}")
-                return True, message
-        return True, message
+                return CommandResult(True, message)
+        return CommandResult(True, message)
 
     @AddCommand(group="DB")
     @AddParser(description="run a sql update/insert against the database")
@@ -222,7 +222,7 @@ class Sqldb:
                 self.api(f"{self.plugin_id}:{self.database_name}.modify")(sqlstmt)
             else:
                 message.append("Please enter an update statement")
-        return True, message
+        return CommandResult(True, message)
 
     @AddCommand(group="DB")
     @AddParser(description="vacuum the database")
@@ -231,14 +231,14 @@ class Sqldb:
         if self.db_connection:
             self.db_connection.execute("VACUUM")
 
-        return True, ["Database Vacuumed"]
+        return CommandResult(True, ["Database Vacuumed"])
 
     @AddCommand(group="DB")
     @AddParser(description="close the database")
     def _command_dbclose(self):
         """Close the database."""
         self.close()
-        return True, [f"Database {self.database_name} was closed"]
+        return CommandResult(True, [f"Database {self.database_name} was closed"])
 
     @AddCommand(group="DB")
     @AddParser(description="remove a row from a table")
@@ -256,7 +256,7 @@ class Sqldb:
             _, new_message = self.remove(args["table"], args["rownumber"])
             message.append(new_message)
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddCommand(group="DB")
     @AddParser(description="backup the database")
@@ -276,7 +276,7 @@ class Sqldb:
         else:
             message.append(f"could not back up {self.database_name} with name {backup_file_name}")
 
-        return True, message
+        return CommandResult(True, message)
 
     def postinit(self):
         """Do post init stuff, checks and upgrades the database, creates tables."""

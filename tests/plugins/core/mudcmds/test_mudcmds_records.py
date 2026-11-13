@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.mudcmds.plugin import _mudcmds
 from bastproxy.plugins.core.mudcmds.plugin._mudcmds import (
     MUDCmdsPlugin,
@@ -221,7 +222,7 @@ def test_fixqueue_resets_to_none() -> None:
     stub, _ = _stub()
     stub.current_command = QueuedCommand(cmd="look", ctype="t1", plugin=PID)
     result = MUDCmdsPlugin._command_fixqueue(stub)
-    assert result == (True, ["finished the currentcmd"])
+    assert result == CommandResult(True, ["finished the currentcmd"])
     assert stub.current_command is None
 
 

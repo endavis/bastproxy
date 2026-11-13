@@ -19,7 +19,7 @@ from bastproxy.libs.scan import find_methods
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 from ._event import Event
@@ -434,7 +434,7 @@ class EventsPlugin(BasePlugin):
         else:
             message.append(f"event does not exist: {args['event']}")
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="get details of an event")
     @AddArgument("event", help="the event name to get details for", default=[], nargs="*")
@@ -454,7 +454,7 @@ class EventsPlugin(BasePlugin):
         else:
             message.append("Please provide an event name")
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="list events and the owners registered with them")
     @AddArgument(
@@ -528,7 +528,7 @@ class EventsPlugin(BasePlugin):
             if (not match or match in name) and self.events[name]
         ] or ["No events found"]
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="list registrations for a specific owner")
     @AddArgument(
@@ -541,13 +541,13 @@ class EventsPlugin(BasePlugin):
         """Show all registrations for a specific owner."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["owner"]:
-            return False, ["Please provide an owner"]
+            return CommandResult(False, ["Please provide an owner"])
 
         owner_name = args["owner"]
 
         data = self.api(f"{self.plugin_id}:detail.get.for.plugin")(owner_name)
 
-        return True, data or ["No registrations"]
+        return CommandResult(True, data or ["No registrations"])
 
     @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
     def _api_summary_get_for_plugin(self, plugin_id):
