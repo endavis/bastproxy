@@ -3,7 +3,7 @@
 from typing import Any
 from unittest.mock import MagicMock
 
-from bastproxy.plugins.core.mudcmds.plugin._mudcmds import MUDCmdsPlugin
+from bastproxy.plugins.core.mudcmds.plugin._mudcmds import MUDCmdsPlugin, QueuedCommand
 
 PID = "plugins.test.a"
 OTHER = "plugins.test.b"
@@ -14,7 +14,7 @@ def _stub() -> MagicMock:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.mudcmds"
     stub.cmds = {}
-    stub.current_command = {}
+    stub.current_command = None
     stub.queue = []
     stub.timing_uid = None
     calls: list[str] = []
@@ -54,7 +54,7 @@ def test_type_add_without_current_command() -> None:
 
     MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$")
 
-    assert stub.cmds["t1"]["owner"] == PID
+    assert stub.cmds["t1"].owner == PID
 
 
 def test_timing_uses_registered_api() -> None:
@@ -71,7 +71,7 @@ def test_timing_uses_registered_api() -> None:
 
     stub.api = api
     MUDCmdsPlugin._api_command_start(stub, "t1")
-    stub.current_command = {"ctype": "t1"}
+    stub.current_command = QueuedCommand(cmd="c", ctype="t1", plugin=PID)
     stub._finish_timing = lambda: MUDCmdsPlugin._finish_timing(stub)
     stub.sendnext = lambda: None
     MUDCmdsPlugin._api_command_finish(stub, "t1")
@@ -105,7 +105,7 @@ def test_type_add_owner_kwarg_is_stored_and_used_for_events() -> None:
 
     MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$", owner=OTHER)
 
-    assert stub.cmds["t1"]["owner"] == OTHER
+    assert stub.cmds["t1"].owner == OTHER
     assert [a for _, a in events] == [("cmd_t1_send", OTHER), ("cmd_t1_completed", OTHER)]
 
 
@@ -115,7 +115,7 @@ def test_type_add_plugin_kwarg_alone_does_not_raise() -> None:
 
     MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$", plugin=True)
 
-    assert stub.cmds["t1"]["owner"] == PID
+    assert stub.cmds["t1"].owner == PID
 
 
 def test_type_add_no_kwargs_uses_caller_owner() -> None:
@@ -124,5 +124,5 @@ def test_type_add_no_kwargs_uses_caller_owner() -> None:
 
     MUDCmdsPlugin._api_type_add(stub, "t1", "cmd1", "^a$")
 
-    assert stub.cmds["t1"]["owner"] == PID
+    assert stub.cmds["t1"].owner == PID
     assert [a[1] for _, a in events] == [PID, PID]
