@@ -19,7 +19,7 @@ from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.scan import find_methods
 
-from .libs._pluginhooks import RegisterPluginHook
+from .libs._pluginhooks import RegisterPluginHook, validate_hook_name
 
 
 class Plugin:  # pylint: disable=too-many-instance-attributes
@@ -84,7 +84,11 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("libs.plugins.reloadutils:cache.remove")(self.plugin_id)
 
     def _process_plugin_hook(self, plugin_hook, **kwargs) -> dict:
-        """Process a loading hook."""
+        """Process a loading hook.
+
+        Raises ValueError for a hook name that is not a valid plugin hook.
+        """
+        validate_hook_name(plugin_hook)
         get_logger(self.plugin_id).debug("_process_plugin_hook: %s", plugin_hook)
 
         functions = self._get_plugin_hook_functions(self, plugin_hook)

@@ -206,8 +206,9 @@ priority.
 - **Ties run in alphabetical order of the method name** (it is `dir()` order). The docs said
   "the order they're discovered". Verified: `_phook_base_post_initialize_add_reset_command`
   ran before `_phook_pa_initialize`, both at priority 50.
-- The hook name is not validated. `@RegisterPluginHook("stats")` (commented out in the timers
-  plugin) or a misspelled `"after_load"` is accepted and never runs.
+- The hook name was not validated: `@RegisterPluginHook("stats")` (commented out in the timers
+  plugin) or a misspelled `"after_load"` was accepted and never ran. Since #446 an unknown name
+  raises `ValueError` (see `VALID_HOOK_NAMES`).
 - The `_phook_` prefix is required to run but not to be registered, and the second lookup,
   `_get_all_plugin_hook_functions` (behind the `plugin.hook.list` API), ignores the prefix and
   loses hooks that share a priority (PS-6).

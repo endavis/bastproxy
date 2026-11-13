@@ -125,9 +125,13 @@ Decorator for registering functions to plugin lifecycle hooks:
 ```python
 class RegisterPluginHook:
     def __init__(self, hook_name, priority=50):
-        self.hook_name = hook_name  # '__init__', 'after_load', 'save', 'uninitialize'
+        self.hook_name = hook_name  # one of VALID_HOOK_NAMES
         self.priority = priority
 ```
+
+The valid hook names are `__init__`, `after_load`, `save` and `uninitialize`, held in
+`VALID_HOOK_NAMES` in the same module. Any other name raises `ValueError` when the decorator is
+applied (see [Available Hooks](#available-hooks)).
 
 ## Plugin Structure
 
@@ -424,7 +428,10 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
    - Use for: Cleanup, closing connections, saving state
    - Graceful shutdown
 
-The hook name is not validated: a misspelled name registers and never runs.
+The valid hook names are exactly `__init__`, `after_load`, `save` and `uninitialize`
+(`VALID_HOOK_NAMES`). Any other name raises `ValueError` when the decorator runs, at import, so the
+plugin fails to load; the message lists the valid names. `initialize` was renamed to `after_load`
+(#423) and gets a message saying so. `Plugin._process_plugin_hook` rejects unknown names too.
 
 ### Base Class Hooks
 
