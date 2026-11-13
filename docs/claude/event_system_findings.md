@@ -163,7 +163,7 @@ no longer applies) or **Not pursued** (no issue, with the reason). The old text 
 | Enhancement #3 | Event middleware and interceptors | **Not pursued** | A feature with no caller; `tracking_actor` and the record tree already identify who ran. | |
 | Enhancement #4 | Performance monitoring | **Not pursued** | `raised_count` per event and `execute_time_taken` per raise exist (**read**, `src/bastproxy/plugins/core/events/plugin/_event.py`, `src/bastproxy/libs/records/tracking.py`); Q4 measures the cost instead. | |
 | Enhancement #5 | Event replay for debugging | **Not pursued** | A feature with no caller. [Event System](event_system.md) says `RMANAGER` keeps each raise while its tree is retained (**unverified**). | |
-| Enhancement #6 | Event schema validation | **Not pursued** | `arg_descriptions` document the keys; enforcing them would break every raiser that adds a key. | |
+| Enhancement #6 | Event schema validation | **Partly pursued** | `Event.raise_event` warns once per event and key about a payload key missing from `arg_descriptions`; it never raises, so a raiser that adds a key still works (#466). | |
 | Refactoring #1 | Extract a `PriorityManager` | **Not pursued** | Moving the same code; the defects in it (Design #4) are filed on their own. | |
 | Refactoring #2 | Dataclass for `Event` configuration | **Not pursued** | Four parameters, two optional; no pain. | |
 | Refactoring #3 | `EventError` exception hierarchy | **Not pursued** | The handler logs and continues by design (Q6); an exception type changes nothing it does. | |

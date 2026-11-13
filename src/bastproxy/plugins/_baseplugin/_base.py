@@ -12,6 +12,7 @@ import inspect
 import logging
 import pprint
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 # Project
@@ -458,6 +459,16 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             arg_descriptions={"None": None},
         )
 
+        self.api("plugins.core.events:event.add")(
+            f"ev_{self.plugin_id}_stats",
+            self.plugin_id,
+            description=["Raised by plugin.stats.get so callbacks add stats for this plugin"],
+            arg_descriptions={
+                "plugin_id": "The plugin id",
+                "stats": "dict of section name to stats section; callbacks add sections",
+            },
+        )
+
     def initialize(self):
         self._process_plugin_hook("after_load")
 
@@ -469,6 +480,26 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("plugins.core.events:event.raise")(
             "ev_plugin_save", event_args={"plugin_id": self.plugin_id}
         )
+
+    @AddAPI("plugin.stats.get", "get stats for this plugin")
+    def _api_plugin_stats_get(self) -> dict[str, dict[str, Any]]:
+        """Get stats for this plugin.
+
+        Raises ev_<plugin_id>_stats, then ev_plugin_stats, with the same stats dict.
+        Callbacks add sections: a section name mapped to a dict with a showorder list.
+        """
+        stats: dict[str, dict[str, Any]] = {}
+        event_args: dict[str, Any] = {"plugin_id": self.plugin_id, "stats": stats}
+
+        for event_name in (f"ev_{self.plugin_id}_stats", "ev_plugin_stats"):
+            processed_event = self.api("plugins.core.events:event.raise")(
+                event_name, event_args=dict(event_args)
+            )
+            if processed_event is not None:
+                stats = processed_event.event_data["stats"]
+                event_args["stats"] = stats
+
+        return stats
 
     @AddAPI("plugin.reset", "reset the plugin")
     def _api_plugin_reset(self):

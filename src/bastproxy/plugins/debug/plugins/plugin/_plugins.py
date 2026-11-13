@@ -140,3 +140,33 @@ class PluginsPlugin(BasePlugin):
             tmsg.append("")
 
         return CommandResult(True, tmsg)
+
+    @AddParser(description="show the stats sections other plugins add for a plugin")
+    @AddArgument("plugin", help="the plugin to show the stats for", default="")
+    def _command_stats(self):
+        """@G%(name)s@w - @B%(cmdname)s@w.
+
+        show the stats that plugins add for a plugin
+        @CUsage@w: stats plugins.core.timers.
+        """
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        plugin = args["plugin"]
+
+        if not plugin:
+            return CommandResult(False, ["Please enter a plugin name"])
+
+        if plugin not in self.api("libs.plugins.loader:plugin.list.loaded")():
+            return CommandResult(False, [f"Plugin {plugin} is not loaded"])
+
+        sections = self.api(f"{plugin}:plugin.stats.get")()
+
+        if not sections:
+            return CommandResult(True, [f"No stats for {plugin}"])
+
+        tmsg: list[str] = []
+        for section, values in sections.items():
+            tmsg.extend(self.api("plugins.core.commands:output.header.format")(section))
+            tmsg.extend(f"{key:<20} : {values[key]}" for key in values["showorder"])
+            tmsg.append("")
+
+        return CommandResult(True, tmsg)
