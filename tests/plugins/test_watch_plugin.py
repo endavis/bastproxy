@@ -232,16 +232,19 @@ def _command_stub(args: dict[str, Any], detail: Any = None) -> Any:
 
 def test_command_list_lists_and_filters() -> None:
     """The list command shows every watch and filters by name or owner."""
-    _, all_lines = WatchPlugin._command_list(_command_stub({"match": ""}))
+    result = WatchPlugin._command_list(_command_stub({"match": ""}))
+    all_lines = result.message
     text = "\n".join(all_lines)
     assert "alpha" in text
     assert "beta" in text
 
-    _, by_name = WatchPlugin._command_list(_command_stub({"match": "alp"}))
+    result = WatchPlugin._command_list(_command_stub({"match": "alp"}))
+    by_name = result.message
     assert "alpha" in "\n".join(by_name)
     assert "beta" not in "\n".join(by_name)
 
-    _, by_owner = WatchPlugin._command_list(_command_stub({"match": "plugins.y"}))
+    result = WatchPlugin._command_list(_command_stub({"match": "plugins.y"}))
+    by_owner = result.message
     assert "beta" in "\n".join(by_owner)
     assert "alpha" not in "\n".join(by_owner)
 
@@ -250,7 +253,8 @@ def test_command_detail_existing_watch() -> None:
     """Bug 1: detail of an existing watch must not raise KeyError."""
     detail = MagicMock(return_value=["event detail line"])
     stub = _command_stub({"watch": ["alpha"]}, detail)
-    _, message = WatchPlugin._command_detail(stub)
+    result = WatchPlugin._command_detail(stub)
+    message = result.message
 
     detail.assert_called_once_with("watch_alpha")
     text = "\n".join(message)
@@ -263,5 +267,6 @@ def test_command_detail_existing_watch() -> None:
 
 def test_command_detail_unknown_watch() -> None:
     """An unknown watch name is reported, not raised."""
-    _, message = WatchPlugin._command_detail(_command_stub({"watch": ["nope"]}))
+    result = WatchPlugin._command_detail(_command_stub({"watch": ["nope"]}))
+    message = result.message
     assert message == ["watch nope does not exist"]

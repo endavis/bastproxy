@@ -6,14 +6,18 @@ from .conftest import OWNER, PLUGIN, Harness
 
 def _list(harness: Harness, match: str = "") -> list[str]:
     harness.command_args = {"match": match}
-    ok, message = harness._command_list()
+    result = harness._command_list()
+    ok = result.success
+    message = result.message
     assert ok is True
     return list(message)
 
 
 def _detail(harness: Harness, *names: str) -> list[str]:
     harness.command_args = {"trigger": list(names)}
-    ok, message = harness._command_detail()
+    result = harness._command_detail()
+    ok = result.success
+    message = result.message
     assert ok is True
     return list(message)
 

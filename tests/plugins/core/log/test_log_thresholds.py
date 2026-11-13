@@ -154,7 +154,9 @@ def test_command_test_reports_the_handler_flags(caplog: pytest.LogCaptureFixture
     stub.api.args = {"logtype": "t247.cmd", "message": "hello", "loglevel": "info"}
     stub.api.enabled = {"console": True, "file": False, "client": False}
     with caplog.at_level(logging.DEBUG):
-        ok, msgs = LogPlugin._command_test(stub)
+        result = LogPlugin._command_test(stub)
+        ok = result.success
+        msgs = result.message
     assert ok
     assert "Console: True" in msgs
     assert "File: False" in msgs
@@ -166,7 +168,9 @@ def test_command_test_client_flag_true_for_errors() -> None:
     stub = _StubLog()
     stub.api.args = {"logtype": "t247.cmd2", "message": "bad", "loglevel": "error"}
     stub.api.enabled = {"console": False, "file": False, "client": False}
-    _ok, msgs = LogPlugin._command_test(stub)
+    result = LogPlugin._command_test(stub)
+    _ok = result.success
+    msgs = result.message
     assert "Client: True" in msgs
     assert "Console: False" in msgs
 
@@ -178,7 +182,9 @@ def test_command_test_flags_follow_quiet_mode_and_startup() -> None:
     stub.api.quiet_mode = True
     stub.api.startup = True
     try:
-        _ok, msgs = LogPlugin._command_test(stub)
+        result = LogPlugin._command_test(stub)
+        _ok = result.success
+        msgs = result.message
     finally:
         stub.api.quiet_mode = False
         stub.api.startup = False

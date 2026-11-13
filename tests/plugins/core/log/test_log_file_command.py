@@ -60,7 +60,9 @@ def test_parser_two_args_give_two_items() -> None:
 
 def test_no_logtype_lists_and_toggles_nothing() -> None:
     stub = _StubLog([], {"mudproxy": "debug"})
-    ok, msgs = LogPlugin._command_file(stub)
+    result = LogPlugin._command_file(stub)
+    ok = result.success
+    msgs = result.message
     assert ok
     assert "Current types going to file" in msgs
     assert stub.set_calls == []
@@ -69,7 +71,9 @@ def test_no_logtype_lists_and_toggles_nothing() -> None:
 
 def test_one_logtype_toggles_once_without_character_keys() -> None:
     stub = _StubLog(["mudproxy"])
-    ok, _msgs = LogPlugin._command_file(stub)
+    result = LogPlugin._command_file(stub)
+    ok = result.success
+    _msgs = result.message
     assert ok
     assert stub.set_calls == [(("mudproxy",), {"level": "debug"})]
     assert [k for k in stub.handlers["file"] if len(k) == 1] == []

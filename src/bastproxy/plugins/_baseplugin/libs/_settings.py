@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Protocol
 # Project
 from bastproxy.libs import argp
 from bastproxy.libs.logger import get_logger
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 from ._pluginhooks import RegisterPluginHook
 
@@ -49,11 +49,14 @@ class Settings(Protocol):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["name"] or args["name"] == "list":
-            return True, self.api("plugins.core.settings:setting.list.formatted")(self.plugin_id)
+            return CommandResult(
+                True, self.api("plugins.core.settings:setting.list.formatted")(self.plugin_id)
+            )
 
-        return self.api("plugins.core.settings:setting.set.from.user")(
+        success, message = self.api("plugins.core.settings:setting.set.from.user")(
             args["name"], args["value"], self.plugin_id
         )
+        return CommandResult(success, message)
 
     @RegisterPluginHook("after_load", priority=75)
     def _phook_settings_post_initialize(self: "Plugin"):

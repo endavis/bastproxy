@@ -11,7 +11,7 @@
 
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 
 class PluginsPlugin(BasePlugin):
@@ -31,14 +31,13 @@ class PluginsPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
-            return False, ["Please enter a plugin id"]
+            return CommandResult(False, ["Please enter a plugin id"])
 
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return True, [f"Plugin {args['plugin']} not found"]
+            return CommandResult(True, [f"Plugin {args['plugin']} not found"])
 
-        return (
-            True,
-            self.api(f"{args['plugin']}:plugin.dump")(args["object"], args["detailed"])[1],
+        return CommandResult(
+            True, self.api(f"{args['plugin']}:plugin.dump")(args["object"], args["detailed"])[1]
         )
 
     @AddParser(description="show internal plugin hooks")
@@ -52,7 +51,7 @@ class PluginsPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
-            return False, ["Please enter a plugin name"]
+            return CommandResult(False, ["Please enter a plugin name"])
 
         tmsg = []
 
@@ -72,7 +71,7 @@ class PluginsPlugin(BasePlugin):
                 tmsg.extend(f"{priority:<5} : {item}" for item in hooks[hook][priority])
             tmsg.append("")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="show plugin data summary")
     @AddArgument("plugin", help="the plugin to show the summary for", default="")
@@ -85,7 +84,7 @@ class PluginsPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
-            return False, ["Please enter a plugin name"]
+            return CommandResult(False, ["Please enter a plugin name"])
 
         data = {}
 
@@ -106,7 +105,7 @@ class PluginsPlugin(BasePlugin):
             tmsg.extend(plugin_data)
             tmsg.append("")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="show detailed plugin data in other plugins")
     @AddArgument("plugin", help="the plugin to show the data for", default="")
@@ -119,7 +118,7 @@ class PluginsPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not args["plugin"]:
-            return False, ["Please enter a plugin name"]
+            return CommandResult(False, ["Please enter a plugin name"])
 
         data = {}
 
@@ -140,4 +139,4 @@ class PluginsPlugin(BasePlugin):
             tmsg.extend(plugin_data)
             tmsg.append("")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)

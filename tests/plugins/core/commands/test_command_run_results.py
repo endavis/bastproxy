@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.libs import argp
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import (
     CommandClass,
@@ -46,7 +47,7 @@ def test_field_order_and_slots() -> None:
 
 
 def test_run_unclosed_quote() -> None:
-    result = _make(lambda: True).run('"abc')
+    result = _make(lambda: CommandResult(True)).run('"abc')
     assert isinstance(result, CommandRunResult)
     assert result.success is False
     assert result.reason == "could not parse args"
@@ -54,7 +55,7 @@ def test_run_unclosed_quote() -> None:
 
 
 def test_run_help() -> None:
-    result = _make(lambda: True).run("-h")
+    result = _make(lambda: CommandResult(True)).run("-h")
     assert isinstance(result, CommandRunResult)
     assert (result.success, result.reason) == (True, "help")
 
@@ -66,13 +67,13 @@ def test_run_exception() -> None:
 
 
 def test_run_returns_false() -> None:
-    result = _make(lambda: False).run("")
+    result = _make(lambda: CommandResult(False)).run("")
     assert isinstance(result, CommandRunResult)
     assert (result.success, result.reason) == (False, "function returned False")
 
 
 def test_run_success() -> None:
-    result = _make(lambda: (True, ["ok"])).run("")
+    result = _make(lambda: CommandResult(True, ["ok"])).run("")
     assert isinstance(result, CommandRunResult)
     assert (result.success, result.message, result.reason) == (
         True,
@@ -82,7 +83,7 @@ def test_run_success() -> None:
 
 
 def test_run_format_failure() -> None:
-    cmd = _make(lambda: True)
+    cmd = _make(lambda: CommandResult(True))
 
     def bad(message: list[str]) -> list[str]:
         raise RuntimeError("x")
@@ -94,7 +95,7 @@ def test_run_format_failure() -> None:
 
 
 def test_parse_args_unclosed_quote() -> None:
-    parsed = _make(lambda: True).parse_args('"abc')
+    parsed = _make(lambda: CommandResult(True)).parse_args('"abc')
     assert isinstance(parsed, ParsedArgs)
     assert parsed.success is False
     assert parsed.args == {}
@@ -103,14 +104,14 @@ def test_parse_args_unclosed_quote() -> None:
 
 
 def test_parse_args_unknown_option() -> None:
-    parsed = _make(lambda: True).parse_args("--nope 1")
+    parsed = _make(lambda: CommandResult(True)).parse_args("--nope 1")
     assert parsed.success is False
     assert parsed.args == {}
     assert parsed.message
 
 
 def test_parse_args_valid() -> None:
-    parsed = _make(lambda: True).parse_args("-h")
+    parsed = _make(lambda: CommandResult(True)).parse_args("-h")
     assert parsed.success is True
     assert isinstance(parsed.args, argparse.Namespace)
     assert parsed.message == []

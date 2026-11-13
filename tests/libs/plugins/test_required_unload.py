@@ -13,6 +13,7 @@ import pytest
 from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins.loader import PluginLoader
 from bastproxy.libs.plugins.plugininfo import PluginInfo
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.pluginm.plugin._pluginm import PluginManager
 
 ROOT_PKG = "zzreq130"
@@ -221,11 +222,11 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
 def test_unload_command_refuses_required_plugin() -> None:
     stub, unload = _command_stub(is_required=True)
     result = PluginManager._command_unload(stub)
-    assert result == (False, ["Plugin p.x is required and cannot be unloaded"])
+    assert result == CommandResult(False, ["Plugin p.x is required and cannot be unloaded"])
     unload.assert_not_called()
 
 
 def test_unload_command_unloads_non_required_plugin() -> None:
     stub, unload = _command_stub(is_required=False)
-    assert PluginManager._command_unload(stub) == (True, ["Plugin p.x unloaded"])
+    assert PluginManager._command_unload(stub) == CommandResult(True, ["Plugin p.x unloaded"])
     unload.assert_called_once_with("p.x")

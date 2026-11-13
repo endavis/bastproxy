@@ -17,7 +17,7 @@ from bastproxy.libs.logger import LEVELS, get_logger, log_to, set_threshold
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import RMANAGER
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.log import get_toplevel
 from bastproxy.plugins.core.log.libs._custom_logger import setup_loggers, type_counts
@@ -283,7 +283,7 @@ class LogPlugin(BasePlugin):
                     tmsg.append(f"no longer sending {logger_name} to client")
 
             self.handlers["client"].sync()
-            return True, tmsg
+            return CommandResult(True, tmsg)
 
         tmsg.extend(
             (
@@ -296,7 +296,7 @@ class LogPlugin(BasePlugin):
             for i in self.handlers["client"]
             if self.handlers["client"][i]
         )
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddAPI("logger.console.level.set", description="toggle a log type to show to console")
     def _api_logger_console_level_set(self, logtype, level="info"):
@@ -361,7 +361,7 @@ class LogPlugin(BasePlugin):
                     tmsg.append(f"setting {logger_name} to log to console at default level 'info'")
 
             self.handlers["console"].sync()
-            return True, tmsg
+            return CommandResult(True, tmsg)
 
         tmsg.extend(
             (
@@ -374,7 +374,7 @@ class LogPlugin(BasePlugin):
             for i in self.handlers["console"]
             if self.handlers["console"][i]
         )
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddAPI("logger.file.level.set", description="toggle a log type to log to a file")
     def _api_logger_file_level_set(self, logtype, level="info"):
@@ -440,7 +440,7 @@ class LogPlugin(BasePlugin):
                     tmsg.append(f"setting {logger_name} to log to file at default level 'info'")
 
             self.handlers["file"].sync()
-            return True, tmsg
+            return CommandResult(True, tmsg)
 
         tmsg.extend(
             (
@@ -453,7 +453,7 @@ class LogPlugin(BasePlugin):
             for i in self.handlers["file"]
             if self.handlers["file"][i]
         )
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="list all logging types")
     @AddArgument(
@@ -497,7 +497,7 @@ class LogPlugin(BasePlugin):
         else:
             tmsg.append(f"No matches found for {match}")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="test logging facilities")
     @AddArgument("message", help="the text to log")
@@ -538,7 +538,7 @@ class LogPlugin(BasePlugin):
                 f"Client: {bool(client)}",
             )
         )
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddAPI("logger.type.clean", description="clean log types that have not been logged to")
     def _api_logger_type_clean(self):
@@ -586,7 +586,7 @@ class LogPlugin(BasePlugin):
 
         tmsg.extend(remove)
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @RegisterPluginHook("save")
     def _phook_log_save(self):

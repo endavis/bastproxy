@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
 
 SQL = """CREATE TABLE things(
@@ -68,7 +69,7 @@ def test_remove_row_number_is_bound(tmp_path: Path) -> None:
 
 def test_command_removes_row(tmp_path: Path) -> None:
     db = _db(tmp_path, {"table": "things", "rownumber": 2})
-    assert db._command_dbremove() == (True, ["2 was removed from table things"])
+    assert db._command_dbremove() == CommandResult(True, ["2 was removed from table things"])
     assert _ids(db) == [1]
 
 
@@ -82,7 +83,8 @@ def test_command_rejects_bad_input(tmp_path: Path) -> None:
         ]
     ):
         db = _db(tmp_path / str(index), args)
-        _, message = db._command_dbremove()
+        result = db._command_dbremove()
+        message = result.message
         assert text in message[0]
         assert _ids(db) == [1, 2]
         db.close()

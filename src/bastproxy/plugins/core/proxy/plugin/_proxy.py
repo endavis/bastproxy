@@ -43,7 +43,7 @@ from bastproxy.libs.records import (
     SendDataDirectlyToMud,
 )
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -311,7 +311,7 @@ class ProxyPlugin(BasePlugin):
         tmsg.append("")
 
         tmsg.extend(self.api("plugins.core.clients:client.list.formatted")())
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="disconnect from the mud")
     def _command_disconnect(self):
@@ -320,19 +320,21 @@ class ProxyPlugin(BasePlugin):
             self.mud_connection.disconnect_from_mud()
             self.mud_connection = None
 
-            return True, ["Attempted to close the connection to the mud"]
+            return CommandResult(True, ["Attempted to close the connection to the mud"])
         if self.mud_connection and self.mud_connection.connecting:
             # the connect task is still running and cannot be cancelled from here
-            return True, ["The proxy is connecting to the mud, try again once it has finished"]
-        return True, ["The proxy is not connected to the mud"]
+            return CommandResult(
+                True, ["The proxy is connecting to the mud, try again once it has finished"]
+            )
+        return CommandResult(True, ["The proxy is not connected to the mud"])
 
     @AddParser(description="connect to the mud")
     def _command_connect(self):
         """Connect to the mud."""
         if self.mud_connection and self.mud_connection.connected:
-            return True, ["The proxy is currently connected to the mud"]
+            return CommandResult(True, ["The proxy is currently connected to the mud"])
         if self.mud_connection and self.mud_connection.connecting:
-            return True, ["The proxy is already connecting to the mud"]
+            return CommandResult(True, ["The proxy is already connecting to the mud"])
 
         self.mud_connection = MudConnection(
             self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudhost"),
@@ -343,7 +345,7 @@ class ProxyPlugin(BasePlugin):
 
         self.api("libs.asynch:task.add")(self.mud_connection.connect_to_mud, "Mud Connect Task")
 
-        return True, ["Connecting to the mud"]
+        return CommandResult(True, ["Connecting to the mud"])
 
     @AddAPI("proxy.shutdown", description="shutdown the proxy")
     def _api_proxy_shutdown(self):
@@ -363,6 +365,7 @@ class ProxyPlugin(BasePlugin):
     def _command_shutdown(self):
         """Shutdown the proxy."""
         signal.raise_signal(signal.SIGINT)
+        return CommandResult(True)
 
     @AddCommand(format=False)
     @AddParser(description="restart the proxy")
@@ -378,7 +381,9 @@ class ProxyPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
         self.api(f"{self.plugin_id}:proxy.restart")(args["seconds"])
-        return True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
+        return CommandResult(
+            True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
+        )
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self):
@@ -652,4 +657,4 @@ class ProxyPlugin(BasePlugin):
                 ]
             )
 
-        return True, msg
+        return CommandResult(True, msg)

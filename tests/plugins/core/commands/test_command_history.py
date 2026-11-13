@@ -31,7 +31,9 @@ def _stub(history: list[str], historysize: int = 5, client_id: str | None = "c1"
 def _run(stub: MagicMock, number: int) -> tuple[Any, list[str], MagicMock]:
     stub.args = {"number": number}
     with patch.object(_commands, "SendDataDirectlyToClient") as sender:
-        ok, msg = CommandsPlugin._command_run_history(stub)
+        result = CommandsPlugin._command_run_history(stub)
+        ok = result.success
+        msg = result.message
     return ok, msg, sender
 
 
@@ -67,7 +69,9 @@ def _run_capture(stub: MagicMock, number: int) -> tuple[list[str], list[Any]]:
         patch.object(_commands, "SendDataDirectlyToClient") as sender,
         patch.object(_commands, "NetworkData", side_effect=fake_network_data),
     ):
-        ok, msg = CommandsPlugin._command_run_history(stub)
+        result = CommandsPlugin._command_run_history(stub)
+        ok = result.success
+        msg = result.message
         assert ok is True
         captured = list(sender.call_args_list)
     return msg, captured

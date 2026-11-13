@@ -8,13 +8,29 @@
 
 see info/add_commands.txt for more info
 """
+
 # Standard Library
+from dataclasses import dataclass, field
 
 # 3rd Party
 
 # Project
 
 CANRELOAD = False
+
+
+@dataclass(slots=True)
+class CommandResult:
+    """What a command function (``_command_*``) returns.
+
+    Attributes:
+        success: True if the command worked. False makes the dispatcher append the
+            command's help to the output.
+        message: output lines shown to the user. A single str is treated as one line.
+    """
+
+    success: bool
+    message: list[str] = field(default_factory=list)
 
 
 def set_command_autoadd(func, autoadd):

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.libs import argp
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.commands.libs import _command
 from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandRunResult
 from bastproxy.plugins.core.commands.plugin import _commands
@@ -46,7 +47,7 @@ def _patch_command_module(monkeypatch: pytest.MonkeyPatch) -> None:
 def _make(**kwargs: Any) -> CommandClass:
     parser = argp.ArgumentParser(add_help=False)
     parser.add_argument("-h", "--help", action="store_true")
-    return CommandClass(PID, "x", lambda: (True, ["hello"]), parser, **kwargs)
+    return CommandClass(PID, "x", lambda: CommandResult(True, ["hello"]), parser, **kwargs)
 
 
 def test_unformatted_run_returns_plain_messages() -> None:

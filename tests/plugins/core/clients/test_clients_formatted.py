@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from bastproxy.plugins.core.clients.plugin._clients import ClientPlugin
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.utils.plugin._utils import UtilsPlugin
 from tests.plugins.core.utils.test_utils_output_table import make_utils_stub
 
@@ -100,4 +101,6 @@ def test_bans_follow_clients_table() -> None:
 
 def test_show_returns_api_output() -> None:
     stub = _stub()
-    assert ClientPlugin._command_show(stub) == (True, ClientPlugin._api_client_list_formatted(stub))
+    assert ClientPlugin._command_show(stub) == CommandResult(
+        True, ClientPlugin._api_client_list_formatted(stub)
+    )

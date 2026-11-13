@@ -287,6 +287,20 @@ class YourPlugin(BasePlugin):
         return f"Result: {param}"
 ```
 
+Commands are `_command_` methods that return a `CommandResult`; see
+[docs/claude/command_system.md](docs/claude/command_system.md):
+
+```python
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+
+    @AddParser(description="Say hello")
+    @AddArgument("name", help="who to greet")
+    def _command_hello(self):
+        """Greet someone."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        return CommandResult(True, [f"Hello, {args['name']}!"])
+```
+
 ### Plugin Best Practices
 
 - Use the API system for inter-plugin communication

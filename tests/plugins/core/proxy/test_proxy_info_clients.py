@@ -24,7 +24,9 @@ def test_info_ends_with_client_lines_without_commands_run() -> None:
 
     stub.api.side_effect = api
 
-    success, msg = ProxyPlugin._command_info(stub)
+    result = ProxyPlugin._command_info(stub)
+    success = result.success
+    msg = result.message
 
     assert success is True
     assert msg[-3:] == ["", *CLIENT_LINES]

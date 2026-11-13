@@ -22,7 +22,7 @@ from bastproxy.libs.logger import get_logger, log_to
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 # The sections this plugin adds to a stats event record's "stats" dict. The keys
@@ -182,7 +182,7 @@ class TimersPlugin(BasePlugin):
         else:
             message.append(f"timer {args['timername']} does not exist")
 
-        return True, message
+        return CommandResult(True, message)
 
     # @RegisterPluginHook('stats')
     # def _phook_timer_stats(self, **kwargs):
@@ -274,7 +274,7 @@ class TimersPlugin(BasePlugin):
                     )
                 )
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddParser(description="get details for a timer")
     @AddArgument("timers", help="a list of timers to get details", default=None, nargs="*")
@@ -321,7 +321,7 @@ class TimersPlugin(BasePlugin):
         else:
             message.append("Please specify a timer name")
 
-        return True, message
+        return CommandResult(True, message)
 
     @AddAPI("timer.exists", description="check if a timer exists")
     def _api_timer_exists(self, name: str):

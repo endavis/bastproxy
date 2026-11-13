@@ -11,7 +11,7 @@ import asyncio
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
 class AsyncPlugin(BasePlugin):
@@ -36,4 +36,4 @@ class AsyncPlugin(BasePlugin):
                     f"        {'Stack':<20} : {task.get_stack()}",
                 )
             )
-        return True, tmsg
+        return CommandResult(True, tmsg)

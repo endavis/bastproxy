@@ -14,7 +14,7 @@ from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, DEFAULT
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 SHOW_LOG_SETTING = "showRecordLogs"
@@ -118,7 +118,7 @@ class RecordPlugin(BasePlugin):
             "Record Types:",
         ]
         tmsg.extend(f"{rtype:<25} - {count}" for rtype, count in RMANAGER.get_types())
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="get a list of a specific type of record")
     @AddArgument("recordtype", help="the type of record to list", default="")
@@ -140,7 +140,7 @@ class RecordPlugin(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
         rtypes = [rtype for rtype, _ in RMANAGER.get_types()]
         if not args["recordtype"] or args["recordtype"] not in rtypes:
-            return True, ["Valid Types:", *[f"    {rtype}" for rtype in rtypes]]
+            return CommandResult(True, ["Valid Types:", *[f"    {rtype}" for rtype in rtypes]])
         tmsg = [
             f"Last {args['count']} records of type {args['recordtype']}:",
             header_color + line_length * "-" + "@w",
@@ -150,7 +150,7 @@ class RecordPlugin(BasePlugin):
         else:
             tmsg.append("No records found")
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="get details of a specific record")
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
@@ -204,7 +204,7 @@ class RecordPlugin(BasePlugin):
 
         if not args["uid"]:
             tmsg.append("No record id provided")
-            return True, tmsg
+            return CommandResult(True, tmsg)
 
         record = RMANAGER.get_record(args["uid"])
 
@@ -241,7 +241,7 @@ class RecordPlugin(BasePlugin):
             else:
                 tmsg.extend(data)
 
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="get a list of children of a specific record")
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
@@ -249,12 +249,12 @@ class RecordPlugin(BasePlugin):
         """Get the children of a specific record."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["uid"]:
-            return True, ["No record id provided"]
+            return CommandResult(True, ["No record id provided"])
 
         record = RMANAGER.get_record(args["uid"])
         if not record:
-            return True, [f"Record {args['uid']} not found"]
+            return CommandResult(True, [f"Record {args['uid']} not found"])
 
         child_records_formatted = RMANAGER.format_all_children(record)
 
-        return True, child_records_formatted
+        return CommandResult(True, child_records_formatted)

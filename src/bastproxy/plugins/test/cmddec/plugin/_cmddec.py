@@ -11,7 +11,7 @@
 
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
 class CMDDecPlugin(BasePlugin):
@@ -20,4 +20,4 @@ class CMDDecPlugin(BasePlugin):
     @AddParser(description="raise a test error")
     def _command_raise(self):
         """Test errors"""
-        return True, ["@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"]
+        return CommandResult(True, ["@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"])

@@ -92,6 +92,8 @@ only `@AddParser` is named after the method). A decorated method with another na
 logs a warning naming it.
 
 ```python
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
+
 @AddCommand(name="mycommand", show_in_history=True)
 @AddParser(description="Does something useful")
 @AddArgument("arg1", help="First argument")
@@ -100,7 +102,7 @@ def _command_mycommand(self):
     """Command implementation."""
     args = self.api("plugins.core.commands:command.current.args.get")()
     # Process command
-    return True, ["Success message"]
+    return CommandResult(True, ["Success message"])
 ```
 
 ## How It Works
@@ -119,7 +121,7 @@ class MyPlugin(BasePlugin):
         """Test command implementation.
 
         Returns:
-            tuple: (success: bool, messages: list[str])
+            CommandResult: success flag and output lines
         """
         # Get parsed arguments
         args = self.api("plugins.core.commands:command.current.args.get")()
@@ -128,8 +130,8 @@ class MyPlugin(BasePlugin):
         verbose = args["verbose"]
 
         if verbose:
-            return True, [f"Processing {value} in verbose mode"]
-        return True, [f"Processed {value}"]
+            return CommandResult(True, [f"Processing {value} in verbose mode"])
+        return CommandResult(True, [f"Processed {value}"])
 ```
 
 Write the decorators in this order by convention:
@@ -167,13 +169,19 @@ The system:
 
 ### 3. Command Output
 
-Commands return a tuple:
+Commands return a `CommandResult`:
 ```python
-return (success: bool, messages: list[str])
+from bastproxy.plugins.core.commands import CommandResult
+
+return CommandResult(success, message=[])
 ```
 
-- `success`: True if command succeeded, False otherwise
-- `messages`: List of strings to display to user
+- `success`: True if command succeeded, False otherwise (the command's help is appended to the output)
+- `message`: List of strings to display to user. A single `str` is treated as one line.
+
+Any other return value (a tuple, a bool, `None`) is logged at ERROR, counted as a command error, and
+reported to the client as `Error running command: ...`. A command with nothing to say returns
+`CommandResult(True)`.
 
 Output is framed by `CommandClass.format_return_message`: a `Begin Command` line, the start time, the
 messages, the finish time and an `End Command` line (more sections when the `simple_output` setting is off).
@@ -362,7 +370,7 @@ full, and a number outside `-len <= number < len` gets an "outside of history le
 def _command_hello(self):
     """Say hello to someone."""
     args = self.api("plugins.core.commands:command.current.args.get")()
-    return True, [f"Hello, {args['name']}!"]
+    return CommandResult(True, [f"Hello, {args['name']}!"])
 ```
 
 ### Command with Options
@@ -399,7 +407,7 @@ def _command_fetch(self):
     if verbose:
         messages.extend(output)
 
-    return True, messages
+    return CommandResult(True, messages)
 ```
 
 ### Command with Subcommands
@@ -450,7 +458,7 @@ def _command_status(self):
         f"{'Worker Pool':<20} {'Running':<10} {'2d 5h 30m':<15}",
     ]
 
-    return True, messages
+    return CommandResult(True, messages)
 ```
 
 ### Error Handling
@@ -467,17 +475,17 @@ def _command_process(self):
     try:
         # Process file
         result = self.process_file(filename)
-        return True, [f"Successfully processed {filename}", f"Result: {result}"]
+        return CommandResult(True, [f"Successfully processed {filename}", f"Result: {result}"])
 
     except FileNotFoundError:
-        return False, [f"@RError:@w File not found: {filename}"]
+        return CommandResult(False, [f"@RError:@w File not found: {filename}"])
 
     except PermissionError:
-        return False, [f"@RError:@w Permission denied: {filename}"]
+        return CommandResult(False, [f"@RError:@w Permission denied: {filename}"])
 
     except Exception as e:
         get_logger(self.plugin_id).error("Error processing %s", filename, exc_info=True)
-        return False, [f"@RError:@w Failed to process {filename}: {str(e)}"]
+        return CommandResult(False, [f"@RError:@w Failed to process {filename}: {str(e)}"])
 ```
 
 ## Integration Points
@@ -507,7 +515,7 @@ def _command_process(self):
 ### Command Design
 1. **Clear Names**: Use descriptive command names (e.g., `fetch` not `f`)
 2. **Good Help**: Write clear descriptions and argument help
-3. **Consistent Returns**: Always return `(bool, list[str])`
+3. **Consistent Returns**: Always return a `CommandResult`
 4. **Error Handling**: Handle errors gracefully, return False on failure
 5. **Formatting**: Use formatting helpers for consistent output
 
@@ -590,7 +598,7 @@ def positive_int(value):
 def _command_limit(self):
     args = self.api("plugins.core.commands:command.current.args.get")()
     # args["count"] is guaranteed to be a positive integer
-    return True, [f"Limit set to {args['count']}"]
+    return CommandResult(True, [f"Limit set to {args['count']}"])
 ```
 
 ### Conditional Command Registration
@@ -602,7 +610,7 @@ Declare the command with `autoadd=False` and add it when the feature is availabl
 @AddCommand(name="advanced", autoadd=False)
 @AddParser(description="Advanced command")
 def _command_advanced(self):
-    return True, ["Advanced feature"]
+    return CommandResult(True, ["Advanced feature"])
 
 @RegisterPluginHook("after_load")
 def _phook_initialize(self):
@@ -657,7 +665,7 @@ except argp.ArgumentError as exc:  # the parser raises; it never exits
 
 ### Output Not Formatted
 - Verify `format=True` in @AddCommand
-- Check return value is `(bool, list[str])`
+- Check the return value is a `CommandResult`
 - Ensure messages are strings, not other types
 
 ### History Not Working

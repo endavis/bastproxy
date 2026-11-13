@@ -12,7 +12,7 @@ from collections.abc import Callable
 # Project
 from bastproxy.libs.records import NetworkData, ProcessDataToMud
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
 class lkAttrPlugin(BasePlugin):
@@ -47,7 +47,7 @@ class lkAttrPlugin(BasePlugin):
         attempt("assignment to index 0", set_item)
 
         tmsg = ["Created:", testdata.one_line_summary(), "Writes:", *refused]
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="test splitting a command")
     def _command_splittest(self):
@@ -67,4 +67,4 @@ class lkAttrPlugin(BasePlugin):
             *[line.line for line in pd2.message],
         ]
 
-        return True, tmsg
+        return CommandResult(True, tmsg)

@@ -47,9 +47,9 @@ def test_debug_plugins_requests_new_names(command: str, expected: str) -> None:
     stub = MagicMock()
     stub.api.side_effect = lambda name: _fake_api(name, requested)
 
-    success, _ = getattr(PluginsPlugin, command)(stub)
+    result = getattr(PluginsPlugin, command)(stub)
 
-    assert success is True
+    assert result.success is True
     assert f"plugins.test.a:{expected}" in requested
 
 

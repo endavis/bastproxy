@@ -16,7 +16,7 @@ from bastproxy.libs.logger import get_logger
 # Project
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -223,7 +223,7 @@ class PluginManager(BasePlugin):
             msg.extend(self._get_package_plugins(args["package"]))
         else:
             msg.extend(self._build_all_plugins_message())
-        return True, msg
+        return CommandResult(True, msg)
 
     def _load_other_plugins_after_core_and_client_plugins(self):
         """Load plugins after core and client plugins have been loaded.
@@ -309,15 +309,15 @@ class PluginManager(BasePlugin):
         plugin_id = args["plugin"]
 
         if not plugin_id:
-            return False, ["No plugin specified"]
+            return CommandResult(False, ["No plugin specified"])
 
         if self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
-            return True, [f"Plugin {plugin_id} is already loaded"]
+            return CommandResult(True, [f"Plugin {plugin_id} is already loaded"])
 
         not_loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.not.loaded")()
 
         if plugin_id and plugin_id not in not_loaded_plugins_by_id:
-            return True, [f"Plugin {plugin_id} not found"]
+            return CommandResult(True, [f"Plugin {plugin_id} not found"])
 
         plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
 
@@ -352,7 +352,7 @@ class PluginManager(BasePlugin):
                     "   " + ", ".join(plugin_response["bad_plugins"]),
                 )
             )
-        return True, tmsg
+        return CommandResult(True, tmsg)
 
     @AddParser(description="unload a plugin")
     @AddArgument("plugin", help="the plugin to unload", default="", nargs="?")
@@ -369,13 +369,13 @@ class PluginManager(BasePlugin):
         plugin_id = args["plugin"]
 
         if not plugin_id:
-            return False, ["No plugin specified"]
+            return CommandResult(False, ["No plugin specified"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
-            return True, [f"Plugin {plugin_id} is not loaded"]
+            return CommandResult(True, [f"Plugin {plugin_id} is not loaded"])
 
         if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).is_required:
-            return False, [f"Plugin {plugin_id} is required and cannot be unloaded"]
+            return CommandResult(False, [f"Plugin {plugin_id} is required and cannot be unloaded"])
 
         if self.api("libs.plugins.loader:plugin.unload")(plugin_id):
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
@@ -386,9 +386,9 @@ class PluginManager(BasePlugin):
                 self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
-            return True, [f"Plugin {plugin_id} unloaded"]
+            return CommandResult(True, [f"Plugin {plugin_id} unloaded"])
 
-        return False, [f"Plugin {plugin_id} not unloaded, please check logs"]
+        return CommandResult(False, [f"Plugin {plugin_id} not unloaded, please check logs"])
 
     @AddParser(description="reload a plugin")
     @AddArgument("plugin", help="the plugin to reload", default="", nargs="?")
@@ -403,12 +403,13 @@ class PluginManager(BasePlugin):
         args = self.api("plugins.core.commands:command.current.args.get")()
 
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return True, [f"{args['plugin']} is not a valid plugin id"]
+            return CommandResult(True, [f"{args['plugin']} is not a valid plugin id"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
-            return True, [
-                f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"
-            ]
+            return CommandResult(
+                True,
+                [f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"],
+            )
 
         self.api(f"{args['plugin']}:plugin.reloading.set")()
 
@@ -421,7 +422,7 @@ class PluginManager(BasePlugin):
                 self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
-            return False, [f"{args['plugin']} not reloaded, please check logs"]
+            return CommandResult(False, [f"{args['plugin']} not reloaded, please check logs"])
 
         # add the loaded plugins to the pluginstoload setting
         if args["plugin"] not in plugins_to_load_setting:
@@ -429,7 +430,7 @@ class PluginManager(BasePlugin):
         self.api("plugins.core.settings:setting.set")(
             self.plugin_id, "pluginstoload", plugins_to_load_setting
         )
-        return True, [f"{args['plugin']} reloaded"]
+        return CommandResult(True, [f"{args['plugin']} reloaded"])
 
     @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self):

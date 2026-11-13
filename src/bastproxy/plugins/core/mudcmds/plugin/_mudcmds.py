@@ -18,7 +18,7 @@ from bastproxy.libs.logger import get_logger, log_to
 # Project
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.core.commands import AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -218,4 +218,4 @@ class MUDCmdsPlugin(BasePlugin):
             self.current_command = None
             self.sendnext()
 
-        return True, ["finished the currentcmd"]
+        return CommandResult(True, ["finished the currentcmd"])

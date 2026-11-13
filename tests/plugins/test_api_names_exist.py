@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.errors.plugin._errors import ErrorPlugin
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "bastproxy"
@@ -240,5 +241,5 @@ def test_errors_clear_command_uses_registered_api_name() -> None:
 
     stub = MagicMock()
     stub.api = MagicMock(side_effect=api)
-    assert ErrorPlugin._command_clear(stub) == (True, ["Errors cleared"])
+    assert ErrorPlugin._command_clear(stub) == CommandResult(True, ["Errors cleared"])
     assert names == ["plugins.core.errors:error.clear"]

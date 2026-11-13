@@ -69,7 +69,9 @@ def _buffer_line(msg: str) -> None:
 
 def _detail(show: bool, base: Path, **extra: Any) -> list[str]:
     stub = _StubPlugin(show, _args(**extra), base)
-    ok, lines = RecordPlugin._command_detail(stub)
+    result = RecordPlugin._command_detail(stub)
+    ok = result.success
+    lines = result.message
     assert ok
     return list(lines)
 

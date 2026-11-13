@@ -15,7 +15,7 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -78,7 +78,7 @@ class ErrorPlugin(BasePlugin):
             number = int(args["number"])
         except ValueError:
             msg.append("Please specify a number")
-            return False, msg
+            return CommandResult(False, msg)
 
         if errors := self.api("plugins.core.errors:error.list")():
             if args and number > 0:
@@ -89,11 +89,11 @@ class ErrorPlugin(BasePlugin):
                     msg.extend(("", f"Time   : {i['timestamp']}", f"Error  : {i['msg']}"))
         else:
             msg.append("There are no errors")
-        return True, msg
+        return CommandResult(True, msg)
 
     @AddParser(description="clear errors")
     def _command_clear(self):
         """Clear errors."""
         self.api("plugins.core.errors:error.clear")()
 
-        return True, ["Errors cleared"]
+        return CommandResult(True, ["Errors cleared"])

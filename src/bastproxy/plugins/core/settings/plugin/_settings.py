@@ -19,7 +19,7 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.settings.libs._settinginfo import (
     SettingInfo,
@@ -403,13 +403,13 @@ class SettingsPlugin(BasePlugin):
                     args["plugin"]
                 )
             else:
-                return True, ["Plugin does not exist"]
+                return CommandResult(True, ["Plugin does not exist"])
         else:
             for plugin_id in loaded_plugins:
                 settings[plugin_id] = self.api(f"{self.plugin_id}:setting.list")(plugin_id)
 
         if not settings:
-            return True, ["No settings found"]
+            return CommandResult(True, ["No settings found"])
 
         message = [
             f"{'Plugin ID':<30} {'Setting':<22} : {'Value':<15} - Help",
@@ -428,10 +428,10 @@ class SettingsPlugin(BasePlugin):
                     plugin_message.append(f"{plugin_id:<30} {setting_format}")
 
         if not plugin_message:
-            return True, default_message
+            return CommandResult(True, default_message)
 
         message.extend(plugin_message)
-        return True, message
+        return CommandResult(True, message)
 
     @AddCommand(group="Settings", name="pset", show_in_history=False)
     @AddParser(
@@ -451,9 +451,10 @@ class SettingsPlugin(BasePlugin):
         """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        return self.api(f"{self.plugin_id}:setting.set.from.user")(
+        success, message = self.api(f"{self.plugin_id}:setting.set.from.user")(
             args["name"], args["value"], args["plugin"]
         )
+        return CommandResult(success, message)
 
     @AddAPI(
         "setting.set.from.user",

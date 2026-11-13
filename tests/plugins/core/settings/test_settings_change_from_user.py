@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.plugins.core.commands import CommandResult
 from bastproxy.plugins.core.settings.plugin._settings import SettingsPlugin
 
 PID = "plugins.test.a"
@@ -124,5 +125,5 @@ def test_pset_passes_args_through() -> None:
 
     stub.api = api
 
-    assert SettingsPlugin._command_settings_plugin_sets(stub) == (True, ["ok"])
+    assert SettingsPlugin._command_settings_plugin_sets(stub) == CommandResult(True, ["ok"])
     assert calls["args"] == ("foo", "5", PID)
