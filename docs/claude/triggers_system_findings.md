@@ -234,7 +234,7 @@ plugin, so the owner lookup was the real one.
 
 ### Q2a: Add
 
-- `trigger.add` returns `(True, TriggerItem)` on success and `(False, None)` for a duplicate name, a regex that
+- `trigger.add` returns a `TriggerAddResult` (since #426; a `(success, trigger)` tuple before): `success=True` with the `TriggerItem` on success and `success=False`, `trigger=None` for a duplicate name, a regex that
   does not compile, no owner, or (since #354) an unknown keyword; each logs an error (TR-9, fixed by #354).
 - `TriggerItem.event_name` is always `event_<trigger_id>`. Before #354 `_api_trigger_add` computed a second
   `event_name` that `TriggerItem.__init__` ignored; the parameter is gone and `trigger.add` refuses an
@@ -893,7 +893,7 @@ for a built-in and make `list` show it.
 
 ### TR-9: The trigger APIs report errors in four different ways
 
-**Status:** fixed by #354 (contract: log at ERROR through `log_to`, return `False`, never raise; `trigger.add` returns `(True, item)` or `(False, None)`)
+**Status:** fixed by #354 (contract: log at ERROR through `log_to`, return `False`, never raise; `trigger.add` returns `(True, item)` or `(False, None)`; since #426 the pair is a `TriggerAddResult`)
 **Issue:** #354
 **Location:** `TriggersPlugin._api_trigger_add` (returns `False` or a tuple; `print` when no owner; dead
 `args["event_name"]`; `except Exception`); `_api_trigger_register`, `_api_trigger_unregister` (`KeyError`);

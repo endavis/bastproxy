@@ -39,8 +39,8 @@ def test_toggling_a_regexless_trigger_raises_no_keyerror(harness: Harness) -> No
 
 # The issue's reproduction, driven through the real add, toggle and matching code.
 def test_disabled_trigger_fires_only_after_toggle_on(harness: Harness) -> None:
-    success, _item = harness.add("t", r"^starts off$", enabled=False)
-    assert success is True
+    result = harness.add("t", r"^starts off$", enabled=False)
+    assert result.success is True
     assert harness.send("starts off") == []
     harness._api_trigger_toggle_enable("t", True)
     assert harness.send("starts off") == ["t"]

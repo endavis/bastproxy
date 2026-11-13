@@ -19,12 +19,12 @@ class TriggerExPlugin(BasePlugin):
     @RegisterPluginHook("after_load")
     def _phook_triggerex_initialize(self):
         """Register a test trigger to capture say events."""
-        success, trigger = self.api("plugins.core.triggers:trigger.add")(
+        result = self.api("plugins.core.triggers:trigger.add")(
             "test_say", r"^(?P<object>.*) says, \"(?P<message>.*)\"$"
         )
-        if success:
+        if result.success:
             self.api("plugins.core.triggers:trigger.register")(
-                trigger.trigger_id, self._trigger_say
+                result.trigger.trigger_id, self._trigger_say
             )
 
     def _trigger_say(self):
