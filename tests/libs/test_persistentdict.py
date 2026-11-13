@@ -264,3 +264,39 @@ class TestPersistentDict:
         # Key exists, should return existing value
         val = pd.setdefault("new_key", "other")
         assert val == "default"  # Original value preserved
+
+    def test_sync_failure_raises_original_error_and_keeps_target(self, temp_data_dir: Path) -> None:
+        """A failed dump re-raises the original error and leaves the target intact.
+
+        Args:
+            temp_data_dir: Temporary directory for test data.
+
+        """
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["good"] = "value"
+        pd.sync()
+        before = filepath.read_text(encoding="utf-8")
+
+        pd["bad"] = object()
+        with pytest.raises(TypeError):
+            pd.sync()
+
+        assert not filepath.with_suffix(".tmp").exists()
+        assert filepath.read_text(encoding="utf-8") == before
+
+    def test_sync_success_writes_file_and_applies_mode(self, temp_data_dir: Path) -> None:
+        """A normal sync writes the file, removes the temp file and sets the mode.
+
+        Args:
+            temp_data_dir: Temporary directory for test data.
+
+        """
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["key"] = "value"
+        pd.sync()
+
+        assert filepath.exists()
+        assert not filepath.with_suffix(".tmp").exists()
+        assert filepath.stat().st_mode & 0o777 == pd.mode
