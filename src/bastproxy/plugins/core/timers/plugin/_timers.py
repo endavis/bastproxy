@@ -13,6 +13,7 @@ import math
 import sys
 import time
 from collections.abc import Callable
+from typing import TypedDict
 
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.callback import Callback
@@ -23,6 +24,28 @@ from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
+
+# The sections this plugin adds to a stats event record's "stats" dict. The keys
+# are display labels, so the functional syntax is needed.
+OverallTimerStats = TypedDict(
+    "OverallTimerStats",
+    {
+        "showorder": list[str],
+        "Total": int,
+        "Enabled": int,
+        "Disabled": int,
+        "Fired": int,
+        "Memory Usage": int,
+    },
+)
+PluginTimerStats = TypedDict(
+    "PluginTimerStats",
+    {
+        "showorder": list[str],
+        "Total Timers Owned": int,
+        "Timers Owned": str,
+    },
+)
 
 
 class Timer(Callback):
@@ -176,7 +199,7 @@ class TimersPlugin(BasePlugin):
                 else:
                     disabled = disabled + 1
 
-            event_record["stats"]["Overall Timer Stats"] = {
+            overall: OverallTimerStats = {
                 "showorder": ["Total", "Enabled", "Disabled", "Fired", "Memory Usage"],
                 "Total": len(self.timer_lookup),
                 "Enabled": enabled,
@@ -184,6 +207,7 @@ class TimersPlugin(BasePlugin):
                 "Fired": self.overall_fire_count,
                 "Memory Usage": sys.getsizeof(self.timer_events),
             }
+            event_record["stats"]["Overall Timer Stats"] = overall
 
     @RegisterToEvent(event_name="ev_plugin_stats")
     def _eventcb_event_get_stats_for_plugin(self) -> None:
@@ -199,11 +223,12 @@ class TimersPlugin(BasePlugin):
 
         timers_str = "".join(f"{'':<23}{item}\n" for item in timers)
 
-        event_record["stats"][f"{plugin_id} Timer Stats"] = {
+        owned: PluginTimerStats = {
             "showorder": ["Total Timers Owned", "Timers Owned"],
             "Total Timers Owned": len(timers),
             "Timers Owned": timers_str.strip(),
         }
+        event_record["stats"][f"{plugin_id} Timer Stats"] = owned
 
     @AddParser(description="list timers")
     @AddArgument(

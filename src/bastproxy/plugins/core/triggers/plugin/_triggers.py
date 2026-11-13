@@ -9,7 +9,7 @@
 import bisect
 import logging
 import sys
-from typing import Any
+from typing import Any, TypedDict
 
 # 3rd Party
 import regex as re
@@ -20,6 +20,20 @@ from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser
 from bastproxy.plugins.core.events import RegisterToEvent
+
+# The "Triggers" section this plugin adds to a stats event record's "stats" dict.
+# The keys are display labels, so the functional syntax is needed.
+TriggerStats = TypedDict(
+    "TriggerStats",
+    {
+        "showorder": list[str],
+        "Total Triggers": int,
+        "Enabled Triggers": int,
+        "Disabled Triggers": int,
+        "Overall Trigger Hits": int,
+        "Triggers Memory Usage": int,
+    },
+)
 
 # Keyword arguments trigger.add passes on to TriggerItem
 _ADD_KEYWORDS = frozenset(
@@ -775,7 +789,7 @@ class TriggersPlugin(BasePlugin):
                 else:
                     total_disabled_triggers = total_disabled_triggers + 1
 
-            event_record["stats"]["Triggers"] = {
+            stats: TriggerStats = {
                 "showorder": [
                     "Total Triggers",
                     "Enabled Triggers",
@@ -789,6 +803,7 @@ class TriggersPlugin(BasePlugin):
                 "Overall Trigger Hits": overall_hit_count,
                 "Triggers Memory Usage": sys.getsizeof(self.triggers),
             }
+            event_record["stats"]["Triggers"] = stats
 
     @AddParser(description="get details for triggers")
     @AddArgument("trigger", help="the trigger to detail", default=[], nargs="*")
