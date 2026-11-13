@@ -47,6 +47,7 @@ can turn MXP back on.
 
 # Standard Library
 import re
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -60,7 +61,9 @@ __all__ = [
     "MXP_MAX_ENTITY_LENGTH",
     "MXP_MAX_TAG_LENGTH",
     "MXP_SCAN_FACTOR",
+    "DefinitionScan",
     "MxpMode",
+    "MxpModes",
     "apply_escape",
     "definition_key",
     "find_definitions",
@@ -107,6 +110,36 @@ class MxpMode(StrEnum):
     LOCKED = "locked"
 
 
+@dataclass(slots=True)
+class MxpModes:
+    """The line mode state after a scan of mode escapes.
+
+    Attributes:
+        current: The mode of the line at the end of the scanned text.
+        default: The MUD's default mode at the end of the scanned text.
+    """
+
+    current: MxpMode
+    default: MxpMode
+
+
+@dataclass(slots=True)
+class DefinitionScan:
+    """The result of ``scan_definitions``: the tags found and the capture state after them.
+
+    Attributes:
+        tags: The definition tags found in secure mode, in order.
+        current: The capture mode at the end of the scanned text.
+        default: The MUD's default mode at the end of the scanned text.
+        pending: True only when ``ESC[4z`` was the last thing in the scanned text.
+    """
+
+    tags: list[str]
+    current: MxpMode
+    default: MxpMode
+    pending: bool
+
+
 def apply_escape(n: int, current: MxpMode, default: MxpMode) -> tuple[MxpMode, MxpMode]:
     """Apply the mode escape ``ESC[<n>z``; returns the new ``(current, default)``.
 
@@ -142,8 +175,8 @@ def _escape_at(text: str, i: int) -> tuple[int, int] | None:
     return int(text[i + 2 : j]), j + 1
 
 
-def scan_modes(text: str, current: MxpMode, default: MxpMode) -> tuple[MxpMode, MxpMode]:
-    """Apply every mode escape in ``text`` in order; returns the final ``(current, default)``."""
+def scan_modes(text: str, current: MxpMode, default: MxpMode) -> MxpModes:
+    """Apply every mode escape in ``text`` in order; returns the final modes as ``MxpModes``."""
     pos = text.find("\x1b")
     while pos != -1:
         found = _escape_at(text, pos)
@@ -152,7 +185,7 @@ def scan_modes(text: str, current: MxpMode, default: MxpMode) -> tuple[MxpMode, 
             pos = text.find("\x1b", found[1])
         else:
             pos = text.find("\x1b", pos + 1)
-    return current, default
+    return MxpModes(current, default)
 
 
 def _tag_end(text: str, start: int, last_gt: int, budget: int) -> tuple[int, int]:
@@ -324,12 +357,12 @@ def definition_key(tag: str) -> tuple[tuple[str, str], str] | None:
 
 def find_definitions(text: str, current: MxpMode, default: MxpMode) -> list[str]:
     """The definition tags in ``text`` that were sent in secure mode (see ``scan_definitions``)."""
-    return scan_definitions(text, current, default)[0]
+    return scan_definitions(text, current, default).tags
 
 
 def scan_definitions(
     text: str, current: MxpMode, default: MxpMode, pending: bool = False
-) -> tuple[list[str], MxpMode, MxpMode, bool]:
+) -> DefinitionScan:
     """Find the definition tags in ``text`` sent in secure mode, and the capture state after it.
 
     ``text`` is a piece of a line that starts in ``current`` with the MUD's ``default``.
@@ -339,7 +372,7 @@ def scan_definitions(
     changes ``current`` here, unlike ``apply_escape`` for stripping. One forward pass, under the
     same look-ahead limit as ``strip``. A tag with a line break or an ESC in it is skipped.
 
-    Returns ``(tags, current, default, pending)``: the state to carry into the next piece of the
+    Returns a ``DefinitionScan`` (``tags``, ``current``, ``default``, ``pending``): the state to carry into the next piece of the
     same line. ``pending`` is True only when ``ESC[4z`` was the last thing in ``text``.
     """
     found: list[str] = []
@@ -389,7 +422,7 @@ def scan_definitions(
             and not any(c in tag for c in "\r\n\x1b")
         ):
             found.append(tag)
-    return found, current, default, pending
+    return DefinitionScan(found, current, default, pending)
 
 
 def sync_escape(default: MxpMode) -> str:
