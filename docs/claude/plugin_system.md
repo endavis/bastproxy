@@ -336,7 +336,7 @@ class Plugin(BasePlugin):
 ```
 
 The `plugin.state.save` API (`<plugin_id>:plugin.state.save`, also the `save` command) runs the `save` hooks,
-then raises `ev_<plugin_id>_save` and `ev_plugin_save`. Unloading calls it. It saves one plugin; the
+then raises `ev_<plugin_id>_savestate` and `ev_plugin_save`. Unloading calls it. It saves one plugin; the
 pluginm API `plugin.state.save.all` (`plugins.core.pluginm:plugin.state.save.all`) saves every loaded plugin
 by calling `plugin.state.save` on each.
 
@@ -422,7 +422,7 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
 
 3. **`save`**: Called by the `plugin.state.save` API
    - Use for: Persisting data to disk
-   - `plugin.state.save` then raises `ev_<plugin_id>_save` and `ev_plugin_save`
+   - `plugin.state.save` then raises `ev_<plugin_id>_savestate` and `ev_plugin_save`
 
 4. **`uninitialize`**: Called before plugin is unloaded
    - Use for: Cleanup, closing connections, saving state
@@ -722,7 +722,7 @@ class Plugin(BasePlugin):
 - `ev_plugin_unloaded` - A plugin was unloaded (subsystems remove the plugin's data on this)
 - `ev_plugin_save` - Plugins should save their state
 - `ev_plugin_reset` - A plugin should reset to defaults
-- `ev_<plugin_id>_loaded`, `ev_<plugin_id>_unloaded`, `ev_<plugin_id>_save`, `ev_<plugin_id>_savestate` - Per-plugin versions
+- `ev_<plugin_id>_loaded`, `ev_<plugin_id>_unloaded`, `ev_<plugin_id>_savestate` - Per-plugin versions
 - `ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded` - Raised once after the startup load
 
 ## Best Practices

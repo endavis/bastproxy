@@ -476,7 +476,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
     def _api_plugin_state_save(self):
         """Save the state of the plugin."""
         self._process_plugin_hook("save")
-        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_save")
+        self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_savestate")
         self.api("plugins.core.events:event.raise")(
             "ev_plugin_save", event_args={"plugin_id": self.plugin_id}
         )
