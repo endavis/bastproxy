@@ -12,6 +12,8 @@ import math
 import re
 import sys
 import time
+from collections.abc import Callable
+from typing import Any
 
 # 3rd Party
 try:
@@ -34,6 +36,55 @@ TIMELENGTH_REGEXP = re.compile(
     r":?(?P<minutes>((\d*\.\d+)|\d+)+m)?"
     r":?(?P<seconds>\d+s)?$"
 )
+
+_TRUE_WORDS = frozenset({"true", "yes", "on", "1"})
+_FALSE_WORDS = frozenset({"false", "no", "off", "0"})
+
+
+def to_bool(value: Any) -> bool:
+    """Convert a bool, a 0/1 int or a true/false word to a bool, else raise ValueError."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        word = value.strip().lower()
+        if word in _TRUE_WORDS:
+            return True
+        if word in _FALSE_WORDS:
+            return False
+    raise ValueError(f"Cannot convert {value!r} to bool")
+
+
+def to_int(value: Any) -> int:
+    """Convert an int or an integer string to an int; a bool is rejected."""
+    if isinstance(value, bool):
+        raise ValueError(f"Cannot convert {value!r} to int")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value.strip())
+    raise ValueError(f"Cannot convert {value!r} to int")
+
+
+def to_str(value: Any) -> str:
+    """Convert a value to a str."""
+    return str(value)
+
+
+def to_list(value: Any) -> list[Any]:
+    """Convert a list or tuple to a new list; anything else raises ValueError."""
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    raise ValueError(f"Cannot convert {value!r} to list")
+
+
+CONVERTERS: dict[Any, Callable[[Any], Any]] = {
+    bool: to_bool,
+    int: to_int,
+    str: to_str,
+    list: to_list,
+}
 
 
 class UtilsPlugin(BasePlugin):
@@ -225,22 +276,6 @@ class UtilsPlugin(BasePlugin):
 
         return "".join(message)
 
-    # verify a value to be a boolean
-    def verify_bool(self, value):
-        """Convert a value to a bool, also converts some string and numbers."""
-        if value in [0, "0"]:
-            return False
-        if value in [1, "1"]:
-            return True
-        if isinstance(value, str):
-            value = value.lower()
-            if value in ["false", "no"]:
-                return False
-            if value in ["true", "yes"]:
-                return True
-
-        return bool(value)
-
     # verify a value to contain an @ color
     def verify_color(self, value):
         """Verify an @ color."""
@@ -274,15 +309,24 @@ class UtilsPlugin(BasePlugin):
         raise ValueError
 
     @AddAPI("value.verify", description="verify that a value is of a certain type")
-    def _api_value_verify(self, value, vtype):
-        """Verify values."""
-        vtab = {
-            bool: self.verify_bool,
+    def _api_value_verify(self, value: Any, vtype: Any) -> Any:
+        """Convert a value to a setting type, raising ValueError if it cannot be.
+
+        The type is looked up in CONVERTERS, then in the color, miltime and
+        timelength handlers, then called if it is callable.
+        """
+        if vtype in CONVERTERS:
+            return CONVERTERS[vtype](value)
+        handlers = {
             "color": self.verify_color,
             "miltime": self.verify_miltime,
             "timelength": self.verify_timelength,
         }
-        return vtab[vtype](value) if vtype in vtab else vtype(value)
+        if isinstance(vtype, str) and vtype in handlers:
+            return handlers[vtype](value)
+        if callable(vtype):
+            return vtype(value)
+        raise ValueError(f"unknown setting type {vtype!r}")
 
     @AddAPI("string.center.colored", description="center a string with color codes")
     def _api_string_center_colored(

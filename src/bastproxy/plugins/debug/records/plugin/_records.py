@@ -16,6 +16,7 @@ from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, DEFAULT
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.settings import int_range
 
 SHOW_LOG_SETTING = "showRecordLogs"
 RETAINED_TREES_SETTING = "retained_trees"
@@ -48,6 +49,7 @@ class RecordPlugin(BasePlugin):
             DEFAULT_MAX_TREES,
             int,
             "number of root record trees kept in memory; older trees are evicted whole",
+            validator=int_range(1, label="number of trees"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -55,6 +57,7 @@ class RecordPlugin(BasePlugin):
             DEFAULT_MAX_CHANGES,
             int,
             "change entries each new record keeps",
+            validator=int_range(0, label="number of changes"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,

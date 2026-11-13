@@ -11,3 +11,21 @@ PLUGIN_NAME = "Settings"
 PLUGIN_PURPOSE = "Plugin to handle settings"
 PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
+
+__all__ = [
+    "SettingValidationError",
+    "int_range",
+    "validate_ipv4_host",
+    "validate_ipv6_host",
+    "validate_port",
+    "validate_port_or_unset",
+]
+
+from .libs._settinginfo import SettingValidationError
+from .libs._validators import (
+    int_range,
+    validate_ipv4_host,
+    validate_ipv6_host,
+    validate_port,
+    validate_port_or_unset,
+)

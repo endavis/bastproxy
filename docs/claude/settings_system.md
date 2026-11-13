@@ -68,15 +68,32 @@ non-empty return value is raised as a `ValueError` carrying that message, the ol
 `cmdprefix` setting of `plugins.core.commands` uses it to reject a prefix with a dot or a space, or of one
 character or less.
 
+A value is converted to the setting's type and validated once, when it is added (`setting.add`, for the
+default and for any stored value) and when it is set (`setting.set`). `setting.get` returns the stored value
+without converting it, and returns a shallow copy of a list or dict so a caller can change the result without
+changing the stored value. A stored value that no longer converts or validates (for example from an older
+settings file) is replaced by the default, with a warning in the log.
+
+Validated settings: `listenport` (port 1 to 65535), `mudport` (0 for unset, or a port), `ipv4address` and
+`ipv6address` (an IP literal of that version, or a hostname), `mudwindowsize` (`client`, `off` or `COLSxROWS`),
+`linelen` (1 or more), `mudlinewait`, `spamcount`, `historysize`, `command_indent`, `raised_history_size` and
+`tracking_max_changes` (0 or more), and `retained_trees` (1 or more). The shared validators `int_range`,
+`validate_port`, `validate_port_or_unset`, `validate_ipv4_host` and `validate_ipv6_host` are exported from
+`bastproxy.plugins.core.settings`.
+
 ### Setting Types
 
 Supported setting types:
 - **str**: String values
 - **int**: Integer values
-- **bool**: Boolean values (True/False)
+- **bool**: Boolean values. Accepts a bool, 0 or 1, and the words true/false, yes/no, on/off and 1/0
+  (any case, surrounding spaces ignored). Anything else raises `ValueError`.
+- **list**: A list or tuple (copied to a list). A str is rejected.
 - **color**: Color codes (e.g., "@R", "@G")
 - **timelength**: Time duration values
-- Custom types can be added via validation functions
+- Any other callable is used as the converter (`vtype(value)`).
+- A type that is neither known nor callable raises `ValueError("unknown setting type ...")`.
+- An int setting rejects a bool and a non-integer str; a str is stripped before it is parsed.
 
 ## How It Works
 
@@ -105,7 +122,7 @@ class MyPlugin(BasePlugin):
 Retrieve settings anywhere in the code:
 
 ```python
-# Get a setting value
+# Get a setting value (no conversion happens here; lists and dicts come back as copies)
 value = self.api("plugins.core.settings:setting.get")(plugin_id, "setting_name")
 
 # Example
@@ -353,7 +370,7 @@ class MyPlugin(BasePlugin):
 ### Validating Custom Types
 
 ```python
-# Settings system uses plugins.core.utils:value.verify for validation
+# Settings system uses plugins.core.utils:value.verify to convert on add and set
 # Custom types can be added by extending that plugin
 
 # Example: Using timelength type
@@ -365,7 +382,7 @@ self.api("plugins.core.settings:setting.add")(
     "Connection timeout"
 )
 
-# When retrieved, it's automatically validated
+# The value is converted once, when the setting is added or set, so get returns it as is
 timeout_seconds = self.api("plugins.core.settings:setting.get")(
     self.plugin_id,
     "timeout"

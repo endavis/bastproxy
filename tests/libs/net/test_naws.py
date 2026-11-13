@@ -334,3 +334,27 @@ async def test_connection_sets_the_server_hook() -> None:
     async with proxy_server(connections=True) as proxy:
         await _clients(proxy, [(100, 30)])
         assert proxy.protocol_of(0).on_naws_cb == proxy.connections[0]._on_naws
+
+
+def test_parse_window_mode() -> None:
+    from bastproxy.libs.net.naws import parse_window_mode
+
+    assert parse_window_mode("client") == "client"
+    assert parse_window_mode(" OFF ") == "off"
+    assert parse_window_mode("120x40") == (120, 40)
+    assert parse_window_mode("bogus") is None
+    assert parse_window_mode("0x10") is None
+
+
+@pytest.mark.parametrize("good", ["client", "OFF ", "120x40"])
+def test_validate_window_size_accepts(good: str) -> None:
+    from bastproxy.libs.net.naws import validate_window_size
+
+    assert validate_window_size(good) == ""
+
+
+@pytest.mark.parametrize("bad", ["bogus", "0x10", "70000x10", "120x", ""])
+def test_validate_window_size_rejects(bad: str) -> None:
+    from bastproxy.libs.net.naws import validate_window_size
+
+    assert "COLSxROWS" in validate_window_size(bad)

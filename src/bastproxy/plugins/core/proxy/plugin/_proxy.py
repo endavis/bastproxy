@@ -35,7 +35,7 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.mud import MudConnection
-from bastproxy.libs.net.naws import WINDOW_SIZE
+from bastproxy.libs.net.naws import WINDOW_SIZE, validate_window_size
 from bastproxy.libs.records import (
     NetworkData,
     NetworkDataLine,
@@ -45,6 +45,13 @@ from bastproxy.libs.records import (
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.settings import (
+    int_range,
+    validate_ipv4_host,
+    validate_ipv6_host,
+    validate_port,
+    validate_port_or_unset,
+)
 
 
 def is_connected_address(raddr: Any) -> bool:
@@ -95,6 +102,7 @@ class ProxyPlugin(BasePlugin):
             int,
             "the port for the proxy to listen on",
             aftersetmessage=restartproxymessage,
+            validator=validate_port,
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -111,6 +119,7 @@ class ProxyPlugin(BasePlugin):
             str,
             "the IPv4 hostname to bind to",
             aftersetmessage=restartproxymessage,
+            validator=validate_ipv4_host,
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -127,6 +136,7 @@ class ProxyPlugin(BasePlugin):
             str,
             "the IPv6 hostname to bind to",
             aftersetmessage=restartproxymessage,
+            validator=validate_ipv6_host,
         )
 
         # Mud Settings
@@ -134,7 +144,12 @@ class ProxyPlugin(BasePlugin):
             self.plugin_id, "mudhost", "", str, "the hostname/ip of the mud"
         )
         self.api("plugins.core.settings:setting.add")(
-            self.plugin_id, "mudport", 0, int, "the port of the mud"
+            self.plugin_id,
+            "mudport",
+            0,
+            int,
+            "the port of the mud",
+            validator=validate_port_or_unset,
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -142,6 +157,7 @@ class ProxyPlugin(BasePlugin):
             100,
             int,
             "ms to wait for the rest of a MUD line split across packets",
+            validator=int_range(0, label="wait"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -150,6 +166,7 @@ class ProxyPlugin(BasePlugin):
             str,
             "window size sent to the mud: client (the most recently active client), "
             "off (80x25), or COLSxROWS",
+            validator=validate_window_size,
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "username", "", str, "the mud username"
@@ -162,6 +179,7 @@ class ProxyPlugin(BasePlugin):
             80,
             int,
             "the line length for internal output data, does not affect data that comes from the mud or clients",
+            validator=int_range(1, label="line length"),
         )
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "preamble", "#BP", str, "the preamble for any proxy output"

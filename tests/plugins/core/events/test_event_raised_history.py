@@ -3,7 +3,7 @@
 # Standard Library
 from collections.abc import Iterator
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 # 3rd Party
 import pytest
@@ -136,6 +136,7 @@ def test_initialize_adds_setting_and_applies_it() -> None:
         10,
         int,
         "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
+        validator=ANY,
     )
     assert Event.MAX_RAISED_EVENTS == 4
 

@@ -470,6 +470,7 @@ source_paths = ["src/"]
 pytest_add_cli_args_test_selection = [
     "tests/libs/",
     "tests/plugins/",
+    "tests/test_mudproxy_cli_overrides.py",
 ]
 # mutmut passes -x to pytest itself. --assert=plain skips assertion rewriting,
 # which mutmut has no use for: it reads only whether the tests pass.
