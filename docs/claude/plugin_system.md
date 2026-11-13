@@ -697,7 +697,7 @@ class Plugin(BasePlugin):
 - `libs.plugins.loader:plugin.list.not.loaded` - Get unloaded plugins
 - `libs.plugins.loader:package.list` - Get the plugin packages
 - `libs.plugins.loader:plugin.list.in.package` - Get the loaded plugins in a package
-- `libs.plugins.loader:plugin.id.match` - Find a plugin ID from a partial string
+- `libs.plugins.loader:plugin.id.match` - Find a plugin ID from a partial string; returns `PluginIdMatch(package, plugin)`, with `""` for any part that did not match
 - `libs.plugins.loader:plugin.file.list.changed` - Files changed since the plugin loaded
 - `libs.plugins.loader:plugin.file.list.invalid` - Files with invalid Python syntax
 - `libs.plugins.loader:plugin.module.list.stale` - Modules kept by weak reference after unload

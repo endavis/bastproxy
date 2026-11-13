@@ -14,6 +14,7 @@ applications.
 
 Key Components:
     - PluginLoader: A class that manages the loading and unloading of plugins.
+    - PluginIdMatch: The package and plugin ids that `plugin.id.match` found.
     - Methods for loading, unloading, reloading, and tracking plugins.
     - Utility methods for handling plugin dependencies and state.
 
@@ -42,6 +43,7 @@ import sys
 import traceback
 import weakref
 from collections.abc import KeysView
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
@@ -82,6 +84,21 @@ def reloadable_plugin_module_names(package_import_location: str) -> list[str]:
         for name in plugin_module_names(package_import_location)
         if getattr(sys.modules[name], "CANRELOAD", True)
     ]
+
+
+@dataclass(slots=True)
+class PluginIdMatch:
+    """The result of the ``plugin.id.match`` API.
+
+    Attributes:
+        package: The matched package id, or ``""`` when no package matched.
+        plugin: The matched plugin id, or ``""`` when the input named no plugin
+            or no loaded plugin matched.
+
+    """
+
+    package: str = ""
+    plugin: str = ""
 
 
 class PluginLoader:
@@ -1296,7 +1313,7 @@ class PluginLoader:
     @AddAPI("plugin.id.match", description="find a plugin id from a string")
     def _api_plugin_id_match(
         self, plugin_id_string: str, active_only: bool = False
-    ) -> tuple[str, str]:
+    ) -> PluginIdMatch:
         """Find a plugin ID from a string using fuzzy matching.
 
         This method attempts to find a plugin ID from a given string using fuzzy
@@ -1309,7 +1326,8 @@ class PluginLoader:
             active_only: A flag indicating whether to include only active packages.
 
         Returns:
-            A tuple containing the matched package and plugin IDs.
+            A PluginIdMatch with the matched package and plugin IDs. A part that
+            did not match is an empty string.
 
         Raises:
             None
@@ -1322,7 +1340,7 @@ class PluginLoader:
         logger.debug("_api_plugin_id_match: psplit = %r", psplit)
 
         if len(psplit) not in [2, 3]:
-            return "", ""
+            return PluginIdMatch()
 
         if len(psplit) == 2:
             tmp_package = f"plugins.{psplit[0]}"
@@ -1343,10 +1361,10 @@ class PluginLoader:
         )
 
         if not new_package:
-            return "", ""
+            return PluginIdMatch()
 
         if not tmp_plugin:
-            return new_package, ""
+            return PluginIdMatch(new_package, "")
 
         loaded_list = self.api("libs.plugins.loader:plugin.list.loaded")()
 
@@ -1359,4 +1377,4 @@ class PluginLoader:
             "_api_plugin_id_match: new_package = %r, new_plugin = %r", new_package, new_plugin
         )
 
-        return new_package, new_plugin
+        return PluginIdMatch(new_package, new_plugin)
