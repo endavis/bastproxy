@@ -186,7 +186,9 @@ class PersistentDict(dict):
             None
 
         Raises:
-            Exception: If an error occurs during the file write operation.
+            Exception: The original exception from `dump()` propagates unchanged
+                if writing the temporary file fails. The temporary file is
+                removed and the target file is left untouched.
 
         """
         if self.flag == "r":
@@ -196,10 +198,9 @@ class PersistentDict(dict):
         try:
             self.dump(temp_name)
         except Exception:
-            Path(temp_name).unlink()
+            Path(temp_name).unlink(missing_ok=True)
             raise
-        finally:
-            shutil.move(temp_name, self.file_name)  # atomic commit
+        shutil.move(temp_name, self.file_name)  # atomic commit
         if self.mode is not None:
             Path(self.file_name).chmod(self.mode)
 
