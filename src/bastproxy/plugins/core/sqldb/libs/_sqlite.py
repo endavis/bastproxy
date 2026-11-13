@@ -243,14 +243,14 @@ class Sqldb:
     @AddCommand(group="DB")
     @AddParser(description="remove a row from a table")
     @AddArgument("table", help="the table to remove the row from", default="", nargs="?")
-    @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?")
+    @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?", type=int)
     def _command_dbremove(self):
         """Remove a table from the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
         if not args["table"] or args["table"] not in self.tables:
             message.append("Please include a valid table")
-        elif not args["rownumber"] or args["rownumber"] < 0:
+        elif args["rownumber"] < 1:
             message.append("Please include a valid row number")
         else:
             _, new_message = self.remove(args["table"], args["rownumber"])
@@ -314,15 +314,13 @@ class Sqldb:
         ) = self.getcolumnumnsfromsql(tablename)
 
     def remove(self, table, rownumber):
-        """Remove an item."""
+        """Remove the row whose key field equals rownumber from a table."""
         if table in self.tables:
             key_field = self.tables[table].keyfield
-            sql = f"DELETE FROM {table} where {key_field}={rownumber};" % (
-                table,
-                key_field,
-                rownumber,
-            )
-            self.api(f"{self.plugin_id}:{self.database_name}.modify")(sql)
+            if not key_field:
+                return False, f"{table} has no key field"
+            sql = f"DELETE FROM {table} WHERE {key_field} = ?;"
+            self.api(f"{self.plugin_id}:{self.database_name}.modify")(sql, (rownumber,))
             return True, f"{rownumber} was removed from table {table}"
 
         return False, f"{table} is not a table"
