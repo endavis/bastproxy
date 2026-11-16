@@ -260,9 +260,7 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = [
     "bastproxy.libs.net.*",
-    "bastproxy.libs.records.*",
     "bastproxy.plugins.core.*",
-    "bastproxy.plugins._baseplugin.*",
     "bastproxy.plugins.core.*",
 ]
 ignore_errors = true

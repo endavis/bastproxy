@@ -206,7 +206,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         if self.is_command_telnet:
             return self.line
-        return self.api("plugins.core.colors:ansicode.strip")(self._without_mxp())
+        stripped: str | bytes = self.api("plugins.core.colors:ansicode.strip")(self._without_mxp())
+        return stripped
 
     @property
     def colorcoded(self) -> str | bytes:
@@ -218,7 +219,10 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         if self.is_command_telnet:
             return self.line
-        return self.api("plugins.core.colors:ansicode.to.colorcode")(self._without_mxp())
+        colorcoded: str | bytes = self.api("plugins.core.colors:ansicode.to.colorcode")(
+            self._without_mxp()
+        )
+        return colorcoded
 
     def lock(self, attribute_name: str = "") -> None:
         """Lock the line so its fields refuse writes with ``RuntimeError``.
@@ -244,7 +248,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         if self.is_command_telnet:
             return self.line
-        return self.api("plugins.core.colors:colorcode.escape")(self.line)
+        escaped: str | bytes = self.api("plugins.core.colors:colorcode.escape")(self.line)
+        return escaped
 
     @property
     def is_command_telnet(self) -> bool:
@@ -274,7 +279,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
     def add_line_endings(self, actor: str = "") -> None:
         """Add line endings to the message."""
         if self.is_io and self.had_line_endings:
-            self.line = f"{self.line}\r\n"
+            # !s keeps the old implicit str(); an IO line is already str from __init__.
+            self.line = f"{self.line!s}\r\n"
 
     def copy_attributes(self, new_line: "NetworkDataLine") -> None:
         """Copy the attributes from the current line to a new line."""
@@ -394,10 +400,11 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         if self.internal and self.is_io:
             preamblecolor = self.api("plugins.core.proxy:preamble.color.get")(error=error)
             preambletext = self.api("plugins.core.proxy:preamble.get")()
-            self.line = f"{preamblecolor}{preambletext}@w: {self.line}"
+            # !s keeps the old implicit str(); an IO line is already str from __init__.
+            self.line = f"{preamblecolor}{preambletext}@w: {self.line!s}"
 
 
-class NetworkData(TrackedRecordMixin, TrackedList):
+class NetworkData(TrackedRecordMixin, TrackedList):  # type: ignore[misc]  # mixin hashes by uuid; list/dict set __hash__ None
     """this is a base record of a list of NetworkDataLine records."""
 
     def __init__(
@@ -408,14 +415,17 @@ class NetworkData(TrackedRecordMixin, TrackedList):
         owner_id: str = "",
     ) -> None:
         """Initialize the class."""
+        items: list[Any]
         if message is None:
-            message = []
-        if not isinstance(message, list):
-            message = [message]  # type: ignore[list-item]
+            items = []
+        elif isinstance(message, list):
+            items = message
+        else:
+            items = [message]
 
         TrackedList.__init__(
             self,
-            message,  # type: ignore[arg-type]
+            items,
             tracking_max_changes=current_max_changes(),
             tracking_capture_stack=current_capture_stacks(),
         )
@@ -432,14 +442,17 @@ class NetworkData(TrackedRecordMixin, TrackedList):
             TypeError: If the value is not a line, str, bytes or bytearray.
 
         """
+        line: NetworkDataLine
         if isinstance(value, (str, bytes, bytearray)):
-            value = NetworkDataLine(value)
-        elif not isinstance(value, NetworkDataLine):
+            line = NetworkDataLine(value)
+        elif isinstance(value, NetworkDataLine):
+            line = value
+        else:
             msg = f"item must be a NetworkDataLine object or a string, not {type(value)} {value!r}"
             raise TypeError(msg)
-        value.parent = self
-        value.add_parent(self)
-        return value
+        line.parent = self
+        line.add_parent(self)
+        return line
 
     def _tracking_remove_child_tracked_item(self, trackable_item: Any) -> None:
         """Detach a line that this list no longer holds anywhere.
@@ -478,10 +491,11 @@ class NetworkData(TrackedRecordMixin, TrackedList):
         if len(self) == 0:
             return "No data found"
         for networkline in self:
-            if networkline.original_line not in ["#BP", b"#BP", "", b"", "''", b"''"]:
+            original: str | bytes = networkline.original_line
+            if original not in ["#BP", b"#BP", "", b"", "''", b"''"]:
                 if networkline.mask_log:
-                    return echo_off_placeholder(networkline.original_line)
-                return networkline.original_line
+                    return echo_off_placeholder(original)
+                return original
         return ""
 
     def one_line_summary(self) -> str:

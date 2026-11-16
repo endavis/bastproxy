@@ -61,12 +61,13 @@ class TrackedUpdate:
         # first time it is viewed, as the library offers no hook (its own timestamps
         # never tie).
         if not hasattr(entry, "creation_sequence"):
-            entry.creation_sequence = next_creation_sequence()
+            # ChangeLogEntry (pydatatracker) declares no such attribute.
+            entry.creation_sequence = next_creation_sequence()  # type: ignore[attr-defined]
 
     @property
     def creation_sequence(self) -> int:
         """The process-wide creation sequence number of the entry."""
-        return int(self.entry.creation_sequence)
+        return int(self.entry.creation_sequence)  # type: ignore[attr-defined]  # set in __init__
 
     @property
     def uuid(self) -> str:
@@ -128,7 +129,7 @@ class TrackedUpdate:
         """Order by creation time, then by creation sequence when the times tie."""
         if self.time_taken != other.time_taken:
             return bool(self.time_taken < other.time_taken)
-        return self.creation_sequence < other.creation_sequence
+        return bool(self.creation_sequence < other.creation_sequence)
 
     def __str__(self) -> str:
         """Return the flag, action and extra."""

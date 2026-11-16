@@ -210,7 +210,8 @@ class RecordManager:
         if not record_filter:
             record_filter = []
         children = self.get_all_children_dict(record, record_filter)
-        return self.api("plugins.core.utils:dict.key.list")(children)
+        result: list[Any] = self.api("plugins.core.utils:dict.key.list")(children)
+        return result
 
     def format_all_children(self, record: Any, record_filter: list[str] | None = None) -> list[str]:
         """Format all children as a tree structure with indentation.
