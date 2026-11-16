@@ -7,11 +7,11 @@ handling for specific cases.
 
 Key Components:
     - BastProxyError: Base exception for all BastProxy errors.
-    - PluginException: Plugin-related errors (loading, validation, execution).
-    - APIException: API registration and invocation errors.
-    - NetworkException: Network communication errors (client/server).
-    - ConfigurationException: Configuration and settings errors.
-    - RecordException: Data record processing errors.
+    - PluginError: Plugin-related errors (loading, validation, execution).
+    - APIError: API registration and invocation errors.
+    - NetworkError: Network communication errors (client/server).
+    - ConfigurationError: Configuration and settings errors.
+    - RecordError: Data record processing errors.
 
 Features:
     - Hierarchical structure for granular error handling.
@@ -25,22 +25,22 @@ Usage:
 
 Classes:
     - `BastProxyError`: Base exception class for all BastProxy errors.
-    - `PluginException`: Exception for plugin-related errors.
+    - `PluginError`: Exception for plugin-related errors.
     - `PluginLoadError`: Exception for plugin loading failures.
     - `PluginValidationError`: Exception for plugin validation failures.
     - `PluginExecutionError`: Exception for plugin execution failures.
     - `PluginDependencyError`: Exception for plugin dependency issues.
-    - `APIException`: Exception for API-related errors.
+    - `APIError`: Exception for API-related errors.
     - `APIRegistrationError`: Exception for API registration failures.
     - `APINotFoundError`: Exception when API is not found.
     - `APIInvocationError`: Exception for API invocation failures.
-    - `NetworkException`: Exception for network-related errors.
+    - `NetworkError`: Exception for network-related errors.
     - `ConnectionError`: Exception for connection failures.
     - `TelnetProtocolError`: Exception for Telnet protocol errors.
-    - `ConfigurationException`: Exception for configuration errors.
+    - `ConfigurationError`: Exception for configuration errors.
     - `InvalidSettingError`: Exception for invalid setting values.
     - `MissingSettingError`: Exception for missing required settings.
-    - `RecordException`: Exception for record processing errors.
+    - `RecordError`: Exception for record processing errors.
     - `RecordValidationError`: Exception for record validation failures.
     - `RecordSerializationError`: Exception for serialization failures.
 
@@ -62,7 +62,7 @@ class BastProxyError(Exception):
 # ============================================================================
 
 
-class PluginException(BastProxyError):
+class PluginError(BastProxyError):
     """Base exception for all plugin-related errors.
 
     This exception is the parent class for all plugin-specific errors
@@ -71,7 +71,7 @@ class PluginException(BastProxyError):
     """
 
 
-class PluginLoadError(PluginException):
+class PluginLoadError(PluginError):
     """Exception raised when a plugin fails to load.
 
     This exception is raised when a plugin cannot be loaded due to import
@@ -80,7 +80,7 @@ class PluginLoadError(PluginException):
     """
 
 
-class PluginValidationError(PluginException):
+class PluginValidationError(PluginError):
     """Exception raised when a plugin fails validation.
 
     This exception is raised when a plugin does not meet the required
@@ -89,7 +89,7 @@ class PluginValidationError(PluginException):
     """
 
 
-class PluginExecutionError(PluginException):
+class PluginExecutionError(PluginError):
     """Exception raised when a plugin encounters an error during execution.
 
     This exception is raised when a plugin's method or API call fails during
@@ -99,7 +99,7 @@ class PluginExecutionError(PluginException):
     """
 
 
-class PluginDependencyError(PluginException):
+class PluginDependencyError(PluginError):
     """Exception raised when plugin dependencies cannot be resolved.
 
     This exception is raised when a plugin requires another plugin that is
@@ -114,7 +114,7 @@ class PluginDependencyError(PluginException):
 # ============================================================================
 
 
-class APIException(BastProxyError):
+class APIError(BastProxyError):
     """Base exception for all API-related errors.
 
     This exception is the parent class for all API-specific errors including
@@ -123,7 +123,7 @@ class APIException(BastProxyError):
     """
 
 
-class APIRegistrationError(APIException):
+class APIRegistrationError(APIError):
     """Exception raised when API registration fails.
 
     This exception is raised when an API cannot be registered due to naming
@@ -132,7 +132,7 @@ class APIRegistrationError(APIException):
     """
 
 
-class APINotFoundError(APIException, AttributeError):
+class APINotFoundError(APIError, AttributeError):
     """Exception raised when an API cannot be found.
 
     This exception is raised when attempting to invoke or look up an API
@@ -143,7 +143,7 @@ class APINotFoundError(APIException, AttributeError):
     """
 
 
-class APIInvocationError(APIException):
+class APIInvocationError(APIError):
     """Exception raised when an API call fails.
 
     This exception is raised when an API invocation fails due to invalid
@@ -157,7 +157,7 @@ class APIInvocationError(APIException):
 # ============================================================================
 
 
-class NetworkException(BastProxyError):
+class NetworkError(BastProxyError):
     """Base exception for all network-related errors.
 
     This exception is the parent class for all network-specific errors
@@ -166,7 +166,7 @@ class NetworkException(BastProxyError):
     """
 
 
-class ConnectionError(NetworkException):
+class ConnectionError(NetworkError):
     """Exception raised when a network connection fails.
 
     This exception is raised when a client or server connection cannot be
@@ -175,7 +175,7 @@ class ConnectionError(NetworkException):
     """
 
 
-class TelnetProtocolError(NetworkException):
+class TelnetProtocolError(NetworkError):
     """Exception raised when Telnet protocol handling fails.
 
     This exception is raised when parsing or handling Telnet protocol
@@ -189,7 +189,7 @@ class TelnetProtocolError(NetworkException):
 # ============================================================================
 
 
-class ConfigurationException(BastProxyError):
+class ConfigurationError(BastProxyError):
     """Base exception for all configuration-related errors.
 
     This exception is the parent class for all configuration-specific errors
@@ -198,7 +198,7 @@ class ConfigurationException(BastProxyError):
     """
 
 
-class InvalidSettingError(ConfigurationException):
+class InvalidSettingError(ConfigurationError):
     """Exception raised when a setting has an invalid value.
 
     This exception is raised when a configuration setting is set to a value
@@ -207,7 +207,7 @@ class InvalidSettingError(ConfigurationException):
     """
 
 
-class MissingSettingError(ConfigurationException):
+class MissingSettingError(ConfigurationError):
     """Exception raised when a required setting is missing.
 
     This exception is raised when a required configuration setting is not
@@ -221,7 +221,7 @@ class MissingSettingError(ConfigurationException):
 # ============================================================================
 
 
-class RecordException(BastProxyError):
+class RecordError(BastProxyError):
     """Base exception for all record processing errors.
 
     This exception is the parent class for all record-specific errors
@@ -230,7 +230,7 @@ class RecordException(BastProxyError):
     """
 
 
-class RecordValidationError(RecordException):
+class RecordValidationError(RecordError):
     """Exception raised when record validation fails.
 
     This exception is raised when a record does not meet validation
@@ -239,7 +239,7 @@ class RecordValidationError(RecordException):
     """
 
 
-class RecordSerializationError(RecordException):
+class RecordSerializationError(RecordError):
     """Exception raised when record serialization/deserialization fails.
 
     This exception is raised when converting a record to or from a serialized

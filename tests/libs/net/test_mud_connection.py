@@ -396,13 +396,13 @@ async def test_handler_applies_mudlinewait(monkeypatch: pytest.MonkeyPatch) -> N
     conn.api = MagicMock(return_value=setting_get)
     seen: list[float] = []
 
-    class _Stop(Exception):
+    class _StopError(Exception):
         pass
 
     async def fake_setup() -> None:
         assert conn.reader is not None
         seen.append(conn.reader.line_timeout)
-        raise _Stop
+        raise _StopError
 
     async def idle() -> None:
         await asyncio.Event().wait()
@@ -425,7 +425,7 @@ async def test_handler_applies_mudlinewait(monkeypatch: pytest.MonkeyPatch) -> N
     writer.get_extra_info.return_value = ("127.0.0.1", 4000)
     reader = _reader()
 
-    with pytest.raises(_Stop):
+    with pytest.raises(_StopError):
         await asyncio.wait_for(conn.mud_telnet_handler(reader, writer), TIMEOUT)
     for task in tasks:
         task.cancel()
@@ -501,12 +501,12 @@ async def test_handler_sets_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     before = conn.connected_time
     seen: list[bool] = []
 
-    class _Stop(Exception):
+    class _StopError(Exception):
         pass
 
     async def fake_setup() -> None:
         seen.append(conn.connected)
-        raise _Stop
+        raise _StopError
 
     async def idle() -> None:
         await asyncio.Event().wait()
@@ -530,7 +530,7 @@ async def test_handler_sets_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     writer = MagicMock()
     writer.get_extra_info.return_value = ("127.0.0.1", 4000)
 
-    with pytest.raises(_Stop):
+    with pytest.raises(_StopError):
         await asyncio.wait_for(conn.mud_telnet_handler(_reader(), writer), TIMEOUT)
     for task in tasks:
         task.cancel()

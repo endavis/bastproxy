@@ -15,7 +15,7 @@ from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
-class lkAttrPlugin(BasePlugin):
+class LkAttrPlugin(BasePlugin):
     """a plugin to inspect records"""
 
     @AddParser(description="test changing a locked attribute")

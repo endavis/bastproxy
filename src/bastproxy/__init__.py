@@ -57,7 +57,7 @@ from bastproxy.libs.plugins import reloadutils
 
 # Third Party
 # Project
-from bastproxy.plugins.core.log import formatTime_RFC3339, formatTime_RFC3339_UTC
+from bastproxy.plugins.core.log import format_time_rfc3339, format_time_rfc3339_utc
 
 # set this to True to log in UTC timezone, False to log in local timezone
 BASEAPI.LOG_IN_UTC_TZ = True
@@ -77,9 +77,9 @@ BASEAPI.quiet_mode = False
 # change LOG_IN_UTC_TZ to False if you want to log in local time
 # updates the formatter for the logging module
 if BASEAPI.LOG_IN_UTC_TZ:
-    logging.Formatter.formatTime = formatTime_RFC3339_UTC  # type: ignore[method-assign]
+    logging.Formatter.formatTime = format_time_rfc3339_utc  # type: ignore[method-assign]
 else:
-    logging.Formatter.formatTime = formatTime_RFC3339  # type: ignore[method-assign]
+    logging.Formatter.formatTime = format_time_rfc3339  # type: ignore[method-assign]
 
 CODE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = CODE_ROOT.parent
@@ -314,7 +314,7 @@ def main() -> None:
             format="%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
         )
 
-    MP = MudProxy()
+    mp = MudProxy()
 
     if args["profile"]:
         import cProfile
@@ -322,7 +322,7 @@ def main() -> None:
         import pstats
 
         with cProfile.Profile() as pr:
-            MP.run(args)
+            mp.run(args)
 
             sortby = pstats.SortKey.CUMULATIVE
             stream = io.StringIO()
@@ -339,7 +339,7 @@ def main() -> None:
             with Path("profile.csv").open("w+", encoding="utf-8") as f:
                 f.write(result)
     else:
-        MP.run(args)
+        mp.run(args)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 """Tests that the lkattr locktest reports the refused writes (#43)."""
 
-from bastproxy.plugins.test.lkattr.plugin._lkattr import lkAttrPlugin
+from bastproxy.plugins.test.lkattr.plugin._lkattr import LkAttrPlugin
 
 
 def test_locktest_reports_each_refusal() -> None:
-    plugin = lkAttrPlugin.__new__(lkAttrPlugin)
-    func = lkAttrPlugin._command_locktest
+    plugin = LkAttrPlugin.__new__(LkAttrPlugin)
+    func = LkAttrPlugin._command_locktest
     func = getattr(func, "__wrapped__", func)
     result = func(plugin)
     msg = result.message

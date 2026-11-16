@@ -17,7 +17,7 @@ PLUGIN_VERSION = 1
 
 PLUGIN_REQUIRED = True
 
-__ALL__ = ["formatTime_RFC3339", "formatTime_RFC3339_UTC", "get_toplevel"]
+__ALL__ = ["format_time_rfc3339", "format_time_rfc3339_utc", "get_toplevel"]
 
-from .libs.tz import formatTime_RFC3339, formatTime_RFC3339_UTC
+from .libs.tz import format_time_rfc3339, format_time_rfc3339_utc
 from .libs.utils import get_toplevel

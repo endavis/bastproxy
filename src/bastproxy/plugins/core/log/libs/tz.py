@@ -14,7 +14,7 @@ import datetime
 # Project
 
 
-def formatTime_RFC3339_UTC(self, record, _datefmt=None):
+def format_time_rfc3339_utc(self, record, _datefmt=None):
     """Formats a timestamp in the RFC3339 format in the UTC timezone.
 
     Args:
@@ -29,7 +29,7 @@ def formatTime_RFC3339_UTC(self, record, _datefmt=None):
     return datetime.datetime.fromtimestamp(record.created).astimezone(datetime.UTC).isoformat()
 
 
-def formatTime_RFC3339(self, record, _datefmt=None):
+def format_time_rfc3339(self, record, _datefmt=None):
     """Formats a timestamp in the RFC3339 format in the local timezone.
 
     Args:

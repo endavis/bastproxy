@@ -202,7 +202,7 @@ if self.api("libs.api:api.exists")("some.plugin:some.function"):
     result = self.api("some.plugin:some.function")(args)
 ```
 
-The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`. `get` checks the instance APIs first, then the class APIs (`get_class=True` skips the instance APIs). `get` raises `APINotFoundError` (from `bastproxy.libs.exceptions`, a subclass of `APIException` and `AttributeError`) when the API does not exist.
+The `__call__` method is aliased to `get`, so `api("name")` is equivalent to `api.get("name")`. `get` checks the instance APIs first, then the class APIs (`get_class=True` skips the instance APIs). `get` raises `APINotFoundError` (from `bastproxy.libs.exceptions`, a subclass of `APIError` and `AttributeError`) when the API does not exist.
 
 ### 4. Class vs Instance APIs
 
