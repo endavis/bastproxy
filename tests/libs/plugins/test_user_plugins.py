@@ -192,3 +192,13 @@ def test_top_level_plugins_shim_is_gone() -> None:
     locations = [Path(p).resolve() for p in (spec.submodule_search_locations or [])] if spec else []
     assert not any(loc.is_relative_to(src_root) for loc in locations)
     assert not (src_root / "plugins").exists()
+
+
+def test_discovered_plugin_ids_are_plugin_ids(tmp_path: Path) -> None:
+    """Discovery stores ``PluginId`` values in ``p["plugin_id"]`` (issue #436)."""
+    from bastproxy.libs.plugins.pluginid import PluginId
+
+    _write_plugin(tmp_path, "mine", "zzp")
+    plugins = _loader(tmp_path)._discover_plugins().plugins
+    assert [type(p["plugin_id"]) for p in plugins] == [PluginId]
+    assert plugins[0]["plugin_id"].package == "plugins.mine"

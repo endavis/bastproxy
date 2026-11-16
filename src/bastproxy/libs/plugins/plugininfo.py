@@ -46,6 +46,7 @@ from typing import Any
 # 3rd Party
 # Project
 from bastproxy.libs.exceptions import PluginDependencyError, PluginValidationError
+from bastproxy.libs.plugins.pluginid import PluginId
 from bastproxy.plugins._baseplugin import BasePlugin
 
 # Expected type of each metadata assignment in a plugin's __init__.py.
@@ -89,16 +90,17 @@ class PluginInfo:
         paths, metadata, and runtime information.
 
         Args:
-            plugin_id: The unique identifier for the plugin.
+            plugin_id: The unique identifier for the plugin, as ``package.plugin``.
+                It is stored as a `PluginId`; an invalid value raises.
 
         """
         self.package_init_file_path: Path = Path()
         self.package_path: Path = Path()
         self.package_import_location: str = ""
-        self.plugin_id: str = plugin_id
-        self.package: str = plugin_id.rsplit(".", 1)[0]
+        self.plugin_id: PluginId = PluginId(plugin_id)
+        self.package: str = self.plugin_id.package
         self.name: str = ""
-        self.short_name: str = plugin_id.split(".")[-1]
+        self.short_name: str = self.plugin_id.plugin
         self.author: str = ""
         self.purpose: str = ""
         self.version: int = -1

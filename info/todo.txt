@@ -28,8 +28,6 @@
         NOTES: this breaks using __dict__ to format strings
     # TODO: plac instead of ArgumentParser
         see if it can do both + and - as arguments: ++openfile vs --openfiles for proxy.resources
-    # TODO: plugin_id class
-        package and plugin attributes, __str__/__repr__ return package.plugin, hashable for dict keys
 
 # REJECTED
     # change typing to "import typing as T": works against the project's typing style and ruff
