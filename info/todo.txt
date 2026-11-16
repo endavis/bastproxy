@@ -23,7 +23,6 @@
     # IDEA: look at pyinstrument for profiling? (the perf-change skill uses cProfile today)
 
 # REVISIT
-    # TODO: libs.timing - change the decorator to a class? (not done)
     # TODO: look at __slots__
         NOTES: this breaks using __dict__ to format strings
     # TODO: plac instead of ArgumentParser
