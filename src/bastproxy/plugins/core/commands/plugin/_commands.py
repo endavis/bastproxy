@@ -298,7 +298,7 @@ class CommandsPlugin(BasePlugin):
                 ),
             ]
         return [
-            *self.api("plugins.core.utils:string.center.colored")(
+            self.api("plugins.core.utils:string.center.colored")(
                 header_text, "-", line_length, filler_color=color
             ),
         ]
