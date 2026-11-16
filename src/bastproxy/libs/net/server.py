@@ -99,6 +99,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
     naws_reported: bool = False
     #: Called after each reported size; ``ClientConnection`` sets it to forward the size (#308).
     on_naws_cb: Callable[[], None] | None = None
+    # the factory default in __init__ builds this writer (annotation only, no class attribute)
+    writer: RecordingTelnetWriter
 
     def on_naws(self, rows: int, cols: int) -> None:
         """Store the client's window size, note it was reported and tell the connection (#308)."""

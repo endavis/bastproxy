@@ -104,7 +104,7 @@ async def test_send_to_queues_only_when_connected_and_valid(
 
     conn.connected = True
     conn.send_to(line)
-    conn.send_to("not a line")  # type: ignore[arg-type]
+    conn.send_to("not a line")
     await asyncio.sleep(0)
     assert conn.send_queue.qsize() == 1
     assert conn.send_queue.get_nowait() is line

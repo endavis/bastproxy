@@ -168,7 +168,7 @@ async def test_send_to_queues_only_network_data_lines(
     conn, _ = _conn()
     good = NetworkDataLine("x")
     conn.send_to(good)
-    conn.send_to("not a line")  # type: ignore[arg-type]
+    conn.send_to("not a line")
     await asyncio.sleep(0)
     assert conn.send_queue.qsize() == 1
     assert conn.send_queue.get_nowait() is good
