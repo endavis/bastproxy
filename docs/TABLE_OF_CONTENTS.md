@@ -77,6 +77,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Command System Analysis and Findings](claude/command_system_findings.md) - Audit of the commands plugin - how a client line becomes a command, state consistency across add, reload and unload, failure handling, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [Cross-Agent Delegation Matrix](development/ai/cross-agent-delegation.md) - Commands that let any supported AI CLI hand a review task to any other; plan and implement are handled by the shared implement-issue skill instead
 - [Data Flow](claude/data_flow.md) - How network data moves between MUD servers and clients through the proxy
+- [Debugging](development/debugging.md) - Tracing bastproxy's event and plugin flow with hunter, without adding log lines
 - [Dependabot Auto-merge](development/dependabot-automerge.md) - How the dependabot auto-merge workflow evaluates, enables, and skips PRs
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
@@ -125,6 +126,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Command System Analysis and Findings](claude/command_system_findings.md) - Audit of the commands plugin - how a client line becomes a command, state consistency across add, reload and unload, failure handling, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [Cross-Agent Delegation Matrix](development/ai/cross-agent-delegation.md) - Commands that let any supported AI CLI hand a review task to any other; plan and implement are handled by the shared implement-issue skill instead
 - [Data Flow](claude/data_flow.md) - How network data moves between MUD servers and clients through the proxy
+- [Debugging](development/debugging.md) - Tracing bastproxy's event and plugin flow with hunter, without adding log lines
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
 - [Event System Analysis and Findings](claude/event_system_findings.md) - Audit of the event system - the status of the earlier findings, plugin unload, priority ordering and failing callbacks, cost, test coverage, docs accuracy and patterns, with defects and a patterns review
 - [First 5 Minutes with an AI Agent](development/ai/first-5-minutes.md) - Narrative walkthrough of the AI agent workflow from issue to merge
@@ -204,6 +206,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Consumer Notes](template/consumer-notes.md) - Breaking changes and behaviour changes that arrive when a project syncs from the template.
 - [Cross-Agent Delegation Matrix](development/ai/cross-agent-delegation.md) - Commands that let any supported AI CLI hand a review task to any other; plan and implement are handled by the shared implement-issue skill instead
 - [Data Flow](claude/data_flow.md) - How network data moves between MUD servers and clients through the proxy
+- [Debugging](development/debugging.md) - Tracing bastproxy's event and plugin flow with hunter, without adding log lines
 - [Dependabot Auto-merge](development/dependabot-automerge.md) - How the dependabot auto-merge workflow evaluates, enables, and skips PRs
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [Event System](claude/event_system.md) - Priority-based event registration and dispatch between plugins
