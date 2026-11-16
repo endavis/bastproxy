@@ -20,8 +20,6 @@
         or many function parameters, for type checking and error handling (new dependency)
 
 # REVISIT
-    # TODO: look at __slots__
-        NOTES: this breaks using __dict__ to format strings
     # TODO: plac instead of ArgumentParser
         see if it can do both + and - as arguments: ++openfile vs --openfiles for proxy.resources
 

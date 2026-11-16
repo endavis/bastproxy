@@ -139,3 +139,15 @@ def test_max_changes_is_kept() -> None:
 
 def test_networkdata_is_a_tracked_list() -> None:
     assert isinstance(NetworkData("a"), TrackedList)
+
+
+def test_tracked_update_is_slotted() -> None:
+    """A view has no ``__dict__`` and takes no new attributes (#434)."""
+    line = NetworkDataLine("x")
+    line.addupdate("Info", "x")
+    update = next(u for u in line.updates if u.action == "x")
+    assert not hasattr(update, "__dict__")
+    assert update.parent is line
+    assert update.entry.uuid == update.uuid
+    with pytest.raises(AttributeError):
+        update.extra_attribute = 1  # type: ignore[attr-defined]
