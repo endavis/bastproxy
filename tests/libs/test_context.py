@@ -12,6 +12,9 @@ from bastproxy.libs.context import (
     event_stack,
     fresh_context,
     get_command_args,
+    get_output_client,
+    output_client,
+    output_to_client,
     raised_event,
     running_command,
 )
@@ -83,3 +86,45 @@ async def test_task_created_by_taskitem_sees_no_context() -> None:
         task = item.create(loop=asyncio.get_running_loop())
     await task
     assert seen == {"records": (), "events": (), "args": None}
+
+
+def test_output_to_client_sets_and_restores() -> None:
+    assert get_output_client() is None
+    with output_to_client("abc"):
+        assert get_output_client() == "abc"
+    assert get_output_client() is None
+
+
+def test_output_to_client_nests_and_restores() -> None:
+    with output_to_client("outer"):
+        with output_to_client("inner"):
+            assert get_output_client() == "inner"
+        assert get_output_client() == "outer"
+    assert output_client.get() is None
+
+
+def test_output_to_client_restores_on_exception() -> None:
+    with pytest.raises(RuntimeError), output_to_client("abc"):
+        raise RuntimeError
+    assert get_output_client() is None
+
+
+def test_fresh_context_resets_output_client() -> None:
+    seen: list[str | None] = []
+    with output_to_client("abc"):
+        fresh_context().run(lambda: seen.append(get_output_client()))
+        assert get_output_client() == "abc"
+    assert seen == [None]
+
+
+async def test_task_item_does_not_inherit_output_client() -> None:
+    seen: list[str | None] = []
+
+    async def probe() -> None:
+        seen.append(get_output_client())
+
+    item = TaskItem(probe(), name="test421")
+    with output_to_client("abc"):
+        task = item.create(loop=asyncio.get_running_loop())
+    await task
+    assert seen == [None]

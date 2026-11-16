@@ -18,7 +18,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.context import get_command_args
+from bastproxy.libs.context import get_command_args, output_to_client
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import (
@@ -228,9 +228,7 @@ class CommandsPlugin(BasePlugin):
     ) -> list[str]:
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:setting.get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.proxy:line.length.get")()
         color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
@@ -246,9 +244,7 @@ class CommandsPlugin(BasePlugin):
     ) -> list[str]:
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:setting.get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.proxy:line.length.get")()
         color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
@@ -261,9 +257,7 @@ class CommandsPlugin(BasePlugin):
     ) -> list[str]:
         """Format an output header."""
         if line_length is None:
-            line_length = self.api("plugins.core.settings:setting.get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.proxy:line.length.get")()
 
         return self._format_output_header(header_text, color, line_length)
 
@@ -272,9 +266,7 @@ class CommandsPlugin(BasePlugin):
     ) -> list[str]:
         """Format an output header."""
         if not line_length:
-            line_length = self.api("plugins.core.settings:setting.get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.proxy:line.length.get")()
 
         if not color:
             color = self.api("plugins.core.settings:setting.get")(
@@ -314,18 +306,14 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("command.line.length.get", description="get line length for command")
     def _api_command_line_length_get(self) -> int:
         """Return the line length for output."""
-        line_length: int = self.api("plugins.core.settings:setting.get")(
-            "plugins.core.proxy", "linelen"
-        )
+        line_length: int = self.api("plugins.core.proxy:line.length.get")()
         command_indent: int = self.api(f"{self.plugin_id}:command.indent.get")()
         return line_length - 2 * command_indent
 
     @AddAPI("output.line.length.get", description="get line length for command output")
     def _api_output_line_length_get(self) -> int:
         """Return the line length for output."""
-        line_length: int = self.api("plugins.core.settings:setting.get")(
-            "plugins.core.proxy", "linelen"
-        )
+        line_length: int = self.api("plugins.core.proxy:line.length.get")()
         output_indent: int = self.api(f"{self.plugin_id}:output.indent.get")()
         return line_length - 2 * output_indent
 
@@ -1138,82 +1126,85 @@ class CommandsPlugin(BasePlugin):
 
         event_record["line"].send = False
 
-        try:
-            # leading whitespace is kept on the line for the MUD (#52), but a proxy
-            # command is parsed from the left-stripped text
-            lookup = self.find_command(event_record["line"].line.lstrip())
-            command_item = lookup.command
-            command_args = lookup.args
-            show_in_history = lookup.show_in_history
-            notes = lookup.notes
-            message = lookup.message
+        with output_to_client(event_record["client_id"] or None):
+            try:
+                # leading whitespace is kept on the line for the MUD (#52), but a proxy
+                # command is parsed from the left-stripped text
+                lookup = self.find_command(event_record["line"].line.lstrip())
+                command_item = lookup.command
+                command_args = lookup.args
+                show_in_history = lookup.show_in_history
+                notes = lookup.notes
+                message = lookup.message
 
-            if message:
-                if isinstance(message, str):
-                    message = [message]
-                if isinstance(message, list):
-                    message = NetworkData(message, owner_id="run_internal_command_from_event")
-                SendDataDirectlyToClient(message, clients=clients)()
+                if message:
+                    if isinstance(message, str):
+                        message = [message]
+                    if isinstance(message, list):
+                        message = NetworkData(message, owner_id="run_internal_command_from_event")
+                    SendDataDirectlyToClient(message, clients=clients)()
 
-            if event_record["showinhistory"] != show_in_history:
-                event_record["showinhistory"] = show_in_history
-                event_record.addupdate(
-                    UpdateFlag.MODIFY, f"show_in_history set to {show_in_history}", savedata=False
-                )
-
-            event_record.addupdate(
-                UpdateFlag.INFO,
-                f"find_command returned {notes}, arg string: '{command_args}'",
-                savedata=False,
-            )
-
-            if command_item:
-                get_logger(self.plugin_id).debug(
-                    "found command %s.%s", command_item.plugin_id, command_item.name
-                )
-
-                result = command_item.run(command_args, format=command_item.format)
-                success, error = result.success, result.reason
-
-                if success:
+                if event_record["showinhistory"] != show_in_history:
+                    event_record["showinhistory"] = show_in_history
                     event_record.addupdate(
-                        UpdateFlag.INFO,
-                        "run_command returned success",
+                        UpdateFlag.MODIFY,
+                        f"show_in_history set to {show_in_history}",
                         savedata=False,
                     )
-                else:
-                    event_record.addupdate(
-                        UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
+
+                event_record.addupdate(
+                    UpdateFlag.INFO,
+                    f"find_command returned {notes}, arg string: '{command_args}'",
+                    savedata=False,
+                )
+
+                if command_item:
+                    get_logger(self.plugin_id).debug(
+                        "found command %s.%s", command_item.plugin_id, command_item.name
                     )
 
-                # run_finish always returns the output as a list of lines.
-                if result.message:
-                    SendDataDirectlyToClient(
-                        NetworkData(result.message, owner_id="run_internal_command_from_event"),
-                        clients=clients,
-                    )()
-        except Exception:
-            log_to(
-                [self.plugin_id],
-                logging.ERROR,
-                "Error running command: %s",
-                self._command_token(event_record),
-                exc_info=True,
-            )
-            try:
-                SendDataDirectlyToClient(
-                    NetworkData(
-                        ["Error running command"], owner_id="run_internal_command_from_event"
-                    ),
-                    clients=clients,
-                )()
+                    result = command_item.run(command_args, format=command_item.format)
+                    success, error = result.success, result.reason
+
+                    if success:
+                        event_record.addupdate(
+                            UpdateFlag.INFO,
+                            "run_command returned success",
+                            savedata=False,
+                        )
+                    else:
+                        event_record.addupdate(
+                            UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
+                        )
+
+                    # run_finish always returns the output as a list of lines.
+                    if result.message:
+                        SendDataDirectlyToClient(
+                            NetworkData(result.message, owner_id="run_internal_command_from_event"),
+                            clients=clients,
+                        )()
             except Exception:
                 log_to(
                     [self.plugin_id],
                     logging.ERROR,
-                    "Could not tell the client about the command error",
+                    "Error running command: %s",
+                    self._command_token(event_record),
                     exc_info=True,
                 )
+                try:
+                    SendDataDirectlyToClient(
+                        NetworkData(
+                            ["Error running command"], owner_id="run_internal_command_from_event"
+                        ),
+                        clients=clients,
+                    )()
+                except Exception:
+                    log_to(
+                        [self.plugin_id],
+                        logging.ERROR,
+                        "Could not tell the client about the command error",
+                        exc_info=True,
+                    )
 
     @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
     def _api_summary_get_for_plugin(self, plugin_id: str) -> list[str]:

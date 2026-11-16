@@ -6,8 +6,6 @@
 # Finished and older items are in this file's git history (before the 2026-11-02 cleanup, #102).
 
 # UNSCOPED (file an issue once there is a concrete problem or design)
-    # TODO: separate line length for each client, from telnet negotiation (NAWS)
-        after #66 moves client negotiation onto telnetlib3's API
     # TODO: internal webserver for large command output, such as record details
     # TODO: Discord bot?
 

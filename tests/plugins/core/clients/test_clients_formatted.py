@@ -18,6 +18,11 @@ def _stub(
     term_type: str = "-",
 ) -> MagicMock:
     utils = make_utils_stub()
+    utils_api = utils.api
+    # the shared stub's 60 columns now wrap these header labels; at 80 they stay on one line (#421)
+    utils.api = lambda name: (
+        (lambda: 80) if name == "plugins.core.proxy:line.length.get" else utils_api(name)
+    )
     stub = MagicMock()
     stub.plugin_id = PID
     stub.clients = {

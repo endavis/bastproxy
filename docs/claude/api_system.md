@@ -127,7 +127,7 @@ APIs follow a hierarchical naming scheme:
 Examples:
 - `libs.plugins.loader:plugin.instance.get` - Get a plugin instance
 - `plugins.core.events:event.raise` - Raise an event
-- `plugins.core.commands:output.line.length.get` - Get output line length
+- `plugins.core.commands:output.line.length.get` - Get output line length (the current client's width minus the output indent)
 
 The top-level API typically corresponds to the plugin or module that owns the functionality.
 

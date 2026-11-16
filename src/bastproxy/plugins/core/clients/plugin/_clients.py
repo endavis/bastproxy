@@ -124,6 +124,26 @@ class ClientPlugin(BasePlugin):
         """Get a client by uuid."""
         return self.clients.get(client_uuid, None)
 
+    @AddAPI(
+        "client.width.get",
+        description="get a client's NAWS width, or None if it has not reported one",
+    )
+    def _api_client_width_get(self, client_uuid: str) -> int | None:
+        """Return the width the client reported over NAWS, or None."""
+        client = self.clients.get(client_uuid)
+        if client is None:
+            return None
+        try:
+            if not client.naws_reported:
+                return None
+            cols = int(client.cols)
+        except Exception:
+            get_logger(self.plugin_id).debug(
+                "could not read the NAWS width of client %s", client_uuid, exc_info=True
+            )
+            return None
+        return cols if cols > 0 else None
+
     @AddAPI("client.send", description="send data to a client")
     def _api_client_send(self, client_uuid: str, data: NetworkDataLine) -> None:
         """Send data to a client."""

@@ -268,7 +268,7 @@ class CommandClass:
         include_date = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "include_date"
         )
-        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
+        line_length = self.api("plugins.core.proxy:line.length.get")()
         preamble_color = self.api("plugins.core.proxy:preamble.color.get")()
         header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "header_color"

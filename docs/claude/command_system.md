@@ -314,7 +314,7 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 - `plugins.core.commands:command.current.args.get` - Get parsed args for current command
 - `plugins.core.commands:command.format` - Get formatted command string
 - `plugins.core.commands:command.run` - Run a command programmatically; returns `(success, messages)`
-- `plugins.core.commands:output.line.length.get` - Get output line length for formatting
+- `plugins.core.commands:output.line.length.get` - Get the line length for formatting: the current client's width (`plugins.core.proxy:line.length.get`) minus the output indent
 
 ### Command Discovery
 - `plugins.core.commands:command.add.by.func` - Add a command from a decorated method
@@ -326,6 +326,11 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 ### Output Formatting
 - `plugins.core.commands:output.header.format` - Format output header
 - `plugins.core.commands:output.subheader.format` - Format an output subheader
+- `plugins.core.proxy:line.length.get` - Get the line length for the client running the command
+
+Output is drawn at the width of the client that ran the command. `run_internal_command_from_event` sets the `output_client` context variable around the command, and `line.length.get` reads it. A client that reported its window size over NAWS gets its width minus the preamble prefix (`#BP: `, as long as the configured preamble plus 2), capped at the `linelen` setting and never under 40. A client without NAWS, or no single target client (a broadcast), gets `linelen`. Every reader of the line length goes through this API; `linelen` is read nowhere else.
+
+`plugins.core.utils:table.format` fits tables to that width. When the rows are wider, data cells wrap inside their own columns (at spaces first, then within a word) and every `|` border stays aligned. A word that has to be split breaks after the last `.`, `/`, `_` or `-` that fits. Header labels wrap only when nothing else makes the table fit (at spaces first, then within a word, down to one column each), and the header row grows to its tallest label. The table grows past the line length only when even one column per cell cannot fit.
 
 ## Built-in Commands
 
