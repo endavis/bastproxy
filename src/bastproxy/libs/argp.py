@@ -130,6 +130,27 @@ class CustomFormatter(HelpFormatter):
             multiline_text = multiline_text + "\n" + wrapped_line
         return multiline_text
 
+    # override _split_lines
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        """Wrap argument help to the column width argparse computed.
+
+        RawTextHelpFormatter keeps each line as written, so a long argument help
+        ran past the client's line length. Each line the author wrote is wrapped
+        on its own, keeping deliberate line breaks.
+
+        Args:
+            text: The argument help text.
+            width: The width available after the help column.
+
+        Returns:
+            The wrapped lines.
+
+        """
+        lines: list[str] = []
+        for line in text.splitlines() or [""]:
+            lines.extend(_textwrap.wrap(line, max(width, 11)) or [""])
+        return lines
+
     # override _get_help_string
     def _get_help_string(self, action: argparse.Action) -> str | None:
         """Get the help string for an action, including the default value if applicable.
