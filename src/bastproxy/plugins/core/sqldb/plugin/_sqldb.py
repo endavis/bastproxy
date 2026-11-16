@@ -19,11 +19,11 @@ class SQLDBPlugin(BasePlugin):
     """a plugin to handle the base sqldb."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         self.reload_dependents_f = True
 
     @AddAPI("baseclass.get", description="return the sql baseclass")
-    def _api_baseclass_get(self):
+    def _api_baseclass_get(self) -> type[Sqldb]:
         # pylint: disable=no-self-use
         """Return the sql baseclass."""
         return Sqldb

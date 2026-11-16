@@ -41,7 +41,7 @@ CONVERTCOLORS: dict[str, str] = {
 COLORTABLE: dict[str | int, tuple[int, int, int]] = {}
 
 
-def build_color_table():
+def build_color_table() -> None:
     """Colors 0..15: 16 basic colors."""
     COLORTABLE[0] = (0x00, 0x00, 0x00)  # 0
     COLORTABLE["k"] = COLORTABLE[0]

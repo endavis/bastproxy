@@ -24,7 +24,7 @@ from bastproxy.libs.logger import log_to
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 
-def dict_factory(cursor, row):
+def dict_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> dict[str, Any]:
     """Create a dictionary for a sql row."""
     return {column[0]: row[index] for index, column in enumerate(cursor.description)}
 
@@ -48,7 +48,7 @@ class Sqldb:
     # pylint: disable=too-many-public-methods
     """a class to manage sqlite3 databases."""
 
-    def __init__(self, plugin_id, **kwargs):
+    def __init__(self, plugin_id: str, **kwargs: Any) -> None:
         """Initialize the class."""
         self.db_connection = None
         self.plugin_id = plugin_id
@@ -71,7 +71,7 @@ class Sqldb:
         "{database_name}.select",
         description="execute a select statement against the database",
     )
-    def _api_select(self, sql_statement):
+    def _api_select(self, sql_statement: str) -> list[dict[str, Any]]:
         """Run a select sql_statement against the db."""
         return self.select(sql_statement)
 
@@ -79,7 +79,7 @@ class Sqldb:
         "{database_name}.modify",
         description="execute an update/insert statement against the database",
     )
-    def _api_modify(self, sql_statement, data=None):
+    def _api_modify(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Modify the database."""
         return self.modify(sql_statement, data)
 
@@ -87,16 +87,16 @@ class Sqldb:
         "{database_name}.modify.many",
         description="execute an update/insert statement multiple times against the database",
     )
-    def _api_modify_many(self, sql_statement, data):
+    def _api_modify_many(self, sql_statement: str, data: Any) -> tuple[int | None, Any]:
         """Update many rows in a database."""
         return self.modifymany(sql_statement, data)
 
     @AddAPI("{database_name}.row.get", description="get a row from a table")
-    def _api_row_get(self, row_id, table_name):
+    def _api_row_get(self, row_id: int, table_name: str) -> list[dict[str, Any]] | dict[str, Any]:
         """Get a row from a table."""
         return self.getrow(row_id, table_name)
 
-    def close(self):
+    def close(self) -> None:
         """Close the database."""
         import inspect
 
@@ -111,7 +111,7 @@ class Sqldb:
                 self.db_connection.close()
         self.db_connection = None
 
-    def open(self):
+    def open(self) -> None:
         """Open the database."""
         import inspect
 
@@ -131,7 +131,7 @@ class Sqldb:
         # only return byte strings so is easier to send to a client or the mud
         self.db_connection.text_factory = str
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> Any:
         """Override getattribute to make sure the database is open."""
         import inspect
 
@@ -146,7 +146,7 @@ class Sqldb:
             self.open()
         return attr
 
-    def fixsql(self, temp_string, like=False):
+    def fixsql(self, temp_string: Any, like: bool = False) -> str:
         # pylint: disable=no-self-use
         """Fix quotes in a item that will be passed into a sql statement."""
         if temp_string := str(temp_string):
@@ -160,7 +160,7 @@ class Sqldb:
     @AddCommand(group="DB")
     @AddParser(description="backup the database")
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
-    def _command_dbselect(self):
+    def _command_dbselect(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -175,7 +175,7 @@ class Sqldb:
     @AddCommand(group="DB")
     @AddParser(description="show tables and fields in database")
     @AddArgument("table", help="the table (not required)", default="", nargs="?")
-    def _command_dbtables(self):
+    def _command_dbtables(self) -> CommandResult:
         """Show tables and fields."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -213,7 +213,7 @@ class Sqldb:
     @AddCommand(group="DB")
     @AddParser(description="run a sql update/insert against the database")
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
-    def _command_dbmodify(self):
+    def _command_dbmodify(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -226,7 +226,7 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="vacuum the database")
-    def _command_dbvac(self):
+    def _command_dbvac(self) -> CommandResult:
         """Vacuum the database."""
         if self.db_connection:
             self.db_connection.execute("VACUUM")
@@ -235,7 +235,7 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="close the database")
-    def _command_dbclose(self):
+    def _command_dbclose(self) -> CommandResult:
         """Close the database."""
         self.close()
         return CommandResult(True, [f"Database {self.database_name} was closed"])
@@ -244,7 +244,7 @@ class Sqldb:
     @AddParser(description="remove a row from a table")
     @AddArgument("table", help="the table to remove the row from", default="", nargs="?")
     @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?", type=int)
-    def _command_dbremove(self):
+    def _command_dbremove(self) -> CommandResult:
         """Remove a table from the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -261,7 +261,7 @@ class Sqldb:
     @AddCommand(group="DB")
     @AddParser(description="backup the database")
     @AddArgument("name", help="the name to backup to", default="", nargs="?")
-    def _command_dbbackup(self):
+    def _command_dbbackup(self) -> CommandResult:
         """Backup the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -278,17 +278,17 @@ class Sqldb:
 
         return CommandResult(True, message)
 
-    def postinit(self):
+    def postinit(self) -> None:
         """Do post init stuff, checks and upgrades the database, creates tables."""
         self.checkversion()
 
         for i in self.tables:
             self.checktable(i)
 
-    def turnonpragmas(self):
+    def turnonpragmas(self) -> None:
         """Turn on pragmas."""
 
-    def addtable(self, tablename, sql, **kwargs):
+    def addtable(self, tablename: str, sql: str, **kwargs: Any) -> None:
         """Add a table to the database.
 
         Args:
@@ -313,7 +313,7 @@ class Sqldb:
             table.default_column_values,
         ) = self.getcolumnumnsfromsql(tablename)
 
-    def remove(self, table, rownumber):
+    def remove(self, table: str, rownumber: int | str) -> tuple[bool, str]:
         """Remove the row whose key field equals rownumber from a table."""
         if table in self.tables:
             key_field = self.tables[table].keyfield
@@ -325,7 +325,9 @@ class Sqldb:
 
         return False, f"{table} is not a table"
 
-    def getcolumnumnsfromsql(self, tablename):
+    def getcolumnumnsfromsql(
+        self, tablename: str
+    ) -> tuple[list[str], dict[str, bool], dict[str, str | None]]:
         """Build a list of columnumns from the create statement for the table."""
         columnumns = []
         columnumnsbykeys = {}
@@ -351,7 +353,7 @@ class Sqldb:
 
         return columnumns, columnumnsbykeys, columnumn_defaults
 
-    def checkdictforcolumnumns(self, tablename, temp_dict):
+    def checkdictforcolumnumns(self, tablename: str, temp_dict: dict[str, Any]) -> dict[str, Any]:
         """Check that a dictionary has the correct columnumns and return.
 
         a new dictionary.
@@ -366,7 +368,7 @@ class Sqldb:
                 new_dict[column] = temp_dict[column]
         return new_dict
 
-    def converttoinsert(self, tablename, keynull=False, replace=False):
+    def converttoinsert(self, tablename: str, keynull: bool = False, replace: bool = False) -> str:
         """Create an insert statement based on the columnumns of a table."""
         sql_string = ""
         if self.tables[tablename]:
@@ -381,11 +383,13 @@ class Sqldb:
                 sql_string = sql_string.replace(f":{self.tables[tablename].keyfield}", "NULL")
         return sql_string
 
-    def checkcolumnumnexists(self, table, columnumnname):
+    def checkcolumnumnexists(self, table: str, columnumnname: str) -> bool:
         """Check if a columnumn exists."""
         return table in self.tables and columnumnname in self.tables[table].columns_by_keys
 
-    def converttoupdate(self, tablename, wherekey="", nokey=None):
+    def converttoupdate(
+        self, tablename: str, wherekey: str = "", nokey: dict[str, Any] | None = None
+    ) -> str:
         """Create an update statement based on the columnumns of a table."""
         if nokey is None:
             nokey = {}
@@ -401,7 +405,7 @@ class Sqldb:
             sql_string = f"UPDATE {tablename} SET {columnstring} WHERE {wherekey} = :{wherekey};"
         return sql_string
 
-    def getversion(self):
+    def getversion(self) -> int:
         """Get the version of the database."""
         version = 1
         if self.db_connection:
@@ -412,7 +416,7 @@ class Sqldb:
             cursor.close()
         return version
 
-    def checktable(self, tablename):
+    def checktable(self, tablename: str) -> bool:
         """Check to see if a table exists, if not create it."""
         if self.tables[tablename] and not self.checktableexists(tablename):
             if self.tables[tablename].precreate:
@@ -422,7 +426,7 @@ class Sqldb:
                 self.tables[tablename].postcreate()
         return True
 
-    def checktableexists(self, tablename):
+    def checktableexists(self, tablename: str) -> bool:
         """Query the database master table to see if a table exists."""
         retv = False
         if self.db_connection:
@@ -436,7 +440,7 @@ class Sqldb:
             cursor.close()
         return retv
 
-    def checkversion(self):
+    def checkversion(self) -> None:
         """Checks the version of the database, upgrades if neccessary."""
         database_version = self.getversion()
         if database_version == 0:
@@ -444,7 +448,7 @@ class Sqldb:
         elif self.version > database_version:
             self.updateversion(database_version, self.version)
 
-    def setversion(self, version):
+    def setversion(self, version: int) -> None:
         """Set the version of the database."""
         if self.db_connection:
             cursor = self.db_connection.cursor()
@@ -452,7 +456,7 @@ class Sqldb:
             self.db_connection.commit()
             cursor.close()
 
-    def updateversion(self, old_version, new_version):
+    def updateversion(self, old_version: int, new_version: int) -> None:
         """Update a database from old_version to new_version."""
         log_to(
             [self.plugin_id, "plugins.core.sqldb"],
@@ -491,7 +495,7 @@ class Sqldb:
             new_version,
         )
 
-    def select(self, sql_statement):
+    def select(self, sql_statement: str) -> list[dict[str, Any]]:
         """Run a select statement against the database, returns a list."""
         result = []
         if self.db_connection:
@@ -509,7 +513,7 @@ class Sqldb:
             cursor.close()
         return result
 
-    def modify(self, sql_statement, data=None):
+    def modify(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Run a statement to modify the database."""
         result = []
         row_id = -1
@@ -534,7 +538,7 @@ class Sqldb:
 
         return row_id, result
 
-    def modifymany(self, sql_statement, data=None):
+    def modifymany(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Run a statement to modify many rows in the database."""
         result = []
         row_id = -1
@@ -556,7 +560,7 @@ class Sqldb:
 
         return row_id, result
 
-    def modifyscript(self, sql_statement):
+    def modifyscript(self, sql_statement: str) -> tuple[int | None, Any]:
         """Run a statement to execute a script."""
         result = []
         row_id = -1
@@ -578,7 +582,7 @@ class Sqldb:
 
         return row_id, result
 
-    def selectbykeyword(self, selectstmt, keyword):
+    def selectbykeyword(self, selectstmt: str, keyword: str) -> dict[Any, dict[str, Any]]:
         """Run a select statement against the database, return a dictionary.
 
         where the keys are the keyword specified.
@@ -600,7 +604,9 @@ class Sqldb:
             cursor.close()
         return result
 
-    def getlast(self, table_name, num, where=""):
+    def getlast(
+        self, table_name: str, num: int, where: str = ""
+    ) -> list[dict[str, Any]] | dict[str, Any]:
         """Get the last num items from a table."""
         if table_name not in self.tables:
             log_to(
@@ -623,7 +629,7 @@ class Sqldb:
 
         return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
-    def getrow(self, row_id, table_name):
+    def getrow(self, row_id: int, table_name: str) -> list[dict[str, Any]] | dict[str, Any]:
         """Get a row by id."""
         if table_name not in self.tables:
             log_to(
@@ -640,7 +646,7 @@ class Sqldb:
 
         return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
 
-    def getlastrowid(self, table_name):
+    def getlastrowid(self, table_name: str) -> int | None:
         """Return the id of the last row in a table."""
         column_id_name = self.tables[table_name].keyfield
         return (
@@ -653,7 +659,7 @@ class Sqldb:
             else -1
         )
 
-    def backupdb(self, postname):
+    def backupdb(self, postname: str | int) -> bool:
         """Backup the database."""
         success = False
         # self._command_dbvac()

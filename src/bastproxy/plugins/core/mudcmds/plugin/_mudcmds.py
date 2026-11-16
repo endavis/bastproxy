@@ -10,6 +10,7 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger, log_to
@@ -48,7 +49,7 @@ class MUDCmdsPlugin(BasePlugin):
     """a plugin to handle sending a command to the mud."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         self.queue: list[QueuedCommand] = []
         self.cmds: dict[str, MudCmdType] = {}
         self.current_command: QueuedCommand | None = None
@@ -57,7 +58,7 @@ class MUDCmdsPlugin(BasePlugin):
         self.reload_dependents_f = True
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
-    def _eventcb_plugin_unloaded(self):
+    def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self.api(f"{self.plugin_id}:type.remove.for.plugin")(event_record["plugin_id"])
@@ -66,7 +67,7 @@ class MUDCmdsPlugin(BasePlugin):
         "type.remove.for.plugin",
         description="remove all mud commands related to a plugin",
     )
-    def _api_type_remove_for_plugin(self, plugin_id):
+    def _api_type_remove_for_plugin(self, plugin_id: str) -> None:
         """Remove all commands related to a plugin.
 
         @Yplugin_id@w   = The plugin name.
@@ -84,7 +85,7 @@ class MUDCmdsPlugin(BasePlugin):
                 self.api(f"{self.plugin_id}:type.remove")(i)
 
     @AddAPI("type.remove", description="remove a command type")
-    def _api_type_remove(self, cmdtype):
+    def _api_type_remove(self, cmdtype: str) -> None:
         """Remove a command."""
         if cmdtype in self.cmds:
             del self.cmds[cmdtype]
@@ -92,7 +93,7 @@ class MUDCmdsPlugin(BasePlugin):
             get_logger(self.plugin_id).debug("_api_type_remove - %s not found", cmdtype)
 
     @AddAPI("command.start", description="tell the plugin a command has started")
-    def _api_command_start(self, cmdtype):
+    def _api_command_start(self, cmdtype: str) -> None:
         """Tell the plugin a command has started."""
         if self.current_command and cmdtype != self.current_command.ctype:
             get_logger(self.plugin_id).error(
@@ -104,7 +105,7 @@ class MUDCmdsPlugin(BasePlugin):
         self.timing_uid = self.api("libs.timing:timing.start")(f"cmd_{cmdtype}")
 
     @AddAPI("type.add", description="add a command type")
-    def _api_type_add(self, cmdtype, cmd, regex, **kwargs):
+    def _api_type_add(self, cmdtype: str, cmd: str, regex: str, **kwargs: Any) -> None:
         """Add a command type.
 
         Optional keyword arguments:
@@ -142,13 +143,13 @@ class MUDCmdsPlugin(BasePlugin):
                 arg_descriptions={"None": None},
             )
 
-    def _finish_timing(self):
+    def _finish_timing(self) -> None:
         """Finish the timer started for the current command, if any."""
         if self.timing_uid:
             self.api("libs.timing:timing.finish")(self.timing_uid)
             self.timing_uid = None
 
-    def sendnext(self):
+    def sendnext(self) -> None:
         """Send the next command."""
         get_logger(self.plugin_id).debug("sendnext - checking queue")
         if not self.queue or self.current_command:
@@ -166,12 +167,12 @@ class MUDCmdsPlugin(BasePlugin):
         self.api("plugins.core.events:event.raise")(f"cmd_{self.current_command.ctype}_send")
         SendDataDirectlyToMud(NetworkData(cmd), show_in_history=False)()
 
-    def checkinqueue(self, cmd):
+    def checkinqueue(self, cmd: str) -> bool:
         """Check for a command in the queue."""
         return any(i.cmd == cmd for i in self.queue)
 
     @AddAPI("command.finish", description="tell the plugin a command has finished")
-    def _api_command_finish(self, cmdtype):
+    def _api_command_finish(self, cmdtype: str) -> None:
         """Tell the plugin that a command has finished."""
         get_logger(self.plugin_id).debug("_api_command_finish - got command finish for %s", cmdtype)
         if not self.current_command:
@@ -191,7 +192,7 @@ class MUDCmdsPlugin(BasePlugin):
             self.sendnext()
 
     @AddAPI("command.queue", description="add a command to the plugin")
-    def _api_command_queue(self, cmdtype, arguments=""):
+    def _api_command_queue(self, cmdtype: str, arguments: str = "") -> None:
         """Add a command to the queue."""
         plugin = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype].cmd
@@ -206,12 +207,12 @@ class MUDCmdsPlugin(BasePlugin):
         if not self.current_command:
             self.sendnext()
 
-    def resetqueue(self, _=None):
+    def resetqueue(self, _: Any = None) -> None:
         """Reset the queue."""
         self.queue = []
 
     @AddParser(description="drop the last command")
-    def _command_fixqueue(self):
+    def _command_fixqueue(self) -> CommandResult:
         """Finish the last command."""
         if self.current_command:
             self._finish_timing()

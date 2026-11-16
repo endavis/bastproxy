@@ -31,7 +31,7 @@ ANSI_COLOR_REGEX = re.compile(
 COLORCODE_REGEX = re.compile(r"(@[cmyrgbwCMYRGBWD|xz[\d{0:3}]])(?P<stuff>.*)")
 
 
-def convertcolorcodetohtml(colorcode):
+def convertcolorcodetohtml(colorcode: str | int) -> str:
     """Convert a colorcode to an html color."""
     try:
         colorcode = int(colorcode)
@@ -50,7 +50,7 @@ def convertcolorcodetohtml(colorcode):
     return "#000"
 
 
-def createspan(color, text):
+def createspan(color: str, text: str) -> str:
     """Create an html span.
 
     color = "@g"
@@ -73,12 +73,12 @@ def createspan(color, text):
     return f"<span style='color:{ncolor}'>{text}</span>"
 
 
-def genrepl(match):
+def genrepl(match: re.Match[str]) -> str:
     """A general replace function."""
     return match.group(1)
 
 
-def fixstring(tstr):
+def fixstring(tstr: str) -> str:
     """Fix a strings invalid colors."""
     # Thanks to Fiendish from the aardwolf mushclient package, see
     # http://code.google.com/p/aardwolfclientpackage/
@@ -103,7 +103,7 @@ class ColorsPlugin(BasePlugin):
     """a plugin to handle ansi colors."""
 
     @AddAPI("colorcode.to.html", description="convert colorcodes to html")
-    def _api_colorcode_to_html(self, sinput):
+    def _api_colorcode_to_html(self, sinput: str) -> str:
         # pylint: disable=no-self-use,too-many-branches
         """Convert colorcodes to html."""
         tinput = sinput.splitlines()
@@ -162,7 +162,7 @@ class ColorsPlugin(BasePlugin):
         "color.length.difference.get",
         description="get the length difference of a colored string and its noncolor equivalent",
     )
-    def _api_color_length_difference_get(self, colorstring):
+    def _api_color_length_difference_get(self, colorstring: str) -> int:
         """Get the length difference of a colored string and its noncolor equivalent."""
         lennocolor = len(self.api(f"{self.plugin_id}:colorcode.strip")(colorstring))
         lencolor = len(colorstring)
@@ -173,7 +173,7 @@ class ColorsPlugin(BasePlugin):
         "colorcode.is.valid",
         description="check if a string is a @@ color, either xterm or ansi",
     )
-    def _api_colorcode_is_valid(self, color):
+    def _api_colorcode_is_valid(self, color: str) -> bool:
         # pylint: disable=no-self-use
         """Check if a string is a @ color, either xterm or ansi."""
         if re.match(r"^@[cmyrgbwCMYRGBWD]$", color):
@@ -186,7 +186,7 @@ class ColorsPlugin(BasePlugin):
         return False
 
     @AddAPI("colorcode.to.ansicode", description="convert @@ colors in a string")
-    def _api_colorcode_to_ansicode(self, tstr):
+    def _api_colorcode_to_ansicode(self, tstr: str) -> str:
         """Convert @ colors in a string."""
         if "@" in tstr:
             if tstr[-2:] != "@w":
@@ -214,7 +214,7 @@ class ColorsPlugin(BasePlugin):
         return re.sub("\0", "@", tstr)  # put @ back in
 
     @AddAPI("colorcode.escape", description="escape colorcodes so they are not interpreted")
-    def _api_colorcode_escape(self, tstr):
+    def _api_colorcode_escape(self, tstr: str) -> str:
         """Escape colorcodes."""
         tinput = tstr.splitlines()
 
@@ -232,11 +232,11 @@ class ColorsPlugin(BasePlugin):
         "ansicode.to.colorcode",
         description="convert ansi color escape sequences to @@ colors",
     )
-    def _api_ansicode_to_colorcode(self, text):
+    def _api_ansicode_to_colorcode(self, text: str) -> str:
         # pylint: disable=no-self-use
         """Convert ansi color escape sequences to @@ colors."""
 
-        def single_sub(match) -> str:
+        def single_sub(match: re.Match[str]) -> str:
             """Do a single substitution."""
             argsdict = match.groupdict()
             tstr = ""
@@ -257,19 +257,19 @@ class ColorsPlugin(BasePlugin):
         return ANSI_COLOR_REGEX.sub(single_sub, text)
 
     @AddAPI("ansicode.to.string", description="return an ansi coded string")
-    def _api_ansicode_to_string(self, color, data):
+    def _api_ansicode_to_string(self, color: str, data: str) -> str:
         # pylint: disable=no-self-use
         """Return an ansi coded string."""
         return f"{chr(27)}[{color}m{data}"
 
     @AddAPI("ansicode.strip", description="strip all ansi from a string")
-    def _api_ansicode_strip(self, text):
+    def _api_ansicode_strip(self, text: str) -> str:
         # pylint: disable=no-self-use
         """Strip all ansi from a string."""
         return ANSI_COLOR_REGEX.sub("", text)
 
     @AddAPI("colorcode.strip", description="strip @@ colors")
-    def _api_colorcode_strip(self, text):
+    def _api_colorcode_strip(self, text: str) -> str:
         """Strip @@ colors."""
         return self.api(f"{self.plugin_id}:ansicode.strip")(
             self.api(f"{self.plugin_id}:colorcode.to.ansicode")(text)
@@ -277,7 +277,7 @@ class ColorsPlugin(BasePlugin):
 
     @AddParser(description="show colors")
     @AddArgument("-c", "--compact", help="show a compact version", action="store_true")
-    def _command_show(self):
+    def _command_show(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         Show xterm colors
@@ -331,7 +331,7 @@ class ColorsPlugin(BasePlugin):
         return CommandResult(True, message)
 
     @AddParser(description="show color examples")
-    def _command_example(self):
+    def _command_example(self) -> CommandResult:
         # pylint: disable=no-self-use
         """@G%(name)s@w - @B%(cmdname)s@w.
 

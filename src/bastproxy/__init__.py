@@ -77,9 +77,10 @@ BASEAPI.quiet_mode = False
 # change LOG_IN_UTC_TZ to False if you want to log in local time
 # updates the formatter for the logging module
 if BASEAPI.LOG_IN_UTC_TZ:
-    logging.Formatter.formatTime = format_time_rfc3339_utc  # type: ignore[method-assign]
+    # assignment: the hooks name the unused arg _datefmt, formatTime names it datefmt
+    logging.Formatter.formatTime = format_time_rfc3339_utc  # type: ignore[method-assign,assignment]
 else:
-    logging.Formatter.formatTime = format_time_rfc3339  # type: ignore[method-assign]
+    logging.Formatter.formatTime = format_time_rfc3339  # type: ignore[method-assign,assignment]
 
 CODE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = CODE_ROOT.parent
