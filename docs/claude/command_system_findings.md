@@ -547,7 +547,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/commands` with `--include=*.py`
 | 14 | **Strings for paths** | none | n/a | **Keep.** The package touches no path. |
 | 15 | **Hidden global state** | `CANRELOAD` (read by the loader) and `commands_at_startup` (never read) at module level; the rest is on the plugin instance | Yes | **Keep** `CANRELOAD`; `commands_at_startup` removed in #400 (CM-13). |
 | 16 | **`CmdArgsRecord` in the plugin's `libs/data`** | `cmdargs.py` | n/a | **Keep.** It is a record type used only by this plugin. Its header comment names a different directory (Other Observations). |
-| 17 | **Typing**: the package is under a mypy `ignore_errors` override and has no annotations | whole package | Yes | **Keep here.** Tracked by #6. |
+| 17 | **Typing**: the package is under a mypy `ignore_errors` override and has no annotations | whole package | Yes | **Keep here.** Tracked by #6. **Resolved by #481:** mypy now checks the package, with no `ignore_errors` override. |
 
 ---
 

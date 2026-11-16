@@ -19,7 +19,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 
 # Third Party
 # Project
@@ -43,13 +43,13 @@ from .utils import get_toplevel
 default_log_file = "bastproxy.log"
 data_logger_log_file = "networkdata.log"
 
-type_counts = {}
+type_counts: dict[str, dict[str, int]] = {}
 
 
 def update_type_counts(name: str, level: int | str) -> None:
     logger_name = get_toplevel(name)
     if isinstance(level, numbers.Number):
-        level = logging.getLevelName(level).lower()  # type: ignore
+        level = logging.getLevelName(level).lower()
     if logger_name not in type_counts:
         type_counts[logger_name] = {
             "debug": 0,
@@ -58,9 +58,10 @@ def update_type_counts(name: str, level: int | str) -> None:
             "error": 0,
             "critical": 0,
         }
-    if level not in type_counts[logger_name]:
-        type_counts[logger_name][level] = 0
-    type_counts[logger_name][level] += 1
+    level_name = cast(str, level)
+    if level_name not in type_counts[logger_name]:
+        type_counts[logger_name][level_name] = 0
+    type_counts[logger_name][level_name] += 1
 
 
 class CustomColorFormatter(logging.Formatter):
@@ -86,11 +87,13 @@ class CustomColorFormatter(logging.Formatter):
         }
 
     def format(self, record: logging.LogRecord) -> str:
+        log_fmt: str | None
         if record.name != "root":
-            if "exc_info" in record.__dict__ and record.exc_info:
+            exc_info = record.exc_info
+            if "exc_info" in record.__dict__ and exc_info:
                 # work on a copy so the other handlers still see the original record
                 record = copy.copy(record)
-                formatted_exc = traceback.format_exception(record.exc_info[1])
+                formatted_exc = traceback.format_exception(exc_info[1])
                 formatted_exc_no_newline = [line.rstrip() for line in formatted_exc if line]
                 record.msg = "\n".join([record.getMessage(), *formatted_exc_no_newline])
                 record.args = ()
@@ -152,9 +155,11 @@ class CustomConsoleHandler(logging.StreamHandler):
         for name in _record_names(record):
             update_type_counts(name, record.levelno)
         try:
-            name = _first_allowed(record, self.api, "plugins.core.log:logger.console.is.enabled")
-            if name is not None:
-                super().emit(_emit_as(record, name))
+            allowed_name = _first_allowed(
+                record, self.api, "plugins.core.log:logger.console.is.enabled"
+            )
+            if allowed_name is not None:
+                super().emit(_emit_as(record, allowed_name))
         except Exception:
             super().emit(record)
 
@@ -220,9 +225,11 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
         for name in _record_names(record):
             update_type_counts(name, record.levelno)
         try:
-            name = _first_allowed(record, self.api, "plugins.core.log:logger.file.is.enabled")
-            if name is not None:
-                super().emit(_emit_as(record, name))
+            allowed_name = _first_allowed(
+                record, self.api, "plugins.core.log:logger.file.is.enabled"
+            )
+            if allowed_name is not None:
+                super().emit(_emit_as(record, allowed_name))
         except Exception:
             super().emit(record)
 
@@ -317,9 +324,9 @@ def setup_loggers(log_level: int) -> None:
     logging.getLogger().addHandler(RECORD_LOG_BUFFER)
 
     if API.LOG_IN_UTC_TZ:
-        logging.Formatter.formatTime = format_time_rfc3339_utc
+        logging.Formatter.formatTime = format_time_rfc3339_utc  # type: ignore[method-assign,assignment]  # module-level override of the stdlib formatter
     else:
-        logging.Formatter.formatTime = format_time_rfc3339
+        logging.Formatter.formatTime = format_time_rfc3339  # type: ignore[method-assign,assignment]  # module-level override of the stdlib formatter
 
     # This logger is for any network data from both the mud and the client to facilitate
     # debugging. It is not intended to be used for general logging. It will not use the same

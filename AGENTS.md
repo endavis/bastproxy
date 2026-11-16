@@ -121,7 +121,7 @@ bastproxy is an asyncio MUD proxy with a plugin system. The sections above are s
 - **Layout:** `src/bastproxy/libs/` holds the framework (API, records, networking, plugin loader); `src/bastproxy/plugins/` holds plugins (`core/`, `debug/`, `test/`, plus `_baseplugin/`). Tests mirror this in `tests/libs/` and `tests/plugins/`. The entry point is the `bastproxy` console script (`bastproxy:main`).
 - **Architecture notes:** `docs/claude/` describes the API, command, event, plugin, record, settings, timer and trigger systems. Read the relevant page before changing one of them.
 - **Plugin development:** the root `CONTRIBUTING.md` covers plugin structure (its run instructions predate the `src/` layout).
-- **Legacy strictness:** ruff ignores only `ANN401`, so an explicit `Any` is allowed. mypy has `ignore_errors` overrides for several `bastproxy.*` packages, so mypy does not catch a wrong annotation there. Lifting those overrides package by package is tracked in #481. Do not widen them, and do not lift them opportunistically in unrelated changes.
+- **Strictness:** ruff ignores only `ANN401`, so an explicit `Any` is allowed.
 
 ## Template Layers and Guarded Docs
 

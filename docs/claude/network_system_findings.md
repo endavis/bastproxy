@@ -417,7 +417,7 @@ The corrections are written out in the proposed edits to #66, #67, #90 and #272.
 | 11 | Copy-pasted log label: `mud_write` logs telnet commands to the MUD as `"to_client"` | `MudConnection.mud_write` | **Change** (#309). **Status:** fixed by #309; the label is `"to_mud"`. |
 | 12 | Copy-pasted headers: `mud.py` says `Filename: libs/net/client.py` and `File Description: Client connection handling.` | `src/bastproxy/libs/net/mud.py`, lines 1 to 6 | **Change** (#309). **Status:** fixed by #309. |
 | 13 | A hidden global: `telnet.GAME_CAPABILITIES` list, mutated by nothing, read by `advertise_features` | `src/bastproxy/libs/net/telnet.py` | **Change** (#67). **Status:** fixed by #67 |
-| 14 | `bastproxy.libs.net.*` is in the mypy `ignore_errors = true` list | `pyproject.toml` | **Keep for now.** This is the legacy strictness tracked in #6; do not widen it. Type-checking `libs/net` is a candidate for #6 |
+| 14 | `bastproxy.libs.net.*` is in the mypy `ignore_errors = true` list | `pyproject.toml` | **Keep for now.** This is the legacy strictness tracked in #6; do not widen it. Type-checking `libs/net` is a candidate for #6. **Resolved by #481:** mypy now checks the package, with no `ignore_errors` override. |
 | 15 | A listener bound to `"localhost"` is described as IPv4 but binds IPv6 too | `Listeners._create_listeners`, `ipv4address` default | **Observation**, see Other Observations |
 | 16 | `asyncio.sleep(1)` at the end of both handlers | `client_telnet_handler`, `mud_telnet_handler` | **Keep.** Gives the writer time to flush; comment it if touched |
 | 17 | Paths, `subprocess`, YAML: not used in `libs/net` | n/a | Nothing to review |

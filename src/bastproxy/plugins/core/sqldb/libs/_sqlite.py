@@ -50,7 +50,7 @@ class Sqldb:
 
     def __init__(self, plugin_id: str, **kwargs: Any) -> None:
         """Initialize the class."""
-        self.db_connection = None
+        self.db_connection: sqlite3.Connection | None = None
         self.plugin_id = plugin_id
         self.database_name = kwargs["dbname"] or "db" if "dbname" in kwargs else "db"
         self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
@@ -64,7 +64,7 @@ class Sqldb:
         self.turnonpragmas()
         self.connections = 0
         self.version = 1
-        self.version_functions = {}
+        self.version_functions: dict[int, Callable[..., Any]] = {}
         self.tables: dict[str, SQLTable] = {}
 
     @AddAPI(
@@ -163,7 +163,7 @@ class Sqldb:
     def _command_dbselect(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args:
             if sqlstmt := args["stmt"]:
                 results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sqlstmt)
@@ -178,7 +178,7 @@ class Sqldb:
     def _command_dbtables(self) -> CommandResult:
         """Show tables and fields."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args:
             if args["table"]:
                 if not self.checktable(args["table"]):
@@ -192,7 +192,7 @@ class Sqldb:
                     message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
                     return CommandResult(True, message)
             else:
-                tables = []
+                tables: list[str] = []
                 if self.db_connection:
                     cursor = self.db_connection.cursor()
                     tables.extend(
@@ -216,7 +216,7 @@ class Sqldb:
     def _command_dbmodify(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args:
             if sqlstmt := args["stmt"]:
                 self.api(f"{self.plugin_id}:{self.database_name}.modify")(sqlstmt)
@@ -247,7 +247,7 @@ class Sqldb:
     def _command_dbremove(self) -> CommandResult:
         """Remove a table from the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if not args["table"] or args["table"] not in self.tables:
             message.append("Please include a valid table")
         elif args["rownumber"] < 1:
@@ -264,7 +264,7 @@ class Sqldb:
     def _command_dbbackup(self) -> CommandResult:
         """Backup the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args["name"]:
             name = args["name"]
         else:
@@ -331,7 +331,7 @@ class Sqldb:
         """Build a list of columnumns from the create statement for the table."""
         columnumns = []
         columnumnsbykeys = {}
-        columnumn_defaults = {}
+        columnumn_defaults: dict[str, str | None] = {}
         if self.tables[tablename]:
             sql_statement_list = self.tables[tablename].createsql.splitlines()
             for sql_line in sql_statement_list:
@@ -419,11 +419,13 @@ class Sqldb:
     def checktable(self, tablename: str) -> bool:
         """Check to see if a table exists, if not create it."""
         if self.tables[tablename] and not self.checktableexists(tablename):
-            if self.tables[tablename].precreate:
-                self.tables[tablename].precreate()
+            precreate = self.tables[tablename].precreate
+            if precreate:
+                precreate()
             self.modifyscript(self.tables[tablename].createsql)
-            if self.tables[tablename].postcreate:
-                self.tables[tablename].postcreate()
+            postcreate = self.tables[tablename].postcreate
+            if postcreate:
+                postcreate()
         return True
 
     def checktableexists(self, tablename: str) -> bool:
@@ -497,7 +499,7 @@ class Sqldb:
 
     def select(self, sql_statement: str) -> list[dict[str, Any]]:
         """Run a select statement against the database, returns a list."""
-        result = []
+        result: list[dict[str, Any]] = []
         if self.db_connection:
             cursor = self.db_connection.cursor()
             try:
@@ -515,8 +517,8 @@ class Sqldb:
 
     def modify(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Run a statement to modify the database."""
-        result = []
-        row_id = -1
+        result: Any = []
+        row_id: int | None = -1
         if self.db_connection:
             cursor = self.db_connection.cursor()
             try:
@@ -525,7 +527,8 @@ class Sqldb:
                 else:
                     cursor.execute(sql_statement)
                 row_id = cursor.lastrowid
-                result = self.db_connection.commit()
+                self.db_connection.commit()
+                result = None
             except Exception:  # pylint: disable=broad-except
                 log_to(
                     [self.plugin_id, "plugins.core.sqldb"],
@@ -540,14 +543,15 @@ class Sqldb:
 
     def modifymany(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Run a statement to modify many rows in the database."""
-        result = []
-        row_id = -1
+        result: Any = []
+        row_id: int | None = -1
         if self.db_connection and data:
             cursor = self.db_connection.cursor()
             try:
                 cursor.executemany(sql_statement, data)
                 row_id = cursor.lastrowid
-                result = self.db_connection.commit()
+                self.db_connection.commit()
+                result = None
                 cursor.close()
             except Exception:  # pylint: disable=broad-except
                 log_to(
@@ -562,14 +566,15 @@ class Sqldb:
 
     def modifyscript(self, sql_statement: str) -> tuple[int | None, Any]:
         """Run a statement to execute a script."""
-        result = []
-        row_id = -1
+        result: Any = []
+        row_id: int | None = -1
         if self.db_connection:
             cursor = self.db_connection.cursor()
             try:
                 cursor.executescript(sql_statement)
                 row_id = cursor.lastrowid
-                result = self.db_connection.commit()
+                self.db_connection.commit()
+                result = None
                 cursor.close()
             except Exception:  # pylint: disable=broad-except
                 log_to(
@@ -587,7 +592,7 @@ class Sqldb:
 
         where the keys are the keyword specified.
         """
-        result = {}
+        result: dict[Any, dict[str, Any]] = {}
         if self.db_connection:
             cursor = self.db_connection.cursor()
             try:
@@ -627,7 +632,10 @@ class Sqldb:
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
+        last_rows: list[dict[str, Any]] = self.api(f"{self.plugin_id}:{self.database_name}.select")(
+            sql_string
+        )
+        return last_rows
 
     def getrow(self, row_id: int, table_name: str) -> list[dict[str, Any]] | dict[str, Any]:
         """Get a row by id."""
@@ -644,7 +652,10 @@ class Sqldb:
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        return self.api(f"{self.plugin_id}:{self.database_name}.select")(sql_string)
+        row_result: list[dict[str, Any]] = self.api(
+            f"{self.plugin_id}:{self.database_name}.select"
+        )(sql_string)
+        return row_result
 
     def getlastrowid(self, table_name: str) -> int | None:
         """Return the id of the last row in a table."""

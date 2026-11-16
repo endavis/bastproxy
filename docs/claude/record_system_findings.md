@@ -496,7 +496,7 @@ Commands run (output in `out-q6-greps.txt`):
 | 12 | **Silent returns** when a plugin is absent | `BaseListRecord.color_lines`, `NetworkDataLine.color_line` | Yes | **Keep.** Guarded by `api.exists`; Q1 shows no update is added, which is the only gap. |
 | 13 | **Silent failure by dropping a write** | locked attributes and `TrackedUserList` | Yes | **Change**, owned by #48. |
 | 14 | **Dead code**: `check_for_change` (raises `TypeError`, no caller) | `base.py` line 305 | n/a | **Change**, in the comment drafted for #49. |
-| 15 | **Type-check escapes**: 2 `# type: ignore` in `networkdata.py`; `bastproxy.libs.records.*` is in the mypy `ignore_errors` override (`pyproject.toml` line 268) | `networkdata.py`, `pyproject.toml` | Whole package | **Keep, tracked by #6.** Do not widen it. |
+| 15 | **Type-check escapes**: 2 `# type: ignore` in `networkdata.py`; `bastproxy.libs.records.*` is in the mypy `ignore_errors` override (`pyproject.toml` line 268) | `networkdata.py`, `pyproject.toml` | Whole package | **Keep, tracked by #6.** Do not widen it. **Resolved by #481:** mypy now checks the package, with no `ignore_errors` override. |
 | 16 | **Strings, not `Path`, for paths** | none found | n/a | **Fits.** |
 | 17 | **Untested core paths** | Q4 | n/a | **Change** (#239). |
 | 18 | **Per-record `API(...)` and unique owner IDs** | `BaseRecord.__init__`, `UpdateRecord.__init__` | Yes | **Change** (fixed in #232). Constructing the object is cheap since #199; the unique caller IDs are the cost. |

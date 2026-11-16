@@ -251,20 +251,6 @@ module = [
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = [
-    "bastproxy.plugins.test.*",
-    "bastproxy.plugins.debug.*",
-]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = [
-    "bastproxy.plugins.core.log.*",
-    "bastproxy.plugins.core.sqldb.*",
-]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 # Tests assert an attribute's value, call a method that changes it, then assert
 # again. mypy keeps the first narrowing across the call and reports the second
 # assert as unreachable, so the check is noise here.

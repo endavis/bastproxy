@@ -7,6 +7,7 @@
 
 # Standard Library
 import asyncio
+from typing import Any, cast
 
 # 3rd Party
 # Project
@@ -32,7 +33,7 @@ class AsyncPlugin(BasePlugin):
                 (
                     f"    {task.get_name():<30}:",
                     f"        {'State':<20} : {task._state}",
-                    f"        {'Coro':<20} : {task.get_coro().__qualname__}",
+                    f"        {'Coro':<20} : {cast(Any, task.get_coro()).__qualname__}",
                     f"        {'Stack':<20} : {task.get_stack()}",
                 )
             )

@@ -70,7 +70,7 @@ ADR-0005 measured the old `NetworkDataLine` at 95.9 us to create and 42.2 us per
 - `#bp.debug.records.detail` shows no creation stacks and no "original input" update for these two types, the update actions are pydatatracker's (`update`, `add`, `lock`), and the actor is the context name, "Unknown" on the raw network read path.
 - Records still on `AttributeMonitor` or `UserList` kept their old behaviour until slices 2 to 4. After #248 none remain, and the processing records show their updates as `TrackedUpdate` too.
 - The locking of a line costs one change entry per field. It is not part of the ADR-0005 targets.
-- `bastproxy.libs.records.*` is under a mypy `ignore_errors` override, so the new adapter is annotated but not checked by `doit type_check`.
+- `bastproxy.libs.records.*` is under a mypy `ignore_errors` override, so the new adapter is annotated but not checked by `doit type_check`. #481 removed that override; the package is now type-checked.
 
 ## Related Issues
 

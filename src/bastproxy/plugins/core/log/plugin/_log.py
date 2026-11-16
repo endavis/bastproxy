@@ -8,6 +8,7 @@
 # Standard Library
 import logging
 import numbers
+from typing import cast
 
 from bastproxy.libs.api import AddAPI
 
@@ -107,36 +108,49 @@ class LogPlugin(BasePlugin):
         match level:
             case "error":
                 try:
-                    return self.api("plugins.core.settings:setting.get")(
-                        self.plugin_id, "color_error"
+                    return cast(
+                        str,
+                        self.api("plugins.core.settings:setting.get")(
+                            self.plugin_id, "color_error"
+                        ),
                     )
                 except Exception:
                     return "@x136"
             case "warning":
                 try:
-                    return self.api("plugins.core.settings:setting.get")(
-                        self.plugin_id, "color_warning"
+                    return cast(
+                        str,
+                        self.api("plugins.core.settings:setting.get")(
+                            self.plugin_id, "color_warning"
+                        ),
                     )
                 except Exception:
                     return "@y"
             case "info":
                 try:
-                    return self.api("plugins.core.settings:setting.get")(
-                        self.plugin_id, "color_info"
+                    return cast(
+                        str,
+                        self.api("plugins.core.settings:setting.get")(self.plugin_id, "color_info"),
                     )
                 except Exception:
                     return "@w"
             case "debug":
                 try:
-                    return self.api("plugins.core.settings:setting.get")(
-                        self.plugin_id, "color_debug"
+                    return cast(
+                        str,
+                        self.api("plugins.core.settings:setting.get")(
+                            self.plugin_id, "color_debug"
+                        ),
                     )
                 except Exception:
                     return "@x246"
             case "critical":
                 try:
-                    return self.api("plugins.core.settings:setting.get")(
-                        self.plugin_id, "color_critical"
+                    return cast(
+                        str,
+                        self.api("plugins.core.settings:setting.get")(
+                            self.plugin_id, "color_critical"
+                        ),
                     )
                 except Exception:
                     return "@r"
@@ -467,7 +481,7 @@ class LogPlugin(BasePlugin):
     def _command_types(self) -> CommandResult:
         """List log types."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        types = []
+        types: list[str] = []
         types.extend(self.handlers["client"].keys())
         types.extend(self.handlers["console"].keys())
         types.extend(self.handlers["file"].keys())
@@ -551,7 +565,7 @@ class LogPlugin(BasePlugin):
         """Clean log types with no counts."""
         remove = []
 
-        types = []
+        types: list[str] = []
         types.extend(self.handlers["client"].keys())
         types.extend(self.handlers["console"].keys())
         types.extend(self.handlers["file"].keys())
