@@ -85,7 +85,7 @@ class CustomColorFormatter(logging.Formatter):
             logging.CRITICAL: self.critical + self.fmt + self.reset,
         }
 
-    def format(self, record: Any) -> str:
+    def format(self, record: logging.LogRecord) -> str:
         if record.name != "root":
             if "exc_info" in record.__dict__ and record.exc_info:
                 # work on a copy so the other handlers still see the original record
@@ -109,12 +109,12 @@ class CustomColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def _record_names(record: Any) -> tuple[str, ...]:
+def _record_names(record: logging.LogRecord) -> tuple[str, ...]:
     """Get the names a record was logged to."""
     return getattr(record, "log_sources", None) or (record.name,)
 
 
-def _first_allowed(record: Any, api: API, api_name: str) -> str | None:
+def _first_allowed(record: logging.LogRecord, api: API, api_name: str) -> str | None:
     """Get the first name the handler allows, or None.
 
     If the check API does not exist yet, the first name is allowed.
@@ -129,7 +129,7 @@ def _first_allowed(record: Any, api: API, api_name: str) -> str | None:
     return None
 
 
-def _emit_as(record: Any, name: str) -> Any:
+def _emit_as(record: logging.LogRecord, name: str) -> logging.LogRecord:
     """Get a copy of the record under the name that is shown."""
     if name == record.name:
         return record
@@ -144,7 +144,7 @@ class CustomConsoleHandler(logging.StreamHandler):
         self.api = API(owner_id="plugins.core.log:CustomConsoleHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record: Any) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         # Check if quiet mode is enabled
         if self.api.quiet_mode:
             return
@@ -216,7 +216,7 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
         self.api = API(owner_id="plugins.core.log:CustomRotatingFileHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record: Any) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         for name in _record_names(record):
             update_type_counts(name, record.levelno)
         try:
@@ -233,7 +233,7 @@ class CustomClientHandler(logging.Handler):
         self.api = API(owner_id="plugins.core.log:CustomClientHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record: Any) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         if self.api.startup:
             return
 

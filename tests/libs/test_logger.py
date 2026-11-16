@@ -1,5 +1,6 @@
 """Tests for the stdlib logging helpers in bastproxy.libs.logger (#247)."""
 
+import ast
 import logging
 import pathlib
 from collections.abc import Iterator
@@ -248,15 +249,55 @@ def test_record_context_filter_keeps_an_existing_record_id() -> None:
     assert record.record_id == "keep"  # type: ignore[attr-defined]
 
 
+def _bastproxy_logrecord_offences(source: str) -> list[str]:
+    """Find a LogRecord class definition or an import of one from bastproxy (#46)."""
+    offences: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ClassDef) and node.name == "LogRecord":
+            offences.append(f"class LogRecord (line {node.lineno})")
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and (node.level > 0 or (node.module or "").split(".")[0] == "bastproxy")
+            and any(alias.name == "LogRecord" for alias in node.names)
+        ):
+            offences.append(f"import of LogRecord (line {node.lineno})")
+    return offences
+
+
 def test_logrecord_class_no_longer_exists_in_src() -> None:
     """A log call cannot be built without being emitted: the LogRecord class is gone (#46)."""
     src = pathlib.Path(logger_module.__file__).resolve().parents[1]
     offenders = [
         str(path.relative_to(src))
         for path in src.rglob("*.py")
-        if "LogRecord" in path.read_text(encoding="utf-8")
+        if _bastproxy_logrecord_offences(path.read_text(encoding="utf-8"))
     ]
     assert offenders == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "class LogRecord:\n    pass\n",
+        "from bastproxy.libs.logger import LogRecord\n",
+        "from bastproxy.libs import logger, LogRecord as LR\n",
+        "from .records import LogRecord\n",
+    ],
+)
+def test_logrecord_guard_catches_class_and_bastproxy_import(source: str) -> None:
+    assert _bastproxy_logrecord_offences(source) != []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import logging\n\ndef f(r: logging.LogRecord) -> logging.LogRecord:\n    return r\n",
+        "from logging import LogRecord\n",
+        "# LogRecord in a comment\nx = 'LogRecord'\n",
+    ],
+)
+def test_logrecord_guard_passes_on_stdlib_logrecord(source: str) -> None:
+    assert _bastproxy_logrecord_offences(source) == []
 
 
 # --- per-record log buffer and the file formatter (#247) ---
