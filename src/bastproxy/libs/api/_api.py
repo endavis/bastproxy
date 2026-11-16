@@ -734,17 +734,17 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         """
         try:
-            API_item = self.get(api_location)
+            api_item = self.get(api_location)
         except APINotFoundError:
             return False
 
-        if not API_item:
+        if not api_item:
             return False
 
         # return False for apis in plugins that have not been instantiated
         return bool(
-            not self("libs.plugins.loader:plugin.id.is.valid")(API_item.owner_id)
-            or self("libs.plugins.loader:plugin.is.instantiated")(API_item.owner_id)
+            not self("libs.plugins.loader:plugin.id.is.valid")(api_item.owner_id)
+            or self("libs.plugins.loader:plugin.is.instantiated")(api_item.owner_id)
         )
 
     def _api_api_detail_get(

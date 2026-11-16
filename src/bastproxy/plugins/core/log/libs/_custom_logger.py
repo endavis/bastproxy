@@ -36,7 +36,7 @@ from bastproxy.libs.records import (
 )
 from bastproxy.plugins.core.colors import ALLCONVERTCOLORS
 
-from .tz import formatTime_RFC3339, formatTime_RFC3339_UTC
+from .tz import format_time_rfc3339, format_time_rfc3339_utc
 from .utils import get_toplevel
 
 default_log_file = "bastproxy.log"
@@ -205,11 +205,11 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
         filename,
         when="midnight",
         interval=1,
-        backupCount=0,
+        backupCount=0,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
         encoding=None,
         delay=False,
         utc=False,
-        atTime=None,
+        atTime=None,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
     ):
         super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
         self.api = API(owner_id="plugins.core.log:CustomRotatingFileHandler")
@@ -316,9 +316,9 @@ def setup_loggers(log_level: int):
     logging.getLogger().addHandler(RECORD_LOG_BUFFER)
 
     if API.LOG_IN_UTC_TZ:
-        logging.Formatter.formatTime = formatTime_RFC3339_UTC
+        logging.Formatter.formatTime = format_time_rfc3339_utc
     else:
-        logging.Formatter.formatTime = formatTime_RFC3339
+        logging.Formatter.formatTime = format_time_rfc3339
 
     # This logger is for any network data from both the mud and the client to facilitate
     # debugging. It is not intended to be used for general logging. It will not use the same

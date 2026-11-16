@@ -6,4 +6,4 @@
 # By: Bast
 __all__ = ["Plugin"]
 
-from ._lkattr import lkAttrPlugin as Plugin
+from ._lkattr import LkAttrPlugin as Plugin

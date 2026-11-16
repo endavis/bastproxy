@@ -6,7 +6,7 @@
 # By: Bast
 """Unit tests for `bastproxy.plugins.core.log.libs.tz`.
 
-`formatTime_RFC3339_UTC` and `formatTime_RFC3339` replace
+`format_time_rfc3339_utc` and `format_time_rfc3339` replace
 `logging.Formatter.formatTime`, so `logging` calls them positionally with
 `(self, record, datefmt=None)`. Issue #8 renamed the unused `datefmt`
 parameter to `_datefmt`; these tests pin down that the functions still work
@@ -20,18 +20,18 @@ import logging
 import pytest
 
 from bastproxy.plugins.core.log.libs.tz import (
-    formatTime_RFC3339,
-    formatTime_RFC3339_UTC,
+    format_time_rfc3339,
+    format_time_rfc3339_utc,
 )
 
 
 class TestFormatTimeRFC3339UTC:
-    """Tests for `formatTime_RFC3339_UTC` installed as `Formatter.formatTime`."""
+    """Tests for `format_time_rfc3339_utc` installed as `Formatter.formatTime`."""
 
     def test_format_produces_rfc3339_utc_timestamp(self) -> None:
         """A `Formatter` using the UTC formatter produces an RFC3339 UTC timestamp."""
         formatter = logging.Formatter()
-        formatter.formatTime = formatTime_RFC3339_UTC.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
+        formatter.formatTime = format_time_rfc3339_utc.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
 
         record = logging.LogRecord(
             name="test",
@@ -50,7 +50,7 @@ class TestFormatTimeRFC3339UTC:
     def test_format_accepts_positional_datefmt(self) -> None:
         """Calling positionally with a `datefmt` (as `logging` does) still works."""
         formatter = logging.Formatter()
-        formatter.formatTime = formatTime_RFC3339_UTC.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
+        formatter.formatTime = format_time_rfc3339_utc.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
 
         record = logging.LogRecord(
             name="test",
@@ -70,13 +70,13 @@ class TestFormatTimeRFC3339UTC:
 
 
 class TestFormatTimeRFC3339:
-    """Tests for `formatTime_RFC3339` installed as `Formatter.formatTime`."""
+    """Tests for `format_time_rfc3339` installed as `Formatter.formatTime`."""
 
     def test_format_via_formatter_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """`Formatter.format` produces an RFC3339 timestamp via the %(asctime)s field."""
         # monkeypatch restores whatever formatTime was installed before (bastproxy
         # itself replaces it at import), rather than deleting the class attribute.
-        monkeypatch.setattr(logging.Formatter, "formatTime", formatTime_RFC3339)
+        monkeypatch.setattr(logging.Formatter, "formatTime", format_time_rfc3339)
         formatter = logging.Formatter("%(asctime)s %(message)s")
         record = logging.LogRecord(
             name="test",
@@ -97,7 +97,7 @@ class TestFormatTimeRFC3339:
     def test_format_accepts_positional_datefmt(self) -> None:
         """Calling positionally with a `datefmt` (as `logging` does) still works."""
         formatter = logging.Formatter()
-        formatter.formatTime = formatTime_RFC3339.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
+        formatter.formatTime = format_time_rfc3339.__get__(formatter, logging.Formatter)  # type: ignore[method-assign]
 
         record = logging.LogRecord(
             name="test",

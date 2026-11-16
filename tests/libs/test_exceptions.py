@@ -20,22 +20,22 @@ Test Classes:
 import pytest
 
 from bastproxy.libs.exceptions import (
-    APIException,
+    APIError,
     APIInvocationError,
     APINotFoundError,
     APIRegistrationError,
     BastProxyError,
-    ConfigurationException,
+    ConfigurationError,
     ConnectionError,
     InvalidSettingError,
     MissingSettingError,
-    NetworkException,
+    NetworkError,
     PluginDependencyError,
-    PluginException,
+    PluginError,
     PluginExecutionError,
     PluginLoadError,
     PluginValidationError,
-    RecordException,
+    RecordError,
     RecordSerializationError,
     RecordValidationError,
     TelnetProtocolError,
@@ -140,14 +140,14 @@ class TestPluginExceptions:
     """Test plugin-related exceptions."""
 
     def test_plugin_exception_inherits_from_bastproxy_error(self) -> None:
-        """Test that PluginException inherits from BastProxyError."""
-        assert issubclass(PluginException, BastProxyError)
+        """Test that PluginError inherits from BastProxyError."""
+        assert issubclass(PluginError, BastProxyError)
 
     def test_plugin_load_error(self) -> None:
         """Test PluginLoadError exception."""
         error = PluginLoadError("Failed to load plugin")
 
-        assert isinstance(error, PluginException)
+        assert isinstance(error, PluginError)
         assert isinstance(error, BastProxyError)
         assert str(error) == "Failed to load plugin"
 
@@ -155,53 +155,53 @@ class TestPluginExceptions:
         """Test PluginValidationError exception."""
         error = PluginValidationError("Plugin validation failed")
 
-        assert isinstance(error, PluginException)
+        assert isinstance(error, PluginError)
         assert str(error) == "Plugin validation failed"
 
     def test_plugin_execution_error(self) -> None:
         """Test PluginExecutionError exception."""
         error = PluginExecutionError("Plugin execution failed")
 
-        assert isinstance(error, PluginException)
+        assert isinstance(error, PluginError)
         assert str(error) == "Plugin execution failed"
 
     def test_plugin_dependency_error(self) -> None:
         """Test PluginDependencyError exception."""
         error = PluginDependencyError("Dependency not found")
 
-        assert isinstance(error, PluginException)
+        assert isinstance(error, PluginError)
         assert str(error) == "Dependency not found"
 
     def test_catch_plugin_exception_with_load_error(self) -> None:
-        """Test catching PluginLoadError with base PluginException."""
-        with pytest.raises(PluginException):
+        """Test catching PluginLoadError with base PluginError."""
+        with pytest.raises(PluginError):
             raise_plugin_load_error()
 
     def test_catch_plugin_exception_with_validation_error(self) -> None:
-        """Test catching PluginValidationError with base PluginException."""
-        with pytest.raises(PluginException):
+        """Test catching PluginValidationError with base PluginError."""
+        with pytest.raises(PluginError):
             raise_plugin_validation_error()
 
     def test_plugin_exception_hierarchy(self) -> None:
         """Test that all plugin exceptions inherit correctly."""
-        assert issubclass(PluginLoadError, PluginException)
-        assert issubclass(PluginValidationError, PluginException)
-        assert issubclass(PluginExecutionError, PluginException)
-        assert issubclass(PluginDependencyError, PluginException)
+        assert issubclass(PluginLoadError, PluginError)
+        assert issubclass(PluginValidationError, PluginError)
+        assert issubclass(PluginExecutionError, PluginError)
+        assert issubclass(PluginDependencyError, PluginError)
 
 
 class TestAPIExceptions:
     """Test API-related exceptions."""
 
     def test_api_exception_inherits_from_bastproxy_error(self) -> None:
-        """Test that APIException inherits from BastProxyError."""
-        assert issubclass(APIException, BastProxyError)
+        """Test that APIError inherits from BastProxyError."""
+        assert issubclass(APIError, BastProxyError)
 
     def test_api_registration_error(self) -> None:
         """Test APIRegistrationError exception."""
         error = APIRegistrationError("API registration failed")
 
-        assert isinstance(error, APIException)
+        assert isinstance(error, APIError)
         assert isinstance(error, BastProxyError)
         assert str(error) == "API registration failed"
 
@@ -209,7 +209,7 @@ class TestAPIExceptions:
         """Test APINotFoundError exception."""
         error = APINotFoundError("API not found")
 
-        assert isinstance(error, APIException)
+        assert isinstance(error, APIError)
         assert isinstance(error, BastProxyError)
         assert isinstance(error, AttributeError)
         assert str(error) == "API not found"
@@ -218,38 +218,38 @@ class TestAPIExceptions:
         """Test APIInvocationError exception."""
         error = APIInvocationError("API invocation failed")
 
-        assert isinstance(error, APIException)
+        assert isinstance(error, APIError)
         assert str(error) == "API invocation failed"
 
     def test_catch_api_exception_with_registration_error(self) -> None:
-        """Test catching APIRegistrationError with base APIException."""
-        with pytest.raises(APIException):
+        """Test catching APIRegistrationError with base APIError."""
+        with pytest.raises(APIError):
             raise_api_registration_error()
 
     def test_catch_api_exception_with_not_found_error(self) -> None:
-        """Test catching APINotFoundError with base APIException."""
-        with pytest.raises(APIException):
+        """Test catching APINotFoundError with base APIError."""
+        with pytest.raises(APIError):
             raise_api_not_found_error()
 
     def test_api_exception_hierarchy(self) -> None:
         """Test that all API exceptions inherit correctly."""
-        assert issubclass(APIRegistrationError, APIException)
-        assert issubclass(APINotFoundError, APIException)
-        assert issubclass(APIInvocationError, APIException)
+        assert issubclass(APIRegistrationError, APIError)
+        assert issubclass(APINotFoundError, APIError)
+        assert issubclass(APIInvocationError, APIError)
 
 
 class TestNetworkExceptions:
     """Test network-related exceptions."""
 
     def test_network_exception_inherits_from_bastproxy_error(self) -> None:
-        """Test that NetworkException inherits from BastProxyError."""
-        assert issubclass(NetworkException, BastProxyError)
+        """Test that NetworkError inherits from BastProxyError."""
+        assert issubclass(NetworkError, BastProxyError)
 
     def test_connection_error(self) -> None:
         """Test ConnectionError exception."""
         error = ConnectionError("Connection failed")
 
-        assert isinstance(error, NetworkException)
+        assert isinstance(error, NetworkError)
         assert isinstance(error, BastProxyError)
         assert str(error) == "Connection failed"
 
@@ -257,37 +257,37 @@ class TestNetworkExceptions:
         """Test TelnetProtocolError exception."""
         error = TelnetProtocolError("Telnet protocol error")
 
-        assert isinstance(error, NetworkException)
+        assert isinstance(error, NetworkError)
         assert str(error) == "Telnet protocol error"
 
     def test_catch_network_exception_with_connection_error(self) -> None:
-        """Test catching ConnectionError with base NetworkException."""
-        with pytest.raises(NetworkException):
+        """Test catching ConnectionError with base NetworkError."""
+        with pytest.raises(NetworkError):
             raise_connection_error()
 
     def test_catch_network_exception_with_protocol_error(self) -> None:
-        """Test catching TelnetProtocolError with base NetworkException."""
-        with pytest.raises(NetworkException):
+        """Test catching TelnetProtocolError with base NetworkError."""
+        with pytest.raises(NetworkError):
             raise_telnet_protocol_error()
 
     def test_network_exception_hierarchy(self) -> None:
         """Test that all network exceptions inherit correctly."""
-        assert issubclass(ConnectionError, NetworkException)
-        assert issubclass(TelnetProtocolError, NetworkException)
+        assert issubclass(ConnectionError, NetworkError)
+        assert issubclass(TelnetProtocolError, NetworkError)
 
 
 class TestConfigurationExceptions:
     """Test configuration-related exceptions."""
 
     def test_configuration_exception_inherits_from_bastproxy_error(self) -> None:
-        """Test that ConfigurationException inherits from BastProxyError."""
-        assert issubclass(ConfigurationException, BastProxyError)
+        """Test that ConfigurationError inherits from BastProxyError."""
+        assert issubclass(ConfigurationError, BastProxyError)
 
     def test_invalid_setting_error(self) -> None:
         """Test InvalidSettingError exception."""
         error = InvalidSettingError("Invalid setting value")
 
-        assert isinstance(error, ConfigurationException)
+        assert isinstance(error, ConfigurationError)
         assert isinstance(error, BastProxyError)
         assert str(error) == "Invalid setting value"
 
@@ -295,37 +295,37 @@ class TestConfigurationExceptions:
         """Test MissingSettingError exception."""
         error = MissingSettingError("Required setting missing")
 
-        assert isinstance(error, ConfigurationException)
+        assert isinstance(error, ConfigurationError)
         assert str(error) == "Required setting missing"
 
     def test_catch_config_exception_with_invalid_setting(self) -> None:
-        """Test catching InvalidSettingError with ConfigurationException."""
-        with pytest.raises(ConfigurationException):
+        """Test catching InvalidSettingError with ConfigurationError."""
+        with pytest.raises(ConfigurationError):
             raise_invalid_setting_error()
 
     def test_catch_config_exception_with_missing_setting(self) -> None:
-        """Test catching MissingSettingError with ConfigurationException."""
-        with pytest.raises(ConfigurationException):
+        """Test catching MissingSettingError with ConfigurationError."""
+        with pytest.raises(ConfigurationError):
             raise_missing_setting_error()
 
     def test_configuration_exception_hierarchy(self) -> None:
         """Test that all configuration exceptions inherit correctly."""
-        assert issubclass(InvalidSettingError, ConfigurationException)
-        assert issubclass(MissingSettingError, ConfigurationException)
+        assert issubclass(InvalidSettingError, ConfigurationError)
+        assert issubclass(MissingSettingError, ConfigurationError)
 
 
 class TestRecordExceptions:
     """Test record processing exceptions."""
 
     def test_record_exception_inherits_from_bastproxy_error(self) -> None:
-        """Test that RecordException inherits from BastProxyError."""
-        assert issubclass(RecordException, BastProxyError)
+        """Test that RecordError inherits from BastProxyError."""
+        assert issubclass(RecordError, BastProxyError)
 
     def test_record_validation_error(self) -> None:
         """Test RecordValidationError exception."""
         error = RecordValidationError("Record validation failed")
 
-        assert isinstance(error, RecordException)
+        assert isinstance(error, RecordError)
         assert isinstance(error, BastProxyError)
         assert str(error) == "Record validation failed"
 
@@ -333,23 +333,23 @@ class TestRecordExceptions:
         """Test RecordSerializationError exception."""
         error = RecordSerializationError("Serialization failed")
 
-        assert isinstance(error, RecordException)
+        assert isinstance(error, RecordError)
         assert str(error) == "Serialization failed"
 
     def test_catch_record_exception_with_validation_error(self) -> None:
-        """Test catching RecordValidationError with base RecordException."""
-        with pytest.raises(RecordException):
+        """Test catching RecordValidationError with base RecordError."""
+        with pytest.raises(RecordError):
             raise_record_validation_error()
 
     def test_catch_record_exception_with_serialization_error(self) -> None:
-        """Test catching RecordSerializationError with base RecordException."""
-        with pytest.raises(RecordException):
+        """Test catching RecordSerializationError with base RecordError."""
+        with pytest.raises(RecordError):
             raise_record_serialization_error()
 
     def test_record_exception_hierarchy(self) -> None:
         """Test that all record exceptions inherit correctly."""
-        assert issubclass(RecordValidationError, RecordException)
-        assert issubclass(RecordSerializationError, RecordException)
+        assert issubclass(RecordValidationError, RecordError)
+        assert issubclass(RecordSerializationError, RecordError)
 
 
 class TestExceptionHierarchy:
@@ -390,18 +390,18 @@ class TestExceptionHierarchy:
 
     def test_specific_exception_not_caught_by_sibling(self) -> None:
         """Test that specific exceptions are not caught by sibling classes."""
-        # PluginLoadError is a PluginException, not an APIException
-        with pytest.raises(PluginException):
+        # PluginLoadError is a PluginError, not an APIError
+        with pytest.raises(PluginError):
             raise_plugin_load_error()
 
     def test_all_base_exceptions_inherit_from_bastproxy_error(self) -> None:
         """Test that all base exception classes inherit from BastProxyError."""
         base_exceptions = [
-            PluginException,
-            APIException,
-            NetworkException,
-            ConfigurationException,
-            RecordException,
+            PluginError,
+            APIError,
+            NetworkError,
+            ConfigurationError,
+            RecordError,
         ]
 
         for exc_class in base_exceptions:
@@ -420,10 +420,35 @@ class TestExceptionHierarchy:
         error = PluginLoadError("Test")
 
         assert isinstance(error, PluginLoadError)
-        assert isinstance(error, PluginException)
+        assert isinstance(error, PluginError)
         assert isinstance(error, BastProxyError)
         assert isinstance(error, Exception)
 
         # Not instances of sibling classes
-        assert not isinstance(error, APIException)
-        assert not isinstance(error, NetworkException)
+        assert not isinstance(error, APIError)
+        assert not isinstance(error, NetworkError)
+
+
+class TestNamingRenames:
+    """Tests for the N818 and N802 renames (#6)."""
+
+    def test_new_exception_names_exist_and_old_are_gone(self) -> None:
+        """The *Error names exist and the *Exception names are removed."""
+        from bastproxy.libs import exceptions
+
+        for new, old in (
+            ("PluginError", "PluginException"),
+            ("APIError", "APIException"),
+            ("NetworkError", "NetworkException"),
+            ("ConfigurationError", "ConfigurationException"),
+            ("RecordError", "RecordException"),
+        ):
+            assert hasattr(exceptions, new)
+            assert not hasattr(exceptions, old)
+
+    def test_format_time_functions_importable(self) -> None:
+        """The snake_case log time formatters are importable from the log plugin."""
+        from bastproxy.plugins.core.log import format_time_rfc3339, format_time_rfc3339_utc
+
+        assert callable(format_time_rfc3339)
+        assert callable(format_time_rfc3339_utc)
