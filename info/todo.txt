@@ -16,7 +16,6 @@
     # TODO: Discord bot?
 
 # IDEAS
-    # IDEA: look at hunter for debugging: https://pypi.org/project/hunter/
     # IDEA: use Pydantic models to pass data and parameters around instead of dicts
         or many function parameters, for type checking and error handling (new dependency)
     # IDEA: look at anyio or uvloop to replace plain asyncio?
