@@ -38,6 +38,7 @@ Classes:
 
 import inspect
 from collections.abc import Callable
+from typing import Any
 
 # Local import typing
 # Third Party
@@ -98,7 +99,7 @@ class APIItem:
 
         self.description: list = description
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call the wrapped API function and track its usage.
 
         This method calls the wrapped API function with the provided arguments and

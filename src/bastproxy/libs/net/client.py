@@ -351,7 +351,7 @@ class ClientConnection:
 
         await self.writer.drain()
 
-    def process_data_from_not_logged_in_client(self, inp) -> None:
+    def process_data_from_not_logged_in_client(self, inp: str) -> None:
         """Process data from a client that is not logged in.
 
         This method processes the input data from a client that has not yet logged in.
@@ -414,7 +414,7 @@ class ClientConnection:
             )
             self.api("plugins.core.clients:client.banned.add")(self.uuid)
 
-    def process_data_from_view_only_client(self, inp) -> None:
+    def process_data_from_view_only_client(self, inp: str) -> None:
         """Process data from a view-only client.
 
         This method processes the input data from a client that is logged in as a
@@ -576,7 +576,7 @@ class ClientConnection:
         logger.debug("client_write - Ending coroutine for %s", self.uuid)
 
 
-async def register_client(connection) -> bool:
+async def register_client(connection: "ClientConnection") -> bool:
     """Register a new client connection.
 
     This coroutine registers a new client connection by checking if the client is
@@ -615,7 +615,7 @@ async def register_client(connection) -> bool:
     return True
 
 
-async def unregister_client(connection) -> None:
+async def unregister_client(connection: "ClientConnection") -> None:
     """Unregister a client connection.
 
     This coroutine unregisters a client connection by logging the unregistration

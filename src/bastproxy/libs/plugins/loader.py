@@ -46,6 +46,7 @@ from collections.abc import KeysView
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 # Project
@@ -174,7 +175,9 @@ class PluginLoader:
         """
         return self.weak_references_to_modules.keys()
 
-    def remove_weakref(self, weakref_obj, module_import_path: str) -> None:
+    def remove_weakref(
+        self, weakref_obj: weakref.ReferenceType[Any], module_import_path: str
+    ) -> None:
         """Remove a weak reference to a module.
 
         This method removes a weak reference to a module from the internal dictionary

@@ -131,7 +131,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         # on first use (#199), so nothing is bound or registered here
         self._instance_api: InstanceAPIs = InstanceAPIs(self)
 
-    def _api_api_add_for_object(self, toplevel, item) -> None:
+    def _api_api_add_for_object(self, toplevel: str, item: Any) -> None:
         """Add APIs for an object to a top-level API.
 
         This method adds all API callables found in the given object to the specified

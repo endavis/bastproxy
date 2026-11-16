@@ -42,7 +42,7 @@ class Settings(Protocol):
         nargs="?",
     )
     @AddArgument("--default", help="reset the setting to its default value", action="store_true")
-    def _command_settings_plugin_set(self: "Plugin"):
+    def _command_settings_plugin_set(self: "Plugin") -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         List or set vars
@@ -71,7 +71,7 @@ class Settings(Protocol):
         return CommandResult(success, message)
 
     @RegisterPluginHook("after_load", priority=75)
-    def _phook_settings_post_initialize(self: "Plugin"):
+    def _phook_settings_post_initialize(self: "Plugin") -> None:
         """Setup the settings for the plugin."""
         self.reset_f = False
 

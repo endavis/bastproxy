@@ -270,7 +270,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
                 data = self._feed_compressed(data)
 
 
-def create_server(*args, **kwargs) -> Coroutine:
+def create_server(*args: Any, **kwargs: Any) -> Coroutine:
     """Create the custom Telnet server with the specified protocol.
 
     This factory function creates a custom Telnet server using the `CustomTelnetServer`

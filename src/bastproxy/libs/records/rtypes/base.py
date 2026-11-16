@@ -81,7 +81,7 @@ class RecordDisplayMixin:
         """Return the detail lines that describe how the record was created."""
         return []
 
-    def get_all_updates(self, update_filter=None) -> list[Any]:
+    def get_all_updates(self, update_filter: list[str] | None = None) -> list[Any]:
         """Get the updates of this record and all of its child records, in time order."""
         update_filter = update_filter or []
         updates: list[Any] = []
@@ -105,7 +105,7 @@ class RecordDisplayMixin:
                     return update
         return None
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         """Attributes to format in the details.
 
         0 will be the top section
@@ -139,7 +139,9 @@ class RecordDisplayMixin:
 
         return default_attributes
 
-    def format_children(self, full_children_records=False, update_filter=None):
+    def format_children(
+        self, full_children_records: bool = False, update_filter: list[str] | None = None
+    ) -> str:
         """Format children records as a string representation.
 
         Args:
@@ -176,10 +178,10 @@ class RecordDisplayMixin:
 
     def get_formatted_details(
         self,
-        full_children_records=False,
-        include_updates=True,
-        update_filter=None,
-        include_children_records=True,
+        full_children_records: bool = False,
+        include_updates: bool = True,
+        update_filter: list[str] | None = None,
+        include_children_records: bool = True,
     ) -> list[str]:
         """Get a formatted detail string."""
         column_width = 15
@@ -234,7 +236,9 @@ class BaseRecord(RecordDisplayMixin):
     # and evicts whole.
     retention_root: ClassVar[bool] = True
 
-    def __init__(self, owner_id: str = "", track_record=True, parent=None):
+    def __init__(
+        self, owner_id: str = "", track_record: bool = True, parent: "BaseRecord | None" = None
+    ) -> None:
         """Initialize the class."""
         # create a unique id for this message
         self.uuid = uuid4().hex
@@ -272,14 +276,14 @@ class BaseRecord(RecordDisplayMixin):
             lines.extend(line for line in frame.splitlines() if line)
         return lines
 
-    def add_parent(self, parent, reset=False):
+    def add_parent(self, parent: "BaseRecord", reset: bool = False) -> None:
         """Add a parent to this record."""
         if reset:
             self.parents = []
         if parent not in self.parents:
             self.parents.append(parent)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Return hash based on class name and UUID.
 
         Returns:
@@ -288,7 +292,7 @@ class BaseRecord(RecordDisplayMixin):
         """
         return hash(f"{self.__class__.__name__}:{self.uuid}")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Check equality based on UUID.
 
         Args:
@@ -300,7 +304,7 @@ class BaseRecord(RecordDisplayMixin):
         """
         return self.uuid == other.uuid if isinstance(other, BaseRecord) else False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return string representation of the record.
 
         Returns:
@@ -309,7 +313,7 @@ class BaseRecord(RecordDisplayMixin):
         """
         return f"{self.__class__.__name__}:{self.uuid}"
 
-    def __lt__(self, other):
+    def __lt__(self, other: "BaseRecord") -> bool:
         """Compare records by creation time, then creation sequence when the times tie.
 
         Args:
@@ -323,7 +327,7 @@ class BaseRecord(RecordDisplayMixin):
             return self.created < other.created
         return self._creation_sequence < other._creation_sequence
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         if self.execute_time_taken > 0:
             return (
@@ -332,7 +336,7 @@ class BaseRecord(RecordDisplayMixin):
             )
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
-    def addupdate(self, flag: UpdateFlag | str, action: str, extra: dict | None = None):
+    def addupdate(self, flag: UpdateFlag | str, action: str, extra: dict | None = None) -> None:
         """Add an update for this record.
 
             flag: an ``UpdateFlag`` or its string ('Modify', 'Set Flag', 'Info');
@@ -399,11 +403,11 @@ class BaseRecord(RecordDisplayMixin):
     # def __str__(self):
     #     return f"{self.__class__.__name__}:{self.uuid})"
 
-    def _exec_(self, *args, **kwargs):
+    def _exec_(self, *args: Any, **kwargs: Any) -> None:
         """Override this in the derived classes if needed."""
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         """Enable tracking of the class execution."""
         actor = kwargs.get("actor", "Unknown")
         if self.executing:

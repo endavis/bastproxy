@@ -8,7 +8,9 @@
 
 points in the plugins lifecycle.
 """
+
 # Standard Library
+from typing import Any
 
 # 3rd Party
 
@@ -33,7 +35,7 @@ def validate_hook_name(hook_name: str) -> None:
 
 
 class RegisterPluginHook:
-    def __init__(self, hook_name, priority=50):
+    def __init__(self, hook_name: str, priority: int = 50) -> None:
         """'__init__' - invoked for __init__ at the end of baseplugin.__init__.
 
         'after_load' - invoked when the initialize method is ran
@@ -49,7 +51,7 @@ class RegisterPluginHook:
         self.hook_name = hook_name
         self.priority = priority
 
-    def __call__(self, func):
+    def __call__(self, func: Any) -> Any:
         if not hasattr(func, "plugin_hooks"):
             func.plugin_hooks = {}
         func.plugin_hooks[self.hook_name] = self.priority
