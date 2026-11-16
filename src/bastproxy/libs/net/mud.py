@@ -530,7 +530,8 @@ MCCP2_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
 class MudTelnetClient(TelnetClient):
     """telnetlib3 client for the MUD side that terminates GMCP, MSDP and MSSP and declines ZMP.
 
-    GMCP, MSDP and MSSP are accepted and decoded by the proxy (ADR-0001, #59, #60); the proxy sends its
+    GMCP, MSDP and MSSP are accepted and decoded by the proxy (ADR-0001, #59, #60); the proxy
+    sends its
     own ``Core.Hello`` instead of telnetlib3's. ZMP is not negotiated (#39).
 
     It also accepts MCCP2 and MCCP3 (#58). telnetlib3 decompresses the MUD's

@@ -276,7 +276,7 @@ async def test_a_client_that_enables_msdp_after_login_gets_the_replay_then() -> 
         assert msdp_seen(late) == [{"HEALTH": "3"}]
 
 
-async def test_a_client_that_enables_gmcp_after_login_gets_the_replay_once_it_says_what_it_wants() -> (
+async def test_a_client_that_enables_gmcp_after_login_gets_the_replay_once_it_says_what_it_wants() -> (  # noqa: E501  # test name states the behaviour; renaming changes its id
     None
 ):
     async with world() as (proxy, _mud, push, _w), AsyncExitStack() as stack:

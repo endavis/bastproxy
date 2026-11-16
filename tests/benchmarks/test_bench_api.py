@@ -195,7 +195,10 @@ def test_bench_api_full_call_unknown_caller(benchmark: Any, bench_api: API) -> N
 
 @pytest.mark.benchmark
 def test_bench_api_construct(benchmark: Any) -> None:
-    """(j) Build an ``API`` object; the 14 libs.api built-ins resolve lazily from a fixed table (#199)."""
+    """(j) Build an ``API`` object (#199).
+
+    The 14 libs.api built-ins resolve lazily from a fixed table.
+    """
     api = benchmark(API, owner_id="bench")
     assert isinstance(api, API)
     assert len(api._instance_api) == 14

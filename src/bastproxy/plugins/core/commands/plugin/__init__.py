@@ -8,7 +8,8 @@
 
 All commands are #bp.[package].[plugin].[command] or #bp.[plugin].[command]
 
-Commands are stored in a dictionary in the source plugin, use #bp.<plugin>.inspect -o data:commands -s
+Commands are stored in a dictionary in the source plugin, use #bp.<plugin>.inspect -o data:commands
+    -s
     to find what's in the dictionary
 $cmd{'#bp.client.actions.inspect -o data.commands -s'}
 """

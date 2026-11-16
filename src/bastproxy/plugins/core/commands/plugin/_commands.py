@@ -527,7 +527,10 @@ class CommandsPlugin(BasePlugin):
             returns:
                #bp.core.proxy.info
         """
-        return f"{self.api('plugins.core.commands:command.prefix.get')()}.{plugin_id.replace('plugins.', '')}.{command}"
+        return (
+            f"{self.api('plugins.core.commands:command.prefix.get')()}."
+            f"{plugin_id.replace('plugins.', '')}.{command}"
+        )
 
     @AddAPI(
         "command.current.args.get",
@@ -874,7 +877,8 @@ class CommandsPlugin(BasePlugin):
                     fullcolor=True,
                 ),
                 self.api("plugins.core.utils:string.center.colored")(
-                    f"@RError - Plugin {plugin_id.replace('plugins.', '')} has no command{f' : {command}' if command else ''}@w",
+                    f"@RError - Plugin {plugin_id.replace('plugins.', '')} has no command"
+                    f"{f' : {command}' if command else ''}@w",
                     filler_character="-",
                     length=80,
                     filler_color="@B",

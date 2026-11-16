@@ -41,7 +41,10 @@ class ProcessRaisedEvent(BaseRecord):
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms {self.event_name} {self.times_invoked}"
+        return (
+            f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms "
+            f"{self.event_name} {self.times_invoked}"
+        )
 
     def _exec_(self, actor, *args, **kwargs):
         """Process the event."""
@@ -63,7 +66,8 @@ class ProcessRaisedEvent(BaseRecord):
         self.done = set()
         self.addupdate(UpdateFlag.INFO, "Invoked", extra={"data": f"{dict(self.event_data)}"})
 
-        # log the event if the log_savestate setting is True or if the event is not a _savestate event
+        # log the event if the log_savestate setting is True or if the event is not a
+        # _savestate event
         log_savestate = self.api("plugins.core.settings:setting.get")(
             "plugins.core.events", "log_savestate"
         )

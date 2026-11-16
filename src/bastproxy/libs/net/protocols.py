@@ -32,8 +32,8 @@ The proxy owns the ``Core`` GMCP package on each link: it sends its own ``Core.H
 ``Core.Supports.Set`` holding the union of the modules plugins register and the modules of the
 logged-in clients that negotiated GMCP, and it never caches or forwards ``Core.*`` messages.
 
-Client links: the proxy offers GMCP, MSDP and MSSP to each client. A client gets data only once it has
-logged in (view-only included) and answered ``DO``. Live GMCP is re-encoded for each client by
+Client links: the proxy offers GMCP, MSDP and MSSP to each client. A client gets data only once it
+has logged in (view-only included) and answered ``DO``. Live GMCP is re-encoded for each client by
 its own ``Core.Supports``, MSDP goes to every MSDP client, and a client that joins or enables a
 protocol late gets the cached values. From a client, ``Core.Hello`` is absorbed,
 ``Core.Supports.*`` updates that client's modules, ``Core.Ping`` is answered on its link, other

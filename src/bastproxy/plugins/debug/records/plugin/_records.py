@@ -64,7 +64,8 @@ class RecordPlugin(BasePlugin):
             CAPTURE_STACKS_SETTING,
             False,
             bool,
-            "capture the call stack of each new record and update, which costs time on every record; "
+            "capture the call stack of each new record and update, "
+            "which costs time on every record; "
             "off by default",
         )
         self._apply_retained_trees(

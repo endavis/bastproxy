@@ -239,7 +239,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 if not items_to_get:
                     return obj
             except AttributeError:
-                # check if obj is a dict and then check both the string next_item and integer next_item
+                # check if obj is a dict and then check both the string next_item
+                # and integer next_item
                 if isinstance(obj, dict):
                     if next_item not in obj:
                         with contextlib.suppress(ValueError):

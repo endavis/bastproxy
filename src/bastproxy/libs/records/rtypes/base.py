@@ -326,7 +326,10 @@ class BaseRecord(RecordDisplayMixin):
     def one_line_summary(self):
         """Get a one line summary of the record."""
         if self.execute_time_taken > 0:
-            return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id} {self.execute_time_taken:.2f}ms"
+            return (
+                f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id} "
+                f"{self.execute_time_taken:.2f}ms"
+            )
         return f"{self.__class__.__name__:<20} {self.uuid} {self.owner_id}"
 
     def addupdate(self, flag: UpdateFlag | str, action: str, extra: dict | None = None):
@@ -388,7 +391,8 @@ class BaseRecord(RecordDisplayMixin):
             lines.extend(f"    {line}" for line in self.stack_at_creation)
         else:
             lines.append(
-                "Call Stack at Creation : not captured (set capture_stacks in plugins.debug.records)"
+                "Call Stack at Creation : not captured "
+                "(set capture_stacks in plugins.debug.records)"
             )
         return lines
 

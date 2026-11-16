@@ -294,7 +294,11 @@ class CommandClass:
             if include_date:
                 newmessage.append(
                     self.api("plugins.core.utils:string.center.colored")(
-                        f"Start: {self.last_run_start_time.strftime(self.api.time_format) if self.last_run_start_time else 'Unknown'}",
+                        f"Start: {
+                            self.last_run_start_time.strftime(self.api.time_format)
+                            if self.last_run_start_time
+                            else 'Unknown'
+                        }",
                         "-",
                         line_length,
                         filler_color=preamble_color,
@@ -315,7 +319,9 @@ class CommandClass:
                 )
             )
             if arg_message := [
-                f"@G{item}@w: {'Not Specified' if self.current_args[item] is None else self.current_args[item]}"
+                f"@G{item}@w: {
+                    'Not Specified' if self.current_args[item] is None else self.current_args[item]
+                }"
                 for item in self.current_args
                 if item not in ["help"]
             ]:
@@ -351,7 +357,11 @@ class CommandClass:
             if include_date:
                 newmessage.append(
                     self.api("plugins.core.utils:string.center.colored")(
-                        f"Finish: {self.last_run_end_time.strftime(self.api.time_format) if self.last_run_end_time else 'Unknown'}",
+                        f"Finish: {
+                            self.last_run_end_time.strftime(self.api.time_format)
+                            if self.last_run_end_time
+                            else 'Unknown'
+                        }",
                         "-",
                         line_length,
                         filler_color=preamble_color,

@@ -103,7 +103,8 @@ class Listeners:
 
         if self.listener_tries > 2:
             get_logger("mudproxy").error(
-                "No listeners available, defaults did not work. Please check the settings in data/plugins/plugins.core.proxy"
+                "No listeners available, defaults did not work. "
+                "Please check the settings in data/plugins/plugins.core.proxy"
             )
             sys.exit(1)
 

@@ -179,7 +179,8 @@ class ProxyPlugin(BasePlugin):
             "linelen",
             80,
             int,
-            "the line length for internal output data, does not affect data that comes from the mud or clients",
+            "the line length for internal output data, "
+            "does not affect data that comes from the mud or clients",
             validator=int_range(1, label="line length"),
         )
         self.api("plugins.core.settings:setting.add")(
@@ -416,7 +417,9 @@ class ProxyPlugin(BasePlugin):
             tmsg.extend(
                 (
                     divider,
-                    f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}{self.api(f'{self.plugin_id}:preamble.get')()}: @GThe proxy is connecting to the mud@w",
+                    f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}"
+                    f"{self.api(f'{self.plugin_id}:preamble.get')()}: "
+                    "@GThe proxy is connecting to the mud@w",
                 )
             )
         elif not self.mud_connection or not self.mud_connection.connected:
@@ -425,7 +428,8 @@ class ProxyPlugin(BasePlugin):
                     (
                         divider,
                         "Please set the mudhost.",
-                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')} mudhost 'host'",
+                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')}"
+                        " mudhost 'host'",
                     )
                 )
             if self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudport") == 0:
@@ -433,20 +437,26 @@ class ProxyPlugin(BasePlugin):
                     (
                         divider,
                         "Please set the mudport.",
-                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')} mudport 'port'",
+                        f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')}"
+                        " mudport 'port'",
                     )
                 )
             tmsg.extend(
                 (
                     divider,
-                    f"Connect to the mud with {self.api('plugins.core.commands:command.format')(self.plugin_id, 'connect')}",
+                    "Connect to the mud with "
+                    f"{
+                        self.api('plugins.core.commands:command.format')(self.plugin_id, 'connect')
+                    }",
                 )
             )
         else:
             tmsg.extend(
                 (
                     divider,
-                    f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}{self.api(f'{self.plugin_id}:preamble.get')()}: @GThe proxy is already connected to the mud@w",
+                    f"{self.api(f'{self.plugin_id}:preamble.color.get')(error=True)}"
+                    f"{self.api(f'{self.plugin_id}:preamble.get')()}: "
+                    "@GThe proxy is already connected to the mud@w",
                 )
             )
         if self.api(f"{self.plugin_id}:ssc.proxypw.get")(quiet=True) == "defaultpass":
@@ -455,7 +465,8 @@ class ProxyPlugin(BasePlugin):
                     divider,
                     "The proxy password is still the default password.",
                     "Please set the proxy password!",
-                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypw')} 'This is a password'",
+                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypw')}"
+                    " 'This is a password'",
                 )
             )
         if self.api(f"{self.plugin_id}:ssc.proxypwview.get")(quiet=True) == "defaultviewpass":
@@ -464,7 +475,12 @@ class ProxyPlugin(BasePlugin):
                     divider,
                     "The proxy view password is still the default password.",
                     "Please set the proxy view password!",
-                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'proxypwview')} 'This is a view password'",
+                    f"{
+                        self.api('plugins.core.commands:command.format')(
+                            self.plugin_id, 'proxypwview'
+                        )
+                    }"
+                    " 'This is a view password'",
                 )
             )
         if tmsg[-1] != divider:
@@ -574,8 +590,10 @@ class ProxyPlugin(BasePlugin):
             f"{'5 Minute':<{column_width}} : {load_average[1]}",
             f"{'15 Minute':<{column_width}} : {load_average[2]}",
             *self.api("plugins.core.commands:output.header.format")("Memory Info"),
-            f"{'Total':<{column_width}} : {humanize.naturalsize(virtual_memory.total, binary=True)}",
-            f"{'Available':<{column_width}} : {humanize.naturalsize(virtual_memory.available, binary=True)}",
+            f"{'Total':<{column_width}} : "
+            f"{humanize.naturalsize(virtual_memory.total, binary=True)}",
+            f"{'Available':<{column_width}} : "
+            f"{humanize.naturalsize(virtual_memory.available, binary=True)}",
             f"{'Used':<{column_width}} : {humanize.naturalsize(virtual_memory.used, binary=True)}",
             f"{'Used Percent':<{column_width}} : {virtual_memory.percent}%",
             *self.api("plugins.core.commands:output.header.format")("Process Info"),

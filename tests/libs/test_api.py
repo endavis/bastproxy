@@ -158,7 +158,7 @@ class TestAPIBasics:
             api.get("nonexistent:api")
 
     def test_api_has_only_swallows_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that _api_api_exists returns False for not-found but propagates other AttributeErrors."""
+        """Test _api_api_exists returns False for not-found but propagates other AttributeErrors."""
         api = API(owner_id="test_owner")
 
         def raise_not_found(_location: str) -> None:

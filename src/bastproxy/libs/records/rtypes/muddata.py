@@ -62,7 +62,10 @@ class ProcessDataToMud(BaseRecord):
 
     def one_line_summary(self):
         """Get a one line summary of the record."""
-        return f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} {self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
+        return (
+            f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} "
+            f"{self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
+        )
 
     def seperate_commands(self):
         """Separate multiple commands in a single line into individual lines."""

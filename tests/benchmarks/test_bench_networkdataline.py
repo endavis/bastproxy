@@ -51,7 +51,10 @@ CHANGE_TARGET_SECONDS = 20e-6  # per change
 
 
 def _absolute_gate_enforced() -> bool:
-    """Return whether the fixed limits are asserted; only ``BENCH_ABSOLUTE_GATE=report`` disables."""
+    """Return whether the fixed limits are asserted.
+
+    Only ``BENCH_ABSOLUTE_GATE=report`` disables them.
+    """
     return os.environ.get("BENCH_ABSOLUTE_GATE") != "report"
 
 

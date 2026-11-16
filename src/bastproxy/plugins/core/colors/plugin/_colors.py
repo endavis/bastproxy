@@ -36,10 +36,16 @@ def convertcolorcodetohtml(colorcode):
     try:
         colorcode = int(colorcode)
         if colorcode in COLORTABLE:
-            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
+            return (
+                f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}"
+                f"{COLORTABLE[colorcode][2]:02x}"
+            )
     except ValueError:
         if colorcode in COLORTABLE:
-            return f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}{COLORTABLE[colorcode][2]:02x}"
+            return (
+                f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}"
+                f"{COLORTABLE[colorcode][2]:02x}"
+            )
 
     return "#000"
 

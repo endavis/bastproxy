@@ -158,7 +158,6 @@ select = [
 ]
 ignore = [
     "ANN",    # TODO: Enable after adding type annotations to codebase
-    "E501",   # Line too long - existing code uses longer lines
 ]
 
 [tool.ruff.lint.per-file-ignores]

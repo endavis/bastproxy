@@ -56,7 +56,8 @@ class EventsPlugin(BasePlugin):
             "raised_history_size",
             10,
             int,
-            "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
+            "number of recent raises each event keeps in its raised_events history, 0 keeps none; "
+            "older raises stay in the records manager",
             validator=int_range(0, label="history size"),
         )
         self._apply_raised_history_size(
