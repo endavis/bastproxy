@@ -71,6 +71,12 @@ Sort by `tottime` (self time), not `cumulative`: cumulative is dominated by pyte
 (`pluggy`, `_pytest.main`), since the profiler wraps the whole test process, not just the function
 under test. `tottime` surfaces the module's own lines.
 
+Use cProfile here, not a sampling profiler such as pyinstrument. pyinstrument breaks a
+benchmark-enabled run: pytest-benchmark's instrumentation pause raises
+`TypeError: 'pyinstrument.stat_profile.ProfilerState' object is not callable`, and its report leaves
+out the benchmarked code. With `--benchmark-disable` each body runs once, so the report shows setup,
+not the repeated cost (#432).
+
 ### Step 4: Change
 
 Make the change Step 3 pointed at. Keep the observable behavior identical — same inputs, same
