@@ -43,7 +43,7 @@ import contextlib
 import datetime
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 # Third Party
@@ -122,7 +122,7 @@ class ClientConnection:
         self._wire_oob()
         if self.telnet_server is not None:
             # a size reported before this connection existed is already stored on the server
-            self.telnet_server.on_naws_cb = self._on_naws  # type: ignore[attr-defined]
+            self.telnet_server.on_naws_cb = self._on_naws
 
     def _on_naws(self) -> None:
         """Offer the client's new size to the MUD link (#308)."""
@@ -235,8 +235,11 @@ class ClientConnection:
             The duration of the connection in a human-readable format.
 
         """
-        return self.api("plugins.core.utils:timedelta.to.string")(
-            self.connected_time, datetime.datetime.now(datetime.UTC)
+        return cast(
+            str,
+            self.api("plugins.core.utils:timedelta.to.string")(
+                self.connected_time, datetime.datetime.now(datetime.UTC)
+            ),
         )
 
     @property
@@ -256,7 +259,7 @@ class ClientConnection:
             return "-"
         now = datetime.datetime.now(datetime.UTC)
         idle = datetime.timedelta(seconds=float(self.telnet_server.idle))
-        return self.api("plugins.core.utils:timedelta.to.string")(now - idle, now)
+        return cast(str, self.api("plugins.core.utils:timedelta.to.string")(now - idle, now))
 
     @property
     def term_type(self) -> str:
@@ -278,7 +281,7 @@ class ClientConnection:
             return "-"
         return _TERM_DISALLOWED.sub("", str(term))[:_TERM_MAX_LENGTH] or "-"
 
-    def send_to(self, data: NetworkDataLine) -> None:
+    def send_to(self, data: object) -> None:
         """Send data to the client.
 
         This method sends a `NetworkDataLine` object to the client. If the client is
@@ -546,7 +549,7 @@ class ClientConnection:
                     logger.debug("client_write - type of msg_obj.msg = %s", type(msg_obj.line))
                     # each client gets its own copy: MXP kept or stripped (#61)
                     out = mxp.render_for_client(msg_obj, self.mxp_enabled)
-                    self.writer.write(out)
+                    self.writer.write(cast(str, out))
                     msg_obj.was_sent = True
                     self.data_logger.info("%-12s : %s", "client_write", out)
                 else:
@@ -564,7 +567,7 @@ class ClientConnection:
                 logger.debug(
                     "client_write - Writing telnet option to client %s: %r", self.uuid, msg_obj.line
                 )
-                self.writer.send_iac(msg_obj.line)
+                self.writer.send_iac(cast(bytes, msg_obj.line))
                 msg_obj.was_sent = True
                 self.data_logger.info("%-12s : %s", "client_write", msg_obj.line)
 
@@ -665,7 +668,7 @@ async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWrite
         None
 
     """
-    client_details: str = writer.get_extra_info("peername")
+    client_details: tuple[Any, ...] = writer.get_extra_info("peername")
 
     addr, port, *rest = client_details
     connection: ClientConnection = ClientConnection(addr, port, "telnet", reader, writer)
@@ -688,14 +691,14 @@ async def client_telnet_handler(reader: TelnetReaderUnicode, writer: TelnetWrite
         # actual finishing of execution or an exception. If either the reader or writer
         # "completes", we want to ensure we move beyond this point and clean up the
         # tasks associated with this client.
-        _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
+        _, pending = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
 
         # Once we reach this point one of our tasks (reader/writer) have completed or
         # failed. Remove client from the registration list and perform connection
         # specific cleanup.
         await unregister_client(connection)
 
-        for task in rest:
+        for task in pending:
             task.cancel()
 
     # drain and close the writer

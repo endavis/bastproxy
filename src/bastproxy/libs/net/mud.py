@@ -39,7 +39,7 @@ import collections
 import datetime
 import logging
 import re
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
@@ -126,7 +126,7 @@ class MudConnection:
                 self.addr,
                 int(self.port),
                 term=self.term_type,
-                shell=self.mud_telnet_handler,
+                shell=self.mud_telnet_handler,  # type: ignore[arg-type]  # handler takes the reader and writer our factories build
                 encoding="utf8",
                 client_factory=MudTelnetClient,
                 # accept MCCP2 (and MCCP3 when the MUD offers it); the stream is
@@ -169,7 +169,7 @@ class MudConnection:
         self.connected = False
         self.connecting = False
 
-    def send_to(self, data: NetworkDataLine) -> None:
+    def send_to(self, data: object) -> None:
         """Send data to the MUD server.
 
         This method places the provided data into the send queue for transmission
@@ -302,7 +302,7 @@ class MudConnection:
                     )
                     logger.debug("mud_write - Writing message to mud: %s", shown)
                     logger.debug("mud_write - type of msg_obj.msg = %s", type(msg_obj.line))
-                    self.writer.write(msg_obj.line)
+                    self.writer.write(cast(str, msg_obj.line))
                     msg_obj.was_sent = True
                     logging.getLogger("data.mud").info("%-12s : %s", "to_mud", shown)
                 else:
@@ -310,7 +310,7 @@ class MudConnection:
             elif msg_obj.is_command_telnet:
                 logger.debug("mud_write - type of msg_obj.msg = %s", type(msg_obj.line))
                 logger.debug("mud_write - Writing telnet option mud: %r", msg_obj.line)
-                self.writer.send_iac(msg_obj.line)
+                self.writer.send_iac(cast(bytes, msg_obj.line))
                 msg_obj.was_sent = True
                 logging.getLogger("data.mud").info("%-12s : %s", "to_mud", msg_obj.line)
 
@@ -341,7 +341,7 @@ class MudConnection:
             None
 
         """
-        client_details: str = writer.get_extra_info("peername")
+        client_details: tuple[Any, ...] = writer.get_extra_info("peername")
 
         _, _, *rest = client_details
         logger.warning("Mud Connection opened - %s : %s : %s", self.addr, self.port, rest)
@@ -369,9 +369,9 @@ class MudConnection:
         try:
             await self.setup_mud()
 
-            _, rest = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
+            _, pending = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
 
-            for task in rest:
+            for task in pending:
                 task.cancel()
         finally:
             PROTOCOLS.mud_disconnected()
@@ -515,7 +515,7 @@ class MudTelnetReader(TelnetReaderUnicode):
             except TimeoutError:
                 return self._take_pending()
 
-    async def readline(self) -> str:
+    async def readline(self) -> str:  # type: ignore[override]  # returns str, the base returns bytes
         """Read one line and return its text, for callers that want a str."""
         return (await self.read_mud_line()).text
 
@@ -551,6 +551,10 @@ class MudTelnetClient(TelnetClient):
     ``send_naws`` answers ``DO NAWS`` with the size ``WINDOW_SIZE`` chose (#308); later changes
     are sent by ``WINDOW_SIZE`` itself with ``send_iac``.
     """
+
+    # telnetlib3 types these as optional; they are set once connected (annotation only)
+    reader: MudTelnetReader
+    writer: RecordingTelnetWriter
 
     def send_naws(self) -> tuple[int, int]:
         """Return (rows, cols) for the reply to ``DO NAWS`` (#308)."""
