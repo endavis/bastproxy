@@ -256,7 +256,7 @@ Configures the argument parser:
 )
 ```
 
-`formatter_class` is replaced by `argp.CustomFormatter` after the parser is built. `AddParser` takes keyword
+`formatter_class` is replaced after the parser is built by a factory that returns `argp.CustomFormatter` sized to `plugins.core.proxy:line.length.get`, so help and usage wrap to the requesting client's width (`linelen` when it has no NAWS width), not the 73 columns used when no width is given (#509). `AddParser` takes keyword
 arguments only; a positional argument raises `TypeError` (removed in #400, they were never used). The `-h` and `--help` flags are added to every command.
 
 ### @AddArgument

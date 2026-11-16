@@ -37,7 +37,7 @@ Classes:
 # Standard Library
 import argparse
 import textwrap as _textwrap
-from typing import NoReturn
+from typing import Any, NoReturn
 
 # Third Party
 
@@ -81,12 +81,37 @@ class CustomFormatter(HelpFormatter):
 
     """
 
+    DEFAULT_FILL_WIDTH = 73
+
+    def __init__(
+        self,
+        prog: str,
+        indent_increment: int = 2,
+        max_help_position: int = 24,
+        width: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Create the formatter.
+
+        Args:
+            prog: The program name.
+            indent_increment: Indent step, as for argparse's HelpFormatter.
+            max_help_position: Help column limit, as for argparse's HelpFormatter.
+            width: The line length to wrap help text and usage to. When None, usage
+                follows argparse's terminal width and text wraps at 73 characters.
+            **kwargs: Keyword arguments for argparse's HelpFormatter.
+
+        """
+        super().__init__(prog, indent_increment, max_help_position, width, **kwargs)
+        self._fill_width = self.DEFAULT_FILL_WIDTH if width is None else width
+
     # override _fill_text
     def _fill_text(self, text: str, width: int = 0, indent: str = "") -> str:
-        """Fill the text with custom wrapping at 73 characters.
+        """Fill the text with custom wrapping at the formatter's width.
 
         This method overrides the default _fill_text method of argparse's help
-        formatter to wrap the text at 73 characters.
+        formatter to wrap the text at the width given to the formatter (73 characters
+        when none was given), minus the indent.
 
         Args:
             text: The text to be wrapped.
@@ -101,7 +126,7 @@ class CustomFormatter(HelpFormatter):
         lines = text.splitlines() if text else [""]
         multiline_text = ""
         for line in lines:
-            wrapped_line = _textwrap.fill(line, 73)
+            wrapped_line = _textwrap.fill(line, max(self._fill_width - len(indent), 11))
             multiline_text = multiline_text + "\n" + wrapped_line
         return multiline_text
 
