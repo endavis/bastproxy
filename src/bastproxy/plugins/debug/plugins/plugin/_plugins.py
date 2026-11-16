@@ -26,7 +26,7 @@ class PluginsPlugin(BasePlugin):
         default="",
     )
     @AddArgument("-d", "--detailed", help="show a detailed output", action="store_true")
-    def _command_dump(self):
+    def _command_dump(self) -> CommandResult:
         """Dump a plugin object or attribute."""
         args = self.api("plugins.core.commands:command.current.args.get")()
 
@@ -42,7 +42,7 @@ class PluginsPlugin(BasePlugin):
 
     @AddParser(description="show internal plugin hooks")
     @AddArgument("plugin", help="the plugin to show the hooks for", default="")
-    def _command_hooks(self):
+    def _command_hooks(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show internal plugin hooks
@@ -75,7 +75,7 @@ class PluginsPlugin(BasePlugin):
 
     @AddParser(description="show plugin data summary")
     @AddArgument("plugin", help="the plugin to show the summary for", default="")
-    def _command_summary(self):
+    def _command_summary(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show a summary of what data a plugin has
@@ -109,7 +109,7 @@ class PluginsPlugin(BasePlugin):
 
     @AddParser(description="show detailed plugin data in other plugins")
     @AddArgument("plugin", help="the plugin to show the data for", default="")
-    def _command_detail(self):
+    def _command_detail(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show stats, memory, profile, etc.. for this plugin
@@ -143,7 +143,7 @@ class PluginsPlugin(BasePlugin):
 
     @AddParser(description="show the stats sections other plugins add for a plugin")
     @AddArgument("plugin", help="the plugin to show the stats for", default="")
-    def _command_stats(self):
+    def _command_stats(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show the stats that plugins add for a plugin

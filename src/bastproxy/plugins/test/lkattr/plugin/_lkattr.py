@@ -19,7 +19,7 @@ class LkAttrPlugin(BasePlugin):
     """a plugin to inspect records"""
 
     @AddParser(description="test changing a locked attribute")
-    def _command_locktest(self):
+    def _command_locktest(self) -> CommandResult:
         """List records of a specific type"""
         testdata = NetworkData("original line")
         refused: list[str] = []
@@ -50,7 +50,7 @@ class LkAttrPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="test splitting a command")
-    def _command_splittest(self):
+    def _command_splittest(self) -> CommandResult:
         """List records of a specific type"""
         testdata = NetworkData("command 1|command 2|command 3|command 4|command 5")
         testdata2 = NetworkData("command 1|command 2|command 3|command 4|command 5")

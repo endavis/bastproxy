@@ -8,6 +8,7 @@
 # Standard Library
 import stat
 from pathlib import Path
+from typing import Any
 
 # 3rd Party
 # Project
@@ -20,7 +21,9 @@ from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, 
 class SSC:
     """a class to manage settings."""
 
-    def __init__(self, name, plugin_id, data_directory, **kwargs):
+    def __init__(
+        self, name: str, plugin_id: str, data_directory: Path | str, **kwargs: Any
+    ) -> None:
         """Initialize the class."""
         self.name = name
         self.api = API(owner_id=f"{plugin_id}:{name}")
@@ -32,7 +35,7 @@ class SSC:
         self.desc = kwargs.get("desc", "setting")
 
     @AddAPI("ssc.{name}.get", description="get the {desc} value")
-    def _api_ssc_get(self, quiet=False):
+    def _api_ssc_get(self, quiet: bool = False) -> str:
         """Read the secret from a file."""
         first_line = ""
         try:
@@ -53,7 +56,7 @@ class SSC:
     @AddCommand(name="{name}", show_in_history=False)
     @AddParser(description="set the {desc}")
     @AddArgument("value", help="the new {desc}", default="", nargs="?")
-    def _command_setssc(self):
+    def _command_setssc(self) -> CommandResult:
         """Set the secret."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         if args["value"]:
@@ -69,11 +72,11 @@ class SSCPlugin(BasePlugin):
     """a plugin to handle secret settings."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         self.reload_dependents_f = True
 
     @AddAPI("baseclass.get", description="return the ssc baseclass")
-    def _api_baseclass_get(self):
+    def _api_baseclass_get(self) -> type[SSC]:
         # pylint: disable=no-self-use
         """Return the ssc baseclass."""
         return SSC

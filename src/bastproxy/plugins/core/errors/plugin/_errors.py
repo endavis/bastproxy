@@ -11,6 +11,7 @@
 
 # Project
 import logging
+from typing import Any
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import log_to
@@ -23,12 +24,12 @@ class ErrorPlugin(BasePlugin):
     """a plugin to handle errors."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
-        self.errors = []
+        self.errors: list[dict[str, Any]] = []
 
     @RegisterToEvent(event_name="ev_bastproxy_proxy_ready")
-    def _eventcb_proxy_ready(self):
+    def _eventcb_proxy_ready(self) -> None:
         """Show all errors that happened during startup."""
         if errors := self.api("plugins.core.errors:error.list")():
             msg = ["The following errors happened during startup:", "Proxy Errors"]
@@ -37,7 +38,7 @@ class ErrorPlugin(BasePlugin):
             log_to([self.plugin_id, "mudproxy"], logging.ERROR, "%s", "\n".join(msg))
 
     @AddAPI("error.add", description="add an error")
-    def _api_error_add(self, timestamp, error):
+    def _api_error_add(self, timestamp: str, error: str) -> None:
         """Add an error.
 
         this function adds an error to the list
@@ -45,7 +46,7 @@ class ErrorPlugin(BasePlugin):
         self.errors.append({"timestamp": timestamp, "msg": error})
 
     @AddAPI("error.list", description="list all errors")
-    def _api_error_list(self):
+    def _api_error_list(self) -> list[dict[str, Any]]:
         """Get errors.
 
         this function has no arguments
@@ -55,7 +56,7 @@ class ErrorPlugin(BasePlugin):
         return self.errors
 
     @AddAPI("error.clear", description="clear all errors")
-    def _api_error_clear(self):
+    def _api_error_clear(self) -> None:
         """Clear errors.
 
         this function has no arguments
@@ -66,7 +67,7 @@ class ErrorPlugin(BasePlugin):
 
     @AddParser(description="show errors")
     @AddArgument("number", help="list the last <number> errors", default="-1", nargs="?")
-    def _command_show(self):
+    def _command_show(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show the error queue
@@ -92,7 +93,7 @@ class ErrorPlugin(BasePlugin):
         return CommandResult(True, msg)
 
     @AddParser(description="clear errors")
-    def _command_clear(self):
+    def _command_clear(self) -> CommandResult:
         """Clear errors."""
         self.api("plugins.core.errors:error.clear")()
 

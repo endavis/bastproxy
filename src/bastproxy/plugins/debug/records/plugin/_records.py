@@ -6,6 +6,7 @@
 # By: Bast
 
 # Standard Library
+from typing import Any
 
 from bastproxy.libs.logger import get_record_logs
 from bastproxy.libs.records import RMANAGER
@@ -34,7 +35,7 @@ class RecordPlugin(BasePlugin):
     """a plugin to inspect records."""
 
     @RegisterPluginHook("after_load")
-    def _phook_initialize(self):
+    def _phook_initialize(self) -> None:
         """Initialize the instance."""
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -78,44 +79,44 @@ class RecordPlugin(BasePlugin):
             self.api("plugins.core.settings:setting.get")(self.plugin_id, CAPTURE_STACKS_SETTING)
         )
 
-    def _apply_capture_stacks(self, value) -> None:
+    def _apply_capture_stacks(self, value: Any) -> None:
         """Write the capture_stacks setting onto the records manager."""
         if value is None:
             return
         RMANAGER.set_capture_stacks(bool(value))
 
-    def _apply_retained_trees(self, value) -> None:
+    def _apply_retained_trees(self, value: Any) -> None:
         """Write the retained_trees setting onto the records manager."""
         if value is None:
             return
         RMANAGER.set_max_trees(int(value))
 
-    def _apply_tracking_max_changes(self, value) -> None:
+    def _apply_tracking_max_changes(self, value: Any) -> None:
         """Write the tracking_max_changes setting onto the records manager."""
         if value is None:
             return
         RMANAGER.set_max_changes(int(value))
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_retained_trees_modified")
-    def _eventcb_retained_trees_modified(self):
+    def _eventcb_retained_trees_modified(self) -> None:
         """Apply a changed retained_trees."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self._apply_retained_trees(event_record["newvalue"])
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_tracking_max_changes_modified")
-    def _eventcb_tracking_max_changes_modified(self):
+    def _eventcb_tracking_max_changes_modified(self) -> None:
         """Apply a changed tracking_max_changes."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self._apply_tracking_max_changes(event_record["newvalue"])
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_capture_stacks_modified")
-    def _eventcb_capture_stacks_modified(self):
+    def _eventcb_capture_stacks_modified(self) -> None:
         """Apply a changed capture_stacks."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             self._apply_capture_stacks(event_record["newvalue"])
 
     @AddParser(description="return the list of record types")
-    def _command_types(self):
+    def _command_types(self) -> CommandResult:
         """List the types of records."""
         tmsg = [
             f"Root trees: {RMANAGER.root_count()} (retaining {RMANAGER.max_trees})",
@@ -134,7 +135,7 @@ class RecordPlugin(BasePlugin):
         nargs="?",
         type=int,
     )
-    def _command_list(self):
+    def _command_list(self) -> CommandResult:
         """List records of a specific type."""
         line_length = self.api("plugins.core.commands:output.line.length.get")()
         header_color = self.api("plugins.core.settings:setting.get")(
@@ -201,7 +202,7 @@ class RecordPlugin(BasePlugin):
         action="store_true",
         default=False,
     )
-    def _command_detail(self):
+    def _command_detail(self) -> CommandResult:
         """Get the details of a specific record."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
@@ -249,7 +250,7 @@ class RecordPlugin(BasePlugin):
 
     @AddParser(description="get a list of children of a specific record")
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
-    def _command_children(self):
+    def _command_children(self) -> CommandResult:
         """Get the children of a specific record."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         if not args["uid"]:

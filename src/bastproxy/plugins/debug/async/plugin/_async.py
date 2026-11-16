@@ -18,7 +18,7 @@ class AsyncPlugin(BasePlugin):
     """a plugin to inspect records."""
 
     @AddParser(description="get a list of asyncio tasks")
-    def _command_tasks(self):
+    def _command_tasks(self) -> CommandResult:
         """List records of a specific type."""
         line_length = self.api("plugins.core.commands:output.line.length.get")()
         header_color = self.api("plugins.core.settings:setting.get")(

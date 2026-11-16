@@ -6,10 +6,12 @@
 # By: Bast
 """This plugin is used to test the sqldb plugin"""
 
+from typing import Any
+
 from bastproxy.plugins._baseplugin import BasePlugin
 
 
-def dbcreate(sqldbclass, plugin, **kwargs):
+def dbcreate(sqldbclass: type[Any], plugin: str, **kwargs: Any) -> Any:
     """Create the statdb class, this is needed because the Sqldb baseclass
     can be reloaded since it is a plugin
     """
@@ -17,7 +19,7 @@ def dbcreate(sqldbclass, plugin, **kwargs):
     class Statdb(sqldbclass):  # pylint: disable=too-many-public-methods
         """a class to manage a sqlite database for aardwolf events"""
 
-        def __init__(self, plugin, **kwargs):
+        def __init__(self, plugin: str, **kwargs: Any) -> None:
             """Initialize the class"""
             sqldbclass.__init__(self, plugin, **kwargs)
 
@@ -63,7 +65,7 @@ def dbcreate(sqldbclass, plugin, **kwargs):
 class SQLDBPlugin(BasePlugin):
     """a plugin to test the sqldb plugin"""
 
-    def initialize(self):
+    def initialize(self) -> None:
         """Initialize the plugin"""
         BasePlugin.initialize(self)
 

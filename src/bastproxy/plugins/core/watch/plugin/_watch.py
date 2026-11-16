@@ -38,7 +38,7 @@ class WatchPlugin(BasePlugin):
     """a plugin to watch for commands coming from the client."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.can_reload_f = False
 
@@ -46,7 +46,7 @@ class WatchPlugin(BasePlugin):
         self.watch_data: dict[str, WatchItem] = {}
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
-    def _eventcb_plugin_unloaded(self):
+    def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded."""
         event_record = self.api("plugins.core.events:event.current.record.get")()
         log_to(
@@ -64,7 +64,7 @@ class WatchPlugin(BasePlugin):
         default="",
         nargs="?",
     )
-    def _command_list(self):
+    def _command_list(self) -> CommandResult:
         """List watches."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         watches = self.watch_data.keys()
@@ -86,7 +86,7 @@ class WatchPlugin(BasePlugin):
 
     @AddParser(description="get details of a watch")
     @AddArgument("watch", help="the trigger to detail", default=[], nargs="*")
-    def _command_detail(self):
+    def _command_detail(self) -> CommandResult:
         """List the details of a watch."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = []
@@ -113,7 +113,9 @@ class WatchPlugin(BasePlugin):
         return CommandResult(True, message)
 
     @AddAPI("watch.add", description="add a watch")
-    def _api_watch_add(self, watch_name, regex, owner=None, **kwargs):
+    def _api_watch_add(
+        self, watch_name: str, regex: str, owner: str | None = None, **kwargs: Any
+    ) -> None:
         """Add a command watch.
 
         @Ywatch_name@w   = name
@@ -186,7 +188,7 @@ class WatchPlugin(BasePlugin):
         )
 
     @AddAPI("watch.remove", description="remove a watch")
-    def _api_watch_remove(self, watch_name, force=False):
+    def _api_watch_remove(self, watch_name: str, force: bool = False) -> bool | None:
         """Remove a command watch.
 
         @Ywatch_name@w   = The watch name
@@ -223,7 +225,7 @@ class WatchPlugin(BasePlugin):
         return None
 
     @AddAPI("watch.remove.for.plugin", description="remove all watches for a plugin")
-    def _api_watch_remove_for_plugin(self, plugin):
+    def _api_watch_remove_for_plugin(self, plugin: str) -> None:
         """Remove all watches related to a plugin.
 
         @Yplugin@w   = The plugin.
@@ -241,7 +243,7 @@ class WatchPlugin(BasePlugin):
                 self.api(f"{self.plugin_id}:watch.remove")(name)
 
     @RegisterToEvent(event_name="ev_to_mud_data_modify")
-    def _eventcb_check_command(self):
+    def _eventcb_check_command(self) -> None:
         """Check input from the client and see if we are watching for it."""
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return

@@ -161,13 +161,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/bastproxy/plugins/core/proxy/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/watch/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/ssc/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/errors/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/fuzzy/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/debug/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/test/**" = ["ANN"]  # annotated in later #6 PRs
 "tools/pyproject_template/*.py" = [
     "ANN401",  # Any return type for dynamic GitHub API responses
     "RUF022",  # __all__ intentionally grouped by category, not sorted

@@ -8,6 +8,7 @@
 # Standard Library
 import sys
 from functools import lru_cache
+from typing import Any
 
 # 3rd Party
 try:
@@ -23,7 +24,7 @@ from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin
 
 
-def sort_fuzzy_result(result):
+def sort_fuzzy_result(result: Any) -> dict[Any, list[Any]]:
     """Sort a result from extract."""
     newdict = {}
     for i in result:
@@ -114,9 +115,9 @@ class FuzzyPlugin(BasePlugin):
     )
     def _api_string_match_best(
         self,
-        item_to_match,
+        item_to_match: str,
         list_to_match: tuple,
-        score_cutoff=80,
+        score_cutoff: float = 80,
         scorer: str = "ratio",
     ) -> str:
         """Get the best match for a string in a list of strings.
@@ -136,10 +137,10 @@ class FuzzyPlugin(BasePlugin):
     @AddAPI("string.match.top", description="get the top fuzzy matches for a string")
     def _api_string_match_top(
         self,
-        item_to_match,
+        item_to_match: str,
         list_to_match: tuple,
-        items=5,
-        score_cutoff=80,
+        items: int = 5,
+        score_cutoff: float = 80,
         scorer: str = "ratio",
     ) -> list:
         """Scorer can be ratio, partial_ratio, token_sort_ratio,.
