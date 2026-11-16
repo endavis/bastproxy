@@ -21,18 +21,15 @@ from bastproxy.plugins.core.commands import (
 from ._pluginhooks import RegisterPluginHook
 
 if TYPE_CHECKING:
-    from bastproxy.plugins._baseplugin import Plugin
+    from bastproxy.plugins._baseplugin import BasePlugin, Plugin
 
 
 class Commands(Protocol):
     @RegisterPluginHook("after_load")
-    def _phook_base_post_initialize_add_reset_command(self: "Plugin") -> None:
+    def _phook_base_post_initialize_add_reset_command(self: "BasePlugin") -> None:
         """Add commands to the plugin."""
         if self.can_reset_f:
-            # can't figure out how to type this correctly
-            # and this exists in the 'Plugin' class
-            # so ignoring the error
-            set_command_autoadd(self._command_reset, True)  # pyright: ignore[reportAttributeAccessIssue]
+            set_command_autoadd(self._command_reset, True)
 
     @AddCommand(group="Base")
     @AddParser(description="show help info for this plugin")

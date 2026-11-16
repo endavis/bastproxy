@@ -105,14 +105,14 @@ class RecordDisplayMixin:
                     return update
         return None
 
-    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, Any]]]:
         """Attributes to format in the details.
 
         0 will be the top section
         1 is the middle section
         3 is the bottom section.
         """
-        default_attributes = {
+        default_attributes: dict[int, list[tuple[str, Any]]] = {
             0: [
                 ("UUID", "uuid"),
                 ("Owner ID", "owner_id"),
@@ -141,8 +141,8 @@ class RecordDisplayMixin:
 
     def format_children(
         self, full_children_records: bool = False, update_filter: list[str] | None = None
-    ) -> str:
-        """Format children records as a string representation.
+    ) -> list[str]:
+        """Format children records as a list of lines.
 
         Args:
             full_children_records: Include full record details if True.
@@ -261,7 +261,7 @@ class BaseRecord(RecordDisplayMixin):
         if not parent:
             parent = RMANAGER.get_latest_record()
         self.parent = parent
-        self.parents = []
+        self.parents: list[BaseRecord] = []
         if parent:
             self.add_parent(parent)
 
@@ -368,7 +368,8 @@ class BaseRecord(RecordDisplayMixin):
         )
         if RMANAGER.capture_stacks:
             entry.stack = self._format_stack(UPDATE_STACK_LIMIT)
-        entry.creation_sequence = next_creation_sequence()
+        # pydatatracker's ChangeLogEntry declares no such attribute; it is set dynamically.
+        entry.creation_sequence = next_creation_sequence()  # type: ignore[attr-defined]
         self._updates.append(entry)
 
     @property

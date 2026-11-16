@@ -73,7 +73,7 @@ class Settings(Protocol):
     @RegisterPluginHook("after_load", priority=75)
     def _phook_settings_post_initialize(self: "Plugin") -> None:
         """Setup the settings for the plugin."""
-        self.reset_f = False
+        self.reset_f = False  # type: ignore[misc]  # mixin hook; the attribute lives on Plugin
 
         if not self.api("libs.api:api.exists")(SETTINGS_INIT_API):
             get_logger(self.plugin_id).debug(

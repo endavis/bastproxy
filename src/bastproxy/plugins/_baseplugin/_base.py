@@ -11,6 +11,7 @@ import datetime
 import inspect
 import logging
 import pprint
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +29,9 @@ if TYPE_CHECKING:
 
 class Plugin:  # pylint: disable=too-many-instance-attributes
     """a base class for plugins."""
+
+    # Set by the settings mixin's after_load hook.
+    reset_f: bool
 
     def __init__(self, plugin_id: str, plugin_info: "PluginInfo") -> None:
         """Initialize the instance.
@@ -51,15 +55,15 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.can_reset_f = True
         self.reload_dependents_f = False
 
-        self.attributes_to_save_on_reload = []
+        self.attributes_to_save_on_reload: list[str] = []
 
-        self.version_functions = {}
+        self.version_functions: dict[Any, Callable[[], Any]] = {}
         self.is_character_active_priority = None
         self.loaded_time = datetime.datetime.now(datetime.UTC)
 
         Path(self.plugin_info.data_directory).mkdir(parents=True, exist_ok=True)
 
-        self.data = {}
+        self.data: dict[str, Any] = {}
 
         self._dump_shallow_attrs = ["api"]
 
@@ -133,7 +137,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             lambda m: bool(getattr(m, "plugin_hooks", None)),
             name_filter=lambda n: n.startswith("_phook_"),
         ):
-            for hook_name, priority in attr.plugin_hooks.items():
+            # find_methods only yields methods whose ``plugin_hooks`` is truthy.
+            for hook_name, priority in getattr(attr, "plugin_hooks", {}).items():
                 if plugin_hook is not None and hook_name != plugin_hook:
                     continue
                 collected.setdefault(hook_name, {}).setdefault(priority, []).append(attr)
@@ -157,13 +162,17 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         Returns:
           {priority: [functions]}
         """
-        return self._collect_plugin_hook_functions(obj, plugin_hook).get(plugin_hook, {})
+        functions: dict[Any, Any] = self._collect_plugin_hook_functions(obj, plugin_hook).get(
+            plugin_hook, {}
+        )
+        return functions
 
     # add a dump_object method that is just dumps
     # don't have to worry about importing dumper everywhere
     def dump_object_as_string(self, object: Any) -> str:
         """Dump an object as a string."""
-        return self.api("plugins.core.utils:object.dump")(object)
+        dumped: str = self.api("plugins.core.utils:object.dump")(object)
+        return dumped
 
     @AddAPI("data.get", description="get the data for a specific datatype")
     def _api_data_get(self, datatype: str, plugin_id: str | None = None) -> Any:
@@ -199,7 +208,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
             return True
 
         if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
-            return self.api(f"{plugin_id}:data.update")(datatype, newdata)
+            updated: bool = self.api(f"{plugin_id}:data.update")(datatype, newdata)
+            return updated
 
         return False
 
@@ -245,11 +255,12 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 # check if obj is a dict and then check both the string next_item
                 # and integer next_item
                 if isinstance(obj, dict):
-                    if next_item not in obj:
+                    key: str | int = next_item
+                    if key not in obj:
                         with contextlib.suppress(ValueError):
-                            next_item = int(next_item)
-                    if next_item in obj:
-                        obj = obj[next_item]
+                            key = int(next_item)
+                    if key in obj:
+                        obj = obj[key]
                         if not items_to_get:
                             return obj
 

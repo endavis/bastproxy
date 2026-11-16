@@ -27,7 +27,7 @@ from bastproxy.libs.records.tracking import (
 )
 
 
-class BaseDictRecord(TrackedRecordMixin, TrackedDict):
+class BaseDictRecord(TrackedRecordMixin, TrackedDict):  # type: ignore[misc]  # mixin hashes by uuid; list/dict set __hash__ None
     """Base class for dictionary-based records, tracked by pydatatracker.
 
     Every mutation is logged as a change entry, and a locked record raises
@@ -53,10 +53,13 @@ class BaseDictRecord(TrackedRecordMixin, TrackedDict):
             TypeError: If data is not a dict.
 
         """
-        if data:
-            if not isinstance(data, dict):
-                msg = f"data must be a dict not {type(data)}"
+        # Checked as ``object``: the annotation says dict, but callers are untyped.
+        supplied: object = data
+        if supplied:
+            if not isinstance(supplied, dict):
+                msg = f"data must be a dict not {type(supplied)}"
                 raise TypeError(msg)
+            data = supplied
         else:
             data = {}
         TrackedDict.__init__(
@@ -108,4 +111,4 @@ class BaseDictRecord(TrackedRecordMixin, TrackedDict):
         if self.original_data != dict(self):
             attributes[2].append(("Original Data", self.original_data))
 
-        return attributes  # type: ignore[no-any-return]
+        return attributes
