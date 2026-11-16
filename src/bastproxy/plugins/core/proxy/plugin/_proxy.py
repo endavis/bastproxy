@@ -33,6 +33,7 @@ except ImportError:
 import logging
 
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.context import get_output_client
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.mud import MudConnection
 from bastproxy.libs.net.naws import WINDOW_SIZE, validate_window_size
@@ -53,6 +54,9 @@ from bastproxy.plugins.core.settings import (
     validate_port,
     validate_port_or_unset,
 )
+
+# The narrowest line length a client's own width can give (see ``line.length.get``).
+MIN_LINE_LENGTH = 40
 
 
 def is_connected_address(raddr: Any) -> bool:
@@ -179,7 +183,8 @@ class ProxyPlugin(BasePlugin):
             "linelen",
             80,
             int,
-            "the line length for internal output data, "
+            "the maximum line length for internal output; a client that reported its "
+            "window size over NAWS gets its own width, never under 40; "
             "does not affect data that comes from the mud or clients",
             validator=int_range(1, label="line length"),
         )
@@ -253,6 +258,25 @@ class ProxyPlugin(BasePlugin):
         """Get the preamble."""
         preamble: str = self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamble")
         return preamble
+
+    @AddAPI("line.length.get", description="get the line length for output to the current client")
+    def _api_line_length_get(self) -> int:
+        """Return the line length for internal output.
+
+        The client running the command sets the width through its NAWS report, minus the
+        preamble prefix, capped at ``linelen`` and floored at MIN_LINE_LENGTH. Without a single
+        target client or a reported width, it is ``linelen``.
+        """
+        linelen: int = self.api("plugins.core.settings:setting.get")(self.plugin_id, "linelen")
+        client_id = get_output_client()
+        if not client_id:
+            return linelen
+        cols: int | None = self.api("plugins.core.clients:client.width.get")(client_id)
+        if cols is None:
+            return linelen
+        preamble = self.api("plugins.core.proxy:preamble.get")()
+        prefix_len = len(self.api("plugins.core.colors:colorcode.strip")(preamble)) + 2
+        return min(linelen, max(MIN_LINE_LENGTH, cols - prefix_len))
 
     @AddAPI("preamble.color.get", description="get the preamble color")
     def _api_preamble_color_get(self, error: bool = False) -> str:

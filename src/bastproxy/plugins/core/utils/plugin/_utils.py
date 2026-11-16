@@ -87,6 +87,138 @@ CONVERTERS: dict[Any, Callable[[Any], Any]] = {
 }
 
 
+# Characters a split word prefers to break after.
+_BREAK_AFTER = (".", "/", "_", "-")
+_CELL_TOKEN = re.compile(r"@@|@[xz]\d{1,3}|@[A-Za-z]|\x1b\[[0-9;]*m|.", re.DOTALL)
+
+
+def fit_column_widths(
+    natural: Sequence[int],
+    word_mins: Sequence[int],
+    header_mins: Sequence[int],
+    available: int,
+    header_word_mins: Sequence[int] | None = None,
+) -> list[int]:
+    """Shrink column widths until they fit in ``available`` columns, if they can.
+
+    Each phase shrinks the widest column still above that phase's floor; a tie shrinks the
+    rightmost column, which keeps the leftmost (usually the key) column intact.
+
+    1. Floor ``word_mins`` (the longest word of the column's cells): cells wrap at spaces only.
+    2. Floor ``header_mins`` (the header label's length): cell words are split.
+    3. Floor ``header_word_mins`` (the longest word of the header label, default
+       ``header_mins``): header labels wrap at spaces.
+    4. Floor 1: header words are split too.
+
+    Phases 3 and 4 only run when the table still does not fit, so a table that fits with
+    unwrapped headers is never touched by them.
+    """
+    widths = list(natural)
+
+    def shrink(floors: Sequence[int]) -> None:
+        while sum(widths) > available:
+            candidates = [i for i, w in enumerate(widths) if w > floors[i]]
+            if not candidates:
+                return
+            widest = max(widths[i] for i in candidates)
+            index = max(i for i in candidates if widths[i] == widest)
+            widths[index] -= 1
+
+    shrink(word_mins)
+    shrink(header_mins)
+    shrink(header_mins if header_word_mins is None else header_word_mins)
+    shrink([1] * len(widths))
+    return widths
+
+
+def wrap_cell(text: str, width: int, strip: Callable[[str], str]) -> list[str]:
+    """Wrap a cell that may hold color codes into lines of at most ``width`` visible columns.
+
+    ``strip`` removes color codes and is the single source of what counts as visible. Lines
+    break at single spaces (dropped at the break); a word longer than ``width`` is split. A
+    color code stays with the text it precedes, and each continuation line starts with the
+    color in effect at its start, unless that color is ``@w`` or there is none. A split word
+    breaks after the last ``.``, ``/``, ``_`` or ``-`` that fits, else at ``width``.
+    """
+    tokens = _CELL_TOKEN.findall(text)
+    visible: list[str] = []
+    raw_visible: list[str] = []  # the raw token behind each visible character
+    codes: list[tuple[int, str]] = []  # (visible index the code precedes, raw code)
+    for token in tokens:
+        # strip() does not clean a bare code or an escape reliably, so probe the token between
+        # two markers and keep what is between them
+        probe = strip("x" + token + "x").removeprefix("x")
+        shown = probe[: probe.rfind("x")]
+        if shown == "":
+            codes.append((len(visible), token))
+        else:
+            visible.extend(shown)
+            raw_visible.append(token)
+            raw_visible.extend("" for _ in shown[1:])
+    if width < 1 or len(visible) <= width:
+        return [text]
+
+    # Find the visible span (start, end) of each line.
+    shown_text = "".join(visible)
+
+    def cut_at(word_start: int, size: int) -> int:
+        """Where to cut ``size`` characters off a word: after the last punctuation, if any."""
+        piece = shown_text[word_start : word_start + size]
+        index = max(piece.rfind(char) for char in _BREAK_AFTER)
+        return word_start + (index + 1 if index >= 1 else size)
+
+    spans: list[tuple[int, int]] = []
+    start = end = -1  # -1: no current line
+    for match in re.finditer(r"[^ ]+", shown_text):
+        word_start, word_end = match.span()
+        if start >= 0 and word_end - start <= width:
+            end = word_end
+            continue
+        if start >= 0 and word_end - word_start > width:
+            room = width - (end - start) - (word_start - end)
+            if room > 0:
+                end = cut_at(word_start, room)
+                word_start = end
+        if start >= 0:
+            spans.append((start, end))
+        start = end = -1
+        while word_end - word_start > width:
+            cut = cut_at(word_start, width)
+            spans.append((word_start, cut))
+            word_start = cut
+        start, end = word_start, word_end
+    if start >= 0:
+        spans.append((start, end))
+    if not spans:
+        return [text]
+
+    # Rebuild each line from the visible text and the codes that belong to it.
+    lines: list[str] = []
+    last_code = ""
+    code_index = 0
+    for number, (line_start, line_end) in enumerate(spans):
+        is_last = number == len(spans) - 1
+        next_start = spans[number + 1][0] if not is_last else line_end
+        parts: list[str] = [last_code] if last_code and last_code != "@w" else []
+        position = line_start
+        while True:
+            if code_index >= len(codes):
+                break
+            index, raw = codes[code_index]
+            belongs = index < line_end or (index == line_end and (is_last or next_start > line_end))
+            if not belongs:
+                break
+            if index > position:
+                parts.append("".join(raw_visible[position:index]))
+                position = index
+            parts.append(raw)
+            last_code = raw
+            code_index += 1
+        parts.append("".join(raw_visible[position:line_end]))
+        lines.append("".join(parts))
+    return lines
+
+
 class UtilsPlugin(BasePlugin):
     """a plugin to handle ansi colors."""
 
@@ -467,11 +599,13 @@ class UtilsPlugin(BasePlugin):
             'key'   : dictionary key,
             'width' : the width of the column.
 
-        Widths and padding ignore color codes, so colored cells stay aligned.
+        Widths and padding ignore color codes, so colored cells stay aligned. When the rows
+        are wider than the line length, data cells wrap inside their columns (at spaces, then
+        within a word) so the table keeps the line length. When that is still not enough, header
+        labels wrap too (at spaces, then within a word, down to one column each); the table grows
+        past the line length only when even that cannot fit.
         """
-        line_length_default = self.api("plugins.core.settings:setting.get")(
-            "plugins.core.proxy", "linelen"
-        )
+        line_length_default: int = self.api("plugins.core.proxy:line.length.get")()
         output_color = color or self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
@@ -479,8 +613,38 @@ class UtilsPlugin(BasePlugin):
         color_end = "@w"
         strip = self.api("plugins.core.colors:colorcode.strip")
 
-        for column in columns:
-            column["width"] = max(len(strip(str(item[column["key"]]))) for item in temp_data)
+        data = list(data)
+        header_dict = {item["key"]: item["name"] for item in columns}
+        count = len(columns)
+        natural = [
+            max(len(strip(str(item[column["key"]]))) for item in temp_data) for column in columns
+        ]
+        header_mins = [max(1, len(strip(str(header_dict[column["key"]])))) for column in columns]
+        header_word_mins = [
+            max(
+                1,
+                max(
+                    (len(word) for word in strip(str(header_dict[column["key"]])).split(" ")),
+                    default=1,
+                ),
+            )
+            for column in columns
+        ]
+        word_mins = []
+        for column, header_min in zip(columns, header_mins, strict=True):
+            longest = max(
+                (len(word) for item in data for word in strip(str(item[column["key"]])).split(" ")),
+                default=0,
+            )
+            word_mins.append(max(header_min, longest))
+
+        # 4 for the '| ' and ' |' that cap the lines, 3 for each ' | ' between columns
+        overhead = 4 + 3 * (count - 1)
+        widths = fit_column_widths(
+            natural, word_mins, header_mins, line_length_default - overhead, header_word_mins
+        )
+        for column, width in zip(columns, widths, strict=True):
+            column["width"] = width
 
         separator = f" {output_color}|{color_end} "
 
@@ -491,29 +655,34 @@ class UtilsPlugin(BasePlugin):
                 cells.append(cell + " " * (column["width"] - len(strip(cell))))
             return separator.join(cells)
 
-        # build the header dict
-        header_dict = {item["key"]: item["name"] for item in columns}
-
-        subheader_msg = build_line(header_dict)
-        data_msg = [build_line(item) for item in data]
-
-        largest_line = max(
-            [
-                len(strip(subheader_msg)),
-                *[len(strip(line)) for line in data_msg],
+        def build_rows(item: Any) -> list[str]:
+            wrapped = [
+                wrap_cell(str(item[column["key"]]), column["width"], strip) for column in columns
             ]
-        )
+            height = max(len(cell_lines) for cell_lines in wrapped)
+            return [
+                build_line(
+                    {
+                        column["key"]: cell_lines[row] if row < len(cell_lines) else ""
+                        for column, cell_lines in zip(columns, wrapped, strict=True)
+                    }
+                )
+                for row in range(height)
+            ]
 
-        if largest_line > line_length_default:
-            # Add 4 to account for the '| ' and ' |' that cap the lines
-            line_length = largest_line + 4
-        else:
-            line_length = line_length_default
+        subheader_msgs = build_rows(header_dict)
+        data_msg = [row for item in data for row in build_rows(item)]
+
+        # the table only grows past the line length when even one column per cell cannot fit
+        line_length = max(line_length_default, sum(widths) + overhead)
 
         column_lines = [
-            self.api("plugins.core.utils:line.cap")(
-                subheader_msg, "|", color=output_color, line_length=line_length
-            ),
+            *[
+                self.api("plugins.core.utils:line.cap")(
+                    subheader_msg, "|", color=output_color, line_length=line_length
+                )
+                for subheader_msg in subheader_msgs
+            ],
             self.api("plugins.core.utils:line.cap")(
                 f"{'-' * (line_length - 2)}",
                 "+",
@@ -561,9 +730,7 @@ class UtilsPlugin(BasePlugin):
         spacechar = " " if space else ""
 
         if not line_length:
-            line_length = self.api("plugins.core.settings:setting.get")(
-                "plugins.core.proxy", "linelen"
-            )
+            line_length = self.api("plugins.core.proxy:line.length.get")()
 
         capchar_len = len(capchar + spacechar)
 

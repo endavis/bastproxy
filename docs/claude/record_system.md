@@ -88,15 +88,16 @@ Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation tim
 
 ### Context variables
 
-`src/bastproxy/libs/context.py` holds three context variables, each set for the duration of the work and reset with its token, also when the work raises:
+`src/bastproxy/libs/context.py` holds four context variables, each set for the duration of the work and reset with its token, also when the work raises:
 
 | Variable | Set by | Read by |
 |----------|--------|---------|
 | `active_records` (a tuple, outermost first) | `RMANAGER.start()` and `end()`, called from `BaseRecord.__call__` | `RMANAGER.get_latest_record()` (the parent of a new record, and the logger's per-record buffer) and the prune |
 | `event_stack` (a tuple of event names) | `event.raise` in the events plugin | `BaseRecord.__init__` and `addupdate`, and the `event.stack.get`, `event.current.name.get` and `event.current.record.get` APIs |
 | `command_args` (a mapping or `None`) | `CommandClass.run`, around the command function | `TrackedUpdate.format_detailed` and the `command.current.args.get` API, which returns `{}` when no command runs |
+| `output_client` (a client id or `None`) | `run_internal_command_from_event`, around the whole command run (a broadcast gives `None`) | `plugins.core.proxy:line.length.get`, to size output for the client that ran the command |
 
-Asyncio copies the current context into each task. `TaskItem.create` passes `fresh_context()` as the task's context, which resets the three variables, so a task spawned while a record, event or command is running does not inherit it. The tracking actor is left alone.
+Asyncio copies the current context into each task. `TaskItem.create` passes `fresh_context()` as the task's context, which resets the four variables, so a task spawned while a record, event or command is running does not inherit it. The tracking actor is left alone.
 
 A nested command no longer clears the outer command's args when it finishes.
 
