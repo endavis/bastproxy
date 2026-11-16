@@ -48,10 +48,11 @@ import sys
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from importlib import import_module
+from importlib.machinery import SourceFileLoader
 from importlib.util import find_spec, module_from_spec, spec_from_loader
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 # 3rd Party
 
@@ -177,9 +178,8 @@ def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
 
     for module_info in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
         if module_info.ispkg and (tspec := find_spec(module_info.name)):
-            loader_path: str = (
-                tspec.loader.path  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-            )
+            # packages found on disk are loaded by a SourceFileLoader, which has ``path``
+            loader_path: str = cast(SourceFileLoader, tspec.loader).path
             if tspec.origin:
                 if is_plugin(tspec.origin):
                     # if the name ends in .plugin, remove it

@@ -98,7 +98,7 @@ class Callback:
         if isinstance(other_function, Callback):
             return hash(self) == hash(other_function)
 
-        return isinstance(other_function, Callable) and other_function == self.func
+        return callable(other_function) and other_function == self.func
 
     def execute(self, args: dict | None = None) -> Any:
         """Execute the callback function.

@@ -46,6 +46,7 @@ from collections.abc import KeysView
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 # 3rd Party
@@ -125,7 +126,7 @@ class PluginLoader:
         """
         self.api = API(owner_id=API_OWNER)
 
-        self.weak_references_to_modules = {}
+        self.weak_references_to_modules: dict[str, weakref.ref[ModuleType]] = {}
 
         self.plugins_info: dict[str, PluginInfo] = {}
         self.base_plugin_dir = API.BASEPLUGINPATH
@@ -411,7 +412,7 @@ class PluginLoader:
         ]
 
     @AddAPI("plugin.instance.get", description="get a loaded plugin instance")
-    def _api_plugin_instance_get(self, plugin_name: str) -> BasePlugin | None:
+    def _api_plugin_instance_get(self, plugin_name: str | BasePlugin) -> BasePlugin | None:
         """Get a loaded plugin instance.
 
         This method retrieves the instance of a loaded plugin based on the provided
@@ -599,7 +600,7 @@ class PluginLoader:
         logger.debug("Done finding plugins")
 
         old_plugins_info = self.plugins_info
-        new_plugins_info = {}
+        new_plugins_info: dict[str, PluginInfo] = {}
 
         # go through the plugins and read information from them
         for found_plugin in plugins:
@@ -1205,7 +1206,7 @@ class PluginLoader:
             # delete the instance
             del plugin_info.runtime_info.plugin_instance
 
-        modules_to_delete = []
+        modules_to_delete: list[str] = []
         if plugin_info.runtime_info.is_imported:
             modules_to_delete.extend(
                 item for item in reloadable_plugin_module_names(plugin_info.package_import_location)
@@ -1259,7 +1260,7 @@ class PluginLoader:
         self.update_all_plugin_information()
 
         # load all core plugins first
-        core_plugins = [
+        core_plugins: list[str] = [
             plugin_info.plugin_id
             for plugin_info in self.plugins_info.values()
             if plugin_info.package in ["plugins.core", "plugins.client"]

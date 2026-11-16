@@ -833,7 +833,7 @@ class API:  # sourcery skip: upper-camel-case-classes
         if not api_data or not api_data.stats:
             return []
 
-        tmsg = []
+        tmsg: list[str] = []
 
         if stats_by_plugin:
             self._stats_overall(tmsg, api_data)
@@ -904,8 +904,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        stats_keys = api_data.stats.calls_by_caller.keys()
-        stats_keys = sorted(stats_keys)
+        stats_keys = sorted(api_data.stats.calls_by_caller.keys())
         stats_caller_data = [
             {"caller": i, "count": api_data.stats.calls_by_caller[i]} for i in stats_keys
         ]
@@ -989,7 +988,7 @@ class API:  # sourcery skip: upper-camel-case-classes
             None
 
         """
-        all_api_data = []
+        all_api_data: list[dict[str, Any]] = []
         api_data = (
             self.get_top_level_api_list(top_level_api)
             if top_level_api
@@ -997,14 +996,14 @@ class API:  # sourcery skip: upper-camel-case-classes
         )
         for i in api_data:
             toplevel, api_name = i.split(":", 1)
-            if api_data := self._api_data_get(i):
+            if item_data := self._api_data_get(i):
                 all_api_data.append(
                     {
                         "toplevel": toplevel,
                         "name": api_name,
                         "full_api_name": i,
-                        "called_count": api_data.count,
-                        "description": " ".join(api_data.description),
+                        "called_count": item_data.count,
+                        "description": " ".join(item_data.description),
                     }
                 )
 
@@ -1047,11 +1046,11 @@ class API:  # sourcery skip: upper-camel-case-classes
                 top_levels.append(toplevel)
                 tmsg.extend((f"@G{toplevel:<10}@w", "@B" + "-" * 50 + "@w"))
 
-            if api_data := self._api_data_get(i):
+            if item_data := self._api_data_get(i):
                 tmsg.extend(
                     (
-                        f"   @C{i:<60}@w : called {api_data.count} times @w",
-                        f"        {api_data.description[0] if api_data.description else ''}@w",
+                        f"   @C{i:<60}@w : called {item_data.count} times @w",
+                        f"        {item_data.description[0] if item_data.description else ''}@w",
                     )
                 )
         return tmsg

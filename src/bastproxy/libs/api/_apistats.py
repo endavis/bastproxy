@@ -172,7 +172,7 @@ class StatsManager:
         """
         if full_api_name not in self.stats:
             self.stats[full_api_name] = APIStatItem(full_api_name)
-        return self.stats.get(full_api_name)
+        return self.stats[full_api_name]
 
 
 # return self.stats.setdefault(full_api_name, APIStatItem(full_api_name))
