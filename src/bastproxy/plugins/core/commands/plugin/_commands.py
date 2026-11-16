@@ -11,7 +11,7 @@ import dataclasses
 import logging
 import types
 from collections.abc import Callable, Mapping
-from typing import Any, cast
+from typing import Any
 
 from bastproxy.libs import argp
 
@@ -1174,7 +1174,6 @@ class CommandsPlugin(BasePlugin):
 
                 result = command_item.run(command_args, format=command_item.format)
                 success, error = result.success, result.reason
-                message = cast(list[str] | str, result.message)
 
                 if success:
                     event_record.addupdate(
@@ -1187,12 +1186,12 @@ class CommandsPlugin(BasePlugin):
                         UpdateFlag.INFO, f"run_command returned error: {error}", savedata=False
                     )
 
-                if message:
-                    if isinstance(message, str):
-                        message = [message]
-                    if isinstance(message, list):
-                        message = NetworkData(message, owner_id="run_internal_command_from_event")
-                    SendDataDirectlyToClient(message, clients=clients)()
+                # run_finish always returns the output as a list of lines.
+                if result.message:
+                    SendDataDirectlyToClient(
+                        NetworkData(result.message, owner_id="run_internal_command_from_event"),
+                        clients=clients,
+                    )()
         except Exception:
             log_to(
                 [self.plugin_id],
@@ -1335,7 +1334,7 @@ class CommandsPlugin(BasePlugin):
             "plugins.core.commands", "output_header_color"
         )
         for i in command_list:
-            if cast(object, i) != "default" and i.arg_parser.description:
+            if i.arg_parser.description:
                 tlist = i.arg_parser.description.splitlines()
                 if not tlist[0]:
                     tlist.pop(0)
