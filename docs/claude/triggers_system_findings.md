@@ -540,7 +540,7 @@ Greps, all scoped to `src/bastproxy/plugins/core/triggers` with `--include=*.py`
 | 12 | **Tight coupling to event order**: unload cleanup works because the events plugin runs first at the same priority | `_eventcb_plugin_unloaded`, `_api_trigger_remove_for_owner` | n/a | **Change (TR-8).** Pass `force=True` from `trigger.remove.for.owner`, so the cleanup does not depend on registration order. |
 | 13 | **String paths instead of `Path`** | none | n/a | **Keep.** The package touches no path. |
 | 14 | **Hidden global state** | none at module level; all state is on the plugin instance | Yes | **Keep.** |
-| 15 | **Typing**: the package is under a mypy `ignore_errors` override (`bastproxy.plugins.core.*` in `pyproject.toml`) and has no annotations | whole file | Yes | **Keep here.** Tracked by #6. mypy would have reported TR-3. |
+| 15 | **Typing**: the package is under a mypy `ignore_errors` override (`bastproxy.plugins.core.*` in `pyproject.toml`) and has no annotations | whole file | Yes | **Keep here.** Tracked by #6. mypy would have reported TR-3. **Resolved by #481:** mypy now checks the package, with no `ignore_errors` override. |
 
 ---
 
