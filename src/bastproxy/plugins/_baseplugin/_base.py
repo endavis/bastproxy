@@ -227,10 +227,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         obj = None
         next_item = None
 
-        if "." not in attribute_name:
-            items_to_get = [attribute_name]
-        else:
-            items_to_get = attribute_name.split(".")
+        items_to_get = [attribute_name] if "." not in attribute_name else attribute_name.split(".")
 
         obj = self
 
@@ -271,10 +268,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         header = header_color + "-" * line_length + "@x"
 
         if not attribute_name:
-            if detailed:
-                tvars = self.dump_object_as_string(self)
-            else:
-                tvars = pprint.pformat(vars(self))
+            tvars = self.dump_object_as_string(self) if detailed else pprint.pformat(vars(self))
 
             message = [
                 header,

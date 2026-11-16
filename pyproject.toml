@@ -160,8 +160,6 @@ ignore = [
     "ANN",    # TODO: Enable after adding type annotations to codebase
     "E501",   # Line too long - existing code uses longer lines
     "N",      # TODO: Enable after fixing naming conventions
-    "B019",   # lru_cache on methods - intentional for API caching
-    "SIM108", # TODO: Refactor if/else to ternary where appropriate
 ]
 
 [tool.ruff.lint.per-file-ignores]

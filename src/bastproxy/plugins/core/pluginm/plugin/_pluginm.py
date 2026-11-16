@@ -99,10 +99,7 @@ class PluginManager(BasePlugin):
         """
         msg = []
         if "plugins" not in package:
-            if package.startswith("."):
-                package = f"plugins{package}"
-            else:
-                package = f"plugins.{package}"
+            package = f"plugins{package}" if package.startswith(".") else f"plugins.{package}"
 
         loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
         if plist := [

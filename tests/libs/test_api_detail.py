@@ -22,7 +22,7 @@ def _documented_percent() -> str:
 class _Cached:
     """Holder for an lru_cache-wrapped method."""
 
-    @lru_cache(maxsize=4)
+    @lru_cache(maxsize=4)  # noqa: B019  # deliberately caches a method to test API detail on it
     def cached(self, value: str) -> str:
         """Return the value."""
         return value
