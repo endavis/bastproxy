@@ -270,12 +270,12 @@ class ClientConnection:
 
     @property
     def bytes_sent(self) -> int:
-        """Return the bytes written to the client, before compression (0 without a server)."""
+        """Return the uncompressed telnet bytes sent to the client, before MCCP2 (0 without one)."""
         return int(getattr(self.telnet_server, "tx_bytes", 0))
 
     @property
     def bytes_received(self) -> int:
-        """Return the bytes read from the client, after inflation (0 without a server)."""
+        """Return the uncompressed telnet bytes from the client, after MCCP3 (0 without one)."""
         return int(getattr(self.telnet_server, "rx_bytes", 0))
 
     def telnet_options(self) -> tuple[list[str], list[str]]:

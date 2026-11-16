@@ -107,12 +107,12 @@ class MudConnection:
 
     @property
     def bytes_sent(self) -> int:
-        """Return the bytes written to the mud link, before compression (0 without a link)."""
+        """Return the uncompressed telnet bytes written to the mud link (0 without a link)."""
         return 0 if self.protocol is None else self.protocol.tx_bytes
 
     @property
     def bytes_received(self) -> int:
-        """Return the bytes read from the mud link, after inflation (0 without a link)."""
+        """Return the uncompressed telnet bytes read from the mud link (0 without a link)."""
         return 0 if self.protocol is None else self.protocol.rx_bytes
 
     @property
