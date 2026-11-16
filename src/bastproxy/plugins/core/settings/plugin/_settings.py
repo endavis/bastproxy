@@ -10,6 +10,7 @@ import copy
 import logging
 import textwrap
 from pathlib import Path
+from typing import Any
 
 from bastproxy.libs import argp
 
@@ -30,7 +31,7 @@ from bastproxy.plugins.core.settings.libs._settinginfo import (
 logger = get_logger(__name__)
 
 
-def _store_and_notify(plugin, plugin_id, setting, value) -> bool:
+def _store_and_notify(plugin: Any, plugin_id: str, setting: str, value: Any) -> bool:
     """Store a converted value, sync it, and raise the modified event.
 
     Shared by setting.set and setting.reset. Nothing is raised when the value
@@ -73,7 +74,7 @@ class SettingsPlugin(BasePlugin):
     """a test plugin."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the instance through common __init__ method."""
         # a map of setting names to plugins
         # this is used to check for conflicts
@@ -87,7 +88,7 @@ class SettingsPlugin(BasePlugin):
         # the value is a PersistentDict object
         self.settings_values = {}
 
-    def _convert_and_validate(self, plugin_id, setting_info, value):
+    def _convert_and_validate(self, plugin_id: str, setting_info: SettingInfo, value: Any) -> Any:
         """Convert a value to the setting's type, then run its validator.
 
         Raises:
@@ -102,7 +103,9 @@ class SettingsPlugin(BasePlugin):
         return value
 
     @AddAPI("setting.add", description="add a setting to a plugin")
-    def _api_setting_add(self, plugin_id, setting_name, default, stype, help, **kwargs):
+    def _api_setting_add(
+        self, plugin_id: str, setting_name: str, default: Any, stype: Any, help: str, **kwargs: Any
+    ) -> None:
         """@Yplugin_id@w     = the plugin_id of the owner of the setting.
 
         @Ysetting_name@w  = the name of the setting
@@ -183,7 +186,7 @@ class SettingsPlugin(BasePlugin):
         self.settings_info[plugin_id][setting_name] = setting_info
 
     @AddAPI("setting.get", description="get the value of a setting")
-    def _api_setting_get(self, plugin_id, setting):
+    def _api_setting_get(self, plugin_id: str, setting: str) -> Any:
         """Get the value of a setting.
 
         @Ysetting@w = the setting value to get
@@ -204,13 +207,13 @@ class SettingsPlugin(BasePlugin):
         return value
 
     @RegisterToEvent(event_name="ev_plugin_loaded")
-    def _eventcb_settings_plugin_loaded(self):
+    def _eventcb_settings_plugin_loaded(self) -> None:
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.event.raise.all")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
-    def _eventcb_settings_plugin_unloaded(self):
+    def _eventcb_settings_plugin_unloaded(self) -> None:
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             # a plugin that failed to load may never have added a setting
@@ -219,13 +222,13 @@ class SettingsPlugin(BasePlugin):
                 self.api(f"{self.plugin_id}:setting.remove.for.plugin")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_save")
-    def _eventcb_settings_plugin_save(self):
+    def _eventcb_settings_plugin_save(self) -> None:
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.save.for.plugin")(plugin_id)
 
     @RegisterToEvent(event_name="ev_plugin_reset")
-    def _eventcb_plugin_reset(self):
+    def _eventcb_plugin_reset(self) -> None:
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             plugin_id = event_record["plugin_id"]
             self.api(f"{self.plugin_id}:setting.reset")(plugin_id)
@@ -235,7 +238,7 @@ class SettingsPlugin(BasePlugin):
         "setting.reset",
         description="reset one setting, or all settings for a plugin, to their default values",
     )
-    def _api_setting_reset(self, plugin_id, setting=None):
+    def _api_setting_reset(self, plugin_id: str, setting: str | None = None) -> bool | None:
         """Reset settings for a plugin to their default values.
 
         @Yplugin_id@w  = the plugin_id of the owner of the settings
@@ -262,7 +265,7 @@ class SettingsPlugin(BasePlugin):
         )
 
     @AddAPI("setting.set", description="change the value of a setting")
-    def _api_setting_set(self, plugin_id, setting, value):
+    def _api_setting_set(self, plugin_id: str, setting: str, value: Any) -> bool:
         """Change a setting.
 
         @Yplugin_id@w     = the plugin_id of the owner of the setting
@@ -294,7 +297,7 @@ class SettingsPlugin(BasePlugin):
         return _store_and_notify(self, plugin_id, setting, value)
 
     @AddAPI("setting.info.get", description="get the info for a setting")
-    def _api_setting_info_get(self, plugin_id, setting):
+    def _api_setting_info_get(self, plugin_id: str, setting: str) -> SettingInfo | None:
         """Get the info for a setting."""
         if plugin_id not in self.settings_info:
             return None
@@ -303,7 +306,7 @@ class SettingsPlugin(BasePlugin):
         return self.settings_info[plugin_id][setting]
 
     @AddAPI("setting.initialize.for.plugin", description="initialize the settings for a plugin")
-    def _api_setting_initialize_for_plugin(self, plugin_id):
+    def _api_setting_initialize_for_plugin(self, plugin_id: str) -> None:
         """Initialize the settings for a plugin."""
         log_to(
             [self.plugin_id, plugin_id], logging.DEBUG, "initializing settings for %s", plugin_id
@@ -326,7 +329,7 @@ class SettingsPlugin(BasePlugin):
             )
 
     @AddAPI("setting.remove.for.plugin", description="remove the settings for a plugin")
-    def _api_setting_remove_for_plugin(self, plugin_id):
+    def _api_setting_remove_for_plugin(self, plugin_id: str) -> None:
         """Removing the settings for a plugin."""
         log_to([self.plugin_id, plugin_id], logging.DEBUG, "Removing settings for %s", plugin_id)
         for i in self.settings_info.pop(plugin_id, {}):
@@ -337,7 +340,7 @@ class SettingsPlugin(BasePlugin):
             values.close()
 
     @AddAPI("setting.save.for.plugin", description="save the settings for a plugin")
-    def _api_setting_save_for_plugin(self, plugin_id):
+    def _api_setting_save_for_plugin(self, plugin_id: str) -> None:
         """Save the settings for a plugin."""
         log_to(
             [self.plugin_id, plugin_id],
@@ -349,12 +352,12 @@ class SettingsPlugin(BasePlugin):
         self.settings_values[plugin_id].sync()
 
     @AddAPI("setting.list", description="get all settings for a plugin")
-    def _api_setting_list(self, plugin_id):
+    def _api_setting_list(self, plugin_id: str) -> dict[str, SettingInfo]:
         """Get all settings info for a plugin."""
         return self.settings_info[plugin_id]
 
     @AddAPI("setting.event.raise.all", description="raise an event for all settings")
-    def _api_setting_event_raise_all(self, plugin_id):
+    def _api_setting_event_raise_all(self, plugin_id: str) -> None:
         """Raise an event for all settings."""
         log_to(
             [self.plugin_id, plugin_id],
@@ -375,12 +378,12 @@ class SettingsPlugin(BasePlugin):
             )
 
     @AddAPI("setting.is.hidden", description="check if a plugin setting is flagged hidden")
-    def _api_setting_is_hidden(self, plugin_id, setting):
+    def _api_setting_is_hidden(self, plugin_id: str, setting: str) -> bool:
         """Check if a plugin setting is hidden."""
         return self.settings_info[plugin_id][setting].hidden
 
     @AddAPI("setting.map.add", description="add a setting to the settings map")
-    def _api_setting_map_add(self, plugin_id, setting_name):
+    def _api_setting_map_add(self, plugin_id: str, setting_name: str) -> None:
         """Add a setting to the settings map."""
         if setting_name in self.settings_map:
             logger.error(
@@ -393,7 +396,7 @@ class SettingsPlugin(BasePlugin):
             return
         self.settings_map[setting_name] = plugin_id
 
-    def format_setting_for_print(self, plugin_id, setting_name):
+    def format_setting_for_print(self, plugin_id: str, setting_name: str) -> str:
         """Format a setting for printing."""
         value = self.api(f"{self.plugin_id}:setting.get")(plugin_id, setting_name)
         setting_info = self.api(f"{self.plugin_id}:setting.info.get")(plugin_id, setting_name)
@@ -409,7 +412,7 @@ class SettingsPlugin(BasePlugin):
         return str(value)
 
     @AddAPI("setting.format", description="format a setting")
-    def _api_setting_format(self, plugin_id, setting_name):
+    def _api_setting_format(self, plugin_id: str, setting_name: str) -> str:
         """Format a setting."""
         val = self.api(f"{self.plugin_id}:setting.get")(plugin_id, setting_name)
         info = self.api(f"{self.plugin_id}:setting.info.get")(plugin_id, setting_name)
@@ -428,7 +431,7 @@ class SettingsPlugin(BasePlugin):
         return f"{setting_name:<22} : {value_string:<{value_column_width}} - {help}"
 
     @AddAPI("setting.list.formatted", description="get all settings formatted")
-    def _api_setting_list_formatted(self, plugin_id):
+    def _api_setting_list_formatted(self, plugin_id: str) -> list[str]:
         """Get all settings formatted."""
         tmsg = []
         if not self.settings_info[plugin_id]:
@@ -455,7 +458,7 @@ class SettingsPlugin(BasePlugin):
         default="",
         nargs="?",
     )
-    def _command_list(self):
+    def _command_list(self) -> CommandResult:
         """List all settings."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         line_length = self.api("plugins.core.commands:output.line.length.get")()
@@ -527,7 +530,7 @@ class SettingsPlugin(BasePlugin):
     )
     @AddArgument("--default", help="reset the setting to its default value", action="store_true")
     @AddArgument("-p", "--plugin", help="the plugin of the setting", default="", nargs="?")
-    def _command_settings_plugin_sets(self):
+    def _command_settings_plugin_sets(self) -> CommandResult:
         """Command to set a plugin setting."""
         args = self.api("plugins.core.commands:command.current.args.get")()
 

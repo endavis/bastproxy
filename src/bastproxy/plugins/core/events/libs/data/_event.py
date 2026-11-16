@@ -17,7 +17,9 @@ from bastproxy.libs.records.rtypes.dictrecord import BaseDictRecord
 
 
 class EventDataRecord(BaseDictRecord):
-    def __init__(self, owner_id: str = "", event_name: str = "unknown", data: dict | None = None):
+    def __init__(
+        self, owner_id: str = "", event_name: str = "unknown", data: dict | None = None
+    ) -> None:
         """
         initialize the class
         """
@@ -43,13 +45,13 @@ class EventDataRecord(BaseDictRecord):
         else:
             self.add_parent(raised)
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """
         get a one line summary of the record
         """
         return f"{self.__class__.__name__:<20} {self.uuid} {self.event_name}"
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         attributes = super().get_attributes_to_format()
         attributes[0].append(("Event Name", "event_name"))
         return attributes

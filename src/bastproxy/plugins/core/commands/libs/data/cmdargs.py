@@ -22,7 +22,7 @@ class CmdArgsRecord(BaseDictRecord):
         data: dict | None = None,
         arg_string: str = "",
         command: str = "unknown",
-    ):
+    ) -> None:
         """
         initialize the class
         """
@@ -30,12 +30,12 @@ class CmdArgsRecord(BaseDictRecord):
         self.arg_string: str = arg_string
         self.command: str = command
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         attributes = super().get_attributes_to_format()
         attributes[0].extend([("Command", "command"), ("Arg String", "arg_string")])
         return attributes
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """
         get a one line summary of the record
         """

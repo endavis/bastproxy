@@ -10,7 +10,10 @@ This module provides the `RegisterToEvent` decorator class that allows
 functions to be automatically registered as event listeners.
 
 """
+
 # Standard Library
+from collections.abc import Callable
+from typing import Any
 
 # 3rd Party
 
@@ -22,7 +25,7 @@ CANRELOAD = False
 class RegisterToEvent:
     """a class to decorate a function to register it to an event."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize the event registration decorator.
 
         Args:
@@ -33,7 +36,7 @@ class RegisterToEvent:
         """
         self.registration_args = {"event_name": "", "priority": 50} | kwargs
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Any:
         if not hasattr(func, "event_registration"):
             func.event_registration = []
         func.event_registration.append(self.registration_args)

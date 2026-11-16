@@ -10,7 +10,9 @@ see info/add_commands.txt for more info
 """
 
 # Standard Library
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 # 3rd Party
 
@@ -33,14 +35,14 @@ class CommandResult:
     message: list[str] = field(default_factory=list)
 
 
-def set_command_autoadd(func, autoadd):
+def set_command_autoadd(func: Callable[..., Any], autoadd: bool) -> None:
     if not hasattr(func, "command_data"):
         func.command_data = CommandFuncData()
     func.command_data.command["autoadd"] = autoadd
 
 
 class CommandFuncData:
-    def __init__(self):
+    def __init__(self) -> None:
         self.command = {"autoadd": True, "kwargs": {}}
         self.argparse = {"kwargs": {"add_help": False}}
         self.arguments = []
@@ -49,7 +51,7 @@ class CommandFuncData:
 class AddCommand:
     """a class to decorate a function with command data."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.name = None
         if "name" in kwargs:
             self.name = kwargs["name"]
@@ -60,7 +62,7 @@ class AddCommand:
             del kwargs["autoadd"]
         self.command_kwargs = kwargs
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Any:
         if not hasattr(func, "command_data"):
             func.command_data = CommandFuncData()
         func.command_data.command["kwargs"].update(self.command_kwargs)
@@ -77,10 +79,10 @@ class AddParser:
     Only keyword arguments are accepted; they are passed to ``ArgumentParser``.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         self.argparse_kwargs = kwargs
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Any:
         if not hasattr(func, "command_data"):
             func.command_data = CommandFuncData()
         func.command_data.argparse["kwargs"].update(self.argparse_kwargs)
@@ -91,11 +93,11 @@ class AddParser:
 class AddArgument:
     """a class to decorate a function with argument data."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Any:
         if not hasattr(func, "command_data"):
             func.command_data = CommandFuncData()
 

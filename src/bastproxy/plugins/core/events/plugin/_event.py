@@ -17,6 +17,7 @@ import inspect
 import logging
 from collections import OrderedDict
 from collections.abc import Callable
+from typing import Any
 
 # 3rd Party
 # Project
@@ -41,7 +42,7 @@ class Event:
         created_by: str = "",
         description: list | None = None,
         arg_descriptions: dict[str, str] | None = None,
-    ):
+    ) -> None:
         """name: the name of the event.
 
         created_by: it should be the __name__ of the module or the plugin id for easy identification
@@ -66,7 +67,7 @@ class Event:
         # keys already warned about as undeclared in arg_descriptions (#466)
         self._warned_undeclared_keys: set[str] = set()
 
-    def get_active_event(self):
+    def get_active_event(self) -> Any:
         """Get the active event."""
         return self.active_event
 
@@ -74,7 +75,7 @@ class Event:
         """Return the number of functions registered to this event."""
         return sum(len(v) for v in self.priority_dictionary.values())
 
-    def isregistered(self, func) -> bool:
+    def isregistered(self, func: Callable[..., Any]) -> bool:
         """Check if a function is registered to this event."""
         return any(
             any(call_back.func == func for call_back in self.priority_dictionary[priority])
@@ -126,7 +127,7 @@ class Event:
 
         return False
 
-    def unregister(self, func) -> bool:
+    def unregister(self, func: Callable[..., Any]) -> bool:
         """Unregister a function from this event container."""
         for priority in self.priority_dictionary:
             for call_back in self.priority_dictionary[priority]:
@@ -147,7 +148,7 @@ class Event:
         )
         return False
 
-    def getownerregistrations(self, owner_id):
+    def getownerregistrations(self, owner_id: str) -> list[dict[str, Any]]:
         registrations = []
         for priority in self.priority_dictionary:
             registrations.extend(
@@ -157,7 +158,7 @@ class Event:
             )
         return registrations
 
-    def removeowner(self, owner_id):
+    def removeowner(self, owner_id: str) -> None:
         """Remove all functions related to a owner."""
         plugins_to_unregister = []
         for priority in self.priority_dictionary:
@@ -233,7 +234,7 @@ class Event:
         return message
 
     def raise_priority(
-        self, priority, already_done: bool, done: "set[Callback] | None" = None
+        self, priority: int, already_done: bool, done: "set[Callback] | None" = None
     ) -> bool:
         """Raise the event at a specific priority.
 
@@ -287,7 +288,11 @@ class Event:
         return found
 
     def _warn_undeclared_keys(
-        self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
+        self,
+        data: dict | EventDataRecord,
+        actor: str,
+        data_list: list[Any] | None = None,
+        key_name: str | None = None,
     ) -> None:
         """Warn once per event and key about payload keys missing from arg_descriptions."""
         if not self.arg_descriptions:
@@ -313,7 +318,11 @@ class Event:
         )
 
     def raise_event(
-        self, data: dict | EventDataRecord, actor: str, data_list=None, key_name=None
+        self,
+        data: dict | EventDataRecord,
+        actor: str,
+        data_list: list[Any] | None = None,
+        key_name: str | None = None,
     ) -> ProcessRaisedEvent | None:
         """Raise this event."""
         self.raised_count = self.raised_count + 1
