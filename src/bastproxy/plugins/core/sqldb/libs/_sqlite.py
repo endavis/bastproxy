@@ -188,7 +188,8 @@ class Sqldb:
                     cursor.execute(f"PRAGMA table_info({args['table']})")
                     desc = cursor.fetchall()
                     cursor.close()
-                    message.extend((f"Fields in table {args['table']}:", "-" * 40))
+                    rule_width = min(40, self.api("plugins.core.proxy:line.length.get")())
+                    message.extend((f"Fields in table {args['table']}:", "-" * rule_width))
                     message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
                     return CommandResult(True, message)
             else:

@@ -71,10 +71,11 @@ class WatchPlugin(BasePlugin):
         match = args["match"]
 
         template = "%-25s : %-13s %s"
+        rule_width = min(60, self.api("plugins.core.proxy:line.length.get")())
 
         message = [
             template % ("Name", "Defined in", "Hits"),
-            "@B" + "-" * 60 + "@w",
+            "@B" + "-" * rule_width + "@w",
         ]
         for watch_name in watches:
             watch = self.watch_data[watch_name]

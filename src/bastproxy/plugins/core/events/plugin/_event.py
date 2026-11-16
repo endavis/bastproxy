@@ -182,6 +182,8 @@ class Event:
             "plugins.core.commands", "output_subheader_color"
         )
 
+        rule_width = min(60, self.api("plugins.core.proxy:line.length.get")())
+
         description = []
         for i, line in enumerate(self.description):
             if not line:
@@ -198,10 +200,10 @@ class Event:
             f"{'Raised':<13} : {self.raised_count}",
             "",
             self.api("plugins.core.utils:string.center.colored")(
-                "@x86Registrations@w", "-", 60, filler_color=header_color
+                "@x86Registrations@w", "-", rule_width, filler_color=header_color
             ),
             f"{'priority':<13} : {'owner':<25} - function name",
-            subheader_color + "-" * 60 + "@w",
+            subheader_color + "-" * rule_width + "@w",
         ]
         function_message: list[str] = []
         for priority in sorted(self.priority_dictionary.keys()):
@@ -213,10 +215,10 @@ class Event:
             message.append("None")
         else:
             message.extend(function_message)
-        message.extend((header_color + "-" * 60 + "@w", ""))
+        message.extend((header_color + "-" * rule_width + "@w", ""))
         message.append(
             self.api("plugins.core.utils:string.center.colored")(
-                "@x86Data Keys@w", "-", 60, filler_color=header_color
+                "@x86Data Keys@w", "-", rule_width, filler_color=header_color
             )
         )
         if self.arg_descriptions and "None" not in self.arg_descriptions:
@@ -227,7 +229,7 @@ class Event:
             message.append("None")
         else:
             message.append("Unknown")
-        message.append(header_color + "-" * 60 + "@w")
+        message.append(header_color + "-" * rule_width + "@w")
 
         return message
 

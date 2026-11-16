@@ -75,6 +75,8 @@ class Harness:
             return lambda event_name: self.event_details.get(event_name, [])
         if name == "plugins.core.commands:command.current.args.get":
             return lambda: self.command_args
+        if name == "plugins.core.proxy:line.length.get":
+            return lambda: 80
         prefix = f"{PLUGIN}:"
         if name.startswith(prefix):
             method = getattr(TriggersPlugin, "_api_" + name[len(prefix) :].replace(".", "_"))
