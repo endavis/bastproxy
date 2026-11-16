@@ -78,15 +78,15 @@ class SettingsPlugin(BasePlugin):
         """Initialize the instance through common __init__ method."""
         # a map of setting names to plugins
         # this is used to check for conflicts
-        self.settings_map = {}
+        self.settings_map: dict[str, str] = {}
 
         # a dictionary of settings info
         # the key is the plugin_id and the value is a dictionary of settings info
-        self.settings_info = {}
+        self.settings_info: dict[str, dict[str, SettingInfo]] = {}
 
         # a dictionary of settings values with plugin_id as key
         # the value is a PersistentDict object
-        self.settings_values = {}
+        self.settings_values: dict[str, PersistentDict] = {}
 
     def _convert_and_validate(self, plugin_id: str, setting_info: SettingInfo, value: Any) -> Any:
         """Convert a value to the setting's type, then run its validator.
@@ -303,7 +303,8 @@ class SettingsPlugin(BasePlugin):
             return None
         if setting not in self.settings_info[plugin_id]:
             return None
-        return self.settings_info[plugin_id][setting]
+        info: SettingInfo = self.settings_info[plugin_id][setting]
+        return info
 
     @AddAPI("setting.initialize.for.plugin", description="initialize the settings for a plugin")
     def _api_setting_initialize_for_plugin(self, plugin_id: str) -> None:
@@ -354,7 +355,8 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.list", description="get all settings for a plugin")
     def _api_setting_list(self, plugin_id: str) -> dict[str, SettingInfo]:
         """Get all settings info for a plugin."""
-        return self.settings_info[plugin_id]
+        infos: dict[str, SettingInfo] = self.settings_info[plugin_id]
+        return infos
 
     @AddAPI("setting.event.raise.all", description="raise an event for all settings")
     def _api_setting_event_raise_all(self, plugin_id: str) -> None:
@@ -380,7 +382,8 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.is.hidden", description="check if a plugin setting is flagged hidden")
     def _api_setting_is_hidden(self, plugin_id: str, setting: str) -> bool:
         """Check if a plugin setting is hidden."""
-        return self.settings_info[plugin_id][setting].hidden
+        hidden: bool = self.settings_info[plugin_id][setting].hidden
+        return hidden
 
     @AddAPI("setting.map.add", description="add a setting to the settings map")
     def _api_setting_map_add(self, plugin_id: str, setting_name: str) -> None:

@@ -26,7 +26,7 @@ from bastproxy.plugins._baseplugin import BasePlugin
 
 def sort_fuzzy_result(result: Any) -> dict[Any, list[Any]]:
     """Sort a result from extract."""
-    newdict = {}
+    newdict: dict[Any, list[Any]] = {}
     for i in result:
         if i[1] not in newdict:
             newdict[i[1]] = []

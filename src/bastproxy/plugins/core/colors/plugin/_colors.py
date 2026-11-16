@@ -271,9 +271,10 @@ class ColorsPlugin(BasePlugin):
     @AddAPI("colorcode.strip", description="strip @@ colors")
     def _api_colorcode_strip(self, text: str) -> str:
         """Strip @@ colors."""
-        return self.api(f"{self.plugin_id}:ansicode.strip")(
+        stripped: str = self.api(f"{self.plugin_id}:ansicode.strip")(
             self.api(f"{self.plugin_id}:colorcode.to.ansicode")(text)
         )
+        return stripped
 
     @AddParser(description="show colors")
     @AddArgument("-c", "--compact", help="show a compact version", action="store_true")
@@ -286,7 +287,7 @@ class ColorsPlugin(BasePlugin):
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
         message = [""]
-        row_message = []
+        row_message: list[str] = []
         compact = False
         joinc = " "
         if args["compact"]:

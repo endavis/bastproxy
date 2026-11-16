@@ -81,7 +81,7 @@ class PluginManager(BasePlugin):
                 }
             )
 
-        msg = self.api("plugins.core.utils:table.format")(header, data, columns)
+        msg: list[str] = self.api("plugins.core.utils:table.format")(header, data, columns)
 
         if foundrequired and required_color_line:
             msg.extend(("", f"* {required_color}Required plugins appear in this color@w"))
@@ -322,7 +322,7 @@ class PluginManager(BasePlugin):
 
         plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
 
-        tmsg = []
+        tmsg: list[str] = []
         if plugin_response["loaded_plugins"]:
             for plugin_id in plugin_response["loaded_plugins"]:
                 self.api("plugins.core.events:event.raise")(f"ev_{plugin_id}_loaded")

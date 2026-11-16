@@ -12,7 +12,7 @@ import math
 import re
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 # 3rd Party
@@ -122,16 +122,18 @@ class UtilsPlugin(BasePlugin):
             list_of_strings[i : i + number_of_columns]
             for i in range(0, len(list_of_strings), number_of_columns)
         ]
+        rows: Iterable[Sequence[str]] = plist
         if columnwise:
             if len(plist[-1]) != number_of_columns:
                 plist[-1].extend([""] * (len(list_of_strings) - len(plist[-1])))
-            plist = zip(*plist, strict=False)
-        return ["".join([c.ljust(max_len + gap) for c in p]) for p in plist]
+            rows = zip(*plist, strict=False)
+        return ["".join([c.ljust(max_len + gap) for c in p]) for p in rows]
 
     @AddAPI("object.dump", description="dump an object as a string")
     def _api_object_dump(self, object: Any) -> str:
         """Dump an object as a string."""
-        return dumps(object)
+        dumped: str = dumps(object)
+        return dumped
 
     @AddAPI(
         "dict.key.list",
@@ -189,7 +191,7 @@ class UtilsPlugin(BasePlugin):
             out = temp_string.replace(" days, ", ":")
         else:
             out = f"0:{delta!s}"
-        outar = out.split(":")
+        outar: list[str] | list[int] = out.split(":")
         outar = [(int(float(x))) for x in outar]
         message = []
         days, hours = False, False
@@ -212,7 +214,7 @@ class UtilsPlugin(BasePlugin):
     )
     def _api_number_to_readable(self, num: float, places: int = 2) -> Any:
         """Convert a number to a shorter readable number."""
-        converted_string = ""
+        converted_string: str | float = ""
         nform = f"%00.0{places}f"
         if not num:
             return 0
@@ -390,7 +392,7 @@ class UtilsPlugin(BasePlugin):
         """Check a list for a match of arg."""
         string_to_match = str(arg)
         match = f"{string_to_match}*"
-        matches = {"partofstring": [], "frontofstring": []}
+        matches: dict[str, list[str]] = {"partofstring": [], "frontofstring": []}
         if arg in item_list or string_to_match in item_list:
             return [arg]
 

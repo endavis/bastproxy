@@ -45,7 +45,8 @@ class BanRecord:
     @property
     def expires(self) -> str:
         if next_fire := self.api("plugins.core.timers:timer.next.fire.get")(self.timer_name):
-            return next_fire.strftime(self.api.time_format)
+            formatted: str = next_fire.strftime(self.api.time_format)
+            return formatted
         return "Permanent"
 
     def remove(self) -> None:
@@ -134,9 +135,10 @@ class ClientPlugin(BasePlugin):
     def _api_client_banned_add(self, client_uuid: str, how_long: int = 600) -> bool:
         """Add a banned client."""
         self.clients[client_uuid].connected = False
-        return self.api(f"{self.plugin_id}:client.banned.add.by.ip")(
+        banned: bool = self.api(f"{self.plugin_id}:client.banned.add.by.ip")(
             self.clients[client_uuid].addr, how_long
         )
+        return banned
 
     @AddAPI("client.banned.add.by.ip", description="add a banned ip")
     def _api_client_banned_add_by_ip(self, ip_address: str, how_long: int) -> bool:
@@ -386,7 +388,7 @@ class ClientPlugin(BasePlugin):
         found_ips = set(removed + added)
         not_found = set(args["ips"]) - found_ips
 
-        tmsg = []
+        tmsg: list[str] = []
         if removed:
             tmsg.extend((f"Removed {len(removed)} IPs from the ban list", ", ".join(removed)))
         if added:

@@ -31,7 +31,7 @@ class SSC:
         self.data_directory = data_directory
         self.file_name = Path(self.data_directory) / Path(self.name)
 
-        self.default = kwargs.get("default", "")
+        self.default: str = kwargs.get("default", "")
         self.desc = kwargs.get("desc", "setting")
 
     @AddAPI("ssc.{name}.get", description="get the {desc} value")

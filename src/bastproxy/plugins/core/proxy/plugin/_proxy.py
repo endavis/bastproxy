@@ -251,16 +251,20 @@ class ProxyPlugin(BasePlugin):
     @AddAPI("preamble.get", description="get the preamble")
     def _api_preamble_get(self) -> str:
         """Get the preamble."""
-        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamble")
+        preamble: str = self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamble")
+        return preamble
 
     @AddAPI("preamble.color.get", description="get the preamble color")
     def _api_preamble_color_get(self, error: bool = False) -> str:
         """Get the preamble color."""
+        color: str
         if error:
-            return self.api("plugins.core.settings:setting.get")(
+            color = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "preambleerrorcolor"
             )
-        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamblecolor")
+            return color
+        color = self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamblecolor")
+        return color
 
     @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
     def _eventcb_sendusernameandpw(self) -> None:
@@ -411,7 +415,7 @@ class ProxyPlugin(BasePlugin):
         """Check for mud settings."""
         if not self.api("plugins.core.events:event.current.record.get")():
             return
-        tmsg = []
+        tmsg: list[str] = []
         divider = "@R------------------------------------------------@w"
         if self.mud_connection and self.mud_connection.connecting:
             tmsg.extend(
@@ -605,7 +609,7 @@ class ProxyPlugin(BasePlugin):
         ]
 
         if args["networkinterfaces"]:
-            nic_addresses = []
+            nic_addresses: list[dict[str, Any]] = []
             for nic in net_if_addrs:
                 nic_addresses.extend(
                     {"nic": nic, "address": addr.address, "type": addr.family.name}
