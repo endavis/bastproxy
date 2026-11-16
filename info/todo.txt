@@ -18,7 +18,6 @@
 # IDEAS
     # IDEA: use Pydantic models to pass data and parameters around instead of dicts
         or many function parameters, for type checking and error handling (new dependency)
-    # IDEA: look at anyio or uvloop to replace plain asyncio?
     # IDEA: look at pyinstrument for profiling? (the perf-change skill uses cProfile today)
 
 # REVISIT
