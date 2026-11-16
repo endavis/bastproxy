@@ -479,7 +479,7 @@ class CommandsPlugin(BasePlugin):
         parser.add_argument("-h", "--help", help="show help", action="store_true")
         parser.formatter_class = argp.CustomFormatter
 
-        parser.prog = self.api("plugins.core.commands:command.format")(self.plugin_id, command_name)
+        parser.prog = self.api("plugins.core.commands:command.format")(plugin_id, command_name)
 
         command_kwargs = copy.deepcopy(command_data.command["kwargs"])
 
