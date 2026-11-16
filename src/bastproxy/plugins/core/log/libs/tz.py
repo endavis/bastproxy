@@ -8,13 +8,17 @@
 
 # Standard Library
 import datetime
+import logging
+from typing import Any
 
 # Third Party
 
 # Project
 
 
-def format_time_rfc3339_utc(self, record, _datefmt=None):
+def format_time_rfc3339_utc(
+    self: logging.Formatter, record: Any, _datefmt: str | None = None
+) -> str:
     """Formats a timestamp in the RFC3339 format in the UTC timezone.
 
     Args:
@@ -29,7 +33,7 @@ def format_time_rfc3339_utc(self, record, _datefmt=None):
     return datetime.datetime.fromtimestamp(record.created).astimezone(datetime.UTC).isoformat()
 
 
-def format_time_rfc3339(self, record, _datefmt=None):
+def format_time_rfc3339(self: logging.Formatter, record: Any, _datefmt: str | None = None) -> str:
     """Formats a timestamp in the RFC3339 format in the local timezone.
 
     Args:

@@ -27,7 +27,7 @@ class LogPlugin(BasePlugin):
     """a class to manage logging."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Init the class."""
         self.record_manager = RMANAGER
         self.log_directory = self.api.BASEDATAPATH / "logs"
@@ -55,7 +55,7 @@ class LogPlugin(BasePlugin):
     @RegisterPluginHook("__init__", priority=99)
     def _phook_log_post_init_custom_logging(
         self,
-    ):  # pyright: ignore[reportInvalidTypeVarUse]
+    ) -> None:  # pyright: ignore[reportInvalidTypeVarUse]
         # setup file logging and network data logging
         get_logger(self.plugin_id).debug("setting up custom logging")
         setup_loggers(logging.DEBUG)
@@ -64,7 +64,7 @@ class LogPlugin(BasePlugin):
                 self._sync_threshold(name)
 
     @RegisterPluginHook("after_load")
-    def _phook_initialize(self):
+    def _phook_initialize(self) -> None:
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -99,7 +99,7 @@ class LogPlugin(BasePlugin):
         )
 
     @AddAPI("log.level.color.get", description="get the color for a log level")
-    def _api_log_level_color_get(self, level):
+    def _api_log_level_color_get(self, level: int | str) -> str:
         """Get the color for a log level."""
         if isinstance(level, int):
             level = logging.getLevelName(level).lower()
@@ -159,7 +159,7 @@ class LogPlugin(BasePlugin):
         set_threshold(top, lowest if lowest < logging.INFO else None)
 
     @AddAPI("logger.console.is.enabled", description="check if a logger can log to the console")
-    def _api_logger_console_is_enabled(self, logger, level):
+    def _api_logger_console_is_enabled(self, logger: str, level: int) -> bool:
         """Check if a logger can log to the console.
 
         if the logger hasn't been seen, it will default to logging.INFO
@@ -173,7 +173,7 @@ class LogPlugin(BasePlugin):
         return level >= convlevel
 
     @AddAPI("logger.file.is.enabled", description="check if a logger can log to file")
-    def _api_logger_file_is_enabled(self, logger, level):
+    def _api_logger_file_is_enabled(self, logger: str, level: int) -> bool:
         """Check if a logger can log to the file.
 
         if the logger hasn't been seen, it will default to logging.INFO
@@ -187,7 +187,7 @@ class LogPlugin(BasePlugin):
         return level >= convlevel
 
     @AddAPI("logger.client.is.enabled", description="check if a logger can log to the client")
-    def _api_logger_client_is_enabled(self, logger, level):
+    def _api_logger_client_is_enabled(self, logger: str, level: int) -> bool:
         """Check if a logger can log to the client.
 
         if the logger hasn't been seen, do not allow logging to the client
@@ -199,7 +199,9 @@ class LogPlugin(BasePlugin):
         )
 
     @AddAPI("logger.client.level.set", description="toggle a log type to show to clients")
-    def _api_logger_client_level_set(self, logtype, level: str = "info", flag=True):
+    def _api_logger_client_level_set(
+        self, logtype: str, level: int | str = "info", flag: bool = True
+    ) -> None:
         """Toggle a log type to show to clients.
 
         @Ylogtype@w   = the type to toggle, can be multiple (list)
@@ -265,7 +267,7 @@ class LogPlugin(BasePlugin):
         action="store_true",
         default=False,
     )
-    def _command_client(self):
+    def _command_client(self) -> CommandResult:
         """Toggle logtypes shown to client."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
@@ -299,7 +301,7 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddAPI("logger.console.level.set", description="toggle a log type to show to console")
-    def _api_logger_console_level_set(self, logtype, level="info"):
+    def _api_logger_console_level_set(self, logtype: str, level: int | str = "info") -> None:
         """Toggle a log type to show to console.
 
         @Ylogtype@w   = the type to toggle
@@ -340,7 +342,7 @@ class LogPlugin(BasePlugin):
           if no arguments, log types that are currenty sent to the console will be listed"""
     )
     @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
-    def _command_console(self):
+    def _command_console(self) -> CommandResult:
         """Toggle logtypes to the console."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
@@ -377,7 +379,7 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddAPI("logger.file.level.set", description="toggle a log type to log to a file")
-    def _api_logger_file_level_set(self, logtype, level="info"):
+    def _api_logger_file_level_set(self, logtype: str, level: int | str = "info") -> None:
         """Toggle a log type to log to a file.
 
         @Ylogtype@w   = the type to toggle
@@ -423,7 +425,7 @@ class LogPlugin(BasePlugin):
         help="do not log to file with a timestamp",
         action="store_false",
     )
-    def _command_file(self):
+    def _command_file(self) -> CommandResult:
         """Toggle a logtype to log to a file."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
@@ -462,7 +464,7 @@ class LogPlugin(BasePlugin):
         default="",
         nargs="?",
     )
-    def _command_types(self):
+    def _command_types(self) -> CommandResult:
         """List log types."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         types = []
@@ -514,7 +516,7 @@ class LogPlugin(BasePlugin):
         choices=["debug", "info", "warning", "error", "critical"],
         required=True,
     )
-    def _command_test(self):
+    def _command_test(self) -> CommandResult:
         """Send test records to logging facilities."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         logtype = args["logtype"]
@@ -545,7 +547,7 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddAPI("logger.type.clean", description="clean log types that have not been logged to")
-    def _api_logger_type_clean(self):
+    def _api_logger_type_clean(self) -> list[str]:
         """Clean log types with no counts."""
         remove = []
 
@@ -577,12 +579,12 @@ class LogPlugin(BasePlugin):
         return remove
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
-    def _eventcb_proxy_shutdown(self):
+    def _eventcb_proxy_shutdown(self) -> None:
         """Clean up log types."""
         self.api(f"{self.plugin_id}:logger.type.clean")()
 
     @AddParser(description="remove log types that have not been used")
-    def _command_clean(self):
+    def _command_clean(self) -> CommandResult:
         """Remove log types that have not been used."""
         remove = self.api(f"{self.plugin_id}:logger.type.clean")()
 
@@ -593,7 +595,7 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @RegisterPluginHook("save")
-    def _phook_log_save(self):
+    def _phook_log_save(self) -> None:
         """Save items not covered by baseplugin class."""
         self.handlers["client"].sync()
         self.handlers["file"].sync()

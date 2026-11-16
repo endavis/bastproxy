@@ -6,11 +6,13 @@
 # By: Bast
 
 # Standard Library
+from collections.abc import KeysView, ValuesView
 from functools import partial
 
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net.client import ClientConnection
+from bastproxy.libs.records import NetworkDataLine
 
 # 3rd Party
 # Project
@@ -19,7 +21,9 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResul
 
 
 class BanRecord:
-    def __init__(self, plugin_id: str, ip_addr: str, how_long: int = 600, copy: bool = False):
+    def __init__(
+        self, plugin_id: str, ip_addr: str, how_long: int = 600, copy: bool = False
+    ) -> None:
         self.api = API(owner_id=f"{plugin_id}:Ban:{ip_addr}")
         self.plugin_id: str = plugin_id
         self.ip_addr: str = ip_addr
@@ -44,11 +48,11 @@ class BanRecord:
             return next_fire.strftime(self.api.time_format)
         return "Permanent"
 
-    def remove(self):
+    def remove(self) -> None:
         if self.api("plugins.core.timers:timer.exists")(self.timer_name):
             self.api("plugins.core.timers:timer.remove")(self.timer_name)
 
-    def copy(self, newclass):
+    def copy(self, newclass: type["BanRecord"]) -> "BanRecord":
         newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)
         newrecord.timer_name = self.timer_name
         return newrecord
@@ -58,7 +62,7 @@ class ClientPlugin(BasePlugin):
     """a plugin to show connection information."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the plugin."""
         self.attributes_to_save_on_reload = ["clients", "banned"]
 
@@ -66,7 +70,7 @@ class ClientPlugin(BasePlugin):
         self.banned: dict[str, BanRecord] = {}
 
     @RegisterPluginHook("after_load")
-    def _phook_initialize(self):
+    def _phook_initialize(self) -> None:
         """Initialize the plugin."""
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id,
@@ -110,24 +114,24 @@ class ClientPlugin(BasePlugin):
                 self.banned[item] = self.banned[item].copy(BanRecord)
 
     @AddAPI("client.count", description="return the # of clients connected")
-    def _api_client_count(self):
+    def _api_client_count(self) -> int:
         """Return the # of clients connected."""
         return len(self.clients)
 
     @AddAPI("client.get", description="get a client by uuid")
-    def _api_client_get(self, client_uuid):
+    def _api_client_get(self, client_uuid: str) -> ClientConnection | None:
         """Get a client by uuid."""
         return self.clients.get(client_uuid, None)
 
     @AddAPI("client.send", description="send data to a client")
-    def _api_client_send(self, client_uuid, data):
+    def _api_client_send(self, client_uuid: str, data: NetworkDataLine) -> None:
         """Send data to a client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].send_to(data)
         return None
 
     @AddAPI("client.banned.add", description="add a banned client")
-    def _api_client_banned_add(self, client_uuid, how_long=600):
+    def _api_client_banned_add(self, client_uuid: str, how_long: int = 600) -> bool:
         """Add a banned client."""
         self.clients[client_uuid].connected = False
         return self.api(f"{self.plugin_id}:client.banned.add.by.ip")(
@@ -135,7 +139,7 @@ class ClientPlugin(BasePlugin):
         )
 
     @AddAPI("client.banned.add.by.ip", description="add a banned ip")
-    def _api_client_banned_add_by_ip(self, ip_address, how_long):
+    def _api_client_banned_add_by_ip(self, ip_address: str, how_long: int) -> bool:
         """Add a banned ip."""
         if how_long == -1:
             permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
@@ -159,7 +163,7 @@ class ClientPlugin(BasePlugin):
         return False
 
     @AddAPI("client.is.banned", description="check if a client is banned")
-    def _api_client_is_banned(self, clientip):
+    def _api_client_is_banned(self, clientip: str) -> bool:
         """Check if a client is banned.
 
         required
@@ -169,7 +173,7 @@ class ClientPlugin(BasePlugin):
         return clientip in self.banned or clientip in permbanips
 
     @AddAPI("client.banned.remove", description="remove a banned ip")
-    def _api_client_banned_remove(self, addr, auto=False):
+    def _api_client_banned_remove(self, addr: str, auto: bool = False) -> bool:
         """Remove a banned ip."""
         if auto:
             msg = f"{addr} : ban has timed out and is no longer banned."
@@ -191,7 +195,7 @@ class ClientPlugin(BasePlugin):
         return False
 
     @AddAPI("client.is.view.client", description="check if a client is a view client")
-    def _api_is_client_view_client(self, client_uuid):
+    def _api_is_client_view_client(self, client_uuid: str) -> bool:
         """Check if a client is a view client."""
         if client_uuid in self.clients:
             return self.clients[client_uuid].view_only
@@ -199,12 +203,12 @@ class ClientPlugin(BasePlugin):
         return False
 
     @AddAPI("client.is.logged.in", description="check if a client is logged in")
-    def _api_client_is_logged_in(self, client_uuid):
+    def _api_client_is_logged_in(self, client_uuid: str) -> bool:
         """Check if a client is logged in."""
         return bool(client_uuid in self.clients and self.clients[client_uuid].state["logged in"])
 
     @AddAPI("client.logged.in.set", description="set a client as logged in")
-    def _api_client_logged_in_set(self, client_uuid):
+    def _api_client_logged_in_set(self, client_uuid: str) -> None:
         """Set a client as logged in."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
@@ -225,7 +229,7 @@ class ClientPlugin(BasePlugin):
         "client.logged.in.set.view.only",
         description="set a client as logged in for view only",
     )
-    def _api_client_logged_in_set_view_only(self, client_uuid):
+    def _api_client_logged_in_set_view_only(self, client_uuid: str) -> None:
         """Set a client as logged in for view only."""
         if client_uuid in self.clients:
             client_connection = self.clients[client_uuid]
@@ -245,7 +249,7 @@ class ClientPlugin(BasePlugin):
             )
 
     @AddAPI("client.add", description="add a connected client")
-    def _api_client_add(self, client_connection):
+    def _api_client_add(self, client_connection: ClientConnection) -> None:
         """Add a connected client."""
         if client_connection.uuid in self.clients:
             get_logger(self.plugin_id).warning("Client %s already exists", client_connection.uuid)
@@ -256,7 +260,7 @@ class ClientPlugin(BasePlugin):
         )
 
     @AddAPI("client.remove", description="remove a connected client")
-    def _api_client_remove(self, client_connection):
+    def _api_client_remove(self, client_connection: ClientConnection) -> None:
         """Remove a connected client."""
         if client_connection.uuid in self.clients:
             del self.clients[client_connection.uuid]
@@ -272,7 +276,9 @@ class ClientPlugin(BasePlugin):
             )
 
     @AddAPI("client.list", description="list all clients")
-    def _api_client_list(self, uuid_only=False):
+    def _api_client_list(
+        self, uuid_only: bool = False
+    ) -> KeysView[str] | ValuesView[ClientConnection]:
         """List all clients.
 
         Return the client uuids if uuid_only is set, else the client connections.
@@ -343,7 +349,7 @@ class ClientPlugin(BasePlugin):
         return tmsg
 
     @AddParser(description="list clients that are connected")
-    def _command_show(self):
+    def _command_show(self) -> CommandResult:
         """Show all clients."""
         return CommandResult(True, self.api(f"{self.plugin_id}:client.list.formatted")())
 
@@ -354,7 +360,7 @@ class ClientPlugin(BasePlugin):
         default=None,
         nargs="*",
     )
-    def _command_ban(self):
+    def _command_ban(self) -> CommandResult:
         """Required.
 
           ips - a list of IPs to ban or remove (this is a toggle).

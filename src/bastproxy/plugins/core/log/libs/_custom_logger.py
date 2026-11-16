@@ -11,6 +11,7 @@ see info/logging_notes.txt for more information about logging
 
 # Standard Library
 import copy
+import datetime
 import logging
 import logging.handlers
 import numbers
@@ -18,7 +19,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 # Third Party
 # Project
@@ -45,7 +46,7 @@ data_logger_log_file = "networkdata.log"
 type_counts = {}
 
 
-def update_type_counts(name, level):
+def update_type_counts(name: str, level: int | str) -> None:
     logger_name = get_toplevel(name)
     if isinstance(level, numbers.Number):
         level = logging.getLevelName(level).lower()  # type: ignore
@@ -72,7 +73,7 @@ class CustomColorFormatter(logging.Formatter):
     critical = f"\x1b[{ALLCONVERTCOLORS['@r']}m"
     reset = "\x1b[0m"
 
-    def __init__(self, fmt: str):
+    def __init__(self, fmt: str) -> None:
         super().__init__()
         self.fmt = fmt
         self.api = API(owner_id="plugins.core.log:CustomColorFormatter")
@@ -84,7 +85,7 @@ class CustomColorFormatter(logging.Formatter):
             logging.CRITICAL: self.critical + self.fmt + self.reset,
         }
 
-    def format(self, record):
+    def format(self, record: Any) -> str:
         if record.name != "root":
             if "exc_info" in record.__dict__ and record.exc_info:
                 # work on a copy so the other handlers still see the original record
@@ -108,12 +109,12 @@ class CustomColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def _record_names(record) -> tuple[str, ...]:
+def _record_names(record: Any) -> tuple[str, ...]:
     """Get the names a record was logged to."""
     return getattr(record, "log_sources", None) or (record.name,)
 
 
-def _first_allowed(record, api, api_name: str):
+def _first_allowed(record: Any, api: API, api_name: str) -> str | None:
     """Get the first name the handler allows, or None.
 
     If the check API does not exist yet, the first name is allowed.
@@ -128,7 +129,7 @@ def _first_allowed(record, api, api_name: str):
     return None
 
 
-def _emit_as(record, name):
+def _emit_as(record: Any, name: str) -> Any:
     """Get a copy of the record under the name that is shown."""
     if name == record.name:
         return record
@@ -138,12 +139,12 @@ def _emit_as(record, name):
 
 
 class CustomConsoleHandler(logging.StreamHandler):
-    def __init__(self, stream=sys.stdout):
+    def __init__(self, stream: TextIO = sys.stdout) -> None:
         super().__init__(stream=stream)
         self.api = API(owner_id="plugins.core.log:CustomConsoleHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record):
+    def emit(self, record: Any) -> None:
         # Check if quiet mode is enabled
         if self.api.quiet_mode:
             return
@@ -202,20 +203,20 @@ class PrivateTimedRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRo
 class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotatingFileHandler):
     def __init__(
         self,
-        filename,
-        when="midnight",
-        interval=1,
-        backupCount=0,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
-        encoding=None,
-        delay=False,
-        utc=False,
-        atTime=None,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
-    ):
+        filename: str | os.PathLike[str],
+        when: str = "midnight",
+        interval: int = 1,
+        backupCount: int = 0,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
+        encoding: str | None = None,
+        delay: bool = False,
+        utc: bool = False,
+        atTime: datetime.time | None = None,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
+    ) -> None:
         super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
         self.api = API(owner_id="plugins.core.log:CustomRotatingFileHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record):
+    def emit(self, record: Any) -> None:
         for name in _record_names(record):
             update_type_counts(name, record.levelno)
         try:
@@ -227,12 +228,12 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
 
 
 class CustomClientHandler(logging.Handler):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.api = API(owner_id="plugins.core.log:CustomClientHandler")
         self.setLevel(logging.DEBUG)
 
-    def emit(self, record):
+    def emit(self, record: Any) -> None:
         if self.api.startup:
             return
 
@@ -261,7 +262,7 @@ class CustomClientHandler(logging.Handler):
         SendDataDirectlyToClient(new_message)()
 
 
-def reset_logging():
+def reset_logging() -> None:
     """Reset logging handlers and filters."""
     rootlogger = logging.getLogger()
     while rootlogger.hasHandlers():
@@ -277,7 +278,7 @@ def reset_logging():
     list(map(rootlogger.removeFilter, rootlogger.filters[:]))
 
 
-def setup_loggers(log_level: int):
+def setup_loggers(log_level: int) -> None:
     from bastproxy.libs.api import API
 
     reset_logging()

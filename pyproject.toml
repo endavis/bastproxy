@@ -161,12 +161,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/bastproxy/plugins/core/sqldb/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/triggers/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/log/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/clients/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/colors/**" = ["ANN"]  # annotated in later #6 PRs
-"src/bastproxy/plugins/core/mudcmds/**" = ["ANN"]  # annotated in later #6 PRs
 "src/bastproxy/plugins/core/proxy/**" = ["ANN"]  # annotated in later #6 PRs
 "src/bastproxy/plugins/core/watch/**" = ["ANN"]  # annotated in later #6 PRs
 "src/bastproxy/plugins/core/ssc/**" = ["ANN"]  # annotated in later #6 PRs
