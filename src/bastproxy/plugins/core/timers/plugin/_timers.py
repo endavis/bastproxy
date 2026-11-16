@@ -75,7 +75,7 @@ class Timer(Callback):
             log (bool): True if the timer should show up in the logs. Defaults to True.
         """
         super().__init__(name, plugin_id, func, enabled)
-        self.seconds: int = seconds
+        self.seconds: float = seconds
         self.api = API(owner_id=f"{plugin_id}:Timer:{name}")
 
         self.onetime: bool = False
@@ -183,7 +183,7 @@ class TimersPlugin(BasePlugin):
 
     @AddParser(description="toggle log flag for a timer")
     @AddArgument("timername", help="the timer name", default="", nargs="?")
-    def _command_log(self) -> tuple[bool, list[str]]:
+    def _command_log(self) -> CommandResult:
         """Change the log flag for a timer."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
@@ -251,7 +251,7 @@ class TimersPlugin(BasePlugin):
         default="",
         nargs="?",
     )
-    def _command_list(self) -> tuple[bool, list[str]]:
+    def _command_list(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         list timers and the plugins they are defined in
@@ -293,7 +293,7 @@ class TimersPlugin(BasePlugin):
 
     @AddParser(description="get details for a timer")
     @AddArgument("timers", help="a list of timers to get details", default=None, nargs="*")
-    def _command_detail(self) -> tuple[bool, list[str]]:
+    def _command_detail(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         list the details of a timer
@@ -363,7 +363,7 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("timer.add", description="add a timer")
     def _api_timer_add(
-        self, name: str, func: Callable, seconds: int, **kwargs: Any
+        self, name: str, func: Callable | None, seconds: int, **kwargs: Any
     ) -> Timer | None:
         """Add a timer.
 

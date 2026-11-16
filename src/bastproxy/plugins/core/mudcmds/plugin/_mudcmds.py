@@ -53,7 +53,7 @@ class MUDCmdsPlugin(BasePlugin):
         self.queue: list[QueuedCommand] = []
         self.cmds: dict[str, MudCmdType] = {}
         self.current_command: QueuedCommand | None = None
-        self.timing_uid = None
+        self.timing_uid: str | None = None
 
         self.reload_dependents_f = True
 

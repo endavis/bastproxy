@@ -67,8 +67,7 @@ class WatchPlugin(BasePlugin):
     def _command_list(self) -> CommandResult:
         """List watches."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        watches = self.watch_data.keys()
-        watches = sorted(watches)
+        watches = sorted(self.watch_data.keys())
         match = args["match"]
 
         template = "%-25s : %-13s %s"
@@ -89,7 +88,7 @@ class WatchPlugin(BasePlugin):
     def _command_detail(self) -> CommandResult:
         """List the details of a watch."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args["watch"]:
             columnwidth = 13
             for watch in args["watch"]:
