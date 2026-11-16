@@ -293,6 +293,12 @@ Arguments support all argparse features:
 - `metavar`: Name in help text
 - `dest`: Destination variable name
 
+#### Why argparse, not plac, and the `+` prefix (#435)
+
+plac is a decorator layer over argparse. It does not accept a `+` prefix out of the box (`++openfiles` parsed as a positional), defaults to `allow_abbrev=True` and exits via `SystemExit`. It would need the same overrides as `argp.ArgumentParser` plus a rewrite of every `@AddArgument` command, so `ArgumentParser` stays.
+
+For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the commands plugin passes them to `argp.ArgumentParser`, so `@AddParser(prefix_chars="-+")` works. Pair it with a `+of`/`++openfiles` `store_true` argument sharing a `dest`. Caveat: a positional value starting with `+` (e.g. `+5`) is then read as an option, so opt in per command only.
+
 ## Important Files
 
 ### Core Command System

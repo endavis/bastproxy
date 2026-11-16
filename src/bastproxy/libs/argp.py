@@ -44,6 +44,8 @@ from typing import NoReturn
 # Project
 
 
+# plac was evaluated and rejected in #435; see docs/claude/command_system.md.
+# prefix_chars="-+" gives `+` prefixes.
 class ArgumentParser(argparse.ArgumentParser):
     """A subclass of argparse.ArgumentParser that raises an error instead of exiting."""
 
