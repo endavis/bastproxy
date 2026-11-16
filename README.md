@@ -66,6 +66,7 @@ uv run bastproxy --port 9999 --IPv4-address localhost
 2. Connect your MUD client to `localhost:9999`
 3. BastProxy will prompt you to configure your MUD connection
 4. Once configured, BastProxy connects to your MUD server
+5. Run `#bp.core.help.topic` to see the in-proxy guides
 
 ## Configuration
 
@@ -81,6 +82,7 @@ Configuration files are stored in `data/plugins/`. Each plugin maintains its own
 - **log**: Logging infrastructure
 - **settings**: Plugin settings management
 - **colors**: ANSI/Xterm color handling
+- **help**: In-proxy guides to using the proxy (#bp.core.help.topic)
 
 ## Plugin Development
 
