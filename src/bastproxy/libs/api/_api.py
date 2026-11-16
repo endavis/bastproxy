@@ -1037,14 +1037,19 @@ class API:  # sourcery skip: upper-camel-case-classes
 
         api_data.sort()
 
+        # libs.api runs before the proxy plugin loads, so fall back to the full 50 columns
+        rule_width = 50
+        if self("libs.api:api.exists")("plugins.core.proxy:line.length.get"):
+            rule_width = min(50, self("plugins.core.proxy:line.length.get")())
+
         top_levels: list[str] = []
         for i in api_data:
             toplevel, _ = i.split(":", 1)
             if toplevel not in top_levels:
                 if top_levels:
-                    tmsg.append("@B" + "-" * 50 + "@w")
+                    tmsg.append("@B" + "-" * rule_width + "@w")
                 top_levels.append(toplevel)
-                tmsg.extend((f"@G{toplevel:<10}@w", "@B" + "-" * 50 + "@w"))
+                tmsg.extend((f"@G{toplevel:<10}@w", "@B" + "-" * rule_width + "@w"))
 
             if item_data := self._api_data_get(i):
                 tmsg.extend(

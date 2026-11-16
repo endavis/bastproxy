@@ -48,6 +48,7 @@ class Commands(Protocol):
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
         width = 25
+        rule_width = min(60, self.api("plugins.core.proxy:line.length.get")())
 
         msg = [
             f"{'Plugin ID':<{width}} : {self.plugin_id}",
@@ -78,13 +79,13 @@ class Commands(Protocol):
                     self.api("plugins.core.utils:string.center.colored")(
                         "@x86Files that have change since loading@w",
                         "-",
-                        60,
+                        rule_width,
                         filler_color="@B",
                     )
                 )
             msg.append(f"    : {file}")
         if file_header:
-            msg.append("@B" + "-" * 60 + "@w")
+            msg.append("@B" + "-" * rule_width + "@w")
 
         file_header = False
         for file in self.api("libs.plugins.loader:plugin.file.list.invalid")(self.plugin_id):
@@ -96,13 +97,13 @@ class Commands(Protocol):
                     self.api("plugins.core.utils:string.center.colored")(
                         "@x86Files that are invalid python@w",
                         "-",
-                        60,
+                        rule_width,
                         filler_color="@B",
                     )
                 )
             msg.append(f"    : {file}")
         if file_header:
-            msg.append("@B" + "-" * 60 + "@w")
+            msg.append("@B" + "-" * rule_width + "@w")
 
         if msg[-1] != "":
             msg.append("")
@@ -110,9 +111,9 @@ class Commands(Protocol):
         if args["commands"]:
             cmd_output = self.api("plugins.core.commands:command.list.formatted")(self.plugin_id)
             msg.extend(cmd_output)
-            msg.extend(("@G" + "-" * 60 + "@w", ""))
+            msg.extend(("@G" + "-" * rule_width + "@w", ""))
         if args["api"] and (api_list := self.api("libs.api:api.list.formatted")(self.plugin_id)):
-            msg.extend((f"API functions in {self.plugin_id}", "@G" + "-" * 60 + "@w"))
+            msg.extend((f"API functions in {self.plugin_id}", "@G" + "-" * rule_width + "@w"))
             msg.extend(api_list)
         return CommandResult(True, msg)
 

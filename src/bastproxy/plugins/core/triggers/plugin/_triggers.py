@@ -778,10 +778,11 @@ class TriggersPlugin(BasePlugin):
         match = args["match"]
 
         template = "%-25s : %-30s %-9s %-5s %s"
+        rule_width = min(60, self.api("plugins.core.proxy:line.length.get")())
 
         message = [
             template % ("Name", "Defined in", "Enabled", "Hits", "Id"),
-            "@B" + "-" * 60 + "@w",
+            "@B" + "-" * rule_width + "@w",
         ]
         for trigger_id in trigger_ids:
             trigger = self.triggers[trigger_id]

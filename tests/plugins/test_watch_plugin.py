@@ -219,6 +219,7 @@ def _command_stub(args: dict[str, Any], detail: Any = None) -> Any:
     """Return a stub plugin for the list and detail commands."""
     api_map: dict[str, Any] = {
         "plugins.core.commands:command.current.args.get": lambda: args,
+        "plugins.core.proxy:line.length.get": lambda: 80,
     }
     if detail is not None:
         api_map["plugins.core.events:event.detail.get"] = detail

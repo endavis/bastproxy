@@ -139,11 +139,12 @@ class ProcessRaisedEvent(BaseRecord):
         subheader_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
+        line_length = self.api("plugins.core.proxy:line.length.get")()
         message = [
             self.api("plugins.core.utils:string.center.colored")(
                 f"{subheader_color}Stack: {self.created}@w",
                 "-",
-                50,
+                min(50, line_length),
                 filler_color=subheader_color,
             ),
             f"Called from : {self.called_from:<13}@w",
@@ -153,7 +154,10 @@ class ProcessRaisedEvent(BaseRecord):
 
         message.append(
             self.api("plugins.core.utils:string.center.colored")(
-                f"{subheader_color}Event Stack@w", "-", 40, filler_color=subheader_color
+                f"{subheader_color}Event Stack@w",
+                "-",
+                min(40, line_length),
+                filler_color=subheader_color,
             )
         )
         message.extend([f"  {event}" for event in self.event_stack])
@@ -161,7 +165,7 @@ class ProcessRaisedEvent(BaseRecord):
             self.api("plugins.core.utils:string.center.colored")(
                 f"{subheader_color}Function Stack@w",
                 "-",
-                40,
+                min(40, line_length),
                 filler_color=subheader_color,
             )
         )
