@@ -80,7 +80,7 @@ def test_set_list_returns_formatted_settings() -> None:
                 "plugins.core.settings:setting.list.formatted": lambda pid: f"fmt {pid}",
             }
         )
-        assert stub._command_settings_plugin_set() == CommandResult(True, "fmt plugins.test.stub")  # type: ignore[arg-type]
+        assert stub._command_settings_plugin_set() == CommandResult(True, "fmt plugins.test.stub")
 
 
 def test_set_with_name_calls_change_from_user() -> None:

@@ -13,13 +13,22 @@ functions to be automatically registered as event listeners.
 
 # Standard Library
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol, cast
 
 # 3rd Party
 
 # Project
 
 CANRELOAD = False
+
+
+class EventFunc(Protocol):
+    """A callable that carries the ``event_registration`` attribute set by the decorator."""
+
+    event_registration: list[dict[str, Any]]
+    __self__: Any
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 class RegisterToEvent:
@@ -37,8 +46,9 @@ class RegisterToEvent:
         self.registration_args = {"event_name": "", "priority": 50} | kwargs
 
     def __call__(self, func: Callable[..., Any]) -> Any:
+        target = cast(EventFunc, func)
         if not hasattr(func, "event_registration"):
-            func.event_registration = []
-        func.event_registration.append(self.registration_args)
+            target.event_registration = []
+        target.event_registration.append(self.registration_args)
 
         return func

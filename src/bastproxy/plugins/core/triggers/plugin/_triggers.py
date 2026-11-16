@@ -11,7 +11,7 @@ import dataclasses
 import logging
 import sys
 from collections.abc import Callable
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 # 3rd Party
 import regex as re
@@ -139,15 +139,15 @@ class TriggersPlugin(BasePlugin):
         # The dictionary of triggers
         # This will likely get moved into the source plugin
         # key: trigger_id
-        self.triggers = {}
+        self.triggers: dict[str, TriggerItem] = {}
 
         # The dictionary of trigger groups
         # key is group name
         # value is a list of trigger ids
-        self.trigger_groups = {}
+        self.trigger_groups: dict[str, list[str]] = {}
 
         # The enabled regex triggers, sorted by (priority, order added)
-        self._ordered: list = []
+        self._ordered: list[TriggerItem] = []
         # enabled triggers per (compiled pattern, matchcolor) in _ordered
         self._share_counts: dict[tuple[Any, bool], int] = {}
         self._next_order = 0
@@ -680,7 +680,7 @@ class TriggersPlugin(BasePlugin):
         # compiled patterns compare equal for the same text and flags
         shared_results: dict[tuple[Any, bool], Any] = {}
         for item in tuple(self._ordered):
-            if not item.enabled or self.triggers.get(item.trigger_id) is not item:
+            if not item.enabled or self.triggers.get(cast(str, item.trigger_id)) is not item:
                 continue
             try:
                 if item.matchcolor:
@@ -690,13 +690,14 @@ class TriggersPlugin(BasePlugin):
                 else:
                     text = data
                 if item.shared_pattern:
+                    compiled = cast(re.Pattern[str], item.original_regex_compiled)
                     key = (item.original_regex_compiled, bool(item.matchcolor))
                     if key in shared_results:
                         match = shared_results[key]
                     else:
-                        match = shared_results[key] = item.original_regex_compiled.match(text)
+                        match = shared_results[key] = compiled.match(text)
                 else:
-                    match = item.original_regex_compiled.match(text)
+                    match = cast(re.Pattern[str], item.original_regex_compiled).match(text)
                 if not match:
                     continue
                 matched = True
@@ -773,8 +774,7 @@ class TriggersPlugin(BasePlugin):
         @CUsage@w: list.
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
-        trigger_ids = self.triggers.keys()
-        trigger_ids = sorted(trigger_ids)
+        trigger_ids = sorted(self.triggers.keys())
         match = args["match"]
 
         template = "%-25s : %-30s %-9s %-5s %s"
@@ -838,7 +838,7 @@ class TriggersPlugin(BasePlugin):
         @CUsage@w: detail.
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
-        message = []
+        message: list[str] = []
         if args["trigger"]:
             columnwidth = 24
 

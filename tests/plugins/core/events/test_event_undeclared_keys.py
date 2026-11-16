@@ -122,5 +122,5 @@ def test_non_dict_is_rejected_without_undeclared_warning(
     warnings: list[tuple[Any, ...]],
 ) -> None:
     event = _make_event({"a": "first"})
-    assert event.raise_event("nope", "actor466") is None  # type: ignore[arg-type]
+    assert event.raise_event("nope", "actor466") is None
     assert _warned(warnings) == []

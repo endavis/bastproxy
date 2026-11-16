@@ -63,7 +63,7 @@ def test_failure_appends_help_and_keeps_own_list() -> None:
 
 
 def test_str_message_is_one_line() -> None:
-    result = _make(lambda: CommandResult(True, "hi")).run("")  # type: ignore[arg-type]
+    result = _make(lambda: CommandResult(True, "hi")).run("")
     assert result.message == ["hi"]
 
 

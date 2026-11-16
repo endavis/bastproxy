@@ -57,13 +57,13 @@ class Event:
 
         self.owner_id: str = f"plugins.core.events:{self.name}"
         self.api = API(owner_id=self.owner_id)
-        self.priority_dictionary = {}
+        self.priority_dictionary: dict[int, dict[Callback, bool]] = {}
         self.raised_count = 0
         # bounded to the newest MAX_RAISED_EVENTS raises (Event System Findings Bug #3, #153)
         #           it holds no callbacks, so it does not keep unloaded plugins alive
         self.raised_events: OrderedDict[str, ProcessRaisedEvent] = OrderedDict()
-        self.current_callback = None
-        self.active_event = None
+        self.current_callback: Callback | None = None
+        self.active_event: ProcessRaisedEvent | None = None
         # keys already warned about as undeclared in arg_descriptions (#466)
         self._warned_undeclared_keys: set[str] = set()
 
@@ -149,7 +149,7 @@ class Event:
         return False
 
     def getownerregistrations(self, owner_id: str) -> list[dict[str, Any]]:
-        registrations = []
+        registrations: list[dict[str, Any]] = []
         for priority in self.priority_dictionary:
             registrations.extend(
                 {"function_name": call_back.name, "priority": priority}
@@ -160,7 +160,7 @@ class Event:
 
     def removeowner(self, owner_id: str) -> None:
         """Remove all functions related to a owner."""
-        plugins_to_unregister = []
+        plugins_to_unregister: list[Callback] = []
         for priority in self.priority_dictionary:
             plugins_to_unregister.extend(
                 call_back
@@ -204,9 +204,7 @@ class Event:
             subheader_color + "-" * 60 + "@w",
         ]
         function_message: list[str] = []
-        key_list = self.priority_dictionary.keys()
-        key_list = sorted(key_list)
-        for priority in key_list:
+        for priority in sorted(self.priority_dictionary.keys()):
             function_message.extend(
                 f"{priority:<13} : {call_back.owner_id:<25} - {call_back.name}"
                 for call_back in self.priority_dictionary[priority]
@@ -319,7 +317,7 @@ class Event:
 
     def raise_event(
         self,
-        data: dict | EventDataRecord,
+        data: dict | EventDataRecord | object,
         actor: str,
         data_list: list[Any] | None = None,
         key_name: str | None = None,
@@ -354,7 +352,7 @@ class Event:
         if actor and not self.created_by:
             self.created_by = actor
 
-        raised = ProcessRaisedEvent(self, data, actor)  # type: ignore
+        raised = ProcessRaisedEvent(self, data, actor)
         # a nested raise of this event must hand the outer raise's state back
         previous_active_event = self.active_event
         previous_callback = self.current_callback
