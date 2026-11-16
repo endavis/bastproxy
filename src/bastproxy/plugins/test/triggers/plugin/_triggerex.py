@@ -37,6 +37,7 @@ class TriggerExPlugin(BasePlugin):
         if event_record["matches"]["message"] == "block":
             event_record["line"].send = False
         else:
-            event_record[
-                "line"
-            ].line = f"{event_record['matches']['object']} said something!!!!! ({event_record['matches']['message']})"
+            event_record["line"].line = (
+                f"{event_record['matches']['object']} said something!!!!! "
+                f"({event_record['matches']['message']})"
+            )

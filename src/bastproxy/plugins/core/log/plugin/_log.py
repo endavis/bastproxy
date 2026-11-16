@@ -481,18 +481,22 @@ class LogPlugin(BasePlugin):
         if types:
             tmsg.extend(
                 (
-                    f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} {'warning':<7} {'error':<5} {'critical':<8}",
+                    f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} "
+                    f"{'warning':<7} {'error':<5} {'critical':<8}",
                     "-" * 79,
                 )
             )
             for i in types:
                 if i in self.type_counts:
                     tmsg.append(
-                        f"{i:<{self.logtype_col_length}} : {self.type_counts[i]['debug']:<5} {self.type_counts[i]['info']:<5} {self.type_counts[i]['warning']:<7} {self.type_counts[i]['error']:<5} {self.type_counts[i]['critical']:<8}"
+                        f"{i:<{self.logtype_col_length}} : {self.type_counts[i]['debug']:<5} "
+                        f"{self.type_counts[i]['info']:<5} {self.type_counts[i]['warning']:<7} "
+                        f"{self.type_counts[i]['error']:<5} {self.type_counts[i]['critical']:<8}"
                     )
                 else:
                     tmsg.append(
-                        f"{i:<{self.logtype_col_length}} : {'0':<5} {'0':<5} {'0':<7} {'0':<5} {'0':<8}"
+                        f"{i:<{self.logtype_col_length}} : {'0':<5} {'0':<5} "
+                        f"{'0':<7} {'0':<5} {'0':<8}"
                     )
         else:
             tmsg.append(f"No matches found for {match}")

@@ -1,4 +1,7 @@
-"""Regression tests for #275: a callback registered mid-raise at an already-visited priority runs."""
+"""Regression tests for #275.
+
+A callback registered mid-raise at an already-visited priority runs.
+"""
 
 # Standard Library
 from collections.abc import Iterator

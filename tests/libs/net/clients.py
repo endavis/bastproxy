@@ -75,13 +75,14 @@ class ScriptedClient:
     """A raw telnet client that answers per option and inflates MCCP2 streams.
 
     Attributes:
-        agree: Options the client accepts (always including TTYPE), both ``WILL x`` (answered ``DO``) and
-            ``DO x`` (answered ``WILL``). Anything else is refused. A
+        agree: Options the client accepts (always including TTYPE), both ``WILL x``
+            (answered ``DO``) and ``DO x`` (answered ``WILL``). Anything else is refused. A
             ``DONT``/``WONT`` is never answered.
         raw: Every byte received, compressed bytes included.
         text: Received data with telnet commands removed and MCCP2 inflated.
         commands: Every ``(verb, option)`` received.
-        subnegotiations: Every ``(option, payload)`` SB received other than MCCP2, IAC IAC unescaped.
+        subnegotiations: Every ``(option, payload)`` SB received other than MCCP2,
+            IAC IAC unescaped.
         mccp2_starts: Count of ``SB MCCP2`` received.
         stream_ends: Count of compressed streams that ended with ``Z_STREAM_END``.
 

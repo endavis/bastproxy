@@ -8,7 +8,8 @@
 
 The created_by attribute is the name of the plugin or module that created the event
 It can be updated in two ways, by using the api plugins.core.events:add:event
-    or when the event is raised and a calledfrom argument is passed and created_by is not already been set
+    or when the event is raised and a calledfrom argument is passed and created_by is not
+    already been set
 """
 
 # Standard Library
@@ -258,7 +259,8 @@ class Event:
                         log_to(
                             [call_back.owner_id, self.created_by],
                             logging.WARNING,
-                            "raise_event - event %s with function %s:%s was called out of order at priority %s",
+                            "raise_event - event %s with function %s:%s was called out of order "
+                            "at priority %s",
                             self.name,
                             call_back.owner_id,
                             call_back.name,
@@ -267,7 +269,8 @@ class Event:
                         log_to(
                             [call_back.owner_id, self.created_by],
                             logging.WARNING,
-                            "    this is likely due to a function being registered at priority %s during the execution of the event",
+                            "    this is likely due to a function being registered "
+                            "at priority %s during the execution of the event",
                             priority,
                         )
 
@@ -315,7 +318,8 @@ class Event:
         """Raise this event."""
         self.raised_count = self.raised_count + 1
 
-        # If data is not a dict or EventDataRecord object, log an error and the event will not be processed
+        # If data is not a dict or EventDataRecord object, log an error and the event will
+        # not be processed
         if not isinstance(data, EventDataRecord) and not isinstance(data, dict):
             log_to(
                 [self.created_by, "plugins.core.events"],

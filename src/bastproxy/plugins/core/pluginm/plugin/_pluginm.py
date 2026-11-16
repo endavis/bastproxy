@@ -236,7 +236,8 @@ class PluginManager(BasePlugin):
         for plugin in plugins_to_load_setting[:]:
             if not self.api("libs.plugins.loader:plugin.exists")(plugin):
                 get_logger(self.plugin_id).error(
-                    "plugin %s was marked to load at startup and no longer exists, removing from startup",
+                    "plugin %s was marked to load at startup "
+                    "and no longer exists, removing from startup",
                     plugin,
                 )
                 plugins_to_load_setting.remove(plugin)
@@ -244,7 +245,8 @@ class PluginManager(BasePlugin):
 
             if self.api("libs.plugins.loader:plugin.is.loaded")(plugin):
                 get_logger(self.plugin_id).debug(
-                    "plugin %s was marked to load at startup and is already loaded, removing from startup",
+                    "plugin %s was marked to load at startup "
+                    "and is already loaded, removing from startup",
                     plugin,
                 )
                 plugins_to_load_setting.remove(plugin)
@@ -252,7 +254,8 @@ class PluginManager(BasePlugin):
 
             if self.api("libs.plugins.loader:plugin.info.get")(plugin).is_dev:
                 get_logger(self.plugin_id).debug(
-                    "plugin %s was marked to load at startup and is a dev plugin, removing from startup",
+                    "plugin %s was marked to load at startup "
+                    "and is a dev plugin, removing from startup",
                     plugin,
                 )
                 plugins_to_load_setting.remove(plugin)

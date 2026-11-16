@@ -852,7 +852,9 @@ class TriggersPlugin(BasePlugin):
                             f"{'Priority':<{columnwidth}} : {self.triggers[trigger].priority}",
                             f"{'Omit':<{columnwidth}} : {self.triggers[trigger].omit}",
                             f"{'Hits':<{columnwidth}} : {self.triggers[trigger].hits}",
-                            f"{'Stop Evaluating':<{columnwidth}} : {self.triggers[trigger].stopevaluating}",
+                            f"{'Stop Evaluating':<{columnwidth}} : "
+                            ""
+                            f"{self.triggers[trigger].stopevaluating}",
                         )
                     )
                     if self.api("plugins.core.events:event.exists")(event_name):

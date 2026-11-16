@@ -190,7 +190,8 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         super().send_iac(buf)
 
     def _oob_changed(self, opt: bytes, enabled: bool) -> None:
-        """Tell ``oob_option_callback`` that GMCP, MSDP or MSSP changed state (and MXP), if anyone listens.
+        """Tell ``oob_option_callback`` that GMCP, MSDP or MSSP changed state (and MXP), if anyone
+        listens.
 
         telnetlib3 stores ``local_option`` only after ``handle_do`` and ``handle_dont`` return,
         so it is set here first; the callback can then send on the link.

@@ -614,7 +614,10 @@ class Sqldb:
         column_id_name = self.tables[table_name].keyfield
         sql_string = ""
         if where:
-            sql_string = f"SELECT * FROM {table_name} WHERE {where} ORDER by {column_id_name} desc limit {num}"
+            sql_string = (
+                f"SELECT * FROM {table_name} WHERE {where} "
+                f"ORDER by {column_id_name} desc limit {num}"
+            )
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 

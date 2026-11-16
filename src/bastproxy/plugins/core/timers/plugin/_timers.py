@@ -62,7 +62,8 @@ class Timer(Callback):
         **kwargs (Optional): Additional keyword arguments
             onetime (bool): True if the timer is one-time only. Defaults to False.
             enabled (bool): True if the timer is enabled. Defaults to True.
-            time (str): Time (in military format) when the timer should fire. If None, timer will fire according to the "seconds" value. Defaults to None.
+            time (str): Time (in military format) when the timer should fire. If None, timer will
+                fire according to the "seconds" value. Defaults to None.
             log (bool): True if the timer should show up in the logs. Defaults to True.
         """
         super().__init__(name, plugin_id, func, enabled)
@@ -132,7 +133,11 @@ class Timer(Callback):
 
     def __str__(self) -> str:
         """Return a string representation of the timer."""
-        return f"Timer {self.name:<10} : {self.owner_id:<15} : {self.seconds:05d} : {self.enabled:<6} : {self.next_fire_datetime.strftime(self.api.time_format)}"
+        return (
+            f"Timer {self.name:<10} : {self.owner_id:<15} : "
+            f"{self.seconds:05d} : {self.enabled:<6} : "
+            f"{self.next_fire_datetime.strftime(self.api.time_format)}"
+        )
 
 
 class TimersPlugin(BasePlugin):
@@ -177,7 +182,8 @@ class TimersPlugin(BasePlugin):
         if args["timername"] in self.timer_lookup:
             self.timer_lookup[args["timername"]].log = not self.timer_lookup[args["timername"]].log
             message.append(
-                f"changed log flag to {self.timer_lookup[args['timername']].log} for timer {args['timername']}"
+                f"changed log flag to {self.timer_lookup[args['timername']].log} "
+                f"for timer {args['timername']}"
             )
         else:
             message.append(f"timer {args['timername']} does not exist")
@@ -250,7 +256,8 @@ class TimersPlugin(BasePlugin):
         match: str = args["match"]
 
         message: list[str] = [
-            f"UTC time is: {datetime.datetime.now(datetime.UTC).strftime('%a %b %d %Y %H:%M:%S %Z')}",
+            "UTC time is: "
+            f"{datetime.datetime.now(datetime.UTC).strftime('%a %b %d %Y %H:%M:%S %Z')}",
             output_header_color + "-" * 80 + "@w",
         ]
         templatestring = "%-20s : %-25s %-9s %-8s %s"
@@ -311,7 +318,8 @@ class TimersPlugin(BasePlugin):
                         message.append(f"{'Last Fire':<{columnwidth}} : {last_fire_time}")
                     message.extend(
                         (
-                            f"{'Next Fire':<{columnwidth}} : {timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
+                            f"{'Next Fire':<{columnwidth}} : "
+                            f"{timer.next_fire_datetime.strftime('%a %b %d %Y %H:%M:%S %Z')}",
                             "",
                         )
                     )

@@ -372,7 +372,8 @@ def scan_definitions(
     changes ``current`` here, unlike ``apply_escape`` for stripping. One forward pass, under the
     same look-ahead limit as ``strip``. A tag with a line break or an ESC in it is skipped.
 
-    Returns a ``DefinitionScan`` (``tags``, ``current``, ``default``, ``pending``): the state to carry into the next piece of the
+    Returns a ``DefinitionScan`` (``tags``, ``current``, ``default``, ``pending``): the state to
+    carry into the next piece of the
     same line. ``pending`` is True only when ``ESC[4z`` was the last thing in ``text``.
     """
     found: list[str] = []

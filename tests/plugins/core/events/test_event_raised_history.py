@@ -135,7 +135,8 @@ def test_initialize_adds_setting_and_applies_it() -> None:
         "raised_history_size",
         10,
         int,
-        "number of recent raises each event keeps in its raised_events history, 0 keeps none; older raises stay in the records manager",
+        "number of recent raises each event keeps in its raised_events history, 0 keeps none; "
+        "older raises stay in the records manager",
         validator=ANY,
     )
     assert Event.MAX_RAISED_EVENTS == 4

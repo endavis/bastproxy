@@ -556,4 +556,7 @@ class UtilsPlugin(BasePlugin):
 
         missing = line_length - len(noncolored_string)
 
-        return f"{color}{capchar}{'' if fullcolor else color_end}{spacechar}{line}{' ' * missing}{spacechar}{color}{capchar}{color_end}"
+        return (
+            f"{color}{capchar}{'' if fullcolor else color_end}{spacechar}{line}"
+            f"{' ' * missing}{spacechar}{color}{capchar}{color_end}"
+        )
