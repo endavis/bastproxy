@@ -11,6 +11,7 @@ including saving, loading, and context manager behavior.
 
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -285,8 +286,8 @@ class TestPersistentDict:
         assert not filepath.with_suffix(".tmp").exists()
         assert filepath.read_text(encoding="utf-8") == before
 
-    def test_sync_success_writes_file_and_applies_mode(self, temp_data_dir: Path) -> None:
-        """A normal sync writes the file, removes the temp file and sets the mode.
+    def test_sync_success_writes_file_and_removes_temp(self, temp_data_dir: Path) -> None:
+        """A normal sync writes the file and removes the temp file.
 
         Args:
             temp_data_dir: Temporary directory for test data.
@@ -299,4 +300,19 @@ class TestPersistentDict:
 
         assert filepath.exists()
         assert not filepath.with_suffix(".tmp").exists()
+
+    # Windows has no POSIX permission bits: stat reports 0o666 for a file whatever chmod set (#498).
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits; Windows uses ACLs")
+    def test_sync_success_applies_mode(self, temp_data_dir: Path) -> None:
+        """A normal sync sets the file's permission bits to the dict's mode.
+
+        Args:
+            temp_data_dir: Temporary directory for test data.
+
+        """
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["key"] = "value"
+        pd.sync()
+
         assert filepath.stat().st_mode & 0o777 == pd.mode
