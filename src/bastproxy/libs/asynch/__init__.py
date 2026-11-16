@@ -42,7 +42,7 @@ import functools
 import signal
 import warnings
 from collections.abc import Awaitable, Callable, Coroutine
-from typing import Optional
+from typing import Any, Optional
 
 # 3rd Party
 # Project
@@ -118,13 +118,14 @@ class TaskItem:
 
         """
         self.func = func
-        self.task = None
+        self.task: asyncio.Task[Any] | None = None
         self.name = name
         self.startstring = startstring
+        self.coroutine: Coroutine
         if asyncio.iscoroutine(self.func):
-            self.coroutine: Coroutine = self.func
-        elif isinstance(self.func, Callable):
-            self.coroutine: Coroutine = self.func()
+            self.coroutine = self.func
+        elif callable(self.func):
+            self.coroutine = self.func()
         else:
             logger.error("(Task) %s : %s is not a coroutine or callable", self.name, func)
 
@@ -180,16 +181,17 @@ class TaskItem:
         if loop is None:
             loop = asyncio.get_running_loop()
         if self.name:
-            self.task = loop.create_task(self.coroutine, name=self.name, context=fresh_context())
+            task = loop.create_task(self.coroutine, name=self.name, context=fresh_context())
         else:
-            self.task = loop.create_task(self.coroutine, context=fresh_context())
-        self.task.add_done_callback(functools.partial(_handle_task_result, message=message))
-        logger.debug("(Task) %s : %s", self.name, self.task)
+            task = loop.create_task(self.coroutine, context=fresh_context())
+        self.task = task
+        task.add_done_callback(functools.partial(_handle_task_result, message=message))
+        logger.debug("(Task) %s : %s", self.name, task)
         if self.startstring:
             logger.debug("(Task) %s : Created - %s", self.name, self.startstring)
         else:
             logger.debug("(Task) %s : Created", self.name)
-        return self.task
+        return task
 
 
 class QueueManager:
@@ -343,7 +345,7 @@ def run_asynch() -> None:
                 func=shutdown(sig, loop), name=f"{sig.name} shutdown handler"
             )
         # Capture task_item in closure using default argument
-        loop.add_signal_handler(sig, lambda ti=task_item: ti.create())
+        loop.add_signal_handler(sig, task_item.create)
 
     # Store reference to prevent garbage collection
     task_checker = loop.create_task(

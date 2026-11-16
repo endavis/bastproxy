@@ -64,7 +64,7 @@ class ReloadHelper:
 
         """
         self.api = API(owner_id=API_OWNER)
-        self.reload_cache = {}
+        self.reload_cache: dict[str, dict[str, Any]] = {}
         self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
     @AddAPI("cache.add", description="add data to the cache")
@@ -74,7 +74,7 @@ class ReloadHelper:
         self.reload_cache[plugin_id][data_name] = data
 
     @AddAPI("cache.get", description="get cache for a plugin")
-    def _api_cache_get(self, plugin_id: str) -> dict:
+    def _api_cache_get(self, plugin_id: str) -> dict[str, Any]:
         """Retrieve cache for a plugin.
 
         This method retrieves the cache entries for a specified plugin from the

@@ -171,7 +171,7 @@ class PluginInfo:
             None
 
         """
-        changed_files = []
+        changed_files: list[dict[str, Any]] = []
         if "files" in files:
             changed_files.extend(
                 files["files"][file] for file in files["files"] if files["files"][file][flag]

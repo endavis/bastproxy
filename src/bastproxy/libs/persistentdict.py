@@ -164,7 +164,9 @@ class PersistentDict(dict):
         self.flag = flag
 
         # None or an octal triple like 0644
-        self.mode = (stat.S_IWUSR | stat.S_IRUSR) or mode
+        self.mode: int | None = (
+            stat.S_IWUSR | stat.S_IRUSR
+        )  # always set; the ``mode`` argument is unused
 
         # json', or 'pickle'
         self.format = tformat

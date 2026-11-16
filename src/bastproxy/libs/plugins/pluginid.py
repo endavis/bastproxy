@@ -27,7 +27,7 @@ class PluginId(str):
 
     __slots__ = ()
 
-    def __new__(cls, value: str) -> PluginId:
+    def __new__(cls, value: object) -> PluginId:
         """Create a plugin ID.
 
         Args:
