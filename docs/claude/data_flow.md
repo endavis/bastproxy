@@ -78,7 +78,7 @@ MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD li
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
 | `client_write()` | Writer coroutine: writes queued lines, sends `IAC EOR` through `writer.send_eor()` after lines marked `is_prompt` when the client agreed to EOR, otherwise `IAC GA` through `writer.send_ga()` (nothing is sent when the client agreed to suppress go-ahead; a client never gets both) (#272), sets `was_sent` and counts each written line in `lines_sent` |
-| `bytes_sent`, `bytes_received`, `telnet_options()` | `bytes_sent` and `bytes_received` read telnetlib3's `tx_bytes` and `rx_bytes` (the uncompressed telnet stream, negotiation included); `telnet_options()` returns the enabled option names in each direction (#422) |
+| `bytes_sent`, `bytes_received`, `telnet_options()` | `bytes_sent` and `bytes_received` read telnetlib3's `tx_bytes` and `rx_bytes` (the uncompressed telnet stream, negotiation included; the details rows are labelled "(uncompressed)"); `telnet_options()` returns the enabled option names in each direction (#422) |
 
 `client_read()` builds the record for each line from a logged-in, non-view-only client:
 

@@ -292,7 +292,7 @@ class ClientPlugin(BasePlugin):
         """Return a block of details for each connected client."""
         if not self.clients:
             return ["No clients connected"]
-        template = "%-17s : %s"
+        template = "%-29s : %s"
         header = self.api("plugins.core.commands:output.header.format")
         tmsg: list[str] = []
         for client in self.clients.values():
@@ -308,8 +308,8 @@ class ClientPlugin(BasePlugin):
                     template % ("Idle", client.idle),
                     template % ("Lines sent", f"{client.lines_sent:,}"),
                     template % ("Lines received", f"{client.lines_received:,}"),
-                    template % ("Bytes sent", f"{client.bytes_sent:,}"),
-                    template % ("Bytes received", f"{client.bytes_received:,}"),
+                    template % ("Bytes sent (uncompressed)", f"{client.bytes_sent:,}"),
+                    template % ("Bytes received (uncompressed)", f"{client.bytes_received:,}"),
                     template % ("Local options", ", ".join(local_options) or "-"),
                     template % ("Remote options", ", ".join(remote_options) or "-"),
                 )

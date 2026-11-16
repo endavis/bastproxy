@@ -53,27 +53,27 @@ def test_details_disconnected() -> None:
     result = ProxyPlugin._command_details(stub)
     assert result.success is True
     assert result.message[0] == "== Mud =="
-    assert "Mud               : disconnected" in result.message
+    assert "Mud                           : disconnected" in result.message
     assert result.message[-3:] == ["", *CLIENT_LINES]
 
 
 def test_details_connecting() -> None:
     result = ProxyPlugin._command_details(_stub(_mud(connected=False, connecting=True)))
-    assert "Mud               : connecting" in result.message
+    assert "Mud                           : connecting" in result.message
 
 
 def test_details_connected_shows_rows() -> None:
     text = "\n".join(ProxyPlugin._command_details(_stub(_mud())).message)
     for expected in (
-        "Host              : mud.example",
-        "Port              : 4000",
-        "Idle              : 3s",
-        "Lines sent        : 4",
-        "Lines received    : 2,000",
-        "Bytes sent        : 10",
-        "Bytes received    : 99,999",
-        "Local options     : TTYPE",
-        "Remote options    : GMCP, MCCP2_COMPRESS",
+        "Host                          : mud.example",
+        "Port                          : 4000",
+        "Idle                          : 3s",
+        "Lines sent                    : 4",
+        "Lines received                : 2,000",
+        "Bytes sent (uncompressed)     : 10",
+        "Bytes received (uncompressed) : 99,999",
+        "Local options                 : TTYPE",
+        "Remote options                : GMCP, MCCP2_COMPRESS",
     ):
         assert expected in text
 

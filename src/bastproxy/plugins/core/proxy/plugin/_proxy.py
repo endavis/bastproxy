@@ -340,7 +340,7 @@ class ProxyPlugin(BasePlugin):
 
     def _mud_details(self) -> list[str]:
         """Return the block of details for the mud connection."""
-        template = "%-17s : %s"
+        template = "%-29s : %s"
         tmsg: list[str] = list(self.api("plugins.core.commands:output.header.format")("Mud"))
         mud = self.mud_connection
         if mud and mud.connected:
@@ -353,8 +353,8 @@ class ProxyPlugin(BasePlugin):
                     template % ("Idle", mud.idle),
                     template % ("Lines sent", f"{mud.lines_sent:,}"),
                     template % ("Lines received", f"{mud.lines_received:,}"),
-                    template % ("Bytes sent", f"{mud.bytes_sent:,}"),
-                    template % ("Bytes received", f"{mud.bytes_received:,}"),
+                    template % ("Bytes sent (uncompressed)", f"{mud.bytes_sent:,}"),
+                    template % ("Bytes received (uncompressed)", f"{mud.bytes_received:,}"),
                     template % ("Local options", ", ".join(local_options) or "-"),
                     template % ("Remote options", ", ".join(remote_options) or "-"),
                 )
