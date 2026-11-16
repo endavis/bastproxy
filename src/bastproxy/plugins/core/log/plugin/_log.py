@@ -486,8 +486,9 @@ class LogPlugin(BasePlugin):
         types.extend(self.handlers["console"].keys())
         types.extend(self.handlers["file"].keys())
         types = sorted(set(types))
+        line_length = self.api("plugins.core.proxy:line.length.get")()
         tmsg = [
-            "-" * 79,
+            "-" * line_length,
         ]
         match = args["match"]
 
@@ -499,7 +500,7 @@ class LogPlugin(BasePlugin):
                 (
                     f"{'logtype':<{self.logtype_col_length}} : {'debug':<5} {'info':<5} "
                     f"{'warning':<7} {'error':<5} {'critical':<8}",
-                    "-" * 79,
+                    "-" * line_length,
                 )
             )
             for i in types:
