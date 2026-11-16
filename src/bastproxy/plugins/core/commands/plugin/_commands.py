@@ -8,6 +8,7 @@
 # Standard Library
 import copy
 import dataclasses
+import functools
 import logging
 import types
 from collections.abc import Callable, Mapping
@@ -71,6 +72,16 @@ class CommandLookup:
     show_in_history: bool
     notes: str
     message: list[str] | str
+
+
+def _help_formatter(api: Callable[[str], Callable[..., Any]], prog: str) -> argp.CustomFormatter:
+    """Build a help formatter wrapped to the current client's line length.
+
+    argparse calls this each time help or usage is formatted, so the width is the
+    requesting client's, not the one at command registration.
+    """
+    line_length: int = api("plugins.core.proxy:line.length.get")()
+    return argp.CustomFormatter(prog, width=line_length)
 
 
 class CommandsPlugin(BasePlugin):
@@ -465,7 +476,7 @@ class CommandsPlugin(BasePlugin):
             return
 
         parser.add_argument("-h", "--help", help="show help", action="store_true")
-        parser.formatter_class = argp.CustomFormatter
+        parser.formatter_class = functools.partial(_help_formatter, self.api)
 
         parser.prog = self.api("plugins.core.commands:command.format")(plugin_id, command_name)
 

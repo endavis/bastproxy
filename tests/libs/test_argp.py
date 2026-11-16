@@ -254,3 +254,54 @@ class TestArgumentParserIntegration:
         except (ArgumentError, SystemExit):
             # Expected behavior
             pass
+
+
+class TestCustomFormatterWidth:
+    """CustomFormatter wraps description text to the width it is given (#509)."""
+
+    LONG = " ".join(["word"] * 40)
+
+    def _widest(self, width: int | None) -> int:
+        parser = ArgumentParser(description=self.LONG, prog="p")
+        parser.formatter_class = lambda prog: CustomFormatter(prog, width=width)
+        lines = [ln for ln in parser.format_help().splitlines() if "word" in ln]
+        return max(len(ln) for ln in lines)
+
+    def test_wraps_to_given_width(self) -> None:
+        assert self._widest(40) <= 40
+        assert self._widest(100) > 73
+
+    def test_default_width_is_73(self) -> None:
+        assert 60 < self._widest(None) <= 73
+
+
+class TestCustomFormatterArgumentHelpWidth:
+    """CustomFormatter wraps argument help to the width it is given (#509)."""
+
+    LONG = "the new value of the setting, " + " ".join(["word"] * 20)
+
+    def _help_lines(self, width: int) -> list[str]:
+        parser = ArgumentParser(prog="p")
+        parser.formatter_class = lambda prog: CustomFormatter(prog, width=width)
+        parser.add_argument("value", nargs="?", help=self.LONG)
+        parser.add_argument("--default", action="store_true", help=self.LONG)
+        return parser.format_help().splitlines()
+
+    def test_every_line_within_width(self) -> None:
+        for width in (40, 60):
+            assert max(len(ln) for ln in self._help_lines(width)) <= width
+
+    def test_continuation_lines_indented_to_help_column(self) -> None:
+        lines = self._help_lines(60)
+        start = next(i for i, ln in enumerate(lines) if ln.startswith("  value"))
+        column = lines[start].index("the new")
+        assert lines[start + 1].startswith(" " * column)
+        assert lines[start + 1].strip()
+
+    def test_explicit_line_breaks_kept(self) -> None:
+        parser = ArgumentParser(prog="p")
+        parser.formatter_class = lambda prog: CustomFormatter(prog, width=60)
+        parser.add_argument("--opt", help="first line\nsecond line")
+        out = parser.format_help()
+        assert "first line\n" in out
+        assert "second line" in out
