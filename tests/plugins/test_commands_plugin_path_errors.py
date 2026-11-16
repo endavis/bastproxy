@@ -151,7 +151,7 @@ def test_format_failure_is_contained() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_str_message_is_one_line() -> None:
     """A command returning `(True, "hi")` gives one line, not `h` and `i`."""
-    result = _make(lambda: CommandResult(True, "hi")).run("")  # type: ignore[arg-type]
+    result = _make(lambda: CommandResult(True, "hi")).run("")
     assert result.success is True
     assert result.message == ["hi"]
 
@@ -159,7 +159,7 @@ def test_str_message_is_one_line() -> None:
 @pytest.mark.usefixtures("_patch_command_module")
 def test_run_finish_str_message_is_one_line() -> None:
     """run_finish treats a str message as a single line."""
-    assert _make(lambda: CommandResult(True)).run_finish(True, "hello", "x").message == ["hello"]  # type: ignore[arg-type]
+    assert _make(lambda: CommandResult(True)).run_finish(True, "hello", "x").message == ["hello"]
 
 
 def test_str_find_command_message_is_one_line(sent: list[Any]) -> None:

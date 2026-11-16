@@ -182,7 +182,7 @@ class CommandClass:
             return self.run_finish(True, message, "command ran successfully", format=format)
 
     def run_finish(
-        self, success: bool, message: list[str], return_value: str, format: bool = False
+        self, success: bool, message: list[str] | str, return_value: str, format: bool = False
     ) -> CommandRunResult:
         """Run the command finisher."""
         if isinstance(message, str):

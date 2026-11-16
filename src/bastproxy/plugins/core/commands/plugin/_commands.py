@@ -11,7 +11,7 @@ import dataclasses
 import logging
 import types
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, cast
 
 from bastproxy.libs import argp
 
@@ -98,7 +98,7 @@ class CommandsPlugin(BasePlugin):
             self.command_history_dict["history"] = []
         self.command_history_data = self.command_history_dict["history"]
 
-        self.current_command: CommandClass | None = None
+        self.current_command: str | None = None
         self.current_input_event: None = None
 
         self.attributes_to_save_on_reload = [
@@ -314,15 +314,19 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("command.line.length.get", description="get line length for command")
     def _api_command_line_length_get(self) -> int:
         """Return the line length for output."""
-        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
-        command_indent = self.api(f"{self.plugin_id}:command.indent.get")()
+        line_length: int = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "linelen"
+        )
+        command_indent: int = self.api(f"{self.plugin_id}:command.indent.get")()
         return line_length - 2 * command_indent
 
     @AddAPI("output.line.length.get", description="get line length for command output")
     def _api_output_line_length_get(self) -> int:
         """Return the line length for output."""
-        line_length = self.api("plugins.core.settings:setting.get")("plugins.core.proxy", "linelen")
-        output_indent = self.api(f"{self.plugin_id}:output.indent.get")()
+        line_length: int = self.api("plugins.core.settings:setting.get")(
+            "plugins.core.proxy", "linelen"
+        )
+        output_indent: int = self.api(f"{self.plugin_id}:output.indent.get")()
         return line_length - 2 * output_indent
 
     def _add_commands_for_all_plugins(self) -> None:
@@ -594,7 +598,8 @@ class CommandsPlugin(BasePlugin):
 
         returns the current command prefix as a string
         """
-        return self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
+        prefix: str = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
+        return prefix
 
     @AddAPI("command.help.format", description="format a help string for a command")
     def _api_command_help_format(self, plugin_id: str, command_name: str) -> str:
@@ -1169,7 +1174,7 @@ class CommandsPlugin(BasePlugin):
 
                 result = command_item.run(command_args, format=command_item.format)
                 success, error = result.success, result.reason
-                message = result.message
+                message = cast(list[str] | str, result.message)
 
                 if success:
                     event_record.addupdate(
@@ -1214,7 +1219,7 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
     def _api_summary_get_for_plugin(self, plugin_id: str) -> list[str]:
         """Return stats for the plugin."""
-        msg = []
+        msg: list[str] = []
 
         if plugin_id == self.plugin_id:
             msg.extend(
@@ -1325,12 +1330,12 @@ class CommandsPlugin(BasePlugin):
             A list of strings for the formatted commands.
 
         """
-        message = []
+        message: list[str] = []
         output_header_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_header_color"
         )
         for i in command_list:
-            if i != "default" and i.arg_parser.description:
+            if cast(object, i) != "default" and i.arg_parser.description:
                 tlist = i.arg_parser.description.splitlines()
                 if not tlist[0]:
                     tlist.pop(0)
@@ -1363,11 +1368,11 @@ class CommandsPlugin(BasePlugin):
 
         commands: dict[str, CommandClass] = self.command_data.get(plugin_id, {})
 
-        message = self.api(f"{self.plugin_id}:output.header.format")(
+        message: list[str] = self.api(f"{self.plugin_id}:output.header.format")(
             f"Available Commands in {plugin_id.replace('plugins.', '')}"
         )
 
-        groups = {}
+        groups: dict[str, list[CommandClass]] = {}
         for i in sorted(commands.keys()):
             if i != "default":
                 if commands[i].group not in groups:
@@ -1423,9 +1428,10 @@ class CommandsPlugin(BasePlugin):
             ]
 
         if plugin_id_list := sorted(plugin_id_list):
-            return self.api("plugins.core.utils:column.format")(
+            formatted: list[str] = self.api("plugins.core.utils:column.format")(
                 plugin_id_list, cols=3, columnwise=False, gap=6
             )
+            return formatted
         return ["No plugins found"]
 
     @AddCommand(shelp="list commands", show_in_history=False)

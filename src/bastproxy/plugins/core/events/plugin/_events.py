@@ -7,7 +7,7 @@
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.context import event_stack, raised_event
@@ -25,6 +25,7 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResul
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.settings import int_range
 
+from ..libs._utils import EventFunc
 from ._event import Event
 
 
@@ -183,9 +184,10 @@ class EventsPlugin(BasePlugin):
     )
     def _api_event_register_by_func(self, func: Callable[..., Any]) -> None:
         """Register a decorated function as an event."""
-        for item in func.event_registration:
+        target = cast(EventFunc, func)
+        for item in target.event_registration:
             event_name = item["event_name"]
-            event_name = event_name.format(**func.__self__.__dict__)
+            event_name = event_name.format(**target.__self__.__dict__)
             prio = item["priority"]
             self.api("plugins.core.events:event.register")(event_name, func, prio=prio)
 
@@ -356,7 +358,7 @@ class EventsPlugin(BasePlugin):
             {"name": "Function", "key": "function_name", "width": 40},
         ]
 
-        data = []
+        data: list[dict[str, Any]] = []
         sorted_keys = sorted(owner_events.keys())
         for event_name in sorted_keys:
             data.extend(
@@ -512,9 +514,8 @@ class EventsPlugin(BasePlugin):
         show_no_description_or_args = args["show_no_description_or_args"]
         show_raised_only = args["show_raised_only"]
         show_not_registered_only = args["show_not_registered_only"]
-        eventnames = self.events.keys()
-        eventnames = sorted(eventnames)
-        eventlist = []
+        eventnames = sorted(self.events.keys())
+        eventlist: list[str] = []
 
         if show_registered_only:
             eventlist = [name for name in eventnames if self.events[name].count() > 0]
@@ -561,7 +562,7 @@ class EventsPlugin(BasePlugin):
     @AddAPI("summary.get.for.plugin", description="get summary data for a plugin")
     def _api_summary_get_for_plugin(self, plugin_id: str) -> list[str]:
         """Return a summary of the data in this plugin for a specific plugin_id."""
-        msg = []
+        msg: list[str] = []
         if plugin_id == self.plugin_id:
             msg.extend(
                 (

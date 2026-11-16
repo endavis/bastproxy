@@ -12,7 +12,7 @@ see info/add_commands.txt for more info
 # Standard Library
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol, cast
 
 # 3rd Party
 
@@ -32,20 +32,29 @@ class CommandResult:
     """
 
     success: bool
-    message: list[str] = field(default_factory=list)
-
-
-def set_command_autoadd(func: Callable[..., Any], autoadd: bool) -> None:
-    if not hasattr(func, "command_data"):
-        func.command_data = CommandFuncData()
-    func.command_data.command["autoadd"] = autoadd
+    message: list[str] | str = field(default_factory=list)
 
 
 class CommandFuncData:
     def __init__(self) -> None:
-        self.command = {"autoadd": True, "kwargs": {}}
-        self.argparse = {"kwargs": {"add_help": False}}
-        self.arguments = []
+        self.command: dict[str, Any] = {"autoadd": True, "kwargs": {}}
+        self.argparse: dict[str, Any] = {"kwargs": {"add_help": False}}
+        self.arguments: list[dict[str, Any]] = []
+
+
+class _CommandFunc(Protocol):
+    """A callable that carries the ``command_data`` attribute set by the decorators."""
+
+    command_data: CommandFuncData
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
+
+
+def set_command_autoadd(func: Callable[..., Any], autoadd: bool) -> None:
+    target = cast(_CommandFunc, func)
+    if not hasattr(func, "command_data"):
+        target.command_data = CommandFuncData()
+    target.command_data.command["autoadd"] = autoadd
 
 
 class AddCommand:
@@ -63,12 +72,14 @@ class AddCommand:
         self.command_kwargs = kwargs
 
     def __call__(self, func: Callable[..., Any]) -> Any:
+        target = cast(_CommandFunc, func)
         if not hasattr(func, "command_data"):
-            func.command_data = CommandFuncData()
-        func.command_data.command["kwargs"].update(self.command_kwargs)
-        if "name" not in func.command_data.command:
-            func.command_data.command["name"] = self.name or func.__name__.replace("_command_", " ")
-        func.command_data.command["autoadd"] = self.autoadd
+            target.command_data = CommandFuncData()
+        target.command_data.command["kwargs"].update(self.command_kwargs)
+        if "name" not in target.command_data.command:
+            default_name = func.__name__.replace("_command_", " ")
+            target.command_data.command["name"] = self.name or default_name
+        target.command_data.command["autoadd"] = self.autoadd
 
         return func
 
@@ -83,9 +94,10 @@ class AddParser:
         self.argparse_kwargs = kwargs
 
     def __call__(self, func: Callable[..., Any]) -> Any:
+        target = cast(_CommandFunc, func)
         if not hasattr(func, "command_data"):
-            func.command_data = CommandFuncData()
-        func.command_data.argparse["kwargs"].update(self.argparse_kwargs)
+            target.command_data = CommandFuncData()
+        target.command_data.argparse["kwargs"].update(self.argparse_kwargs)
 
         return func
 
@@ -98,12 +110,13 @@ class AddArgument:
         self.kwargs = kwargs
 
     def __call__(self, func: Callable[..., Any]) -> Any:
+        target = cast(_CommandFunc, func)
         if not hasattr(func, "command_data"):
-            func.command_data = CommandFuncData()
+            target.command_data = CommandFuncData()
 
         # insert at 0 because decorators are applied in bottom->top order,
         # so the last decorator applied will be the first
         # make it so the order can be exactly like using an argparse object
-        func.command_data.arguments.insert(0, {"args": self.args, "kwargs": self.kwargs})
+        target.command_data.arguments.insert(0, {"args": self.args, "kwargs": self.kwargs})
 
         return func
