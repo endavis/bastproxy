@@ -161,7 +161,17 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/bastproxy/plugins/core/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/sqldb/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/triggers/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/log/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/clients/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/colors/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/mudcmds/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/proxy/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/watch/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/ssc/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/errors/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/core/fuzzy/**" = ["ANN"]  # annotated in later #6 PRs
 "src/bastproxy/plugins/debug/**" = ["ANN"]  # annotated in later #6 PRs
 "src/bastproxy/plugins/test/**" = ["ANN"]  # annotated in later #6 PRs
 "tools/pyproject_template/*.py" = [

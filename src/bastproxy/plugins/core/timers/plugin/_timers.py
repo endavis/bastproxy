@@ -13,7 +13,7 @@ import math
 import sys
 import time
 from collections.abc import Callable
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.callback import Callback
@@ -51,7 +51,15 @@ PluginTimerStats = TypedDict(
 class Timer(Callback):
     """a class for a timer."""
 
-    def __init__(self, name, func, seconds, plugin_id, enabled=True, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        func: Callable[..., Any],
+        seconds: float,
+        plugin_id: str,
+        enabled: bool = True,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the class. Time should be in military format, e.g.,"1430".
 
         Parameters:
@@ -144,7 +152,7 @@ class TimersPlugin(BasePlugin):
     """a plugin to handle timers."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.can_reload_f: bool = False
 
@@ -154,7 +162,7 @@ class TimersPlugin(BasePlugin):
         self.time_last_checked: datetime.datetime = datetime.datetime.now(datetime.UTC)
 
     @RegisterPluginHook("after_load")
-    def _phook_initialize(self):
+    def _phook_initialize(self) -> None:
         """Initialize the plugin."""
         get_logger(self.plugin_id).debug("initialize - lasttime:  %s", self.time_last_checked)
 
@@ -162,7 +170,7 @@ class TimersPlugin(BasePlugin):
         self.api("libs.asynch:task.add")(self.check_for_timers_to_fire, "Timer Plugin task")
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
-    def _eventcb_plugin_unloaded(self):
+    def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             log_to(
@@ -193,7 +201,7 @@ class TimersPlugin(BasePlugin):
     # @RegisterPluginHook('stats')
     # def _phook_timer_stats(self, **kwargs):
     @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
-    def _eventcb_timers_ev_plugins_stats(self):
+    def _eventcb_timers_ev_plugins_stats(self) -> None:
         """Return stats for the plugin."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             disabled = 0
@@ -332,7 +340,7 @@ class TimersPlugin(BasePlugin):
         return CommandResult(True, message)
 
     @AddAPI("timer.exists", description="check if a timer exists")
-    def _api_timer_exists(self, name: str):
+    def _api_timer_exists(self, name: str) -> bool:
         """Check if a timer exists.
 
         @Yname@w   = the name of the timer to check.
@@ -354,7 +362,9 @@ class TimersPlugin(BasePlugin):
         return None
 
     @AddAPI("timer.add", description="add a timer")
-    def _api_timer_add(self, name: str, func: Callable, seconds: int, **kwargs) -> Timer | None:
+    def _api_timer_add(
+        self, name: str, func: Callable, seconds: int, **kwargs: Any
+    ) -> Timer | None:
         """Add a timer.
 
         @Yname@w   = The timer name
@@ -413,7 +423,7 @@ class TimersPlugin(BasePlugin):
         return timer
 
     @AddAPI("timer.remove.for.plugin", description="remove all data for a plugin")
-    def _api_timer_remove_for_plugin(self, name: str):
+    def _api_timer_remove_for_plugin(self, name: str) -> None:
         """Remove all timers associated with a plugin.
 
         @Yname@w   = the name of the plugin.
@@ -428,7 +438,7 @@ class TimersPlugin(BasePlugin):
             self.api(f"{self.plugin_id}:timer.remove")(i)
 
     @AddAPI("timer.remove", description="remove a timer")
-    def _api_timer_remove(self, name: str):
+    def _api_timer_remove(self, name: str) -> None:
         """Remove a timer.
 
         @Yname@w   = the name of the timer to remove.
@@ -451,7 +461,7 @@ class TimersPlugin(BasePlugin):
             )
 
     @AddAPI("timer.toggle", description="toggle a timer to be enabled/disabled")
-    def _api_timer_toggle(self, name: str, flag: bool):
+    def _api_timer_toggle(self, name: str, flag: bool) -> None:
         """Toggle a timer to be enabled/disabled.
 
         @Yname@w   = the name of the timer to toggle
@@ -462,7 +472,7 @@ class TimersPlugin(BasePlugin):
         if name in self.timer_lookup:
             self.timer_lookup[name].enabled = flag
 
-    def _add_timer_internal(self, timer: Timer):
+    def _add_timer_internal(self, timer: Timer) -> None:
         """Internally add a timer."""
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if timer_next_time_to_fire != -1:
@@ -471,7 +481,7 @@ class TimersPlugin(BasePlugin):
             self.timer_events[timer_next_time_to_fire].append(timer)
         self.timer_lookup[timer.name] = timer
 
-    def _remove_timer_internal(self, timer: Timer):
+    def _remove_timer_internal(self, timer: Timer) -> None:
         """Internally remove a timer."""
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if timer_next_time_to_fire != -1 and timer_next_time_to_fire in self.timer_events:
@@ -482,7 +492,7 @@ class TimersPlugin(BasePlugin):
         if timer.name in self.timer_lookup:
             del self.timer_lookup[timer.name]
 
-    def execute_timer(self, time, timer: Timer):
+    def execute_timer(self, time: Any, timer: Timer) -> None:
         """Executes and reschedules the given timer.
 
         Args:
@@ -538,7 +548,7 @@ class TimersPlugin(BasePlugin):
         else:
             self.api(f"{self.plugin_id}:timer.remove")(timer.name)
 
-    async def check_for_timers_to_fire(self):
+    async def check_for_timers_to_fire(self) -> None:
         # this is a callback, so disable unused-argument
         # pylint: disable=unused-argument,too-many-nested-blocks
         """Check all timers."""

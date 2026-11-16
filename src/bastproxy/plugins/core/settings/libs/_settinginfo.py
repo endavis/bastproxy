@@ -22,7 +22,7 @@ class SettingValidationError(ValueError):
 
 
 class SettingInfo:
-    def __init__(self, name, default, help, stype, **kwargs):
+    def __init__(self, name: str, default: Any, help: str, stype: Any, **kwargs: Any) -> None:
         self.name = name
         self.default = default
         self.help = help

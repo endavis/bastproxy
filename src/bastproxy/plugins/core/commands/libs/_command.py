@@ -68,7 +68,7 @@ class CommandClass:
         preamble: bool = True,
         show_in_history: bool = True,
         shelp: str = "",
-    ):
+    ) -> None:
         self.name = name
         self.function = function
         self.plugin_id = plugin_id
@@ -107,7 +107,7 @@ class CommandClass:
             self.current_arg_string = prev_string
             self.api("plugins.core.commands:command.current.set")(None)
 
-    def run(self, arg_string: str = "", format=False) -> CommandRunResult:
+    def run(self, arg_string: str = "", format: bool = False) -> CommandRunResult:
         """Run the command."""
         self.last_run_start_time = datetime.datetime.now(datetime.UTC)
         with self._run_state(arg_string):
@@ -182,7 +182,7 @@ class CommandClass:
             return self.run_finish(True, message, "command ran successfully", format=format)
 
     def run_finish(
-        self, success: bool, message: list[str], return_value: str, format=False
+        self, success: bool, message: list[str], return_value: str, format: bool = False
     ) -> CommandRunResult:
         """Run the command finisher."""
         if isinstance(message, str):
@@ -252,7 +252,7 @@ class CommandClass:
 
         return ParsedArgs(True, args, [])
 
-    def format_return_message(self, message):
+    def format_return_message(self, message: list[str]) -> list[str]:
         """Format a return message.
 
         Args:
@@ -388,7 +388,7 @@ class CommandClass:
         self.stats.last_error = f"{type(exc).__name__}: {exc}"
         self.stats.last_error_time = datetime.datetime.now(datetime.UTC)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         self.count += 1
         self.count_since_reload += 1
         return self.function(*args, **kwargs)

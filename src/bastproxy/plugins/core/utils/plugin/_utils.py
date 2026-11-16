@@ -94,7 +94,9 @@ class UtilsPlugin(BasePlugin):
         "column.format",
         description="formt the given list in evenly-spaced columns.",
     )
-    def _api_column_format(self, obj, cols=4, columnwise=True, gap=4):
+    def _api_column_format(
+        self, obj: list[Any], cols: int = 4, columnwise: bool = True, gap: int = 4
+    ) -> list[str]:
         """Format the given list in evenly-spaced columns.
 
         Parameters
@@ -127,7 +129,7 @@ class UtilsPlugin(BasePlugin):
         return ["".join([c.ljust(max_len + gap) for c in p]) for p in plist]
 
     @AddAPI("object.dump", description="dump an object as a string")
-    def _api_object_dump(self, object):
+    def _api_object_dump(self, object: Any) -> str:
         """Dump an object as a string."""
         return dumps(object)
 
@@ -135,7 +137,7 @@ class UtilsPlugin(BasePlugin):
         "dict.key.list",
         description="get all keys from a dictionary and any nested dictionaries",
     )
-    def _api_dict_key_list(self, d):
+    def _api_dict_key_list(self, d: dict[str, Any]) -> list[Any]:
         keys = []
         for k, v in d.items():
             keys.append(k)
@@ -144,7 +146,7 @@ class UtilsPlugin(BasePlugin):
         return keys
 
     @AddAPI("string.dedent", description="dedent a list of strings")
-    def _api_string_dedent(self, list_of_strings):
+    def _api_string_dedent(self, list_of_strings: list[str]) -> list[str]:
         """Dedent a list of strings."""
         if len(list_of_strings) == 0:
             return list_of_strings
@@ -158,8 +160,14 @@ class UtilsPlugin(BasePlugin):
         description="take two times and return a string of the difference",
     )
     def _api_timedelta_to_string(
-        self, start_time, end_time, fmin=False, colorn="", colors="", nosec=False
-    ):
+        self,
+        start_time: Any,
+        end_time: Any,
+        fmin: bool = False,
+        colorn: str = "",
+        colors: str = "",
+        nosec: bool = False,
+    ) -> str:
         """Take two times and return a string of the difference.
 
         in the form ##d:##h:##m:##s.
@@ -202,7 +210,7 @@ class UtilsPlugin(BasePlugin):
         "number.to.readable",
         description="convert a number to a shorter readable number",
     )
-    def _api_number_to_readable(self, num, places=2):
+    def _api_number_to_readable(self, num: float, places: int = 2) -> Any:
         """Convert a number to a shorter readable number."""
         converted_string = ""
         nform = f"%00.0{places}f"
@@ -224,7 +232,7 @@ class UtilsPlugin(BasePlugin):
         "seconds.to.dhms",
         description="convert seconds to years, days, hours, mins, secs",
     )
-    def _api_seconds_to_dhms(self, seconds):
+    def _api_seconds_to_dhms(self, seconds: float) -> dict[str, int]:
         """Convert seconds to years, days, hours, mins, secs."""
         seconds = int(seconds)
         converted_time = {"years": 0, "days": 0, "hours": 0, "mins": 0, "secs": 0}
@@ -243,7 +251,7 @@ class UtilsPlugin(BasePlugin):
         return converted_time
 
     @AddAPI("timelength.format", description="format a length of time into a string")
-    def _api_timelength_format(self, length, nosec=False):
+    def _api_timelength_format(self, length: float, nosec: bool = False) -> str:
         """Format a length of time into a string."""
         message = []
         converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(length)
@@ -277,7 +285,7 @@ class UtilsPlugin(BasePlugin):
         return "".join(message)
 
     # verify a value to contain an @ color
-    def verify_color(self, value):
+    def verify_color(self, value: Any) -> Any:
         """Verify an @ color."""
         if self.api("plugins.core.colors:colorcode.is.valid")(value):
             return value
@@ -285,7 +293,7 @@ class UtilsPlugin(BasePlugin):
         raise ValueError
 
     # verify a time to be military
-    def verify_miltime(self, mtime):
+    def verify_miltime(self, mtime: str) -> str:
         """Verify a time like 0830 or 1850."""
         try:
             time.strptime(mtime, "%H%M")
@@ -295,7 +303,7 @@ class UtilsPlugin(BasePlugin):
         return mtime
 
     # verfiy a time to be valid
-    def verify_timelength(self, usertime):
+    def verify_timelength(self, usertime: str) -> Any:
         """Verify a user time length."""
         ttime = None
 
@@ -331,13 +339,13 @@ class UtilsPlugin(BasePlugin):
     @AddAPI("string.center.colored", description="center a string with color codes")
     def _api_string_center_colored(
         self,
-        string_to_center,
-        filler_character="",
-        length=80,
-        filler_color="",
-        endcaps=False,
-        capchar="|",
-    ):
+        string_to_center: str,
+        filler_character: str = "",
+        length: int = 80,
+        filler_color: str = "",
+        endcaps: bool = False,
+        capchar: str = "|",
+    ) -> str:
         """Center a string with color codes."""
         converted_colors_string = self.api("plugins.core.colors:colorcode.to.ansicode")(
             string_to_center
@@ -378,7 +386,7 @@ class UtilsPlugin(BasePlugin):
         return f"{new_str}{filler_color_end}"
 
     @AddAPI("string.match.in.list", description="check a list for a match of arg")
-    def _api_string_match_in_list(self, arg, item_list: list[str]) -> list[str]:
+    def _api_string_match_in_list(self, arg: str, item_list: list[str]) -> list[str]:
         """Check a list for a match of arg."""
         string_to_match = str(arg)
         match = f"{string_to_match}*"
@@ -398,7 +406,7 @@ class UtilsPlugin(BasePlugin):
         return matches["partofstring"]
 
     @AddAPI("timelength.to.seconds", description="converts a time length to seconds")
-    def _api_timelength_to_seconds(self, timel):
+    def _api_timelength_to_seconds(self, timel: str) -> int | None:
         """Converts a time length to seconds.
 
         Format is 1d:2h:30m:40s, any part can be missing
@@ -447,7 +455,9 @@ class UtilsPlugin(BasePlugin):
         "table.format",
         description="converts a list of dicts to a table with a header",
     )
-    def _api_table_format(self, table_name, data, columns, color=""):
+    def _api_table_format(
+        self, table_name: str, data: Any, columns: list[dict[str, Any]], color: str = ""
+    ) -> list[str]:
         """Columns is a list of dicts.
 
         dict format:
@@ -472,7 +482,7 @@ class UtilsPlugin(BasePlugin):
 
         separator = f" {output_color}|{color_end} "
 
-        def build_line(item):
+        def build_line(item: Any) -> str:
             cells = []
             for column in columns:
                 cell = str(item[column["key"]])
@@ -535,8 +545,14 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("line.cap", description="caps the line with a character")
     def _api_line_cap(
-        self, line, capchar="|", color="", line_length=None, space=True, fullcolor=False
-    ):
+        self,
+        line: str,
+        capchar: str = "|",
+        color: str = "",
+        line_length: int | None = None,
+        space: bool = True,
+        fullcolor: bool = False,
+    ) -> str:
         """Cap a line with delimiters."""
         color_end = "@w" if color else ""
 

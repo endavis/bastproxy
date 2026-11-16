@@ -12,7 +12,7 @@ raise carries.
 
 # Standard Library
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bastproxy.libs.logger import get_logger, log_to
 
@@ -27,7 +27,9 @@ if TYPE_CHECKING:
 
 
 class ProcessRaisedEvent(BaseRecord):
-    def __init__(self, event: "Event", event_data: "EventDataRecord", called_from=""):
+    def __init__(
+        self, event: "Event", event_data: "EventDataRecord", called_from: str = ""
+    ) -> None:
         BaseRecord.__init__(self)
         self.event = event
         self.called_from = called_from
@@ -39,27 +41,27 @@ class ProcessRaisedEvent(BaseRecord):
         self.id = f"{__name__}:{self.event.name}:{self.created}"
         self.addupdate(UpdateFlag.INFO, "Init")
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         return (
             f"{self.__class__.__name__:<20} {self.uuid} {self.execute_time_taken:.2f}ms "
             f"{self.event_name} {self.times_invoked}"
         )
 
-    def _exec_(self, actor, *args, **kwargs):
+    def _exec_(self, actor: str, *args: Any, **kwargs: Any) -> None:
         """Process the event."""
         if "data_list" in kwargs and kwargs["data_list"] and "key_name" in kwargs:
             self._exec_multi(actor, *args, **kwargs)
         else:
             self._exec_once(actor, *args, **kwargs)
 
-    def _exec_multi(self, *args, **kwargs):
+    def _exec_multi(self, *args: Any, **kwargs: Any) -> None:
         """Process the event."""
         for item in kwargs["data_list"]:
             self.event_data[kwargs["key_name"]] = item
             self._exec_once(*args, **kwargs)
 
-    def _exec_once(self, actor, **kwargs):
+    def _exec_once(self, actor: str, **kwargs: Any) -> None:
         """Exec it with self.arg_data."""
         self.times_invoked += 1
         # callbacks run for this item; fresh per item so every item runs every callback
@@ -122,7 +124,7 @@ class ProcessRaisedEvent(BaseRecord):
         # raised_events keeps this record; do not keep callbacks (and their owners) alive
         self.done = set()
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         attributes = super().get_attributes_to_format()
         attributes[0].extend(
             [
@@ -133,7 +135,7 @@ class ProcessRaisedEvent(BaseRecord):
         )
         return attributes
 
-    def format_simple(self):
+    def format_simple(self) -> list[str]:
         subheader_color = self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
