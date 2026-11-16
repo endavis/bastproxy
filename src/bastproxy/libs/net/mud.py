@@ -51,7 +51,7 @@ from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import echo_off_placeholder, get_logger
 from bastproxy.libs.net.inflate import BoundedDecompressor
 from bastproxy.libs.net.naws import WINDOW_SIZE
-from bastproxy.libs.net.negotiation import RecordingTelnetWriter
+from bastproxy.libs.net.negotiation import RecordingTelnetWriter, option_names
 from bastproxy.libs.net.protocols import PROTOCOLS
 
 # Project
@@ -98,9 +98,42 @@ class MudConnection:
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader: MudTelnetReader | None = None
         self.writer: TelnetWriterUnicode | None = None
+        self.protocol: MudTelnetClient | None = None
+        self.lines_sent: int = 0
+        self.lines_received: int = 0
         self.max_lines_to_process = 15
         # not forwarded from the client: the terminal type stays the proxy's own (#308)
         self.term_type = "bastproxy"
+
+    @property
+    def bytes_sent(self) -> int:
+        """Return the bytes written to the mud link, before compression (0 without a link)."""
+        return 0 if self.protocol is None else self.protocol.tx_bytes
+
+    @property
+    def bytes_received(self) -> int:
+        """Return the bytes read from the mud link, after inflation (0 without a link)."""
+        return 0 if self.protocol is None else self.protocol.rx_bytes
+
+    @property
+    def idle(self) -> str:
+        """Return how long the mud link has been silent, in a human-readable format.
+
+        Returns:
+            The idle time, or ``-`` when there is no link.
+
+        """
+        if self.protocol is None:
+            return "-"
+        now = datetime.datetime.now(datetime.UTC)
+        idle = datetime.timedelta(seconds=float(self.protocol.idle))
+        return cast(str, self.api("plugins.core.utils:timedelta.to.string")(now - idle, now))
+
+    def telnet_options(self) -> tuple[list[str], list[str]]:
+        """Return the enabled (local, remote) option names on the mud link."""
+        if self.writer is None:
+            return [], []
+        return option_names(self.writer.local_option), option_names(self.writer.remote_option)
 
     async def connect_to_mud(self) -> None:
         """Establish a connection to the MUD server.
@@ -252,6 +285,7 @@ class MudConnection:
                     enabled=writer is not None and writer.remote_option.enabled(MXP) is True,
                 )
                 data.append(line)
+                self.lines_received += 1
                 logging.getLogger("data.mud").info("%-12s : %s", "from_mud", rec.text)
                 if not self.reader.line_ready() or len(data) >= self.max_lines_to_process:
                     break
@@ -304,6 +338,7 @@ class MudConnection:
                     logger.debug("mud_write - type of msg_obj.msg = %s", type(msg_obj.line))
                     self.writer.write(cast(str, msg_obj.line))
                     msg_obj.was_sent = True
+                    self.lines_sent += 1
                     logging.getLogger("data.mud").info("%-12s : %s", "to_mud", shown)
                 else:
                     logger.debug("client_write - No message to write to client.")
@@ -350,6 +385,7 @@ class MudConnection:
         self.connected_time = datetime.datetime.now(datetime.UTC)
         self.reader = reader
         self.writer = writer
+        self.protocol = writer.protocol
         PROTOCOLS.mud_connected(writer)
         WINDOW_SIZE.mud_connected(writer)
         # milliseconds in the setting; a change applies to the next connection
@@ -546,6 +582,8 @@ class MudTelnetClient(TelnetClient):
       ``MCCP2_MAX_INFLATED_CHUNK`` counts as a broken stream.
     - ``WONT MCCP3`` from the MUD never stops its compression of our writes.
 
+    ``tx_bytes`` and ``rx_bytes`` count the telnet stream with negotiation, uncompressed (#422).
+
     SGA is refused (``DONT SGA``) so the MUD keeps sending ``IAC GA`` after prompts (#271).
 
     ``send_naws`` answers ``DO NAWS`` with the size ``WINDOW_SIZE`` chose (#308); later changes
@@ -555,6 +593,32 @@ class MudTelnetClient(TelnetClient):
     # telnetlib3 types these as optional; they are set once connected (annotation only)
     reader: MudTelnetReader
     writer: RecordingTelnetWriter
+
+    # telnetlib3's writer adds every byte it writes to ``_tx_bytes`` when its protocol has the
+    # attribute (``hasattr(protocol, "_tx_bytes")``); the count is taken before MCCP3 compresses.
+    _tx_bytes: int = 0
+    # bytes of the telnet stream received, after MCCP2 inflation (see ``_trace_recv``)
+    rx_total: int = 0
+
+    @property
+    def tx_bytes(self) -> int:
+        """Return the bytes written to the mud, before MCCP3 compression."""
+        return self._tx_bytes
+
+    @property
+    def rx_bytes(self) -> int:
+        """Return the bytes of the telnet stream received, after MCCP2 inflation."""
+        return self.rx_total
+
+    def _trace_recv(self, data: bytes, decompressed: bool = False) -> None:
+        """Count the received bytes, then let telnetlib3 trace them.
+
+        telnetlib3 calls this once for each plain or inflated segment, and for the chunk that
+        turns MCCP2 on only for its plain prefix. ``data_received`` would count compressed
+        bytes, and ``_process_chunk`` would count the compressed tail of that chunk twice.
+        """
+        self.rx_total += len(data)
+        super()._trace_recv(data, decompressed)
 
     def send_naws(self) -> tuple[int, int]:
         """Return (rows, cols) for the reply to ``DO NAWS`` (#308)."""

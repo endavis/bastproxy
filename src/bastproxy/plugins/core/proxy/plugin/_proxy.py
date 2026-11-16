@@ -306,6 +306,7 @@ class ProxyPlugin(BasePlugin):
         ]
         if self.mud_connection and self.mud_connection.connected:
             if self.mud_connection.connected_time:
+                local_options, remote_options = self.mud_connection.telnet_options()
                 tmsg.extend(
                     (
                         template
@@ -323,11 +324,10 @@ class ProxyPlugin(BasePlugin):
                         ),
                         template % ("Host", self.mud_connection.addr),
                         template % ("Port", self.mud_connection.port),
-                        template % ("Options", ""),
+                        template % ("Local options", ", ".join(local_options) or "-"),
+                        template % ("Remote options", ", ".join(remote_options) or "-"),
                     )
                 )
-                # options = self.mud_connection.options_info()
-                # tmsg.extend(f"     {i}" for i in options)
         elif self.mud_connection and self.mud_connection.connecting:
             tmsg.append(template % ("Mud", "connecting"))
         else:
@@ -337,6 +337,45 @@ class ProxyPlugin(BasePlugin):
 
         tmsg.extend(self.api("plugins.core.clients:client.list.formatted")())
         return CommandResult(True, tmsg)
+
+    def _mud_details(self) -> list[str]:
+        """Return the block of details for the mud connection."""
+        template = "%-17s : %s"
+        tmsg: list[str] = list(self.api("plugins.core.commands:output.header.format")("Mud"))
+        mud = self.mud_connection
+        if mud and mud.connected:
+            local_options, remote_options = mud.telnet_options()
+            tmsg.extend(
+                (
+                    template % ("Host", mud.addr),
+                    template % ("Port", mud.port),
+                    template % ("Connected", mud.connected_time.strftime(self.api.time_format)),
+                    template % ("Idle", mud.idle),
+                    template % ("Lines sent", f"{mud.lines_sent:,}"),
+                    template % ("Lines received", f"{mud.lines_received:,}"),
+                    template % ("Bytes sent", f"{mud.bytes_sent:,}"),
+                    template % ("Bytes received", f"{mud.bytes_received:,}"),
+                    template % ("Local options", ", ".join(local_options) or "-"),
+                    template % ("Remote options", ", ".join(remote_options) or "-"),
+                )
+            )
+        elif mud and mud.connecting:
+            tmsg.append(template % ("Mud", "connecting"))
+        else:
+            tmsg.append(template % ("Mud", "disconnected"))
+        return tmsg
+
+    @AddParser(description="show details about the mud connection and each client")
+    def _command_details(self) -> CommandResult:
+        """Show details about the mud connection and each client."""
+        return CommandResult(
+            True,
+            [
+                *self._mud_details(),
+                "",
+                *self.api("plugins.core.clients:client.list.details")(),
+            ],
+        )
 
     @AddParser(description="disconnect from the mud")
     def _command_disconnect(self) -> CommandResult:

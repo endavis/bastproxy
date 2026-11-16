@@ -18,7 +18,7 @@ sequence as ``raw``.
 
 # Standard Library
 import collections
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 from uuid import uuid4
 
@@ -53,6 +53,11 @@ _VERBS: dict[bytes, str] = {DO: "DO", DONT: "DONT", WILL: "WILL", WONT: "WONT"}
 
 # (command, option, data, raw)
 ParsedNegotiation = tuple[str, bytes, bytes, bytes]
+
+
+def option_names(options: Mapping[bytes, bool | None]) -> list[str]:
+    """Return the sorted names of the options that are currently enabled."""
+    return sorted(name_option(opt) for opt, on in options.items() if on is True)
 
 
 def parse_iac(buf: bytes) -> list[ParsedNegotiation]:

@@ -73,11 +73,12 @@ MCCP (#58, ADR-0001): each link negotiates compression on its own. On the MUD li
 | Method | Description |
 |--------|-------------|
 | `setup_client()` | Sends `WILL ECHO` through `writer.iac(WILL, ECHO)` (telnetlib3 records the option, so it is sent once) and the password prompt (#66) |
-| `client_read()` | Reader coroutine: one `readline()` per line, then login handling or `ProcessDataToMud` |
+| `client_read()` | Reader coroutine: one `readline()` per line (counted in `lines_received`), then login handling or `ProcessDataToMud` |
 | `process_data_from_not_logged_in_client()` | Compares the input with the proxy and view-only passwords; on a match sends `WONT ECHO` through `writer.iac(WONT, ECHO)` |
 | `process_data_from_view_only_client()` | Refuses input from view-only clients |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
-| `client_write()` | Writer coroutine: writes queued lines, sends `IAC EOR` through `writer.send_eor()` after lines marked `is_prompt` when the client agreed to EOR, otherwise `IAC GA` through `writer.send_ga()` (nothing is sent when the client agreed to suppress go-ahead; a client never gets both) (#272), sets `was_sent` |
+| `client_write()` | Writer coroutine: writes queued lines, sends `IAC EOR` through `writer.send_eor()` after lines marked `is_prompt` when the client agreed to EOR, otherwise `IAC GA` through `writer.send_ga()` (nothing is sent when the client agreed to suppress go-ahead; a client never gets both) (#272), sets `was_sent` and counts each written line in `lines_sent` |
+| `bytes_sent`, `bytes_received`, `telnet_options()` | `bytes_sent` and `bytes_received` read telnetlib3's `tx_bytes` and `rx_bytes` (the uncompressed telnet stream, negotiation included); `telnet_options()` returns the enabled option names in each direction (#422) |
 
 `client_read()` builds the record for each line from a logged-in, non-view-only client:
 
@@ -149,9 +150,12 @@ The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/ba
 | `connect_to_mud()` | Opens the telnetlib3 connection with `client_factory=MudTelnetClient` and `compression=True`. A failed connect is logged and reported to the clients, and `connected` stays `False` |
 | `mud_telnet_handler()` | Also tells `WINDOW_SIZE` when the MUD link opens (`mud_connected`) and closes (`mud_disconnected`); see Window size (NAWS) |
 | `setup_mud()` | Drains the MUD writer after the connection opens |
-| `mud_read()` | Reader coroutine: batches lines into one `NetworkData`, then `ProcessDataToClient` |
+| `mud_read()` | Reader coroutine: batches lines into one `NetworkData` (counting each in `lines_received`), then `ProcessDataToClient` |
 | `send_to()` | Puts a `NetworkDataLine` on `send_queue` through `loop.call_soon_threadsafe` |
-| `mud_write()` | Writer coroutine: writes queued lines (`send_iac` for `COMMAND-TELNET`), sets `was_sent` |
+| `mud_write()` | Writer coroutine: writes queued lines (`send_iac` for `COMMAND-TELNET`), sets `was_sent` and counts each written line in `lines_sent` |
+| `bytes_sent`, `bytes_received`, `idle`, `telnet_options()` | Details for the link (#422). `MudTelnetClient` counts bytes with the same meaning as the client side: `_tx_bytes` through telnetlib3's writer hook, and received bytes through its `_trace_recv` override |
+
+`#bp.core.proxy.details` shows the option names, idle time and line and byte counts for the MUD and each client.
 
 `mud_read()` reads with `MudTelnetReader.read_mud_line()`. `MudTelnetClient` installs `MudTelnetReader`, a `TelnetReaderUnicode` subclass, by overriding the client's `_reader_factory_encoding`. `read_mud_line()` returns a `MudLine(text, ended, prompt)`:
 
