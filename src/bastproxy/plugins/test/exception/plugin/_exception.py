@@ -6,7 +6,7 @@
 # By: Bast
 
 from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.plugins.core.commands import AddParser
+from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
 class TestPluginError(Exception):
@@ -17,7 +17,7 @@ class ExceptionPlugin(BasePlugin):
     """a plugin to raise a test exception"""
 
     @AddParser(description="raise an exception", add_help=False)
-    def _command_raise(self):  # sourcery skip: raise-specific-error
+    def _command_raise(self) -> CommandResult:  # sourcery skip: raise-specific-error
         """Test errors"""
         msg = "@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"
         raise TestPluginError(msg)

@@ -82,7 +82,7 @@ class ProxyPlugin(BasePlugin):
     """a plugin to show connection information."""
 
     @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self):
+    def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.proxypw = None
         self.proxyvpw = None
@@ -91,7 +91,7 @@ class ProxyPlugin(BasePlugin):
         self.attributes_to_save_on_reload = ["mud_connection"]
 
     @RegisterPluginHook("after_load")
-    def _phook_initialize(self):
+    def _phook_initialize(self) -> None:
         """Initialize the plugin."""
         restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"
 
@@ -249,12 +249,12 @@ class ProxyPlugin(BasePlugin):
         return self.mud_connection
 
     @AddAPI("preamble.get", description="get the preamble")
-    def _api_preamble_get(self):
+    def _api_preamble_get(self) -> str:
         """Get the preamble."""
         return self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamble")
 
     @AddAPI("preamble.color.get", description="get the preamble color")
-    def _api_preamble_color_get(self, error=False):
+    def _api_preamble_color_get(self, error: bool = False) -> str:
         """Get the preamble color."""
         if error:
             return self.api("plugins.core.settings:setting.get")(
@@ -263,7 +263,7 @@ class ProxyPlugin(BasePlugin):
         return self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamblecolor")
 
     @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
-    def _eventcb_sendusernameandpw(self):
+    def _eventcb_sendusernameandpw(self) -> None:
         """If username and password are set, then send them when the proxy.
 
         connects to the mud.
@@ -280,7 +280,7 @@ class ProxyPlugin(BasePlugin):
                 SendDataDirectlyToMud(NetworkData(pasw))()
 
     @AddParser(description="list proxy info")
-    def _command_info(self):
+    def _command_info(self) -> CommandResult:
         """Show info about the proxy."""
         template = "%-15s : %s"
         started = "Unknown"
@@ -335,7 +335,7 @@ class ProxyPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="disconnect from the mud")
-    def _command_disconnect(self):
+    def _command_disconnect(self) -> CommandResult:
         """Disconnect from the mud."""
         if self.mud_connection and self.mud_connection.connected:
             self.mud_connection.disconnect_from_mud()
@@ -350,7 +350,7 @@ class ProxyPlugin(BasePlugin):
         return CommandResult(True, ["The proxy is not connected to the mud"])
 
     @AddParser(description="connect to the mud")
-    def _command_connect(self):
+    def _command_connect(self) -> CommandResult:
         """Connect to the mud."""
         if self.mud_connection and self.mud_connection.connected:
             return CommandResult(True, ["The proxy is currently connected to the mud"])
@@ -369,7 +369,7 @@ class ProxyPlugin(BasePlugin):
         return CommandResult(True, ["Connecting to the mud"])
 
     @AddAPI("proxy.shutdown", description="shutdown the proxy")
-    def _api_proxy_shutdown(self):
+    def _api_proxy_shutdown(self) -> None:
         """Shutdown the proxy."""
         self.api.__class__.shutdown = True
         log_to([self.plugin_id, "shutdown"], logging.INFO, "Proxy: shutdown started")
@@ -383,7 +383,7 @@ class ProxyPlugin(BasePlugin):
         log_to([self.plugin_id, "shutdown"], logging.INFO, "Proxy: shutdown complete")
 
     @AddParser(description="shutdown the proxy")
-    def _command_shutdown(self):
+    def _command_shutdown(self) -> CommandResult:
         """Shutdown the proxy."""
         signal.raise_signal(signal.SIGINT)
         return CommandResult(True)
@@ -397,7 +397,7 @@ class ProxyPlugin(BasePlugin):
         default=10,
         help="# of seconds to wait before restart",
     )
-    def _command_restart(self):
+    def _command_restart(self) -> CommandResult:
         """Restart the proxy."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
@@ -407,7 +407,7 @@ class ProxyPlugin(BasePlugin):
         )
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
-    def _eventcb_client_logged_in(self):
+    def _eventcb_client_logged_in(self) -> None:
         """Check for mud settings."""
         if not self.api("plugins.core.events:event.current.record.get")():
             return
@@ -493,7 +493,7 @@ class ProxyPlugin(BasePlugin):
             SendDataDirectlyToClient(new_message)()
 
     @AddAPI("proxy.restart", description="restart the proxy")
-    def _api_proxy_restart(self, restart_in=None):
+    def _api_proxy_restart(self, restart_in: int | None = None) -> None:
         """Restart the proxy after 10 seconds."""
         restart_in = restart_in or 10
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
@@ -512,7 +512,7 @@ class ProxyPlugin(BasePlugin):
             "restart", self.timer_restart, restart_in, onetime=True
         )
 
-    def timer_restart(self):
+    def timer_restart(self) -> None:
         """A function to restart the proxy after a timer."""
         self.api("plugins.core.pluginm:plugin.state.save.all")()
 
@@ -523,7 +523,7 @@ class ProxyPlugin(BasePlugin):
         os.execv(sys.executable, [Path(sys.executable).name, *sys.argv])
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_cmdseperator_modified")
-    def _eventcb_command_seperator_change(self):
+    def _eventcb_command_seperator_change(self) -> None:
         """Update the command regex."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             newsep = event_record["newvalue"]
@@ -535,7 +535,7 @@ class ProxyPlugin(BasePlugin):
             )
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_mudwindowsize_modified")
-    def _eventcb_mudwindowsize_change(self):
+    def _eventcb_mudwindowsize_change(self) -> None:
         """Apply a changed mudwindowsize setting (#308)."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             WINDOW_SIZE.set_mode(event_record["newvalue"])
@@ -556,7 +556,7 @@ class ProxyPlugin(BasePlugin):
         default=True,
     )
     @AddArgument("-p", "--ports", help="show network ports", action="store_false", default=True)
-    def _command_resource(self):
+    def _command_resource(self) -> CommandResult:
         """Output proxy resource usage."""
         args = self.api("plugins.core.commands:command.current.args.get")()
 

@@ -17,7 +17,7 @@ class TriggerExPlugin(BasePlugin):
     """a plugin to test triggers"""
 
     @RegisterPluginHook("after_load")
-    def _phook_triggerex_initialize(self):
+    def _phook_triggerex_initialize(self) -> None:
         """Register a test trigger to capture say events."""
         result = self.api("plugins.core.triggers:trigger.add")(
             "test_say", r"^(?P<object>.*) says, \"(?P<message>.*)\"$"
@@ -27,7 +27,7 @@ class TriggerExPlugin(BasePlugin):
                 result.trigger.trigger_id, self._trigger_say
             )
 
-    def _trigger_say(self):
+    def _trigger_say(self) -> None:
         """Handle the test trigger by echoing the parsed event."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             print(f"_trigger_say - {event_record}")

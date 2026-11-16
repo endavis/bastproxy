@@ -18,6 +18,6 @@ class CMDDecPlugin(BasePlugin):
     """a plugin to test command decorators"""
 
     @AddParser(description="raise a test error")
-    def _command_raise(self):
+    def _command_raise(self) -> CommandResult:
         """Test errors"""
         return CommandResult(True, ["@Rtest@w @x165error@w with @Gcolors@w and @x206colors@w"])

@@ -36,7 +36,7 @@ class APIPlugin(BasePlugin):
         action="store_true",
     )
     @AddArgument("-c", "--show-code", help="show the function code", action="store_true")
-    def _command_detail(self):
+    def _command_detail(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         detail a function in the api
@@ -71,7 +71,7 @@ class APIPlugin(BasePlugin):
         help="use an API that is not from a plugin",
         action="store_true",
     )
-    def _command_list(self):
+    def _command_list(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         List functions in the api
@@ -99,7 +99,7 @@ class APIPlugin(BasePlugin):
     @AddParser(description="call an API")
     @AddArgument("-a", "--api", help="the api to detail (optional)", default="", nargs="?")
     @AddArgument("arguments", help="arguments to the api", default="", nargs="*")
-    def _command_call(self):
+    def _command_call(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         Call an API
