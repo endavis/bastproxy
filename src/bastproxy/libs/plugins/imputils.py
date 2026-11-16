@@ -45,6 +45,7 @@ Functions:
 import pkgutil
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from importlib import import_module
 from importlib.util import find_spec, module_from_spec, spec_from_loader
@@ -128,7 +129,7 @@ class DiscoveryResult:
     errors: dict[str, tuple] = field(default_factory=dict)
 
 
-def find_packages_and_plugins(directory, prefix) -> DiscoveryResult:
+def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
     """Find all packages and plugins recursively in a directory.
 
     This function walks through the specified directory and identifies all
@@ -202,7 +203,7 @@ def find_packages_and_plugins(directory, prefix) -> DiscoveryResult:
 
 
 # import a module
-def importmodule(full_import_location) -> dict[str, Any]:
+def importmodule(full_import_location: str) -> dict[str, Any]:
     """Import a single module.
 
     This function imports a module specified by its full import location. If the
@@ -269,7 +270,7 @@ def _is_in_package(module_name: str, package: str) -> bool:
     return module_name == package or module_name.startswith(f"{package}.")
 
 
-def deletemodule(full_import_location, modules_to_keep=None) -> bool:
+def deletemodule(full_import_location: str, modules_to_keep: Iterable[str] | None = None) -> bool:
     """Delete a module.
 
     This function deletes a module specified by its full import location. The

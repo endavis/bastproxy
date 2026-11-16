@@ -14,7 +14,7 @@
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.records.events import TO_CLIENT_DATA_MODIFY, TO_CLIENT_DATA_READ
 from bastproxy.libs.records.rtypes.base import BaseRecord
-from bastproxy.libs.records.rtypes.networkdata import NetworkData
+from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ class ProcessDataToClient(BaseRecord):
         message: "NetworkData",
         clients: list | None = None,
         exclude_clients: list | None = None,
-    ):
+    ) -> None:
         """Initialize the class."""
         super().__init__()
         self.message = message
@@ -54,7 +54,7 @@ class ProcessDataToClient(BaseRecord):
 
         self.sending = False
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         """Get the attributes to format for display.
 
         Returns:
@@ -91,28 +91,28 @@ class ProcessDataToClient(BaseRecord):
     #     ]
     #     return newmessage
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         return (
             f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} "
             f"{self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
         )
 
-    def add_client(self, client_uuid: str):
+    def add_client(self, client_uuid: str) -> None:
         """Add a client to the list of clients to send to."""
         if client_uuid in self.exclude_clients:
             self.exclude_clients.remove(client_uuid)
         if client_uuid not in self.clients:
             self.clients.append(client_uuid)
 
-    def exclude_client(self, client_uuid):
+    def exclude_client(self, client_uuid: str) -> None:
         """Add a client to the list of clients to exclude."""
         if client_uuid in self.clients:
             self.clients.remove(client_uuid)
         if client_uuid not in self.exclude_clients:
             self.exclude_clients.append(client_uuid)
 
-    def _exec_(self):
+    def _exec_(self) -> None:
         """Send the message."""
         # If a line came from the mud and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
@@ -144,7 +144,7 @@ class SendDataDirectlyToClient(BaseRecord):
         message: "NetworkData",
         clients: list | None = None,
         exclude_clients: list | None = None,
-    ):
+    ) -> None:
         """Initialize the class."""
         super().__init__()
         self.message = message
@@ -158,14 +158,14 @@ class SendDataDirectlyToClient(BaseRecord):
         # This will set the color for all lines to the specified @ color
         self.read_data_event_name = self.READ_EVENT
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         return (
             f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} "
             f"{self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
         )
 
-    def can_send_to_client(self, client_uuid, line):
+    def can_send_to_client(self, client_uuid: str, line: NetworkDataLine) -> bool:
         """Returns true if this message can be sent to the client."""
         if client_uuid:
             # Exclude takes precedence over everything else
@@ -188,7 +188,7 @@ class SendDataDirectlyToClient(BaseRecord):
                 return True
         return False
 
-    def _exec_(self):
+    def _exec_(self) -> None:
         """Send the message."""
         # Format first: locking the message locks its lines, and a locked line cannot format.
         for line in self.message:

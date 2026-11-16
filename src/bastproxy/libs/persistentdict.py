@@ -41,6 +41,7 @@ import pickle
 import shutil
 import stat
 from pathlib import Path
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
 # Third Party
@@ -130,8 +131,8 @@ class PersistentDict(dict):
         flag: str = "c",
         mode: str | None = None,
         tformat: str = "json",
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         """Initialize the PersistentDict.
 
@@ -234,7 +235,12 @@ class PersistentDict(dict):
         """
         return self
 
-    def __exit__(self, _exc_type, _exc_val, _exc_tb) -> None:
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
+    ) -> None:
         """Exit the runtime context related to this object.
 
         This method is called when the runtime context is exited using the
@@ -379,7 +385,7 @@ class PersistentDict(dict):
         val = convert(val)
         super().__setitem__(key, val)
 
-    def update(self, *args, **kwargs) -> None:
+    def update(self, *args: Any, **kwargs: Any) -> None:
         """Update the dictionary with the provided key-value pairs.
 
         This method updates the dictionary with the key-value pairs provided
@@ -402,7 +408,7 @@ class PersistentDict(dict):
         for k, val in dict(*args, **kwargs).items():
             self[k] = val
 
-    def __deepcopy__(self, _) -> Self:
+    def __deepcopy__(self, _: dict[int, Any]) -> Self:
         """Provide a custom deep copy implementation that returns the original object.
 
         This method overrides the default deep copy behavior by returning the same

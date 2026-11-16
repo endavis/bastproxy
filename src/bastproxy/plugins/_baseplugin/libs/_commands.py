@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 class Commands(Protocol):
     @RegisterPluginHook("after_load")
-    def _phook_base_post_initialize_add_reset_command(self: "Plugin"):
+    def _phook_base_post_initialize_add_reset_command(self: "Plugin") -> None:
         """Add commands to the plugin."""
         if self.can_reset_f:
             # can't figure out how to type this correctly
@@ -43,7 +43,7 @@ class Commands(Protocol):
         action="store_true",
     )
     @AddArgument("-c", "--commands", help="show commands in this plugin", action="store_true")
-    def _command_help(self: "Plugin"):
+    def _command_help(self: "Plugin") -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         show the help for this plugin
@@ -121,7 +121,7 @@ class Commands(Protocol):
 
     @AddCommand(group="Base")
     @AddParser(description="save the plugin state")
-    def _command_save(self: "Plugin"):
+    def _command_save(self: "Plugin") -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         save plugin state
@@ -132,7 +132,7 @@ class Commands(Protocol):
 
     @AddCommand(group="Base", autoadd=False)
     @AddParser(description="reset the plugin")
-    def _command_reset(self: "Plugin"):
+    def _command_reset(self: "Plugin") -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
         reset the plugin

@@ -157,10 +157,13 @@ select = [
     "PLW1514",  # require explicit encoding on text-mode file I/O (preview rule)
 ]
 ignore = [
-    "ANN",    # TODO: Enable after adding type annotations to codebase
+    "ANN401",  # explicit Any is allowed; narrowing it is separate typing work (#6)
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"src/bastproxy/plugins/core/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/debug/**" = ["ANN"]  # annotated in later #6 PRs
+"src/bastproxy/plugins/test/**" = ["ANN"]  # annotated in later #6 PRs
 "tools/pyproject_template/*.py" = [
     "ANN401",  # Any return type for dynamic GitHub API responses
     "RUF022",  # __all__ intentionally grouped by category, not sorted

@@ -48,7 +48,7 @@ class RecordManager:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Keep the last max_trees root record trees and track the active record.
 
         ``records`` maps a class name to its records by uuid, oldest first.
@@ -102,7 +102,7 @@ class RecordManager:
         """
         self.capture_stacks = bool(value)
 
-    def start(self, record):
+    def start(self, record: Any) -> None:
         """Make ``record`` the innermost active record in the current context.
 
         Args:
@@ -111,7 +111,7 @@ class RecordManager:
         """
         active_records.set((*active_records.get(), record))
 
-    def end(self, record):
+    def end(self, record: Any) -> None:
         """Remove ``record`` from the active records of the current context.
 
         Call it in a ``finally`` after ``start``, from the same context.
@@ -137,7 +137,7 @@ class RecordManager:
         if not remaining and self._roots_since_prune >= max(1, self.max_trees // 10):
             self.prune()
 
-    def get_latest_record(self):
+    def get_latest_record(self) -> Any:
         """Get the innermost active record.
 
         Returns:
@@ -147,7 +147,7 @@ class RecordManager:
         records = active_records.get()
         return records[-1] if records else None
 
-    def get_children(self, record, record_filter=None):
+    def get_children(self, record: Any, record_filter: list[str] | None = None) -> list[Any]:
         """Get all direct children of a record.
 
         Args:
@@ -170,7 +170,9 @@ class RecordManager:
             }
         )
 
-    def get_all_children_dict(self, record, record_filter=None):
+    def get_all_children_dict(
+        self, record: Any, record_filter: list[str] | None = None
+    ) -> dict[Any, Any]:
         """Get all children recursively as a nested dictionary.
 
         Args:
@@ -192,7 +194,9 @@ class RecordManager:
             if child.__class__.__name__ not in rfilter
         }
 
-    def get_all_children_list(self, record, record_filter=None):
+    def get_all_children_list(
+        self, record: Any, record_filter: list[str] | None = None
+    ) -> list[Any]:
         """Get all children recursively as a flat list.
 
         Args:
@@ -208,7 +212,7 @@ class RecordManager:
         children = self.get_all_children_dict(record, record_filter)
         return self.api("plugins.core.utils:dict.key.list")(children)
 
-    def format_all_children(self, record, record_filter=None):
+    def format_all_children(self, record: Any, record_filter: list[str] | None = None) -> list[str]:
         """Format all children as a tree structure with indentation.
 
         Args:
@@ -229,8 +233,13 @@ class RecordManager:
         ]
 
     def format_all_children_helper(
-        self, children, indent=0, emptybar=None, output=None, record_filter=None
-    ):
+        self,
+        children: dict[Any, Any],
+        indent: int = 0,
+        emptybar: dict[int, bool] | None = None,
+        output: list[str] | None = None,
+        record_filter: list[str] | None = None,
+    ) -> list[str]:
         """Helper method to recursively format children with proper indentation.
 
         Args:
@@ -261,7 +270,7 @@ class RecordManager:
             self.format_all_children_helper(children[child], indent + 1, emptybar, output, rfilter)
         return output
 
-    def add(self, record):
+    def add(self, record: Any) -> None:
         """Add a record to the manager's tracking system.
 
         Args:
@@ -286,7 +295,7 @@ class RecordManager:
                 # Bounds stored pending records when no root tree finishes to trigger a prune.
                 self.prune()
 
-    def _is_root(self, record) -> bool:
+    def _is_root(self, record: Any) -> bool:
         """Return True if the record starts a tree: a processing record with no parents."""
         return bool(getattr(record, "retention_root", False)) and not record.parents
 
@@ -294,7 +303,7 @@ class RecordManager:
         """Count the root record trees currently stored."""
         return sum(1 for rec in self.record_instances.values() if self._is_root(rec))
 
-    def _remove(self, record) -> None:
+    def _remove(self, record: Any) -> None:
         """Remove a record from the stores. Its parents and children are left alone."""
         self.record_instances.pop(record.uuid, None)
         by_type = self.records.get(record.__class__.__name__)
@@ -388,7 +397,7 @@ class RecordManager:
             if uid not in survivors:
                 self._remove(node)
 
-    def get_types(self):
+    def get_types(self) -> list[tuple[str, int]]:
         """Get all record types and their counts.
 
         Returns:
@@ -397,7 +406,7 @@ class RecordManager:
         """
         return [(key, len(self.records[key])) for key in self.records]
 
-    def get_records(self, recordtype, count=10):
+    def get_records(self, recordtype: str, count: int = 10) -> list[Any] | None:
         """Get the last N records of a specific type.
 
         Args:
@@ -414,7 +423,7 @@ class RecordManager:
         values = list(records.values())
         return values[-count:] if count > 0 else []
 
-    def get_record(self, recordid):
+    def get_record(self, recordid: str) -> Any:
         """Get a specific record by its UUID.
 
         Args:

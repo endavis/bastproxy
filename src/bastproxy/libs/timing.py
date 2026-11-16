@@ -104,7 +104,7 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @wraps(func)
-    def wrapper(*arg) -> Any:
+    def wrapper(*arg: Any) -> Any:
         """Measure execution time.
 
         This function wraps the original function to measure its execution time.

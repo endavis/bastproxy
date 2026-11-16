@@ -68,7 +68,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         preamble: bool = True,
         prelogin: bool = False,
         color: str = "",
-    ):
+    ) -> None:
         """Initialize a network data line.
 
         Args:
@@ -197,7 +197,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         return self.line
 
     @property
-    def noansi(self):
+    def noansi(self) -> str | bytes:
         """Get the line with ANSI codes stripped.
 
         Returns:
@@ -209,7 +209,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         return self.api("plugins.core.colors:ansicode.strip")(self._without_mxp())
 
     @property
-    def colorcoded(self):
+    def colorcoded(self) -> str | bytes:
         """Get the line with ANSI codes converted to color codes.
 
         Returns:
@@ -235,7 +235,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             super().lock(name)
         self._line_locked = True
 
-    def escapecolor(self):
+    def escapecolor(self) -> str | bytes:
         """Get the line with color codes escaped for display.
 
         Returns:
@@ -247,36 +247,36 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         return self.api("plugins.core.colors:colorcode.escape")(self.line)
 
     @property
-    def is_command_telnet(self):
+    def is_command_telnet(self) -> bool:
         """A shortcut property to determine if this message is a Telnet Opcode."""
         return self.line_type == LineType.COMMAND_TELNET
 
     @property
-    def is_io(self):
+    def is_io(self) -> bool:
         """A shortcut property to determine if this message is normal I/O."""
         return self.line_type == LineType.IO
 
     @property
-    def internal(self):
+    def internal(self) -> bool:
         """A shortcut property to determine if this message is internal."""
         return self.originated == Originated.INTERNAL
 
     @property
-    def fromclient(self):
+    def fromclient(self) -> bool:
         """A shortcut property to determine if this message is from a client."""
         return self.originated == Originated.CLIENT
 
     @property
-    def frommud(self):
+    def frommud(self) -> bool:
         """A shortcut property to determine if this message is from the mud."""
         return self.originated == Originated.MUD
 
-    def add_line_endings(self, actor=""):
+    def add_line_endings(self, actor: str = "") -> None:
         """Add line endings to the message."""
         if self.is_io and self.had_line_endings:
             self.line = f"{self.line}\r\n"
 
-    def copy_attributes(self, new_line):
+    def copy_attributes(self, new_line: "NetworkDataLine") -> None:
         """Copy the attributes from the current line to a new line."""
         new_line.line_type = self.line_type
         new_line.originated = self.originated
@@ -289,7 +289,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         new_line.mxp_mode = self.mxp_mode
         new_line.mask_log = self.mask_log
 
-    def color_line(self):
+    def color_line(self) -> None:
         """Color the message and convert all colors to ansicodes.
 
         color is the color for all lines
@@ -316,7 +316,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
                 self.line = f"{self.color}{self.line}@w"
         self.line = self.api("plugins.core.colors:colorcode.to.ansicode")(self.line)
 
-    def fix_double_command_seperator(self):
+    def fix_double_command_seperator(self) -> None:
         """Fix double command seperators.
 
         take out double command seperators and replaces them with a single one before
@@ -341,7 +341,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             self.color_line()
             self.add_line_endings()
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         """Get the attributes to format for display.
 
         Returns:
@@ -354,7 +354,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         attributes[0].append(("Type", "line_type"))
         return attributes
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one-line summary of the network data.
 
         Returns:
@@ -364,7 +364,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         shown = echo_off_placeholder(self.line) if self.mask_log else repr(self.line)
         return f"{self.__class__.__name__:<20} {self.uuid} {self.originated} {shown}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return a string representation of the line.
 
         A ``str`` line is returned as is. A ``bytes`` or ``bytearray`` line
@@ -380,7 +380,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             return self.line
         return bytes(self.line).decode("latin-1")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a detailed representation of the network data line.
 
         Returns:
@@ -389,7 +389,7 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         """
         return self.one_line_summary()
 
-    def add_preamble(self, error: bool = False):
+    def add_preamble(self, error: bool = False) -> None:
         """Add the preamble to the line only if it is from internal and is an IO message."""
         if self.internal and self.is_io:
             preamblecolor = self.api("plugins.core.proxy:preamble.color.get")(error=error)
@@ -406,7 +406,7 @@ class NetworkData(TrackedRecordMixin, TrackedList):
             NetworkDataLine | str | bytes | list[NetworkDataLine] | list[str] | list[bytes] | None
         ) = None,
         owner_id: str = "",
-    ):
+    ) -> None:
         """Initialize the class."""
         if message is None:
             message = []
@@ -468,7 +468,7 @@ class NetworkData(TrackedRecordMixin, TrackedList):
         """A list has no monitored fields, so there is no original value."""
         return None
 
-    def get_first_line(self):
+    def get_first_line(self) -> str | bytes:
         """Get the first non-empty line from the network data.
 
         Returns:
@@ -484,6 +484,6 @@ class NetworkData(TrackedRecordMixin, TrackedList):
                 return networkline.original_line
         return ""
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         return f"{self.__class__.__name__:<20} {self.uuid} {len(self)} {self.get_first_line()!r}"

@@ -37,9 +37,9 @@ class ProcessDataToMud(BaseRecord):
         self,
         message: "NetworkData",
         show_in_history: bool = True,
-        client_id=None,
-        parent=None,
-    ):
+        client_id: str | None = None,
+        parent: BaseRecord | None = None,
+    ) -> None:
         """Initialize the class."""
         super().__init__(parent=parent)
         self.message = message
@@ -49,7 +49,7 @@ class ProcessDataToMud(BaseRecord):
         self.client_id = client_id
         self.modify_data_event_name = self.MODIFY_EVENT
 
-    def get_attributes_to_format(self):
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
         """Get the attributes to format for display.
 
         Returns:
@@ -60,14 +60,14 @@ class ProcessDataToMud(BaseRecord):
         attributes[0].extend([("Show in History", "show_in_history"), ("Client ID", "client_id")])
         return attributes
 
-    def one_line_summary(self):
+    def one_line_summary(self) -> str:
         """Get a one line summary of the record."""
         return (
             f"{self.__class__.__name__:<20} {self.uuid} {len(self.message)} "
             f"{self.execute_time_taken:.2f}ms {self.message.get_first_line()!r}"
         )
 
-    def seperate_commands(self):
+    def seperate_commands(self) -> None:
         """Separate multiple commands in a single line into individual lines."""
         index = 0
         while index < len(self.message):
@@ -107,7 +107,7 @@ class ProcessDataToMud(BaseRecord):
             else:
                 index += 1
 
-    def _exec_(self):
+    def _exec_(self) -> None:
         """Process the data before sending to the mud."""
         # If the line came from a client and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
@@ -143,9 +143,9 @@ class SendDataDirectlyToMud(BaseRecord):
         self,
         message: "NetworkData",
         show_in_history: bool = True,
-        client_id=None,
-        parent=None,
-    ):
+        client_id: str | None = None,
+        parent: BaseRecord | None = None,
+    ) -> None:
         """Initialize the class."""
         super().__init__(parent=parent)
         self.message = message
@@ -153,7 +153,7 @@ class SendDataDirectlyToMud(BaseRecord):
         self.message.add_parent(self)
         self.read_data_event_name = self.READ_EVENT
 
-    def _exec_(self):
+    def _exec_(self) -> None:
         """Send the data to the mud."""
         # Format first: locking the message locks its lines, and a locked line cannot format.
         for line in self.message:
