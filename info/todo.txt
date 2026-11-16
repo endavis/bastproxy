@@ -20,8 +20,6 @@
         or many function parameters, for type checking and error handling (new dependency)
 
 # REVISIT
-    # TODO: plac instead of ArgumentParser
-        see if it can do both + and - as arguments: ++openfile vs --openfiles for proxy.resources
 
 # REJECTED
     # change typing to "import typing as T": works against the project's typing style and ruff
