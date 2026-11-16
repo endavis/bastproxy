@@ -59,6 +59,7 @@ from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import echo_off_placeholder, get_logger, input_placeholder
 from bastproxy.libs.net import mxp, telnet
 from bastproxy.libs.net.naws import WINDOW_SIZE
+from bastproxy.libs.net.negotiation import option_names
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import (
     NetworkData,
@@ -76,6 +77,10 @@ _TERM_MAX_LENGTH = 32
 
 class ClientConnection:
     """Represents a client connection and handles communication."""
+
+    # class defaults, so a connection built without ``__init__`` (as tests do) still counts
+    lines_sent: int = 0
+    lines_received: int = 0
 
     def __init__(
         self,
@@ -117,6 +122,8 @@ class ClientConnection:
         self.telnet_server: TelnetServer | None = self.writer.protocol
         self.data_logger = logging.getLogger(f"data.client.{self.uuid}")
         self.max_lines_to_process = 15
+        self.lines_sent: int = 0
+        self.lines_received: int = 0
         # the lower-cased modules and versions from the client's Core.Supports (#59)
         self.gmcp_modules: dict[str, int] = {}
         self._wire_oob()
@@ -260,6 +267,20 @@ class ClientConnection:
         now = datetime.datetime.now(datetime.UTC)
         idle = datetime.timedelta(seconds=float(self.telnet_server.idle))
         return cast(str, self.api("plugins.core.utils:timedelta.to.string")(now - idle, now))
+
+    @property
+    def bytes_sent(self) -> int:
+        """Return the bytes written to the client, before compression (0 without a server)."""
+        return int(getattr(self.telnet_server, "tx_bytes", 0))
+
+    @property
+    def bytes_received(self) -> int:
+        """Return the bytes read from the client, after inflation (0 without a server)."""
+        return int(getattr(self.telnet_server, "rx_bytes", 0))
+
+    def telnet_options(self) -> tuple[list[str], list[str]]:
+        """Return the enabled (local, remote) option names on this client's link."""
+        return option_names(self.writer.local_option), option_names(self.writer.remote_option)
 
     @property
     def term_type(self) -> str:
@@ -499,6 +520,8 @@ class ClientConnection:
                 self.connected = False
                 return
 
+            self.lines_received += 1
+
             if not self.state["logged in"]:
                 self.process_data_from_not_logged_in_client(inp)
                 continue
@@ -551,6 +574,7 @@ class ClientConnection:
                     out = mxp.render_for_client(msg_obj, self.mxp_enabled)
                     self.writer.write(cast(str, out))
                     msg_obj.was_sent = True
+                    self.lines_sent += 1
                     self.data_logger.info("%-12s : %s", "client_write", out)
                 else:
                     logger.debug("client_write - No message to write to client.")

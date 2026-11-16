@@ -287,6 +287,35 @@ class ClientPlugin(BasePlugin):
         """
         return self.clients.keys() if uuid_only else self.clients.values()
 
+    @AddAPI("client.list.details", description="get details about each connected client")
+    def _api_client_list_details(self) -> list[str]:
+        """Return a block of details for each connected client."""
+        if not self.clients:
+            return ["No clients connected"]
+        template = "%-17s : %s"
+        header = self.api("plugins.core.commands:output.header.format")
+        tmsg: list[str] = []
+        for client in self.clients.values():
+            local_options, remote_options = client.telnet_options()
+            if tmsg:
+                tmsg.append("")
+            tmsg.extend(
+                (
+                    *header(f"Client {client.addr}:{client.port}"),
+                    template % ("State", "View only" if client.view_only else "Active"),
+                    template % ("Term Type", client.term_type),
+                    template % ("Connected", client.connected_length),
+                    template % ("Idle", client.idle),
+                    template % ("Lines sent", f"{client.lines_sent:,}"),
+                    template % ("Lines received", f"{client.lines_received:,}"),
+                    template % ("Bytes sent", f"{client.bytes_sent:,}"),
+                    template % ("Bytes received", f"{client.bytes_received:,}"),
+                    template % ("Local options", ", ".join(local_options) or "-"),
+                    template % ("Remote options", ", ".join(remote_options) or "-"),
+                )
+            )
+        return tmsg
+
     @AddAPI(
         "client.list.formatted",
         description="get the connected and banned clients as formatted tables",
@@ -299,7 +328,6 @@ class ClientPlugin(BasePlugin):
             "plugins.core.commands", "output_header_color"
         )
 
-        # TODO: add telnet options
         clients = [
             {
                 "state": "Active",

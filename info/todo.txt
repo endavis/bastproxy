@@ -10,8 +10,6 @@
         every plugin already has a help command, and docs/ covers development
     # TODO: separate line length for each client, from telnet negotiation (NAWS)
         after #66 moves client negotiation onto telnetlib3's API
-    # TODO: command to see details about clients and the mud
-        negotiated telnet options (#83), idle time (#90), lines and data counts (#79)
     # TODO: internal webserver for large command output, such as record details
     # TODO: Discord bot?
 
