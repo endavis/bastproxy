@@ -567,13 +567,13 @@ class EventsPlugin(BasePlugin):
             msg.extend(
                 (
                     self.api("plugins.core.utils:string.center.colored")(
-                        "Overall Event Data", "=", 80, filler_color="@G"
+                        "Overall Event Data", "=", filler_color="@G"
                     ),
                     f"Total Events  : {len(self.events)}",
                     f"Raised Events : {self.global_raised_count}",
                     "",
                     self.api("plugins.core.utils:string.center.colored")(
-                        f"{self.plugin_id} specific data", "=", 80, filler_color="@G"
+                        f"{self.plugin_id} specific data", "=", filler_color="@G"
                     ),
                 )
             )

@@ -856,10 +856,10 @@ class CommandsPlugin(BasePlugin):
             "           #bp.co.prox",
             "Not Valid: #bp.proxy.info -h",
             "           #bp.proxy",
-            #            "".join(["@B", '-' * 80]),
         ]
         if header2:
-            newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", "-" * 80])))
+            line_length = self.api("plugins.core.proxy:line.length.get")()
+            newoutput.extend(("".join(["@B", f"{header2}"]), "".join(["@B", "-" * line_length])))
         newoutput.extend(data)
         newoutput.append("")
 
@@ -871,12 +871,13 @@ class CommandsPlugin(BasePlugin):
         """Command not found in plugin."""
         message = []
         if command:
+            line_length = self.api("plugins.core.proxy:line.length.get")()
             message = [
                 self.api("plugins.core.utils:line.cap")(
-                    f"{'-' * (80 - 2)}",
+                    f"{'-' * (line_length - 2)}",
                     "+",
                     color="@B",
-                    line_length=80,
+                    line_length=line_length,
                     space=False,
                     fullcolor=True,
                 ),
@@ -884,7 +885,7 @@ class CommandsPlugin(BasePlugin):
                     f"@RError - Plugin {plugin_id.replace('plugins.', '')} has no command"
                     f"{f' : {command}' if command else ''}@w",
                     filler_character="-",
-                    length=80,
+                    length=line_length,
                     filler_color="@B",
                     endcaps=True,
                 ),
@@ -907,19 +908,20 @@ class CommandsPlugin(BasePlugin):
         """Plugin not found."""
         message = []
         if plugin_id:
+            line_length = self.api("plugins.core.proxy:line.length.get")()
             message = [
                 self.api("plugins.core.utils:line.cap")(
-                    f"{'-' * (80 - 2)}",
+                    f"{'-' * (line_length - 2)}",
                     "+",
                     color="@B",
-                    line_length=80,
+                    line_length=line_length,
                     space=False,
                     fullcolor=True,
                 ),
                 self.api("plugins.core.utils:string.center.colored")(
                     f"@RError - Unknown plugin{f' : {plugin_id}' if plugin_id else ''}@w",
                     filler_character="-",
-                    length=80,
+                    length=line_length,
                     filler_color="@B",
                     endcaps=True,
                 ),
@@ -944,19 +946,20 @@ class CommandsPlugin(BasePlugin):
 
     def error_package_not_found(self, package: str | None = None) -> list[str]:
         """Package not found."""
+        line_length = self.api("plugins.core.proxy:line.length.get")()
         message = [
             self.api("plugins.core.utils:line.cap")(
-                f"{'-' * (80 - 2)}",
+                f"{'-' * (line_length - 2)}",
                 "+",
                 color="@B",
-                line_length=80,
+                line_length=line_length,
                 space=False,
                 fullcolor=True,
             ),
             self.api("plugins.core.utils:string.center.colored")(
                 f"@RError - Unknown package{f' : {package}' if package else ''}@w",
                 filler_character="-",
-                length=80,
+                length=line_length,
                 filler_color="@B",
                 endcaps=True,
             ),
@@ -1215,12 +1218,12 @@ class CommandsPlugin(BasePlugin):
             msg.extend(
                 (
                     self.api("plugins.core.utils:string.center.colored")(
-                        "Overall Command Data", "=", 80, filler_color="@G"
+                        "Overall Command Data", "=", filler_color="@G"
                     ),
                     f"Total Commands for all plugins : {len(self.commands_list)}",
                     "",
                     self.api("plugins.core.utils:string.center.colored")(
-                        f"{self.plugin_id} specific data", "=", 80, filler_color="@G"
+                        f"{self.plugin_id} specific data", "=", filler_color="@G"
                     ),
                 )
             )

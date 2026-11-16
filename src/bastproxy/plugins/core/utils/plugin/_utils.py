@@ -475,12 +475,17 @@ class UtilsPlugin(BasePlugin):
         self,
         string_to_center: str,
         filler_character: str = "",
-        length: int = 80,
+        length: int | None = None,
         filler_color: str = "",
         endcaps: bool = False,
         capchar: str = "|",
     ) -> str:
-        """Center a string with color codes."""
+        """Center a string with color codes.
+
+        ``length`` defaults to the current client's line length.
+        """
+        if length is None:
+            length = self.api("plugins.core.proxy:line.length.get")()
         converted_colors_string = self.api("plugins.core.colors:colorcode.to.ansicode")(
             string_to_center
         )

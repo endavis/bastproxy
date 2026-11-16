@@ -16,6 +16,7 @@ def _stub(handlers: dict[str, Callable[..., Any]] | None = None) -> MagicMock:
     table: dict[str, Callable[..., Any]] = {
         "plugins.core.settings:setting.get": lambda _pid, _key: "@w",
         f"{PID}:output.header.format": lambda title: [f"HEADER {title}"],
+        "plugins.core.proxy:line.length.get": lambda: 80,
         "plugins.core.utils:line.cap": lambda *_a, **_k: "CAP",
         "plugins.core.utils:string.center.colored": lambda text, **_k: text,
         "libs.plugins.loader:plugin.list.in.package": lambda _pkg: ["plugins.core.alpha"],

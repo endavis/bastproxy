@@ -262,17 +262,18 @@ class TimersPlugin(BasePlugin):
             "plugins.core.commands", "output_header_color"
         )
         match: str = args["match"]
+        line_length = self.api("plugins.core.proxy:line.length.get")()
 
         message: list[str] = [
             "UTC time is: "
             f"{datetime.datetime.now(datetime.UTC).strftime('%a %b %d %Y %H:%M:%S %Z')}",
-            output_header_color + "-" * 80 + "@w",
+            output_header_color + "-" * line_length + "@w",
         ]
         templatestring = "%-20s : %-25s %-9s %-8s %s"
         message.extend(
             (
                 templatestring % ("Name", "Defined in", "Enabled", "Fired", "Next Fire"),
-                output_header_color + "-" * 80 + "@w",
+                output_header_color + "-" * line_length + "@w",
             )
         )
         for i in self.timer_lookup:
