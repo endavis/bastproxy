@@ -53,6 +53,7 @@ from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins.dependency import PluginDependencyResolver
+from bastproxy.libs.plugins.pluginid import PluginId
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.plugins._baseplugin import BasePlugin
 
@@ -537,9 +538,11 @@ class PluginLoader:
             result.packages.extend(scan.packages)
 
             for p in scan.plugins:
-                plugin_id = id_prefix + p["package_import_location"].removeprefix(import_prefix)
+                plugin_id = PluginId(
+                    id_prefix + p["package_import_location"].removeprefix(import_prefix)
+                )
                 p["plugin_id"] = plugin_id
-                package = plugin_id.rsplit(".", 1)[0]
+                package = plugin_id.package
                 if is_user and (package in bundled_packages or plugin_id in seen_ids):
                     logger.error(
                         "User plugin %s not loaded: %s collides with a bundled plugin or package",

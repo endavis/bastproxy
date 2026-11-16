@@ -74,9 +74,9 @@ Holds metadata and runtime information for a plugin:
 ```python
 class PluginInfo:
     def __init__(self, plugin_id: str):
-        self.plugin_id = plugin_id
-        self.package = plugin_id.rsplit(".", 1)[0]
-        self.short_name = plugin_id.split(".")[-1]
+        self.plugin_id = PluginId(plugin_id)
+        self.package = self.plugin_id.package
+        self.short_name = self.plugin_id.plugin
         self.name = ""  # Full plugin name
         self.author = ""
         self.purpose = ""
@@ -92,6 +92,8 @@ class PluginInfo:
         self.import_errors = []
         self.files = {}  # Track all Python files in the plugin
 ```
+
+`PluginId` (`src/bastproxy/libs/plugins/pluginid.py`) is a `str` subclass, so it compares, hashes, serializes and formats exactly like the plain ID. It adds read-only `package` (before the last `.`) and `plugin` (after it) properties and `PluginId.from_parts(package, plugin)`. It raises `TypeError` for a non-str and `ValueError` for a value that is not `<package>.<plugin>`. `PluginIdMatch` is a separate fuzzy-match result type.
 
 The plugin class is imported from `plugin_class_import_location`, which is
 `package_import_location + ".plugin"`.
@@ -676,6 +678,7 @@ class Plugin(BasePlugin):
 ### Plugin Loader
 - `src/bastproxy/libs/plugins/loader.py` - PluginLoader class
 - `src/bastproxy/libs/plugins/plugininfo.py` - PluginInfo and PluginRuntimeInfo classes
+- `src/bastproxy/libs/plugins/pluginid.py` - PluginId value type
 - `src/bastproxy/libs/plugins/dependency.py` - Dependency resolution
 - `src/bastproxy/libs/plugins/imputils.py` - Import utilities
 - `src/bastproxy/libs/plugins/reloadutils.py` - Reload cache utilities
