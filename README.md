@@ -112,7 +112,7 @@ class YourPlugin(BasePlugin):
         return f"Processed: {data}"
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed plugin development guidelines.
+See the [Plugin Developer Guide](docs/plugin-developer-guide.md) for detailed plugin development guidelines.
 
 ## Development
 

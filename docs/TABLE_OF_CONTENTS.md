@@ -90,6 +90,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
+- [Plugin Developer Guide](plugin-developer-guide.md) - A task-oriented path for plugin authors, covering communication, plugin structure and reloading, hooks and events, commands and triggers
 - [Plugin System](claude/plugin_system.md) - Plugin structure, metadata, loading, reloading and lifecycle
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation
@@ -222,6 +223,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
+- [Plugin Developer Guide](plugin-developer-guide.md) - A task-oriented path for plugin authors, covering communication, plugin structure and reloading, hooks and events, commands and triggers
 - [Plugin System](claude/plugin_system.md) - Plugin structure, metadata, loading, reloading and lifecycle
 - [Plugin System Analysis and Findings](claude/plugin_system_findings.md) - Audit of plugin discovery, loading, unloading, reloading, hooks and BasePlugin patching, with defects and a patterns review
 - [Python Project Coding Standards](development/coding-standards.md) - Guidelines for exceptions, typing, structure, testing, and documentation

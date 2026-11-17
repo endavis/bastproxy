@@ -243,49 +243,8 @@ Closes #123
 
 ## Plugin Development
 
-### Plugin Structure
-
-```
-plugins/your_plugin/
-├── __init__.py          # Plugin metadata
-├── plugin/              # Plugin implementation
-│   ├── __init__.py
-│   └── _yourplugin.py
-└── libs/                # Helper libraries (optional)
-    └── _utils.py
-```
-
-### Plugin Template
-
-```python
-# plugins/your_plugin/__init__.py
-
-PLUGIN_NAME = 'Your Plugin Name'
-PLUGIN_PURPOSE = 'Brief description'
-PLUGIN_AUTHOR = 'Your Name'
-PLUGIN_VERSION = 1
-
-PLUGIN_REQUIRED = False  # True for core plugins
-```
-
-### Plugin Class
-
-```python
-from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.libs.api import AddAPI
-
-class YourPlugin(BasePlugin):
-    """Your plugin implementation."""
-
-    def __init__(self, plugin_id, plugin_info):
-        """Initialize the plugin."""
-        super().__init__(plugin_id, plugin_info)
-
-    @AddAPI('your.api.function', description='API description')
-    def _api_your_function(self, param: str) -> str:
-        """Your API function."""
-        return f"Result: {param}"
-```
+See the [Plugin Developer Guide](docs/plugin-developer-guide.md) for the plugin file structure,
+metadata, the `Plugin` export, reloading, hooks and events, commands and triggers.
 
 Commands are `_command_` methods that return a `CommandResult`; see
 [docs/claude/command_system.md](docs/claude/command_system.md):
