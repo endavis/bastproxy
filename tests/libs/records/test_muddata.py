@@ -96,9 +96,7 @@ def test_process_exec_only_internal_lines_skips_modify(plugin_stand_ins: StandIn
     message = NetworkData([NetworkDataLine("internal")])
     ProcessDataToMud(message)()
     assert [call.name for call in plugin_stand_ins.events] == [TO_MUD_DATA_READ]
-    assert [line.line for line in plugin_stand_ins.connection.sent] == [
-        "ANSI(@C#BP@w: internal)\r\n"
-    ]
+    assert [line.line for line in plugin_stand_ins.connection.sent] == ["internal\r\n"]
 
 
 def test_send_directly_without_connection(plugin_stand_ins: StandIns) -> None:

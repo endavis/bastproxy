@@ -333,12 +333,20 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
             if current_line != self.line:
                 self.line = current_line
 
-    def format(self, preamble: bool = False, color: str = "") -> None:
-        """Format the message. A locked line is already formatted, so this does nothing."""
+    def format(self, preamble: bool = False, color: str = "", to_mud: bool = False) -> None:
+        """Format the message. A locked line is already formatted, so this does nothing.
+
+        With ``to_mud`` an internal line gets only its line endings: the preamble
+        and colour codes are for a client's display, and the MUD must receive the
+        bare command (#555).
+        """
         if self._line_locked:
             return
         if self.is_io:
             if self.internal:  # generated from the proxy
+                if to_mud:
+                    self.add_line_endings()
+                    return
                 if self.preamble:
                     self.add_preamble()
             else:  # generated from a client

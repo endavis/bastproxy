@@ -196,7 +196,7 @@ The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/ba
 
 Properties: `noansi` (every terminal escape sequence stripped, and MXP stripped first when `mxp_mode` is set), `colorcoded` (same), `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `format(to_mud=True)`, used by `SendDataDirectlyToMud`, skips the preamble and `color_line()` for internal lines and only adds line endings, so the MUD receives the bare command (#555). Colour codes (`@r`) in such a line are not converted: they reach the MUD as literal text. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 
 ### NetworkData
 

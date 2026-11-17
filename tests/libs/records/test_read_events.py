@@ -46,7 +46,7 @@ def test_read_event_receives_records(
     monkeypatch: pytest.MonkeyPatch, record_cls: type, event_name: str
 ) -> None:
     calls: list[tuple[str, dict[str, Any]]] = []
-    monkeypatch.setattr(NetworkDataLine, "format", lambda self: None)
+    monkeypatch.setattr(NetworkDataLine, "format", lambda self, **kw: None)
     record = record_cls(_message())
     record.api = _fake_api(calls)
     record._exec_()
