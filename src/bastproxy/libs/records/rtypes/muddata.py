@@ -142,7 +142,6 @@ class SendDataDirectlyToMud(BaseRecord):
     def __init__(
         self,
         message: "NetworkData",
-        show_in_history: bool = True,
         client_id: str | None = None,
         parent: BaseRecord | None = None,
     ) -> None:
@@ -151,7 +150,19 @@ class SendDataDirectlyToMud(BaseRecord):
         self.message = message
         self.message.parent = self
         self.message.add_parent(self)
+        self.client_id = client_id
         self.read_data_event_name = self.READ_EVENT
+
+    def get_attributes_to_format(self) -> dict[int, list[tuple[str, str]]]:
+        """Get the attributes to format for display.
+
+        Returns:
+            A list of attribute tuples for formatting.
+
+        """
+        attributes = super().get_attributes_to_format()
+        attributes[0].append(("Client ID", "client_id"))
+        return attributes
 
     def _exec_(self) -> None:
         """Send the data to the mud."""
@@ -169,5 +180,8 @@ class SendDataDirectlyToMud(BaseRecord):
         # data is being sent to the mud
         if data_for_event := [line for line in self.message if line.send]:
             self.api("plugins.core.events:event.raise")(
-                self.read_data_event_name, data_list=data_for_event, key_name="line"
+                self.read_data_event_name,
+                event_args={"client_id": self.client_id},
+                data_list=data_for_event,
+                key_name="line",
             )

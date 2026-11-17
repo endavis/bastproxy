@@ -830,7 +830,6 @@ class CommandsPlugin(BasePlugin):
                             self.plugin_id, "antispamcommand"
                         )
                     ),
-                    show_in_history=False,
                 )()
 
                 self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)

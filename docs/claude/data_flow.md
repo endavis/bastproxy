@@ -220,7 +220,7 @@ Same file, class `SendDataDirectlyToMud(BaseRecord)`. `_exec_()`:
 
 1. `message.lock()`
 2. For each line with `send` set: `line.format()`, `line.lock()`, `mud_connection.send_to(line)`
-3. Raises `ev_to_mud_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
+3. Raises `ev_to_mud_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records) and `event_args={"client_id": ...}`
 
 Code that wants to send to the MUD without the modify event calls this directly.
 
@@ -277,7 +277,7 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 | `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
 | `ev_to_client_data_read` | `SendDataDirectlyToClient` | `NetworkDataLine` (locked, after formatting) | none |
 
-`ev_to_mud_data_modify` also carries `showinhistory` and `client_id`.
+`ev_to_mud_data_modify` also carries `showinhistory` and `client_id`. `ev_to_mud_data_read` carries `client_id`.
 
 ### Core listeners
 

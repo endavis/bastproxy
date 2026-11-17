@@ -165,7 +165,7 @@ class MUDCmdsPlugin(BasePlugin):
 
         self.current_command = cmdt
         self.api("plugins.core.events:event.raise")(f"cmd_{self.current_command.ctype}_send")
-        SendDataDirectlyToMud(NetworkData(cmd), show_in_history=False)()
+        SendDataDirectlyToMud(NetworkData(cmd))()
 
     def checkinqueue(self, cmd: str) -> bool:
         """Check for a command in the queue."""

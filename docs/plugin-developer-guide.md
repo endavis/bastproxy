@@ -74,9 +74,10 @@ from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
                 SendDataDirectlyToMud(NetworkData(pasw))()
 ```
 
-`SendDataDirectlyToMud` also accepts `show_in_history` and `client_id`, but the constructor in
-`src/bastproxy/libs/records/rtypes/muddata.py` stores neither, so they have no effect. Do not
-rely on them.
+`SendDataDirectlyToMud` accepts a `client_id`. It is stored on the record and given to
+`ev_to_mud_data_read` listeners as `event_record["client_id"]`. Command history comes only from
+client input that goes through `ProcessDataToMud`, so a send through `SendDataDirectlyToMud` is never
+recorded. To keep a command out of history, use `@AddCommand(show_in_history=False)`.
 
 Details: [Data flow](claude/data_flow.md#processing-records) and
 [the four data events](claude/data_flow.md#data-flow-events).

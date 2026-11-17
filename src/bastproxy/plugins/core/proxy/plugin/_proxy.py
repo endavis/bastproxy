@@ -301,7 +301,6 @@ class ProxyPlugin(BasePlugin):
                 NetworkData(
                     self.api("plugins.core.settings:setting.get")(self.plugin_id, "username")
                 ),
-                show_in_history=False,
             )()
             pasw = self.api(f"{self.plugin_id}:ssc.mudpw.get")()
             if pasw != "":
