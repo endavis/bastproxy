@@ -77,15 +77,24 @@ Configuration files are stored in `$BASTPROXY_HOME/data/plugins/`. Each plugin m
 
 ### Core Plugins
 
-- **commands**: Command parsing and execution
-- **events**: Event registration and notification
-- **triggers**: Pattern matching and text substitution
-- **clients**: Client connection management
-- **proxy**: Core proxy settings
-- **log**: Logging infrastructure
-- **settings**: Plugin settings management
-- **colors**: ANSI/Xterm color handling
-- **help**: In-proxy guides to using the proxy (#bp.core.help.topic)
+- **clients**: Manage clients
+- **colors**: Ansi/Xterm color functions
+- **commands**: Parse and handle commands
+- **errors**: Show and manage errors
+- **events**: Handle events
+- **fuzzy**: Do fuzzy matching
+- **help**: Guides to using the proxy (#bp.core.help.topic)
+- **log**: Handles changing and testing of logging configuration
+- **mudcmds**: Queue commands to the mud
+- **pluginm**: Manage plugins
+- **proxy**: Control the proxy
+- **settings**: Plugin to handle settings
+- **sqldb**: Hold the SQL DB baseclass
+- **ssc**: Class to save settings that should not stay in memory
+- **timers**: Handle timers
+- **triggers**: Handle triggers
+- **utils**: Utility functions
+- **watch**: Watch for specific commands from clients
 
 ## Plugin Development
 
