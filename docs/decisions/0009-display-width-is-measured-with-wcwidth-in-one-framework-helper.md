@@ -26,7 +26,7 @@ Tables, centred titles, line caps, the line-length calculation and help text siz
 4. The width is never negative. Control characters and terminal escape sequences count as zero columns (`wcwidth.width(..., control_codes="ignore")`), never `wcswidth`, which returns -1 for a control character. Printable ASCII skips wcwidth.
 5. `text_units` splits text into graphemes (one terminal escape sequence is one zero-width unit). `wrap_cell` wraps on these units with a prefix sum of their widths, so a combining mark stays with its base character and a joined emoji is never cut. A line always takes at least one unit, so a grapheme wider than the column gets a line of its own.
 6. `fit_column_widths` takes an optional per-column floor (`unit_mins`, the widest grapheme of the column), so a table column is never narrower than one wide character and the table grows instead.
-7. `src/bastproxy/libs/argp.py` wraps help text with `wcwidth.wrap` instead of `textwrap`. Help text still holds `@` codes at that point, as before, so they count as visible there.
+7. `src/bastproxy/libs/argp.py` wraps help text with `wcwidth.wrap` instead of `textwrap`. The commands plugin injects the `colorcode.to.tokens` API into `argp.CustomFormatter`, so `@` codes are zero-width and the active colour carries to continuation lines (#542).
 
 The helper and its rules are described in [Colour System](../claude/colors_system.md#display-width). Implemented by #528.
 
@@ -43,12 +43,13 @@ The helper and its rules are described in [Colour System](../claude/colors_syste
 - A new runtime dependency, `wcwidth`.
 - Printable ASCII output is unchanged. An ASCII control character in a measured string now counts 0 columns instead of 1, and argp help lines may lose a trailing space.
 - A grapheme split across colour-code tokens (a base character, a colour code, then a combining mark) is measured as two units; the mark has zero width.
-- argp does not know `@` codes, so help lines that hold them can come out short but never overrun. Making the wrap `@`-aware is separate work.
+- argp does not know `@` codes itself; it gets a tokenizer injected. Making the wrap `@`-aware was fixed in #542.
 - New code that measures visible text calls `display_width`, and never `len()` of text that may hold wide characters.
 
 ## Related Issues
 
 - Issue #528: measure display width with wcwidth for wide and combining characters
+- Issue #542: help wrapping counts `@` colour codes as visible
 
 ## Related Documentation
 

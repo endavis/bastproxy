@@ -77,14 +77,28 @@ class CommandLookup:
     message: list[str] | str
 
 
-def _help_formatter(api: Callable[[str], Callable[..., Any]], prog: str) -> argp.CustomFormatter:
+def _help_tokenize(api: Callable[[str], Callable[..., Any]], text: str) -> list[tuple[str, str]]:
+    """Split help text into ``(raw, visible)`` pairs for the help formatter.
+
+    The colors API is looked up on each call, so load order does not matter.
+    """
+    tokens: list[tuple[str, str]] = api("plugins.core.colors:colorcode.to.tokens")(text)
+    return tokens
+
+
+def _help_formatter(
+    api: Callable[[str], Callable[..., Any]],
+    prog: str,
+    tokenize: Callable[[str], list[tuple[str, str]]] | None = None,
+) -> argp.CustomFormatter:
     """Build a help formatter wrapped to the current client's line length.
 
     argparse calls this each time help or usage is formatted, so the width is the
-    requesting client's, not the one at command registration.
+    requesting client's, not the one at command registration. ``tokenize`` makes the
+    formatter count ``@`` colour codes as zero columns (#542).
     """
     line_length: int = api("plugins.core.proxy:line.length.get")()
-    return argp.CustomFormatter(prog, width=line_length)
+    return argp.CustomFormatter(prog, width=line_length, tokenize=tokenize)
 
 
 class CommandsPlugin(BasePlugin):
@@ -479,7 +493,9 @@ class CommandsPlugin(BasePlugin):
             return
 
         parser.add_argument("-h", "--help", help="show help", action="store_true")
-        parser.formatter_class = functools.partial(_help_formatter, self.api)
+        parser.formatter_class = functools.partial(
+            _help_formatter, self.api, tokenize=functools.partial(_help_tokenize, self.api)
+        )
 
         parser.prog = self.api("plugins.core.commands:command.format")(plugin_id, command_name)
 

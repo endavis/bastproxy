@@ -13,10 +13,13 @@ Test Classes:
 """
 
 import argparse
+import ast
+from pathlib import Path
 
 import pytest
 import wcwidth
 
+from bastproxy.libs import argp as argp_module
 from bastproxy.libs.argp import (
     OPTIONAL,
     SUPPRESS,
@@ -25,6 +28,7 @@ from bastproxy.libs.argp import (
     ArgumentParser,
     CustomFormatter,
 )
+from bastproxy.plugins.core.colors.libs._tokenizer import strip_colorcodes, tokenize
 
 
 class TestArgumentParser:
@@ -331,3 +335,104 @@ class TestCustomFormatterWideCharacters:
 
         assert all(ln.count("\u200d") % 2 == 0 for ln in lines)
         assert not any(ln.lstrip().startswith("\u0301") for ln in lines)
+
+
+def _tok(text: str) -> list[tuple[str, str]]:
+    """Tokenize with the real colour tokenizer, as the colors plugin API does."""
+    return [(t.raw, t.visible) for t in tokenize(text)]
+
+
+REPRO = "@Gone two three four five six seven eight nine ten@w"
+
+
+class TestCustomFormatterColourCodes:
+    """Help wrapping counts @ colour codes as zero columns (#542)."""
+
+    def _split(self, text: str, width: int, tok: bool = True) -> list[str]:
+        formatter = CustomFormatter("p", width=width, tokenize=_tok if tok else None)
+        return formatter._split_lines(text, width)
+
+    def _fill(self, text: str, width: int) -> list[str]:
+        formatter = CustomFormatter("p", width=width, tokenize=_tok)
+        return formatter._fill_text(text, width, "").splitlines()[1:]
+
+    def test_repro_wraps_on_visible_text(self) -> None:
+        lines = self._split(REPRO, 40)
+        assert [strip_colorcodes(ln) for ln in lines] == [
+            "one two three four five six seven eight",
+            "nine ten",
+        ]
+
+    def test_fill_text_matches_stripped_wrap(self) -> None:
+        for width in (20, 40, 60):
+            got = [strip_colorcodes(ln) for ln in self._fill(REPRO, width)]
+            assert got == wcwidth.wrap(strip_colorcodes(REPRO), max(width, 11))
+
+    def test_split_lines_matches_stripped_wrap(self) -> None:
+        for width in (20, 40, 60):
+            got = [strip_colorcodes(ln) for ln in self._split(REPRO, width)]
+            assert got == wcwidth.wrap(strip_colorcodes(REPRO), max(width, 11))
+
+    def test_full_help_matches_stripped_help(self) -> None:
+        def build(desc: str, arg: str) -> str:
+            parser = ArgumentParser(description=desc, prog="p")
+            parser.formatter_class = lambda prog: CustomFormatter(prog, width=50, tokenize=_tok)
+            parser.add_argument("--opt", help=arg)
+            return parser.format_help()
+
+        coded = "@Rred words " * 12 + "@wend"
+        assert strip_colorcodes(build(coded, coded)) == build(
+            strip_colorcodes(coded), strip_colorcodes(coded)
+        )
+
+    def test_escaped_at_is_one_column_and_survives(self) -> None:
+        text = " ".join(["a@@b"] * 6)
+        lines = self._split(text, 11)
+        assert [strip_colorcodes(ln) for ln in lines] == wcwidth.wrap(strip_colorcodes(text), 11)
+        assert "".join(lines).count("@@") == 6
+        assert all(ln.count("@") % 2 == 0 for ln in lines)
+
+    def test_codes_only_line_adds_no_width(self) -> None:
+        assert self._split("@R @w", 20) == ["@R@w"]
+        text = "@R@w" * 30 + "word"
+        assert strip_colorcodes(self._split(text, 11)[0]) == "word"
+
+    def test_colour_carries_to_continuation_lines(self) -> None:
+        lines = self._split("@Rred words " * 1 + "more words here to wrap@w", 12)
+        assert len(lines) > 1
+        assert all(ln.startswith("@R") for ln in lines[1:])
+
+    def test_no_carry_after_reset(self) -> None:
+        lines = self._split("@Rred@w plain words that wrap onto lines", 12)
+        assert lines[0].startswith("@Rred@w")
+        assert all(not ln.startswith("@") for ln in lines[1:])
+
+    def test_code_on_dropped_space_moves_to_next_line(self) -> None:
+        lines = self._split("aaaaaaaaaa @Rbbbbbbbbbb", 11)
+        assert lines == ["aaaaaaaaaa", "@Rbbbbbbbbbb"]
+
+    def test_without_tokenizer_codes_count_as_visible(self) -> None:
+        text = "@R" + " ".join(["ab"] * 10)
+        assert self._split(text, 11, tok=False) == wcwidth.wrap(text, 11)
+
+    def test_plain_text_is_identical_with_tokenizer(self) -> None:
+        for text in ("a  b-c-d-e   f", "  lead  x\ty", "one two three four five six", ""):
+            assert self._split(text, 4) == self._split(text, 4, tok=False)
+            assert self._split(text, 11) == self._split(text, 11, tok=False)
+
+    def test_wide_characters_with_codes_stay_within_width(self) -> None:
+        text = "@R" + "日本語のテキスト " * 12 + "@w"
+        for width in (20, 40):
+            lines = self._split(text, width)
+            assert all(wcwidth.width(strip_colorcodes(ln)) <= width for ln in lines)
+
+    def test_argp_imports_no_plugin(self) -> None:
+        source = Path(argp_module.__file__ or "").read_text(encoding="utf-8")
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            assert not any(name.startswith("bastproxy.plugins") for name in names)

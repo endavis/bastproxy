@@ -22,7 +22,7 @@ The `@` colour-code syntax was defined five times, in regexes of the colors plug
 
 1. The colors plugin has one tokenizer, `src/bastproxy/plugins/core/colors/libs/_tokenizer.py`. It is the only definition of the `@` and SGR syntax; every colors API is built on it.
 2. Only the colors plugin's own modules import it. Other plugins reach it through the `plugins.core.colors:colorcode.to.tokens` API, which returns `(raw, visible)` pairs of plain tuples, so no colors type crosses the plugin boundary.
-3. `table.format` looks the API up once per call and passes it to `wrap_cell`.
+3. `table.format` looks the API up once per call and passes it to `wrap_cell`. The commands plugin is a second consumer: it passes the same API to `argp.CustomFormatter` for help wrapping.
 4. A test asserts that no other module compiles a pattern for `@` codes or SGR sequences.
 
 The syntax and the rules are in [Colour System](../claude/colors_system.md). Implemented by #534.
