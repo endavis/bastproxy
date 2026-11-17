@@ -66,6 +66,9 @@ RECORD_EVENTS: tuple[RecordEventSpec, ...] = (
         TO_MUD_DATA_READ,
         "bastproxy.libs.records.rtypes.muddata",
         ["An event to see data that was sent to the mud"],
-        {"line": "The line to modify, a NetworkDataLine instance"},
+        {
+            "line": "The line to modify, a NetworkDataLine instance",
+            "client_id": "The client id it came from",
+        },
     ),
 )
