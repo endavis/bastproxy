@@ -90,6 +90,13 @@ def test_matchcolor_matches_multi_part_sgr(harness: Harness) -> None:
     assert harness.send("WARNING", ansi="\x1b[1;31mWARNING") == ["bold"]
 
 
+def test_matchcolor_matches_a_literal_at_written_as_double_at(harness: Harness) -> None:
+    """A literal ``@`` in MUD text is ``@@`` in the colorcoded line (#539)."""
+    harness.add("mail", r"^@rmail@@host", matchcolor=True)
+    harness.add("single", r"^@rmail@host", matchcolor=True)
+    assert harness.send("mail@host", ansi="\x1b[31mmail@host\x1b[0m") == ["mail"]
+
+
 def test_matchcolor_without_flag_does_not_see_color(harness: Harness) -> None:
     harness.add("nocolor", r"^@rWARNING")
     assert harness.send("WARNING", ansi=f"{RED_ANSI}WARNING{RESET_ANSI}") == []

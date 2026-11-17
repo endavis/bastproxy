@@ -113,6 +113,13 @@ def strip_colorcodes(text: str) -> str:
     return "".join(token.visible for token in tokenize(text))
 
 
+def escape_at(text: str) -> str:
+    """Return ``text`` with every ``@`` doubled, so it reads back as literal ``@`` characters."""
+    if "@" not in text:
+        return text
+    return text.replace("@", "@@")
+
+
 def strip_ansi(text: str) -> str:
     """Remove every SGR sequence from ``text``; everything else is kept as written."""
     if "\x1b" not in text:

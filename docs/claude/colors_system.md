@@ -50,7 +50,7 @@ Notes:
 | `colorcode.is.valid` | The string is exactly one `COLOR`, `XTERM_FG` or `XTERM_BG` token. |
 | `colorcode.to.html` | Foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
 | `color.length.difference.get` | `len(text)` minus the length of the visible text. |
-| `ansicode.to.colorcode` | Follows SGR state across one line and writes `@` codes only before visible text (see below). Only SGR sequences are read (the tokenizer's `split_sgr`); the parameter rules are in `src/bastproxy/plugins/core/colors/libs/_sgr.py`. Parsing and diffing are cached, because every MUD line can go through it. |
+| `ansicode.to.colorcode` | Follows SGR state across one line and writes `@` codes only before visible text (see below). Only SGR sequences are read (the tokenizer's `split_sgr`); the parameter rules are in `src/bastproxy/plugins/core/colors/libs/_sgr.py`. A literal `@` in the text is written as `@@` (the tokenizer's `escape_at`, also used by `colorcode.escape`), so `colorcode.strip` of the result gives back `ansicode.strip` of the input. A colour-matching trigger that matches `@` in MUD text writes `@@` in its regex. Parsing and diffing are cached, because every MUD line can go through it. |
 
 ### `ansicode.to.colorcode` rules
 
@@ -83,5 +83,4 @@ A plugin never imports another plugin. The utils plugin gets the tokenizer throu
 ## Left for later
 
 - Colour state is per line; a colour that runs over a line break is not carried to the next line.
-- A literal `@` in MUD text is not escaped, so `@\x1b[31mx` converts to `@@rx`.
 - Display width of wide characters is #528.

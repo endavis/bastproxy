@@ -21,6 +21,7 @@ from bastproxy.plugins.core.colors.libs._sgr import sgr_to_colorcode
 from bastproxy.plugins.core.colors.libs._tokenizer import (
     Token,
     TokenKind,
+    escape_at,
     strip_ansi,
     strip_colorcodes,
     tokenize,
@@ -184,11 +185,7 @@ class ColorsPlugin(BasePlugin):
 
         olist = []
         for line in tinput:
-            escaped_line = line.replace("@@", "\0")
-            escaped_line = escaped_line.replace("@", "@@")
-            escaped_line = escaped_line.replace("\0", "@@@@")
-
-            olist.append(escaped_line)
+            olist.append(escape_at(line))
 
         return "\n".join(olist)
 
