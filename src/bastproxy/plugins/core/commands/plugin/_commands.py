@@ -24,6 +24,9 @@ from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import (
     NetworkData,
+    NetworkDataLine,
+    Originated,
+    ProcessDataToMud,
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
     UpdateFlag,
@@ -1315,7 +1318,9 @@ class CommandsPlugin(BasePlugin):
         else:
             self.pass_through_command_from_event()
 
-        line_show_in_history = event_record["showinhistory"]
+        # an input that asked not to be recorded (a rerun from `!`, #525) stays unrecorded
+        # whatever the command lookup found for the line
+        line_show_in_history = input_show_in_history and event_record["showinhistory"]
         event_record["showinhistory"] = input_show_in_history
 
         if line_show_in_history and not event_record["line"].internal:
@@ -1561,9 +1566,16 @@ class CommandsPlugin(BasePlugin):
         SendDataDirectlyToClient(
             NetworkData([f"Commands: rerunning command {command}"], owner_id="run_history"),
             clients=clients,
-        )(f"{self.plugin_id}:_command_run_history")
-        SendDataDirectlyToClient(
-            NetworkData([f"{command}"], owner_id="run_history"), clients=clients
+        )()
+        # run it as if the client had typed it; show_in_history=False keeps the rerun
+        # out of the history list (#525)
+        ProcessDataToMud(
+            NetworkData(
+                NetworkDataLine(command, originated=Originated.CLIENT),
+                owner_id="run_history",
+            ),
+            show_in_history=False,
+            client_id=event_record["client_id"] if event_record else None,
         )()
 
         return CommandResult(True, [])

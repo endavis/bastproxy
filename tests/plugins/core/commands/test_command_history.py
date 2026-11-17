@@ -30,7 +30,10 @@ def _stub(history: list[str], historysize: int = 5, client_id: str | None = "c1"
 
 def _run(stub: MagicMock, number: int) -> tuple[Any, list[str], MagicMock]:
     stub.args = {"number": number}
-    with patch.object(_commands, "SendDataDirectlyToClient") as sender:
+    with (
+        patch.object(_commands, "SendDataDirectlyToClient") as sender,
+        patch.object(_commands, "ProcessDataToMud"),
+    ):
         result = CommandsPlugin._command_run_history(stub)
         ok = result.success
         msg = result.message
@@ -58,45 +61,73 @@ def test_history_dedupe_moves_to_end() -> None:
     assert stub.command_history_data == ["b", "a"]
 
 
-def _run_capture(stub: MagicMock, number: int) -> tuple[list[str], list[Any]]:
+def _run_capture(stub: MagicMock, number: int) -> tuple[list[str], MagicMock]:
+    """Run `!`; return its message and the ProcessDataToMud mock (the rerun)."""
     stub.args = {"number": number}
-    captured: list[Any] = []
-
-    def fake_network_data(lines: list[str], owner_id: str = "") -> Any:
-        return lines
 
     with (
-        patch.object(_commands, "SendDataDirectlyToClient") as sender,
-        patch.object(_commands, "NetworkData", side_effect=fake_network_data),
+        patch.object(_commands, "SendDataDirectlyToClient"),
+        patch.object(_commands, "ProcessDataToMud") as process,
     ):
         result = CommandsPlugin._command_run_history(stub)
-        ok = result.success
-        msg = result.message
-        assert ok is True
-        captured = list(sender.call_args_list)
-    return msg, captured
+        assert result.success is True
+    return result.message, process
 
 
-def test_bang_index_with_full_history_shows_fifth() -> None:
+def _rerun_line(process: MagicMock) -> str:
+    network_data = process.call_args.args[0]
+    return str(network_data[0].line)
+
+
+def test_bang_index_with_full_history_reruns_fifth() -> None:
     stub = _stub(["a", "b", "c", "d", "e"], historysize=5)
-    msg, calls = _run_capture(stub, 4)
+    msg, process = _run_capture(stub, 4)
     assert msg == []
-    assert calls[1].args[0] == ["e"]
+    assert _rerun_line(process) == "e"
 
 
-def test_bang_zero_shows_first() -> None:
+def test_bang_zero_reruns_first() -> None:
     stub = _stub(["a", "b", "c", "d", "e"], historysize=5)
-    _, calls = _run_capture(stub, 0)
-    assert calls[1].args[0] == ["a"]
+    _, process = _run_capture(stub, 0)
+    assert _rerun_line(process) == "a"
 
 
 def test_bang_negative_one_full_and_not_full() -> None:
     full = _stub(["a", "b", "c"], historysize=3)
-    _, calls = _run_capture(full, -1)
-    assert calls[1].args[0] == ["c"]
+    _, process = _run_capture(full, -1)
+    assert _rerun_line(process) == "c"
     partial = _stub(["a", "b", "c"], historysize=10)
-    _, calls = _run_capture(partial, -1)
-    assert calls[1].args[0] == ["c"]
+    _, process = _run_capture(partial, -1)
+    assert _rerun_line(process) == "c"
+
+
+def test_bang_rerun_is_client_input_of_issuing_client_not_recorded() -> None:
+    stub = _stub(["a", "b"], client_id="c9")
+    _, process = _run_capture(stub, 0)
+    line = process.call_args.args[0][0]
+    assert line.fromclient
+    assert process.call_args.kwargs == {"show_in_history": False, "client_id": "c9"}
+    process.return_value.assert_called_once_with()
+    assert stub.command_history_data == ["a", "b"]
+
+
+def test_bang_notice_record_is_called_with_no_arguments() -> None:
+    """The notice record is executed with `()`; `_exec_` takes no arguments."""
+    stub = _stub(["a"], client_id="c1")
+    stub.args = {"number": 0}
+    with (
+        patch.object(_commands, "SendDataDirectlyToClient", autospec=True) as sender,
+        patch.object(_commands, "ProcessDataToMud"),
+    ):
+        result = CommandsPlugin._command_run_history(stub)
+    assert result.success is True
+    sender.return_value.assert_called_once_with()
+
+
+def test_bang_rerun_without_event_record_has_no_client() -> None:
+    stub = _stub(["a"], client_id=None)
+    _, process = _run_capture(stub, 0)
+    assert process.call_args.kwargs["client_id"] is None
 
 
 def test_bang_out_of_range() -> None:
@@ -108,13 +139,26 @@ def test_bang_out_of_range() -> None:
         sender.assert_not_called()
 
 
+def _notice_calls(stub: MagicMock, number: int) -> list[Any]:
+    """Run `!`; return the SendDataDirectlyToClient constructor calls (the notice)."""
+    stub.args = {"number": number}
+    with (
+        patch.object(_commands, "SendDataDirectlyToClient") as sender,
+        patch.object(_commands, "ProcessDataToMud"),
+    ):
+        CommandsPlugin._command_run_history(stub)
+    return list(sender.call_args_list)
+
+
 def test_reply_goes_to_originating_client() -> None:
     stub = _stub(["a", "b"], historysize=5, client_id="client-7")
-    _, calls = _run_capture(stub, 1)
+    calls = _notice_calls(stub, 1)
+    assert calls
     assert all(c.kwargs["clients"] == ["client-7"] for c in calls)
 
 
 def test_reply_without_event_falls_back_to_all_clients() -> None:
     stub = _stub(["a", "b"], historysize=5, client_id=None)
-    _, calls = _run_capture(stub, 1)
+    calls = _notice_calls(stub, 1)
+    assert calls
     assert all(c.kwargs["clients"] is None for c in calls)
