@@ -235,7 +235,7 @@ requires-dist = [
     { name = "regex", specifier = ">=2024.9.11" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.17.3" },
-    { name = "telnetlib3", specifier = ">=5.0.2" },
+    { name = "telnetlib3", specifier = ">=5.0.3" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.20261030" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
 ]
@@ -2611,15 +2611,15 @@ wheels = [
 
 [[package]]
 name = "telnetlib3"
-version = "5.0.2"
+version = "5.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "blessed", marker = "sys_platform == 'win32'" },
     { name = "wcwidth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/d8/f91aaffb489997de5cb04debb4e251d9523835737935dbed6d1fb2f20a9e/telnetlib3-5.0.2.tar.gz", hash = "sha256:30bee6ccbacc5c7540ae1a4fb990809eb81993d98900597c0795a5d1ad45e40f", size = 360994, upload-time = "2026-11-04T21:53:04.837Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/6f/b87a53d77072a9b2faa3f041e68d9266c49f3b965e3bf68db61d29ecbea7/telnetlib3-5.0.3.tar.gz", hash = "sha256:71c845a3cc339d462cd54e5926b16e5fb38b775febf2fb3ce1137b6bb30e92fa", size = 365063, upload-time = "2026-11-17T10:48:02.913Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/40/9bb8adccab11d4cefc2179ebc6dd101772278e3df0fed0f9ef5258dff473/telnetlib3-5.0.2-py3-none-any.whl", hash = "sha256:87cd7348b6e53c6e707c73a169d53f6b6cfc32b6a803b1aed7e027b27a52886d", size = 366852, upload-time = "2026-11-04T21:53:03.208Z" },
+    { url = "https://files.pythonhosted.org/packages/87/22/899ddf638b56186ae7551b7b471d8a03b574cda162a2a329478faee300d6/telnetlib3-5.0.3-py3-none-any.whl", hash = "sha256:e9a79de5c1b51145c080f566c5eca9dce1c8826595e1ef09b5569635376bd614", size = 370913, upload-time = "2026-11-17T10:48:01.501Z" },
 ]
 
 [[package]]

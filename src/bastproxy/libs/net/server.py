@@ -62,7 +62,7 @@ logger = get_logger(__name__)
 #: Most bytes one received chunk from a client may inflate to, counted across every MCCP3
 #: stream in that chunk (a client can end a stream and start another in the same read). An
 #: asyncio socket read is at most 256 KiB, so 16 MiB allows 64 to 1 on a full read; the same
-#: limit as the MUD side (``MCCP2_MAX_INFLATED_CHUNK``, #58).
+#: limit (#329).
 MCCP3_MAX_INFLATED_CHUNK = 16 * 1024 * 1024
 
 #: Most bytes a client link may inflate to, over its whole life, per compressed byte it sent.
@@ -162,11 +162,15 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, EOR)
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
+            # redundant on telnetlib3 5.0.3, which accepts an offered MCCP3; kept explicit
             self.writer.always_will.add(MCCP3_COMPRESS)
             self.writer.iac(WILL, MCCP3_COMPRESS)
 
     def _mccp3_start(self) -> None:
-        """Do nothing: telnetlib3's MCCP3 inflater is never used; ``data_received`` has its own."""
+        """Do nothing: telnetlib3 5.0.3 would inflate any ``SB MCCP3`` with no output limit.
+
+        ``data_received`` inflates an agreed stream with its own bound instead.
+        """
         logger.debug("telnetlib3 MCCP3 start ignored on a client link")
 
     def _mccp3_fail(self) -> None:
@@ -178,19 +182,6 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
             "inflation limit), closing the connection to the client"
         )
         self.writer.close()
-
-    def _feed_telnet(self, data: bytes) -> None:
-        """Hand plain telnet bytes to telnetlib3, ending MCCP2 when the client turned it off.
-
-        telnetlib3 5.0.2 starts compression on ``DO MCCP2`` but keeps compressing after
-        a later ``DONT MCCP2``. End the stream (``Z_FINISH``) so the rest is plain, and
-        a later ``DO`` starts a new stream (#58).
-        """
-        super().data_received(data)
-        if self._mccp2_compressor is not None and not self.writer.local_option.enabled(
-            MCCP2_COMPRESS
-        ):
-            self._mccp2_end()
 
     def _feed_pieces(self, data: bytes) -> bytes:
         """Feed plain telnet bytes piece by piece, stopping where an MCCP3 stream starts.
@@ -208,7 +199,7 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
                 found = data.find(_IAC_SE)
                 end = len(data) if found == -1 else found + 2
             piece, data = data[:end], data[end:]
-            self._feed_telnet(piece)
+            super().data_received(piece)
             if not self.writer.mccp3_start_requested:
                 continue
             self.writer.mccp3_start_requested = False

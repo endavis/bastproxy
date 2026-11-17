@@ -4,7 +4,7 @@
 # File Description: a zlib decompressor that limits the output of one call
 #
 # By: Bast
-"""A bounded wrapper around a zlib decompressor, shared by the MUD and client links (#58, #329)."""
+"""A bounded wrapper around a zlib decompressor, used by the client links only (#329)."""
 
 # Standard Library
 import zlib

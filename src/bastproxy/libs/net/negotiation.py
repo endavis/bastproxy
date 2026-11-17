@@ -264,6 +264,10 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         The proxy decodes only protocols negotiated on the link: an SB for an option that is
         enabled in neither direction is dropped. A payload that does not decode is dropped with
         a log of the option, the name when known and the length, and the link stays open.
+
+        These limits stay on telnetlib3 5.0.3, which decodes whatever arrives and limits only
+        the nesting depth (100): here the payload size, MSDP depth and value count, and names
+        are checked as well (#330).
         """
         label = name_option(option)
         if not (self.local_option.enabled(option) or self.remote_option.enabled(option)):
@@ -308,8 +312,10 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         """Handle ``SB MCCP3``; on a server writer, start only when offered and agreed (#329).
 
         telnetlib3's own MCCP3 decompression is never used on a client link: this never sets
-        ``mccp3_active``. The stream starts only when the proxy offered ``WILL MCCP3`` and the
-        client answered ``DO MCCP3``; the server protocol then inflates it with a bound.
+        ``mccp3_active``. telnetlib3 5.0.3 would start inflating on any ``SB MCCP3``, agreed or
+        not, and does not limit the output relative to the input. The stream starts only when
+        the proxy offered ``WILL MCCP3`` and the client answered ``DO MCCP3``; the server protocol
+        then inflates it with a bound.
         Any other ``SB MCCP3`` is dropped and the data after it stays plain. The MUD link
         keeps telnetlib3's handling.
         """
