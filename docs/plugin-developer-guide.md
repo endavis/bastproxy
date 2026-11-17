@@ -163,6 +163,23 @@ it is built. `cache.get` and `cache.remove` are the other two calls in
 `src/bastproxy/libs/plugins/reloadutils.py`. Set the attribute list in your `__init__` hook;
 see [reloading](claude/plugin_system.md#7-reloading) for the order of steps.
 
+Three habits keep a reload clean:
+
+- **Look plugin instances up at runtime.** Do not keep one in an attribute or other long-lived
+  storage. A reload builds a new instance, and the old one stays alive for as long as anything
+  refers to it, where it can still act next to the new one. Reach another plugin through its API
+  instead; see [API usage](claude/api_system.md#api-usage).
+- **Keep cross-plugin imports few.** A reload does not update names another module already
+  imported. A decorator defined in a reloaded module stays the old object in every module that
+  imported it, and those modules keep the old module alive until they are reloaded too.
+- **Keep references out of the reload cache.** Do not name an attribute in
+  `attributes_to_save_on_reload` when its value refers back to anything in the plugin being
+  reloaded, since that would carry the old code into the new instance.
+
+Data that depends on another plugin's state is rebuilt when that plugin reloads. The commands
+plugin does this: its `ev_plugin_loaded` callback collects the `_command_*` methods of each new
+plugin again.
+
 ## Hooks and events
 
 bastproxy has two mechanisms that are both called hooks in conversation. They differ in who may
@@ -237,6 +254,10 @@ from bastproxy.plugins.core.events import RegisterToEvent
         """A plugin was unloaded."""
         event_record = self.api("plugins.core.events:event.current.record.get")()
 ```
+
+**Unregister** at runtime with `"plugins.core.events:event.unregister"`, passing the event name
+and the function (see [unregistering](claude/event_system.md#unregistering-from-an-event)). When
+a plugin unloads, its registrations are removed for it.
 
 `{attribute}` placeholders in an event name are filled from the plugin instance. From
 `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`:
