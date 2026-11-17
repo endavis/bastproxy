@@ -54,14 +54,11 @@ When developing for BastProxy:
 ## Running Security Scans Locally
 
 ```bash
-# Run full security scan
-./scripts/security-scan.sh
+# Static security analysis (Bandit)
+uv run doit security
 
-# Run Bandit only
-bandit -r libs/ plugins/ --skip B401,B604 -ll
-
-# Run Safety only
-safety scan
+# Dependency vulnerability audit (pip-audit)
+uv run doit audit
 ```
 
 ## Dependency Updates
