@@ -49,7 +49,7 @@ Notes:
 | `colorcode.to.ansicode` | Each code emits its own sequence in place. A code with no visible text after it is dropped. One `ESC [0m` closes the string if any sequence was emitted. A lowercase colour other than `@w` appends the active xterm background (`;48;5;N`), because `0;3x` clears it. `@w` is the general reset: it clears the background, and later codes do not bring it back. |
 | `colorcode.is.valid` | The string is exactly one `COLOR`, `XTERM_FG` or `XTERM_BG` token. |
 | `colorcode.to.html` | Foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
-| `color.length.difference.get` | `len(text)` minus the length of the visible text. |
+| `color.length.difference.get` | `len(text)` minus the display width of the visible text: the offset to add to a display width to get a `str.ljust` or format width. |
 | `ansicode.to.colorcode` | Follows SGR state across one line and writes `@` codes only before visible text (see below). Only SGR sequences are read (the tokenizer's `split_sgr`); the parameter rules are in `src/bastproxy/plugins/core/colors/libs/_sgr.py`. A literal `@` in the text is written as `@@` (the tokenizer's `escape_at`, also used by `colorcode.escape`), so `colorcode.strip` of the result gives back `ansicode.strip` of the input. A colour-matching trigger that matches `@` in MUD text writes `@@` in its regex. Parsing and diffing are cached, because every MUD line can go through it. |
 
 ### `ansicode.to.colorcode` rules
@@ -80,7 +80,17 @@ A malformed `38` or `48` stops the parse of that sequence and keeps what came be
 
 A plugin never imports another plugin. The utils plugin gets the tokenizer through `plugins.core.colors:colorcode.to.tokens`: `table.format` looks it up once per call and passes it to `wrap_cell`, which takes its widths from the `visible` field. See [ADR-0008](../decisions/0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md).
 
+## Display width
+
+Width is measured in terminal columns, not code points, by `src/bastproxy/libs/textwidth.py`, which is built on `wcwidth` ([ADR-0009](../decisions/0009-display-width-is-measured-with-wcwidth-in-one-framework-helper.md)). It is a framework lib, so plugins and `src/bastproxy/libs/argp.py` share it without importing each other.
+
+- The helper measures visible text. Each caller strips the colour codes first, through `colorcode.strip` or the tokenizer, and passes the result to `display_width`; every colour code counts as zero. A plugin author writes `display_width(strip(text))`.
+- The result is never negative. Control characters and terminal escape sequences count as zero columns, so `a\tb` is 2.
+- Wide characters (CJK, emoji) take two columns, combining marks and joiners zero, and a ZWJ sequence or flag is one grapheme.
+- `text_units` splits text into graphemes with their widths; the widths sum to `display_width`. `wrap_cell` wraps on these units, so a combining mark stays with its base character, a grapheme is never cut, and a line always holds at least one grapheme (a grapheme wider than the column gets its own line). A grapheme split across tokens, such as `e@R` followed by a combining mark, makes the mark a zero-width unit of its own.
+- `table.format` gives each column at least the width of its widest grapheme, so the table grows instead of cutting a wide character.
+- `src/bastproxy/libs/argp.py` wraps help text with `wcwidth.wrap`. Help text still holds `@` codes then, so they count as visible there: a line can come out short, never overrun.
+
 ## Left for later
 
 - Colour state is per line; a colour that runs over a line break is not carried to the next line.
-- Display width of wide characters is #528.

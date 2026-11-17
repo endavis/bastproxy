@@ -157,3 +157,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0006](0006-records-adapt-pydatatracker-containers-and-locked-writes-raise-runtimeerror.md) | Records adapt pydatatracker containers and locked writes raise RuntimeError | Accepted |
 | [0007](0007-triggers-match-each-triggers-own-regex-in-priority-order.md) | Triggers match each trigger's own regex in priority order | Accepted |
 | [0008](0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md) | The colors tokenizer is the single definition of the colour-code syntax | Accepted |
+| [0009](0009-display-width-is-measured-with-wcwidth-in-one-framework-helper.md) | Display width is measured with wcwidth in one framework helper | Accepted |

@@ -67,3 +67,8 @@ def test_colored_preamble_ignores_the_codes() -> None:
 @pytest.mark.parametrize("cols", [41, 45, 100])
 def test_never_above_linelen(cols: int) -> None:
     assert _length(50, cols) <= 50
+
+
+def test_wide_preamble_is_subtracted_by_display_width() -> None:
+    # two wide characters take four columns
+    assert _length(80, 60, preamble="日本") == 54

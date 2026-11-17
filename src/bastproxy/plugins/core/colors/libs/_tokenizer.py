@@ -9,7 +9,8 @@
 This module is the only place that defines the ``@`` colour codes and the ANSI SGR
 (``ESC [ ... m``) syntax. Every colors API (conversion, stripping, validation, html, width) is
 built on :func:`tokenize`. Other plugins never import this module; they reach it through the
-``plugins.core.colors:colorcode.tokenize`` API.
+``plugins.core.colors:colorcode.to.tokens`` API. The tokenizer decides what is visible; the
+width of that visible text is measured by :mod:`bastproxy.libs.textwidth`.
 
 The scan is one left-to-right pass over a single compiled pattern, so the result does not depend
 on the order in which separate regular expressions would have been applied. The raw text of the
