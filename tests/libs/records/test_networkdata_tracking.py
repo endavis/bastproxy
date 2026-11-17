@@ -13,6 +13,8 @@ from bastproxy.libs.records.rtypes.clientdata import SendDataDirectlyToClient
 from bastproxy.libs.records.rtypes.muddata import SendDataDirectlyToMud
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
 
+from .conftest import FakeConnection, StandIns
+
 
 def test_conversion_and_parents() -> None:
     net_data = NetworkData(["a", b"b"])  # type: ignore[arg-type]
@@ -240,3 +242,29 @@ def test_detached_lines_are_pruned_past_max_pending(monkeypatch: pytest.MonkeyPa
     stored = [line for line in lines if line.uuid in RMANAGER.record_instances]
     assert len(stored) <= 2
     assert lines[-1] in stored
+
+
+def test_internal_line_to_mud_has_no_preamble_or_color(plugin_stand_ins: StandIns) -> None:
+    """The MUD gets the bare command, with '@r' left literal (#555)."""
+    connection = FakeConnection()
+    plugin_stand_ins.connection = connection
+    SendDataDirectlyToMud(NetworkData("look"))()
+    assert [line.line for line in connection.sent] == ["look\r\n"]
+    SendDataDirectlyToMud(NetworkData("say @r"))()
+    assert connection.sent[-1].line == "say @r\r\n"
+    assert "preamble.get" not in plugin_stand_ins.api_calls
+
+
+def test_client_line_to_mud_is_unchanged(plugin_stand_ins: StandIns) -> None:
+    connection = FakeConnection()
+    plugin_stand_ins.connection = connection
+    SendDataDirectlyToMud(NetworkData([NetworkDataLine("look", originated="client")]))()
+    assert [line.line for line in connection.sent] == ["ANSI(look)\r\n"]
+
+
+def test_internal_line_to_client_keeps_preamble(plugin_stand_ins: StandIns) -> None:
+    plugin_stand_ins.clients = ["c1"]
+    plugin_stand_ins.logged_in = {"c1"}
+    SendDataDirectlyToClient(NetworkData("hello"))()
+    assert plugin_stand_ins.sent_to_clients
+    assert str(plugin_stand_ins.sent_to_clients[0][1]).startswith("ANSI(@C#BP@w: hello")

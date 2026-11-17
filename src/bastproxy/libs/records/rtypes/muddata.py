@@ -169,7 +169,7 @@ class SendDataDirectlyToMud(BaseRecord):
         # Format first: locking the message locks its lines, and a locked line cannot format.
         for line in self.message:
             if line.send:
-                line.format()
+                line.format(to_mud=True)
         self.message.lock()
         if mud_connection := self.api("plugins.core.proxy:mud.connection.get")():
             for line in self.message:
