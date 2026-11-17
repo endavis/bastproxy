@@ -39,16 +39,18 @@ import collections
 import datetime
 import logging
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 # Third Party
 from telnetlib3 import TelnetReaderUnicode, open_connection
 from telnetlib3.client import TelnetClient
-from telnetlib3.telopt import CMD_EOR, ECHO, GA, GMCP, MSDP, MSSP, MXP, SGA
+from telnetlib3.telopt import CMD_EOR, ECHO, GA, GMCP, MSDP, MSSP, MXP, SGA, TTYPE
 
 from bastproxy.libs.api import API
 from bastproxy.libs.asynch import TaskItem
 from bastproxy.libs.logger import echo_off_placeholder, get_logger
+from bastproxy.libs.net import mtts
 from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter, option_names
 from bastproxy.libs.net.protocols import PROTOCOLS
@@ -101,8 +103,9 @@ class MudConnection:
         self.lines_sent: int = 0
         self.lines_received: int = 0
         self.max_lines_to_process = 15
-        # not forwarded from the client: the terminal type stays the proxy's own (#308)
-        self.term_type = "bastproxy"
+        # not forwarded from the client: the proxy's own terminal type (#308), answered
+        # with the MTTS cycle (#547)
+        self.term_type = mtts.TERMINAL_TYPE
 
     @property
     def bytes_sent(self) -> int:
@@ -575,11 +578,17 @@ class MudTelnetClient(TelnetClient):
 
     ``send_naws`` answers ``DO NAWS`` with the size ``WINDOW_SIZE`` chose (#308); later changes
     are sent by ``WINDOW_SIZE`` itself with ``send_iac``.
+
+    TTYPE is answered with the MTTS cycle of the proxy itself: ``BASTPROXY``, then
+    ``ANSI-256COLOR``, then ``MTTS 525``, which repeats; ``IAC DONT TTYPE`` starts the cycle
+    again. NEW_ENVIRON requests get the MNES variables (``CLIENT_NAME``, ``CLIENT_VERSION``,
+    ``TERMINAL_TYPE``, ``MTTS``, ``CHARSET``) and an empty variable name is ignored (#547).
     """
 
     # telnetlib3 types these as optional; they are set once connected (annotation only)
     reader: MudTelnetReader
     writer: RecordingTelnetWriter
+    _ttype_cycle: mtts.TtypeCycle
 
     # telnetlib3's writer adds every byte it writes to ``_tx_bytes`` when its protocol has the
     # attribute (``hasattr(protocol, "_tx_bytes")``); the count is taken before MCCP3 compresses.
@@ -610,6 +619,30 @@ class MudTelnetClient(TelnetClient):
     def send_naws(self) -> tuple[int, int]:
         """Return (rows, cols) for the reply to ``DO NAWS`` (#308)."""
         return WINDOW_SIZE.mud_reply()
+
+    def send_ttype(self) -> str:
+        """Return the answer to the next ``SB TTYPE SEND`` (#547)."""
+        return self._ttype_cycle.next()
+
+    def send_env(self, keys: Sequence[str]) -> dict[str, Any]:
+        """Return the NEW_ENVIRON values for ``keys``, with the MNES variables answered (#547).
+
+        Empty names, which ``SEND VAR`` and ``SEND USERVAR`` without a name produce, are
+        dropped. With no name left every variable is sent; otherwise each requested name gets
+        the MNES value or, for any other name, the value the base class gives.
+        """
+        wanted = [key for key in keys if key]
+        mnes = mtts.mnes_variables()
+        if not wanted:
+            return {**super().send_env([]), **mnes}
+        others = [key for key in wanted if key not in mnes]
+        base = super().send_env(others) if others else {}
+        return {key: mnes[key] if key in mnes else base[key] for key in wanted}
+
+    def _on_mud_dont(self, opt: bytes) -> None:
+        """Start the TTYPE cycle again when the MUD sends ``IAC DONT TTYPE`` (#547)."""
+        if opt == TTYPE:
+            self._ttype_cycle.reset()
 
     def _process_chunk(self, data: bytes) -> bool:
         """Process a chunk, keeping telnetlib3's raw-deflate retry to the first chunk."""
@@ -648,6 +681,10 @@ class MudTelnetClient(TelnetClient):
         go-ahead stops sending ``IAC GA`` after prompts, and the prompt marks below depend on it.
         """
         super().connection_made(transport)
+        self._ttype_cycle = mtts.TtypeCycle(
+            mtts.CLIENT_NAME, self._extra["term"], mtts.PROXY_CAPABILITIES.bitvector
+        )
+        self.writer.dont_callback = self._on_mud_dont
         self.writer.always_dont.add(SGA)
         for cmd in (GA, CMD_EOR):
             self.writer.set_iac_callback(cmd, self.reader.mark_prompt)

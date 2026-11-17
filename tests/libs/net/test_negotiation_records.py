@@ -265,3 +265,40 @@ async def test_explicit_writer_factory_wins() -> None:
 
     server = CustomTelnetServer(writer_factory_encoding=Other)
     assert server._writer_factory_encoding is Other
+
+
+# dont_callback (#547) -------------------------------------------------------
+
+
+def _writer() -> RecordingTelnetWriter:
+    return RecordingTelnetWriter(
+        MagicMock(), MagicMock(), fn_encoding=lambda **_k: "utf8", client=True
+    )
+
+
+def test_handle_dont_calls_the_callback_and_records() -> None:
+    writer = _writer()
+    seen: list[bytes] = []
+    writer.dont_callback = seen.append
+    writer.handle_dont(TTYPE)
+    assert seen == [TTYPE]
+    assert [r.command for r in _records()] == ["DONT"]
+
+
+def test_dont_callback_failure_is_logged(caplog: pytest.LogCaptureFixture) -> None:
+    writer = _writer()
+
+    def boom(_opt: bytes) -> None:
+        msg = "callback broke"
+        raise RuntimeError(msg)
+
+    writer.dont_callback = boom
+    with caplog.at_level(logging.ERROR):
+        writer.handle_dont(TTYPE)
+    assert any("Could not handle DONT" in r.getMessage() for r in caplog.records)
+
+
+def test_handle_dont_without_a_callback_is_a_noop() -> None:
+    writer = _writer()
+    assert writer.dont_callback is None
+    writer.handle_dont(TTYPE)

@@ -15,7 +15,8 @@ the last size sent on the current MUD link. When the active client goes, the nex
 active eligible client takes over; with none left the last size stays.
 
 ``mudwindowsize`` selects the mode: ``client``, ``off`` (telnetlib3's default 80x25) or a pinned
-``COLSxROWS``. The terminal type stays ``bastproxy`` and is not forwarded.
+``COLSxROWS``. The terminal type is not forwarded; the MUD link answers TTYPE with the proxy's
+MTTS cycle (#547).
 
 ``WINDOW_SIZE`` is the one ``WindowSizeForwarder``. It outlives any one ``MudConnection`` and
 any reload of the proxy plugin, which pushes the setting in with ``set_mode``.
