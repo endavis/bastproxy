@@ -9,6 +9,7 @@
 The SGR syntax itself lives in ``_tokenizer`` (:func:`split_sgr`). This module only decides what
 the parameters mean: it applies them to a small ``(fg, bold, bg)`` state, then writes the minimal
 ``@`` codes between the last state written and the current one, and only before visible text.
+Terminal sequences other than SGR are dropped from the text before ``@`` is escaped.
 """
 
 # Standard Library
@@ -17,7 +18,7 @@ import functools
 # 3rd Party
 # Project
 from bastproxy.libs.logger import get_logger
-from bastproxy.plugins.core.colors.libs._tokenizer import escape_at, split_sgr
+from bastproxy.plugins.core.colors.libs._tokenizer import escape_at, split_sgr, strip_ansi
 
 CANRELOAD = False
 
@@ -167,12 +168,18 @@ def diff_codes(emitted: SgrState, target: SgrState) -> str:
 def sgr_to_colorcode(text: str) -> str:
     """Convert the SGR sequences in ``text`` to ``@`` codes, writing codes only before text.
 
-    A literal ``@`` in the text is written as ``@@`` so it is not read as part of a code.
+    Other terminal sequences (cursor movement, clearing, OSC 8) are removed from the text first.
+    A literal ``@`` in the remaining text is written as ``@@`` so it is not read as part of a code.
     """
     has_at = "@" in text
-    parts = split_sgr(text)
-    if len(parts) == 1:
+    if "\x1b" not in text:
         return escape_at(text) if has_at else text
+    parts = split_sgr(text)
+    if text.count("\x1b") > len(parts) // 2:
+        parts[::2] = [strip_ansi(part) for part in parts[::2]]
+        has_at = any("@" in part for part in parts[::2])
+    if len(parts) == 1:
+        return escape_at(parts[0]) if has_at else parts[0]
     out = [escape_at(parts[0]) if has_at else parts[0]] if parts[0] else []
     emitted = target = DEFAULT_STATE
     for index in range(1, len(parts), 2):

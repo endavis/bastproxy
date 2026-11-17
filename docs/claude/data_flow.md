@@ -192,7 +192,7 @@ The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/ba
 | `split_from` | The line this one was split from by command splitting |
 | `mxp_mode` | An `MxpMode` (`open`, `secure`, `locked`): the MXP mode at the start of the line, set by `mud_read` when the MUD link has MXP enabled. `None` for every other line (#61) |
 
-Properties: `noansi` (ANSI stripped, and MXP stripped first when `mxp_mode` is set), `colorcoded` (same), `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
+Properties: `noansi` (every terminal escape sequence stripped, and MXP stripped first when `mxp_mode` is set), `colorcoded` (same), `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
 `format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 

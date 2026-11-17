@@ -330,7 +330,28 @@ def test_literal_at_is_escaped(text: str, expected: str) -> None:
         "\x1b[0;33m@x075 \x1b[1;34m@@x075@",
         "@",
         "plain @r text",
+        "\x1b]8;;http://x\x07link\x1b]8;;\x07 \x1b[31mred",
+        "\x1b[1;31m\x1b[2Jred",
+        "\x1b]8;;mailto:a@b\x1b\\x@y\x1b]8;;\x1b\\ \x1b[1;31mhit",
+        "\x1b[2Jmail@x",
+        "\x1b[31ma\x1b[10;1Hb\x1b[32mc",
+        "a\x1b\x1b[31mb",
     ],
 )
 def test_colorcode_strip_of_conversion_is_the_visible_text(text: str) -> None:
     assert cc_strip(to_colorcode(text)) == ansi_strip(text)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\x1b]8;;http://x\x07link\x1b]8;;\x07 \x1b[31mred", "link @rred"),
+        ("\x1b[1;31m\x1b[2Jred", "@Rred"),
+        ("\x1b]8;;mailto:a@b\x1b\\x@y\x1b]8;;\x1b\\ \x1b[1;31mhit", "x@@y @Rhit"),
+        ("\x1b[2Jmail@x", "mail@@x"),
+        ("\x1b[31ma\x1b[10;1Hb\x1b[32mc", "@rab@gc"),
+    ],
+)
+def test_non_sgr_sequences_are_dropped_from_the_colorcoded_text(text: str, expected: str) -> None:
+    """Cursor, clear and OSC 8 sequences never reach the colorcoded line (#549)."""
+    assert to_colorcode(text) == expected

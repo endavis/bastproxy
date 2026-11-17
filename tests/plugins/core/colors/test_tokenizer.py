@@ -127,9 +127,34 @@ def test_lone_escape_and_other_sequences_are_text() -> None:
 
 def test_strip_helpers() -> None:
     assert strip_colorcodes("@Rfoo@@\x1b[1mbar@w") == "foo@bar"
-    assert strip_ansi("\x1b[1mfoo@R\x1b[2J") == "foo@R\x1b[2J"
+    assert strip_ansi("\x1b[1mfoo@R\x1b[2J") == "foo@R"
     assert strip_colorcodes("plain") == "plain"
     assert strip_ansi("plain") == "plain"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\x1b[10;1Hhi", "hi"),
+        ("\x1b[2J\x1b[Hhi", "hi"),
+        ("a\x1b[Kb", "ab"),
+        ("\x1b[?25lhi", "hi"),
+        ("\x1b]8;;http://x\x07link\x1b]8;;\x07", "link"),
+        ("\x1b]8;;http://x\x1b\\link\x1b]8;;\x1b\\", "link"),
+        ("\x1bPq#0;2;0;0;0\x1b\\after", "after"),
+        ("\x1b(Bhi", "hi"),
+        ("\x1b]8;;http://x\x07link\x1b]8;;\x07 \x1b[31mred", "link red"),
+        ("\x1b[1;31m\x1b[2Jred\x1b[0m", "red"),
+        ("a\x1bb", "a"),
+    ],
+)
+def test_strip_ansi_drops_every_terminal_sequence(text: str, expected: str) -> None:
+    assert strip_ansi(text) == expected
+
+
+@pytest.mark.parametrize("text", ["a\x07b", "a\tb", "a\rb", "\x9b31mx"])
+def test_strip_ansi_keeps_c0_controls_and_8bit_c1(text: str) -> None:
+    assert strip_ansi(text) == text
 
 
 def test_only_the_tokenizer_defines_the_colour_syntax() -> None:

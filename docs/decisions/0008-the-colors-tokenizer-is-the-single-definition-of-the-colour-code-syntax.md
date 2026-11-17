@@ -25,7 +25,7 @@ The `@` colour-code syntax was defined five times, in regexes of the colors plug
 3. `table.format` looks the API up once per call and passes it to `wrap_cell`. The commands plugin is a second consumer: it passes the same API to `argp.CustomFormatter` for help wrapping.
 4. A test asserts that no other module compiles a pattern for `@` codes or SGR sequences.
 
-The syntax and the rules are in [Colour System](../claude/colors_system.md). Implemented by #534.
+The syntax and the rules are in [Colour System](../claude/colors_system.md). Implemented by #534; #549 routes non-SGR stripping through wcwidth.
 
 ## Rationale
 
@@ -37,4 +37,5 @@ The syntax and the rules are in [Colour System](../claude/colors_system.md). Imp
 
 - Strings with a malformed `@` change their width and output (the audit's CO-1 to CO-4, and CA-3 for SGR stripping). The pull request lists each change.
 - Any new code that needs the syntax calls `colorcode.to.tokens`, or the colors API that fits, and never writes its own pattern.
+- SGR is the only syntax the tokenizer defines itself. Every other terminal sequence is recognised by `wcwidth.strip_sequences`, called only from the tokenizer (#549).
 - #533 (the ANSI to colour-code direction) and #528 (display width) build on this.
