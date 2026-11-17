@@ -78,7 +78,7 @@ A malformed `38` or `48` stops the parse of that sequence and keeps what came be
 
 ## Other plugins
 
-A plugin never imports another plugin. The utils plugin gets the tokenizer through `plugins.core.colors:colorcode.to.tokens`: `table.format` looks it up once per call and passes it to `wrap_cell`, which takes its widths from the `visible` field. See [ADR-0008](../decisions/0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md).
+A plugin never imports another plugin. The utils plugin gets the tokenizer through `plugins.core.colors:colorcode.to.tokens`: `table.format` looks it up once per call and passes it to `wrap_cell`, which takes its widths from the `visible` field. The commands plugin passes the same API to `argp.CustomFormatter` for help wrapping. See [ADR-0008](../decisions/0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md).
 
 ## Display width
 
@@ -89,7 +89,7 @@ Width is measured in terminal columns, not code points, by `src/bastproxy/libs/t
 - Wide characters (CJK, emoji) take two columns, combining marks and joiners zero, and a ZWJ sequence or flag is one grapheme.
 - `text_units` splits text into graphemes with their widths; the widths sum to `display_width`. `wrap_cell` wraps on these units, so a combining mark stays with its base character, a grapheme is never cut, and a line always holds at least one grapheme (a grapheme wider than the column gets its own line). A grapheme split across tokens, such as `e@R` followed by a combining mark, makes the mark a zero-width unit of its own.
 - `table.format` gives each column at least the width of its widest grapheme, so the table grows instead of cutting a wide character.
-- `src/bastproxy/libs/argp.py` wraps help text with `wcwidth.wrap`. Help text still holds `@` codes then, so they count as visible there: a line can come out short, never overrun.
+- `src/bastproxy/libs/argp.py` wraps help text with `wcwidth.wrap`. `argp.CustomFormatter` takes an injected `colorcode.to.tokens` callable and wraps the visible text, so `@` codes are zero-width, and the colour in force at a break carries to the continuation line (#542).
 
 ## Left for later
 
