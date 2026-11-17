@@ -107,3 +107,36 @@ def test_send_directly_without_connection(plugin_stand_ins: StandIns) -> None:
     SendDataDirectlyToMud(message)()
     assert [call.name for call in plugin_stand_ins.events] == [TO_MUD_DATA_READ]
     assert message.locked
+
+
+def test_send_directly_stores_client_id_and_lists_it() -> None:
+    record = SendDataDirectlyToMud(NetworkData("hi"), client_id="c1")
+    assert record.client_id == "c1"
+    assert SendDataDirectlyToMud(NetworkData("hi")).client_id is None
+    names = [attr for _, attr in record.get_attributes_to_format()[0]]
+    assert "client_id" in names
+    assert "show_in_history" not in names
+
+
+def test_send_directly_rejects_show_in_history() -> None:
+    with pytest.raises(TypeError):
+        SendDataDirectlyToMud(NetworkData("hi"), show_in_history=False)  # type: ignore[call-arg]
+
+
+def test_send_directly_read_event_carries_client_id(plugin_stand_ins: StandIns) -> None:
+    plugin_stand_ins.connection = FakeConnection()
+    message = NetworkData([NetworkDataLine("hello", originated="client")])
+    SendDataDirectlyToMud(message, client_id="c1")()
+    (read,) = plugin_stand_ins.events
+    assert read.name == TO_MUD_DATA_READ
+    assert read.kwargs["event_args"] == {"client_id": "c1"}
+
+
+@pytest.mark.usefixtures("split_regex")
+def test_process_exec_read_event_carries_client_id(plugin_stand_ins: StandIns) -> None:
+    plugin_stand_ins.connection = FakeConnection()
+    message = NetworkData([NetworkDataLine("look", originated="client")])
+    ProcessDataToMud(message, client_id="c1")()
+    read = plugin_stand_ins.events[-1]
+    assert read.name == TO_MUD_DATA_READ
+    assert read.kwargs["event_args"] == {"client_id": "c1"}
