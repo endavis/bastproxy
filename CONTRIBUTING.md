@@ -40,31 +40,27 @@ Thank you for your interest in contributing to BastProxy! This document provides
 
 ### Installation
 
-1. **Create a virtual environment**:
+1. **Install dependencies** (creates the virtual environment):
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   uv sync --all-extras
    ```
 
-2. **Install dependencies**:
+2. **Install pre-commit hooks**:
    ```bash
-   pip install -e ".[dev]"
-   ```
-
-3. **Install pre-commit hooks**:
-   ```bash
-   pre-commit install
+   uv run doit pre_commit_install
    ```
 
 ### Running the Proxy
 
+`BASTPROXY_HOME` must point at an existing, writable directory (data, plugin settings, user plugins and logs live under it). `.envrc` defaults it to `~/bastproxy`.
+
 ```bash
-python mudproxy.py
+uv run bastproxy
 ```
 
 Or with options:
 ```bash
-python mudproxy.py --port 9999 --IPv4-address localhost
+uv run bastproxy --port 9999 --IPv4-address localhost
 ```
 
 ## Coding Standards
@@ -116,18 +112,19 @@ Run these commands before committing:
 
 ```bash
 # Format code
-black .
-ruff check . --fix
+uv run doit format
+
+# Lint code
+uv run doit lint
 
 # Type checking
-./scripts/typecheck.sh
+uv run doit type_check
 
-# Run tests
-pytest
-
-# Run all checks
-pre-commit run --all-files
+# Run all checks (format, lint, type, tests and more)
+uv run doit check
 ```
+
+If `~/bastproxy` does not exist, use `BASTPROXY_HOME=$PWD uv run doit check`.
 
 ## Testing
 
@@ -135,16 +132,16 @@ pre-commit run --all-files
 
 ```bash
 # Run all tests
-pytest
+uv run doit test
 
 # Run with coverage
-pytest --cov=libs --cov=plugins --cov-report=html
+uv run doit coverage
 
 # Run specific test file
-pytest tests/libs/test_persistentdict.py
+uv run pytest tests/libs/test_persistentdict.py
 
 # Run tests matching a pattern
-pytest -k "test_persistence"
+uv run pytest -k "test_persistence"
 ```
 
 ### Writing Tests

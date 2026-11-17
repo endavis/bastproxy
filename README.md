@@ -45,6 +45,8 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 
 ### Running BastProxy
 
+`BASTPROXY_HOME` must point at an existing, writable directory. BastProxy keeps its data, plugin settings, user plugins and logs under it, and importing `bastproxy` fails without it. `.envrc` defaults it to `~/bastproxy`.
+
 **Basic usage**:
 ```bash
 uv run bastproxy
@@ -59,10 +61,11 @@ uv run bastproxy --port 9999 --IPv4-address localhost
 - `--port` or `-p`: Port to listen on (default: 9999)
 - `--IPv4-address`: IP address to bind to (default: localhost)
 - `--profile` or `-pf`: Enable code profiling
+- `--quiet` or `-q`: Suppress console output (logs are still written to file)
 
 ### Connecting
 
-1. Start BastProxy with `python mudproxy.py`
+1. Start BastProxy with `uv run bastproxy`
 2. Connect your MUD client to `localhost:9999`
 3. BastProxy will prompt you to configure your MUD connection
 4. Once configured, BastProxy connects to your MUD server
@@ -70,7 +73,7 @@ uv run bastproxy --port 9999 --IPv4-address localhost
 
 ## Configuration
 
-Configuration files are stored in `data/plugins/`. Each plugin maintains its own configuration.
+Configuration files are stored in `$BASTPROXY_HOME/data/plugins/`. Each plugin maintains its own configuration.
 
 ### Core Plugins
 
@@ -86,33 +89,9 @@ Configuration files are stored in `data/plugins/`. Each plugin maintains its own
 
 ## Plugin Development
 
-BastProxy uses a powerful plugin system. Here's a minimal plugin example:
-
-### Plugin Structure
-
 User plugins go in `$BASTPROXY_HOME/plugins/<package>/<plugin>`; see the [plugin system docs](docs/claude/plugin_system.md#user-plugins).
 
-```python
-# plugins/your_plugin/__init__.py
-PLUGIN_NAME = 'Your Plugin'
-PLUGIN_PURPOSE = 'Does something useful'
-PLUGIN_AUTHOR = 'Bast'
-PLUGIN_VERSION = 1
-
-# plugins/your_plugin/plugin/_yourplugin.py
-from bastproxy.plugins._baseplugin import BasePlugin
-from bastproxy.libs.api import AddAPI
-
-class YourPlugin(BasePlugin):
-    """Your plugin implementation."""
-
-    @AddAPI('your.api.function', description='Your API function')
-    def _api_your_function(self, data: str) -> str:
-        """Process data."""
-        return f"Processed: {data}"
-```
-
-See the [Plugin Developer Guide](docs/plugin-developer-guide.md) for detailed plugin development guidelines.
+The [Plugin Developer Guide](docs/plugin-developer-guide.md) covers the plugin file structure, metadata, the `Plugin` export, reloading, hooks and events, commands and triggers.
 
 ## Development
 
@@ -120,62 +99,74 @@ See the [Plugin Developer Guide](docs/plugin-developer-guide.md) for detailed pl
 
 ```bash
 # Install with development dependencies
-pip install -e ".[dev]"
+uv sync --all-extras
+
+# Or through doit
+uv run doit install_dev
 
 # Install pre-commit hooks
-pre-commit install
+uv run doit pre_commit_install
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pytest
+uv run doit test
 
 # Run with coverage
-pytest --cov=libs --cov=plugins --cov-report=html
+uv run doit coverage
 
-# Run specific test
-pytest tests/libs/test_persistentdict.py
+# Run a specific test file
+uv run pytest tests/libs/test_persistentdict.py
 ```
 
 ### Code Quality
 
 ```bash
-# Lint code
-ruff check .
-
 # Format code
-black .
+uv run doit format
+
+# Lint code
+uv run doit lint
 
 # Type checking
-mypy mudproxy.py libs/ plugins/
+uv run doit type_check
+
+# Run all checks
+uv run doit check
 ```
+
+If `~/bastproxy` does not exist, point `BASTPROXY_HOME` at a directory that does, for example `BASTPROXY_HOME=$PWD uv run doit check`.
 
 ## Project Structure
 
 ```
 bastproxy/
-├── mudproxy.py          # Main entry point
-├── libs/                # Core libraries
-│   ├── api/            # API framework
-│   ├── net/            # Network handling
-│   ├── plugins/        # Plugin loading system
-│   ├── records/        # Data tracking
-│   └── tracking/       # Attribute monitoring
-├── plugins/            # Plugin directory
-│   ├── core/          # Core plugins
-│   ├── debug/         # Debug plugins
-│   └── _baseplugin/   # Base plugin class
-├── tests/             # Test suite
-└── data/              # Runtime data
-    ├── logs/          # Log files
-    └── plugins/       # Plugin data
+├── src/bastproxy/       # The package (entry point: bastproxy:main)
+│   ├── libs/           # Core libraries
+│   │   ├── api/        # API framework
+│   │   ├── asynch/     # Async helpers
+│   │   ├── info/       # Info helpers
+│   │   ├── net/        # Network handling
+│   │   ├── plugins/    # Plugin loading system
+│   │   └── records/    # Data tracking
+│   └── plugins/        # Plugin directory
+│       ├── _baseplugin/  # Base plugin class
+│       ├── core/       # Core plugins
+│       ├── debug/      # Debug plugins
+│       └── test/       # Test plugins
+├── tests/              # Test suite
+│   ├── libs/           # Tests for libs/
+│   └── plugins/        # Tests for plugins/
+└── docs/               # Documentation
 ```
+
+Runtime data is not stored in the repository. It lives under `$BASTPROXY_HOME`: `data/` (plugin data and logs) and `plugins/` (user plugins).
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests. The full issue, branch, commit and PR workflow is in [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ### Quick Contribution Guide
 
@@ -183,7 +174,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes following our [coding standards](CONTRIBUTING.md#coding-standards)
 4. Write tests for your changes
-5. Ensure all tests pass (`pytest`)
+5. Ensure all checks pass (`uv run doit check`)
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
