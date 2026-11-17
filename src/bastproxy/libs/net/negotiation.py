@@ -159,6 +159,10 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     # (server side) link. ``ClientConnection`` sets it; ``None`` means nobody is listening.
     oob_option_callback: Callable[[bytes, bool], None] | None = None
 
+    # Called as ``(option)`` after a received ``DONT`` is handled; ``None`` means nobody listens.
+    # The MUD link uses it to start the TTYPE cycle again (#547).
+    dont_callback: Callable[[bytes], None] | None = None
+
     def _record(
         self, direction: Direction, command: str, option: bytes, data: bytes, raw: bytes
     ) -> None:
@@ -227,6 +231,12 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         self._record(Direction.RECEIVED, "DONT", opt, b"", IAC + DONT + opt)
         super().handle_dont(opt)
         self._oob_changed(opt, False)
+        callback = self.dont_callback
+        if callback is not None:
+            try:
+                callback(opt)
+            except Exception:
+                logger.exception("Could not handle DONT %s on a link", name_option(opt))
 
     def handle_will(self, opt: bytes) -> None:
         """Record a received WILL, then let telnetlib3 answer."""

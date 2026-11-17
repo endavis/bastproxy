@@ -139,7 +139,9 @@ The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/ba
 - **Fallback:** when the active client disconnects, the next most recently active eligible client takes over. With none left, the last size sent stays.
 - **Setting:** `plugins.core.proxy` `mudwindowsize`: `client` (default, the rule above), `off` (telnetlib3's 80x25) or `COLSxROWS` (pinned, 1 to 65535 each). An invalid value logs a warning and acts as `client`. The plugin pushes it in with `WINDOW_SIZE.set_mode`.
 - **Wiring:** `MudTelnetClient.send_naws` answers `DO NAWS` with `WINDOW_SIZE.mud_reply()`; later changes are built as `IAC SB NAWS ... IAC SE` and sent with the public `send_iac` while NAWS is enabled on the MUD link. `ClientConnection` reports login (`client_ready`), input (`client_input`), a resize through `CustomTelnetServer.on_naws_cb` (`client_resized`) and disconnect (`client_gone`).
-- **Terminal type:** not forwarded. `MudConnection.term_type` stays `bastproxy`, so the MUD sees the proxy's own terminal, whatever the clients are.
+- **Terminal type:** the clients' terminal type is not forwarded. The MUD sees the proxy's own identity, whatever the clients are (#547, `src/bastproxy/libs/net/mtts.py`):
+  - TTYPE answers cycle `BASTPROXY`, `ANSI-256COLOR`, `MTTS 525` (ANSI, UTF-8, 256 colours, MNES); later requests repeat `MTTS 525`. `MudTelnetClient.send_ttype` drives the cycle, and an `IAC DONT TTYPE` from the MUD restarts it through `RecordingTelnetWriter.dont_callback`. Each MUD connection starts a new cycle.
+  - NEW_ENVIRON requests get the MNES variables `CLIENT_NAME=BASTPROXY`, `CLIENT_VERSION` (the package version), `TERMINAL_TYPE=ANSI-256COLOR`, `MTTS=525` and `CHARSET=UTF-8` (`MudTelnetClient.send_env`). A request with no names gets all of them; `IPADDRESS` is answered empty, because several clients may be connected.
 
 ### MudConnection
 
