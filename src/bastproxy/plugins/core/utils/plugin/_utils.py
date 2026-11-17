@@ -6,6 +6,7 @@
 # By: Bast
 
 # Standard Library
+import bisect
 import datetime
 import fnmatch
 import math
@@ -28,6 +29,7 @@ except ImportError:
 
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.textwidth import display_width, text_units
 from bastproxy.plugins._baseplugin import BasePlugin
 
 TIMELENGTH_REGEXP = re.compile(
@@ -97,6 +99,7 @@ def fit_column_widths(
     header_mins: Sequence[int],
     available: int,
     header_word_mins: Sequence[int] | None = None,
+    unit_mins: Sequence[int] | None = None,
 ) -> list[int]:
     """Shrink column widths until they fit in ``available`` columns, if they can.
 
@@ -107,7 +110,8 @@ def fit_column_widths(
     2. Floor ``header_mins`` (the header label's length): cell words are split.
     3. Floor ``header_word_mins`` (the longest word of the header label, default
        ``header_mins``): header labels wrap at spaces.
-    4. Floor 1: header words are split too.
+    4. Floor ``unit_mins`` (the widest grapheme of the column, default 1): header words are
+       split too, but never inside a wide character, so a column is never narrower than one.
 
     Phases 3 and 4 only run when the table still does not fit, so a table that fits with
     unwrapped headers is never touched by them.
@@ -126,7 +130,7 @@ def fit_column_widths(
     shrink(word_mins)
     shrink(header_mins)
     shrink(header_mins if header_word_mins is None else header_word_mins)
-    shrink([1] * len(widths))
+    shrink([1] * len(widths) if unit_mins is None else unit_mins)
     return widths
 
 
@@ -134,57 +138,97 @@ def wrap_cell(text: str, width: int, tokenize: Callable[[str], list[tuple[str, s
     """Wrap a cell that may hold color codes into lines of at most ``width`` visible columns.
 
     ``tokenize`` is the ``colorcode.to.tokens`` API: it splits the text into ``(raw, visible)``
-    pairs and is the single source of what counts as visible. Lines
+    pairs and is the single source of what counts as visible. Widths are display columns, measured
+    on graphemes (see :mod:`bastproxy.libs.textwidth`), so a wide character takes two columns and
+    a combining mark stays with its base character. Lines
     break at single spaces (dropped at the break); a word longer than ``width`` is split. A
     color code stays with the text it precedes, and each continuation line starts with the
     color in effect at its start, unless that color is ``@w`` or there is none. A split word
-    breaks after the last ``.``, ``/``, ``_`` or ``-`` that fits, else at ``width``.
+    breaks after the last ``.``, ``/``, ``_`` or ``-`` that fits, else at ``width``. Every line
+    holds at least one grapheme, so a grapheme wider than ``width`` gets a line of its own.
+
+    A grapheme split across tokens (for example ``e@R`` followed by a combining mark) becomes a
+    zero-width unit of its own after the colour code.
     """
-    visible: list[str] = []
-    raw_visible: list[str] = []  # the raw token behind each visible character
-    codes: list[tuple[int, str]] = []  # (visible index the code precedes, raw code)
+    shown_units: list[str] = []  # what each unit looks like
+    raw_units: list[str] = []  # the raw token behind each unit
+    cols: list[int] = [0]  # cols[i]: columns taken by the units before unit i
+    codes: list[tuple[int, str]] = []  # (unit index the code precedes, raw code)
     for raw, shown in tokenize(text):
         if shown == "":
-            codes.append((len(visible), raw))
-        else:
-            visible.extend(shown)
-            if raw == shown:  # plain text: one entry per character
-                raw_visible.extend(shown)
-            else:  # an escape: one visible character, its raw token
-                raw_visible.append(raw)
-                raw_visible.extend("" for _ in shown[1:])
-    if width < 1 or len(visible) <= width:
+            codes.append((len(shown_units), raw))
+        elif raw == shown and shown.isascii() and shown.isprintable():  # one unit per character
+            shown_units.extend(shown)
+            raw_units.extend(shown)
+            cols.extend(range(cols[-1] + 1, cols[-1] + len(shown) + 1))
+        elif raw == shown:  # plain text: one unit per grapheme
+            for unit, unit_width in text_units(shown):
+                shown_units.append(unit)
+                raw_units.append(unit)
+                cols.append(cols[-1] + unit_width)
+        else:  # an escape: one unit, its raw token
+            shown_units.append(shown)
+            raw_units.append(raw)
+            cols.append(cols[-1] + display_width(shown))
+    if width < 1 or cols[-1] <= width:
         return [text]
 
-    # Find the visible span (start, end) of each line.
-    shown_text = "".join(visible)
+    def fit_end(unit_start: int, room: int) -> int:
+        """The unit index that ends the most units from ``unit_start`` in ``room`` columns.
 
-    def cut_at(word_start: int, size: int) -> int:
-        """Where to cut ``size`` characters off a word: after the last punctuation, if any."""
-        piece = shown_text[word_start : word_start + size]
-        index = max(piece.rfind(char) for char in _BREAK_AFTER)
-        return word_start + (index + 1 if index >= 1 else size)
+        At least one unit is taken, so a wrap always makes progress. Zero-width units that
+        follow the last unit stay with it.
+        """
+        found = bisect.bisect_right(cols, cols[unit_start] + room) - 1
+        if found > unit_start:
+            return found
+        return bisect.bisect_right(cols, cols[unit_start + 1]) - 1
+
+    def cut_at(word_start: int, room: int) -> int:
+        """Where to cut ``room`` columns off a word: after the last punctuation, if any."""
+        cut = fit_end(word_start, room)
+        for position in range(cut - 1, word_start, -1):
+            if shown_units[position] in _BREAK_AFTER:
+                return bisect.bisect_right(cols, cols[position + 1]) - 1
+        return cut
+
+    # Find the unit span (start, end) of each line.
+    words: list[tuple[int, int]] = []
+    word_begin = -1
+    for position, unit in enumerate(shown_units):
+        if unit == " ":
+            if word_begin >= 0:
+                words.append((word_begin, position))
+            word_begin = -1
+        elif word_begin < 0:
+            word_begin = position
+    if word_begin >= 0:
+        words.append((word_begin, len(shown_units)))
 
     spans: list[tuple[int, int]] = []
     start = end = -1  # -1: no current line
-    for match in re.finditer(r"[^ ]+", shown_text):
-        word_start, word_end = match.span()
-        if start >= 0 and word_end - start <= width:
+    for word_start, word_end in words:
+        if start >= 0 and cols[word_end] - cols[start] <= width:
             end = word_end
             continue
-        if start >= 0 and word_end - word_start > width:
-            room = width - (end - start) - (word_start - end)
-            if room > 0:
-                end = cut_at(word_start, room)
-                word_start = end
+        # fill the rest of the current line, when the word is too wide and one unit fits
+        if (
+            start >= 0
+            and cols[word_end] - cols[word_start] > width
+            and cols[word_start + 1] - cols[start] <= width
+        ):
+            end = cut_at(word_start, width - (cols[word_start] - cols[start]))
+            word_start = end
         if start >= 0:
             spans.append((start, end))
         start = end = -1
-        while word_end - word_start > width:
+        while cols[word_end] - cols[word_start] > width:
             cut = cut_at(word_start, width)
             spans.append((word_start, cut))
             word_start = cut
-        start, end = word_start, word_end
+        # a wide grapheme that filled the last line leaves nothing for a new one
+        if word_start < word_end:
+            start, end = word_start, word_end
     if start >= 0:
         spans.append((start, end))
     if not spans:
@@ -207,12 +251,12 @@ def wrap_cell(text: str, width: int, tokenize: Callable[[str], list[tuple[str, s
             if not belongs:
                 break
             if index > position:
-                parts.append("".join(raw_visible[position:index]))
+                parts.append("".join(raw_units[position:index]))
                 position = index
             parts.append(raw)
             last_code = raw
             code_index += 1
-        parts.append("".join(raw_visible[position:line_end]))
+        parts.append("".join(raw_units[position:line_end]))
         lines.append("".join(parts))
     return lines
 
@@ -494,7 +538,7 @@ class UtilsPlugin(BasePlugin):
             caplength = length
             length -= 4
 
-        noncolored_string_length = len(noncolored_string) + 4
+        noncolored_string_length = display_width(noncolored_string) + 4
         length_difference = length - noncolored_string_length
         half_length = length_difference // 2
 
@@ -620,15 +664,20 @@ class UtilsPlugin(BasePlugin):
         data = list(data)
         header_dict = {item["key"]: item["name"] for item in columns}
         count = len(columns)
+        # the visible text of every cell, stripped once: the header row first, then the data
+        visible = {
+            column["key"]: [strip(str(item[column["key"]])) for item in temp_data]
+            for column in columns
+        }
         natural = [
-            max(len(strip(str(item[column["key"]]))) for item in temp_data) for column in columns
+            max(display_width(text) for text in visible[column["key"]]) for column in columns
         ]
-        header_mins = [max(1, len(strip(str(header_dict[column["key"]])))) for column in columns]
+        header_mins = [max(1, display_width(visible[column["key"]][0])) for column in columns]
         header_word_mins = [
             max(
                 1,
                 max(
-                    (len(word) for word in strip(str(header_dict[column["key"]])).split(" ")),
+                    (display_width(word) for word in visible[column["key"]][0].split(" ")),
                     default=1,
                 ),
             )
@@ -637,15 +686,41 @@ class UtilsPlugin(BasePlugin):
         word_mins = []
         for column, header_min in zip(columns, header_mins, strict=True):
             longest = max(
-                (len(word) for item in data for word in strip(str(item[column["key"]])).split(" ")),
+                (
+                    display_width(word)
+                    for text in visible[column["key"]][1:]
+                    for word in text.split(" ")
+                ),
                 default=0,
             )
             word_mins.append(max(header_min, longest))
 
+        # the widest grapheme of a column: it never shrinks below one wide character
+        unit_mins = [
+            max(
+                1,
+                max(
+                    (
+                        1
+                        if text.isascii() and text.isprintable()
+                        else max((width for _, width in text_units(text)), default=1)
+                        for text in visible[column["key"]]
+                    ),
+                    default=1,
+                ),
+            )
+            for column in columns
+        ]
+
         # 4 for the '| ' and ' |' that cap the lines, 3 for each ' | ' between columns
         overhead = 4 + 3 * (count - 1)
         widths = fit_column_widths(
-            natural, word_mins, header_mins, line_length_default - overhead, header_word_mins
+            natural,
+            word_mins,
+            header_mins,
+            line_length_default - overhead,
+            header_word_mins,
+            unit_mins,
         )
         for column, width in zip(columns, widths, strict=True):
             column["width"] = width
@@ -656,7 +731,7 @@ class UtilsPlugin(BasePlugin):
             cells = []
             for column in columns:
                 cell = str(item[column["key"]])
-                cells.append(cell + " " * (column["width"] - len(strip(cell))))
+                cells.append(cell + " " * (column["width"] - display_width(strip(cell))))
             return separator.join(cells)
 
         def build_rows(item: Any) -> list[str]:
@@ -743,7 +818,7 @@ class UtilsPlugin(BasePlugin):
 
         noncolored_string = self.api("plugins.core.colors:colorcode.strip")(line)
 
-        missing = line_length - len(noncolored_string)
+        missing = line_length - display_width(noncolored_string)
 
         return (
             f"{color}{capchar}{'' if fullcolor else color_end}{spacechar}{line}"

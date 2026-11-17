@@ -256,7 +256,7 @@ Configures the argument parser:
 )
 ```
 
-`formatter_class` is replaced after the parser is built by a factory that returns `argp.CustomFormatter` sized to `plugins.core.proxy:line.length.get`, so help and usage wrap to the requesting client's width (`linelen` when it has no NAWS width), not the 73 columns used when no width is given (#509). `AddParser` takes keyword
+`formatter_class` is replaced after the parser is built by a factory that returns `argp.CustomFormatter` sized to `plugins.core.proxy:line.length.get`, so help and usage wrap to the requesting client's width (`linelen` when it has no NAWS width), not the 73 columns used when no width is given (#509). Help text is wrapped by display columns with `wcwidth.wrap`, so CJK and emoji count two columns (#528). `AddParser` takes keyword
 arguments only; a positional argument raises `TypeError` (removed in #400, they were never used). The `-h` and `--help` flags are added to every command.
 
 ### @AddArgument
@@ -330,7 +330,7 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 
 Output is drawn at the width of the client that ran the command. `run_internal_command_from_event` sets the `output_client` context variable around the command, and `line.length.get` reads it. A client that reported its window size over NAWS gets its width minus the preamble prefix (`#BP: `, as long as the configured preamble plus 2), capped at the `linelen` setting and never under 40. A client without NAWS, or no single target client (a broadcast), gets `linelen`. Every reader of the line length goes through this API; `linelen` is read nowhere else. `plugins.core.utils:string.center.colored` and `line.cap` default their width to `plugins.core.proxy:line.length.get`, and full-width rules on command pages use it too. The shorter fixed rules (60, 50 or 40 columns) clamp with `min(N, line.length.get())`, so a wide client keeps the current width and a narrow one gets its line length; `libs.api` checks `libs.api:api.exists` first and falls back to 50 when the proxy plugin is not loaded.
 
-`plugins.core.utils:table.format` fits tables to that width. When the rows are wider, data cells wrap inside their own columns (at spaces first, then within a word) and every `|` border stays aligned. A word that has to be split breaks after the last `.`, `/`, `_` or `-` that fits. Header labels wrap only when nothing else makes the table fit (at spaces first, then within a word, down to one column each), and the header row grows to its tallest label. The table grows past the line length only when even one column per cell cannot fit.
+`plugins.core.utils:table.format` fits tables to that width. When the rows are wider, data cells wrap inside their own columns (at spaces first, then within a word) and every `|` border stays aligned. Widths are display columns (`src/bastproxy/libs/textwidth.py`, see [Colour System](colors_system.md#display-width)), so a wide character takes two columns and is never cut in the middle. A word that has to be split breaks after the last `.`, `/`, `_` or `-` that fits. Header labels wrap only when nothing else makes the table fit (at spaces first, then within a word, down to one column each), and the header row grows to its tallest label. The table grows past the line length only when even one column per cell cannot fit.
 
 ## Built-in Commands
 

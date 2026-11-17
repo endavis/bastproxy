@@ -161,6 +161,7 @@ dependencies = [
     { name = "rapidfuzz" },
     { name = "regex" },
     { name = "telnetlib3" },
+    { name = "wcwidth" },
 ]
 
 [package.optional-dependencies]
@@ -238,6 +239,7 @@ requires-dist = [
     { name = "telnetlib3", specifier = ">=5.0.3" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.20261030" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
+    { name = "wcwidth", specifier = ">=0.9.4" },
 ]
 provides-extras = ["dev", "security"]
 

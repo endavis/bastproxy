@@ -40,6 +40,7 @@ import textwrap as _textwrap
 from typing import Any, NoReturn
 
 # Third Party
+import wcwidth
 
 # Project
 
@@ -126,7 +127,7 @@ class CustomFormatter(HelpFormatter):
         lines = text.splitlines() if text else [""]
         multiline_text = ""
         for line in lines:
-            wrapped_line = _textwrap.fill(line, max(self._fill_width - len(indent), 11))
+            wrapped_line = "\n".join(wcwidth.wrap(line, max(self._fill_width - len(indent), 11)))
             multiline_text = multiline_text + "\n" + wrapped_line
         return multiline_text
 
@@ -148,7 +149,7 @@ class CustomFormatter(HelpFormatter):
         """
         lines: list[str] = []
         for line in text.splitlines() or [""]:
-            lines.extend(_textwrap.wrap(line, max(width, 11)) or [""])
+            lines.extend(wcwidth.wrap(line, max(width, 11)) or [""])
         return lines
 
     # override _get_help_string

@@ -72,3 +72,8 @@ def test_length_difference() -> None:
     assert length_difference("@Rab@w") == 4
     assert length_difference("mail@@host") == 1
     assert length_difference("plain") == 0
+
+
+def test_length_difference_counts_wide_characters_as_two_columns() -> None:
+    assert length_difference("日本") == -2
+    assert length_difference("@R日本@w") == 2

@@ -43,6 +43,7 @@ from bastproxy.libs.records import (
     SendDataDirectlyToClient,
     SendDataDirectlyToMud,
 )
+from bastproxy.libs.textwidth import display_width
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -275,7 +276,7 @@ class ProxyPlugin(BasePlugin):
         if cols is None:
             return linelen
         preamble = self.api("plugins.core.proxy:preamble.get")()
-        prefix_len = len(self.api("plugins.core.colors:colorcode.strip")(preamble)) + 2
+        prefix_len = display_width(self.api("plugins.core.colors:colorcode.strip")(preamble)) + 2
         return min(linelen, max(MIN_LINE_LENGTH, cols - prefix_len))
 
     @AddAPI("preamble.color.get", description="get the preamble color")

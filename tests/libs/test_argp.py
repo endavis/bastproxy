@@ -15,6 +15,7 @@ Test Classes:
 import argparse
 
 import pytest
+import wcwidth
 
 from bastproxy.libs.argp import (
     OPTIONAL,
@@ -305,3 +306,28 @@ class TestCustomFormatterArgumentHelpWidth:
         out = parser.format_help()
         assert "first line\n" in out
         assert "second line" in out
+
+
+class TestCustomFormatterWideCharacters:
+    """CustomFormatter wraps by display columns, not code points (#528)."""
+
+    CJK = "日本語のテキスト " * 12
+    ZWJ = "👨\u200d👩\u200d👧"
+
+    def _lines(self, width: int, help_text: str) -> list[str]:
+        parser = ArgumentParser(description=help_text, prog="p")
+        parser.formatter_class = lambda prog: CustomFormatter(prog, width=width)
+        parser.add_argument("--opt", help=help_text)
+        return parser.format_help().splitlines()
+
+    def test_every_line_within_width(self) -> None:
+        for width in (40, 60):
+            lines = self._lines(width, self.CJK)
+            assert max(wcwidth.width(ln, control_codes="ignore") for ln in lines) <= width
+
+    def test_grapheme_clusters_are_not_split(self) -> None:
+        text = " ".join([self.ZWJ, "e\u0301e\u0301"] * 15)
+        lines = self._lines(40, text)
+
+        assert all(ln.count("\u200d") % 2 == 0 for ln in lines)
+        assert not any(ln.lstrip().startswith("\u0301") for ln in lines)

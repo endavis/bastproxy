@@ -9,6 +9,7 @@
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
+from bastproxy.libs.textwidth import display_width
 from bastproxy.plugins._baseplugin import BasePlugin
 
 # 3rd Party
@@ -152,12 +153,19 @@ class ColorsPlugin(BasePlugin):
 
     @AddAPI(
         "color.length.difference.get",
-        description="get the length difference of a colored string and its noncolor equivalent",
+        description=(
+            "get the offset between a colored string's length and its display width "
+            "(add it to a display width to get a str.ljust or format width)"
+        ),
     )
     def _api_color_length_difference_get(self, colorstring: str) -> int:
         # pylint: disable=no-self-use
-        """Get the length difference of a colored string and its noncolor equivalent."""
-        return len(colorstring) - len(strip_colorcodes(colorstring))
+        """Get the offset between a colored string's length and its display width.
+
+        Add the result to a display width to get the width ``str.ljust`` or a format spec needs
+        for a string that holds colour codes (wide characters count two columns).
+        """
+        return len(colorstring) - display_width(strip_colorcodes(colorstring))
 
     # check if a string is an @@ color, either xterm or ansi
     @AddAPI(
