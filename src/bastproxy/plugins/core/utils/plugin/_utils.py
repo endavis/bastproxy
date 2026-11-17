@@ -89,7 +89,6 @@ CONVERTERS: dict[Any, Callable[[Any], Any]] = {
 
 # Characters a split word prefers to break after.
 _BREAK_AFTER = (".", "/", "_", "-")
-_CELL_TOKEN = re.compile(r"@@|@[xz]\d{1,3}|@[A-Za-z]|\x1b\[[0-9;]*m|.", re.DOTALL)
 
 
 def fit_column_widths(
@@ -131,30 +130,29 @@ def fit_column_widths(
     return widths
 
 
-def wrap_cell(text: str, width: int, strip: Callable[[str], str]) -> list[str]:
+def wrap_cell(text: str, width: int, tokenize: Callable[[str], list[tuple[str, str]]]) -> list[str]:
     """Wrap a cell that may hold color codes into lines of at most ``width`` visible columns.
 
-    ``strip`` removes color codes and is the single source of what counts as visible. Lines
+    ``tokenize`` is the ``colorcode.to.tokens`` API: it splits the text into ``(raw, visible)``
+    pairs and is the single source of what counts as visible. Lines
     break at single spaces (dropped at the break); a word longer than ``width`` is split. A
     color code stays with the text it precedes, and each continuation line starts with the
     color in effect at its start, unless that color is ``@w`` or there is none. A split word
     breaks after the last ``.``, ``/``, ``_`` or ``-`` that fits, else at ``width``.
     """
-    tokens = _CELL_TOKEN.findall(text)
     visible: list[str] = []
     raw_visible: list[str] = []  # the raw token behind each visible character
     codes: list[tuple[int, str]] = []  # (visible index the code precedes, raw code)
-    for token in tokens:
-        # strip() does not clean a bare code or an escape reliably, so probe the token between
-        # two markers and keep what is between them
-        probe = strip("x" + token + "x").removeprefix("x")
-        shown = probe[: probe.rfind("x")]
+    for raw, shown in tokenize(text):
         if shown == "":
-            codes.append((len(visible), token))
+            codes.append((len(visible), raw))
         else:
             visible.extend(shown)
-            raw_visible.append(token)
-            raw_visible.extend("" for _ in shown[1:])
+            if raw == shown:  # plain text: one entry per character
+                raw_visible.extend(shown)
+            else:  # an escape: one visible character, its raw token
+                raw_visible.append(raw)
+                raw_visible.extend("" for _ in shown[1:])
     if width < 1 or len(visible) <= width:
         return [text]
 
@@ -617,6 +615,7 @@ class UtilsPlugin(BasePlugin):
         temp_data = [{item["key"]: item["name"] for item in columns}, *list(data)]
         color_end = "@w"
         strip = self.api("plugins.core.colors:colorcode.strip")
+        tokenize = self.api("plugins.core.colors:colorcode.to.tokens")
 
         data = list(data)
         header_dict = {item["key"]: item["name"] for item in columns}
@@ -662,7 +661,7 @@ class UtilsPlugin(BasePlugin):
 
         def build_rows(item: Any) -> list[str]:
             wrapped = [
-                wrap_cell(str(item[column["key"]]), column["width"], strip) for column in columns
+                wrap_cell(str(item[column["key"]]), column["width"], tokenize) for column in columns
             ]
             height = max(len(cell_lines) for cell_lines in wrapped)
             return [

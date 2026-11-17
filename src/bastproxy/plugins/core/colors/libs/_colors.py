@@ -76,21 +76,21 @@ def build_color_table() -> None:
     COLORTABLE[15] = (0xFF, 0xFF, 0xFF)  # 15
     COLORTABLE["W"] = COLORTABLE[15]
 
-    # colors 16..232: the 6x6x6 color cube
+    # colors 16..231: the 6x6x6 color cube
 
     valuerange = (0x00, 0x5F, 0x87, 0xAF, 0xD7, 0xFF)
 
-    for i in range(217):
+    for i in range(216):
         red = valuerange[(i // 36) % 6]
         green = valuerange[(i // 6) % 6]
         blue = valuerange[i % 6]
         COLORTABLE[i + 16] = (red, green, blue)
 
-    # colors 233..253: grayscale
+    # colors 232..255: 24 steps of grayscale
 
-    for i in range(1, 22):
+    for i in range(24):
         gray = 8 + i * 10
-        COLORTABLE[i + 233] = (gray, gray, gray)
+        COLORTABLE[232 + i] = (gray, gray, gray)
 
 
 build_color_table()

@@ -24,6 +24,8 @@ def make_utils_stub() -> MagicMock:
             return lambda: LINELEN
         if name == "plugins.core.colors:colorcode.strip":
             return lambda text: ColorsPlugin._api_colorcode_strip(colors, text)
+        if name == "plugins.core.colors:colorcode.to.tokens":
+            return lambda text: ColorsPlugin._api_colorcode_to_tokens(colors, text)
         if name == "plugins.core.commands:header.format":
             return lambda text, color, line_length: [f"HEADER {text} {color} {line_length}"]
         if name == "plugins.core.utils:line.cap":
