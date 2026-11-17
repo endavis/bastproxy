@@ -319,7 +319,7 @@ in `out-q6-dead.txt` shows no caller in `src` or `tests`; CM-13).
   and `history[number - 1]` when it is as long, so `! -1` shows the last entry in one case and the one before
   it in the other, `! 0` shows the first entry and `! 4` with four entries raises `IndexError` (the length
   guard uses `<` against `abs(number)`) (CM-8).
-- **`!` shows, it does not re-run.** It sends `Commands: rerunning command <x>` and then `<x>` to the clients
+- **`!` shows, it does not re-run (fixed in #525: it now runs the entry as client input with `show_in_history=False`; this is the behaviour before the fix).** It sends `Commands: rerunning command <x>` and then `<x>` to the clients
   as text. The line did not go to the MUD and the command was not run again (**verified**, `out-q1_flow.txt`:
   the only line sent to the MUD after `! 1 2` was the original `! 1 2`, with `send` False). Before #395 both lines
   went to `clients=None`, that is every logged-in client that may see internal lines, not only the client that

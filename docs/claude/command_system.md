@@ -219,7 +219,7 @@ def _command_search(self):
 Commands are automatically tracked:
 - Stored in a persistent dict (`history.txt` in the plugin's data directory)
 - Holds at most `historysize` entries; a line already in the history moves to the end
-- Can be listed and shown again with `!`
+- Can be listed with `history` and rerun with `!`
 - A found command is recorded only when its `show_in_history` is true; an unknown command is not
 
 ## Command Decorators
@@ -362,10 +362,10 @@ Shows command history or clears it with `-c`
 ```
 #bp.core.commands.! [number]
 ```
-Shows a command from the history; it does not run it again. Numbers are those of `history` (0-based):
-- `!` - Shows the last entry
-- `! -2` - Shows the entry 2 back from the end
-- `! 5` - Shows entry 5
+Runs a command from the history again, as if the client had typed it: a proxy command is dispatched, any other line goes to the mud. The rerun is attributed to the client that ran `!` and does not change the history list. Numbers are those of `history` (0-based):
+- `!` - Reruns the last entry
+- `! -2` - Reruns the entry 2 back from the end
+- `! 5` - Reruns entry 5
 
 The reply goes to the client that typed it. Numbers index the history list the same way whether or not it is
 full, and a number outside `-len <= number < len` gets an "outside of history length" message (CM-8, fixed in #395).
