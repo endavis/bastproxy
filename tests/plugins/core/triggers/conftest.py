@@ -39,6 +39,8 @@ class Harness:
         self.owner: str | None = OWNER
         self.existing_events: set[str] = set()
         self.event_details: dict[str, list[str]] = {}
+        self.gmcp: dict[str, Any] = {}
+        self.gmcp_calls = 0
 
         def event_raise(event_name: str, event_args: dict[str, Any]) -> dict[str, Any]:
             self.raised.append((event_name, dict(event_args)))
@@ -75,6 +77,8 @@ class Harness:
             return lambda event_name: self.event_details.get(event_name, [])
         if name == "plugins.core.commands:command.current.args.get":
             return lambda: self.command_args
+        if name == "libs.net.protocols:gmcp.cache.get":
+            return self._gmcp_get
         if name == "plugins.core.proxy:line.length.get":
             return lambda: 80
         prefix = f"{PLUGIN}:"
@@ -82,6 +86,11 @@ class Harness:
             method = getattr(TriggersPlugin, "_api_" + name[len(prefix) :].replace(".", "_"))
             return lambda *a, **k: method(self, *a, **k)
         raise KeyError(name)
+
+    def _gmcp_get(self, package: str | None = None) -> Any:
+        """Stand-in for ``libs.net.protocols:gmcp.cache.get``."""
+        self.gmcp_calls += 1
+        return self.gmcp.get(package) if package is not None else dict(self.gmcp)
 
     def add(self, name: str, regex: str | None, owner_id: str = OWNER, **kwargs: Any) -> Any:
         """Add a trigger through the real ``trigger.add``."""

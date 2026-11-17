@@ -33,7 +33,8 @@ class TriggerItem:
     def __init__(self, owner_id, trigger_name, regex, regex_id, original_regex,
                  enabled=True, group=None, omit=False, priority=100,
                  stopevaluating=False, argtypes=None, matchcolor=False,
-                 trigger_id=None, original_regex_compiled=None, order=0):
+                 trigger_id=None, original_regex_compiled=None, order=0,
+                 when=None, conditions=()):
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
         self.enabled = enabled                      # Set at creation; trigger.toggle.enable updates it (TR-2)
         self.owner_id = owner_id
@@ -48,6 +49,8 @@ class TriggerItem:
         self.stopevaluating = stopevaluating
         self.argtypes = argtypes                    # Type conversions
         self.matchcolor = matchcolor                # Match the colour-coded text instead of the plain text
+        self.when = when                            # GMCP conditions as given: {"Char.Vitals.hp": ">50"}
+        self.conditions = conditions                # The parsed form of `when`, checked after the regex matches
         self.order = order                          # Counter set when the trigger is added; breaks priority ties
         self.hits = 0
         self.trigger_id = trigger_id                # "t_<owner_id>_<trigger_name>"
@@ -113,7 +116,17 @@ self.api("plugins.core.triggers:trigger.add")(
     priority=10,                                 # Lower runs first; ties go in the order added
     group="secrets"                              # Trigger group
 )
+
+# Only when the GMCP data agrees
+self.api("plugins.core.triggers:trigger.add")(
+    "low_hp_warning",
+    r"^You are bleeding",
+    owner_id=self.plugin_id,
+    when={"Char.Vitals.hp": "<50", "Char.Status.state": "=fight"}
+)
 ```
+
+`when` maps dotted GMCP paths to a comparison string: an operator (`=`, `!=`, `>`, `>=`, `<`, `<=`) and an operand. The trigger raises its event only when its regex matches and every condition holds (see [Trigger Matching](#3-trigger-matching) and [GMCP Conditions](#gmcp-conditions)).
 
 `trigger.add` returns a `TriggerAddResult(success, trigger)`: `success=True` with `trigger` set to the new item, or `success=False` with `trigger=None` on every failure (a name the owner already uses, a regex that does not compile, no owner found, an unknown keyword), logging an error with the reason. Check `result.success` before using `result.trigger`; the result is always truthy, so test `result.success`, not the result (TR-9, #354). Before #426 it returned a `(success, trigger)` tuple; unpacking the result now raises `TypeError`. The regex is matched with `match`, so it must match from the first character of the line: `You hit .* for (?P<damage>\d+) damage` above does not match `[combat] You hit orc for 5 damage`. Start a pattern with `.*` to match anywhere in the line.
 
@@ -161,7 +174,7 @@ def handle_hp_warning(self):
 3. The text is `line.noansi`: every terminal escape sequence (colour codes, cursor movement, clearing, OSC 8 links) and, when the line has an MXP mode, MXP markup are removed. C0 controls and 8-bit C1 sequences are kept.
 4. If the text is `""`, the `emptyline` trigger's event is raised (if something is registered on it) and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
 5. Otherwise, unless the text is the echo of a line the proxy sent ([Echoed Commands](#echoed-commands)), `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused. Triggers whose compiled regex has the same pattern text and flags, and that read the same text, share one match per line (a per-line cache in `_match_line`, #383, used only for triggers flagged `shared_pattern`; `_sync_order` and `_sync_order_remove` keep that flag current, so a trigger with a unique pattern is matched directly); each still gets its own `groupdict()`, so `argtypes` never leak between them.
-6. On a match the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run.
+6. On a match, a trigger with `when` checks its GMCP conditions (`_conditions_hold`). If one fails, the trigger is skipped for this line: no event, no hit, `stopevaluating` not applied, and a DEBUG line is logged. A trigger without `when` pays only an empty-tuple check. Then the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run.
 7. A trigger with `stopevaluating` that matched ends the walk.
 8. The `all` trigger's event is raised, if something is registered on it.
 
@@ -190,7 +203,7 @@ Many MUDs echo a command back as output. So that a trigger does not fire on the 
 
 - `plugins.core.triggers:trigger.add` - Add a trigger; returns a `TriggerAddResult(success, trigger)` (`trigger` is `None` when `success` is false), with an error logged on failure (duplicate, no owner, regex that does not compile, unknown keyword)
 - `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. A trigger without a regex (a built-in) is removed without error
-- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`); returns `True`, or `False` with an error logged for an unknown trigger, key or uncompilable regex (TR-3, fixed by #348)
+- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`, `when`; `when` of `None` or `{}` clears the conditions); returns `True`, or `False` with an error logged for an unknown trigger, key, invalid `when` or uncompilable regex, changing nothing (TR-3, fixed by #348)
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None` (a query: nothing is logged)
 - `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Returns `True`, or `False` with an error logged for an unknown trigger (TR-9, #354)
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; returns `True`, or `False` with an error logged for an unknown trigger
@@ -445,6 +458,26 @@ self.api("plugins.core.triggers:trigger.add")(
 
 The regex is matched against the colour-coded text only, for example `@rWARNING@x: fire`, so `.*WARNING.*` matches and `^@rWARNING` matches a red `WARNING` at the start of a line. A `matchcolor` trigger does not match the plain text.
 
+### GMCP Conditions
+
+```python
+self.api("plugins.core.triggers:trigger.add")(
+    "hp_low",
+    r"^You feel weak",
+    owner_id=self.plugin_id,
+    when={"Char.Vitals.hp": "<=50"}
+)
+```
+
+The conditions are parsed and checked by `src/bastproxy/plugins/core/triggers/plugin/_conditions.py`, which reads the decoded GMCP cache through the `libs.net.protocols:gmcp.cache.get` API (never by import).
+
+- **Paths**: the cache is keyed by package name (`Char.Vitals`). The path is split on `.`, package prefixes are tried longest to shortest, and the first one with a value is walked with the remaining segments as dict keys. Lookups are case-sensitive and lists are not indexed.
+- **Missing values**: a missing package or key, a non-dict in the middle of the path, or a JSON null fails every condition, including `!=`.
+- **Ordering operators** (`>`, `>=`, `<`, `<=`) compare numerically. The value must be a number or a numeric string, otherwise the condition fails. The operand must be a finite number.
+- **`=` and `!=`** compare numerically when both sides are numeric (`=50` matches `50`, `50.0` and `"50"`), otherwise as text; booleans compare as `true` and `false`.
+- **Validation**: a `when` that is not a dict, has a non-string path or condition, an empty path segment, no operator, no operand, or a non-numeric operand for an ordering operator is refused. `trigger.add` logs an error and returns `TriggerAddResult(False, None)`; `trigger.update` returns `False` and changes nothing.
+- **Percentages**: not supported; `>50%` is refused. The key names for maximum values differ between MUDs (`maxhp`, `max_hp`), so compute the ratio in a callback.
+
 ### Dynamic Trigger Updates
 
 `trigger.update` works since #348 (TR-3). It rejects an unknown key or a regex that does not compile and changes nothing. Example:
@@ -482,6 +515,7 @@ self.api("plugins.core.triggers:trigger.update")(
 - `argtypes`: Type conversions for captured groups
 - `priority`: Orders matching, lower first; ties go in the order added (`order`)
 - `matchcolor`: Match the trigger's own regex against the colour-coded text
+- `when`: The GMCP conditions as given, or `None`; `conditions` holds the parsed form
 - `stopevaluating`: Stop every later trigger for the line when this one matches
 - `event_name`: Event raised on match, always `event_<trigger_id>`
 - `hits`: How many times the trigger's event was raised

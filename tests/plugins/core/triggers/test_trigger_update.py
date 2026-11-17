@@ -111,3 +111,32 @@ def test_priority_change_moves_trigger_and_keeps_order(harness: Harness) -> None
 def test_unknown_trigger(harness: Harness) -> None:
     _setup(harness)
     assert _update(harness, {"priority": 1}, name="nope") is False
+
+
+def test_update_when_sets_clears_and_rejects(harness: Harness) -> None:
+    _setup(harness)
+    assert _update(harness, {"when": {"Char.Vitals.hp": ">50"}}) is True
+    item = harness.item("trig")
+    assert item.when == {"Char.Vitals.hp": ">50"}
+    assert len(item.conditions) == 1
+    harness.gmcp["Char.Vitals"] = {"hp": 10}
+    assert harness.send("foo") == []
+    harness.gmcp["Char.Vitals"] = {"hp": 60}
+    assert harness.send("foo") == ["trig"]
+
+    assert _update(harness, {"when": {"Char.Vitals.hp": "bad"}}) is False
+    assert _update(harness, {"when": {"Char.Vitals.hp": "<5"}, "omit": True}) is True
+    assert harness.item("trig").when == {"Char.Vitals.hp": "<5"}
+
+    harness.item("trig").omit = False
+    assert _update(harness, {"when": {"Char.Vitals.hp": ">>1"}, "omit": True}) is False
+    assert harness.item("trig").omit is False
+    assert harness.item("trig").when == {"Char.Vitals.hp": "<5"}
+
+    assert _update(harness, {"when": None}) is True
+    assert harness.item("trig").when is None
+    assert harness.item("trig").conditions == ()
+    assert harness.send("foo") == ["trig"]
+    assert _update(harness, {"when": {"Char.Vitals.hp": ">1"}}) is True
+    assert _update(harness, {"when": {}}) is True
+    assert harness.item("trig").conditions == ()

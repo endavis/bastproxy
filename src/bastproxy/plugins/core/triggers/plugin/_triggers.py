@@ -24,6 +24,7 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from ._conditions import Condition, check, parse_conditions
 from ._echo import EchoRecord
 
 # The "Triggers" section this plugin adds to a stats event record's "stats" dict.
@@ -42,11 +43,30 @@ TriggerStats = TypedDict(
 
 # Keyword arguments trigger.add passes on to TriggerItem
 _ADD_KEYWORDS = frozenset(
-    {"enabled", "group", "omit", "priority", "stopevaluating", "argtypes", "matchcolor"}
+    {
+        "enabled",
+        "group",
+        "omit",
+        "priority",
+        "stopevaluating",
+        "argtypes",
+        "matchcolor",
+        "when",
+    }
 )
 
 _UPDATABLE_TRIGGER_KEYS = frozenset(
-    {"regex", "enabled", "group", "omit", "priority", "stopevaluating", "argtypes", "matchcolor"}
+    {
+        "regex",
+        "enabled",
+        "group",
+        "omit",
+        "priority",
+        "stopevaluating",
+        "argtypes",
+        "matchcolor",
+        "when",
+    }
 )
 
 
@@ -73,6 +93,8 @@ class TriggerItem:
         trigger_id: str | None = None,
         original_regex_compiled: re.Pattern[str] | None = None,
         order: int = 0,
+        when: dict[str, str] | None = None,
+        conditions: tuple[Condition, ...] = (),
     ) -> None:
         """Initialize the instance."""
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
@@ -91,6 +113,9 @@ class TriggerItem:
         self.matchcolor = matchcolor
         self.hits = 0
         self.order = order
+        # GMCP conditions: the original mapping and its parsed form
+        self.when = when
+        self.conditions = conditions
         # True while another enabled trigger has the same pattern and text variant
         self.shared_pattern = False
         self._share_key: tuple[Any, bool] | None = None
@@ -307,6 +332,20 @@ class TriggersPlugin(BasePlugin):
             )
             return False
 
+        new_conditions: tuple[Condition, ...] = ()
+        if trigger_data.get("when") is not None:
+            try:
+                new_conditions = parse_conditions(trigger_data["when"])
+            except ValueError as err:
+                log_to(
+                    [self.plugin_id, owner_id],
+                    logging.ERROR,
+                    "_api_trigger_update - trigger %s: %s",
+                    trigger_name,
+                    err,
+                )
+                return False
+
         new_regex = None
         new_compiled = None
         if "regex" in trigger_data and trigger_data["regex"] != item.original_regex:
@@ -331,6 +370,10 @@ class TriggersPlugin(BasePlugin):
 
         for key, new_value in trigger_data.items():
             if key == "regex":
+                continue
+            if key == "when":
+                item.when = dict(new_value) if new_value else None
+                item.conditions = new_conditions
                 continue
             old_value = getattr(item, key)
             if old_value == new_value:
@@ -366,6 +409,9 @@ class TriggersPlugin(BasePlugin):
           @Ymatchcolor@w = (optional) match with color
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
+          @Ywhen@w     = (optional) a dict of dotted GMCP paths to comparison strings,
+                                  such as {"Char.Vitals.hp": ">50"}; the trigger
+                                  raises its event only when every one holds
 
         returns a TriggerAddResult: success=True with trigger set to the new
         TriggerItem, or success=False with trigger None on failure (and logs an
@@ -406,6 +452,19 @@ class TriggersPlugin(BasePlugin):
             return TriggerAddResult(False, None)
 
         args = kwargs.copy()
+
+        try:
+            args["conditions"] = parse_conditions(args.get("when"))
+        except ValueError as err:
+            log_to(
+                [self.plugin_id, owner_id],
+                logging.ERROR,
+                "_api_trigger_add - trigger %s: %s",
+                trigger_name,
+                err,
+            )
+            return TriggerAddResult(False, None)
+        args["when"] = dict(args["when"]) if args.get("when") else None
 
         original_regex = None
 
@@ -705,6 +764,8 @@ class TriggersPlugin(BasePlugin):
                     match = cast(re.Pattern[str], item.original_regex_compiled).match(text)
                 if not match:
                     continue
+                if item.conditions and not self._conditions_hold(item):
+                    continue
                 matched = True
                 group_dict = match.groupdict()
                 if item.argtypes:
@@ -733,6 +794,19 @@ class TriggersPlugin(BasePlugin):
                 break
         if not matched and debug:
             match_logger.debug("_eventcb_check_trigger - line %s did not match any triggers", data)
+
+    def _conditions_hold(self, item: TriggerItem) -> bool:
+        """Whether every GMCP condition of the trigger holds right now."""
+        if check(item.conditions, self.api("libs.net.protocols:gmcp.cache.get")):
+            return True
+        log_to(
+            [self.plugin_id, item.owner_id],
+            logging.DEBUG,
+            "_conditions_hold - trigger %s matched but its conditions did not hold: %s",
+            item.trigger_id,
+            item.when,
+        )
+        return False
 
     def _raise_builtin(self, trigger_id: str, event_record: dict[str, Any]) -> None:
         """Raise a built-in trigger, only if something listens to it."""
@@ -875,6 +949,10 @@ class TriggersPlugin(BasePlugin):
                     if self.triggers[trigger].argtypes:
                         message.append(
                             f"{'Argument Types':<{columnwidth}} : {self.triggers[trigger].argtypes}"
+                        )
+                    if self.triggers[trigger].conditions:
+                        message.append(
+                            f"{'Conditions':<{columnwidth}} : {self.triggers[trigger].when}"
                         )
                     message.extend(
                         (

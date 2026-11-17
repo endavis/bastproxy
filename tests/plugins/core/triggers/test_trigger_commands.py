@@ -91,6 +91,17 @@ def test_detail_shows_argument_types(harness: Harness) -> None:
     assert "int" in row
 
 
+def test_detail_shows_conditions_only_when_set(harness: Harness) -> None:
+    harness.add("plain", "foo")
+    harness.add("cond", "foo", when={"Char.Vitals.hp": ">50"})
+    plain = _detail(harness, "t_plugins.test.owner_plain")
+    cond = _detail(harness, "t_plugins.test.owner_cond")
+    assert not any(r.startswith("Conditions") for r in plain)
+    row = next(r for r in cond if r.startswith("Conditions"))
+    assert "Char.Vitals.hp" in row
+    assert ">50" in row
+
+
 def test_detail_with_event_shows_event_details(harness: Harness) -> None:
     harness.add("abc", r"^a")
     event_name = harness.item("abc").event_name
