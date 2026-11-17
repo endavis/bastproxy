@@ -32,7 +32,7 @@ How the proxy works inside, one system per page:
 ## Contributing
 
 - [Contributing guide](../.github/CONTRIBUTING.md): issue, branch, commit and PR workflow
-- [Plugin development](../CONTRIBUTING.md): plugin structure
+- [Plugin developer guide](plugin-developer-guide.md): communication, plugin structure and reloading, hooks and events, commands, triggers
 - [Coding standards](development/coding-standards.md) and [doit tasks](development/doit-tasks-reference.md)
 - [CI/CD and testing](development/ci-cd-testing.md), [release and automation](development/release-and-automation.md)
 - [Architecture decisions](decisions/README.md)

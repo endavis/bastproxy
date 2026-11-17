@@ -100,6 +100,7 @@ validation:
 
 nav:
   - Home: index.md
+  - Plugin Developer Guide: plugin-developer-guide.md
   - Architecture:
       - Overview: claude/README.md
       - Data Flow: claude/data_flow.md
