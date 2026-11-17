@@ -22,7 +22,6 @@ from telnetlib3.telopt import (
     WONT,
 )
 
-from bastproxy.libs.net import mud as mud_module
 from bastproxy.libs.net import server as server_module
 from bastproxy.libs.net.client import ClientConnection
 from bastproxy.libs.net.mud import MudLine, MudTelnetClient
@@ -206,9 +205,9 @@ async def test_mud_broken_stream_closes_the_link(caplog: pytest.LogCaptureFixtur
         w.write(c.compress(b"later\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
         await w.drain()
 
-    caplog.set_level(logging.ERROR)
+    caplog.set_level(logging.WARNING)
     async with scripted_mud(_offer_m2(script)) as mud:
-        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
+        reader, writer, _protocol = await _connect_keeping_protocol(mud.port)
         got = await _lines(reader, 2)
         await asyncio.sleep(0.4)
         eof = reader.at_eof()
@@ -216,7 +215,6 @@ async def test_mud_broken_stream_closes_the_link(caplog: pytest.LogCaptureFixtur
     assert got[0] == MudLine("hello\r\n", True, False)
     assert got[1].text == ""
     assert eof
-    assert protocol.mccp2_failed is True
     assert any("MCCP2 decompression error" in r.message for r in caplog.records)
     everything = "".join(x.text for x in got)
     assert "�" not in everything
@@ -224,37 +222,27 @@ async def test_mud_broken_stream_closes_the_link(caplog: pytest.LogCaptureFixtur
     assert "later" not in everything
 
 
-async def test_mud_chunk_over_the_inflation_limit_closes_the_link(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(mud_module, "MCCP2_MAX_INFLATED_CHUNK", 1000)
+async def test_mud_large_chunk_is_inflated_in_steps_and_delivered() -> None:
+    size = 3 * 1024 * 1024
+    body = "A" * size + "\r\n"
 
     async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
         c = zlib.compressobj()
-        w.write(START2 + c.compress(b"hello\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
-        await w.drain()
-        await asyncio.sleep(0.2)
-        w.write(c.compress(b"A" * 5000 + b"\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        w.write(START2 + c.compress(body.encode()) + c.flush(zlib.Z_SYNC_FLUSH))
         await w.drain()
 
-    caplog.set_level(logging.ERROR)
     async with scripted_mud(_offer_m2(script)) as mud:
         reader, writer, protocol = await _connect_keeping_protocol(mud.port)
-        got = await _lines(reader, 2)
-        await asyncio.sleep(0.4)
+        got = await _text(reader, len(body))
         eof = reader.at_eof()
+        rx = protocol.rx_bytes
         writer.close()
-    assert got[0] == MudLine("hello\r\n", True, False)
-    assert eof
-    assert protocol.mccp2_failed is True
-    assert any("inflation limit" in r.message for r in caplog.records)
-    assert "A" not in "".join(x.text for x in got)
+    assert got == body
+    assert not eof
+    assert rx >= len(body)
 
 
-async def test_mud_chunk_under_the_inflation_limit_decodes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(mud_module, "MCCP2_MAX_INFLATED_CHUNK", 1000)
+async def test_mud_chunk_under_the_inflation_limit_decodes() -> None:
     body = "B" * 900 + "\r\n"
 
     async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
@@ -267,6 +255,56 @@ async def test_mud_chunk_under_the_inflation_limit_decodes(
         got = await _text(reader, len(body))
         writer.close()
     assert got == body
+
+
+async def test_mud_wont_mccp2_inside_open_stream_keeps_link_open() -> None:
+    async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
+        c = zlib.compressobj()
+        w.write(
+            START2
+            + c.compress(b"before\r\n" + IAC + WONT + MCCP2_COMPRESS + b"after\r\n")
+            + c.flush(zlib.Z_SYNC_FLUSH)
+        )
+        await w.drain()
+
+    async with scripted_mud(_offer_m2(script)) as mud:
+        reader, writer = await _connect(mud.port)
+        got = await _text(reader, len("before\r\nafter\r\n"))
+        await asyncio.sleep(0.2)
+        eof = reader.at_eof()
+        writer.close()
+    assert got == "before\r\nafter\r\n"
+    assert not eof
+
+
+async def test_mud_error_after_first_chunk_does_not_retry_raw_deflate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wbits: list[int] = []
+    real = zlib.decompressobj
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        wbits.append(args[0] if args else kwargs.get("wbits", zlib.MAX_WBITS))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(zlib, "decompressobj", spy)
+
+    async def script(_mud: ScriptedMud, w: asyncio.StreamWriter) -> None:
+        c = zlib.compressobj()
+        w.write(START2 + c.compress(b"hello\r\n") + c.flush(zlib.Z_SYNC_FLUSH))
+        await w.drain()
+        await asyncio.sleep(0.2)
+        w.write(b"\x00\xff\x13garbagegarbage")
+        await w.drain()
+
+    async with scripted_mud(_offer_m2(script)) as mud:
+        reader, writer = await _connect(mud.port)
+        await _lines(reader, 1)
+        await asyncio.sleep(0.4)
+        eof = reader.at_eof()
+        writer.close()
+    assert eof
+    assert -zlib.MAX_WBITS not in wbits
 
 
 async def test_mud_raw_deflate_on_first_chunk_decodes() -> None:
@@ -296,7 +334,7 @@ async def test_connect_keeping_protocol_outlives_writer_protocol() -> None:
         await asyncio.sleep(0.1)
     assert isinstance(protocol, MudTelnetClient)
     assert writer.protocol is None
-    assert protocol.mccp2_failed is True
+    assert reader.at_eof()
 
 
 async def test_mud_garbage_on_first_chunk_closes_the_link() -> None:
@@ -305,11 +343,11 @@ async def test_mud_garbage_on_first_chunk_closes_the_link() -> None:
         await w.drain()
 
     async with scripted_mud(_offer_m2(script)) as mud:
-        reader, writer, protocol = await _connect_keeping_protocol(mud.port)
+        reader, writer, _protocol = await _connect_keeping_protocol(mud.port)
         got = await _lines(reader, 1)
         writer.close()
     assert got[0].text == ""
-    assert protocol.mccp2_failed is True
+    assert reader.at_eof()
 
 
 async def test_mud_mccp3_compresses_writes_until_wont() -> None:
