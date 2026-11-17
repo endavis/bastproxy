@@ -78,6 +78,18 @@ def test_matchcolor_matches_only_colorcoded_text(harness: Harness) -> None:
     assert harness.send("WARNING") == ["plain"]
 
 
+def test_matchcolor_matches_bright_colour(harness: Harness) -> None:
+    harness.add("bright", r"^@RWARNING", matchcolor=True)
+    assert harness.send("WARNING", ansi="\x1b[91mWARNING\x1b[0m") == ["bright"]
+
+
+def test_matchcolor_matches_multi_part_sgr(harness: Harness) -> None:
+    harness.add("multi", r"^@W@z4hi", matchcolor=True)
+    harness.add("bold", r"^@RWARNING", matchcolor=True)
+    assert harness.send("hi", ansi="\x1b[1;37;44mhi\x1b[0m") == ["multi"]
+    assert harness.send("WARNING", ansi="\x1b[1;31mWARNING") == ["bold"]
+
+
 def test_matchcolor_without_flag_does_not_see_color(harness: Harness) -> None:
     harness.add("nocolor", r"^@rWARNING")
     assert harness.send("WARNING", ansi=f"{RED_ANSI}WARNING{RESET_ANSI}") == []

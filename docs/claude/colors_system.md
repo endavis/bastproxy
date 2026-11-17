@@ -37,7 +37,7 @@ Notes:
 - Digits are kept as written (`@x075` stays `075`), and at most three are read, so `@x0751` is `@x075` followed by the text `1`.
 - A non-SGR escape such as `ESC [2J` is plain text.
 - `"".join(token.raw for token in tokenize(s)) == s` always holds.
-- `@x` alone is not a code. The reset in `CONVERTCOLORS` is still used by `ansicode.to.colorcode` (see below).
+- `@x` alone is not a code. `ansicode.to.colorcode` does not use `CONVERTCOLORS['x']`; its reset is `@w`.
 
 ## Building on the tokenizer
 
@@ -50,7 +50,29 @@ Notes:
 | `colorcode.is.valid` | The string is exactly one `COLOR`, `XTERM_FG` or `XTERM_BG` token. |
 | `colorcode.to.html` | Foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
 | `color.length.difference.get` | `len(text)` minus the length of the visible text. |
-| `ansicode.to.colorcode` | An `SGR` with 1 to 3 numeric parameters is looked up in `CONVERTANSI`; any other `SGR` is dropped with a debug log. It matches only SGR sequences (the same pattern as `ansicode.strip`), and the lookup is cached per parameter string, because every MUD line goes through it. |
+| `ansicode.to.colorcode` | Follows SGR state across one line and writes `@` codes only before visible text (see below). Only SGR sequences are read (the tokenizer's `split_sgr`); the parameter rules are in `src/bastproxy/plugins/core/colors/libs/_sgr.py`. Parsing and diffing are cached, because every MUD line can go through it. |
+
+### `ansicode.to.colorcode` rules
+
+The state is foreground (default, basic, bright or xterm), bold and background. Each parameter is applied in order, and an empty parameter is `0`.
+
+| Parameter | Effect |
+|---|---|
+| `0`, empty | Reset all |
+| `1` / `22` | Bold on / off |
+| `30-37`, `90-97` | Basic / bright foreground |
+| `39` / `49` | Default foreground / background |
+| `40-47`, `100-107` | Background 0-7 / 8-15 |
+| `38;5;n`, `48;5;n` | Xterm foreground / background (`n` up to 255) |
+| `38;2;r;g;b`, `48;2;r;g;b` | The nearest xterm colour in 16-255 (the 6x6x6 cube or the 24 greys, by squared RGB distance) |
+| Anything else | Ignored; there is no `@` code for it |
+
+A malformed `38` or `48` stops the parse of that sequence and keeps what came before.
+
+- The foreground code is a lowercase letter, or the uppercase one when bold; bright colours are always uppercase; bold with the default colour is `@W`; xterm is `@x{n}`; the background is `@z{n}`.
+- Codes are written only before visible text, from the last state written. A reset (or any change to default) is written as `@w`, which also clears the background, then the foreground, then the background. So `\x1b[1m\x1b[31mx` is `@Rx`, a trailing reset writes nothing, and `\x1b[31mred\x1b[0m plain` is `@rred@w plain`.
+- A line-start `\x1b[0;37m` is `@w`, because explicit white differs from the default.
+- State starts at the default on every line and is not carried to the next one.
 
 `colorcode.escape` is a plain string replacement and defines no syntax.
 
@@ -60,5 +82,6 @@ A plugin never imports another plugin. The utils plugin gets the tokenizer throu
 
 ## Left for later
 
-- `ansicode.to.colorcode` keeps today's lookup. A reset code written in `@` syntax and per-parameter SGR handling (CA-1 and CA-2) are #533.
+- Colour state is per line; a colour that runs over a line break is not carried to the next line.
+- A literal `@` in MUD text is not escaped, so `@\x1b[31mx` converts to `@@rx`.
 - Display width of wide characters is #528.

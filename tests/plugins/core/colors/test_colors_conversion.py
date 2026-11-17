@@ -106,11 +106,27 @@ def test_ca3_colorcode_strip_drops_the_same_sequences() -> None:
 # --- CA-1 and CA-2 stay for #533: these tests pin today's output ------------------------------
 
 
-def test_ca1_ca2_pin_todays_output_for_533() -> None:
-    """#533 changes these results: a reset becomes ``@x`` text and 22/1 are dropped."""
-    assert to_colorcode("\x1b[31mred\x1b[0m plain") == "@rred@x plain"
-    assert to_colorcode("\x1b[1mbold") == "bold"
-    assert to_colorcode("\x1b[22mhi") == "hi"
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\x1b[31mred\x1b[0m plain", "@rred@w plain"),
+        ("\x1b[1;37;44mhi", "@W@z4hi"),
+        ("\x1b[1mbold", "@Wbold"),
+        ("\x1b[91mbright", "@Rbright"),
+        ("\x1b[22mhi", "hi"),
+        ("\x1b[104mbg", "@z12bg"),
+        ("\x1b[100mx", "@z8x"),
+    ],
+)
+def test_ca1_ca2_resets_and_bold_convert(text: str, expected: str) -> None:
+    """#533: a reset is ``@w``, and bold, bright and multi-part sequences keep their colour."""
+    assert to_colorcode(text) == expected
+
+
+def test_ca1_reset_round_trips_without_red_after_it() -> None:
+    ansi = to_ansi(to_colorcode("\x1b[31mred\x1b[0m plain"))
+    assert ansi == "\x1b[0;31mred\x1b[0;37m plain\x1b[0m"
+    assert "31" not in ansi.split("red", 1)[1]
 
 
 # --- cases found while building the tokenizer -------------------------------------------------
@@ -198,7 +214,7 @@ def test_to_ansicode_matches_the_previous_bytes(text: str, expected: str) -> Non
     assert to_ansi(text) == expected
 
 
-# captured from the code before the tokenizer, one SGR followed by "x"
+# one SGR followed by "x"; the last three changed with #533 (reset, bold, multi-part)
 ANSI_TO_COLORCODE = [
     ("\x1b[0;30mx", "@kx"),
     ("\x1b[0;31mx", "@rx"),
@@ -216,7 +232,7 @@ ANSI_TO_COLORCODE = [
     ("\x1b[1;35mx", "@Mx"),
     ("\x1b[1;36mx", "@Cx"),
     ("\x1b[1;37mx", "@Wx"),
-    ("\x1b[0mx", "@xx"),
+    ("\x1b[0mx", "x"),
     ("\x1b[40mx", "@z0x"),
     ("\x1b[41mx", "@z1x"),
     ("\x1b[42mx", "@z2x"),
@@ -233,8 +249,8 @@ ANSI_TO_COLORCODE = [
     ("\x1b[35mx", "@mx"),
     ("\x1b[36mx", "@cx"),
     ("\x1b[37mx", "@wx"),
-    ("\x1b[01;31mx", "x"),
-    ("\x1b[0;31;40mx", "x"),
+    ("\x1b[01;31mx", "@Rx"),
+    ("\x1b[0;31;40mx", "@r@z0x"),
 ]
 
 
@@ -252,9 +268,9 @@ def test_ansicode_to_colorcode_matches_for_every_xterm_code() -> None:
 
 @pytest.mark.parametrize(
     ("text", "expected"),
-    [("\x1b[38;2;1;2;3mx", "x"), ("\x1b[mx", "x"), ("\x1b[;31mx", "x")],
+    [("\x1b[38;2;1;2;3mx", "@x16x"), ("\x1b[mx", "x"), ("\x1b[;31mx", "@rx")],
 )
-def test_ansicode_to_colorcode_drops_sequences_it_cannot_map(text: str, expected: str) -> None:
+def test_ansicode_to_colorcode_true_colour_and_empty_params(text: str, expected: str) -> None:
     assert to_colorcode(text) == expected
 
 

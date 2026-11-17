@@ -18,7 +18,6 @@ tokens always joins back to the input.
 
 # Standard Library
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -121,8 +120,11 @@ def strip_ansi(text: str) -> str:
     return _SGR_RE.sub("", text)
 
 
-def replace_sgr(text: str, repl: Callable[[str], str]) -> str:
-    """Replace each SGR sequence in ``text`` with ``repl(params)``; everything else is kept."""
+def split_sgr(text: str) -> list[str]:
+    """Split ``text`` on SGR sequences into alternating text and parameter strings.
+
+    The result is ``[text, params, text, params, ..., text]``; without an escape it is ``[text]``.
+    """
     if "\x1b" not in text:
-        return text
-    return _SGR_RE.sub(lambda match: repl(match.group("sgr")), text)
+        return [text]
+    return _SGR_RE.split(text)

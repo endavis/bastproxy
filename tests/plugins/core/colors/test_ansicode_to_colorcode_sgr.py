@@ -16,7 +16,7 @@ def _convert(text: str) -> str:
 
 @pytest.mark.parametrize(
     ("text", "expected"),
-    [("\x1b[22m\x1b[32mtext", "@gtext"), ("\x1b[1m\x1b[31mx", "@rx")],
+    [("\x1b[22m\x1b[32mtext", "@gtext"), ("\x1b[1m\x1b[31mx", "@Rx")],
 )
 def test_unmapped_sgr_code_is_dropped_without_error(
     caplog: pytest.LogCaptureFixture, text: str, expected: str
@@ -27,4 +27,4 @@ def test_unmapped_sgr_code_is_dropped_without_error(
 
 
 def test_mapped_code_still_converts() -> None:
-    assert _convert("\x1b[0;31m") == "@r"
+    assert _convert("\x1b[0;31mx") == "@rx"

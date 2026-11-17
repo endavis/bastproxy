@@ -11,6 +11,7 @@ from bastproxy.plugins.core.colors.libs._tokenizer import (
     BASIC_COLORS,
     Token,
     TokenKind,
+    split_sgr,
     strip_ansi,
     strip_colorcodes,
     tokenize,
@@ -142,3 +143,11 @@ def test_only_the_tokenizer_defines_the_colour_syntax() -> None:
         if path.name not in ("_tokenizer.py", "mxp.py") and pattern.search(path.read_text())
     ]
     assert offenders == []
+
+
+def test_split_sgr_alternates_text_and_params() -> None:
+    assert split_sgr("a\x1b[1;31mb\x1b[mc") == ["a", "1;31", "b", "", "c"]
+
+
+def test_split_sgr_without_an_escape_returns_the_text() -> None:
+    assert split_sgr("plain") == ["plain"]

@@ -190,4 +190,4 @@ cases on this page, and get the repo admin's approval for any change to an exist
 | Root cause, other observations, design | #534 |
 | Display width | #528 (after #534) |
 
-**Status:** #534 fixes CO-1 to CO-4 (the `@` code output defects tracked in #532) and CA-3, and rebuilds every colour API on one tokenizer, described in [Colour System](colors_system.md). CA-1 and CA-2 stay with #533. CO-3 applies to every lowercase colour except `@w`, which stays the general reset and clears the background; callers such as `colors.show` rely on that.
+**Status:** #534 fixes CO-1 to CO-4 (the `@` code output defects tracked in #532) and CA-3, and rebuilds every colour API on one tokenizer, described in [Colour System](colors_system.md). #533 fixes CA-1 and CA-2. CO-3 applies to every lowercase colour except `@w`, which stays the general reset and clears the background; callers such as `colors.show` rely on that.
