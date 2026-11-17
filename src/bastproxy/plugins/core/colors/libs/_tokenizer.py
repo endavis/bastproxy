@@ -15,6 +15,10 @@ width of that visible text is measured by :mod:`bastproxy.libs.textwidth`.
 The scan is one left-to-right pass over a single compiled pattern, so the result does not depend
 on the order in which separate regular expressions would have been applied. The raw text of the
 tokens always joins back to the input.
+
+SGR is the only escape syntax defined here. Every other terminal sequence (cursor movement,
+clearing, OSC 8 links, DCS, charset selection) is recognised by ``wcwidth.strip_sequences``,
+which is called only from this module (:func:`strip_ansi`).
 """
 
 # Standard Library
@@ -23,6 +27,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 # 3rd Party
+import wcwidth
+
 # Project
 from bastproxy.plugins.core.colors.libs._colors import CONVERTCOLORS
 
@@ -122,10 +128,14 @@ def escape_at(text: str) -> str:
 
 
 def strip_ansi(text: str) -> str:
-    """Remove every SGR sequence from ``text``; everything else is kept as written."""
+    """Remove every terminal escape sequence from ``text``, leaving the visible text.
+
+    SGR, cursor, clear, OSC 8 and the other ``wcwidth`` sequences go. C0 controls (BEL, TAB, CR)
+    and 8-bit C1 sequences are kept as written.
+    """
     if "\x1b" not in text:
         return text
-    return _SGR_RE.sub("", text)
+    return wcwidth.strip_sequences(text)
 
 
 def split_sgr(text: str) -> list[str]:

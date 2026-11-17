@@ -216,7 +216,7 @@ class ColorsPlugin(BasePlugin):
     @AddAPI("ansicode.strip", description="strip all ansi from a string")
     def _api_ansicode_strip(self, text: str) -> str:
         # pylint: disable=no-self-use
-        """Strip all ansi from a string."""
+        """Strip every terminal escape sequence from a string."""
         return strip_ansi(text)
 
     @AddAPI("colorcode.strip", description="strip @@ colors")
