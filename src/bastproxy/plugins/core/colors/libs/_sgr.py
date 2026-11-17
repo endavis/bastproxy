@@ -34,6 +34,11 @@ _LOWER = "krgybmcw"
 _UPPER = "DRGYBMCW"
 _CUBE = (0, 95, 135, 175, 215, 255)
 _MAX_COLOR = 255
+# Real SGR sequences carry a handful of parameters; any beyond this many are ignored.
+MAX_SGR_PARAMS = 32
+# A parameter longer than this (after leading zeros) is no SGR code and is ignored.
+_MAX_PARAM_DIGITS = 3
+_IGNORED = 9999  # matches no SGR code and is above _MAX_COLOR
 
 
 def _nearest_level(value: int) -> int:
@@ -55,15 +60,26 @@ def rgb_to_xterm(red: int, green: int, blue: int) -> int:
     return 232 + grey_index
 
 
+def _param_value(part: str) -> int:
+    """Return one SGR parameter as an int: empty is 0, an overlong one is ignored."""
+    if not part:
+        return 0
+    if len(part.lstrip("0")) > _MAX_PARAM_DIGITS:
+        return _IGNORED
+    return int(part)
+
+
 @functools.lru_cache(maxsize=1024)
 def apply_sgr(state: SgrState, params: str) -> SgrState:
     """Apply one SGR parameter string to ``state`` and return the new state.
 
-    Parameters with no ``@`` code (underline, reverse, ...) are ignored. A malformed 38/48
+    Parameters with no ``@`` code (underline, reverse, ...) are ignored, as are parameters
+    longer than three digits and any after the first ``MAX_SGR_PARAMS``. A malformed 38/48
     stops the parse of this sequence and keeps what came before.
     """
     fg, bold, bg = state
-    values = [int(part) if part else 0 for part in params.split(";")]
+    parts = params.split(";", MAX_SGR_PARAMS)[:MAX_SGR_PARAMS]
+    values = [_param_value(part) for part in parts]
     index = 0
     while index < len(values):
         number = values[index]
@@ -88,12 +104,17 @@ def apply_sgr(state: SgrState, params: str) -> SgrState:
             bg = None
         elif number in (38, 48):
             color: int | None = None
-            rest = values[index:]
-            if len(rest) >= 2 and rest[0] == 5 and rest[1] <= _MAX_COLOR:
-                color = rest[1]
+            remaining = len(values) - index
+            mode = values[index] if remaining else None
+            if mode == 5 and remaining >= 2 and values[index + 1] <= _MAX_COLOR:
+                color = values[index + 1]
                 index += 2
-            elif len(rest) >= 4 and rest[0] == 2 and max(rest[1:4]) <= _MAX_COLOR:
-                color = rgb_to_xterm(rest[1], rest[2], rest[3])
+            elif (
+                mode == 2
+                and remaining >= 4
+                and max(values[index + 1], values[index + 2], values[index + 3]) <= _MAX_COLOR
+            ):
+                color = rgb_to_xterm(values[index + 1], values[index + 2], values[index + 3])
                 index += 4
             if color is None:
                 logger.debug("ignoring malformed ansi colour sequence %r", params)

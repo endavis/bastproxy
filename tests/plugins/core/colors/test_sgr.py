@@ -6,6 +6,7 @@ import pytest
 
 from bastproxy.plugins.core.colors.libs._sgr import (
     DEFAULT_STATE,
+    MAX_SGR_PARAMS,
     SgrState,
     apply_sgr,
     diff_codes,
@@ -104,3 +105,25 @@ def test_diff_codes(emitted: SgrState, target: SgrState, expected: str) -> None:
 )
 def test_sgr_to_colorcode(text: str, expected: str) -> None:
     assert sgr_to_colorcode(text) == expected
+
+
+def test_overlong_parameter_is_ignored() -> None:
+    """A parameter of more than three digits is no SGR code; the rest still applies (#533)."""
+    assert sgr_to_colorcode("\x1b[" + "9" * 5000 + ";31mx") == "@rx"
+
+
+def test_leading_zeros_do_not_count_as_digits() -> None:
+    assert sgr_to_colorcode("\x1b[00031mx") == "@rx"
+
+
+def test_overlong_extended_colour_value_is_malformed() -> None:
+    assert sgr_to_colorcode("\x1b[38;5;" + "1" * 10 + "mx") == "x"
+
+
+def test_parameters_beyond_the_limit_are_ignored() -> None:
+    """Only the first MAX_SGR_PARAMS parameters of one sequence are read (#533)."""
+    filler = ";".join(["4"] * (MAX_SGR_PARAMS - 1))
+    assert sgr_to_colorcode(f"\x1b[{filler};31mx") == "@rx"
+    assert sgr_to_colorcode(f"\x1b[{filler};4;31mx") == "x"
+    many = ";".join(["38;5;1"] * 1000) + ";32"
+    assert sgr_to_colorcode(f"\x1b[{many}mx") == "@x1x"
