@@ -53,9 +53,7 @@ from bastproxy.libs.logger import echo_off_placeholder, get_logger
 from bastproxy.libs.net import mtts
 from bastproxy.libs.net.naws import WINDOW_SIZE
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter, option_names
-from bastproxy.libs.net.protocols import PROTOCOLS
-
-# Project
+from bastproxy.libs.net.protocols import EVENT_RAISE_API, PROTOCOLS
 from bastproxy.libs.records import (
     NetworkData,
     NetworkDataLine,
@@ -64,7 +62,18 @@ from bastproxy.libs.records import (
     SendDataDirectlyToClient,
 )
 
+# Project
+from bastproxy.libs.records.events import RecordEventSpec
+
 logger = get_logger(__name__)
+
+MUD_CONNECT_EVENT = "ev_libs.net.mud_mudconnect"
+MUD_CONNECT_EVENT_SPEC = RecordEventSpec(
+    MUD_CONNECT_EVENT,
+    "libs.net.mud",
+    ["Raised each time the connection to the mud opens, once it can send and receive"],
+    {},
+)
 
 if TYPE_CHECKING:
     from telnetlib3 import TelnetWriterUnicode
@@ -357,6 +366,15 @@ class MudConnection:
 
         logger.debug("mud_write - Ending coroutine")
 
+    def _raise_connected_event(self) -> None:
+        """Raise ``MUD_CONNECT_EVENT`` when the events plugin is loaded; never raises."""
+        try:
+            if not self.api("libs.api:api.exists")(EVENT_RAISE_API):
+                return
+            self.api(EVENT_RAISE_API)(MUD_CONNECT_EVENT, event_args={}, calledfrom="libs.net.mud")
+        except Exception:
+            logger.exception("Could not raise %s", MUD_CONNECT_EVENT)
+
     async def mud_telnet_handler(
         self, reader: "MudTelnetReader", writer: "TelnetWriterUnicode"
     ) -> None:
@@ -405,6 +423,7 @@ class MudConnection:
             current_task.set_name("mud telnet client handler")
 
         try:
+            self._raise_connected_event()
             await self.setup_mud()
 
             _, pending = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")

@@ -35,7 +35,7 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.context import get_output_client
 from bastproxy.libs.logger import get_logger, log_to
-from bastproxy.libs.net.mud import MudConnection
+from bastproxy.libs.net.mud import MUD_CONNECT_EVENT, MUD_CONNECT_EVENT_SPEC, MudConnection
 from bastproxy.libs.net.naws import WINDOW_SIZE, validate_window_size
 from bastproxy.libs.records import (
     NetworkData,
@@ -99,6 +99,14 @@ class ProxyPlugin(BasePlugin):
     def _phook_initialize(self) -> None:
         """Initialize the plugin."""
         restartproxymessage = "@RPlease restart the proxy for the changes to take effect.@w"
+
+        # the connection raises this event but does not own an events plugin to add it to
+        self.api("plugins.core.events:event.add")(
+            MUD_CONNECT_EVENT_SPEC.name,
+            MUD_CONNECT_EVENT_SPEC.created_by,
+            description=MUD_CONNECT_EVENT_SPEC.description,
+            arg_descriptions=MUD_CONNECT_EVENT_SPEC.arg_descriptions,
+        )
 
         # Network Settings
         self.api("plugins.core.settings:setting.add")(
@@ -291,21 +299,18 @@ class ProxyPlugin(BasePlugin):
         color = self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamblecolor")
         return color
 
-    @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
+    @RegisterToEvent(event_name=MUD_CONNECT_EVENT)
     def _eventcb_sendusernameandpw(self) -> None:
-        """If username and password are set, then send them when the proxy.
-
-        connects to the mud.
-        """
-        if self.api("plugins.core.settings:setting.get")(self.plugin_id, "username") != "":
-            SendDataDirectlyToMud(
-                NetworkData(
-                    self.api("plugins.core.settings:setting.get")(self.plugin_id, "username")
-                ),
-            )()
-            pasw = self.api(f"{self.plugin_id}:ssc.mudpw.get")()
-            if pasw != "":
-                SendDataDirectlyToMud(NetworkData(pasw))()
+        """Send the username, then the password, when the proxy connects to the mud."""
+        username = self.api("plugins.core.settings:setting.get")(self.plugin_id, "username")
+        if username == "":
+            return
+        SendDataDirectlyToMud(NetworkData(username))()
+        pasw = self.api(f"{self.plugin_id}:ssc.mudpw.get")()
+        if pasw != "":
+            line = NetworkDataLine(pasw)
+            line.mask_log = True
+            SendDataDirectlyToMud(NetworkData(line))()
 
     @AddParser(description="list proxy info")
     def _command_info(self) -> CommandResult:
