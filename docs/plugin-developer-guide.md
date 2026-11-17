@@ -381,6 +381,7 @@ How it works:
 - `TriggersPlugin._eventcb_check_trigger` registers to `ev_to_client_data_modify`, so it sees the
   lines `ProcessDataToClient` sends. It skips internal lines and matches `line.noansi`, the text
   without colour codes.
+- A line a plugin or trigger sent to the MUD is recorded, and the MUD's exact echo of it is not matched against the regexes, once ([echoed commands](claude/triggers_system.md#echoed-commands)).
 - Each trigger has its own event, named `event_<trigger_id>`, where the id is
   `t_<owner_id>_<name>` (`TriggerItem.event_name` and `TriggersPlugin.create_trigger_id` in
   `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`). `TriggerItem.raisetrigger` adds

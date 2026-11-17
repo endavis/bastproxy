@@ -24,6 +24,8 @@ from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
+from ._echo import EchoRecord
+
 # The "Triggers" section this plugin adds to a stats event record's "stats" dict.
 # The keys are display labels, so the functional syntax is needed.
 TriggerStats = TypedDict(
@@ -155,6 +157,9 @@ class TriggersPlugin(BasePlugin):
         # Mirror of the "enabled" setting, kept current by _eventcb_enabled_modify
         # so the per-line check does not pay for a setting.get
         self._matching_enabled = True
+
+        # Lines the proxy sent to the MUD, so the MUD's echo of one is not matched (#545)
+        self._echoes = EchoRecord()
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -736,6 +741,15 @@ class TriggersPlugin(BasePlugin):
         if event and not event.isempty():
             item.raisetrigger(event_record)
 
+    @RegisterToEvent(event_name="ev_to_mud_data_read")
+    def _eventcb_record_sent(self) -> None:
+        """Record a line a plugin or trigger sent, so its echo skips matching (#545)."""
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
+            return
+        line = event_record["line"]
+        if line.internal and line.is_io and isinstance(line.line, str):
+            self._echoes.add(line.noansi.rstrip("\r\n"))
+
     @RegisterToEvent(event_name="ev_to_client_data_modify")
     def _eventcb_check_trigger(self) -> None:
         """Check a line of text from the mud to see if it matches any triggers."""
@@ -755,7 +769,7 @@ class TriggersPlugin(BasePlugin):
 
         if data == "":
             self._raise_builtin(self.emptyline_id, event_record)
-        else:
+        elif not self._echoes.consume(data):
             self._match_line(line, data)
 
         self._raise_builtin(self.all_id, event_record)

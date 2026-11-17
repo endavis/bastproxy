@@ -56,6 +56,11 @@ class TriggerItem:
 
 `raisetrigger(args)` counts a hit, sets `args["line"].send = False` when `omit` is set, writes `trigger_name` and `trigger_id` into `args` and raises `event_name` with `args` as the event data.
 
+### EchoRecord Class
+**Location**: `src/bastproxy/plugins/core/triggers/plugin/_echo.py`
+
+A bounded record of lines the proxy sent, used to skip their echoes (see [Echoed Commands](#echoed-commands)).
+
 ### TriggersPlugin Class
 **Location**: `src/bastproxy/plugins/core/triggers/plugin/_triggers.py`
 
@@ -155,7 +160,7 @@ def handle_hp_warning(self):
 2. The `beall` trigger's event is raised, if something is registered on it.
 3. The text is `line.noansi`: every terminal escape sequence (colour codes, cursor movement, clearing, OSC 8 links) and, when the line has an MXP mode, MXP markup are removed. C0 controls and 8-bit C1 sequences are kept.
 4. If the text is `""`, the `emptyline` trigger's event is raised (if something is registered on it) and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
-5. Otherwise `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused. Triggers whose compiled regex has the same pattern text and flags, and that read the same text, share one match per line (a per-line cache in `_match_line`, #383, used only for triggers flagged `shared_pattern`; `_sync_order` and `_sync_order_remove` keep that flag current, so a trigger with a unique pattern is matched directly); each still gets its own `groupdict()`, so `argtypes` never leak between them.
+5. Otherwise, unless the text is the echo of a line the proxy sent ([Echoed Commands](#echoed-commands)), `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused. Triggers whose compiled regex has the same pattern text and flags, and that read the same text, share one match per line (a per-line cache in `_match_line`, #383, used only for triggers flagged `shared_pattern`; `_sync_order` and `_sync_order_remove` keep that flag current, so a trigger with a unique pattern is matched directly); each still gets its own `groupdict()`, so `argtypes` never leak between them.
 6. On a match the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run.
 7. A trigger with `stopevaluating` that matched ends the walk.
 8. The `all` trigger's event is raised, if something is registered on it.
@@ -170,6 +175,16 @@ What follows from this:
 - Each trigger's match, conversion and raise run in their own `try`. An error is logged with the trigger id and the line, the next trigger runs, and a failed trigger does not apply `stopevaluating`. A group that did not take part in the match stays `None` in `matches` and is not converted by `argtypes` (TR-7, #352).
 - A callback that raises is logged by the event system and the other callbacks and triggers still run. A callback may remove or disable a later trigger; it then does not fire for this line.
 - Prompts and partial lines are matched like any other line.
+
+### Echoed Commands
+
+Many MUDs echo a command back as output. So that a trigger does not fire on the echo of a command the proxy itself sent (#545), `_eventcb_record_sent` listens on `ev_to_mud_data_read` and records each sent line that is `internal` (sent by a plugin or trigger, not a client) and normal I/O. The record is an `EchoRecord` (`src/bastproxy/plugins/core/triggers/plugin/_echo.py`) kept in `_echoes`.
+
+- The text recorded is `line.noansi` with the trailing `\r\n` removed. An empty line is not recorded.
+- When `_eventcb_check_trigger` gets a MUD line whose `line.noansi` equals a recorded entry exactly, it removes that one entry and skips `_match_line`. The line is still sent to clients, and `beall`, `emptyline` and `all` are unaffected; only the regex triggers are skipped.
+- One-shot: an entry skips at most one line. `look at sword` against a recorded `look` still matches and leaves the entry.
+- Bounded: at most `ECHO_MAX_ENTRIES` (20) entries, the oldest dropped first, and an entry older than `ECHO_MAX_AGE` (15.0 seconds) is dropped before each lookup, so a command the MUD never echoes does not linger. Both are module constants, not settings.
+- Limits: a client that types the same text while a plugin's entry is pending uses that entry up, and a MUD that echoes the command on the same line as its prompt does not give an exact match, so the triggers still run.
 
 ## Common APIs
 

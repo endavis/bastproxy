@@ -275,7 +275,7 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 | Event | Raised by | `event_record["line"]` | Core listeners |
 |-------|-----------|------------------------|----------------|
 | `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch |
-| `ev_to_mud_data_read` | `SendDataDirectlyToMud` | `NetworkDataLine` (locked, after formatting) | none |
+| `ev_to_mud_data_read` | `SendDataDirectlyToMud` | `NetworkDataLine` (locked, after formatting) | triggers |
 | `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
 | `ev_to_client_data_read` | `SendDataDirectlyToClient` | `NetworkDataLine` (locked, after formatting) | none |
 
