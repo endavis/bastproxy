@@ -120,6 +120,7 @@ nav:
       - Record System: claude/record_system.md
       - Record System Findings: claude/record_system_findings.md
       - Logging System: claude/logging_system.md
+      - Colour System: claude/colors_system.md
       - Colour System Findings: claude/colors_findings.md
   - Development:
       - Coding Standards: development/coding-standards.md
@@ -158,6 +159,7 @@ nav:
       - Tools Reference: template/tools-reference.md
   - Decisions:
       - Overview: decisions/README.md
+      - ADR-0008 The colors tokenizer is the single definition of the colour-code syntax: decisions/0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md

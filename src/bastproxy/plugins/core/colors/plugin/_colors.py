@@ -6,7 +6,7 @@
 # By: Bast
 
 # Standard Library
-import re
+import functools
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
@@ -19,154 +19,160 @@ from bastproxy.plugins.core.colors.libs._colors import (
     CONVERTANSI,
     CONVERTCOLORS,
 )
+from bastproxy.plugins.core.colors.libs._tokenizer import (
+    Token,
+    TokenKind,
+    replace_sgr,
+    strip_ansi,
+    strip_colorcodes,
+    tokenize,
+)
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 logger = get_logger(__name__)
 
-XTERM_COLOR_REGEX = re.compile(r"^@[xz](?P<num>[\d]{1,3})$")
-ANSI_COLOR_REGEX = re.compile(
-    chr(27) + r"\[(?P<arg_1>\d+)(;(?P<arg_2>\d+)" r"(;(?P<arg_3>\d+))?)?m"
-)
-
-COLORCODE_REGEX = re.compile(r"(@[cmyrgbwCMYRGBWD|xz[\d{0:3}]])(?P<stuff>.*)")
+_CODE_KINDS = (TokenKind.COLOR, TokenKind.XTERM_FG, TokenKind.XTERM_BG)
+_VISIBLE_KINDS = (TokenKind.TEXT, TokenKind.ESCAPE)
+# @w is the general reset: it clears the background as well as setting white
+RESET_CODE = "w"
 
 
 def convertcolorcodetohtml(colorcode: str | int) -> str:
-    """Convert a colorcode to an html color."""
-    try:
-        colorcode = int(colorcode)
-        if colorcode in COLORTABLE:
-            return (
-                f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}"
-                f"{COLORTABLE[colorcode][2]:02x}"
-            )
-    except ValueError:
-        if colorcode in COLORTABLE:
-            return (
-                f"#{COLORTABLE[colorcode][0]:02x}{COLORTABLE[colorcode][1]:02x}"
-                f"{COLORTABLE[colorcode][2]:02x}"
-            )
-
+    """Convert a color letter or xterm number to an html color."""
+    key: str | int = colorcode
+    if isinstance(colorcode, str) and colorcode.isdigit():
+        key = int(colorcode)
+    if key in COLORTABLE:
+        red, green, blue = COLORTABLE[key]
+        return f"#{red:02x}{green:02x}{blue:02x}"
     return "#000"
 
 
-def createspan(color: str, text: str) -> str:
-    """Create an html span.
+def createspan(foreground: str | None, background: str | None, text: str) -> str:
+    """Create an html span for ``text``; plain text when there is no color.
 
-    color = "@g"
+    ``foreground`` and ``background`` are html colors such as ``#cd0000``.
     """
-    background = False
-    if color[0] == "@":
-        if color[1] == "x":
-            ncolor = convertcolorcodetohtml(color[2:])
-        elif color[1] == "z":
-            ncolor = convertcolorcodetohtml(color[2:])
-            background = True
-        else:
-            ncolor = convertcolorcodetohtml(color[1])
-    else:
-        ncolor = convertcolorcodetohtml(color)
-
+    styles = []
+    if foreground:
+        styles.append(f"color:{foreground}")
     if background:
-        return f"<span style='background-color:{ncolor}'>{text}</span>"
-
-    return f"<span style='color:{ncolor}'>{text}</span>"
-
-
-def genrepl(match: re.Match[str]) -> str:
-    """A general replace function."""
-    return match.group(1)
+        styles.append(f"background-color:{background}")
+    if not styles:
+        return text
+    return f"<span style='{';'.join(styles)}'>{text}</span>"
 
 
-def fixstring(tstr: str) -> str:
-    """Fix a strings invalid colors."""
-    # Thanks to Fiendish from the aardwolf mushclient package, see
-    # http://code.google.com/p/aardwolfclientpackage/
+def _html_line(tokens: list[Token]) -> str:
+    """Build the html for the tokens of one line; colors reset at the start of each line."""
+    foreground: str | None = None
+    background: str | None = None
+    out: list[str] = []
+    buffer: list[str] = []
 
-    # fix tildes
-    tstr = re.sub(r"@-", "~", tstr)
-    # change @@ to \0
-    tstr = re.sub(r"@@", "\0", tstr)
-    # strip invalid xterm codes (non-number)
-    tstr = re.sub(r"@[xz]([^\d])", genrepl, tstr)
-    # strip invalid xterm codes (300+)
-    tstr = re.sub(r"@[xz][3-9]\d\d", "", tstr)
-    # strip invalid xterm codes (260+)
-    tstr = re.sub(r"@[xz]2[6-9]\d", "", tstr)
-    # strip invalid xterm codes (256+)
-    tstr = re.sub(r"@[xz]25[6-9]", "", tstr)
-    # rip out hidden garbage
-    return re.sub(r"@[^xzcmyrgbwCMYRGBWD]", "", tstr)
+    def flush() -> None:
+        if buffer:
+            out.append(createspan(foreground, background, "".join(buffer)))
+            buffer.clear()
+
+    for token in tokens:
+        if token.kind in _VISIBLE_KINDS:
+            buffer.append(token.visible)
+        elif token.kind is TokenKind.COLOR:
+            flush()
+            foreground = None if token.value in ("w", "D") else convertcolorcodetohtml(token.value)
+            if token.value == RESET_CODE:
+                background = None
+        elif token.kind is TokenKind.XTERM_FG:
+            flush()
+            foreground = convertcolorcodetohtml(token.value)
+        elif token.kind is TokenKind.XTERM_BG:
+            flush()
+            background = convertcolorcodetohtml(token.value)
+        elif token.kind is TokenKind.SGR:
+            buffer.append(token.raw)
+    flush()
+    return "".join(out)
+
+
+def _to_ansicode(tokens: list[Token]) -> str:
+    """Convert the tokens to ansi, tracking the active background."""
+    last_visible = -1
+    for index, token in enumerate(tokens):
+        if token.kind in _VISIBLE_KINDS or token.kind is TokenKind.SGR:
+            last_visible = index
+    out: list[str] = []
+    background = ""
+    emitted = False
+    for index, token in enumerate(tokens):
+        kind = token.kind
+        if kind in _VISIBLE_KINDS:
+            out.append(token.visible)
+        elif kind is TokenKind.SGR:
+            out.append(token.raw)
+        elif kind in _CODE_KINDS and index < last_visible:
+            if kind is TokenKind.XTERM_FG:
+                params = f"38;5;{token.value}"
+            elif kind is TokenKind.XTERM_BG:
+                params = f"48;5;{token.value}"
+                background = token.value
+            else:
+                params = CONVERTCOLORS[token.value]
+                if token.value == RESET_CODE:
+                    background = ""
+                elif background and token.value.islower():
+                    params = f"{params};48;5;{background}"
+            out.append(f"\x1b[{params}m")
+            emitted = True
+    if emitted:
+        out.append("\x1b[0m")
+    return "".join(out)
+
+
+@functools.lru_cache(maxsize=512)
+def _sgr_to_colorcode(params: str) -> str | None:
+    """Map SGR parameters to an @ code, or None when there is none.
+
+    A line repeats a handful of sequences, so the lookup is cached per parameter string.
+    """
+    parts = params.split(";")
+    if len(parts) > 3 or not all(part.isdecimal() for part in parts):
+        return None
+    key = ";".join([parts[0], *(str(int(part)) for part in parts[1:])])
+    code = CONVERTANSI.get(key)
+    return None if code is None else f"@{code}"
 
 
 class ColorsPlugin(BasePlugin):
     """a plugin to handle ansi colors."""
 
+    @AddAPI(
+        "colorcode.to.tokens",
+        description="split a string into (raw, visible) pairs, one per colorcode token",
+    )
+    def _api_colorcode_to_tokens(self, text: str) -> list[tuple[str, str]]:
+        # pylint: disable=no-self-use
+        """Split text into ``(raw, visible)`` pairs.
+
+        ``visible`` is empty for color codes and ansi sequences, the text itself for plain text
+        and the single shown character for an escape such as ``@@``.
+        """
+        return [(token.raw, token.visible) for token in tokenize(text)]
+
     @AddAPI("colorcode.to.html", description="convert colorcodes to html")
     def _api_colorcode_to_html(self, sinput: str) -> str:
-        # pylint: disable=no-self-use,too-many-branches
+        # pylint: disable=no-self-use
         """Convert colorcodes to html."""
-        tinput = sinput.splitlines()
-
-        olist = []
-        lastchar = ""
-        for line in tinput:
-            lastchar = "\n" if line and line[-1] == "\n" else ""
-            stripped_line = line.rstrip()
-            # line = fixstring(line)
-            if "@@" in stripped_line:
-                stripped_line = stripped_line.replace("@@", "\0")
-            tlist = re.split(r"(@[cmyrgbwCMYRGBWD]|@[xz]\d\d\d|@[xz]\d\d|@[xz]\d)", stripped_line)
-
-            nlist = []
-            color = "w"
-            tstart = 0
-            tend = 0
-
-            for i in range(len(tlist)):
-                # print 'checking %s, i = %s' % (tlist[i], i)
-                if tlist[i]:
-                    if tlist[i][0] == "@" and tlist[i][1] in "xzcmyrgbwCMYRGBWD":
-                        # print 'found color'
-                        words = tlist[tstart:tend]
-                        if color not in ["x", "D", "w"]:
-                            # print 'would put %s in a %s span' % (words, color)
-                            nlist.append(createspan(color, "".join(words)))
-                        else:
-                            # print 'would just add %s' % words
-                            nlist.append("".join(words))
-                        color = tlist[i][1] if tlist[i][1] in ["x", "z"] else tlist[i]
-                        tstart = i + 1
-                        tend = i + 1
-                    else:
-                        tend = tend + 1
-                else:
-                    tend = tend + 1
-                if i == len(tlist) - 1:
-                    words = tlist[tstart:]
-                    if color not in ["x", "D", "w"]:
-                        # print 'would put %s in a %s span' % (words, color)
-                        nlist.append(createspan(color, "".join(words)))
-                    else:
-                        # print 'would just add %s' % words
-                        nlist.append("".join(words))
-            tstring = "".join(nlist)
-            if "\0" in tstring:
-                tstring = tstring.replace("\0", "@")
-
-            olist.append(tstring + lastchar)
-
-        return "\n".join(olist) + lastchar
+        return "\n".join(_html_line(tokenize(line.rstrip())) for line in sinput.splitlines())
 
     @AddAPI(
         "color.length.difference.get",
         description="get the length difference of a colored string and its noncolor equivalent",
     )
     def _api_color_length_difference_get(self, colorstring: str) -> int:
+        # pylint: disable=no-self-use
         """Get the length difference of a colored string and its noncolor equivalent."""
-        lennocolor = len(self.api(f"{self.plugin_id}:colorcode.strip")(colorstring))
-        lencolor = len(colorstring)
-        return lencolor - lennocolor
+        return len(colorstring) - len(strip_colorcodes(colorstring))
 
     # check if a string is an @@ color, either xterm or ansi
     @AddAPI(
@@ -176,42 +182,16 @@ class ColorsPlugin(BasePlugin):
     def _api_colorcode_is_valid(self, color: str) -> bool:
         # pylint: disable=no-self-use
         """Check if a string is a @ color, either xterm or ansi."""
-        if re.match(r"^@[cmyrgbwCMYRGBWD]$", color):
-            return True
-        if mat := XTERM_COLOR_REGEX.match(color):
-            num = int(mat.groupdict()["num"])
-            if num >= 0 and num < 257:
-                return True
-
-        return False
+        tokens = tokenize(color)
+        return len(tokens) == 1 and tokens[0].kind in _CODE_KINDS
 
     @AddAPI("colorcode.to.ansicode", description="convert @@ colors in a string")
     def _api_colorcode_to_ansicode(self, tstr: str) -> str:
+        # pylint: disable=no-self-use
         """Convert @ colors in a string."""
-        if "@" in tstr:
-            if tstr[-2:] != "@w":
-                tstr = f"{tstr}@w"
-            tstr = fixstring(tstr)
-            tmat = re.search(r"@(\w)([^@]+)", tstr)
-            tstr2 = tstr[: tmat.start()] if tmat and tmat.start() != 0 else ""
-            for tmatch in re.finditer(r"@(\w)([^@]+)", tstr):
-                color, text = tmatch.groups()
-                if color == "x":
-                    tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
-                    color = f"38;5;{tcolor}"
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
-                elif color == "z":
-                    tcolor, newtext = re.findall(r"^(\d\d?\d?)(.*)$", text)[0]
-                    color = f"48;5;{tcolor}"
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(color, newtext)
-                else:
-                    tstr2 = tstr2 + self.api(f"{self.plugin_id}:ansicode.to.string")(
-                        CONVERTCOLORS[color], text
-                    )
-
-            if tstr2:
-                tstr = tstr2 + f"{chr(27)}[0m"
-        return re.sub("\0", "@", tstr)  # put @ back in
+        if "@" not in tstr:
+            return tstr
+        return _to_ansicode(tokenize(tstr))
 
     @AddAPI("colorcode.escape", description="escape colorcodes so they are not interpreted")
     def _api_colorcode_escape(self, tstr: str) -> str:
@@ -236,25 +216,15 @@ class ColorsPlugin(BasePlugin):
         # pylint: disable=no-self-use
         """Convert ansi color escape sequences to @@ colors."""
 
-        def single_sub(match: re.Match[str]) -> str:
-            """Do a single substitution."""
-            argsdict = match.groupdict()
-            tstr = ""
-            tstr += argsdict["arg_1"]
-            if argsdict["arg_2"]:
-                tstr = tstr + f";{int(argsdict['arg_2'])}"
-
-            if argsdict["arg_3"]:
-                tstr = tstr + f";{int(argsdict['arg_3'])}"
-
-            try:
-                return f"@{CONVERTANSI[tstr]}"
-            except KeyError:
-                # SGR codes with no colorcode (22, 1, 4, 39, 49, ...) are dropped quietly
-                logger.debug("no colorcode for ansi code %s in text %r", tstr, text)
+        def convert(params: str) -> str:
+            code = _sgr_to_colorcode(params)
+            if code is None:
+                # SGR codes with no colorcode (22, 1, 4, 39, 49, 38;2, ...) are dropped quietly
+                logger.debug("no colorcode for ansi sequence %r in text %r", params, text)
                 return ""
+            return code
 
-        return ANSI_COLOR_REGEX.sub(single_sub, text)
+        return replace_sgr(text, convert)
 
     @AddAPI("ansicode.to.string", description="return an ansi coded string")
     def _api_ansicode_to_string(self, color: str, data: str) -> str:
@@ -266,18 +236,16 @@ class ColorsPlugin(BasePlugin):
     def _api_ansicode_strip(self, text: str) -> str:
         # pylint: disable=no-self-use
         """Strip all ansi from a string."""
-        return ANSI_COLOR_REGEX.sub("", text)
+        return strip_ansi(text)
 
     @AddAPI("colorcode.strip", description="strip @@ colors")
     def _api_colorcode_strip(self, text: str) -> str:
+        # pylint: disable=no-self-use
         """Strip @@ colors."""
-        stripped: str = self.api(f"{self.plugin_id}:ansicode.strip")(
-            self.api(f"{self.plugin_id}:colorcode.to.ansicode")(text)
-        )
-        return stripped
+        return strip_colorcodes(text)
 
     @AddParser(description="show colors")
-    @AddArgument("-c", "--compact", help="show a compact version", action="store_true")
+    @AddArgument("-c", "--compact", help="show a compact table", action="store_true")
     def _command_show(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
