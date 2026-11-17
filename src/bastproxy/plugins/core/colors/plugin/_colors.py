@@ -6,6 +6,8 @@
 # By: Bast
 
 # Standard Library
+import functools
+
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
 from bastproxy.plugins._baseplugin import BasePlugin
@@ -20,6 +22,7 @@ from bastproxy.plugins.core.colors.libs._colors import (
 from bastproxy.plugins.core.colors.libs._tokenizer import (
     Token,
     TokenKind,
+    replace_sgr,
     strip_ansi,
     strip_colorcodes,
     tokenize,
@@ -126,6 +129,20 @@ def _to_ansicode(tokens: list[Token]) -> str:
     return "".join(out)
 
 
+@functools.lru_cache(maxsize=512)
+def _sgr_to_colorcode(params: str) -> str | None:
+    """Map SGR parameters to an @ code, or None when there is none.
+
+    A line repeats a handful of sequences, so the lookup is cached per parameter string.
+    """
+    parts = params.split(";")
+    if len(parts) > 3 or not all(part.isdecimal() for part in parts):
+        return None
+    key = ";".join([parts[0], *(str(int(part)) for part in parts[1:])])
+    code = CONVERTANSI.get(key)
+    return None if code is None else f"@{code}"
+
+
 class ColorsPlugin(BasePlugin):
     """a plugin to handle ansi colors."""
 
@@ -198,24 +215,16 @@ class ColorsPlugin(BasePlugin):
     def _api_ansicode_to_colorcode(self, text: str) -> str:
         # pylint: disable=no-self-use
         """Convert ansi color escape sequences to @@ colors."""
-        if "\x1b" not in text:
-            return text
-        out: list[str] = []
-        for token in tokenize(text):
-            if token.kind is not TokenKind.SGR:
-                out.append(token.raw)
-                continue
-            parts = token.value.split(";")
-            if len(parts) > 3 or not all(part.isdecimal() for part in parts):
-                logger.debug("no colorcode for ansi sequence %r in text %r", token.raw, text)
-                continue
-            key = ";".join([parts[0], *(str(int(part)) for part in parts[1:])])
-            try:
-                out.append(f"@{CONVERTANSI[key]}")
-            except KeyError:
-                # SGR codes with no colorcode (22, 1, 4, 39, 49, ...) are dropped quietly
-                logger.debug("no colorcode for ansi code %s in text %r", key, text)
-        return "".join(out)
+
+        def convert(params: str) -> str:
+            code = _sgr_to_colorcode(params)
+            if code is None:
+                # SGR codes with no colorcode (22, 1, 4, 39, 49, 38;2, ...) are dropped quietly
+                logger.debug("no colorcode for ansi sequence %r in text %r", params, text)
+                return ""
+            return code
+
+        return replace_sgr(text, convert)
 
     @AddAPI("ansicode.to.string", description="return an ansi coded string")
     def _api_ansicode_to_string(self, color: str, data: str) -> str:

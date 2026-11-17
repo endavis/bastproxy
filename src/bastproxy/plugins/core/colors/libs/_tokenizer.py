@@ -18,6 +18,7 @@ tokens always joins back to the input.
 
 # Standard Library
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -60,15 +61,18 @@ class Token:
     value: str = ""
 
 
+# The SGR (colour) escape sequence; the ansi helpers below match only this.
+_SGR = r"\x1b\[(?P<sgr>[0-9;]*)m"
+_SGR_RE = re.compile(_SGR)
+
 _TOKEN_RE = re.compile(
-    r"\x1b\[(?P<sgr>[0-9;]*)m"
-    r"|(?P<at>@@)"
+    _SGR + r"|(?P<at>@@)"
     r"|(?P<tilde>@-)"
     r"|@(?P<xterm>[xz])(?P<digits>\d{1,3})"
     r"|(?P<badxterm>@[xz])"
     rf"|@(?P<color>[{BASIC_COLORS}])"
-    r"|(?P<invalid>@.)"
-    r"|(?P<lastat>@\Z)"
+    r"|(?P<invalid>@[^\x1b])"
+    r"|(?P<lastat>@(?=\x1b|\Z))"
     r"|(?P<text>[^@\x1b]+|\x1b)",
     re.DOTALL,
 )
@@ -114,4 +118,11 @@ def strip_ansi(text: str) -> str:
     """Remove every SGR sequence from ``text``; everything else is kept as written."""
     if "\x1b" not in text:
         return text
-    return "".join(token.raw for token in tokenize(text) if token.kind is not TokenKind.SGR)
+    return _SGR_RE.sub("", text)
+
+
+def replace_sgr(text: str, repl: Callable[[str], str]) -> str:
+    """Replace each SGR sequence in ``text`` with ``repl(params)``; everything else is kept."""
+    if "\x1b" not in text:
+        return text
+    return _SGR_RE.sub(lambda match: repl(match.group("sgr")), text)

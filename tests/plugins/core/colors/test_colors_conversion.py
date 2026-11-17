@@ -273,3 +273,16 @@ def test_to_tokens_api_returns_raw_and_visible_pairs() -> None:
         ("@x", ""),
     ]
     assert "".join(raw for raw, _ in pairs) == "@Rab@@\x1b[0m@-c@x"
+
+
+# --- an @ directly before an escape sequence -----------------------------------------------
+
+
+def test_at_before_sgr_is_text_and_the_sgr_is_stripped() -> None:
+    """``@`` cannot start a code with the escape character, so it stays visible (#534)."""
+    assert ansi_strip("@\x1b[31mx") == "@x"
+    assert cc_strip("@\x1b[31mx") == "@x"
+
+
+def test_at_before_sgr_converts_the_sgr() -> None:
+    assert to_colorcode("@\x1b[31mx") == "@@rx"

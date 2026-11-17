@@ -28,8 +28,8 @@ The tokenizer scans the string once, left to right, with one compiled pattern. T
 | 4 | the same with a value above 255 | `INVALID` | nothing |
 | 5 | `@x` or `@z` with no digit | `INVALID` (the next character is kept) | nothing |
 | 6 | `@` and one of `krgybmcwDRGYBMCW` | `COLOR` | nothing |
-| 7 | `@` and any other character, newline included | `INVALID` (both characters dropped) | nothing |
-| 8 | `@` at the end of the string | `TEXT` | `@` |
+| 7 | `@` and any other character except `ESC`, newline included | `INVALID` (both characters dropped) | nothing |
+| 8 | `@` at the end of the string or before `ESC` | `TEXT` | `@` |
 | 9 | any other run of text, or a lone `ESC` | `TEXT` | the text |
 
 Notes:
@@ -45,12 +45,12 @@ Notes:
 |---|---|
 | `colorcode.to.tokens` | `(raw, visible)` pairs, one per token. The only way another plugin reaches the tokenizer. |
 | `colorcode.strip` | Joins the visible text of `TEXT` and `ESCAPE` tokens. SGR sequences go too. |
-| `ansicode.strip` | Joins every token except `SGR`. |
+| `ansicode.strip` | Removes every `SGR` sequence with the tokenizer module's SGR pattern alone, so an `@` before an escape cannot hide it. Everything else is kept as written. |
 | `colorcode.to.ansicode` | Each code emits its own sequence in place. A code with no visible text after it is dropped. One `ESC [0m` closes the string if any sequence was emitted. A lowercase colour other than `@w` appends the active xterm background (`;48;5;N`), because `0;3x` clears it. `@w` is the general reset: it clears the background, and later codes do not bring it back. |
 | `colorcode.is.valid` | The string is exactly one `COLOR`, `XTERM_FG` or `XTERM_BG` token. |
 | `colorcode.to.html` | Foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
 | `color.length.difference.get` | `len(text)` minus the length of the visible text. |
-| `ansicode.to.colorcode` | An `SGR` with 1 to 3 numeric parameters is looked up in `CONVERTANSI`; any other `SGR` is dropped with a debug log. |
+| `ansicode.to.colorcode` | An `SGR` with 1 to 3 numeric parameters is looked up in `CONVERTANSI`; any other `SGR` is dropped with a debug log. It matches only SGR sequences (the same pattern as `ansicode.strip`), and the lookup is cached per parameter string, because every MUD line goes through it. |
 
 `colorcode.escape` is a plain string replacement and defines no syntax.
 
