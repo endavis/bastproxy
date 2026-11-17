@@ -116,6 +116,11 @@ def test_leading_zeros_do_not_count_as_digits() -> None:
     assert sgr_to_colorcode("\x1b[00031mx") == "@rx"
 
 
+def test_many_leading_zeros_are_read_as_the_value() -> None:
+    assert sgr_to_colorcode("\x1b[" + "0" * 5000 + "31mx") == "@rx"
+    assert sgr_to_colorcode("\x1b[" + "0" * 5000 + "mx") == "x"
+
+
 def test_overlong_extended_colour_value_is_malformed() -> None:
     assert sgr_to_colorcode("\x1b[38;5;" + "1" * 10 + "mx") == "x"
 

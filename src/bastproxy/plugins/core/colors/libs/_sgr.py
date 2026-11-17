@@ -64,9 +64,10 @@ def _param_value(part: str) -> int:
     """Return one SGR parameter as an int: empty is 0, an overlong one is ignored."""
     if not part:
         return 0
-    if len(part.lstrip("0")) > _MAX_PARAM_DIGITS:
+    digits = part.lstrip("0")
+    if len(digits) > _MAX_PARAM_DIGITS:
         return _IGNORED
-    return int(part)
+    return int(digits or "0")
 
 
 @functools.lru_cache(maxsize=1024)
