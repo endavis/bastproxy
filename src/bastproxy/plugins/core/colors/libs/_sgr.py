@@ -17,7 +17,7 @@ import functools
 # 3rd Party
 # Project
 from bastproxy.libs.logger import get_logger
-from bastproxy.plugins.core.colors.libs._tokenizer import split_sgr
+from bastproxy.plugins.core.colors.libs._tokenizer import escape_at, split_sgr
 
 CANRELOAD = False
 
@@ -165,11 +165,15 @@ def diff_codes(emitted: SgrState, target: SgrState) -> str:
 
 
 def sgr_to_colorcode(text: str) -> str:
-    """Convert the SGR sequences in ``text`` to ``@`` codes, writing codes only before text."""
+    """Convert the SGR sequences in ``text`` to ``@`` codes, writing codes only before text.
+
+    A literal ``@`` in the text is written as ``@@`` so it is not read as part of a code.
+    """
+    has_at = "@" in text
     parts = split_sgr(text)
     if len(parts) == 1:
-        return text
-    out = [parts[0]] if parts[0] else []
+        return escape_at(text) if has_at else text
+    out = [escape_at(parts[0]) if has_at else parts[0]] if parts[0] else []
     emitted = target = DEFAULT_STATE
     for index in range(1, len(parts), 2):
         target = apply_sgr(target, parts[index])
@@ -178,5 +182,5 @@ def sgr_to_colorcode(text: str) -> str:
             if target != emitted:
                 out.append(diff_codes(emitted, target))
                 emitted = target
-            out.append(segment)
+            out.append(escape_at(segment) if has_at else segment)
     return "".join(out)

@@ -301,4 +301,36 @@ def test_at_before_sgr_is_text_and_the_sgr_is_stripped() -> None:
 
 
 def test_at_before_sgr_converts_the_sgr() -> None:
-    assert to_colorcode("@\x1b[31mx") == "@@rx"
+    assert to_colorcode("@\x1b[31mx") == "@@@rx"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("@\x1b[31mx", "@@@rx"),
+        ("mail@host \x1b[31mred", "mail@@host @rred"),
+        ("\x1b[31m@rnot a code", "@r@@rnot a code"),
+        ("mail@host", "mail@@host"),
+    ],
+)
+def test_literal_at_is_escaped(text: str, expected: str) -> None:
+    """A literal ``@`` in MUD text becomes ``@@`` in the colorcoded line (#539)."""
+    assert to_colorcode(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "@\x1b[31mx",
+        "mail@host \x1b[31mred",
+        "\x1b[31m@rnot a code",
+        "a@@b\x1b[1;32mc@@\x1b[0m",
+        "end@",
+        "\x1b[31mend@",
+        "\x1b[0;33m@x075 \x1b[1;34m@@x075@",
+        "@",
+        "plain @r text",
+    ],
+)
+def test_colorcode_strip_of_conversion_is_the_visible_text(text: str) -> None:
+    assert cc_strip(to_colorcode(text)) == ansi_strip(text)
