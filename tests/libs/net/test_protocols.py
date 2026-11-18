@@ -35,6 +35,7 @@ SUPPORTS = "libs.net.protocols:gmcp.supports.get"
 GMCP_CACHE = "libs.net.protocols:gmcp.cache.get"
 MSDP_CACHE = "libs.net.protocols:msdp.cache.get"
 MSSP_CACHE = "libs.net.protocols:mssp.cache.get"
+SEND = "libs.net.protocols:gmcp.send"
 
 
 class FakeApi:
@@ -465,3 +466,59 @@ def test_the_gate_checks_either_direction() -> None:
         writer._handle_oob_sb(buf, GMCP, oob.decode_gmcp, delivered.append)
         assert len(delivered) == expected
         delivered.clear()
+
+
+# gmcp.send (#563) --------------------------------------------------------------
+
+
+def _sent_records() -> list[Any]:
+    return [m for m in _messages() if m.direction == "sent"]
+
+
+def test_gmcp_send_bare_package() -> None:
+    writer = _connect()
+    assert PROTOCOLS.api(SEND)("request char") is True
+    assert writer.sent[-1] == ("request char", None)
+    assert [(m.package, m.data) for m in _sent_records()][-1] == ("request char", None)
+
+
+def test_gmcp_send_package_with_data() -> None:
+    writer = _connect()
+    assert PROTOCOLS.api(SEND)("Char.Test", {"a": 1}) is True
+    assert writer.sent[-1] == ("Char.Test", {"a": 1})
+    assert [(m.package, m.data) for m in _sent_records()][-1] == ("Char.Test", {"a": 1})
+
+
+def test_gmcp_send_without_a_link_returns_false(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING):
+        assert PROTOCOLS.api(SEND)("request char") is False
+    assert "no mud link" in caplog.text
+    assert _sent_records() == []
+
+
+def test_gmcp_send_with_gmcp_off_returns_false(caplog: pytest.LogCaptureFixture) -> None:
+    writer = _connect(FakeWriter(gmcp_enabled=False))
+    with caplog.at_level(logging.WARNING):
+        assert PROTOCOLS.api(SEND)("request char") is False
+    assert "not enabled" in caplog.text
+    assert writer.sent == []
+    assert _sent_records() == []
+
+
+def test_gmcp_send_on_a_closing_link_returns_false() -> None:
+    writer = _connect()
+    writer.closing = True
+    count = len(writer.sent)
+    assert PROTOCOLS.api(SEND)("request char") is False
+    assert len(writer.sent) == count
+
+
+def test_gmcp_send_failure_returns_false() -> None:
+    writer = _connect()
+
+    def boom(package: str, data: Any = None) -> None:
+        raise OSError("broken")
+
+    writer.send_gmcp = boom  # type: ignore[method-assign]
+    assert PROTOCOLS.api(SEND)("request char") is False
+    assert _sent_records() == []

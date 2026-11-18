@@ -572,6 +572,27 @@ class ProtocolManager:
         return oob.supports_payload(parsed)
 
     @AddAPI(
+        "gmcp.send",
+        description="send a GMCP message to the mud (bare package when data is None)",
+    )
+    def _api_gmcp_send(self, package: str, data: Any = None) -> bool:
+        """Send ``package`` (with JSON ``data`` unless None) to the mud; False when not sent."""
+        writer = self._mud_writer
+        if writer is None or writer.is_closing():
+            logger.warning("Could not send GMCP %s: no mud link", package)
+            return False
+        if not writer.remote_option.enabled(GMCP):
+            logger.warning("Could not send GMCP %s: GMCP is not enabled on the mud link", package)
+            return False
+        try:
+            writer.send_gmcp(package, data)
+        except Exception:
+            logger.exception("Could not send GMCP %s to the mud", package)
+            return False
+        self._record("GMCP", package, data, Direction.SENT)
+        return True
+
+    @AddAPI(
         "gmcp.modules.remove",
         description="remove GMCP modules (all of them when none are given) of an owner",
     )

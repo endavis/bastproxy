@@ -393,6 +393,21 @@ How it works:
 Details: [triggers system](claude/triggers_system.md), including the built-in triggers and the
 common APIs.
 
+## Sending GMCP to the MUD
+
+`libs.net.protocols:gmcp.send(package, data=None)` sends one GMCP message to the MUD. With no data
+the bare package goes out, as Aardwolf expects; with data it is sent as compact JSON after the
+package. It returns `True` when sent and `False` (with a logged warning, never an exception) when
+there is no MUD link or GMCP is not enabled on it. Each send is recorded as a
+`TelnetProtocolMessage` with `Direction.SENT`.
+
+```python
+@RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
+def _eventcb_connect(self) -> None:
+    self.api("libs.net.protocols:gmcp.send")("request char")
+    self.api("libs.net.protocols:gmcp.send")("Char.Test", {"a": 1})
+```
+
 ## Owning a telnet option
 
 A plugin can own a telnet option the core does not handle, such as Aardwolf's option 102. The core
