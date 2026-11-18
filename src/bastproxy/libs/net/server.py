@@ -37,7 +37,6 @@ from typing import Any
 # 3rd Party
 import telnetlib3
 from telnetlib3.telopt import (
-    BINARY,
     DO,
     EOR,
     GMCP,
@@ -131,7 +130,6 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         - ``DO NAWS``, so the client reports its window size (telnetlib3 stores
           it as the ``rows`` and ``cols`` extra info, see ``ClientConnection``); the size feeds
           the window size forwarded to the MUD (#308).
-        - ``WILL BINARY``, so the proxy may send 8-bit data (utf8) to the client.
         - ``WILL MXP``, so a client can take the MUD's MXP markup; a client without MXP gets the
           text with the markup stripped (#61).
         - ``WILL EOR``, so a client that agrees gets ``IAC EOR`` after each prompt instead of
@@ -146,6 +144,11 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
 
         Deliberately not sent:
 
+        - ``WILL BINARY`` (and so no ``DO BINARY`` from telnetlib3, which follows an accepted
+          ``WILL BINARY``): plain telnet in BINARY mode sends Enter as a bare LF and echoes it
+          locally without CR, so the next output line starts at the column the typed command
+          ended at (#573). utf8 comes from ``force_binary=True`` (#63), not from BINARY. A
+          client that asks for BINARY itself still gets it from telnetlib3's default handling.
         - ``WILL SGA``: with SGA enabled ``send_ga()`` sends no GA, and MUD
           clients use GA to find prompts. A client may still send ``DO SGA`` on its own, which
           telnetlib3 accepts and which then suppresses GA (#272).
@@ -163,7 +166,6 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
 
         """
         self.writer.iac(DO, NAWS)
-        self.writer.iac(WILL, BINARY)
         self.writer.iac(WILL, GMCP)
         self.writer.iac(WILL, MSDP)
         self.writer.iac(WILL, MSSP)

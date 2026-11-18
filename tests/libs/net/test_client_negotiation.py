@@ -186,7 +186,7 @@ async def test_echo_sent_once_each_way(ttype: bytes) -> None:
 async def test_connect_negotiation(ttype: bytes) -> None:
     result = await _run(ttype)
     assert (WILL, SGA) not in result.cmds
-    assert (WILL, BINARY) in result.cmds
+    assert (WILL, BINARY) not in result.cmds
     assert (DO, NAWS) in result.cmds
     assert (DO, NEW_ENVIRON) in result.cmds
     assert result.got_ga
@@ -217,7 +217,6 @@ def test_server_override_does_not_call_super() -> None:
     server.begin_advanced_negotiation()
     assert server.writer.iac.call_args_list == [
         ((DO, NAWS),),
-        ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
         ((WILL, MSSP),),
@@ -285,7 +284,6 @@ def test_begin_advanced_negotiation_offers_mccp2_and_mccp3() -> None:
     server.begin_advanced_negotiation()
     assert writer.iac.call_args_list == [
         ((DO, NAWS),),
-        ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
         ((WILL, MSSP),),
@@ -302,7 +300,6 @@ def test_begin_advanced_negotiation_no_mccp2_over_tls() -> None:
     server.begin_advanced_negotiation()
     assert writer.iac.call_args_list == [
         ((DO, NAWS),),
-        ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
         ((WILL, MSSP),),
@@ -316,7 +313,6 @@ def test_begin_advanced_negotiation_no_mccp2_when_compression_off() -> None:
     server.begin_advanced_negotiation()
     assert writer.iac.call_args_list == [
         ((DO, NAWS),),
-        ((WILL, BINARY),),
         ((WILL, GMCP),),
         ((WILL, MSDP),),
         ((WILL, MSSP),),
