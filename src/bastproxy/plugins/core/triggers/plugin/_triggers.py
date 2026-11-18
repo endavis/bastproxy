@@ -10,7 +10,7 @@ import bisect
 import dataclasses
 import logging
 import sys
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any, TypedDict, cast
 
 # 3rd Party
@@ -19,7 +19,7 @@ import regex as re
 # Project
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import get_logger, log_to
-from bastproxy.libs.records import NetworkDataLine
+from bastproxy.libs.records import NetworkData, NetworkDataLine, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -27,6 +27,13 @@ from bastproxy.plugins.core.events import RegisterToEvent
 from ._conditions import Condition, check, parse_conditions
 from ._echo import EchoRecord
 from ._prompt import PromptQueue
+from ._waiters import (
+    DEFAULT_MAX_LINES,
+    DEFAULT_TIMEOUT,
+    LineWaiter,
+    WaiterRegistry,
+    WaitResult,
+)
 
 # The "Triggers" section this plugin adds to a stats event record's "stats" dict.
 # The keys are display labels, so the functional syntax is needed.
@@ -162,6 +169,11 @@ class TriggerAddResult:
     trigger: TriggerItem | None
 
 
+async def _none_result() -> WaitResult | None:
+    """An awaitable that resolves to None, for a waiter API that failed (#548)."""
+    return None
+
+
 class TriggersPlugin(BasePlugin):
     """a plugin to handle internal triggers."""
 
@@ -202,6 +214,8 @@ class TriggersPlugin(BasePlugin):
         self._prompts_seen = False
         # Events of on_prompt triggers waiting for the next prompt (#544)
         self._pending = PromptQueue()
+        # Open line waiters, fed from ev_to_client_data_modify (#548)
+        self._waiters = WaiterRegistry(sender=self._send_to_mud)
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -1049,3 +1063,98 @@ class TriggersPlugin(BasePlugin):
             message.append("Please provide a trigger name")
 
         return CommandResult(True, message)
+
+    # --- waiting for output (#548) -------------------------------------------------
+
+    def _send_to_mud(self, command: str, owner_id: str) -> None:
+        """Send a command to the MUD for a waiter."""
+        SendDataDirectlyToMud(NetworkData(command, owner_id=f"{owner_id}:waiter"))()
+
+    @RegisterToEvent(event_name="ev_to_client_data_modify", priority=40)
+    def _eventcb_feed_waiters(self) -> None:
+        """Offer each MUD line to the open waiters, before triggers see it."""
+        if not self._waiters:
+            return
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
+            return
+        line = event_record["line"]
+        if line.internal:
+            return
+        self._waiters.feed(line.noansi, line.is_prompt)
+
+    @RegisterToEvent(event_name="ev_plugin_unloaded")
+    def _eventcb_close_waiters_on_unload(self) -> None:
+        """Close the waiters of a plugin that was unloaded."""
+        if event_record := self.api("plugins.core.events:event.current.record.get")():
+            self.api(f"{self.plugin_id}:waiter.remove.for.owner")(event_record["plugin_id"])
+
+    def _waiter_owner(self, owner_id: str | None, what: str) -> str | None:
+        """Resolve the owner for a waiter API, logging an error if there is none."""
+        if not owner_id:
+            owner_id = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
+        if not owner_id:
+            log_to([self.plugin_id], logging.ERROR, "%s - could not find an owner", what)
+            return None
+        return cast(str, owner_id)
+
+    @AddAPI("waiter.add", description="open a waiter that queues MUD lines")
+    def _api_waiter_add(
+        self, owner_id: str | None = None, max_lines: int = DEFAULT_MAX_LINES
+    ) -> LineWaiter | None:
+        """Open a LineWaiter that queues MUD lines from now on.
+
+        @Yowner_id@w   = the owner, added automatically through the api
+        @Ymax_lines@w  = the most lines queued; the oldest are dropped
+
+        Use it as a context manager, or call close(). Returns None (and logs
+        an error) if no owner is found.
+        """
+        if (owner := self._waiter_owner(owner_id, "_api_waiter_add")) is None:
+            return None
+        return self._waiters.add(owner, max_lines)
+
+    @AddAPI("waiter.remove.for.owner", description="close all waiters of an owner")
+    def _api_waiter_remove_for_owner(self, owner_id: str) -> int:
+        """Close every waiter of an owner; returns how many were closed."""
+        return self._waiters.close_for_owner(owner_id)
+
+    @AddAPI("waiter.count", description="the number of open waiters")
+    def _api_waiter_count(self) -> int:
+        """Return the number of open waiters."""
+        return len(self._waiters)
+
+    @AddAPI("line.get.next", description="wait for the next MUD line matching a pattern")
+    def _api_line_get_next(
+        self, pattern: str, timeout: float = DEFAULT_TIMEOUT, owner_id: str | None = None
+    ) -> Awaitable[WaitResult | None]:
+        """Return an awaitable that resolves to the next line matching ``pattern``.
+
+        The pattern is matched with ``.match()``. Resolves to None on timeout
+        or error (logged). Nothing is registered until it is awaited.
+        """
+        if (owner := self._waiter_owner(owner_id, "_api_line_get_next")) is None:
+            return _none_result()
+        return self._waiters.once(owner, lambda w: w.wait_for(pattern, timeout))
+
+    @AddAPI("prompt.get.next", description="wait for the next MUD prompt")
+    def _api_prompt_get_next(
+        self, timeout: float = DEFAULT_TIMEOUT, owner_id: str | None = None
+    ) -> Awaitable[WaitResult | None]:
+        """Return an awaitable that resolves to the next prompt line (needs GA/EOR)."""
+        if (owner := self._waiter_owner(owner_id, "_api_prompt_get_next")) is None:
+            return _none_result()
+        return self._waiters.once(owner, lambda w: w.wait_for_prompt(timeout))
+
+    @AddAPI("line.get.after.send", description="send a command, then wait for a line")
+    def _api_line_get_after_send(
+        self,
+        command: str,
+        pattern: str,
+        timeout: float = DEFAULT_TIMEOUT,
+        owner_id: str | None = None,
+    ) -> Awaitable[WaitResult | None]:
+        """Return an awaitable that sends ``command``, then resolves to the first
+        line matching ``pattern`` (None on timeout or error)."""
+        if (owner := self._waiter_owner(owner_id, "_api_line_get_after_send")) is None:
+            return _none_result()
+        return self._waiters.once(owner, lambda w: w.send_and_wait(command, pattern, timeout))

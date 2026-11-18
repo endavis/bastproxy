@@ -23,6 +23,7 @@ Every excerpt names its source file. The API names in this page are checked agai
 - [Hooks and events](#hooks-and-events)
 - [Commands](#commands)
 - [Triggers](#triggers)
+- [Waiting for output](#waiting-for-output)
 
 ## Communicating with the client and the MUD
 
@@ -391,3 +392,41 @@ How it works:
 
 Details: [triggers system](claude/triggers_system.md), including the built-in triggers and the
 common APIs.
+
+## Waiting for output
+
+To send a command and then use the MUD's answer, ask the triggers plugin to wait for it. Event
+callbacks are sync, so start the coroutine with `libs.asynch:task.add`.
+
+```python
+    def _start_score(self) -> None:
+        self.api("libs.asynch:task.add")(self._read_score(), f"{self.plugin_id}:score")
+
+    async def _read_score(self) -> None:
+        result = await self.api("plugins.core.triggers:line.get.after.send")(
+            "score", r"^Level: (?P<level>\d+)", timeout=5
+        )
+        if result is None:
+            return  # timed out, or an error was logged
+        level = result.matches["level"]
+```
+
+For several steps (send, match, then the prompt), open a waiter. It queues lines from the moment
+it is added, so a line that arrives between steps is not lost:
+
+```python
+    async def _read_score_and_prompt(self) -> None:
+        with self.api("plugins.core.triggers:waiter.add")() as waiter:
+            result = await waiter.send_and_wait("score", r"^Level: (?P<level>\d+)", 5)
+            prompt = await waiter.wait_for_prompt(5)
+```
+
+Notes:
+
+- The APIs are `line.get.after.send`, `line.get.next`, `prompt.get.next` and `waiter.add`.
+- The pattern uses `.match()`, so it must match from the start of the line. Start with `.*` to match anywhere.
+- Waiters see the MUD's echo of a command you sent, so do not match the bare command text. They also work while the triggers `enabled` setting is off.
+- A prompt wait needs the MUD to end its prompt with GA or EOR.
+- A wait resolves to `None` on a timeout or an error (logged); it does not raise.
+
+Details: [triggers system](claude/triggers_system.md#waiting-for-output).

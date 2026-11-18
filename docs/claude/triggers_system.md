@@ -215,6 +215,17 @@ Many MUDs echo a command back as output. So that a trigger does not fire on the 
 - Bounded: at most `ECHO_MAX_ENTRIES` (20) entries, the oldest dropped first, and an entry older than `ECHO_MAX_AGE` (15.0 seconds) is dropped before each lookup, so a command the MUD never echoes does not linger. Both are module constants, not settings.
 - Limits: a client that types the same text while a plugin's entry is pending uses that entry up, and a MUD that echoes the command on the same line as its prompt does not give an exact match, so the triggers still run.
 
+### Waiting for Output
+
+A plugin that sends a command and needs the answer uses a waiter (#548), in `src/bastproxy/plugins/core/triggers/plugin/_waiters.py`. `_eventcb_feed_waiters` (priority 40, before `_eventcb_check_trigger`) offers each non-internal MUD line (`line.noansi` and `line.is_prompt`) to every open waiter.
+
+- Each `LineWaiter` has its own queue (at most 1000 lines, oldest dropped). A wait first reads the queued lines, then waits for new ones, and consumes every line up to and including its match; later lines stay queued. Every waiter sees every line, so two plugins never take each other's matches.
+- A waiter has at most one wait at a time. `wait_for(pattern, timeout)` uses `.match()`; `wait_for_prompt(timeout)` resolves on the next line with `is_prompt` (the MUD must send GA or EOR). `send_and_wait(command, pattern, timeout)` sends after the waiter is registered.
+- The result is a `WaitResult` with `text`, `is_prompt`, `match` and `matches` (the named groups).
+- Waiters are not gated by the `enabled` setting, and they see the MUD's echo of a sent command, so a pattern should not match the bare command text.
+- A waiter is closed by `close()`, by leaving its `with` block, or when its owner plugin unloads (`ev_plugin_unloaded`); a pending wait then resolves to `None`.
+- Event callbacks are sync: start the coroutine with `libs.asynch:task.add`. The `sendwait` command of the test triggers plugin is a live demo.
+
 ## Common APIs
 
 - `plugins.core.triggers:trigger.add` - Add a trigger; returns a `TriggerAddResult(success, trigger)` (`trigger` is `None` when `success` is false), with an error logged on failure (duplicate, no owner, regex that does not compile, unknown keyword)
@@ -227,8 +238,14 @@ Many MUDs echo a command back as output. So that a trigger does not fire on the 
 - `plugins.core.triggers:trigger.toggle.omit` - Set the omit flag; returns `True`, or `False` with an error logged for an unknown trigger
 - `plugins.core.triggers:group.toggle.enable` - Enable or disable every trigger of a group (TR-4, fixed by #349); returns `True`, or `False` with an error logged for an unknown group (#354)
 - `plugins.core.triggers:trigger.remove.for.owner` - Remove all triggers of an owner (`force=True`; a failing removal is logged and the rest still go, TR-8, #353; returns `False` if any removal failed, #354)
+- `plugins.core.triggers:waiter.add` - Open a `LineWaiter` that queues MUD lines from now on (`owner_id`, `max_lines`); returns `None` with an error logged if there is no owner
+- `plugins.core.triggers:waiter.remove.for.owner` - Close every waiter of an owner; returns how many
+- `plugins.core.triggers:waiter.count` - The number of open waiters
+- `plugins.core.triggers:line.get.next` - `(pattern, timeout=10.0)`: an awaitable that resolves to a `WaitResult` for the next matching line, or `None`
+- `plugins.core.triggers:prompt.get.next` - `(timeout=10.0)`: an awaitable for the next prompt line
+- `plugins.core.triggers:line.get.after.send` - `(command, pattern, timeout=10.0)`: send a command, then wait for a matching line
 
-**Error contract (#354):** an API that is given something it cannot act on logs an error at ERROR through `log_to` and returns `False`; it does not raise. Success is `True`, except `trigger.get`, which returns the item, and `trigger.add`, which always returns a `TriggerAddResult(success, trigger)` (since #426; before it was a `(success, trigger)` tuple). Check `result.success` before using `result.trigger`.
+**Error contract (#354):** an API that is given something it cannot act on logs an error at ERROR through `log_to` and returns `False`; it does not raise. Success is `True`, except `trigger.get`, which returns the item, and `trigger.add`, which always returns a `TriggerAddResult(success, trigger)` (since #426; before it was a `(success, trigger)` tuple). Check `result.success` before using `result.trigger`. The waiter APIs (#548) log at ERROR and resolve to `None` for an invalid regex, a timeout of 0 or less, a wait on a closed waiter or a second wait on one waiter; they do not raise.
 
 The name-taking APIs build the trigger id from the name and the owner; without `owner_id` the owner is the calling plugin.
 
