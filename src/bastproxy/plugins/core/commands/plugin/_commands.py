@@ -101,6 +101,21 @@ def _help_formatter(
     return argp.CustomFormatter(prog, width=line_length, tokenize=tokenize)
 
 
+def execute_line(
+    line: str, *, owner_id: str, client_id: str | None, show_in_history: bool = False
+) -> None:
+    """Run a line as if the client had typed it (#564).
+
+    The one place that builds the record: `originated=CLIENT` is what sends the line
+    through command handling, so a `#bp` command runs and other text goes to the MUD.
+    """
+    ProcessDataToMud(
+        NetworkData(NetworkDataLine(line, originated=Originated.CLIENT), owner_id=owner_id),
+        show_in_history=show_in_history,
+        client_id=client_id,
+    )()
+
+
 class CommandsPlugin(BasePlugin):
     """a class to manage internal commands."""
 
@@ -648,6 +663,23 @@ class CommandsPlugin(BasePlugin):
         if self.api("libs.plugins.loader:plugin.id.is.valid")(plugin_id):
             return self.command_data.get(plugin_id, {})
         return {}
+
+    @AddAPI("command.line.run", description="run a line as if the user had typed it")
+    def _api_command_line_run(self, line: str, *, show_in_history: bool = False) -> None:
+        """Run a line as if the user had typed it.
+
+        @Yline@w             = the line to run; a #bp command runs, anything else goes to the MUD
+        @Yshow_in_history@w  = record the line in the command history, default False
+
+        The line goes through the usual input path: the command separator splits it,
+        and the MUD command queue and trigger echo handling apply. The line is owned
+        by the calling plugin, and runs for the client whose input is being handled,
+        if any.
+        """
+        owner_id = self.api("libs.api:caller.owner.get")()
+        event_record = self.api("plugins.core.events:event.current.record.get")()
+        client_id = event_record["client_id"] if event_record else None
+        execute_line(line, owner_id=owner_id, client_id=client_id, show_in_history=show_in_history)
 
     @AddAPI("command.run", description="run a command and return the output")
     def _api_command_run(
@@ -1585,14 +1617,12 @@ class CommandsPlugin(BasePlugin):
         )()
         # run it as if the client had typed it; show_in_history=False keeps the rerun
         # out of the history list (#525)
-        ProcessDataToMud(
-            NetworkData(
-                NetworkDataLine(command, originated=Originated.CLIENT),
-                owner_id="run_history",
-            ),
-            show_in_history=False,
+        execute_line(
+            command,
+            owner_id="run_history",
             client_id=event_record["client_id"] if event_record else None,
-        )()
+            show_in_history=False,
+        )
 
         return CommandResult(True, [])
 

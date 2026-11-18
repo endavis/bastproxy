@@ -446,6 +446,24 @@ def _eventcb_data(self) -> None:
 Details: [data flow](claude/data_flow.md#custom-telnet-options-566-adr-0012) and
 [ADR-0012](decisions/0012-plugins-own-telnet-options-the-core-does-not-handle-through-a-generic-hook.md).
 
+## Running a line as the user would
+
+To run a `#bp` command or send a MUD command, call `command.line.run`. The line goes through the
+same path as typed input: the command separator splits it, and the MUD command queue and trigger
+echo handling apply.
+
+```python
+    def _on_connect(self) -> None:
+        self.api("plugins.core.commands:command.line.run")("#bp.core.proxy.info")
+        self.api("plugins.core.commands:command.line.run")("look")
+```
+
+- The line is owned by the calling plugin and runs for the client being handled, if any.
+- It stays out of the command history. Pass `show_in_history=True` to record it.
+- To send and then wait for the answer, see below.
+
+Details: [command system](claude/command_system.md#command-execution).
+
 ## Waiting for output
 
 To send a command and then use the MUD's answer, ask the triggers plugin to wait for it. Event
