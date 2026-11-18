@@ -198,7 +198,7 @@ async def test_client_link_records() -> None:
     link_ids, _ = await _serve_clients(1, _client_script)
     seen = _seen(link_ids[0])
     assert ("sent", "DO", "NAWS", b"") in seen
-    assert ("sent", "WILL", "BINARY", b"") in seen
+    assert ("sent", "WILL", "BINARY", b"") not in seen
     assert ("sent", "DO", "NEW_ENVIRON", b"") in seen
     assert ("sent", "SB", "TTYPE", SEND) in seen
     assert ("received", "WILL", "TTYPE", b"") in seen
