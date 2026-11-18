@@ -161,6 +161,7 @@ nav:
       - Overview: decisions/README.md
       - ADR-0008 The colors tokenizer is the single definition of the colour-code syntax: decisions/0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md
       - ADR-0009 Display width is measured with wcwidth in one framework helper: decisions/0009-display-width-is-measured-with-wcwidth-in-one-framework-helper.md
+      - ADR-0010 On-prompt triggers: decisions/0010-on-prompt-triggers-defer-their-events-to-the-next-prompt.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md
