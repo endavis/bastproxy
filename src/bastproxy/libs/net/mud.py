@@ -607,6 +607,9 @@ class MudTelnetClient(TelnetClient):
     sends its
     own ``Core.Hello`` instead of telnetlib3's. ZMP is not negotiated (#39).
 
+    Its writer is attached to ``PROTOCOLS.telopt``, so an option a plugin registered is accepted
+    and handled there instead of being refused (#566).
+
     It also accepts MCCP2 and MCCP3 (#58). telnetlib3 5.0.3 decompresses the MUD's stream in
     1 MiB steps, closes the link after a decompression error, ends MCCP2 on ``WONT MCCP2`` and
     ends MCCP3 on ``WONT MCCP3``. One override remains:
@@ -723,6 +726,7 @@ class MudTelnetClient(TelnetClient):
         go-ahead stops sending ``IAC GA`` after prompts, and the prompt marks below depend on it.
         """
         super().connection_made(transport)
+        PROTOCOLS.telopt.attach(self.writer)
         self._ttype_cycle = mtts.TtypeCycle(
             mtts.CLIENT_NAME, self._extra["term"], mtts.PROXY_CAPABILITIES.bitvector
         )

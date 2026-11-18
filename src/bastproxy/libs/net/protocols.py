@@ -39,6 +39,9 @@ protocol late gets the cached values. From a client, ``Core.Hello`` is absorbed,
 ``Core.Supports.*`` updates that client's modules, ``Core.Ping`` is answered on its link, other
 GMCP and the MSDP commands ``LIST``, ``SEND`` and ``REPORT`` go to the MUD only from a logged-in
 client that is not view-only, and the data of ``Char.Login`` is recorded as ``<redacted>``.
+
+A plugin can own any other telnet option through ``telopt.register`` and its sibling APIs, which
+wrap ``TeloptManager`` (``libs/net/telopt.py``, #566, ADR-0012).
 """
 
 # Standard Library
@@ -54,6 +57,7 @@ from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import mxp, oob
+from bastproxy.libs.net.telopt import TeloptManager
 from bastproxy.libs.records.enums import Direction
 from bastproxy.libs.records.events import RecordEventSpec
 from bastproxy.libs.records.rtypes.telnet import TelnetProtocolMessage
@@ -127,6 +131,12 @@ class ProtocolManager:
         self._mxp_defs_full_logged = False
         # uuid -> ClientConnection, for clients that are logged in
         self._clients: dict[str, Any] = {}
+        # options a plugin owns (#566); shares the logged-in clients and uses the current API
+        self.telopt = TeloptManager(
+            clients=self._clients,
+            raise_args=self._raise_args,
+            api_getter=lambda: self.api,
+        )
 
         self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
@@ -214,12 +224,14 @@ class ProtocolManager:
     def mud_connected(self, writer: Any) -> None:
         """Remember the MUD writer; handle a ``WILL GMCP`` that arrived before it was known."""
         self._mud_writer = writer
+        self.telopt.mud_connected(writer)
         if writer.remote_option.enabled(GMCP):
             self.on_mud_will_gmcp(GMCP)
 
     def mud_disconnected(self) -> None:
         """Forget the MUD writer and clear the per-connection state."""
         self._mud_writer = None
+        self.telopt.mud_disconnected()
         self._hello_sent = False
         self._last_supports = None
         self._gmcp_cache.clear()
@@ -432,12 +444,14 @@ class ProtocolManager:
     def client_ready(self, conn: Any) -> None:
         """A client logged in: it now receives data, replay the cache and count its modules."""
         self._clients[conn.uuid] = conn
+        self.telopt.client_ready(conn)
         self._replay(conn)
         self._mxp_sync(conn)
         self._send_supports_if_changed()
 
     def client_gone(self, conn: Any) -> None:
         """A client disconnected: drop it, and shrink the union if it had modules in it."""
+        self.telopt.client_gone(conn)
         if self._clients.pop(conn.uuid, None) is not None:
             self._send_supports_if_changed()
 
@@ -583,6 +597,67 @@ class ProtocolManager:
         """Remove every module of ``owner_id``."""
         self._owner_modules.pop(owner_id, None)
         self._send_supports_if_changed()
+
+    @AddAPI(
+        "telopt.register",
+        description="own a telnet option the core does not handle (mud and client links)",
+    )
+    def _api_telopt_register(
+        self,
+        option: int,
+        owner_id: str | None = None,
+        *,
+        mud: bool = True,
+        client: bool = True,
+        forward: bool = True,
+    ) -> bool:
+        """Register ``option`` (0-254); False when it is built in, taken or invalid."""
+        return self.telopt.register(
+            option, owner_id or self._caller_owner(), mud=mud, client=client, forward=forward
+        )
+
+    @AddAPI("telopt.unregister", description="give up a telnet option the caller owns")
+    def _api_telopt_unregister(self, option: int, owner_id: str | None = None) -> bool:
+        """Unregister ``option``; only its owner may."""
+        return self.telopt.unregister(option, owner_id or self._caller_owner())
+
+    @AddAPI(
+        "telopt.unregister.for.owner",
+        description="give up every telnet option an owner registered",
+    )
+    def _api_telopt_unregister_for_owner(self, owner_id: str) -> None:
+        """Unregister every option of ``owner_id``."""
+        self.telopt.unregister_for_owner(owner_id)
+
+    @AddAPI("telopt.send", description="send a subnegotiation for an owned option to the mud")
+    def _api_telopt_send(self, option: int, payload: bytes) -> bool:
+        """Send ``IAC SB option payload IAC SE`` to the mud; False when it cannot be sent."""
+        return self.telopt.send(option, payload)
+
+    @AddAPI(
+        "telopt.send.client",
+        description="send a subnegotiation for an owned option to logged-in clients",
+    )
+    def _api_telopt_send_client(
+        self, option: int, payload: bytes, client_id: str | None = None
+    ) -> bool:
+        """Send to one client, or to every logged-in client that enabled the option."""
+        return self.telopt.send_client(option, payload, client_id)
+
+    @AddAPI(
+        "telopt.forward.set",
+        description="turn forwarding of the mud's subnegotiations to clients on or off",
+    )
+    def _api_telopt_forward_set(
+        self, option: int, forward: bool, owner_id: str | None = None
+    ) -> bool:
+        """Set forwarding for an owned option."""
+        return self.telopt.set_forward(option, forward, owner_id or self._caller_owner())
+
+    @AddAPI("telopt.get", description="describe a registered telnet option")
+    def _api_telopt_get(self, option: int) -> dict[str, Any] | None:
+        """The owner, flags, mud state and enabled client ids of ``option``, or None."""
+        return self.telopt.get(option)
 
     @AddAPI("gmcp.supports.get", description="get the GMCP modules the proxy announces")
     def _api_gmcp_supports_get(self) -> list[str]:

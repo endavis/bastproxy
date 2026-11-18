@@ -169,6 +169,15 @@ The two protocol events are registered the same way, from `PROTOCOL_EVENTS` in `
 | `ev_libs.net.mud_msdp` | `variable`, `data` | once per MSDP variable from the MUD |
 | `ev_libs.net.mud_mssp` | `data` | once per MSSP table from the MUD; `data` is the whole table |
 
+A plugin that owns a telnet option with `telopt.register` ([data flow](data_flow.md#custom-telnet-options-566-adr-0012)) gets four more events, named by the option number `<n>`. They are added when the option is registered, not by the events plugin at startup, so they are not in `PROTOCOL_EVENTS`:
+
+| Event | Arguments | Raised |
+|-------|-----------|--------|
+| `ev_libs.net.mud_telopt_<n>` | `option`, `data` | once per subnegotiation from the MUD; `data` is `bytes`, IAC unescaped |
+| `ev_libs.net.mud_telopt_<n>_enabled` | `option` | the option became enabled on the MUD link |
+| `ev_libs.net.mud_telopt_<n>_disabled` | `option` | the option was disabled, or the MUD link closed |
+| `ev_libs.net.client_telopt_<n>` | `option`, `data`, `client_id`, `view_only` | once per subnegotiation from a logged-in client |
+
 Each event gets its own copy of `data` (`copy.deepcopy`), so a callback cannot change the cached value or what is sent to clients. A plugin that wants a GMCP package announces it to the MUD with `gmcp.modules.add`, which adds to the `Core.Supports.Set` the proxy sends:
 
 ```python
@@ -434,6 +443,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 - `ev_libs.net.mud_gmcp` - A GMCP message from the mud (args `package`, `data`)
 - `ev_libs.net.mud_msdp` - An MSDP variable from the mud (args `variable`, `data`)
 - `ev_libs.net.mud_mssp` - An MSSP table from the mud (arg `data`, the whole table)
+- `ev_libs.net.mud_telopt_<n>`, `ev_libs.net.mud_telopt_<n>_enabled`, `ev_libs.net.mud_telopt_<n>_disabled`, `ev_libs.net.client_telopt_<n>` - Telnet option `<n>` that a plugin owns with `telopt.register` (see the table in the protocol events section); added at register time
 
 ### Proxy Events
 - `ev_bastproxy_proxy_ready` - Proxy is ready to accept connections
