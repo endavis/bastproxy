@@ -201,10 +201,14 @@ async def _connect_once(conn: MudConnection, hang_up_after: float = 0.1) -> None
         await asyncio.sleep(hang_up_after)
         w.close()
 
+    # `connected` is True only while the link is up, and the whole connect, hang-up and
+    # cleanup can finish between two polls (it did on Windows, #568). Wait instead for the
+    # reader the handler sets on every connect, which the cleanup leaves in place.
+    previous_reader = conn.reader
     async with raw_server(handler) as port:
         conn.port = str(port)
         await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
-        await until(lambda: conn.connected)
+        await until(lambda: conn.reader is not previous_reader)
         await until(lambda: not conn.connected)
 
 
