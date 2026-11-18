@@ -393,6 +393,18 @@ How it works:
 Details: [triggers system](claude/triggers_system.md), including the built-in triggers and the
 common APIs.
 
+## Reacting to GMCP
+
+Register to `ev_libs.net.mud_gmcp_<package>`, the package lower-cased, to get one package without filtering the all-packages event. Parent prefixes are raised too, most specific first: `Char.Status` raises `..._char.status` then `..._char`, so a plugin registered on both is called twice.
+
+```python
+@RegisterToEvent(event_name="ev_libs.net.mud_gmcp_char.status")
+def _eventcb_status(self):
+    data = self.api("plugins.core.events:event.current.record.get")()["data"]
+```
+
+`libs.net.protocols:gmcp.value.get(path, default=None)` returns a copy of one cached value, such as `gmcp.value.get("Char.Status.state", 0)`. Event names are lower-cased, but value paths are case-sensitive. Subscribe to a package with `gmcp.modules.add`.
+
 ## Sending GMCP to the MUD
 
 `libs.net.protocols:gmcp.send(package, data=None)` sends one GMCP message to the MUD. With no data

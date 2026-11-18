@@ -503,7 +503,7 @@ self.api("plugins.core.triggers:trigger.add")(
 )
 ```
 
-The conditions are parsed and checked by `src/bastproxy/plugins/core/triggers/plugin/_conditions.py`, which reads the decoded GMCP cache through the `libs.net.protocols:gmcp.cache.get` API (never by import).
+The conditions are parsed and checked by `src/bastproxy/plugins/core/triggers/plugin/_conditions.py`, which resolves paths with `resolve_gmcp_path` in `src/bastproxy/libs/net/oob.py` (shared with `gmcp.value.get`) and reads the decoded GMCP cache through the `libs.net.protocols:gmcp.cache.get` API (never by import).
 
 - **Paths**: the cache is keyed by package name (`Char.Vitals`). The path is split on `.`, package prefixes are tried longest to shortest, and the first one with a value is walked with the remaining segments as dict keys. Lookups are case-sensitive and lists are not indexed.
 - **Missing values**: a missing package or key, a non-dict in the middle of the path, or a JSON null fails every condition, including `!=`.

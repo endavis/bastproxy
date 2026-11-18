@@ -8,7 +8,8 @@
 
 A ``when`` mapping is ``{"Char.Vitals.hp": ">50"}``: a dotted GMCP path and a
 comparison string. It is parsed once, when the trigger is added or updated, and
-evaluated against the decoded GMCP cache through a lookup callable.
+evaluated against the decoded GMCP cache through a lookup callable. The path resolver is
+``resolve_gmcp_path`` in ``libs/net/oob.py``, shared with ``gmcp.value.get``.
 """
 
 # Standard Library
@@ -17,11 +18,13 @@ import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
+# First Party
+from bastproxy.libs.net.oob import MISSING as _MISSING
+from bastproxy.libs.net.oob import resolve_gmcp_path as resolve
+
 # Longest first, so ">=" is not read as ">" followed by "=50"
 _OPERATORS = (">=", "<=", "!=", ">", "<", "=")
 _ORDERING = frozenset({">", ">=", "<", "<="})
-
-_MISSING: Any = object()
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -87,25 +90,6 @@ def parse_conditions(when: Any) -> tuple[Condition, ...]:
             f"when must be a dict of GMCP path to condition, got {type(when).__name__}"
         )
     return tuple(_parse_one(path, spec) for path, spec in when.items())
-
-
-def resolve(path: str, lookup: Callable[[str], Any]) -> Any:
-    """The GMCP value at a dotted path, or the ``_MISSING`` sentinel.
-
-    The cache is keyed by package name (``Char.Vitals``), so the longest package
-    prefix with a value is taken and the rest of the path is walked as dict keys.
-    """
-    segments = path.split(".")
-    for size in range(len(segments), 0, -1):
-        data = lookup(".".join(segments[:size]))
-        if data is None:
-            continue
-        for key in segments[size:]:
-            if not isinstance(data, dict) or key not in data:
-                return _MISSING
-            data = data[key]
-        return _MISSING if data is None else data
-    return _MISSING
 
 
 def _holds(condition: Condition, value: Any) -> bool:

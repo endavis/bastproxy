@@ -15,12 +15,14 @@ from bastproxy.libs.net import negotiation as neg_mod
 from bastproxy.libs.net import oob
 from bastproxy.libs.net.mud import MudTelnetClient
 from bastproxy.libs.net.protocols import (
+    EVENT_HAS_REGISTRATIONS_API,
     EVENT_RAISE_API,
     MUD_GMCP_EVENT,
     MUD_MSDP_EVENT,
     MUD_MSSP_EVENT,
     PROTOCOL_EVENTS,
     PROTOCOLS,
+    gmcp_package_events,
 )
 from bastproxy.libs.records import RMANAGER
 from bastproxy.plugins._baseplugin import BasePlugin
@@ -36,6 +38,7 @@ GMCP_CACHE = "libs.net.protocols:gmcp.cache.get"
 MSDP_CACHE = "libs.net.protocols:msdp.cache.get"
 MSSP_CACHE = "libs.net.protocols:mssp.cache.get"
 SEND = "libs.net.protocols:gmcp.send"
+VALUE = "libs.net.protocols:gmcp.value.get"
 
 
 class FakeApi:
@@ -45,12 +48,18 @@ class FakeApi:
         self.real = real
         self.owner_id = real.owner_id
         self.raised: list[tuple[str, dict[str, Any]]] = []
+        self.listeners: set[str] = set()
 
     def __call__(self, name: str) -> Any:
         if name == EVENT_RAISE_API:
             return self._raise
+        if name == EVENT_HAS_REGISTRATIONS_API:
+            return lambda event_name: event_name in self.listeners
         if name == "libs.api:api.exists":
-            return lambda api_name: api_name == EVENT_RAISE_API or self.real(name)(api_name)
+            return lambda api_name: (
+                api_name in (EVENT_RAISE_API, EVENT_HAS_REGISTRATIONS_API)
+                or self.real(name)(api_name)
+            )
         return self.real(name)
 
     def _raise(self, event: str, event_args: dict[str, Any], calledfrom: str | None = None) -> None:
@@ -95,7 +104,7 @@ class FakeWriter:
 
 
 def test_apis_exist() -> None:
-    for name in (ADD, REMOVE, REMOVE_OWNER, SUPPORTS, GMCP_CACHE, MSDP_CACHE, MSSP_CACHE):
+    for name in (ADD, REMOVE, REMOVE_OWNER, SUPPORTS, GMCP_CACHE, MSDP_CACHE, MSSP_CACHE, VALUE):
         assert callable(PROTOCOLS.api(name)), name
 
 
@@ -522,3 +531,111 @@ def test_gmcp_send_failure_returns_false() -> None:
     writer.send_gmcp = boom  # type: ignore[method-assign]
     assert PROTOCOLS.api(SEND)("request char") is False
     assert _sent_records() == []
+
+
+CHAR_STATUS = f"{MUD_GMCP_EVENT}_char.status"
+CHAR = f"{MUD_GMCP_EVENT}_char"
+
+
+def test_gmcp_package_events_names() -> None:
+    assert gmcp_package_events("Char.Status") == [CHAR_STATUS, CHAR]
+    assert gmcp_package_events("Room") == [f"{MUD_GMCP_EVENT}_room"]
+
+
+def test_per_package_event_raised_after_base(isolated: FakeApi) -> None:
+    isolated.listeners.add(CHAR_STATUS)
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    expected = {"package": "Char.Status", "data": {"state": 3}}
+    assert isolated.raised == [(MUD_GMCP_EVENT, expected), (CHAR_STATUS, expected)]
+
+
+def test_other_package_raises_only_base(isolated: FakeApi) -> None:
+    isolated.listeners.add(CHAR_STATUS)
+    PROTOCOLS.on_mud_gmcp("Room.Info", {"a": 1})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT]
+
+
+def test_no_listeners_raises_only_base(isolated: FakeApi) -> None:
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT]
+
+
+def test_parent_prefix_events(isolated: FakeApi) -> None:
+    isolated.listeners.update({CHAR, CHAR_STATUS})
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT, CHAR_STATUS, CHAR]
+    isolated.raised.clear()
+    isolated.listeners.discard(CHAR_STATUS)
+    PROTOCOLS.on_mud_gmcp("Char.Vitals", {"hp": 1})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT, CHAR]
+
+
+def test_core_messages_raise_no_package_event(isolated: FakeApi) -> None:
+    isolated.listeners.add(f"{MUD_GMCP_EVENT}_core.hello")
+    PROTOCOLS.on_mud_gmcp("Core.Hello", {})
+    assert isolated.raised == []
+
+
+def test_missing_listener_api_raises_only_base(
+    isolated: FakeApi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    isolated.listeners.add(CHAR_STATUS)
+
+    def call(name: str) -> Any:
+        if name == "libs.api:api.exists":
+            return lambda api_name: api_name == EVENT_RAISE_API
+        return FakeApi.__call__(isolated, name)
+
+    monkeypatch.setattr(PROTOCOLS, "api", call)
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT]
+
+
+def test_listener_check_error_is_logged_and_base_raised(
+    isolated: FakeApi, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def call(name: str) -> Any:
+        if name == EVENT_HAS_REGISTRATIONS_API:
+
+            def boom(_event: str) -> bool:
+                raise RuntimeError("boom")
+
+            return boom
+        return FakeApi.__call__(isolated, name)
+
+    monkeypatch.setattr(PROTOCOLS, "api", call)
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    assert [name for name, _ in isolated.raised] == [MUD_GMCP_EVENT]
+    assert PROTOCOLS.api(GMCP_CACHE)("Char.Status") == {"state": 3}
+    assert "Could not check listeners" in caplog.text
+
+
+def test_per_package_event_data_is_a_copy(isolated: FakeApi) -> None:
+    isolated.listeners.add(CHAR_STATUS)
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3})
+    isolated.raised[1][1]["data"]["state"] = 99
+    assert PROTOCOLS.api(GMCP_CACHE)("Char.Status") == {"state": 3}
+
+
+def test_value_get() -> None:
+    get = PROTOCOLS.api(VALUE)
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"state": 3, "nul": None})
+    PROTOCOLS.on_mud_gmcp("Char", {"name": "x"})
+    PROTOCOLS.on_mud_gmcp("Char.Vitals", {"hp": 7})
+    assert get("Char.Status.state") == 3
+    assert get("Char.Vitals.hp") == 7
+    assert get("Char.name") == "x"
+    assert get("Char.Status") == {"state": 3, "nul": None}
+    assert get("Room.Info") is None
+    assert get("Char.Status.nope", 0) == 0
+    assert get("Char.Status.state.deep", "d") == "d"
+    assert get("Char.Status.nul", "d") == "d"
+    assert get("char.status.state", "d") == "d"
+    assert get(None, "d") == "d"
+    assert get("", "d") == "d"
+
+
+def test_value_get_returns_a_copy() -> None:
+    PROTOCOLS.on_mud_gmcp("Char.Status", {"a": {"b": 1}})
+    PROTOCOLS.api(VALUE)("Char.Status.a")["b"] = 2
+    assert PROTOCOLS.api(GMCP_CACHE)("Char.Status") == {"a": {"b": 1}}

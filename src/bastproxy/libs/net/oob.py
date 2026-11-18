@@ -17,7 +17,7 @@ The limits are module constants, so a test can monkeypatch them.
 # Standard Library
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 # 3rd Party
@@ -39,6 +39,7 @@ logger = get_logger(__name__)
 __all__ = [
     "CACHE_MAX_ENTRIES",
     "CLIENT_MAX_MODULES",
+    "MISSING",
     "MSDP_MAX_DEPTH",
     "MSDP_MAX_NODES",
     "MSSP_MAX_VALUES",
@@ -55,6 +56,7 @@ __all__ = [
     "package_wanted",
     "parse_supports",
     "redact_gmcp_payload",
+    "resolve_gmcp_path",
     "supports_payload",
     "valid_mssp_name",
     "valid_package",
@@ -62,6 +64,8 @@ __all__ = [
 ]
 
 REDACTED = "<redacted>"
+
+MISSING: Any = object()
 
 OOB_MAX_PAYLOAD = 256 * 1024
 MSDP_MAX_DEPTH = 16
@@ -357,6 +361,26 @@ def package_wanted(package: str, modules: Iterable[str]) -> bool:
     """
     lowered = package.lower()
     return any(lowered == m or lowered.startswith(f"{m}.") for m in modules)
+
+
+def resolve_gmcp_path(path: str, lookup: Callable[[str], Any]) -> Any:
+    """The GMCP value at a dotted path, or the ``MISSING`` sentinel.
+
+    The cache is keyed by package name (``Char.Vitals``), so the longest package
+    prefix with a value is taken and the rest of the path is walked as dict keys.
+    Matching is case-sensitive.
+    """
+    segments = path.split(".")
+    for size in range(len(segments), 0, -1):
+        data = lookup(".".join(segments[:size]))
+        if data is None:
+            continue
+        for key in segments[size:]:
+            if not isinstance(data, dict) or key not in data:
+                return MISSING
+            data = data[key]
+        return MISSING if data is None else data
+    return MISSING
 
 
 def is_credential_package(package: str) -> bool:

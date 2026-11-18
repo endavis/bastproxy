@@ -252,3 +252,13 @@ def test_merge_gmcp_replaces_when_the_merge_is_too_large(monkeypatch: pytest.Mon
     new = {"b": "y" * 20}
     assert len(json.dumps({**old, **new})) > 30
     assert oob.merge_gmcp(old, new) == new
+
+
+def test_resolve_gmcp_path_hit_gap_and_none() -> None:
+    cache = {"Char.Vitals": {"hp": 5, "mp": None}, "Char": {"name": "x"}}
+    assert oob.resolve_gmcp_path("Char.Vitals.hp", cache.get) == 5
+    assert oob.resolve_gmcp_path("Char.name", cache.get) == "x"
+    assert oob.resolve_gmcp_path("Char.Vitals.nope", cache.get) is oob.MISSING
+    assert oob.resolve_gmcp_path("Char.Vitals.hp.deep", cache.get) is oob.MISSING
+    assert oob.resolve_gmcp_path("Char.Vitals.mp", cache.get) is oob.MISSING
+    assert oob.resolve_gmcp_path("Room.Info", cache.get) is oob.MISSING
