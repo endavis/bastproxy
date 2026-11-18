@@ -35,7 +35,13 @@ import logging
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.context import get_output_client
 from bastproxy.libs.logger import get_logger, log_to
-from bastproxy.libs.net.mud import MUD_CONNECT_EVENT, MUD_CONNECT_EVENT_SPEC, MudConnection
+from bastproxy.libs.net.mud import (
+    MUD_CONNECT_EVENT,
+    MUD_CONNECT_EVENT_SPEC,
+    MUD_DISCONNECT_EVENT,
+    MUD_DISCONNECT_EVENT_SPEC,
+    MudConnection,
+)
 from bastproxy.libs.net.naws import WINDOW_SIZE, validate_window_size
 from bastproxy.libs.records import (
     NetworkData,
@@ -106,6 +112,12 @@ class ProxyPlugin(BasePlugin):
             MUD_CONNECT_EVENT_SPEC.created_by,
             description=MUD_CONNECT_EVENT_SPEC.description,
             arg_descriptions=MUD_CONNECT_EVENT_SPEC.arg_descriptions,
+        )
+        self.api("plugins.core.events:event.add")(
+            MUD_DISCONNECT_EVENT_SPEC.name,
+            MUD_DISCONNECT_EVENT_SPEC.created_by,
+            description=MUD_DISCONNECT_EVENT_SPEC.description,
+            arg_descriptions=MUD_DISCONNECT_EVENT_SPEC.arg_descriptions,
         )
 
         # Network Settings
@@ -298,6 +310,12 @@ class ProxyPlugin(BasePlugin):
             return color
         color = self.api("plugins.core.settings:setting.get")(self.plugin_id, "preamblecolor")
         return color
+
+    @RegisterToEvent(event_name=MUD_DISCONNECT_EVENT)
+    def _eventcb_mud_disconnected(self) -> None:
+        """Mark the character inactive when the link to the mud closes."""
+        if self.api("libs.api:character.is.active")():
+            self.api("libs.api:character.active.set")(False)
 
     @RegisterToEvent(event_name=MUD_CONNECT_EVENT)
     def _eventcb_sendusernameandpw(self) -> None:

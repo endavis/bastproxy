@@ -231,7 +231,7 @@ async def test_handler_raises_connect_event_on_every_connection(quiet_client: No
     await _connect_once(conn)
     await _connect_once(conn)
 
-    assert raised == [
+    assert [r for r in raised if r[0] == mud_mod.MUD_CONNECT_EVENT] == [
         (mud_mod.MUD_CONNECT_EVENT, {}, True),
         (mud_mod.MUD_CONNECT_EVENT, {}, True),
     ]
@@ -289,3 +289,178 @@ async def test_send_to_from_the_connect_event_reaches_the_server(quiet_client: N
         await until(lambda: bool(received))
 
     assert b"hello server" in received[0]
+
+
+def _events_conn(**kwargs: Any) -> tuple[MudConnection, list[tuple[str, dict[str, Any], bool]]]:
+    raised: list[tuple[str, dict[str, Any], bool]] = []
+    conn_box: list[MudConnection] = []
+    conn = MudConnection("127.0.0.1", "0")
+    conn_box.append(conn)
+    conn.api = _recording_api(raised, conn_box, **kwargs)  # type: ignore[assignment]
+    return conn, raised
+
+
+async def test_disconnect_event_raised_once_when_the_mud_hangs_up(quiet_client: None) -> None:
+    conn, raised = _events_conn()
+
+    await _connect_once(conn)
+    await asyncio.sleep(0.05)
+
+    assert raised == [
+        (mud_mod.MUD_CONNECT_EVENT, {}, True),
+        (mud_mod.MUD_DISCONNECT_EVENT, {}, False),
+    ]
+
+
+async def test_disconnect_event_raised_once_when_the_proxy_closes(quiet_client: None) -> None:
+    conn, raised = _events_conn()
+
+    async def handler(r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        await asyncio.wait_for(r.read(), 2 * TIMEOUT)
+        w.close()
+
+    async with raw_server(handler) as port:
+        conn.port = str(port)
+        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+        await until(lambda: conn.connected)
+        conn.disconnect_from_mud()
+        await asyncio.wait_for(
+            until(lambda: any(r[0] == mud_mod.MUD_DISCONNECT_EVENT for r in raised)), TIMEOUT
+        )
+        await asyncio.sleep(0.1)
+
+    assert [r[0] for r in raised].count(mud_mod.MUD_DISCONNECT_EVENT) == 1
+    assert raised[-1][2] is False
+
+
+async def test_disconnect_event_raised_once_when_a_task_fails(
+    quiet_client: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn, raised = _events_conn()
+
+    async def failing_read() -> None:
+        raise RuntimeError("read failed")
+
+    monkeypatch.setattr(conn, "mud_read", failing_read)
+
+    async def handler(_r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        await asyncio.sleep(1)
+        w.close()
+
+    async with raw_server(handler) as port:
+        conn.port = str(port)
+        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+        await asyncio.wait_for(
+            until(lambda: any(r[0] == mud_mod.MUD_DISCONNECT_EVENT for r in raised)), TIMEOUT
+        )
+        await asyncio.sleep(0.1)
+
+    assert raised == [
+        (mud_mod.MUD_CONNECT_EVENT, {}, True),
+        (mud_mod.MUD_DISCONNECT_EVENT, {}, False),
+    ]
+
+
+async def test_disconnect_event_raised_once_when_setup_fails_and_tasks_end(
+    quiet_client: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn, raised = _events_conn()
+
+    async def failing_setup() -> None:
+        raise RuntimeError("setup failed")
+
+    monkeypatch.setattr(conn, "setup_mud", failing_setup)
+
+    async def handler(_r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        await asyncio.sleep(0.3)
+        w.close()
+
+    async with raw_server(handler) as port:
+        conn.port = str(port)
+        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+        await until(lambda: any(r[0] == mud_mod.MUD_DISCONNECT_EVENT for r in raised))
+        await until(
+            lambda: (
+                not [
+                    t
+                    for t in asyncio.all_tasks()
+                    if t.get_name() in ("mud telnet read", "mud telnet write") and not t.done()
+                ]
+            )
+        )
+
+    assert [r[0] for r in raised].count(mud_mod.MUD_DISCONNECT_EVENT) == 1
+    assert conn.connected is False
+    assert raised[-1][2] is False
+
+
+async def test_refused_connection_raises_no_events(quiet_client: None) -> None:
+    conn, raised = _events_conn()
+    server = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    server.close()
+    await server.wait_closed()
+    conn.port = str(port)
+
+    await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+
+    assert raised == []
+    assert conn.connected is False
+
+
+async def test_no_disconnect_event_without_the_events_plugin(quiet_client: None) -> None:
+    conn, raised = _events_conn(events_loaded=False)
+
+    await _connect_once(conn)
+
+    assert raised == []
+
+
+async def test_failing_disconnect_event_is_logged_not_fatal(
+    quiet_client: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    conn, _ = _events_conn(raise_error=True)
+
+    with caplog.at_level("ERROR"):
+        await _connect_once(conn)
+
+    assert f"Could not raise {mud_mod.MUD_DISCONNECT_EVENT}" in caplog.text
+    assert conn.connected is False
+
+
+async def test_events_run_connect_disconnect_connect(quiet_client: None) -> None:
+    conn, raised = _events_conn()
+
+    await _connect_once(conn)
+    await _connect_once(conn)
+    await asyncio.sleep(0.05)
+
+    assert [r[0] for r in raised] == [
+        mud_mod.MUD_CONNECT_EVENT,
+        mud_mod.MUD_DISCONNECT_EVENT,
+        mud_mod.MUD_CONNECT_EVENT,
+        mud_mod.MUD_DISCONNECT_EVENT,
+    ]
+
+
+def test_disconnect_from_mud_closes_an_open_writer() -> None:
+    conn = MudConnection("127.0.0.1", "4000")
+    writer = _fake_writer()
+    conn.writer = writer
+    conn.connected = True
+
+    conn.disconnect_from_mud()
+
+    writer.close.assert_called_once_with()
+    assert conn.connected is False
+
+
+def test_disconnect_from_mud_leaves_a_closed_writer_alone() -> None:
+    conn = MudConnection("127.0.0.1", "4000")
+    writer = _fake_writer()
+    writer.connection_closed = True
+    conn.writer = writer
+
+    conn.disconnect_from_mud()
+
+    writer.close.assert_not_called()

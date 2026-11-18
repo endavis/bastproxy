@@ -405,6 +405,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         self.api("plugins.core.events:event.register")(
             "ev_libs.api_character_active",
             self._eventcb_baseplugin_after_character_is_active,
+            prio=self.is_character_active_priority,
         )
 
     def _eventcb_baseplugin_after_character_is_active(self) -> None:

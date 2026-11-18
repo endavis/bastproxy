@@ -75,6 +75,14 @@ MUD_CONNECT_EVENT_SPEC = RecordEventSpec(
     {},
 )
 
+MUD_DISCONNECT_EVENT = "ev_libs.net.mud_muddisconnect"
+MUD_DISCONNECT_EVENT_SPEC = RecordEventSpec(
+    MUD_DISCONNECT_EVENT,
+    "libs.net.mud",
+    ["Raised each time the connection to the mud closes, however it closes"],
+    {},
+)
+
 if TYPE_CHECKING:
     from telnetlib3 import TelnetWriterUnicode
 
@@ -212,6 +220,9 @@ class MudConnection:
         """
         self.connected = False
         self.connecting = False
+        # closing the writer ends mud_read at EOF, so the handler's finally: runs
+        if self.writer and not self.writer.connection_closed:
+            self.writer.close()
 
     def send_to(self, data: object) -> None:
         """Send data to the MUD server.
@@ -375,6 +386,17 @@ class MudConnection:
         except Exception:
             logger.exception("Could not raise %s", MUD_CONNECT_EVENT)
 
+    def _raise_disconnected_event(self) -> None:
+        """Raise ``MUD_DISCONNECT_EVENT`` when the events plugin is loaded; never raises."""
+        try:
+            if not self.api("libs.api:api.exists")(EVENT_RAISE_API):
+                return
+            self.api(EVENT_RAISE_API)(
+                MUD_DISCONNECT_EVENT, event_args={}, calledfrom="libs.net.mud"
+            )
+        except Exception:
+            logger.exception("Could not raise %s", MUD_DISCONNECT_EVENT)
+
     async def mud_telnet_handler(
         self, reader: "MudTelnetReader", writer: "TelnetWriterUnicode"
     ) -> None:
@@ -426,15 +448,16 @@ class MudConnection:
             self._raise_connected_event()
             await self.setup_mud()
 
-            _, pending = await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
-
-            for task in pending:
-                task.cancel()
+            await asyncio.wait(tasks, return_when="FIRST_COMPLETED")
         finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            self.connected = False
+            self.connecting = False
             PROTOCOLS.mud_disconnected()
             WINDOW_SIZE.mud_disconnected()
-
-        self.connected = False
+            self._raise_disconnected_event()
 
         logger.warning("Mud Connection closed - %s : %s : %s", self.addr, self.port, rest)
         SendDataDirectlyToClient(NetworkData(["Connection to the mud has been closed."]))()
