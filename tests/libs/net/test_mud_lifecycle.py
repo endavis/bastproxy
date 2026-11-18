@@ -169,3 +169,123 @@ async def test_mud_telnet_handler_runs_until_mud_closes(
     assert conn.connected is False
     assert notices == [["Connection to the mud has been closed."]]
     assert ["hello from the mud"] in delivered
+
+
+def _recording_api(
+    raised: list[tuple[str, dict[str, Any], bool]],
+    conn_box: list[MudConnection],
+    *,
+    events_loaded: bool = True,
+    raise_error: bool = False,
+) -> Callable[[str], Callable[..., Any]]:
+    """An api stand-in that records event raises along with ``connected`` at raise time."""
+
+    def api(name: str) -> Callable[..., Any]:
+        def call(*args: Any, **kwargs: Any) -> Any:
+            if name == "libs.api:api.exists":
+                return events_loaded
+            if name == "plugins.core.events:event.raise":
+                if raise_error:
+                    raise RuntimeError("raise failed")
+                raised.append((args[0], kwargs["event_args"], conn_box[0].connected))
+                return None
+            return 100
+
+        return call
+
+    return api
+
+
+async def _connect_once(conn: MudConnection, hang_up_after: float = 0.1) -> None:
+    async def handler(_r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        await asyncio.sleep(hang_up_after)
+        w.close()
+
+    async with raw_server(handler) as port:
+        conn.port = str(port)
+        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+        await until(lambda: conn.connected)
+        await until(lambda: not conn.connected)
+
+
+@pytest.fixture
+def quiet_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Noop:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def __call__(self) -> None:
+            return None
+
+    monkeypatch.setattr(mud_mod, "ProcessDataToClient", _Noop)
+    monkeypatch.setattr(mud_mod, "SendDataDirectlyToClient", _Noop)
+
+
+async def test_handler_raises_connect_event_on_every_connection(quiet_client: None) -> None:
+    raised: list[tuple[str, dict[str, Any], bool]] = []
+    conn_box: list[MudConnection] = []
+    conn = MudConnection("127.0.0.1", "0")
+    conn_box.append(conn)
+    conn.api = _recording_api(raised, conn_box)  # type: ignore[assignment]
+
+    await _connect_once(conn)
+    await _connect_once(conn)
+
+    assert raised == [
+        (mud_mod.MUD_CONNECT_EVENT, {}, True),
+        (mud_mod.MUD_CONNECT_EVENT, {}, True),
+    ]
+
+
+async def test_no_connect_event_without_the_events_plugin(quiet_client: None) -> None:
+    raised: list[tuple[str, dict[str, Any], bool]] = []
+    conn_box: list[MudConnection] = []
+    conn = MudConnection("127.0.0.1", "0")
+    conn_box.append(conn)
+    conn.api = _recording_api(raised, conn_box, events_loaded=False)  # type: ignore[assignment]
+
+    await _connect_once(conn)
+
+    assert raised == []
+
+
+async def test_failing_connect_event_is_logged_not_fatal(
+    quiet_client: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    raised: list[tuple[str, dict[str, Any], bool]] = []
+    conn_box: list[MudConnection] = []
+    conn = MudConnection("127.0.0.1", "0")
+    conn_box.append(conn)
+    conn.api = _recording_api(raised, conn_box, raise_error=True)  # type: ignore[assignment]
+
+    with caplog.at_level("ERROR"):
+        await _connect_once(conn)
+
+    assert "Could not raise" in caplog.text
+    assert conn.connected is False
+
+
+async def test_send_to_from_the_connect_event_reaches_the_server(quiet_client: None) -> None:
+    received: list[bytes] = []
+    conn = MudConnection("127.0.0.1", "0")
+
+    def api(name: str) -> Callable[..., Any]:
+        def call(*args: Any, **kwargs: Any) -> Any:
+            if name == "plugins.core.events:event.raise":
+                conn.send_to(NetworkDataLine("hello server\r\n"))
+            return True if name == "libs.api:api.exists" else 100
+
+        return call
+
+    conn.api = api  # type: ignore[assignment]
+
+    async def handler(r: asyncio.StreamReader, w: asyncio.StreamWriter) -> None:
+        received.append(await asyncio.wait_for(r.readuntil(b"\n"), TIMEOUT))
+        w.close()
+
+    async with raw_server(handler) as port:
+        conn.port = str(port)
+        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+        await until(lambda: bool(received))
+
+    assert b"hello server" in received[0]
