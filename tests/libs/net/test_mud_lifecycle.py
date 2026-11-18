@@ -201,11 +201,25 @@ async def _connect_once(conn: MudConnection, hang_up_after: float = 0.1) -> None
         await asyncio.sleep(hang_up_after)
         w.close()
 
-    async with raw_server(handler) as port:
-        conn.port = str(port)
-        await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
-        await until(lambda: conn.connected)
-        await until(lambda: not conn.connected)
+    # Polling `connected` races both ways (#568): the whole connect, hang-up and cleanup
+    # can finish between two polls, and mud_read clears the flag at EOF a loop turn
+    # before the handler's finally: raises the disconnect event. Wait for that last
+    # cleanup step itself instead.
+    cleaned_up = asyncio.Event()
+    raise_disconnected = conn._raise_disconnected_event
+
+    def mark_cleaned_up() -> None:
+        raise_disconnected()
+        cleaned_up.set()
+
+    conn._raise_disconnected_event = mark_cleaned_up  # type: ignore[method-assign]
+    try:
+        async with raw_server(handler) as port:
+            conn.port = str(port)
+            await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+            await asyncio.wait_for(cleaned_up.wait(), TIMEOUT)
+    finally:
+        del conn._raise_disconnected_event  # back to the class method
 
 
 @pytest.fixture
