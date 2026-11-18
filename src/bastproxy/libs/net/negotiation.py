@@ -19,7 +19,7 @@ sequence as ``raw``.
 # Standard Library
 import collections
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 # 3rd Party
@@ -104,6 +104,22 @@ def parse_iac(buf: bytes) -> list[ParsedNegotiation]:
     return found
 
 
+class TeloptHooks(Protocol):
+    """What the writer asks of the owner of plugin-claimed telnet options (#566)."""
+
+    def claims(self, opt: int, *, server: bool) -> bool:
+        """True when ``opt`` is claimed for this kind of link."""
+        ...
+
+    def on_enabled(self, writer: Any, opt: int, enabled: bool) -> None:
+        """A claimed option was enabled or disabled on ``writer``'s link."""
+        ...
+
+    def on_subnegotiation(self, writer: Any, opt: int, payload: bytes) -> None:
+        """A subnegotiation for a claimed, negotiated option arrived."""
+        ...
+
+
 class RecordingTelnetWriter(TelnetWriterUnicode):
     """A telnet writer that makes a ``TelnetNegotiation`` for each option negotiation.
 
@@ -122,6 +138,9 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         # Set by a parsed ``SB MCCP3`` that was offered and agreed on a server writer; the
         # server protocol takes it and starts its own bounded inflater (#329).
         self.mccp3_start_requested: bool = False
+        # Every option the peer sent ``WILL`` for on this link, kept for a plugin that claims it
+        # later (#566). telnetlib3's ``rejected_will`` misses the options it knows by name.
+        self.peer_offered: set[bytes] = set()
         if kwargs.get("server"):
             for opt in (GMCP, MSDP):
                 self.set_ext_callback(opt, self._make_pending_callback(opt))
@@ -158,6 +177,9 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     # Called as ``(option, enabled)`` when the peer turns GMCP or MSDP on or off for this
     # (server side) link. ``ClientConnection`` sets it; ``None`` means nobody is listening.
     oob_option_callback: Callable[[bytes, bool], None] | None = None
+
+    # Answers for options a plugin claimed with ``telopt.register`` (#566); ``None`` claims none.
+    telopt_hooks: TeloptHooks | None = None
 
     # Called as ``(option)`` after a received ``DONT`` is handled; ``None`` means nobody listens.
     # The MUD link uses it to start the TTYPE cycle again (#547).
@@ -215,9 +237,38 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         except Exception:
             logger.exception("Could not handle %s changing on a link", name_option(opt))
 
+    def _telopt_claims(self, opt: bytes) -> bool:
+        """True when a plugin claimed ``opt`` for this link; a hooks failure counts as no."""
+        hooks = self.telopt_hooks
+        if hooks is None or len(opt) != 1:
+            return False
+        try:
+            return bool(hooks.claims(opt[0], server=bool(self.server)))
+        except Exception:
+            logger.exception("Could not check whether option %s is claimed", name_option(opt))
+            return False
+
+    def _telopt_enabled(self, opt: bytes, enabled: bool) -> None:
+        """Tell the hooks a claimed option changed state."""
+        hooks = self.telopt_hooks
+        if hooks is None:
+            return
+        try:
+            hooks.on_enabled(self, opt[0], enabled)
+        except Exception:
+            logger.exception("Could not handle option %s changing on a link", name_option(opt))
+
     def handle_do(self, opt: bytes) -> bool:
         """Record a received DO, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "DO", opt, b"", IAC + DO + opt)
+        if self.server and self._telopt_claims(opt):
+            # a claimed option: accept it, answering only when we did not offer it ourselves
+            if not self.local_option.enabled(opt):
+                if not self.pending_option.enabled(WILL + opt) and not self.is_closing():
+                    self.send_iac(IAC + WILL + opt)
+                self.local_option[opt] = True
+                self._telopt_enabled(opt, True)
+            return True
         was_mxp = opt == MXP and self.local_option.enabled(MXP) is True
         result = super().handle_do(opt)
         if opt == MXP and result and not was_mxp and self.server and not self.is_closing():
@@ -229,7 +280,11 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     def handle_dont(self, opt: bytes) -> None:
         """Record a received DONT, then let telnetlib3 handle it."""
         self._record(Direction.RECEIVED, "DONT", opt, b"", IAC + DONT + opt)
+        claimed_on = self.server and self._telopt_claims(opt) and self.local_option.enabled(opt)
         super().handle_dont(opt)
+        if claimed_on:
+            self.local_option[opt] = False
+            self._telopt_enabled(opt, False)
         self._oob_changed(opt, False)
         callback = self.dont_callback
         if callback is not None:
@@ -241,12 +296,26 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     def handle_will(self, opt: bytes) -> None:
         """Record a received WILL, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "WILL", opt, b"", IAC + WILL + opt)
+        self.peer_offered.add(opt)
+        if not self.server and self._telopt_claims(opt):
+            # a claimed option: accept it with DO unless our own DO is what the MUD answered
+            if not self.remote_option.enabled(opt):
+                if not self.pending_option.enabled(DO + opt) and not self.is_closing():
+                    self.send_iac(IAC + DO + opt)
+                self.remote_option[opt] = True
+                self._telopt_enabled(opt, True)
+            return
         super().handle_will(opt)
 
     def handle_wont(self, opt: bytes) -> None:
         """Record a received WONT, then let telnetlib3 handle it."""
         self._record(Direction.RECEIVED, "WONT", opt, b"", IAC + WONT + opt)
+        claimed_on = (
+            not self.server and self._telopt_claims(opt) and self.remote_option.enabled(opt)
+        )
         super().handle_wont(opt)
+        if claimed_on:
+            self._telopt_enabled(opt, False)
 
     def handle_subnegotiation(self, buf: collections.deque[bytes]) -> None:
         """Record a received SB from a copy of the payload, then let telnetlib3 consume it."""
@@ -260,7 +329,29 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
                 self._record(Direction.RECEIVED, "SB", option, payload, raw)
         except Exception:
             logger.exception("Could not record a telnet subnegotiation")
+        if buf and self._telopt_claims(buf[0]):
+            self._handle_telopt_sb(buf)
+            return
         super().handle_subnegotiation(buf)
+
+    def _handle_telopt_sb(self, buf: collections.deque[bytes]) -> None:
+        """Consume an SB for a claimed option and give its payload to the hooks (#566).
+
+        An SB for an option that is enabled in neither direction is dropped, as for GMCP.
+        """
+        option = buf.popleft()
+        payload = b"".join(buf)
+        buf.clear()
+        if not (self.local_option.enabled(option) or self.remote_option.enabled(option)):
+            logger.debug("Dropped a subnegotiation: %s is not negotiated", name_option(option))
+            return
+        hooks = self.telopt_hooks
+        if hooks is None:
+            return
+        try:
+            hooks.on_subnegotiation(self, option[0], payload)
+        except Exception:
+            logger.exception("Could not handle a subnegotiation for %s", name_option(option))
 
     def _handle_oob_sb(
         self,

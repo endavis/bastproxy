@@ -143,6 +143,18 @@ The MUD link reports one window size over NAWS, chosen by `WINDOW_SIZE` (`src/ba
   - TTYPE answers cycle `BASTPROXY`, `ANSI-256COLOR`, `MTTS 525` (ANSI, UTF-8, 256 colours, MNES); later requests repeat `MTTS 525`. `MudTelnetClient.send_ttype` drives the cycle, and an `IAC DONT TTYPE` from the MUD restarts it through `RecordingTelnetWriter.dont_callback`. Each MUD connection starts a new cycle.
   - NEW_ENVIRON requests get the MNES variables `CLIENT_NAME=BASTPROXY`, `CLIENT_VERSION` (the package version), `TERMINAL_TYPE=ANSI-256COLOR`, `MTTS=525` and `CHARSET=UTF-8` (`MudTelnetClient.send_env`). A request with no names gets all of them; `IPADDRESS` is answered empty, because several clients may be connected.
 
+
+### Custom telnet options (#566, ADR-0012)
+
+A plugin can own a telnet option the core does not handle, such as Aardwolf's option 102 (`src/bastproxy/libs/net/telopt.py`, APIs `libs.net.protocols:telopt.*`).
+
+- **Registration:** `telopt.register(option, owner_id, mud=True, client=True, forward=True)` claims an `int` from 0 to 254 for one owner. Refused (`False`, with a warning): another owner's option, and the built-in options, which are built from `telnetlib3.telopt` in `BUILTIN_OPTIONS` (BINARY, ECHO, SGA, STATUS, TM, LOGOUT, SNDLOC, TTYPE, EOR, NAWS, TSPEED, LFLOW, LINEMODE, XDISPLOC, NEW_ENVIRON, CHARSET, COM_PORT, MCCP2, MCCP3, GMCP, MSDP, MSSP, MXP, ZMP and EXOPL). MSP, 102 and ATCP can be claimed. A plugin's options are unregistered when it unloads.
+- **Where it hooks in:** `RecordingTelnetWriter` asks its `telopt_hooks` (the `TeloptManager`, attached in `MudTelnetClient.connection_made` and `CustomTelnetServer.connection_made`) whether an option is claimed. For a claimed option it answers and dispatches itself and never calls telnetlib3; any other option takes the old path. The writer keeps `peer_offered`, every option the peer sent `WILL` for, because telnetlib3 does not remember refusing 102.
+- **MUD link:** a `WILL` is answered `DO` and raises `ev_libs.net.mud_telopt_<n>_enabled` once; `WONT` and a MUD disconnect raise `_disabled`. An `SB` raises `ev_libs.net.mud_telopt_<n>` with `data` as raw `bytes`, IAC unescaped; an `SB` before the option is negotiated is dropped. `telopt.send(option, payload)` writes `IAC SB <option> <payload, IAC doubled> IAC SE` and returns `False` when the option is not enabled, the link is closing or the payload is not `bytes`.
+- **Early WILL and reload:** an option the MUD offered before the plugin registered was refused with `DONT`. Registering then sends `DO` (RFC 1143 allows asking again) and the MUD's `WILL` is accepted without a second `DO`. Unregistering sends `DONT`, so a reload negotiates again.
+- **Client links:** new clients are offered `WILL <n>` in `begin_advanced_negotiation`; registering offers it to clients already connected. A client's `DO` is accepted. With `forward` on (the default; `telopt.forward.set` changes it) each MUD `SB` goes to every logged-in client that agreed and whose link is open. A client's `SB` raises `ev_libs.net.client_telopt_<n>` (`option`, `data`, `client_id`, `view_only`) only for a logged-in client and is never sent to the MUD. `telopt.send.client(option, payload, client_id=None)` sends to one client or to all that agreed. Clients get no cache replay: the owner sends what a late joiner needs.
+- **Records:** every received and sent option subnegotiation makes a `TelnetProtocolMessage("TELOPT", "<n>", payload, direction, link)`, besides the `TelnetNegotiation` raw record.
+
 ### MudConnection
 
 `src/bastproxy/libs/net/mud.py`, class `MudConnection`: the single connection to the MUD. `connected` starts `False` and `mud_telnet_handler` sets it `True` when the connection opens.

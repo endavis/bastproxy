@@ -56,6 +56,7 @@ from telnetlib3.telopt import (
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net.inflate import BoundedDecompressor
 from bastproxy.libs.net.negotiation import RecordingTelnetWriter
+from bastproxy.libs.net.protocols import PROTOCOLS
 
 logger = get_logger(__name__)
 
@@ -117,6 +118,11 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         kwargs.setdefault("writer_factory_encoding", RecordingTelnetWriter)
         super().__init__(*args, **kwargs)
 
+    def connection_made(self, transport: Any) -> None:
+        """Build the writer, then let the protocol manager watch it for owned options (#566)."""
+        super().connection_made(transport)
+        PROTOCOLS.telopt.attach(self.writer)
+
     def begin_advanced_negotiation(self) -> None:
         """Begin advanced negotiation with a newly connected client.
 
@@ -134,6 +140,9 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
           out-of-band data and status table from the proxy, which terminates these protocols on
           every link (ADR-0001, #59, #60). A client receives nothing until it answers ``DO``
           and has logged in.
+
+        - ``WILL <option>`` for each option a plugin owns for clients (``telopt.register``,
+          #566); clients already connected are offered it when the plugin registers.
 
         Deliberately not sent:
 
@@ -160,6 +169,8 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, MSSP)
         self.writer.iac(WILL, MXP)
         self.writer.iac(WILL, EOR)
+        for option in PROTOCOLS.telopt.client_options():
+            self.writer.iac(WILL, bytes([option]))
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
             # redundant on telnetlib3 5.0.3, which accepts an offered MCCP3; kept explicit

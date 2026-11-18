@@ -393,6 +393,44 @@ How it works:
 Details: [triggers system](claude/triggers_system.md), including the built-in triggers and the
 common APIs.
 
+## Owning a telnet option
+
+A plugin can own a telnet option the core does not handle, such as Aardwolf's option 102. The core
+negotiates it and frames the data; the plugin decides what the bytes mean. Register it in the
+`after_load` hook; the proxy unregisters it when the plugin unloads.
+
+```python
+@RegisterPluginHook("after_load")
+def _phook_initialize(self) -> None:
+    self.api("libs.net.protocols:telopt.register")(102)
+
+@RegisterToEvent(event_name="ev_libs.net.mud_telopt_102_enabled")
+def _eventcb_enabled(self) -> None:
+    # Aardwolf: option 5 (channel tags) on
+    self.api("libs.net.protocols:telopt.send")(102, bytes([5, 1]))
+
+@RegisterToEvent(event_name="ev_libs.net.mud_telopt_102")
+def _eventcb_data(self) -> None:
+    data = self.api("plugins.core.events:event.current.record.get")()["data"]  # bytes
+    if data == bytes([100, 3]):
+        ...  # the character is active
+```
+
+- `telopt.register(option, owner_id=None, *, mud=True, client=True, forward=True)` returns `False`
+  for a built-in option (GMCP, MSDP, NAWS, TTYPE and the others the core handles), another
+  plugin's option or a number outside 0 to 254.
+- Events: `ev_libs.net.mud_telopt_<n>` (`option`, `data` as raw `bytes`), `_enabled`, `_disabled`
+  and `ev_libs.net.client_telopt_<n>` (`option`, `data`, `client_id`, `view_only`).
+- `telopt.send(option, payload)` sends to the MUD and `telopt.send.client(option, payload,
+  client_id=None)` to logged-in clients that agreed. Both return `False` when nothing was sent.
+- The MUD's subnegotiations are forwarded to clients that agreed. Turn that off with
+  `telopt.forward.set(option, False)`. A client's subnegotiations are never sent to the MUD.
+- `telopt.unregister(option)`, `telopt.unregister.for.owner(owner_id)` and `telopt.get(option)`
+  complete the set.
+
+Details: [data flow](claude/data_flow.md#custom-telnet-options-566-adr-0012) and
+[ADR-0012](decisions/0012-plugins-own-telnet-options-the-core-does-not-handle-through-a-generic-hook.md).
+
 ## Waiting for output
 
 To send a command and then use the MUD's answer, ask the triggers plugin to wait for it. Event

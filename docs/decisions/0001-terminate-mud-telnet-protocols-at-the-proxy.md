@@ -47,6 +47,7 @@ Terminate MUD telnet protocols at the proxy (option 2).
 - **MXP:** the proxy passes MXP tags to clients that negotiated MXP, and strips them for clients that did not. MXP is the lowest priority.
 - **NAWS:** the MUD link reports one window size: by default the size of the most recently active full-login client that reported one, overridable with the `mudwindowsize` setting (`client`, `off` or `COLSxROWS`). The clients' terminal type is not forwarded ([data flow](../claude/data_flow.md)).
 - **TTYPE/MTTS and MNES:** the MUD link answers with the proxy's own fixed identity, not a client's. TTYPE cycles `BASTPROXY`, `ANSI-256COLOR`, `MTTS 525` (ANSI, UTF-8, 256 colours, MNES) and repeats the last answer; `DONT TTYPE` restarts the cycle. NEW_ENVIRON answers the MNES variables `CLIENT_NAME`, `CLIENT_VERSION`, `TERMINAL_TYPE`, `MTTS` and `CHARSET` ([data flow](../claude/data_flow.md), #547).
+- **Plugin-owned options:** a plugin can claim a telnet option the core does not handle; the proxy negotiates and frames it and the plugin interprets it ([ADR-0012](0012-plugins-own-telnet-options-the-core-does-not-handle-through-a-generic-hook.md), #566).
 - **SGA and prompt marking:** the proxy refuses SGA from the MUD (`WILL SGA` gets `DONT SGA`), so the MUD keeps sending `IAC GA` after prompts and the proxy marks them ([data flow](../claude/data_flow.md)). Whether a client agreed SGA is decided on the client link on its own (#272).
 
 ## Rationale
@@ -83,6 +84,7 @@ Evennia offered WILL for SGA, MCCP2, MSSP, MSDP, GMCP and MXP and never WILL EOR
 - Issue #271: Decide whether the proxy accepts SGA from the MUD
 - Issue #272: Send a prompt signal (EOR, else GA) to clients
 - Issue #329: Offer MCCP3 on client links
+- Issue #566: Let a plugin own a telnet option the core does not handle
 - Issue #308: Forward the client's window size to the MUD
 
 ## Related Documentation
