@@ -169,6 +169,18 @@ The two protocol events are registered the same way, from `PROTOCOL_EVENTS` in `
 | `ev_libs.net.mud_msdp` | `variable`, `data` | once per MSDP variable from the MUD |
 | `ev_libs.net.mud_mssp` | `data` | once per MSSP table from the MUD; `data` is the whole table |
 
+**Per-package GMCP events.** After `ev_libs.net.mud_gmcp`, a GMCP message also raises `ev_libs.net.mud_gmcp_<package>` with the same args (`package` keeps its original case, plus `data`). The name is the package lower-cased, so `Char.Status` raises `ev_libs.net.mud_gmcp_char.status`, then each parent prefix (`ev_libs.net.mud_gmcp_char`), most specific first. An event is raised only when a function is registered to it (checked with `event.has.registrations`, which never creates an event), and it has no `event.add` spec because the MUD controls the names. A listener on `..._char` also gets a package named exactly `Char`, and a plugin registered on both `..._char.status` and `..._char` is called twice for `Char.Status`. `Core.*` raises none.
+
+| Event | Arguments | Raised |
+|-------|-----------|--------|
+| `ev_libs.net.mud_gmcp_<package>` | `package`, `data` | per GMCP message whose lower-cased package, or a parent prefix of it, is `<package>`; only with a registered function |
+
+```python
+@RegisterToEvent(event_name="ev_libs.net.mud_gmcp_char.status")
+def _eventcb_char_status(self):
+    data = self.api("plugins.core.events:event.current.record.get")()["data"]
+```
+
 A plugin that owns a telnet option with `telopt.register` ([data flow](data_flow.md#custom-telnet-options-566-adr-0012)) gets four more events, named by the option number `<n>`. They are added when the option is registered, not by the events plugin at startup, so they are not in `PROTOCOL_EVENTS`:
 
 | Event | Arguments | Raised |
@@ -285,7 +297,7 @@ if event_record:
 The package has no libs/_event.py or plugin/_process_event.py: #241 deleted those duplicate copies of `Event` and `ProcessRaisedEvent`.
 
 ### Events API
-The APIs of `plugins.core.events` (names as registered with `AddAPI`): `event.add`, `event.get`, `event.exists`, `event.register`, `event.register.by.func`, `event.unregister`, `event.unregister.for.owner`, `event.is.registered`, `event.raise`, `event.current.name.get`, `event.current.record.get`, `event.stack.get`, `event.detail.get`, `detail.get.for.plugin` and `summary.get.for.plugin`. `event.get` creates and keeps an `Event` for any name it has not seen; use `event.exists` to look up without creating. The `raise` command checks `event.exists` first, so an unknown name answers "event does not exist" and creates nothing (#283).
+The APIs of `plugins.core.events` (names as registered with `AddAPI`): `event.add`, `event.get`, `event.exists`, `event.register`, `event.register.by.func`, `event.unregister`, `event.unregister.for.owner`, `event.is.registered`, `event.has.registrations`, `event.raise`, `event.current.name.get`, `event.current.record.get`, `event.stack.get`, `event.detail.get`, `detail.get.for.plugin` and `summary.get.for.plugin`. `event.get` creates and keeps an `Event` for any name it has not seen; use `event.exists` to look up without creating. The `raise` command checks `event.exists` first, so an unknown name answers "event does not exist" and creates nothing (#283).
 
 ## Code Examples
 
@@ -441,6 +453,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 - `ev_libs.net.mud_muddisconnect` - The connection to the mud closed (no args), however it closed: the mud hung up, the proxy closed it, or a handler task failed. `MudConnection.mud_telnet_handler` raises it once per connection from its `finally:`, with `mud.is.connected` already `False`; the proxy plugin registers the event (`MUD_DISCONNECT_EVENT_SPEC`) and sets `character.active` to `False` from its callback. Each BasePlugin re-registers its after-active callback on it. A refused connection raises neither this nor `ev_libs.net.mud_mudconnect`
 - `ev_libs.net.mud_from_mud_event` - Not raised by anything ([Triggers System Findings](triggers_system_findings.md), TR-11); MUD lines arrive on `ev_to_client_data_modify`
 - `ev_libs.net.mud_gmcp` - A GMCP message from the mud (args `package`, `data`)
+- `ev_libs.net.mud_gmcp_<package>` - The same message, per lower-cased package and parent prefix; only raised with listeners
 - `ev_libs.net.mud_msdp` - An MSDP variable from the mud (args `variable`, `data`)
 - `ev_libs.net.mud_mssp` - An MSSP table from the mud (arg `data`, the whole table)
 - `ev_libs.net.mud_telopt_<n>`, `ev_libs.net.mud_telopt_<n>_enabled`, `ev_libs.net.mud_telopt_<n>_disabled`, `ev_libs.net.client_telopt_<n>` - Telnet option `<n>` that a plugin owns with `telopt.register` (see the table in the protocol events section); added at register time

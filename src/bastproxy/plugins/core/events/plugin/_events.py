@@ -260,6 +260,20 @@ class EventsPlugin(BasePlugin):
         return event_name in self.events
 
     @AddAPI(
+        "event.has.registrations",
+        description="check if an event has registered functions",
+    )
+    def _api_event_has_registrations(self, event_name: str) -> bool:
+        """Check if an event has at least one registered function.
+
+        @Yevent_name@w   = the event to check for.
+
+        this function never creates the event. It returns False for an unknown
+        event or one with no registrations.
+        """
+        return event_name in self.events and not self.events[event_name].isempty()
+
+    @AddAPI(
         "event.is.registered",
         description="check if a function is registered to an event",
     )

@@ -22,6 +22,11 @@ For each message from the MUD, in order: make a ``TelnetProtocolMessage`` record
 value, then raise ``ev_libs.net.mud_gmcp`` (once per GMCP message) or ``ev_libs.net.mud_msdp``
 (once per MSDP variable). Each event gets its own copy of the data.
 
+A GMCP message also raises ``ev_libs.net.mud_gmcp_<package>`` (lower-cased, so ``Char.Status``
+gives ``..._char.status``) and then one event per parent prefix (``..._char``), most specific
+first, with the same args. Each is raised only when a function is registered to it. The value at
+a dotted path is read with ``gmcp.value.get``.
+
 MSSP: the MUD's table is stored whole (a new table replaces the old one, and a disconnect clears
 it), sent to every logged-in client with MSSP enabled, and raised once as
 ``ev_libs.net.mud_mssp`` with the whole table. A client gets the stored table when it logs in or
@@ -73,6 +78,17 @@ MUD_GMCP_EVENT = "ev_libs.net.mud_gmcp"
 MUD_MSDP_EVENT = "ev_libs.net.mud_msdp"
 MUD_MSSP_EVENT = "ev_libs.net.mud_mssp"
 EVENT_RAISE_API = "plugins.core.events:event.raise"
+EVENT_HAS_REGISTRATIONS_API = "plugins.core.events:event.has.registrations"
+
+
+def gmcp_package_events(package: str) -> list[str]:
+    """The per-package event names for ``package``, most specific first.
+
+    ``Char.Status`` gives ``ev_libs.net.mud_gmcp_char.status`` then ``ev_libs.net.mud_gmcp_char``.
+    """
+    segments = package.lower().split(".")
+    return [f"{MUD_GMCP_EVENT}_{'.'.join(segments[:size])}" for size in range(len(segments), 0, -1)]
+
 
 PROTOCOL_EVENTS: tuple[RecordEventSpec, ...] = (
     RecordEventSpec(
@@ -164,6 +180,16 @@ class ProtocolManager:
     def _raise(self, event: str, name_arg: str, name: str, data: Any) -> None:
         """Raise ``event`` with its own copy of ``data`` when the events plugin is loaded."""
         self._raise_args(event, {name_arg: name, "data": data}, name)
+
+    def _has_listeners(self, event: str) -> bool:
+        """Whether ``event`` has a registered function; False when the events plugin is absent."""
+        try:
+            if not self.api("libs.api:api.exists")(EVENT_HAS_REGISTRATIONS_API):
+                return False
+            return bool(self.api(EVENT_HAS_REGISTRATIONS_API)(event))
+        except Exception:
+            logger.exception("Could not check listeners of %s", event)
+            return False
 
     def _raise_args(self, event: str, args: dict[str, Any], label: str) -> None:
         """Raise ``event`` with a deep copy of ``args`` when the events plugin is loaded."""
@@ -354,6 +380,9 @@ class ProtocolManager:
             if oob.package_wanted(package, conn.gmcp_modules):
                 self._send_gmcp_to_client(conn, package, data)
         self._raise(MUD_GMCP_EVENT, "package", package, data)
+        for name in gmcp_package_events(package):
+            if self._has_listeners(name):
+                self._raise(name, "package", package, data)
 
     def on_mud_msdp(self, variables: dict[str, Any]) -> None:
         """Handle one decoded MSDP message from the MUD: one event per variable."""
@@ -691,6 +720,16 @@ class ProtocolManager:
         if package is None:
             return copy.deepcopy(self._gmcp_cache)
         return copy.deepcopy(self._gmcp_cache.get(package))
+
+    @AddAPI("gmcp.value.get", description="get one GMCP value by dotted path")
+    def _api_gmcp_value_get(self, path: str, default: Any = None) -> Any:
+        """A copy of the cached GMCP value at ``path`` (``Char.Vitals.hp``), else ``default``."""
+        if not isinstance(path, str) or not path:
+            return default
+        value = oob.resolve_gmcp_path(path, self._gmcp_cache.get)
+        if value is oob.MISSING:
+            return default
+        return copy.deepcopy(value)
 
     @AddAPI("msdp.cache.get", description="get the cached MSDP values from the mud")
     def _api_msdp_cache_get(self, variable: str | None = None) -> Any:
