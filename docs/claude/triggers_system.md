@@ -74,9 +74,12 @@ class TriggersPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self):
         self.can_reload_f = False       # The triggers plugin cannot be reloaded
-        self.beall_id = ...             # Ids of the three built-in triggers
+        self.beall_id = ...             # Ids of the built-in triggers
         self.all_id = ...
         self.emptyline_id = ...
+        self.prompt_id = ...            # The built-in prompt trigger (#544)
+        self._prompts_seen = False      # True once a prompt line has arrived
+        self._pending = PromptQueue()   # on_prompt events held for the next prompt
         self.triggers = {}              # trigger_id -> TriggerItem
         self.trigger_groups = {}        # group name -> list of trigger ids
         self._ordered = []              # Enabled regex triggers, sorted by (priority, order)
@@ -170,13 +173,14 @@ def handle_hp_warning(self):
 `_eventcb_check_trigger` is registered on `ev_to_client_data_modify`, which `ProcessDataToClient` raises once per record with every MUD I/O line in it. For each line:
 
 1. A line that is `internal` is skipped.
-2. The `beall` trigger's event is raised, if something is registered on it.
+2. If the line is a prompt, `_prompts_seen` is set. Held `on_prompt` events older than `PROMPT_MAX_WAIT` are raised with `prompt=None`. The `beall` trigger's event is raised, if something is registered on it.
 3. The text is `line.noansi`: every terminal escape sequence (colour codes, cursor movement, clearing, OSC 8 links) and, when the line has an MXP mode, MXP markup are removed. C0 controls and 8-bit C1 sequences are kept.
 4. If the text is `""`, the `emptyline` trigger's event is raised (if something is registered on it) and no regex is tried. A line of colour codes only counts as empty; a line of spaces does not.
 5. Otherwise, unless the text is the echo of a line the proxy sent ([Echoed Commands](#echoed-commands)), `_match_line` walks a copy of `_ordered`, lowest `priority` first and, within a priority, in the order added. It skips a trigger that was disabled or removed since the walk began. Each trigger's own compiled regex is matched from the start of the text: `line.colorcoded` for a `matchcolor` trigger, `line.noansi` for any other. `colorcoded` is read only when the first `matchcolor` trigger is reached, and then reused. Triggers whose compiled regex has the same pattern text and flags, and that read the same text, share one match per line (a per-line cache in `_match_line`, #383, used only for triggers flagged `shared_pattern`; `_sync_order` and `_sync_order_remove` keep that flag current, so a trigger with a unique pattern is matched directly); each still gets its own `groupdict()`, so `argtypes` never leak between them.
-6. On a match, a trigger with `when` checks its GMCP conditions (`_conditions_hold`). If one fails, the trigger is skipped for this line: no event, no hit, `stopevaluating` not applied, and a DEBUG line is logged. A trigger without `when` pays only an empty-tuple check. Then the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run.
+6. On a match, a trigger with `when` checks its GMCP conditions (`_conditions_hold`). If one fails, the trigger is skipped for this line: no event, no hit, `stopevaluating` not applied, and a DEBUG line is logged. A trigger without `when` pays only an empty-tuple check. Then the named groups are converted with `argtypes`, a fresh `matches` dictionary is built, and `raisetrigger` raises the trigger's event. `omit` sets `line.send = False` before the callbacks run. An `on_prompt` trigger hides the line at this point too, but holds its event ([Prompt Triggers](#prompt-triggers)).
 7. A trigger with `stopevaluating` that matched ends the walk.
-8. The `all` trigger's event is raised, if something is registered on it.
+8. If the line is a prompt (also an empty or echo-skipped one), `_prompt_arrived` raises the held `on_prompt` events, then the built-in `prompt` trigger's event, if something is registered on it ([Prompt Triggers](#prompt-triggers)).
+9. The `all` trigger's event is raised, if something is registered on it.
 
 Every trigger sees the line as it was when matching began. Why each trigger has its own regex, and what it costs, is in [ADR-0007](../decisions/0007-triggers-match-each-triggers-own-regex-in-priority-order.md).
 
@@ -187,7 +191,19 @@ What follows from this:
 - A `matchcolor` trigger matches only the colour-coded text, so its regex can carry colour codes (`^@rWARNING`); it does not match the plain text.
 - Each trigger's match, conversion and raise run in their own `try`. An error is logged with the trigger id and the line, the next trigger runs, and a failed trigger does not apply `stopevaluating`. A group that did not take part in the match stays `None` in `matches` and is not converted by `argtypes` (TR-7, #352).
 - A callback that raises is logged by the event system and the other callbacks and triggers still run. A callback may remove or disable a later trigger; it then does not fire for this line.
-- Prompts and partial lines are matched like any other line.
+- A prompt is matched like any other line, in the same call that delivers it. The MUD reader delivers a GA/EOR-marked prompt without a newline at once with `is_prompt` set, and an unmarked partial line after its line timeout, so no change to the reader was needed (#544).
+
+### Prompt Triggers
+
+A trigger added with `on_prompt=True` (also accepted by `trigger.update`) matches its line when the line arrives, but its event is held until the next line marked `is_prompt` (GA or EOR) passes through `_eventcb_check_trigger`. A trigger that sends a command then sends it after the burst it matched in, not in the middle of it. See [ADR-0010](../decisions/0010-on-prompt-triggers-defer-their-events-to-the-next-prompt.md).
+
+- **At match time:** the regex, `when`, `argtypes`, `stopevaluating` and `omit` apply when the line arrives. A failed `when` holds nothing.
+- **At the prompt:** held events are raised in arrival order, after the prompt line's own triggers. An `on_prompt` trigger whose regex matches the prompt fires on that line.
+- **Callback data:** `args["prompt"]` is the prompt line, or `None` when the event fired at once or timed out. `args["line"]` is the line that matched. `omit` is not applied again at fire time.
+- **Hits** count when the event fires. A trigger removed or disabled while its event is held does not fire.
+- **No GA/EOR:** until a prompt line has been seen, `on_prompt` triggers fire at once. A disconnect resets that and drops held events.
+- **Time limit:** a held event older than `PROMPT_MAX_WAIT` (2.0 seconds, `_prompt.py`) is raised with `prompt=None` when the next MUD line is checked. Expiry is lazy: if no line arrives, the event waits.
+- **`prompt` built-in:** `_prompt_arrived` raises it for every prompt line, so `trigger.register("prompt", ...)` runs a function on each prompt.
 
 ### Echoed Commands
 
@@ -203,7 +219,7 @@ Many MUDs echo a command back as output. So that a trigger does not fire on the 
 
 - `plugins.core.triggers:trigger.add` - Add a trigger; returns a `TriggerAddResult(success, trigger)` (`trigger` is `None` when `success` is false), with an error logged on failure (duplicate, no owner, regex that does not compile, unknown keyword)
 - `plugins.core.triggers:trigger.remove` - Remove a trigger. Refused (returns `False`) while a callback is registered on its event, unless `force=True`. A trigger without a regex (a built-in) is removed without error
-- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`, `when`; `when` of `None` or `{}` clears the conditions); returns `True`, or `False` with an error logged for an unknown trigger, key, invalid `when` or uncompilable regex, changing nothing (TR-3, fixed by #348)
+- `plugins.core.triggers:trigger.update` - Update a trigger in place (`regex`, `enabled`, `group`, `omit`, `priority`, `stopevaluating`, `argtypes`, `matchcolor`, `when`, `on_prompt`; `when` of `None` or `{}` clears the conditions); returns `True`, or `False` with an error logged for an unknown trigger, key, invalid `when` or uncompilable regex, changing nothing (TR-3, fixed by #348)
 - `plugins.core.triggers:trigger.get` - Get the `TriggerItem`, or `None` (a query: nothing is logged)
 - `plugins.core.triggers:trigger.register` - Register a callback on the trigger's event; takes a trigger name or id. Returns `True`, or `False` with an error logged for an unknown trigger (TR-9, #354)
 - `plugins.core.triggers:trigger.unregister` - Unregister a callback; returns `True`, or `False` with an error logged for an unknown trigger
@@ -218,16 +234,17 @@ The name-taking APIs build the trigger id from the name and the owner; without `
 
 ## Built-in Triggers
 
-The plugin adds three triggers without a regex:
+The plugin adds four triggers without a regex:
 - **beall**: its event is raised for every MUD line, before the regexes are tried
 - **all**: its event is raised for every MUD line, after the regexes
 - **emptyline**: its event is raised for a line whose text without colour codes is `""`
+- **prompt**: its event is raised for a line marked `is_prompt`, after the held `on_prompt` events (#544)
 
 They are added enabled, and the flag is not checked for them (TR-8, #353): each is raised when something is registered on its event, and not otherwise. `trigger.toggle.enable` on them raises no error. They are passed the `ev_to_client_data_modify` event's own record, so `trigger_name` and `trigger_id` are written into it ([Data Flow](data_flow.md), #230). A regex trigger `^$` never fires, because an empty line is not matched against the regexes.
 
 ## The `enabled` Setting
 
-The plugin has an `enabled` setting. While it is False, `_eventcb_check_trigger` returns before matching, so no trigger fires and the built-in `beall`, `all` and `emptyline` events are not raised either. The plugin keeps the value in `_matching_enabled`, updated by `_eventcb_enabled_modify` on `ev_plugins.core.triggers_var_enabled_modified`, so no setting lookup runs per line. The settings plugin raises that event for every setting when a plugin loads, so a value saved as False applies at startup. (Before #356 the setting had no effect, TR-11.)
+The plugin has an `enabled` setting. While it is False, `_eventcb_check_trigger` returns before matching, so no trigger fires and the built-in `beall`, `all`, `emptyline` and `prompt` events are not raised either. The plugin keeps the value in `_matching_enabled`, updated by `_eventcb_enabled_modify` on `ev_plugins.core.triggers_var_enabled_modified`, so no setting lookup runs per line. The settings plugin raises that event for every setting when a plugin loads, so a value saved as False applies at startup. (Before #356 the setting had no effect, TR-11.)
 
 ## Commands
 
@@ -517,6 +534,7 @@ self.api("plugins.core.triggers:trigger.update")(
 - `matchcolor`: Match the trigger's own regex against the colour-coded text
 - `when`: The GMCP conditions as given, or `None`; `conditions` holds the parsed form
 - `stopevaluating`: Stop every later trigger for the line when this one matches
+- `on_prompt`: Hold the trigger's events until the next prompt line (see [Prompt Triggers](#prompt-triggers))
 - `event_name`: Event raised on match, always `event_<trigger_id>`
 - `hits`: How many times the trigger's event was raised
 

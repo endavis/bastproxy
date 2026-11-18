@@ -158,3 +158,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0007](0007-triggers-match-each-triggers-own-regex-in-priority-order.md) | Triggers match each trigger's own regex in priority order | Accepted |
 | [0008](0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md) | The colors tokenizer is the single definition of the colour-code syntax | Accepted |
 | [0009](0009-display-width-is-measured-with-wcwidth-in-one-framework-helper.md) | Display width is measured with wcwidth in one framework helper | Accepted |
+| [0010](0010-on-prompt-triggers-defer-their-events-to-the-next-prompt.md) | On-prompt triggers defer their events to the next prompt | Accepted |

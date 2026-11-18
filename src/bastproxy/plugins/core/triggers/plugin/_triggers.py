@@ -26,6 +26,7 @@ from bastproxy.plugins.core.events import RegisterToEvent
 
 from ._conditions import Condition, check, parse_conditions
 from ._echo import EchoRecord
+from ._prompt import PromptQueue
 
 # The "Triggers" section this plugin adds to a stats event record's "stats" dict.
 # The keys are display labels, so the functional syntax is needed.
@@ -52,6 +53,7 @@ _ADD_KEYWORDS = frozenset(
         "argtypes",
         "matchcolor",
         "when",
+        "on_prompt",
     }
 )
 
@@ -66,6 +68,7 @@ _UPDATABLE_TRIGGER_KEYS = frozenset(
         "argtypes",
         "matchcolor",
         "when",
+        "on_prompt",
     }
 )
 
@@ -95,6 +98,7 @@ class TriggerItem:
         order: int = 0,
         when: dict[str, str] | None = None,
         conditions: tuple[Condition, ...] = (),
+        on_prompt: bool = False,
     ) -> None:
         """Initialize the instance."""
         self.api = API(owner_id=f"{owner_id}:{trigger_name}")
@@ -116,16 +120,22 @@ class TriggerItem:
         # GMCP conditions: the original mapping and its parsed form
         self.when = when
         self.conditions = conditions
+        # True to hold the trigger's events until the next prompt line (#544)
+        self.on_prompt = on_prompt
         # True while another enabled trigger has the same pattern and text variant
         self.shared_pattern = False
         self._share_key: tuple[Any, bool] | None = None
         self.trigger_id = trigger_id
         self.event_name = f"event_{self.trigger_id}"
 
-    def raisetrigger(self, args: dict[str, Any]) -> Any:
-        """Raise an event for this trigger."""
+    def raisetrigger(self, args: dict[str, Any], apply_omit: bool = True) -> Any:
+        """Raise an event for this trigger.
+
+        ``apply_omit`` is False for an event held for a prompt: its line was omitted
+        when it matched, and by now the line has been sent on.
+        """
         self.hits += 1
-        if self.omit:
+        if self.omit and apply_omit:
             args["line"].send = False
 
         args["trigger_name"] = self.trigger_name
@@ -162,6 +172,7 @@ class TriggersPlugin(BasePlugin):
         self.beall_id = self.create_trigger_id("beall", self.plugin_id)
         self.all_id = self.create_trigger_id("all", self.plugin_id)
         self.emptyline_id = self.create_trigger_id("emptyline", self.plugin_id)
+        self.prompt_id = self.create_trigger_id("prompt", self.plugin_id)
 
         # The dictionary of triggers
         # This will likely get moved into the source plugin
@@ -186,6 +197,12 @@ class TriggersPlugin(BasePlugin):
         # Lines the proxy sent to the MUD, so the MUD's echo of one is not matched (#545)
         self._echoes = EchoRecord()
 
+        # True once the MUD has sent a line marked as a prompt (GA/EOR). Until then
+        # on_prompt triggers fire at once, as a MUD without GA/EOR never ends a burst.
+        self._prompts_seen = False
+        # Events of on_prompt triggers waiting for the next prompt (#544)
+        self._pending = PromptQueue()
+
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
         """Initialize the plugin."""
@@ -196,6 +213,7 @@ class TriggersPlugin(BasePlugin):
         self.api("plugins.core.triggers:trigger.add")("beall", None, self.plugin_id)
         self.api("plugins.core.triggers:trigger.add")("all", None, self.plugin_id)
         self.api("plugins.core.triggers:trigger.add")("emptyline", None, self.plugin_id)
+        self.api("plugins.core.triggers:trigger.add")("prompt", None, self.plugin_id)
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     def _eventcb_enabled_modify(self) -> None:
@@ -409,6 +427,9 @@ class TriggersPlugin(BasePlugin):
           @Ymatchcolor@w = (optional) match with color
           @Ystopevaluating@w = (optional) True to stop trigger evauluation if this
                                   trigger is matched.
+          @Yon_prompt@w = (optional) True to hold the trigger's events until the next
+                                  prompt line (GA/EOR) after the burst it matched in;
+                                  the callback gets the prompt line as args["prompt"]
           @Ywhen@w     = (optional) a dict of dotted GMCP paths to comparison strings,
                                   such as {"Char.Vitals.hp": ">50"}; the trigger
                                   raises its event only when every one holds
@@ -779,7 +800,7 @@ class TriggersPlugin(BasePlugin):
                         line.colorcoded,
                         item.trigger_id,
                     )
-                item.raisetrigger({"line": line, "matches": group_dict})
+                self._fire(item, {"line": line, "matches": group_dict}, line)
             except Exception:  # pylint: disable=broad-except
                 log_to(
                     [self.plugin_id, item.owner_id],
@@ -794,6 +815,47 @@ class TriggersPlugin(BasePlugin):
                 break
         if not matched and debug:
             match_logger.debug("_eventcb_check_trigger - line %s did not match any triggers", data)
+
+    def _fire(self, item: TriggerItem, args: dict[str, Any], line: NetworkDataLine) -> None:
+        """Raise a matched trigger's event, or hold it for the next prompt (#544)."""
+        if item.on_prompt:
+            if self._prompts_seen:
+                if item.omit:
+                    line.send = False
+                self._pending.add(item, args)
+                return
+            args["prompt"] = None
+        item.raisetrigger(args)
+
+    def _raise_pending(
+        self, entries: list[tuple[TriggerItem, dict[str, Any]]], prompt: NetworkDataLine | None
+    ) -> None:
+        """Raise events that were held; skip a trigger removed or disabled meanwhile."""
+        for item, args in entries:
+            if not item.enabled or self.triggers.get(cast(str, item.trigger_id)) is not item:
+                continue
+            args["prompt"] = prompt
+            try:
+                item.raisetrigger(args, apply_omit=False)
+            except Exception:  # pylint: disable=broad-except
+                log_to(
+                    [self.plugin_id, item.owner_id],
+                    logging.ERROR,
+                    "_raise_pending - trigger %s failed",
+                    item.trigger_id,
+                    exc_info=True,
+                )
+
+    def _prompt_arrived(self, line: NetworkDataLine, event_record: dict[str, Any]) -> None:
+        """A prompt line passed through: raise held events, then the ``prompt`` trigger."""
+        self._raise_pending(self._pending.take_all(), line)
+        self._raise_builtin(self.prompt_id, event_record)
+
+    @RegisterToEvent(event_name="ev_libs.net.mud_muddisconnect")
+    def _eventcb_prompts_disconnect(self) -> None:
+        """The MUD link closed: forget prompts seen and drop held events."""
+        self._prompts_seen = False
+        self._pending.clear()
 
     def _conditions_hold(self, item: TriggerItem) -> bool:
         """Whether every GMCP condition of the trigger holds right now."""
@@ -839,12 +901,21 @@ class TriggersPlugin(BasePlugin):
             return
 
         data = line.noansi
+        # getattr: a line-like object without the flag counts as no prompt
+        is_prompt = bool(getattr(line, "is_prompt", False))
+        if is_prompt:
+            self._prompts_seen = True
+        if self._pending:
+            self._raise_pending(self._pending.take_expired(), None)
         self._raise_builtin(self.beall_id, event_record)
 
         if data == "":
             self._raise_builtin(self.emptyline_id, event_record)
         elif not self._echoes.consume(data):
             self._match_line(line, data)
+
+        if is_prompt:
+            self._prompt_arrived(line, event_record)
 
         self._raise_builtin(self.all_id, event_record)
 
@@ -950,6 +1021,8 @@ class TriggersPlugin(BasePlugin):
                         message.append(
                             f"{'Argument Types':<{columnwidth}} : {self.triggers[trigger].argtypes}"
                         )
+                    if self.triggers[trigger].on_prompt:
+                        message.append(f"{'On Prompt':<{columnwidth}} : True")
                     if self.triggers[trigger].conditions:
                         message.append(
                             f"{'Conditions':<{columnwidth}} : {self.triggers[trigger].when}"
