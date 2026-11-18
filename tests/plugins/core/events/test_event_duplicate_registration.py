@@ -49,7 +49,7 @@ def test_isregistered() -> None:
 def test_baseplugin_disconnect_does_not_grow_registrations() -> None:
     event = Event("ev_libs.api_character_active", created_by="test279")
 
-    def register(_event_name: str, func: Callable[..., Any]) -> None:
+    def register(_event_name: str, func: Callable[..., Any], prio: int | None = None) -> None:
         # mirrors the events plugin's event.register api
         if event.isregistered(func):
             event.unregister(func)
@@ -57,6 +57,7 @@ def test_baseplugin_disconnect_does_not_grow_registrations() -> None:
 
     class FakePlugin:
         plugin_id = "plugins.test279"
+        is_character_active_priority = None
 
         def api(self, name: str) -> Callable[..., Any]:
             assert name == "plugins.core.events:event.register"
