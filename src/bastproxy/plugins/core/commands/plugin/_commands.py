@@ -678,7 +678,7 @@ class CommandsPlugin(BasePlugin):
         """
         owner_id = self.api("libs.api:caller.owner.get")()
         event_record = self.api("plugins.core.events:event.current.record.get")()
-        client_id = event_record["client_id"] if event_record else None
+        client_id = event_record.get("client_id") if event_record else None
         execute_line(line, owner_id=owner_id, client_id=client_id, show_in_history=show_in_history)
 
     @AddAPI("command.run", description="run a command and return the output")
