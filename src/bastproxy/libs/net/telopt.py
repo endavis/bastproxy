@@ -18,6 +18,10 @@ option behaves as before.
 The events are named by option number: ``ev_libs.net.mud_telopt_<n>``,
 ``ev_libs.net.mud_telopt_<n>_enabled``, ``ev_libs.net.mud_telopt_<n>_disabled`` and
 ``ev_libs.net.client_telopt_<n>``. Their ``data`` is raw ``bytes`` with IAC unescaped.
+
+``ev_libs.net.mud_telopt_<n>_enabled`` is raised once per MUD connection, and only after the MUD
+writer is registered (``mud_connected``), so a handler can call ``send`` and reach the MUD. An
+option the MUD enabled during negotiation is raised when the writer is registered.
 """
 
 # Standard Library
@@ -210,6 +214,13 @@ class TeloptManager:
         if getattr(writer, "server", False):
             logger.debug("Client link %s: option %d enabled=%s", writer.link_id, opt, enabled)
             return
+        if writer is not self._mud_writer:
+            logger.debug(
+                "Ignoring option %d enabled=%s from a MUD writer that is not registered",
+                opt,
+                enabled,
+            )
+            return
         if enabled:
             if opt in self._mud_enabled:
                 return
@@ -275,9 +286,15 @@ class TeloptManager:
     # ------------------------------------------------------------------ lifecycle
 
     def mud_connected(self, writer: Any) -> None:
-        """Remember the MUD writer and ask for options the MUD already offered."""
+        """Remember the MUD writer, raise ``_enabled`` for options already on, ask for the rest."""
         self._mud_writer = writer
-        for opt in self._regs:
+        for opt, reg in list(self._regs.items()):
+            if not reg.mud or opt in self._mud_enabled:
+                continue
+            if writer.remote_option.enabled(bytes([opt])):
+                self._mud_enabled.add(opt)
+                self._raise_args(mud_enabled_event(opt), {"option": opt}, str(opt))
+        for opt in list(self._regs):
             self._request_from_mud(opt)
 
     def mud_disconnected(self) -> None:
@@ -414,18 +431,37 @@ class TeloptManager:
 
     # ------------------------------------------------------------------ sending
 
-    def send(self, option: Any, payload: Any) -> bool:
-        """Send a subnegotiation to the MUD; False when it cannot be sent."""
-        if not self.valid_option(option) or option not in self._regs:
+    def _sendable(self, option: Any, payload: Any, what: str) -> bool:
+        """True when ``option`` is registered and ``payload`` is bytes; logs the reason if not."""
+        if not self.valid_option(option):
+            logger.debug("telopt %s declined: %r is not an option number", what, option)
+            return False
+        if option not in self._regs:
+            logger.debug("telopt %s %d declined: option is not registered", what, option)
             return False
         if not isinstance(payload, bytes | bytearray):
+            logger.debug(
+                "telopt %s %d declined: payload is %s, not bytes",
+                what,
+                option,
+                type(payload).__name__,
+            )
+            return False
+        return True
+
+    def send(self, option: Any, payload: Any) -> bool:
+        """Send a subnegotiation to the MUD; False when it cannot be sent."""
+        if not self._sendable(option, payload, "send"):
             return False
         writer = self._mud_writer
-        if (
-            writer is None
-            or writer.is_closing()
-            or not writer.remote_option.enabled(bytes([option]))
-        ):
+        if writer is None:
+            logger.debug("telopt send %r declined: no MUD writer", option)
+            return False
+        if writer.is_closing():
+            logger.debug("telopt send %r declined: MUD link is closing", option)
+            return False
+        if not writer.remote_option.enabled(bytes([option])):
+            logger.debug("telopt send %r declined: the MUD has not enabled it", option)
             return False
         data = bytes(payload)
         try:
@@ -438,13 +474,14 @@ class TeloptManager:
 
     def send_client(self, option: Any, payload: Any, client_id: str | None = None) -> bool:
         """Send a subnegotiation to logged-in clients that enabled the option."""
-        if not self.valid_option(option) or option not in self._regs:
-            return False
-        if not isinstance(payload, bytes | bytearray):
+        if not self._sendable(option, payload, "send_client"):
             return False
         data = bytes(payload)
         sent = False
-        for conn in self._enabled_clients(option, client_id):
+        targets = self._enabled_clients(option, client_id)
+        if not targets:
+            logger.debug("telopt send_client %r declined: no logged-in client enabled it", option)
+        for conn in targets:
             try:
                 conn.writer.send_iac(frame(option, data))
             except Exception:

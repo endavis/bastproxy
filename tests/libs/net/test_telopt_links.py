@@ -9,12 +9,14 @@ import asyncio
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from telnetlib3 import open_connection
 from telnetlib3.telopt import DO, DONT, IAC, SB, WILL, WONT
 
-from bastproxy.libs.net.mud import MudTelnetClient
+from bastproxy.libs.net import mud as mud_mod
+from bastproxy.libs.net.mud import MudConnection, MudTelnetClient
 from bastproxy.libs.net.protocols import PROTOCOLS
 from bastproxy.libs.records import RMANAGER
 from tests.libs.net.clients import (
@@ -358,3 +360,49 @@ async def test_unregistering_sends_wont_to_enabled_clients() -> None:
         await client.wait_for(lambda: (WONT, A102) in client.commands)
         await settle()
         assert (WONT, A102) not in refused.commands
+
+
+# handler timing (#583) ----------------------------------------------------------
+
+
+async def test_send_from_enabled_handler_reaches_the_mud_on_each_connection(
+    isolated: FakeApi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _Noop:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def __call__(self) -> None:
+            return None
+
+    monkeypatch.setattr(mud_mod, "ProcessDataToClient", _Noop)
+    monkeypatch.setattr(mud_mod, "SendDataDirectlyToClient", _Noop)
+    PROTOCOLS.telopt.register(102, OWNER)
+    results: list[bool] = []
+    raised: list[str] = []
+
+    def raise_args(event: str, _data: dict[str, Any], _key: str) -> None:
+        raised.append(event)
+        if event == MUD_EVENT + "_enabled":
+            results.append(PROTOCOLS.telopt.send(102, bytes([7, 1])))
+
+    monkeypatch.setattr(PROTOCOLS.telopt, "_raise_args", raise_args)
+    sent = IAC + SB + A102 + bytes([7, 1])
+
+    async def script(mud: ScriptedMud, writer: asyncio.StreamWriter) -> None:
+        writer.write(IAC + WILL + A102)
+        await writer.drain()
+        await mud.wait_for(lambda: mud.received.count(sent) >= 1)
+        mud.received.clear()
+
+    conn = MudConnection("127.0.0.1", "0")
+    conn.api = MagicMock()
+    async with scripted_mud(script) as mud:
+        conn.port = str(mud.port)
+        for count in (1, 2):
+            await asyncio.wait_for(conn.connect_to_mud(), TIMEOUT)
+            await wait_until(
+                lambda count=count: raised.count(MUD_EVENT + "_disabled") == count  # type: ignore[misc]
+            )
+            assert results == [True] * count
+            assert raised.count(MUD_EVENT + "_enabled") == count

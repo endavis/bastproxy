@@ -315,6 +315,7 @@ def test_unregister_sends_dont_and_raises_disabled(isolated: FakeApi) -> None:
 def test_enabled_event_is_raised_once(isolated: FakeApi) -> None:
     _call(REGISTER, 102, OWNER)
     writer = FakeWriter()
+    PROTOCOLS.mud_connected(writer)
     PROTOCOLS.telopt.on_enabled(writer, 102, True)
     PROTOCOLS.telopt.on_enabled(writer, 102, True)
     assert [e for e, _ in isolated.raised] == ["ev_libs.net.mud_telopt_102_enabled"]
@@ -323,7 +324,9 @@ def test_enabled_event_is_raised_once(isolated: FakeApi) -> None:
 
 def test_mud_disconnect_raises_disabled_for_enabled_options(isolated: FakeApi) -> None:
     _call(REGISTER, 102, OWNER)
-    PROTOCOLS.telopt.on_enabled(FakeWriter(), 102, True)
+    writer = FakeWriter()
+    PROTOCOLS.mud_connected(writer)
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
     isolated.raised.clear()
     PROTOCOLS.mud_disconnected()
     assert [e for e, _ in isolated.raised] == ["ev_libs.net.mud_telopt_102_disabled"]
@@ -336,3 +339,107 @@ def test_will_offer_to_attached_clients_on_register() -> None:
     _call(REGISTER, 102, OWNER)
     assert link.iacs == [(WILL, bytes([102]))]
     assert PROTOCOLS.telopt.client_options() == [102]
+
+
+ENABLED_102 = "ev_libs.net.mud_telopt_102_enabled"
+DISABLED_102 = "ev_libs.net.mud_telopt_102_disabled"
+
+
+def test_enabled_before_writer_raises_nothing_until_mud_connected(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER)
+    writer = FakeWriter()
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
+    assert isolated.raised == []
+    PROTOCOLS.mud_connected(writer)
+    assert [e for e, _ in isolated.raised] == [ENABLED_102]
+
+
+def test_send_from_enabled_handler_reaches_the_writer(
+    isolated: FakeApi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _call(REGISTER, 102, OWNER)
+    writer = FakeWriter()
+    results: list[bool] = []
+
+    def raise_args(event: str, data: dict[str, Any], _key: str) -> None:
+        results.append(PROTOCOLS.telopt.send(102, bytes([7, 1])))
+
+    monkeypatch.setattr(PROTOCOLS.telopt, "_raise_args", raise_args)
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
+    PROTOCOLS.mud_connected(writer)
+    assert results == [True]
+    assert writer.raw == [frame(102, bytes([7, 1]))]
+
+
+def test_mud_connected_skips_option_no_longer_enabled(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER)
+    writer = FakeWriter(enabled=False)
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
+    PROTOCOLS.telopt.on_enabled(writer, 102, False)
+    PROTOCOLS.mud_connected(writer)
+    assert isolated.raised == []
+
+
+def test_mud_connected_skips_option_not_for_the_mud(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER, mud=False)
+    PROTOCOLS.mud_connected(FakeWriter())
+    assert isolated.raised == []
+
+
+def test_stale_writer_calls_are_ignored(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER)
+    current = FakeWriter(enabled=False)
+    PROTOCOLS.mud_connected(current)
+    PROTOCOLS.telopt.on_enabled(FakeWriter(), 102, True)
+    assert isolated.raised == []
+    PROTOCOLS.telopt.on_enabled(current, 102, True)
+    isolated.raised.clear()
+    PROTOCOLS.telopt.on_enabled(FakeWriter(), 102, False)
+    assert isolated.raised == []
+
+
+def test_late_disconnect_race_gives_one_disabled_and_one_enabled(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER)
+    old, new = FakeWriter(), FakeWriter()
+    PROTOCOLS.mud_connected(old)
+    PROTOCOLS.telopt.on_enabled(old, 102, True)
+    PROTOCOLS.telopt.on_enabled(new, 102, True)
+    PROTOCOLS.mud_disconnected()
+    PROTOCOLS.mud_connected(new)
+    assert [e for e, _ in isolated.raised] == [ENABLED_102, DISABLED_102, ENABLED_102]
+
+
+def test_send_declines_are_logged_with_reason(
+    isolated: FakeApi, caplog: pytest.LogCaptureFixture
+) -> None:
+    _call(REGISTER, 102, OWNER)
+    secret = b"payload-bytes-xyz"
+    caplog.set_level("DEBUG", logger="bastproxy.libs.net.telopt")
+    manager = PROTOCOLS.telopt
+    assert not manager.send("x", secret)
+    assert not manager.send(103, secret)
+    assert not manager.send(102, "text")
+    assert not manager.send(102, secret)
+    writer = FakeWriter()
+    PROTOCOLS.mud_connected(writer)
+    writer.closing = True
+    assert not manager.send(102, secret)
+    writer.closing = False
+    writer.remote_option[bytes([102])] = False
+    assert not manager.send(102, secret)
+    assert not manager.send_client("x", secret)
+    assert not manager.send_client(103, secret)
+    assert not manager.send_client(102, "text")
+    assert not manager.send_client(102, secret)
+    text = caplog.text
+    for reason in (
+        "not an option number",
+        "not registered",
+        "not bytes",
+        "no MUD writer",
+        "closing",
+        "has not enabled it",
+        "no logged-in client",
+    ):
+        assert reason in text
+    assert "payload-bytes-xyz" not in text

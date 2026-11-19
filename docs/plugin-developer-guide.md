@@ -488,9 +488,11 @@ def _eventcb_data(self) -> None:
   for a built-in option (GMCP, MSDP, NAWS, TTYPE and the others the core handles), another
   plugin's option or a number outside 0 to 254.
 - Events: `ev_libs.net.mud_telopt_<n>` (`option`, `data` as raw `bytes`), `_enabled`, `_disabled`
-  and `ev_libs.net.client_telopt_<n>` (`option`, `data`, `client_id`, `view_only`).
+  and `ev_libs.net.client_telopt_<n>` (`option`, `data`, `client_id`, `view_only`). `_enabled` is
+  raised once per MUD connection, after the MUD writer is registered, so its handler can call
+  `telopt.send` and the frame reaches the MUD.
 - `telopt.send(option, payload)` sends to the MUD and `telopt.send.client(option, payload,
-  client_id=None)` to logged-in clients that agreed. Both return `False` when nothing was sent.
+  client_id=None)` to logged-in clients that agreed. Both return `False` when nothing was sent, and log the reason at debug level.
 - The MUD's subnegotiations are forwarded to clients that agreed. Turn that off with
   `telopt.forward.set(option, False)`. A client's subnegotiations are never sent to the MUD.
 - `telopt.unregister(option)`, `telopt.unregister.for.owner(owner_id)` and `telopt.get(option)`
