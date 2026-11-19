@@ -490,6 +490,8 @@ class ProxyPlugin(BasePlugin):
     def _command_restart(self) -> CommandResult:
         """Restart the proxy."""
         args = self.api("plugins.core.commands:command.current.args.get")()
+        if args["seconds"] < 1:
+            return CommandResult(False, ["The restart delay must be at least 1 second"])
         self.api(f"{self.plugin_id}:proxy.restart")(args["seconds"])
         # the proxy.restart API already tells the clients, so no message here
         return CommandResult(True)
@@ -582,8 +584,18 @@ class ProxyPlugin(BasePlugin):
 
     @AddAPI("proxy.restart", description="restart the proxy")
     def _api_proxy_restart(self, restart_in: int | None = None) -> None:
-        """Restart the proxy after 10 seconds."""
-        restart_in = restart_in or 10
+        """Restart the proxy after a delay.
+
+        Arguments:
+            restart_in: seconds to wait, defaults to 10 when None.
+
+        Raises:
+            ValueError: if restart_in is less than 1, the timers plugin refuses it.
+        """
+        if restart_in is None:
+            restart_in = 10
+        if restart_in < 1:
+            raise ValueError(f"The restart delay must be at least 1 second, got {restart_in}")
         listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
 
         SendDataDirectlyToClient(
